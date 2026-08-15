@@ -52,12 +52,15 @@ No RPG database plugin is used. Dialogue source is not part of this phase.
 
 It then:
 
-1. Canonicalizes the payload (sorted object keys).
-2. Hashes SHA-256 of the compact canonical JSON (Node `crypto` in the **tool only**).
-3. Writes `server/src/generated/content.ts` (`contentHash` + `content`).
-4. Writes `client/content/bundle.json` with the same `contentHash`.
+1. Canonicalizes the gameplay payload (sorted object keys).
+2. Hashes SHA-256 of the compact canonical JSON (Node `crypto` in the **tool only**). The digest does **not** include `schemaVersion`.
+3. Wraps the payload with envelope fields `schemaVersion` (currently `1`) and `contentHash`.
+4. Writes `server/src/generated/content.ts` (`schemaVersion`, `contentHash`, `content`).
+5. Writes `client/content/bundle.json` with the same `schemaVersion` and `contentHash`.
 
 Unchanged source produces byte-identical outputs. Generated files contain no machine-specific absolute paths.
+
+The Godot `ContentRegistry` loads `res://content/bundle.json` at boot and rejects any bundle that is missing, malformed, or not `schemaVersion` 1. A fatal content error must not continue into login, character, or world.
 
 ## Reproduction
 

@@ -120,11 +120,13 @@ test("generation is deterministic", () => {
 
 test("client and server outputs share the same content hash", () => {
   const bundle = buildBundle(validateDocuments(SCHEMA_DIR, loadValid()));
-  const client = JSON.parse(emitClientJson(bundle)) as { contentHash: string };
+  const client = JSON.parse(emitClientJson(bundle)) as { contentHash: string; schemaVersion: number };
   const match = emitServerModule(bundle).match(/export const contentHash = "([a-f0-9]{64})";/);
   assert.ok(match);
   assert.equal(client.contentHash, match[1]);
   assert.equal(client.contentHash, bundle.contentHash);
+  assert.equal(client.schemaVersion, 1);
+  assert.equal(bundle.schemaVersion, 1);
 });
 
 test("generated files contain no machine-specific absolute paths", () => {

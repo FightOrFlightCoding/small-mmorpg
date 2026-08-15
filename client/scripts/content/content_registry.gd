@@ -1,0 +1,55 @@
+extends Node
+
+## Loads the generated client content bundle. Lookup is by stable ID only.
+
+signal content_loaded(content_hash: String)
+
+const DEFAULT_BUNDLE_PATH: String = "res://content/bundle.json"
+
+var catalog: ContentCatalog = ContentCatalog.new()
+var loaded_path: String = ""
+
+
+func load_bundle(path: String = DEFAULT_BUNDLE_PATH) -> bool:
+	AppState.notify_loading_started("content")
+	catalog = ContentCatalog.new()
+	loaded_path = path
+
+	if not FileAccess.file_exists(path):
+		catalog.parse_text("")
+		catalog.error_code = "content_missing"
+		catalog.error_message = "The content bundle was not found."
+		AppState.notify_loading_completed("content")
+		return false
+
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		catalog.parse_text("")
+		catalog.error_code = "content_missing"
+		catalog.error_message = "The content bundle could not be opened."
+		AppState.notify_loading_completed("content")
+		return false
+
+	var text := file.get_as_text()
+	var ok := catalog.parse_text(text)
+	AppState.notify_loading_completed("content")
+	if ok:
+		content_loaded.emit(catalog.content_hash)
+		AppState.notify_content_loaded(catalog.content_hash)
+	return ok
+
+
+func get_content_hash() -> String:
+	return catalog.content_hash
+
+
+func get_schema_version() -> int:
+	return catalog.schema_version
+
+
+func has_id(id: String) -> bool:
+	return catalog.has_id(id)
+
+
+func get_by_id(id: String) -> Dictionary:
+	return catalog.get_by_id(id)

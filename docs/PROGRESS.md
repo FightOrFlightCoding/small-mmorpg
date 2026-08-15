@@ -1,8 +1,8 @@
 # Progress
 
-Last accepted phase: **Shared content database and build pipeline**.
+Last accepted phase: **Godot application shell**.
 
-Current phase: none requested. Do not add player authentication, matches, or gameplay until asked.
+Current phase: none requested. Do not add player authentication, Nakama sockets, matches, or gameplay until asked.
 
 ## Phase 0 acceptance (2026-08-15)
 
@@ -42,3 +42,9 @@ Set-Location server
 npm test
 npm run build
 ```
+
+## Godot application shell acceptance (2026-08-15)
+
+Godot 4.7.1 imported `client/` and ran `res://scenes/boot/boot.tscn` headless. Boot loaded `res://content/bundle.json`, validated `schemaVersion` 1, and reached the login scene (`SHELL_LOGIN`, exit 0). All required scenes instantiated without parser errors: boot, login, character, world, error dialog, loading overlay. Autoloads `AppState`, `ContentRegistry`, `NetworkService`, `GameService`, and `SceneRouter` are registered. `NetworkService` does not create a Nakama client or open a socket. Missing, malformed, and incompatible bundles are fatal and stay on boot. GdUnit4 ran `res://tests` with 16/16 passed (content lookup, missing ID, content hash, scene routing, error-state transitions, scene instantiate, plus the prior compatibility suite). No canonical game state is written to `user://`.
+
+Reproduction: `powershell -File scripts/run-client-shell.ps1`

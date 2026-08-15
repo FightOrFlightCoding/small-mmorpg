@@ -6,7 +6,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [SECURITY_MODEL.md](SECURITY_MO
 
 ## Godot client responsibilities
 
-The Godot 4.7.1 client (`client/`) is a presentation and input device.
+The Godot 4.7.1 client (`client/`) is a presentation and input device. Its main scene is `res://scenes/boot/boot.tscn`. Boot loads the generated content bundle, then the shell routes to login. It does not persist canonical game state under `user://`.
 
 It may:
 
@@ -22,6 +22,7 @@ It must not:
 - Decide hits, damage, deaths, loot tables, quest completion, or currency changes.
 - Send authoritative position, speed, health, damage, item grants, quest flags, or wallet deltas.
 - Write Nakama storage records for inventory, equipment, quests, or currency.
+- Persist canonical inventory, equipment, quest, currency, health, or position records under `user://`.
 - Reference content by filesystem paths in network messages or persistent records.
 
 ## Nakama server responsibilities
@@ -92,14 +93,20 @@ The client is untrusted. A well-formed intention can still be rejected (invalid 
 
 Third-party libraries are implementation details. Game code talks to project-owned services.
 
-| Adapter (to be created in later phases) | Wraps | Owns |
+| Adapter | Wraps | Owns |
 | --- | --- | --- |
-| Nakama client gateway | Nakama Godot SDK 3.4.0 | Sessions, RPCs, sockets, match send |
-| Inventory presenter | GLoot 3.0.2 | Display of server inventory/equipment |
-| Dialogue presenter | Dialogue Manager 3.10.5 | Display of server-offered lines/choices |
+| `AppState` | none | Non-authoritative client/session flags and shell signals. Never canonical game data. |
+| `ContentRegistry` | generated `client/content/bundle.json` | Schema version check, content hash, lookup by stable ID |
+| `NetworkService` | Nakama Godot SDK 3.4.0 (not called yet) | Future sessions, RPCs, sockets. This phase exposes `authenticate_device` and does not connect. |
+| `GameService` | the autoloads above | Boot orchestration and future auth/match entry. Not a gameplay authority. |
+| `SceneRouter` | Godot scene tree | Transitions among boot, login, character, and world |
+| Inventory presenter (later) | GLoot 3.0.2 | Display of server inventory/equipment |
+| Dialogue presenter (later) | Dialogue Manager 3.10.5 | Display of server-offered lines/choices |
 | Test runner scripts | GdUnit4 6.2.0 | Client unit/scene tests |
 
 Do not call addon APIs from feature scenes except through these adapters. Do not edit files under `client/addons/`. See [THIRD_PARTY.md](THIRD_PARTY.md).
+
+Shell signals live on `AppState`: `loading_started`, `loading_completed`, `recoverable_error`, `fatal_compatibility_error`, `content_loaded`, `scene_changed`. After a fatal content error the client must stay on boot and must not enter login, character, or world.
 
 ## Shared content generation
 

@@ -70,3 +70,21 @@ Generated artifacts are `server/src/generated/content.ts` and `client/content/bu
 Slice IDs: `zone.starter`, `npc.elder`, `enemy.green_slime`, `item.training_sword`, `item.slime_gel`, `item.iron_sword`, `quest.slime_problem`, `player.base`. Quest gold is content data only; wallet apply is a later phase. Gameplay simulation is not implemented in this phase.
 
 Ajv 8.17.1 is pinned for schema validation in the tool.
+
+## 2026-08-15 — Content envelope schemaVersion
+
+Generated client and server catalogs include `schemaVersion: 1` beside `contentHash`. The SHA-256 digest is still computed from the gameplay payload only (player, items, npcs, enemies, quests, zones). Changing the envelope version does not rewrite the hash. The Godot client refuses to leave boot if the bundle is absent, malformed, missing `schemaVersion`, or not version 1.
+
+## 2026-08-15 — Godot application shell
+
+The client main scene is `res://scenes/boot/boot.tscn`. Boot loads the generated content bundle, then `SceneRouter` transitions to login. Character and world scenes exist as empty shells; they are not entered in this phase.
+
+Project-owned autoloads, in order: `AppState`, `ContentRegistry`, `NetworkService`, `GameService`, `SceneRouter`. Then the existing Nakama and Dialogue Manager autoloads. Game code must not call Nakama or Dialogue Manager APIs except through project-owned services.
+
+`NetworkService.authenticate_device` is an interface only. It does not construct `Nakama.create_client`, open a socket, or send HTTP. Sign-in on the login scene reports a recoverable `authentication_not_configured` error.
+
+`AppState` holds only non-authoritative client/session flags (loading, content ready, last error, current scene id). `GameService` orchestrates boot and the future auth call; it is not a gameplay authority. The client does not write canonical inventory, equipment, quest, currency, or position records to `user://`.
+
+Fatal content errors keep the tree on boot and hide the error-dialog dismiss button. `SceneRouter.apply_scene_changes` is true in the running app; GdUnit tests set it false so the runner tree is not replaced.
+
+Headless smoke uses user argument `--quit-after-login`: login prints `SHELL_LOGIN` and exits 0; a fatal boot prints `SHELL_FATAL` and exits 1.

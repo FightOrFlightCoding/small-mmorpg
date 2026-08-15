@@ -2,7 +2,7 @@
 
 Server-authoritative 2D MMORPG vertical slice.
 
-The Godot 4.7.1 client is a **package compatibility spike**. Nakama exposes a health RPC and an embedded content catalog. There is still no player authentication, match, or gameplay.
+The Godot 4.7.1 client is an **application shell**: it boots, loads the generated content bundle, and stops at login. Nakama exposes a health RPC and an embedded content catalog. There is still no player authentication, match, or gameplay.
 
 ## Read first
 
@@ -15,7 +15,7 @@ The Godot 4.7.1 client is a **package compatibility spike**. Nakama exposes a he
 ## Layout
 
 ```
-client/     Godot 4.7.1 project (compatibility spike; import this folder)
+client/     Godot 4.7.1 application shell (import this folder)
 server/     Nakama TypeScript runtime (health RPC + generated content)
 content/    JSON Schema + source content
 infra/      Docker Compose + Nakama config
@@ -44,7 +44,15 @@ Prove they load under Godot 4.7.1:
 powershell -File scripts/run-client-compatibility.ps1
 ```
 
-The main scene is `scenes/compatibility_check.tscn`. It starts, checks the four packages, prints `COMPATIBILITY_OK`, and quits. Do not add game scenes until a later phase.
+The compatibility scene is still `scenes/compatibility_check.tscn`. The **main scene** is `scenes/boot/boot.tscn`. It loads `res://content/bundle.json`, validates schema version 1, and transitions to login. Missing or incompatible content stays on boot with a visible error.
+
+Prove the shell:
+
+```powershell
+powershell -File scripts/run-client-shell.ps1
+```
+
+That imports the project, smoke-tests boot-to-login (`SHELL_LOGIN`), and runs GdUnit4 under `res://tests`. Sign-in is present but does not connect to Nakama.
 
 ## Local Nakama and PostgreSQL
 

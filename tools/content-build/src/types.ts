@@ -107,5 +107,6 @@ export interface ContentPayload {
 }
 
 export interface ContentBundle extends ContentPayload {
+  schemaVersion: number;
   contentHash: string;
 }

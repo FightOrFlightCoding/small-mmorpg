@@ -15,7 +15,7 @@ Upgrade policy for every row: **locked**. A later phase may change a pin only by
 | Installation | Local editor already on this machine: `C:\Users\Eszter\Desktop\godot\Godot_v4.7.1-stable_win64.exe` |
 | Executes on | Client editor, exported client, GdUnit4 host |
 | Upgrade policy | Locked |
-| Compatibility result | **Pass.** Headless binary `Godot_v4.7.1-stable_win64_console.exe` reports `4.7.1.stable.official.a13da4feb`. Project import, compatibility scene, and GdUnit4 tests succeeded on 2026-08-15. |
+| Compatibility result | **Pass.** Headless binary `Godot_v4.7.1-stable_win64_console.exe` reports `4.7.1.stable.official.a13da4feb`. Project import, compatibility scene, application shell (boot → login), and GdUnit4 tests succeeded on 2026-08-15. |
 
 ## Nakama
 

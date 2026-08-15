@@ -70,6 +70,10 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Defense:** Version field checked first. Mismatch is rejected; no state apply.
 
+## Client local storage
+
+The Godot client must not write canonical inventory, equipment, quest, currency, health, or position records to `user://` or other local files. `AppState` is in-memory presentation/session flags only. Persistence is Nakama storage and wallet, written by the server.
+
 ## Logging
 
 Structured logs may include opcode, rejection reason, user ID, match ID, and `requestId`. They must not include session tokens, passwords, device identifiers beyond Nakama’s own account ID, or raw full untrusted payloads when oversized.

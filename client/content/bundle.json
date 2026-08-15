@@ -103,6 +103,7 @@
       "turnInNpcId": "npc.elder"
     }
   },
+  "schemaVersion": 1,
   "zones": {
     "zone.starter": {
       "collisions": [
