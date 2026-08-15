@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Network protocol and authoritative zone skeleton**.
+Last accepted phase: **Content-driven starter-zone rendering**.
 
 Current phase: none requested. Do not add movement or combat until asked.
 
@@ -84,3 +84,13 @@ powershell -File ..\scripts\run-client-shell.ps1
 ```
 
 Local play: start the stack with `scripts/backend-up.ps1`, then launch two Godot clients with `-- --dev-user=alice` and `-- --dev-user=bob`. Both should join the same starter-zone match and see each other in the presence list.
+
+## Content-driven starter-zone rendering acceptance (2026-08-15)
+
+Kenney RPG Base (CC0) was installed from https://kenney.nl/assets/rpg-base into `client/assets/third_party/kenney_rpg_base/` (zip SHA-256 `49759ab087fdc28d8357010e0f2a17d1c9db61c8fe9b320da965acdfbc298ef5`). License is `license.txt`. Client visual IDs in `client/content/visual_map.json` map to those textures; gameplay scripts do not hard-code Kenney paths. The pack has no adventurer sprite, so `visual.player` uses a labeled primitive fallback.
+
+The world scene renders zone bounds, a tiled floor, collision AABBs, the player spawn, Elder, green slime, local and remote players, and a camera that follows the local avatar. `EntityRegistry` creates/updates/removes by server ID, distinguishes the local player, rejects unknown kinds, and does not duplicate on repeated `FULL_STATE`. Missing visual IDs show a magenta `MISSING` marker instead of crashing.
+
+Godot 4.7.1 imported `client/`, printed `SHELL_LOGIN`, and GdUnit4 ran `res://tests` with 48/48 passed, including entity-registry and world-render suites. There is still no movement or combat.
+
+Reproduction: `powershell -File scripts/run-client-shell.ps1`

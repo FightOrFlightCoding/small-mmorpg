@@ -22,7 +22,7 @@ IDs match `^[a-z]+\.[a-z0-9_]+$`. The source filename stem must equal the docume
 
 - Network, storage, and quest logic use IDs only.
 - Visual assets are referenced by IDs such as `visual.zone_starter`, never by `res://` paths or machine-absolute paths.
-- Godot `res://` paths, when a later phase adds TileMap scenes, exist only in a client-side catalog keyed by those visual IDs.
+- Godot `res://` paths exist only in the client-side map `client/content/visual_map.json`, keyed by those visual IDs. That file is not hashed into `contentHash`.
 
 ## Kinds
 

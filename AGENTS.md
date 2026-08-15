@@ -90,7 +90,7 @@ Record necessary assumptions in `docs/DECISIONS.md`.
 
 | Path | Role |
 | --- | --- |
-| `client/` | Godot 4.7.1 application (boot → login → character → starter zone after `FULL_STATE`). Device auth; joins `zone.starter`. |
+| `client/` | Godot 4.7.1 application (boot → login → character → content-driven starter zone after `FULL_STATE`). Device auth; joins `zone.starter`. Visual IDs in `client/content/visual_map.json`. |
 | `server/` | TypeScript Nakama runtime (health RPC, `character_bootstrap`, `find_or_create_starter_zone`, starter-zone match; generated content catalog). |
 | `content/schemas/` | JSON Schemas for authored content. |
 | `content/source/` | ID-addressed source content documents. |

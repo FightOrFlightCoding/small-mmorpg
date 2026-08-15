@@ -5,7 +5,7 @@ config_version=5
 [application]
 
 config/name="small-mmorpg"
-config/description="Client. Device auth, one character, starter-zone join after FULL_STATE. No movement."
+config/description="Client. Device auth, one character, content-driven starter zone. No movement."
 run/main_scene="res://scenes/boot/boot.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"

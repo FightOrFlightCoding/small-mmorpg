@@ -15,6 +15,12 @@ func test_all_shell_scenes_instantiate() -> void:
 		"res://scenes/login/login.tscn",
 		"res://scenes/character/character.tscn",
 		"res://scenes/world/world.tscn",
+		"res://scenes/world/player_avatar.tscn",
+		"res://scenes/world/npc_avatar.tscn",
+		"res://scenes/world/enemy_avatar.tscn",
+		"res://scenes/world/loot_avatar.tscn",
+		"res://scenes/world/world_hud.tscn",
+		"res://scenes/world/entity_registry.tscn",
 		"res://scenes/shared/error_dialog.tscn",
 		"res://scenes/shared/loading_overlay.tscn",
 	])

@@ -7,12 +7,14 @@ signal content_loaded(content_hash: String)
 const DEFAULT_BUNDLE_PATH: String = "res://content/bundle.json"
 
 var catalog: ContentCatalog = ContentCatalog.new()
+var visuals: VisualCatalog = VisualCatalog.new()
 var loaded_path: String = ""
 
 
 func load_bundle(path: String = DEFAULT_BUNDLE_PATH) -> bool:
 	AppState.notify_loading_started("content")
 	catalog = ContentCatalog.new()
+	visuals = VisualCatalog.new()
 	loaded_path = path
 
 	if not FileAccess.file_exists(path):
@@ -32,6 +34,7 @@ func load_bundle(path: String = DEFAULT_BUNDLE_PATH) -> bool:
 
 	var text := file.get_as_text()
 	var ok := catalog.parse_text(text)
+	visuals.load_map()
 	AppState.notify_loading_completed("content")
 	if ok:
 		content_loaded.emit(catalog.content_hash)
@@ -53,3 +56,14 @@ func has_id(id: String) -> bool:
 
 func get_by_id(id: String) -> Dictionary:
 	return catalog.get_by_id(id)
+
+
+func resolve_visual(visual_id: String) -> Dictionary:
+	return visuals.resolve(visual_id)
+
+
+func visual_id_for_content(content_id: String) -> String:
+	var record: Dictionary = get_by_id(content_id)
+	if record.is_empty():
+		return ""
+	return String(record.get("visualId", ""))

@@ -10,7 +10,7 @@ The Godot 4.7.1 client (`client/`) is a presentation and input device. Its main 
 
 It may:
 
-- Render the starter-zone TileMap and entities from server snapshots.
+- Render the starter-zone floor, bounds, collision AABBs, spawn marker, and entities from server snapshots plus content IDs.
 - Capture local input and send **intentions** (move, attack, interact, loot, equip, dialogue choice).
 - Predict cosmetic motion only when a later phase explicitly allows it; prediction never grants rewards or changes canonical stats.
 - Display inventory, equipment, dialogue, quest, and currency **views** from server-owned state.
@@ -97,10 +97,11 @@ Third-party libraries are implementation details. Game code talks to project-own
 | Adapter | Wraps | Owns |
 | --- | --- | --- |
 | `AppState` | none | Non-authoritative client/session flags and shell signals. Never canonical game data. |
-| `ContentRegistry` | generated `client/content/bundle.json` | Schema version check, content hash, lookup by stable ID |
+| `ContentRegistry` | generated `client/content/bundle.json` plus `client/content/visual_map.json` | Schema version check, content hash, lookup by stable ID, visual ID → local texture/fallback |
 | `NetworkService` | Nakama Godot SDK 3.4.0 | Device auth, in-memory session cache, refresh, reauth, realtime socket, logout, `character_bootstrap`, `find_or_create_starter_zone`, match join/leave, `RESYNC_REQUEST`. |
 | `GameService` | the autoloads above | Boot, login, character bootstrap, starter-zone join. Not a gameplay authority. |
 | `SceneRouter` | Godot scene tree | Transitions among boot, login, character, and world |
+| `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE` and zone content. Not a gameplay authority. |
 | Inventory presenter (later) | GLoot 3.0.2 | Display of server inventory/equipment |
 | Dialogue presenter (later) | Dialogue Manager 3.10.5 | Display of server-offered lines/choices |
 | Test runner scripts | GdUnit4 6.2.0 | Client unit/scene tests |

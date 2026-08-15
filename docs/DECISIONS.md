@@ -110,3 +110,11 @@ The starter-zone match module is `starter_zone` with label `zone.starter`, tick 
 `find_or_create_starter_zone` is an authenticated RPC. It prefers a live system-owned storage singleton (`collection` `match`, key `starter_zone`, `permissionRead: 0`, `permissionWrite: 0`), then `matchList` by label, then `matchCreate`. Concurrent creates reconverge on the stored or lexicographically canonical running match id. Extra raced matches remain empty and time out.
 
 The client enters `world` only after parsing a valid `FULL_STATE`. Protocol or content mismatch is a fatal compatibility error. `RESYNC_REQUEST` asks for a fresh `FULL_STATE`. `SNAPSHOT` updates the remote player list on join/leave.
+
+## 2026-08-15 — Content-driven starter-zone rendering
+
+Kenney RPG Base 1.0 was vendored from the official zip on kenney.nl (CC0). Gameplay never stores `res://assets/third_party/...` paths; `ContentRegistry.resolve_visual` reads `client/content/visual_map.json` keyed by `visual.*` IDs from the hashed catalog. That map is client-only and is not part of the content hash.
+
+The pack is tiles and props, not a character sheet. `visual.player` therefore uses a colored primitive. Elder uses a doorway tile (`rpgTile165`), slime `rpgTile160`, floor `rpgTile019`, collisions `rpgTile080`. If a mapped texture is missing, avatars keep a polygon body and show `MISSING`.
+
+World root is `Node2D` with `ZoneView`, `EntityRegistry`, `Camera2D` following the local avatar, and `WorldHud` as a `CanvasLayer`. No movement input is sent.

@@ -240,4 +240,18 @@ powershell -File scripts/content-build.ps1
 
 Expected: content-build tests 9/9, generator prints `content_hash=` plus a 64-character hex digest, `server/src/generated/content.ts` and `client/content/bundle.json` share that hash.
 
+## Kenney RPG Base
+
+| Field | Value |
+| --- | --- |
+| Purpose | Starter-zone floor, obstacle, NPC, slime, and loot tiles |
+| Version | 1.0 |
+| Official source | https://kenney.nl/assets/rpg-base |
+| Source archive | `https://kenney.nl/media/pages/assets/rpg-base/316dd80b01-1677669634/kenney_rpg-base.zip` |
+| Archive SHA-256 | `49759ab087fdc28d8357010e0f2a17d1c9db61c8fe9b320da965acdfbc298ef5` |
+| License | CC0 1.0 (`client/assets/third_party/kenney_rpg_base/license.txt`) |
+| Installation | Unpack into `client/assets/third_party/kenney_rpg_base/`. See that folder's `README.md`. |
+| Executes on | Client presentation only |
+| Upgrade policy | Locked |
+
 Installed-tree SHA-256 values are SHA-256 of a sorted `hash length relative-path` listing of every file in the addon folder as extracted from the pinned archive, before Godot generated extra `.uid`/`.import` sidecars.

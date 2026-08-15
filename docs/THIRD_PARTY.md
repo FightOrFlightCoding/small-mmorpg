@@ -26,7 +26,7 @@ Only the addon directories from those archives are installed. Repo examples, doc
 
 1. Do not modify files under `client/addons/`.
 2. Feature code uses project-owned adapters only.
-3. Keep license files that ship with the addon. Nakama's Apache-2.0 `LICENSE` lives at the `nakama-3.4.0.zip` root. GLoot v3.0.2 does not ship a LICENSE file inside `addons/gloot`.
+3. Keep license files that ship with the addon. Nakama's Apache-2.0 `LICENSE` lives at the `nakama-3.4.0.zip` root. GLoot v3.0.2 does not ship a LICENSE file inside `addons/gloot`. Kenney RPG Base ships `client/assets/third_party/kenney_rpg_base/license.txt` (CC0).
 4. Re-vendor with `scripts/` when a later phase allows a pin change. Do not upgrade casually.
 5. Godot 4.7.1 generates `.uid` sidecars for Nakama 3.4.0 and GdUnit4 scripts that omit them. Those generated files are gitignored and are not vendor source edits. Do not commit engine rewrites of GLoot `images/*.svg.import`.
 
@@ -43,3 +43,9 @@ Only the addon directories from those archives are installed. Repo examples, doc
 ## Compatibility result (2026-08-15)
 
 Godot `4.7.1.stable.official.a13da4feb` imported `client/` without parser errors. The headless scene printed `COMPATIBILITY_OK` and exited 0. GdUnit4 executed `res://tests/compatibility/compatibility_test.gd` with 4/4 passed.
+
+## Art
+
+| Folder | Package | Version | Official source | Archive SHA-256 | License | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| `client/assets/third_party/kenney_rpg_base/` | Kenney RPG Base | 1.0 | https://kenney.nl/assets/rpg-base | `49759ab087fdc28d8357010e0f2a17d1c9db61c8fe9b320da965acdfbc298ef5` | CC0 1.0 | Unpacked official zip. Gameplay uses visual IDs only. Reinstall steps are in that folder's `README.md`. |

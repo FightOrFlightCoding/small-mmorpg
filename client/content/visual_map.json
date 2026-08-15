@@ -1,0 +1,29 @@
+{
+  "visual.zone_starter": {
+    "texture": "res://assets/third_party/kenney_rpg_base/PNG/rpgTile019.png",
+    "fallback_color": "#7CBF4A",
+    "obstacle_texture": "res://assets/third_party/kenney_rpg_base/PNG/rpgTile080.png",
+    "obstacle_fallback_color": "#5A4638"
+  },
+  "visual.player": {
+    "fallback_color": "#3D7AD6"
+  },
+  "visual.npc_elder": {
+    "texture": "res://assets/third_party/kenney_rpg_base/PNG/rpgTile165.png",
+    "fallback_color": "#D4A017"
+  },
+  "visual.enemy_green_slime": {
+    "texture": "res://assets/third_party/kenney_rpg_base/PNG/rpgTile160.png",
+    "fallback_color": "#4CAF50"
+  },
+  "visual.item_slime_gel": {
+    "texture": "res://assets/third_party/kenney_rpg_base/PNG/rpgTile163.png",
+    "fallback_color": "#C9A227"
+  },
+  "visual.item_training_sword": {
+    "fallback_color": "#8D99AE"
+  },
+  "visual.item_iron_sword": {
+    "fallback_color": "#ADB5BD"
+  }
+}
