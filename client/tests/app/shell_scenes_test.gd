@@ -6,6 +6,7 @@ extends GdUnitTestSuite
 func before_test() -> void:
 	SceneRouter.reset_for_tests()
 	AppState.reset_for_tests()
+	NetworkService.reset_for_tests()
 
 
 func test_all_shell_scenes_instantiate() -> void:

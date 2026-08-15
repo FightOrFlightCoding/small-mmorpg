@@ -2,7 +2,7 @@
 
 Server-authoritative 2D MMORPG vertical slice.
 
-The Godot 4.7.1 client is an **application shell**: it boots, loads the generated content bundle, and stops at login. Nakama exposes a health RPC and an embedded content catalog. There is still no player authentication, match, or gameplay.
+The Godot 4.7.1 client is an **application shell** with local device authentication and one character per account. Continue enters a temporary world screen. There is still no starter-zone match or gameplay.
 
 ## Read first
 
@@ -52,7 +52,18 @@ Prove the shell:
 powershell -File scripts/run-client-shell.ps1
 ```
 
-That imports the project, smoke-tests boot-to-login (`SHELL_LOGIN`), and runs GdUnit4 under `res://tests`. Sign-in is present but does not connect to Nakama.
+That imports the project, smoke-tests boot-to-login (`SHELL_LOGIN`), and runs GdUnit4 under `res://tests`.
+
+Local identities:
+
+```powershell
+# After scripts/backend-up.ps1
+# In Godot: Project → Run, or:
+# Godot --path client -- --dev-user=alice
+# Godot --path client -- --dev-user=bob
+```
+
+`--dev-user=alice` authenticates as device id `vibecode-dev-alice`. Omit `--dev-user` to use a machine-local device id (`OS.get_unique_id()`). That fallback is not a production identity: launches on the same machine share one account. Sign-in failures are shown in the error dialog. Character storage is server-only (`permissionWrite: 0`). Continue does not join a match yet.
 
 ## Local Nakama and PostgreSQL
 

@@ -1,6 +1,16 @@
 extends Node
 
-## Orchestrates shell flow. Not a gameplay authority and not a Nakama session owner.
+## Orchestrates shell flow. Not a gameplay authority.
+
+var last_identity: Dictionary = {}
+
+
+func _ready() -> void:
+	if not NetworkService.authentication_finished.is_connected(_on_authentication_finished):
+		NetworkService.authentication_finished.connect(_on_authentication_finished)
+	if not AppState.logged_out.is_connected(_on_logged_out):
+		AppState.logged_out.connect(_on_logged_out)
+
 
 func start_boot(bundle_path: String = ContentRegistry.DEFAULT_BUNDLE_PATH) -> bool:
 	AppState.notify_loading_started("boot")
@@ -21,11 +31,52 @@ func start_boot(bundle_path: String = ContentRegistry.DEFAULT_BUNDLE_PATH) -> bo
 	return routed
 
 
-func request_authenticate(device_id: String = "local-device") -> void:
+func request_authenticate(device_id: String = "") -> void:
 	if AppState.has_fatal_error:
 		return
-	NetworkService.authenticate_device(device_id)
-	AppState.report_recoverable(
-		"authentication_not_configured",
-		"Sign-in is not available in this build. The client does not connect to Nakama yet."
-	)
+	last_identity = DevIdentity.resolve(OS.get_cmdline_user_args(), OS.get_unique_id())
+	if not String(last_identity.get("error", "")).is_empty():
+		AppState.report_recoverable(String(last_identity["error"]), String(last_identity["warning"]))
+		return
+	var resolved_id := device_id
+	if resolved_id.is_empty():
+		resolved_id = String(last_identity.get("device_id", ""))
+	var username := String(last_identity.get("dev_user", ""))
+	await NetworkService.authenticate_device(resolved_id, username)
+
+
+func request_character_bootstrap(proposed_name: String = "") -> void:
+	if AppState.has_fatal_error:
+		return
+	if not AppState.is_authenticated:
+		AppState.report_recoverable("unauthenticated", "Sign-in is required before creating a character.")
+		return
+	var name := proposed_name
+	if name.is_empty():
+		name = DevIdentity.proposed_character_name(last_identity)
+		if name.is_empty() and not AppState.username.is_empty():
+			name = AppState.username
+	await NetworkService.bootstrap_character(name)
+
+
+func enter_temporary_world() -> bool:
+	if not AppState.has_character:
+		AppState.report_recoverable("character_missing", "A character is required before entering the world.")
+		return false
+	return SceneRouter.transition_to(SceneRouter.SCENE_WORLD)
+
+
+func request_logout() -> void:
+	await NetworkService.logout()
+
+
+func _on_authentication_finished(success: bool, _message: String) -> void:
+	if success:
+		SceneRouter.transition_to(SceneRouter.SCENE_CHARACTER)
+
+
+func _on_logged_out() -> void:
+	if AppState.has_fatal_error:
+		return
+	if AppState.content_ready:
+		SceneRouter.transition_to(SceneRouter.SCENE_LOGIN)

@@ -70,6 +70,12 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Defense:** Version field checked first. Mismatch is rejected; no state apply.
 
+### Character stat injection
+
+**Attack:** Client sends max health, attack, or position in `character_bootstrap`.
+
+**Defense:** The RPC is strict. Only optional `name` is accepted. Stat and position fields return `stat_injection`. Created records use `player.base` and `zone.starter` spawn. Storage writes use `permissionWrite: 0`.
+
 ## Client local storage
 
 The Godot client must not write canonical inventory, equipment, quest, currency, health, or position records to `user://` or other local files. `AppState` is in-memory presentation/session flags only. Persistence is Nakama storage and wallet, written by the server.

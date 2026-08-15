@@ -1,4 +1,5 @@
 import { handleHealthRpc } from "./rpcs/health";
+import { rpcCharacterBootstrap } from "./rpcs/character_bootstrap";
 import { content, contentHash } from "./generated/content";
 
 function rpcVibecodeHealth(
@@ -23,8 +24,9 @@ function InitModule(
   initializer: nkruntime.Initializer,
 ): void {
   initializer.registerRpc("vibecode_health", rpcVibecodeHealth);
+  initializer.registerRpc("character_bootstrap", rpcCharacterBootstrap);
   logger.info(
-    "vibecode runtime loaded rpc=vibecode_health protocol_version=1 content_hash=%s zone=%s",
+    "vibecode runtime loaded rpc=vibecode_health,character_bootstrap protocol_version=1 content_hash=%s zone=%s",
     contentHash,
     content.zones["zone.starter"].id,
   );

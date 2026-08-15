@@ -6,6 +6,7 @@ extends GdUnitTestSuite
 func before_test() -> void:
 	SceneRouter.reset_for_tests()
 	AppState.reset_for_tests()
+	NetworkService.reset_for_tests()
 
 
 func test_scene_paths_resolve() -> void:
@@ -29,3 +30,14 @@ func test_boot_routes_to_login_when_content_loads() -> void:
 func test_unknown_scene_is_rejected() -> void:
 	assert_bool(SceneRouter.transition_to("auction")).is_false()
 	assert_str(SceneRouter.current_scene_id).is_equal(SceneRouter.SCENE_BOOT)
+
+
+func test_character_and_world_require_auth_and_character() -> void:
+	assert_bool(GameService.start_boot()).is_true()
+	assert_bool(SceneRouter.transition_to(SceneRouter.SCENE_CHARACTER)).is_false()
+	assert_bool(SceneRouter.transition_to(SceneRouter.SCENE_WORLD)).is_false()
+	AppState.notify_authenticated("user-alice", "alice")
+	assert_bool(SceneRouter.transition_to(SceneRouter.SCENE_CHARACTER)).is_true()
+	assert_bool(SceneRouter.transition_to(SceneRouter.SCENE_WORLD)).is_false()
+	AppState.notify_character_loaded({"name": "Alice"}, false)
+	assert_bool(SceneRouter.transition_to(SceneRouter.SCENE_WORLD)).is_true()

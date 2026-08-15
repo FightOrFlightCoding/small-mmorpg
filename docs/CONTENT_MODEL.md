@@ -62,6 +62,20 @@ Unchanged source produces byte-identical outputs. Generated files contain no mac
 
 The Godot `ContentRegistry` loads `res://content/bundle.json` at boot and rejects any bundle that is missing, malformed, or not `schemaVersion` 1. A fatal content error must not continue into login, character, or world.
 
+## Persistent player storage
+
+Canonical character data lives in Nakama storage, not in Godot `user://`.
+
+| Field | Value |
+| --- | --- |
+| Collection | `player` |
+| Key | `character` |
+| Owner | Authenticated Nakama user id |
+| `permissionRead` | `1` (owner) |
+| `permissionWrite` | `0` (server only) |
+
+There is exactly one object per account. The storage key is `character`; the character id is a server-generated UUID stored in the value. The value stores `characterId`, `name`, `contentId`, `zoneId`, and `position`. It does not store client-supplied stats. RPC `character_bootstrap` is the only writer. Base stats in the RPC response always come from content `player.base`.
+
 ## Reproduction
 
 ```powershell

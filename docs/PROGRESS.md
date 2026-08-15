@@ -1,8 +1,8 @@
 # Progress
 
-Last accepted phase: **Godot application shell**.
+Last accepted phase: **Authentication and one-character bootstrap**.
 
-Current phase: none requested. Do not add player authentication, Nakama sockets, matches, or gameplay until asked.
+Current phase: none requested. Do not add the starter-zone match or gameplay until asked.
 
 ## Phase 0 acceptance (2026-08-15)
 
@@ -48,3 +48,20 @@ npm run build
 Godot 4.7.1 imported `client/` and ran `res://scenes/boot/boot.tscn` headless. Boot loaded `res://content/bundle.json`, validated `schemaVersion` 1, and reached the login scene (`SHELL_LOGIN`, exit 0). All required scenes instantiated without parser errors: boot, login, character, world, error dialog, loading overlay. Autoloads `AppState`, `ContentRegistry`, `NetworkService`, `GameService`, and `SceneRouter` are registered. `NetworkService` does not create a Nakama client or open a socket. Missing, malformed, and incompatible bundles are fatal and stay on boot. GdUnit4 ran `res://tests` with 16/16 passed (content lookup, missing ID, content hash, scene routing, error-state transitions, scene instantiate, plus the prior compatibility suite). No canonical game state is written to `user://`.
 
 Reproduction: `powershell -File scripts/run-client-shell.ps1`
+
+## Authentication and one-character bootstrap acceptance (2026-08-15)
+
+Server `npm run typecheck`, `npm test` (18/18), and `npm run build` succeeded. Domain tests cover unauthenticated `character_bootstrap`, valid creation, repeated creation, invalid names, stat injection, existing-character retrieval, distinct Alice/Bob records, and `permissionWrite: 0` storage writes. The RPC is registered as `character_bootstrap`. No match module was added.
+
+Godot 4.7.1 imported `client/`, printed `SHELL_LOGIN`, and GdUnit4 ran `res://tests` with 29/29 passed: authentication state transitions, session-expired reauth and visible failure, character-created and character-existing paths, visible network errors, logout, development device IDs, plus prior shell and compatibility suites. `NetworkService` creates a Nakama client, authenticates by device, caches the session in memory, refreshes, reauthenticates, opens a realtime socket, and logs out. Tokens are not logged and are not written to `user://`. Continue on the character scene enters the temporary world screen and does not join a match.
+
+Reproduction:
+
+```powershell
+Set-Location server
+npm test
+npm run build
+powershell -File ..\scripts\run-client-shell.ps1
+```
+
+Local play: start the stack with `scripts/backend-up.ps1`, then launch the Godot client with `-- --dev-user=alice` or `-- --dev-user=bob`.

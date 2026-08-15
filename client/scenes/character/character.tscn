@@ -30,10 +30,35 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Label" type="Label" parent="Center"]
+[node name="VBox" type="VBoxContainer" parent="Center"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Title" type="Label" parent="Center/VBox"]
 layout_mode = 2
 text = "Character"
 horizontal_alignment = 1
+
+[node name="Status" type="Label" parent="Center/VBox"]
+layout_mode = 2
+text = "Loading character..."
+horizontal_alignment = 1
+
+[node name="NameValue" type="Label" parent="Center/VBox"]
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="StatsValue" type="Label" parent="Center/VBox"]
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="ContinueButton" type="Button" parent="Center/VBox"]
+layout_mode = 2
+text = "Continue"
+
+[node name="LogoutButton" type="Button" parent="Center/VBox"]
+layout_mode = 2
+text = "Log out"
 
 [node name="ErrorDialog" parent="." instance=ExtResource("2_error")]
 [node name="LoadingOverlay" parent="." instance=ExtResource("3_loading")]

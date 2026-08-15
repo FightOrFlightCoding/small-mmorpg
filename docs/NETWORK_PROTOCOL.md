@@ -63,4 +63,8 @@ The server rejects:
 - oversized payloads (limit to be set in the networking phase; must be finite and enforced)
 - wrong protocol version
 
-Rejections are typed (`unknown_opcode`, `malformed_json`, `unknown_field`, `invalid_id`, `protocol_mismatch`, `payload_too_large`). They are logged without tokens or personal data. They are never silently ignored.
+Rejections are typed (`unknown_opcode`, `malformed_json`, `unknown_field`, `invalid_id`, `protocol_mismatch`, `payload_too_large`, `unauthenticated`, `invalid_name`, `stat_injection`). They are logged without tokens or personal data. They are never silently ignored.
+
+## RPC `character_bootstrap`
+
+Authenticated HTTP/RPC only. Payload is JSON, optional `{"name":"Alice"}`, or empty. Unknown fields and any client-supplied stats or position are rejected. Response includes `characterId`, `name`, `created`, `storageVersion`, `contentId`, `zoneId`, `baseStats` (from `player.base`), and `position` (saved or starter spawn). Match opcodes are not defined in this phase.

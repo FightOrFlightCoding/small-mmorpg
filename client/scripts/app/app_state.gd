@@ -8,6 +8,9 @@ signal recoverable_error(code: String, message: String)
 signal fatal_compatibility_error(code: String, message: String)
 signal content_loaded(content_hash: String)
 signal scene_changed(scene_id: String)
+signal user_authenticated(user_id: String)
+signal logged_out
+signal character_loaded(created: bool)
 
 var current_scene_id: String = "boot"
 var is_loading: bool = false
@@ -15,6 +18,12 @@ var content_ready: bool = false
 var has_fatal_error: bool = false
 var last_error_code: String = ""
 var last_error_message: String = ""
+var is_authenticated: bool = false
+var user_id: String = ""
+var username: String = ""
+var has_character: bool = false
+var character_created: bool = false
+var character_view: Dictionary = {}
 
 
 func notify_loading_started(reason: String) -> void:
@@ -55,6 +64,30 @@ func can_enter_gameplay_scenes() -> bool:
 	return content_ready and not has_fatal_error
 
 
+func notify_authenticated(p_user_id: String, p_username: String) -> void:
+	is_authenticated = true
+	user_id = p_user_id
+	username = p_username
+	user_authenticated.emit(p_user_id)
+
+
+func notify_logged_out() -> void:
+	is_authenticated = false
+	user_id = ""
+	username = ""
+	has_character = false
+	character_created = false
+	character_view = {}
+	logged_out.emit()
+
+
+func notify_character_loaded(view: Dictionary, created: bool) -> void:
+	has_character = true
+	character_created = created
+	character_view = view.duplicate(true)
+	character_loaded.emit(created)
+
+
 func reset_for_tests() -> void:
 	current_scene_id = "boot"
 	is_loading = false
@@ -62,3 +95,9 @@ func reset_for_tests() -> void:
 	has_fatal_error = false
 	last_error_code = ""
 	last_error_message = ""
+	is_authenticated = false
+	user_id = ""
+	username = ""
+	has_character = false
+	character_created = false
+	character_view = {}

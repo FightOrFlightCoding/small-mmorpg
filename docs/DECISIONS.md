@@ -88,3 +88,15 @@ Project-owned autoloads, in order: `AppState`, `ContentRegistry`, `NetworkServic
 Fatal content errors keep the tree on boot and hide the error-dialog dismiss button. `SceneRouter.apply_scene_changes` is true in the running app; GdUnit tests set it false so the runner tree is not replaced.
 
 Headless smoke uses user argument `--quit-after-login`: login prints `SHELL_LOGIN` and exits 0; a fatal boot prints `SHELL_FATAL` and exits 1.
+
+## 2026-08-15 — Authentication and one-character bootstrap
+
+Local development identities use `--dev-user=alice` / `--dev-user=bob`. Those become Nakama device IDs `vibecode-dev-alice` and `vibecode-dev-bob` (10–128 characters, `[a-zA-Z0-9._-]`). Different device IDs produce different Nakama accounts.
+
+When `--dev-user` is omitted, the client uses `vibecode-local-` plus a sanitized `OS.get_unique_id()`. Limitations: it is not a production identity; every launch on the same machine shares one account; another machine or a reinstall can create a different account; if the unique id is empty the client falls back to `vibecode-local-shared`, which is shared by all such clients. Invalid `--dev-user` values show a recoverable error and do not authenticate.
+
+`NetworkService` wraps the Nakama Godot SDK. It creates a client against `127.0.0.1:7350` with Nakama's local server key `defaultkey`, authenticates by device, caches the `NakamaSession` in memory, enables SDK auto-refresh, explicitly refreshes when the session is expired, reauthenticates with the same device id if refresh fails, connects a realtime socket, and logs out. The Nakama logger is set to ERROR so debug socket URLs that include tokens are not printed. Session tokens are not written to `user://`.
+
+RPC `character_bootstrap` requires `ctx.userId`. Collection `player`, key `character`, `permissionRead: 1`, `permissionWrite: 0`. One character per account. Name is optional, 3–16 characters matching `^[A-Za-z][A-Za-z0-9_]{2,15}$`. Client-supplied stats, position, and unknown fields are rejected. Existing records are returned unchanged (idempotent). Base stats always come from `player.base`; spawn comes from `zone.starter.playerSpawn`.
+
+Continue on the character scene opens the world shell only. The starter-zone match is not implemented in this phase.

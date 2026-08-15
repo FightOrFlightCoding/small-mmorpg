@@ -90,8 +90,8 @@ Record necessary assumptions in `docs/DECISIONS.md`.
 
 | Path | Role |
 | --- | --- |
-| `client/` | Godot 4.7.1 application shell (boot → login). No Nakama connection yet. |
-| `server/` | TypeScript Nakama runtime (health RPC; generated content catalog; no auth or matches yet). |
+| `client/` | Godot 4.7.1 application shell (boot → login → character → temporary world). Device auth; no match yet. |
+| `server/` | TypeScript Nakama runtime (health RPC, `character_bootstrap`; generated content catalog; no matches yet). |
 | `content/schemas/` | JSON Schemas for authored content. |
 | `content/source/` | ID-addressed source content documents. |
 | `infra/` | Docker Compose and Nakama configuration. |

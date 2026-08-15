@@ -97,8 +97,8 @@ Third-party libraries are implementation details. Game code talks to project-own
 | --- | --- | --- |
 | `AppState` | none | Non-authoritative client/session flags and shell signals. Never canonical game data. |
 | `ContentRegistry` | generated `client/content/bundle.json` | Schema version check, content hash, lookup by stable ID |
-| `NetworkService` | Nakama Godot SDK 3.4.0 (not called yet) | Future sessions, RPCs, sockets. This phase exposes `authenticate_device` and does not connect. |
-| `GameService` | the autoloads above | Boot orchestration and future auth/match entry. Not a gameplay authority. |
+| `NetworkService` | Nakama Godot SDK 3.4.0 | Device auth, in-memory session cache, refresh, reauth, realtime socket, logout, `character_bootstrap` RPC. Does not join a match yet. |
+| `GameService` | the autoloads above | Boot, login, character bootstrap, temporary world entry. Not a gameplay authority. |
 | `SceneRouter` | Godot scene tree | Transitions among boot, login, character, and world |
 | Inventory presenter (later) | GLoot 3.0.2 | Display of server inventory/equipment |
 | Dialogue presenter (later) | Dialogue Manager 3.10.5 | Display of server-offered lines/choices |
@@ -106,7 +106,7 @@ Third-party libraries are implementation details. Game code talks to project-own
 
 Do not call addon APIs from feature scenes except through these adapters. Do not edit files under `client/addons/`. See [THIRD_PARTY.md](THIRD_PARTY.md).
 
-Shell signals live on `AppState`: `loading_started`, `loading_completed`, `recoverable_error`, `fatal_compatibility_error`, `content_loaded`, `scene_changed`. After a fatal content error the client must stay on boot and must not enter login, character, or world.
+Shell signals live on `AppState`: `loading_started`, `loading_completed`, `recoverable_error`, `fatal_compatibility_error`, `content_loaded`, `scene_changed`, `user_authenticated`, `logged_out`, `character_loaded`. After a fatal content error the client must stay on boot and must not enter login, character, or world. Character and world require a successful sign-in; world also requires a bootstrapped character.
 
 ## Shared content generation
 

@@ -6,7 +6,7 @@ extends GdUnitTestSuite
 func before_test() -> void:
 	SceneRouter.reset_for_tests()
 	AppState.reset_for_tests()
-	NetworkService.last_auth_attempted = false
+	NetworkService.reset_for_tests()
 
 
 func test_missing_bundle_is_fatal() -> void:
@@ -39,9 +39,8 @@ func test_malformed_bundle_is_fatal() -> void:
 
 func test_recoverable_error_does_not_block_login() -> void:
 	assert_bool(GameService.start_boot()).is_true()
-	GameService.request_authenticate("test-device")
+	AppState.report_recoverable("network_unreachable", "Cannot reach Nakama.")
 	assert_bool(AppState.has_fatal_error).is_false()
-	assert_str(AppState.last_error_code).is_equal("authentication_not_configured")
-	assert_bool(NetworkService.last_auth_attempted).is_true()
-	assert_bool(NetworkService.is_authentication_configured()).is_false()
+	assert_str(AppState.last_error_code).is_equal("network_unreachable")
 	assert_str(SceneRouter.current_scene_id).is_equal(SceneRouter.SCENE_LOGIN)
+	assert_bool(NetworkService.is_authentication_configured()).is_true()
