@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/world.gd" id="1_world"]
 [ext_resource type="Script" path="res://scripts/world/zone_view.gd" id="2_zone"]
@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://scenes/shared/error_dialog.tscn" id="5_error"]
 [ext_resource type="PackedScene" path="res://scenes/shared/loading_overlay.tscn" id="6_loading"]
 [ext_resource type="PackedScene" path="res://scenes/world/net_debug_overlay.tscn" id="7_overlay"]
+[ext_resource type="PackedScene" path="res://scenes/world/chat_panel.tscn" id="8_chat"]
 
 [node name="World" type="Node2D"]
 script = ExtResource("1_world")
@@ -20,6 +21,8 @@ script = ExtResource("2_zone")
 position = Vector2(640, 384)
 
 [node name="WorldHud" parent="." instance=ExtResource("4_hud")]
+
+[node name="ChatPanel" parent="." instance=ExtResource("8_chat")]
 
 [node name="ErrorDialog" parent="." instance=ExtResource("5_error")]
 

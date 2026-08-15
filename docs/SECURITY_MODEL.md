@@ -62,7 +62,13 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Attack:** Huge JSON to stall the runtime.
 
-**Defense:** Nakama socket limits plus application max payload size. Oversize is rejected before domain apply.
+**Defense:** Nakama socket limits plus application max payload size. Oversize is rejected before domain apply. Zone chat messages longer than 200 characters are rejected by a realtime before hook.
+
+### Chat injection and markup
+
+**Attack:** Empty, malformed, or oversized chat; extra JSON fields; BBCode or other markup meant to restyle or execute in the client.
+
+**Defense:** `ChannelMessageSend` is validated in a Nakama realtime before hook with no module-level memory. Content must be JSON `{ "message": string }` only. Empty and >200 character bodies are rejected. The client renders chat in a `Label` and never enables BBCode on untrusted text. Direct-message and group channel joins are rejected; only room `zone.starter` is allowed.
 
 ### Protocol-version mismatch
 

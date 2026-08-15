@@ -1,0 +1,79 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+  CHANNEL_TYPE_ROOM,
+  MAX_CHAT_MESSAGE_CHARS,
+  STARTER_ZONE_CHAT_ROOM,
+  filterChannelJoin,
+  filterChannelMessageSend,
+  parseChatMessageContent,
+} from "../src/domain/chat";
+
+function sendEnvelope(content: string, channelId = "channel-1"): nkruntime.EnvelopeChannelMessageSend {
+  return {
+    channelMessageSend: {
+      channelId: channelId,
+      content: content,
+    },
+  };
+}
+
+function joinEnvelope(
+  target: string,
+  type: number,
+): nkruntime.EnvelopeChannelJoin {
+  return {
+    channelJoin: {
+      target: target,
+      type: type,
+      persistence: false,
+      hidden: false,
+    },
+  };
+}
+
+test("valid chat content is trimmed and accepted", () => {
+  assert.equal(parseChatMessageContent(JSON.stringify({ message: "  hello  " })), "hello");
+  const filtered = filterChannelMessageSend(sendEnvelope(JSON.stringify({ message: "  hi  " })));
+  assert.equal(filtered.channelMessageSend.content, JSON.stringify({ message: "hi" }));
+});
+
+test("empty chat messages are rejected", () => {
+  assert.throws(() => parseChatMessageContent(JSON.stringify({ message: "" })), /empty_message/);
+  assert.throws(() => parseChatMessageContent(JSON.stringify({ message: "   " })), /empty_message/);
+  assert.throws(() => filterChannelMessageSend(sendEnvelope(JSON.stringify({ message: "" }))), /empty_message/);
+});
+
+test("oversized chat messages are rejected", () => {
+  const tooLong = "a".repeat(MAX_CHAT_MESSAGE_CHARS + 1);
+  assert.throws(
+    () => parseChatMessageContent(JSON.stringify({ message: tooLong })),
+    /message_too_long/,
+  );
+  assert.equal(parseChatMessageContent(JSON.stringify({ message: "b".repeat(MAX_CHAT_MESSAGE_CHARS) })).length, 200);
+});
+
+test("invalid chat payloads are rejected", () => {
+  assert.throws(() => parseChatMessageContent(""), /malformed_json/);
+  assert.throws(() => parseChatMessageContent("not-json"), /malformed_json/);
+  assert.throws(() => parseChatMessageContent("[]"), /malformed_json/);
+  assert.throws(() => parseChatMessageContent("null"), /malformed_json/);
+  assert.throws(() => parseChatMessageContent(JSON.stringify({ message: 12 })), /invalid_payload/);
+  assert.throws(
+    () => parseChatMessageContent(JSON.stringify({ message: "hi", extra: true })),
+    /invalid_payload/,
+  );
+  assert.throws(() => filterChannelMessageSend({} as nkruntime.EnvelopeChannelMessageSend), /invalid_payload/);
+  assert.throws(
+    () => filterChannelMessageSend(sendEnvelope(JSON.stringify({ message: "hi" }), "")),
+    /invalid_payload/,
+  );
+});
+
+test("only the starter-zone room channel may be joined", () => {
+  const allowed = filterChannelJoin(joinEnvelope(STARTER_ZONE_CHAT_ROOM, CHANNEL_TYPE_ROOM));
+  assert.equal(allowed.channelJoin.target, STARTER_ZONE_CHAT_ROOM);
+  assert.throws(() => filterChannelJoin(joinEnvelope("other.room", CHANNEL_TYPE_ROOM)), /invalid_channel/);
+  assert.throws(() => filterChannelJoin(joinEnvelope(STARTER_ZONE_CHAT_ROOM, 2)), /invalid_channel/);
+  assert.throws(() => filterChannelJoin({} as nkruntime.EnvelopeChannelJoin), /invalid_payload/);
+});

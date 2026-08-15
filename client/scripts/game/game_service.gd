@@ -70,6 +70,7 @@ func enter_starter_zone() -> bool:
 	var joined := await NetworkService.join_starter_zone()
 	if not joined or not AppState.has_zone_state:
 		return false
+	await NetworkService.join_zone_chat()
 	return SceneRouter.transition_to(SceneRouter.SCENE_WORLD)
 
 

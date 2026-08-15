@@ -4,6 +4,8 @@ extends RefCounted
 ## Thin Nakama SDK wrapper. Tokens stay on this object and are never logged.
 
 signal match_state_received(opcode: int, payload: String)
+signal channel_message_received(payload: Dictionary)
+signal channel_presence_received(payload: Dictionary)
 
 const HOST := "127.0.0.1"
 const PORT := 7350
@@ -43,12 +45,14 @@ func connect_socket() -> Dictionary:
 		return _fail("socket_failed", "Sign-in is required before opening a realtime connection.")
 	if _socket != null and _socket.is_connected_to_host():
 		_ensure_match_signals()
+		_ensure_chat_signals()
 		return {"ok": true}
 	_socket = Nakama.create_socket_from(_client)
 	var connected: NakamaAsyncResult = await _socket.connect_async(_session, false, TIMEOUT_SEC)
 	if connected.is_exception():
 		return _from_exception(connected.get_exception(), "socket_failed", "Could not open a realtime connection to Nakama.")
 	_ensure_match_signals()
+	_ensure_chat_signals()
 	return {"ok": true}
 
 
@@ -88,6 +92,36 @@ func send_match_state(opcode: int, payload: String) -> Dictionary:
 	return {"ok": true}
 
 
+func join_chat(room_name: String, channel_type: int, persistence: bool, hidden: bool) -> Dictionary:
+	if _socket == null or not _socket.is_connected_to_host():
+		return _fail("chat_join_failed", "A realtime connection is required before joining zone chat.")
+	_ensure_chat_signals()
+	var joined: NakamaAsyncResult = await _socket.join_chat_async(room_name, channel_type, persistence, hidden)
+	if joined.is_exception():
+		return _from_chat_exception(joined.get_exception(), "chat_join_failed", "Could not join zone chat.")
+	var channel: NakamaRTAPI.Channel = joined
+	var channel_id := String(channel.id)
+	if channel_id.is_empty():
+		return _fail("chat_join_failed", "Zone chat did not return a channel id.")
+	return {"ok": true, "channel_id": channel_id, "room_name": String(channel.room_name)}
+
+
+func leave_chat(channel_id: String) -> Dictionary:
+	if _socket == null or channel_id.is_empty() or not _socket.is_connected_to_host():
+		return {"ok": true}
+	var _ignored: NakamaAsyncResult = await _socket.leave_chat_async(channel_id)
+	return {"ok": true}
+
+
+func send_chat_message(channel_id: String, content: Dictionary) -> Dictionary:
+	if _socket == null or channel_id.is_empty() or not _socket.is_connected_to_host():
+		return _fail("chat_send_failed", "Join zone chat before sending a message.")
+	var ack: NakamaAsyncResult = await _socket.write_chat_message_async(channel_id, content)
+	if ack.is_exception():
+		return _from_chat_exception(ack.get_exception(), "chat_send_failed", "The server rejected the chat message.")
+	return {"ok": true}
+
+
 func logout() -> void:
 	_match_id = ""
 	if _client != null and _session != null:
@@ -95,6 +129,10 @@ func logout() -> void:
 	if _socket != null:
 		if _socket.received_match_state.is_connected(_on_match_state):
 			_socket.received_match_state.disconnect(_on_match_state)
+		if _socket.received_channel_message.is_connected(_on_channel_message):
+			_socket.received_channel_message.disconnect(_on_channel_message)
+		if _socket.received_channel_presence.is_connected(_on_channel_presence):
+			_socket.received_channel_presence.disconnect(_on_channel_presence)
 		_socket.close()
 	_session = null
 	_socket = null
@@ -125,6 +163,73 @@ func _on_match_state(data: NakamaRTAPI.MatchData) -> void:
 	if data == null:
 		return
 	match_state_received.emit(int(data.op_code), String(data.data))
+
+
+func _ensure_chat_signals() -> void:
+	if _socket == null:
+		return
+	if not _socket.received_channel_message.is_connected(_on_channel_message):
+		_socket.received_channel_message.connect(_on_channel_message)
+	if not _socket.received_channel_presence.is_connected(_on_channel_presence):
+		_socket.received_channel_presence.connect(_on_channel_presence)
+
+
+func _on_channel_message(message: NakamaAPI.ApiChannelMessage) -> void:
+	if message == null:
+		return
+	channel_message_received.emit({
+		"channel_id": String(message.channel_id),
+		"message_id": String(message.message_id),
+		"sender_id": String(message.sender_id),
+		"username": String(message.username),
+		"content": String(message.content),
+		"create_time": String(message.create_time),
+		"room_name": String(message.room_name),
+	})
+
+
+func _on_channel_presence(event: NakamaRTAPI.ChannelPresenceEvent) -> void:
+	if event == null:
+		return
+	channel_presence_received.emit({
+		"channel_id": String(event.channel_id),
+		"room_name": String(event.room_name),
+		"joins": _presence_list(event.joins),
+		"leaves": _presence_list(event.leaves),
+	})
+
+
+func _presence_list(presences: Array) -> Array:
+	var listed: Array = []
+	for entry in presences:
+		if entry is NakamaRTAPI.UserPresence:
+			var presence := entry as NakamaRTAPI.UserPresence
+			listed.append({
+				"user_id": String(presence.user_id),
+				"username": String(presence.username),
+			})
+	return listed
+
+
+func _from_chat_exception(exception: NakamaException, fallback_code: String, fallback_message: String) -> Dictionary:
+	var mapped: Dictionary = _from_exception(exception, fallback_code, fallback_message)
+	var lowered := String(mapped.get("message", "")).to_lower()
+	if lowered.contains("message_too_long"):
+		mapped["code"] = "message_too_long"
+		mapped["message"] = "Chat message exceeds 200 characters."
+	elif lowered.contains("empty_message"):
+		mapped["code"] = "empty_message"
+		mapped["message"] = "Chat message is empty."
+	elif lowered.contains("malformed_json"):
+		mapped["code"] = "malformed_json"
+		mapped["message"] = "Chat content must be a JSON object."
+	elif lowered.contains("invalid_payload"):
+		mapped["code"] = "invalid_payload"
+		mapped["message"] = "The server rejected the chat payload."
+	elif lowered.contains("invalid_channel"):
+		mapped["code"] = "invalid_channel"
+		mapped["message"] = "Could not join zone chat."
+	return mapped
 
 
 func _store_session(session: NakamaSession, fallback_code: String) -> Dictionary:

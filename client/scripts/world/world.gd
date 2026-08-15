@@ -6,6 +6,7 @@ extends Node2D
 @onready var _entities: EntityRegistry = $EntityRegistry
 @onready var _camera: Camera2D = $Camera2D
 @onready var _hud: WorldHud = $WorldHud
+@onready var _chat: ChatPanel = $ChatPanel
 @onready var _error_dialog: CanvasLayer = $ErrorDialog
 @onready var _loading_overlay: CanvasLayer = $LoadingOverlay
 @onready var _overlay: NetDebugOverlay = $NetDebugOverlay
@@ -38,6 +39,9 @@ func _ready() -> void:
 		AppState.zone_state_updated.connect(_on_zone_state_updated)
 	_hud.resync_pressed.connect(_on_resync_pressed)
 	_hud.logout_pressed.connect(_on_logout_pressed)
+	if _chat != null:
+		_chat.send_requested.connect(_on_chat_send_requested)
+	_connect_chat_signals()
 	_entities.follow_camera = _camera
 	_sim = MovementSim.from_content()
 	_reconciler = MovementReconciler.new(_sim)
@@ -52,7 +56,9 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_frame_ms = delta * 1000.0
-	var axis := MoveIntent.read_axes()
+	var axis := Vector2.ZERO
+	if _chat == null or not _chat.has_input_focus():
+		axis = MoveIntent.read_axes()
 	if not NetworkService.match_id.is_empty():
 		_entities.pose_local(_reconciler.advance(delta, axis))
 	_input_accum += delta
@@ -78,6 +84,7 @@ func _exit_tree() -> void:
 		AppState.loading_completed.disconnect(_on_loading_completed)
 	if AppState.zone_state_updated.is_connected(_on_zone_state_updated):
 		AppState.zone_state_updated.disconnect(_on_zone_state_updated)
+	_disconnect_chat_signals()
 
 
 func _render_zone_geometry() -> void:
@@ -217,6 +224,63 @@ func _refresh_overlay() -> void:
 	_overlay.protocol_version = MatchProtocol.VERSION
 	_overlay.content_hash_prefix = hash.substr(0, 8) if hash.length() >= 8 else hash
 	_overlay.refresh()
+
+
+func _connect_chat_signals() -> void:
+	if not NetworkService.chat_message_received.is_connected(_on_chat_message):
+		NetworkService.chat_message_received.connect(_on_chat_message)
+	if not NetworkService.chat_presence_received.is_connected(_on_chat_presence):
+		NetworkService.chat_presence_received.connect(_on_chat_presence)
+	if not NetworkService.chat_error.is_connected(_on_chat_error):
+		NetworkService.chat_error.connect(_on_chat_error)
+	if _chat != null and AppState.last_error_code.begins_with("chat_"):
+		_chat.set_status(AppState.last_error_message)
+
+
+func _disconnect_chat_signals() -> void:
+	if NetworkService.chat_message_received.is_connected(_on_chat_message):
+		NetworkService.chat_message_received.disconnect(_on_chat_message)
+	if NetworkService.chat_presence_received.is_connected(_on_chat_presence):
+		NetworkService.chat_presence_received.disconnect(_on_chat_presence)
+	if NetworkService.chat_error.is_connected(_on_chat_error):
+		NetworkService.chat_error.disconnect(_on_chat_error)
+
+
+func _on_chat_send_requested(text: String) -> void:
+	await NetworkService.send_zone_chat(text)
+
+
+func _on_chat_message(payload: Dictionary) -> void:
+	if _chat == null:
+		return
+	var sender := ZoneChat.sender_name(
+		String(payload.get("sender_id", "")),
+		String(payload.get("username", "")),
+		AppState.zone_view
+	)
+	_chat.append_chat(sender, ZoneChat.parse_content(String(payload.get("content", ""))), String(payload.get("create_time", "")))
+
+
+func _on_chat_presence(payload: Dictionary) -> void:
+	if _chat == null:
+		return
+	for entry in payload.get("joins", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var named := ZoneChat.sender_name(String(entry.get("user_id", "")), String(entry.get("username", "")), AppState.zone_view)
+		if named == AppState.username or String(entry.get("user_id", "")) == AppState.user_id:
+			continue
+		_chat.append_presence(named, true)
+	for entry in payload.get("leaves", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var named := ZoneChat.sender_name(String(entry.get("user_id", "")), String(entry.get("username", "")), AppState.zone_view)
+		_chat.append_presence(named, false)
+
+
+func _on_chat_error(code: String, message: String) -> void:
+	if _chat != null:
+		_chat.set_status(message if not message.is_empty() else code)
 
 
 func _on_resync_pressed() -> void:

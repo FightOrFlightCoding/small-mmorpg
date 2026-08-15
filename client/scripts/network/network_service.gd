@@ -6,6 +6,9 @@ signal authentication_started
 signal authentication_finished(success: bool, message: String)
 signal character_bootstrap_finished(success: bool, created: bool, message: String)
 signal zone_join_finished(success: bool, message: String)
+signal chat_message_received(payload: Dictionary)
+signal chat_presence_received(payload: Dictionary)
+signal chat_error(code: String, message: String)
 signal logged_out
 
 const CHARACTER_BOOTSTRAP_RPC := "character_bootstrap"
@@ -15,11 +18,13 @@ var backend: RefCounted
 var last_auth_attempted: bool = false
 var socket_connected: bool = false
 var match_id: String = ""
+var zone_chat_id: String = ""
 
 var _device_id: String = ""
 var _username: String = ""
 var _got_full_state: bool = false
 var _match_signals_connected: bool = false
+var _chat_signals_connected: bool = false
 
 
 func is_authentication_configured() -> bool:
@@ -42,6 +47,7 @@ func authenticate_device(device_id: String, username: String = "") -> void:
 		return
 	socket_connected = true
 	_connect_match_signals()
+	_connect_chat_signals()
 	AppState.notify_authenticated(String(auth.get("user_id", "")), String(auth.get("username", username)))
 	AppState.notify_loading_completed("auth")
 	authentication_finished.emit(true, "")
@@ -83,6 +89,7 @@ func join_starter_zone() -> bool:
 		zone_join_finished.emit(false, AppState.last_error_message)
 		return false
 	_connect_match_signals()
+	_connect_chat_signals()
 	_got_full_state = false
 	var rpc_result: Dictionary = await _backend().rpc(MatchProtocol.FIND_OR_CREATE_STARTER_ZONE_RPC, "{}")
 	if not bool(rpc_result.get("ok", false)):
@@ -125,6 +132,60 @@ func send_input(seq: int, axis_x: float, axis_y: float) -> Dictionary:
 	)
 
 
+func join_zone_chat() -> bool:
+	_connect_chat_signals()
+	if not zone_chat_id.is_empty():
+		await leave_zone_chat()
+	if not _backend().has_method("join_chat"):
+		_fail_chat("chat_join_failed", "Zone chat is unavailable.")
+		return false
+	var joined: Dictionary = await _backend().join_chat(
+		ZoneChat.ROOM_NAME,
+		ZoneChat.CHANNEL_TYPE_ROOM,
+		false,
+		false
+	)
+	if not bool(joined.get("ok", false)):
+		_fail_chat(
+			String(joined.get("code", "chat_join_failed")),
+			String(joined.get("message", "Could not join zone chat."))
+		)
+		return false
+	zone_chat_id = String(joined.get("channel_id", ""))
+	if zone_chat_id.is_empty():
+		_fail_chat("chat_join_failed", "Zone chat did not return a channel id.")
+		return false
+	return true
+
+
+func leave_zone_chat() -> void:
+	if zone_chat_id.is_empty():
+		return
+	var channel_id := zone_chat_id
+	zone_chat_id = ""
+	if _backend().has_method("leave_chat"):
+		await _backend().leave_chat(channel_id)
+
+
+func send_zone_chat(text: String) -> Dictionary:
+	var reason := ZoneChat.reject_reason(text)
+	if not reason.is_empty():
+		var message := "Chat message is empty." if reason == "empty_message" else "Chat message exceeds 200 characters."
+		_fail_chat(reason, message)
+		return {"ok": false, "code": reason, "message": message}
+	if zone_chat_id.is_empty() or not _backend().has_method("send_chat_message"):
+		_fail_chat("chat_send_failed", "Join zone chat before sending a message.")
+		return {"ok": false, "code": "chat_send_failed", "message": "Join zone chat before sending a message."}
+	var sent: Dictionary = await _backend().send_chat_message(zone_chat_id, ZoneChat.payload(text))
+	if not bool(sent.get("ok", false)):
+		_fail_chat(
+			String(sent.get("code", "chat_send_failed")),
+			String(sent.get("message", "The server rejected the chat message."))
+		)
+		return sent
+	return {"ok": true}
+
+
 func request_resync() -> bool:
 	if match_id.is_empty():
 		AppState.report_recoverable("not_in_match", "Join the starter zone before requesting a resync.")
@@ -155,6 +216,7 @@ func ensure_session() -> bool:
 	if not bool(reauth.get("ok", false)):
 		socket_connected = false
 		match_id = ""
+		zone_chat_id = ""
 		AppState.notify_logged_out()
 		AppState.report_recoverable(
 			String(reauth.get("code", "session_expired")),
@@ -166,6 +228,7 @@ func ensure_session() -> bool:
 	if not bool(socket.get("ok", false)):
 		socket_connected = false
 		match_id = ""
+		zone_chat_id = ""
 		AppState.notify_logged_out()
 		AppState.report_recoverable(
 			String(socket.get("code", "socket_failed")),
@@ -175,17 +238,20 @@ func ensure_session() -> bool:
 		return false
 	socket_connected = true
 	_connect_match_signals()
+	_connect_chat_signals()
 	AppState.notify_authenticated(String(reauth.get("user_id", AppState.user_id)), String(reauth.get("username", _username)))
 	AppState.notify_loading_completed("session")
 	return true
 
 
 func logout() -> void:
+	await leave_zone_chat()
 	if _backend().has_method("leave_match"):
 		await _backend().leave_match()
 	await _backend().logout()
 	socket_connected = false
 	match_id = ""
+	zone_chat_id = ""
 	_got_full_state = false
 	_device_id = ""
 	_username = ""
@@ -195,12 +261,15 @@ func logout() -> void:
 
 func reset_for_tests() -> void:
 	_disconnect_match_signals()
+	_disconnect_chat_signals()
 	backend = null
 	last_auth_attempted = false
 	socket_connected = false
 	match_id = ""
+	zone_chat_id = ""
 	_got_full_state = false
 	_match_signals_connected = false
+	_chat_signals_connected = false
 	_device_id = ""
 	_username = ""
 
@@ -229,6 +298,47 @@ func _disconnect_match_signals() -> void:
 	if backend.match_state_received.is_connected(_on_match_state):
 		backend.match_state_received.disconnect(_on_match_state)
 	_match_signals_connected = false
+
+
+func _connect_chat_signals() -> void:
+	var current: RefCounted = _backend()
+	if not current.has_signal("channel_message_received"):
+		return
+	if current.channel_message_received.is_connected(_on_channel_message):
+		_chat_signals_connected = true
+		return
+	current.channel_message_received.connect(_on_channel_message)
+	if current.has_signal("channel_presence_received") and not current.channel_presence_received.is_connected(_on_channel_presence):
+		current.channel_presence_received.connect(_on_channel_presence)
+	_chat_signals_connected = true
+
+
+func _disconnect_chat_signals() -> void:
+	if backend == null:
+		_chat_signals_connected = false
+		return
+	if backend.has_signal("channel_message_received") and backend.channel_message_received.is_connected(_on_channel_message):
+		backend.channel_message_received.disconnect(_on_channel_message)
+	if backend.has_signal("channel_presence_received") and backend.channel_presence_received.is_connected(_on_channel_presence):
+		backend.channel_presence_received.disconnect(_on_channel_presence)
+	_chat_signals_connected = false
+
+
+func _on_channel_message(payload: Dictionary) -> void:
+	if not zone_chat_id.is_empty() and String(payload.get("channel_id", "")) != zone_chat_id:
+		return
+	chat_message_received.emit(payload)
+
+
+func _on_channel_presence(payload: Dictionary) -> void:
+	if not zone_chat_id.is_empty() and String(payload.get("channel_id", "")) != zone_chat_id:
+		return
+	chat_presence_received.emit(payload)
+
+
+func _fail_chat(code: String, message: String) -> void:
+	AppState.report_recoverable(code, message)
+	chat_error.emit(code, message)
 
 
 func _on_match_state(opcode: int, payload: String) -> void:

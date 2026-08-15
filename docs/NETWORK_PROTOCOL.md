@@ -118,7 +118,7 @@ The server rejects:
 - wrong content hash
 - missing/malformed `requestId` on reward opcodes
 
-Rejections are typed (`unknown_opcode`, `malformed_json`, `unknown_field`, `invalid_id`, `protocol_mismatch`, `content_mismatch`, `payload_too_large`, `unauthenticated`, `invalid_name`, `stat_injection`, `invalid_request_id`, `match_full`, `already_in_match`, `character_missing`). They are logged without tokens or personal data. They are sent as `SYSTEM_MESSAGE` (or join reject) and never crash the match.
+Rejections are typed (`unknown_opcode`, `malformed_json`, `unknown_field`, `invalid_id`, `protocol_mismatch`, `content_mismatch`, `payload_too_large`, `unauthenticated`, `invalid_name`, `stat_injection`, `invalid_request_id`, `match_full`, `already_in_match`, `character_missing`, `empty_message`, `message_too_long`, `invalid_payload`, `invalid_channel`). They are logged without tokens or personal data. They are sent as `SYSTEM_MESSAGE` (or join reject) and never crash the match.
 
 ## RPC `character_bootstrap`
 
@@ -140,3 +140,16 @@ Authenticated HTTP/RPC only. Payload is empty or `{}`. Returns `{ matchId, zoneI
 - A second socket for an account already in the match is rejected with `already_in_match`. True reconnect of the same session is allowed. The same account cannot occupy two presences.
 - Players spawn at their saved position, or the zone default if that is what was stored
 - Movement uses content `moveSpeed`, server `dt`, zone `walkableBounds`, and zone `collisions`. Client position is never accepted
+
+## Starter-zone room chat
+
+Chat is a Nakama room channel, not a match opcode.
+
+- Room name: `zone.starter`
+- Type: room (`1`)
+- Persistence: false
+- Hidden: false
+- Client send body: `{ "message": "<text>" }`
+- Server before hook `ChannelMessageSend` rejects empty text, text longer than **200** characters, non-object JSON, and extra fields (`empty_message`, `message_too_long`, `malformed_json`, `invalid_payload`)
+- Server before hook `ChannelJoin` allows only that room (`invalid_channel` otherwise)
+- The client joins after `FULL_STATE`, leaves on logout, and subscribes once to channel message and presence events

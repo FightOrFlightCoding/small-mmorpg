@@ -148,3 +148,11 @@ The 2D client uses the GL Compatibility renderer. Zone floor and collision overl
 Nakama does not hot-reload `server/build/index.js`. A container started against an older bundle keeps only the RPCs it loaded at boot (`vibecode_health` in the first local stack). `scripts/backend-up.ps1` recreates the Nakama container after `npm run build` and `scripts/backend-verify.ps1` refuses a health-only runtime.
 
 `nakama-runtime` is a type-only package and is Rollup-external. Runtime values such as `nkruntime.SystemUserId` are not available inside Goja. System-owned storage uses the literal UUID `00000000-0000-0000-0000-000000000000`.
+
+## 2026-08-15 — Starter-zone room chat
+
+Zone chat uses Nakama room channels, not match opcodes. After a valid `FULL_STATE`, the client joins room `zone.starter` (`ChannelType.Room`, persistence false, hidden false) and leaves on logout. Join and send failures are recoverable and visible. Message and presence socket signals are connected once per backend.
+
+Chat content is `{ "message": string }`. A `ChannelMessageSend` realtime before hook rejects empty bodies, bodies longer than 200 characters, non-object JSON, and extra fields. A `ChannelJoin` before hook allows only room `zone.starter`. The TypeScript hook is stateless (no module-level maps). Client length checks are convenience only.
+
+History is a bounded `Label` (50 lines). Sender names come from the channel username or the zone player list. Timestamps use the Nakama `create_time` hour and minute. Enter focuses the input when it is not focused; Escape releases it; focused input does not move the local avatar. User text is never parsed as BBCode. There are no parties, private messages, or moderation tools.

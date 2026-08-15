@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Local prediction and reconciliation**.
+Last accepted phase: **Starter-zone room chat**.
 
 Current phase: none requested. Do not add combat until asked.
 
@@ -117,3 +117,21 @@ powershell -File ..\scripts\run-client-shell.ps1
 The client predicts local movement with the same speed, dt, bounds, and AABB collision as the server. Unacked `INPUT` commands are stored, dropped when `lastProcessedSeq` advances, and replayed from the authoritative pose. Display error at or below 0.5 px is left alone; error up to 24 px is blended; larger error snaps. Remote players render one snapshot tick behind from a short buffer, without extrapolation. After 2 seconds without a snapshot the remotes freeze and the HUD shows a degraded connection. A net debug overlay (ping, tick, sent/ack seq, prediction error, buffer depth, protocol version, content-hash prefix) is shown only in debug builds.
 
 Godot 4.7.1 imported `client/`, printed `SHELL_LOGIN`, and GdUnit4 ran `res://tests` with 61/61 passed. No combat or interaction prediction was added. Server tests were not required this phase (authority unchanged).
+
+## Starter-zone room chat acceptance (2026-08-15)
+
+After a valid `FULL_STATE`, the client joins Nakama room `zone.starter` (persistence false) and leaves on logout. Join failure is recoverable and visible; the world still opens. Channel message and presence signals are connected once. Chat history is a `Label` (50 lines) with sender name and timestamp. Enter focuses the input; Escape unfocuses; focused input does not move the avatar. User markup is shown as text. Empty and >200 character bodies are rejected by a stateless `ChannelMessageSend` before hook; only `{ "message": string }` is allowed. Direct-message and group joins are rejected. There are no parties, private messages, or moderation tools.
+
+Server `npm test` 62/62, `npm run typecheck`, and `npm run build` succeeded. Godot 4.7.1 imported `client/`, printed `SHELL_LOGIN`, and GdUnit4 ran `res://tests` with 76/76 passed.
+
+Reproduction:
+
+```powershell
+Set-Location server
+npm test
+npm run build
+powershell -File ..\scripts\backend-up.ps1
+powershell -File ..\scripts\run-client-shell.ps1
+```
+
+Local play: two clients with `-- --dev-user=alice` and `-- --dev-user=bob`. Each can send a zone chat line the other receives. Restart Nakama after this build so the chat before hooks load.

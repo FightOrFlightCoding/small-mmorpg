@@ -14,6 +14,7 @@ It may:
 - Capture local input and send **intentions** (move, attack, interact, loot, equip, dialogue choice).
 - Predict local movement presentation using the same speed, dt, and collision rules as the server, then reconcile to `lastProcessedSeq`. Prediction never grants rewards or changes canonical stats.
 - Display inventory, equipment, dialogue, quest, and currency **views** from server-owned state.
+- Join the starter-zone Nakama room channel after entering `zone.starter`, send chat text, and render received messages as plain text.
 - Map stable content IDs to scenes, sprites, and Dialogue Manager resources through a project-owned catalog.
 - Show visible connection, validation, and rejection errors. It must not spin on an indefinite loading state.
 
@@ -35,6 +36,7 @@ It must:
 - Host **one** authoritative match for the starter zone.
 - Simulate movement collision, combat, cooldowns, enemy behavior, loot, inventory, equipment, quests, and currency.
 - Validate every external payload. Reject unknown opcodes, strict unknown fields, malformed JSON, invalid IDs, oversized messages, and protocol-version mismatch.
+- Reject empty, oversized, and malformed zone-chat payloads in a realtime before hook.
 - Apply rewarded actions idempotently using a unique client `requestId`.
 - Broadcast snapshots and support full-state resynchronization.
 - Persist transactions immediately and position checkpoints periodically.
@@ -98,10 +100,11 @@ Third-party libraries are implementation details. Game code talks to project-own
 | --- | --- | --- |
 | `AppState` | none | Non-authoritative client/session flags and shell signals. Never canonical game data. |
 | `ContentRegistry` | generated `client/content/bundle.json` plus `client/content/visual_map.json` | Schema version check, content hash, lookup by stable ID, visual ID → local texture/fallback |
-| `NetworkService` | Nakama Godot SDK 3.4.0 | Device auth, in-memory session cache, refresh, reauth, realtime socket, logout, `character_bootstrap`, `find_or_create_starter_zone`, match join/leave, `INPUT`, `RESYNC_REQUEST`. |
+| `NetworkService` | Nakama Godot SDK 3.4.0 | Device auth, in-memory session cache, refresh, reauth, realtime socket, logout, `character_bootstrap`, `find_or_create_starter_zone`, match join/leave, `INPUT`, `RESYNC_REQUEST`, starter-zone room chat join/leave/send. |
 | `GameService` | the autoloads above | Boot, login, character bootstrap, starter-zone join. Not a gameplay authority. |
 | `SceneRouter` | Godot scene tree | Transitions among boot, login, character, and world |
 | `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE`/`SNAPSHOT`. Local movement is predicted and reconciled; all remote entities interpolate from one snapshot buffer keyed `kind:id`. Not a gameplay authority. |
+| `ChatPanel` / `ZoneChat` | none | Presentation of the starter-zone room channel. History is a `Label` (no BBCode). Not a gameplay authority. |
 | Inventory presenter (later) | GLoot 3.0.2 | Display of server inventory/equipment |
 | Dialogue presenter (later) | Dialogue Manager 3.10.5 | Display of server-offered lines/choices |
 | Test runner scripts | GdUnit4 6.2.0 | Client unit/scene tests |

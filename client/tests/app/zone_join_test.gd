@@ -57,6 +57,11 @@ func test_world_waits_for_valid_full_state() -> void:
 	assert_int((AppState.zone_view["npcs"] as Array).size()).is_equal(1)
 	assert_int((AppState.zone_view["enemies"] as Array).size()).is_equal(1)
 	assert_str(SceneRouter.current_scene_id).is_equal(SceneRouter.SCENE_WORLD)
+	assert_int(fake.join_chat_calls).is_equal(1)
+	assert_str(fake.last_chat_room).is_equal(ZoneChat.ROOM_NAME)
+	assert_int(fake.last_chat_type).is_equal(ZoneChat.CHANNEL_TYPE_ROOM)
+	assert_bool(fake.last_chat_persistence).is_false()
+	assert_bool(fake.last_chat_hidden).is_false()
 
 
 func test_two_players_in_full_state_are_parsed() -> void:
@@ -154,3 +159,23 @@ func test_resync_requests_a_fresh_full_state() -> void:
 	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_RESYNC_REQUEST)
 	assert_str(fake.last_send_payload).contains("protocolVersion")
 	assert_int(int(AppState.zone_view["tick"])).is_equal(42)
+
+
+func test_chat_join_failure_is_visible_and_still_enters_world() -> void:
+	var fake := _fake()
+	await _boot_and_character(fake)
+	fake.join_chat_ok = false
+	assert_bool(await GameService.enter_starter_zone()).is_true()
+	assert_str(SceneRouter.current_scene_id).is_equal(SceneRouter.SCENE_WORLD)
+	assert_bool(AppState.has_fatal_error).is_false()
+	assert_str(AppState.last_error_code).is_equal("chat_join_failed")
+	assert_str(AppState.last_error_message).is_not_empty()
+
+
+func test_logout_leaves_zone_chat() -> void:
+	var fake := _fake()
+	await _boot_and_character(fake)
+	assert_bool(await GameService.enter_starter_zone()).is_true()
+	await GameService.request_logout()
+	assert_int(fake.leave_chat_calls).is_equal(1)
+	assert_str(NetworkService.zone_chat_id).is_equal("")

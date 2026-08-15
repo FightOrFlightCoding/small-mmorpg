@@ -4,6 +4,8 @@ extends RefCounted
 ## Test double for NakamaNetworkBackend. Does not contact Nakama or store tokens.
 
 signal match_state_received(opcode: int, payload: String)
+signal channel_message_received(payload: Dictionary)
+signal channel_presence_received(payload: Dictionary)
 
 var authenticate_ok: bool = true
 var authenticate_code: String = "network_unreachable"
@@ -43,6 +45,19 @@ var last_send_payload: String = ""
 var join_calls: int = 0
 var leave_calls: int = 0
 var send_calls: int = 0
+var join_chat_ok: bool = true
+var join_chat_code: String = "chat_join_failed"
+var join_chat_message: String = "Could not join zone chat."
+var join_chat_calls: int = 0
+var leave_chat_calls: int = 0
+var send_chat_calls: int = 0
+var last_chat_room: String = ""
+var last_chat_type: int = 0
+var last_chat_persistence: bool = true
+var last_chat_hidden: bool = true
+var last_chat_channel_id: String = ""
+var last_chat_content: Dictionary = {}
+var chat_channel_id: String = "channel-zone-starter"
 
 
 func is_session_expired() -> bool:
@@ -117,6 +132,44 @@ func send_match_state(opcode: int, payload: String) -> Dictionary:
 		if body.is_empty():
 			body = default_full_state_payload(99)
 		match_state_received.emit(MatchProtocol.SERVER_FULL_STATE, body)
+	return {"ok": true}
+
+
+func join_chat(room_name: String, channel_type: int, persistence: bool, hidden: bool) -> Dictionary:
+	join_chat_calls += 1
+	last_chat_room = room_name
+	last_chat_type = channel_type
+	last_chat_persistence = persistence
+	last_chat_hidden = hidden
+	if not join_chat_ok:
+		return {"ok": false, "code": join_chat_code, "message": join_chat_message}
+	return {"ok": true, "channel_id": chat_channel_id, "room_name": room_name}
+
+
+func leave_chat(channel_id: String) -> Dictionary:
+	leave_chat_calls += 1
+	last_chat_channel_id = channel_id
+	return {"ok": true}
+
+
+func send_chat_message(channel_id: String, content: Dictionary) -> Dictionary:
+	send_chat_calls += 1
+	last_chat_channel_id = channel_id
+	last_chat_content = content.duplicate(true)
+	var body := String(content.get("message", ""))
+	if body.strip_edges().is_empty():
+		return {"ok": false, "code": "empty_message", "message": "Chat message is empty."}
+	if body.length() > ZoneChat.MAX_CHARS:
+		return {"ok": false, "code": "message_too_long", "message": "Chat message exceeds 200 characters."}
+	channel_message_received.emit({
+		"channel_id": channel_id,
+		"message_id": "msg-%s" % str(send_chat_calls),
+		"sender_id": user_id,
+		"username": username,
+		"content": JSON.stringify({"message": body}),
+		"create_time": "2026-08-15T20:00:00Z",
+		"room_name": ZoneChat.ROOM_NAME,
+	})
 	return {"ok": true}
 
 
