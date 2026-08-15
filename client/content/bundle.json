@@ -1,0 +1,179 @@
+{
+  "contentHash": "3db1de356fc85fb6eb96489ddc04f47049b906ef915d2baa241cae38159a6e85",
+  "enemies": {
+    "enemy.green_slime": {
+      "aggroRadius": 128,
+      "attackCooldown": 1.4,
+      "attackRange": 28,
+      "damage": 2,
+      "displayName": "Green Slime",
+      "id": "enemy.green_slime",
+      "kind": "enemy",
+      "leashRadius": 256,
+      "loot": [
+        {
+          "guaranteed": true,
+          "itemId": "item.slime_gel",
+          "quantity": 1
+        }
+      ],
+      "maxHealth": 20,
+      "moveSpeed": 45,
+      "respawnDelay": 10,
+      "visualId": "visual.enemy_green_slime"
+    }
+  },
+  "items": {
+    "item.iron_sword": {
+      "attackBonus": 5,
+      "displayName": "Iron Sword",
+      "equipSlot": "main_hand",
+      "id": "item.iron_sword",
+      "kind": "item",
+      "maxStack": 1,
+      "visualId": "visual.item_iron_sword"
+    },
+    "item.slime_gel": {
+      "attackBonus": 0,
+      "displayName": "Slime Gel",
+      "id": "item.slime_gel",
+      "kind": "item",
+      "maxStack": 20,
+      "visualId": "visual.item_slime_gel"
+    },
+    "item.training_sword": {
+      "attackBonus": 2,
+      "displayName": "Training Sword",
+      "equipSlot": "main_hand",
+      "id": "item.training_sword",
+      "kind": "item",
+      "maxStack": 1,
+      "visualId": "visual.item_training_sword"
+    }
+  },
+  "npcs": {
+    "npc.elder": {
+      "displayName": "Elder",
+      "id": "npc.elder",
+      "kind": "npc",
+      "visualId": "visual.npc_elder"
+    }
+  },
+  "player": {
+    "attack": 4,
+    "attackCooldown": 0.7,
+    "attackRange": 40,
+    "id": "player.base",
+    "interactionRange": 48,
+    "kind": "player",
+    "maxHealth": 100,
+    "moveSpeed": 120,
+    "pickupRange": 40,
+    "visualId": "visual.player"
+  },
+  "quests": {
+    "quest.slime_problem": {
+      "acceptNpcId": "npc.elder",
+      "completeOnce": true,
+      "consume": [
+        {
+          "itemId": "item.slime_gel",
+          "quantity": 1
+        }
+      ],
+      "displayName": "Slime Problem",
+      "id": "quest.slime_problem",
+      "kind": "quest",
+      "objectives": [
+        {
+          "itemId": "item.slime_gel",
+          "quantity": 1,
+          "type": "acquire_item"
+        }
+      ],
+      "rewards": {
+        "gold": 25,
+        "items": [
+          {
+            "itemId": "item.iron_sword",
+            "quantity": 1
+          }
+        ]
+      },
+      "turnInNpcId": "npc.elder"
+    }
+  },
+  "zones": {
+    "zone.starter": {
+      "collisions": [
+        {
+          "height": 16,
+          "width": 1280,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "height": 16,
+          "width": 1280,
+          "x": 0,
+          "y": 752
+        },
+        {
+          "height": 768,
+          "width": 16,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "height": 768,
+          "width": 16,
+          "x": 1264,
+          "y": 0
+        },
+        {
+          "height": 80,
+          "width": 96,
+          "x": 80,
+          "y": 240
+        },
+        {
+          "height": 48,
+          "width": 48,
+          "x": 640,
+          "y": 480
+        }
+      ],
+      "displayName": "Starter Valley",
+      "enemies": [
+        {
+          "enemyId": "enemy.green_slime",
+          "x": 960,
+          "y": 400
+        }
+      ],
+      "height": 768,
+      "id": "zone.starter",
+      "kind": "zone",
+      "npcs": [
+        {
+          "npcId": "npc.elder",
+          "x": 160,
+          "y": 320
+        }
+      ],
+      "playerSpawn": {
+        "x": 240,
+        "y": 384
+      },
+      "tileSize": 16,
+      "visualId": "visual.zone_starter",
+      "walkableBounds": {
+        "height": 736,
+        "width": 1248,
+        "x": 16,
+        "y": 16
+      },
+      "width": 1280
+    }
+  }
+}

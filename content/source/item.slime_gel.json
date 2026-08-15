@@ -1,0 +1,8 @@
+{
+  "id": "item.slime_gel",
+  "kind": "item",
+  "displayName": "Slime Gel",
+  "visualId": "visual.item_slime_gel",
+  "maxStack": 20,
+  "attackBonus": 0
+}

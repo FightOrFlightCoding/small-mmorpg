@@ -1,0 +1,30 @@
+{
+  "id": "quest.slime_problem",
+  "kind": "quest",
+  "displayName": "Slime Problem",
+  "acceptNpcId": "npc.elder",
+  "turnInNpcId": "npc.elder",
+  "objectives": [
+    {
+      "type": "acquire_item",
+      "itemId": "item.slime_gel",
+      "quantity": 1
+    }
+  ],
+  "consume": [
+    {
+      "itemId": "item.slime_gel",
+      "quantity": 1
+    }
+  ],
+  "rewards": {
+    "gold": 25,
+    "items": [
+      {
+        "itemId": "item.iron_sword",
+        "quantity": 1
+      }
+    ]
+  },
+  "completeOnce": true
+}

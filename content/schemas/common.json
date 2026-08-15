@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/common.json",
+  "$defs": {
+    "contentId": {
+      "type": "string",
+      "pattern": "^[a-z]+\\.[a-z0-9_]+$"
+    },
+    "nonNegativeNumber": {
+      "type": "number",
+      "minimum": 0
+    },
+    "positiveNumber": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "nonNegativeInteger": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "positiveInteger": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "vec2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      }
+    },
+    "aabb": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "width": { "$ref": "#/$defs/positiveNumber" },
+        "height": { "$ref": "#/$defs/positiveNumber" }
+      }
+    },
+    "itemStack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["itemId", "quantity"],
+      "properties": {
+        "itemId": { "$ref": "#/$defs/contentId" },
+        "quantity": { "$ref": "#/$defs/positiveInteger" }
+      }
+    }
+  }
+}

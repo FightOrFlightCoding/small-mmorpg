@@ -2,7 +2,7 @@
 
 Server-authoritative 2D MMORPG vertical slice.
 
-The Godot 4.7.1 client is a **package compatibility spike**. The Nakama stack currently exposes a health RPC only. There is still no player authentication, match, or gameplay.
+The Godot 4.7.1 client is a **package compatibility spike**. Nakama exposes a health RPC and an embedded content catalog. There is still no player authentication, match, or gameplay.
 
 ## Read first
 
@@ -16,11 +16,11 @@ The Godot 4.7.1 client is a **package compatibility spike**. The Nakama stack cu
 
 ```
 client/     Godot 4.7.1 project (compatibility spike; import this folder)
-server/     Nakama TypeScript runtime (health RPC)
+server/     Nakama TypeScript runtime (health RPC + generated content)
 content/    JSON Schema + source content
 infra/      Docker Compose + Nakama config
 scripts/    Developer commands
-tools/      Content generation (later phase)
+tools/      Content generation (`tools/content-build`)
 docs/       Binding architecture and slice contract
 ```
 
@@ -91,8 +91,15 @@ After the stack is healthy:
 Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:7350/v2/rpc/vibecode_health?http_key=defaulthttpkey&unwrap" -ContentType "application/json" -Body "{}"
 ```
 
-`http_key=defaulthttpkey` is also a Nakama local default. Expected body:
+`http_key=defaulthttpkey` is also a Nakama local default. Expected body has `ok`, `service`, `protocol_version`, and `content_version` set to the generated content hash (64 hex characters). Rebuild the runtime after `scripts/content-build.ps1` so the hash matches `client/content/bundle.json`.
 
-```json
-{"ok":true,"service":"vibecode-server","protocol_version":1,"content_version":"uninitialized"}
+## Content database
+
+Author `content/source/`. Do not edit generated files by hand.
+
+```powershell
+powershell -File scripts/content-test.ps1
+powershell -File scripts/content-build.ps1
 ```
+
+That writes `server/src/generated/content.ts` and `client/content/bundle.json` with the same content hash. The Nakama runtime imports the TypeScript module; it never reads source JSON from disk.

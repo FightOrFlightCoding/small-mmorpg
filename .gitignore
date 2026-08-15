@@ -40,6 +40,7 @@ infra/**/*.local.env
 content/generated/
 tools/**/__pycache__/
 tools/**/node_modules/
+tools/**/dist/
 
 # Secrets
 .env

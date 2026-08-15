@@ -1,0 +1,6 @@
+{
+  "id": "npc.elder",
+  "kind": "npc",
+  "displayName": "Elder",
+  "visualId": "visual.npc_elder"
+}

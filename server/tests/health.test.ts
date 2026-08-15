@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { contentHash } from "../src/generated/content";
 import {
-  CONTENT_VERSION_UNINITIALIZED,
   HEALTH_RPC_ID,
   PROTOCOL_VERSION,
   SERVICE_NAME,
@@ -14,11 +14,11 @@ test("health response has the required shape", () => {
   assert.equal(body.ok, true);
   assert.equal(body.service, "vibecode-server");
   assert.equal(body.protocol_version, 1);
-  assert.equal(body.content_version, "uninitialized");
+  assert.equal(body.content_version, contentHash);
   assert.equal(body.service, SERVICE_NAME);
   assert.equal(body.protocol_version, PROTOCOL_VERSION);
-  assert.equal(body.content_version, CONTENT_VERSION_UNINITIALIZED);
   assert.equal(HEALTH_RPC_ID, "vibecode_health");
+  assert.match(body.content_version, /^[a-f0-9]{64}$/);
 });
 
 test("health accepts an empty payload", () => {

@@ -1,0 +1,12 @@
+{
+  "id": "player.base",
+  "kind": "player",
+  "visualId": "visual.player",
+  "maxHealth": 100,
+  "attack": 4,
+  "moveSpeed": 120,
+  "attackRange": 40,
+  "attackCooldown": 0.7,
+  "interactionRange": 48,
+  "pickupRange": 40
+}

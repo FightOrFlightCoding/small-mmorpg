@@ -38,6 +38,7 @@ Only the addon directories from those archives are installed. Repo examples, doc
 | nakama-runtime | 1.47.0 | `github:heroiclabs/nakama-common#v1.47.0` (`449b77ecc8789aa466c36b67f6e498033dfcd9c5`) | Apache-2.0 | TypeScript typings only. |
 | PostgreSQL | 16.15 | Docker `postgres:16.15-alpine` | PostgreSQL License | Named volume `vibecode_postgres_data`. No custom SQL. |
 | Node.js (builder) | 20.20.2 | Docker `node:20.20.2-alpine` | MIT | Used only to compile the runtime bundle. |
+| Ajv | 8.17.1 | `tools/content-build` npm devDependency | MIT | JSON Schema validation. Not bundled into Nakama. |
 
 ## Compatibility result (2026-08-15)
 

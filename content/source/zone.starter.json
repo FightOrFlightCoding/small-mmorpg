@@ -1,0 +1,71 @@
+{
+  "id": "zone.starter",
+  "kind": "zone",
+  "displayName": "Starter Valley",
+  "visualId": "visual.zone_starter",
+  "tileSize": 16,
+  "width": 1280,
+  "height": 768,
+  "playerSpawn": {
+    "x": 240,
+    "y": 384
+  },
+  "npcs": [
+    {
+      "npcId": "npc.elder",
+      "x": 160,
+      "y": 320
+    }
+  ],
+  "enemies": [
+    {
+      "enemyId": "enemy.green_slime",
+      "x": 960,
+      "y": 400
+    }
+  ],
+  "walkableBounds": {
+    "x": 16,
+    "y": 16,
+    "width": 1248,
+    "height": 736
+  },
+  "collisions": [
+    {
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 16
+    },
+    {
+      "x": 0,
+      "y": 752,
+      "width": 1280,
+      "height": 16
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "width": 16,
+      "height": 768
+    },
+    {
+      "x": 1264,
+      "y": 0,
+      "width": 16,
+      "height": 768
+    },
+    {
+      "x": 80,
+      "y": 240,
+      "width": 96,
+      "height": 80
+    },
+    {
+      "x": 640,
+      "y": 480,
+      "width": 48,
+      "height": 48
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { handleHealthRpc } from "./rpcs/health";
+import { content, contentHash } from "./generated/content";
 
 function rpcVibecodeHealth(
   _ctx: nkruntime.Context,
@@ -22,7 +23,11 @@ function InitModule(
   initializer: nkruntime.Initializer,
 ): void {
   initializer.registerRpc("vibecode_health", rpcVibecodeHealth);
-  logger.info("vibecode runtime loaded rpc=vibecode_health protocol_version=1");
+  logger.info(
+    "vibecode runtime loaded rpc=vibecode_health protocol_version=1 content_hash=%s zone=%s",
+    contentHash,
+    content.zones["zone.starter"].id,
+  );
 }
 
 // Keep InitModule in the Rollup bundle (Nakama looks it up on the global object).

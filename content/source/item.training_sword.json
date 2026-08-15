@@ -1,0 +1,9 @@
+{
+  "id": "item.training_sword",
+  "kind": "item",
+  "displayName": "Training Sword",
+  "visualId": "visual.item_training_sword",
+  "maxStack": 1,
+  "equipSlot": "main_hand",
+  "attackBonus": 2
+}

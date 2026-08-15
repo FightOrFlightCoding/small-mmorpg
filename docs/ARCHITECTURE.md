@@ -106,8 +106,8 @@ Do not call addon APIs from feature scenes except through these adapters. Do not
 Authoritative content lives in `content/`:
 
 - `content/schemas/` — JSON Schema contracts.
-- `content/source/` — human-authored documents keyed by stable IDs (`zone.starter`, `item.rusty_sword`).
-- `tools/` — later-phase generators that emit client catalogs and server modules.
+- `content/source/` — human-authored documents keyed by stable IDs (`zone.starter`, `item.training_sword`).
+- `tools/content-build/` — generator that emits `server/src/generated/content.ts` and `client/content/bundle.json`.
 
 Generated artifacts must preserve IDs. Network messages and storage records carry IDs only, never `res://` paths. The client catalog is the only place an ID becomes a Godot resource path, and that mapping is local.
 

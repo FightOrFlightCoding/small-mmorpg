@@ -1,14 +1,15 @@
+import { contentHash } from "../generated/content";
+
 export const HEALTH_RPC_ID = "vibecode_health";
 
 export const PROTOCOL_VERSION = 1;
 export const SERVICE_NAME = "vibecode-server";
-export const CONTENT_VERSION_UNINITIALIZED = "uninitialized";
 
 export interface HealthResponse {
   ok: true;
   service: typeof SERVICE_NAME;
   protocol_version: typeof PROTOCOL_VERSION;
-  content_version: typeof CONTENT_VERSION_UNINITIALIZED;
+  content_version: string;
 }
 
 export function buildHealthResponse(): HealthResponse {
@@ -16,7 +17,7 @@ export function buildHealthResponse(): HealthResponse {
     ok: true,
     service: SERVICE_NAME,
     protocol_version: PROTOCOL_VERSION,
-    content_version: CONTENT_VERSION_UNINITIALIZED,
+    content_version: contentHash,
   };
 }
 

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/zone.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "displayName",
+    "visualId",
+    "tileSize",
+    "width",
+    "height",
+    "playerSpawn",
+    "npcs",
+    "enemies",
+    "walkableBounds",
+    "collisions"
+  ],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "zone" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "visualId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "tileSize": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+    "width": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+    "height": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+    "playerSpawn": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/vec2" },
+    "npcs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["npcId", "x", "y"],
+        "properties": {
+          "npcId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+          "x": { "type": "number" },
+          "y": { "type": "number" }
+        }
+      }
+    },
+    "enemies": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["enemyId", "x", "y"],
+        "properties": {
+          "enemyId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+          "x": { "type": "number" },
+          "y": { "type": "number" }
+        }
+      }
+    },
+    "walkableBounds": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/aabb" },
+    "collisions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/aabb" }
+    }
+  }
+}

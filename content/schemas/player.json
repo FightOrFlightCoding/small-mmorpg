@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/player.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "visualId",
+    "maxHealth",
+    "attack",
+    "moveSpeed",
+    "attackRange",
+    "attackCooldown",
+    "interactionRange",
+    "pickupRange"
+  ],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "player" },
+    "visualId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "maxHealth": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+    "attack": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "moveSpeed": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+    "attackRange": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+    "attackCooldown": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+    "interactionRange": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+    "pickupRange": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" }
+  }
+}

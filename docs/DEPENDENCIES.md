@@ -165,6 +165,18 @@ Upgrade policy for every row: **locked**. A later phase may change a pin only by
 | Executes on | Build tooling. Bundled JS executes inside Nakama, not Node. |
 | Upgrade policy | Locked |
 
+## Ajv (content-build)
+
+| Field | Value |
+| --- | --- |
+| Purpose | JSON Schema validation for `content/source/` |
+| Version | 8.17.1 |
+| Official source | https://www.npmjs.com/package/ajv |
+| License | MIT |
+| Installation | `tools/content-build/package.json` devDependency |
+| Executes on | Build tooling only. Not bundled into Nakama. |
+| Upgrade policy | Locked |
+
 ## Reproduction commands (Godot 4.7.1 compatibility)
 
 From the repo root, with Godot 4.7.1 console at `C:\Users\Eszter\Desktop\godot\Godot_v4.7.1-stable_win64_console.exe` (or `GODOT_BIN`):
@@ -216,5 +228,16 @@ powershell -File scripts/backend-volume-destroy.ps1
 ```
 
 Expected after `backend-up.ps1`: both services healthy; Nakama log line `vibecode runtime loaded rpc=vibecode_health`; HTTP RPC `POST http://127.0.0.1:7350/v2/rpc/vibecode_health?http_key=defaulthttpkey&unwrap` with body `{}` returns the health JSON. `http_key=defaulthttpkey` is Nakama's built-in local default, not a production secret.
+
+## Reproduction commands (content database)
+
+From the repo root, Node `>=20.20.0`:
+
+```powershell
+powershell -File scripts/content-test.ps1
+powershell -File scripts/content-build.ps1
+```
+
+Expected: content-build tests 9/9, generator prints `content_hash=` plus a 64-character hex digest, `server/src/generated/content.ts` and `client/content/bundle.json` share that hash.
 
 Installed-tree SHA-256 values are SHA-256 of a sorted `hash length relative-path` listing of every file in the addon folder as extracted from the pinned archive, before Godot generated extra `.uid`/`.import` sidecars.

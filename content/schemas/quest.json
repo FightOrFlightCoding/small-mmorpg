@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/quest.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "displayName",
+    "acceptNpcId",
+    "turnInNpcId",
+    "objectives",
+    "consume",
+    "rewards",
+    "completeOnce"
+  ],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "quest" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "acceptNpcId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "turnInNpcId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "objectives": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "itemId", "quantity"],
+        "properties": {
+          "type": { "const": "acquire_item" },
+          "itemId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+          "quantity": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" }
+        }
+      }
+    },
+    "consume": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/itemStack" }
+    },
+    "rewards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gold", "items"],
+      "properties": {
+        "gold": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/itemStack" }
+        }
+      }
+    },
+    "completeOnce": { "type": "boolean" }
+  }
+}

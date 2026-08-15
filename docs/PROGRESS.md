@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Local Nakama and PostgreSQL infrastructure**.
+Last accepted phase: **Shared content database and build pipeline**.
 
 Current phase: none requested. Do not add player authentication, matches, or gameplay until asked.
 
@@ -27,4 +27,18 @@ npm run typecheck
 npm test
 npm run build
 powershell -File ..\scripts\backend-up.ps1
+```
+
+## Shared content database and build pipeline acceptance (2026-08-15)
+
+`tools/content-build` `npm ci`, typecheck, and tests succeeded (9/9): valid source, duplicate IDs, broken references, invalid ranges, unknown equipment slots, duplicate quest rewards, deterministic generation, matching client/server hashes, and no absolute paths in generated files. Regenerating twice produced byte-identical `server/src/generated/content.ts` and `client/content/bundle.json` with hash `3db1de356fc85fb6eb96489ddc04f47049b906ef915d2baa241cae38159a6e85`. Server `npm run typecheck`, `npm test` (8/8), and `npm run build` succeeded. The Rollup bundle embeds the catalog (not source JSON). `vibecode_health` now returns that hash as `content_version`. No gameplay logic was added.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/content-test.ps1
+powershell -File scripts/content-build.ps1
+Set-Location server
+npm test
+npm run build
 ```

@@ -1,0 +1,21 @@
+{
+  "id": "enemy.green_slime",
+  "kind": "enemy",
+  "displayName": "Green Slime",
+  "visualId": "visual.enemy_green_slime",
+  "maxHealth": 20,
+  "damage": 2,
+  "moveSpeed": 45,
+  "aggroRadius": 128,
+  "attackRange": 28,
+  "attackCooldown": 1.4,
+  "leashRadius": 256,
+  "respawnDelay": 10,
+  "loot": [
+    {
+      "itemId": "item.slime_gel",
+      "quantity": 1,
+      "guaranteed": true
+    }
+  ]
+}

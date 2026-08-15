@@ -1,0 +1,9 @@
+{
+  "id": "item.iron_sword",
+  "kind": "item",
+  "displayName": "Iron Sword",
+  "visualId": "visual.item_iron_sword",
+  "maxStack": 1,
+  "equipSlot": "main_hand",
+  "attackBonus": 5
+}

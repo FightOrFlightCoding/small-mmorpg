@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/enemy.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "displayName",
+    "visualId",
+    "maxHealth",
+    "damage",
+    "moveSpeed",
+    "aggroRadius",
+    "attackRange",
+    "attackCooldown",
+    "leashRadius",
+    "respawnDelay",
+    "loot"
+  ],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "enemy" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "visualId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "maxHealth": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+    "damage": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "moveSpeed": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+    "aggroRadius": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+    "attackRange": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+    "attackCooldown": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+    "leashRadius": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+    "respawnDelay": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "loot": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["itemId", "quantity", "guaranteed"],
+        "properties": {
+          "itemId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+          "quantity": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+          "guaranteed": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

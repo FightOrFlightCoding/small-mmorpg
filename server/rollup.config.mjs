@@ -9,6 +9,7 @@ const extensions = [".mjs", ".js", ".ts", ".json"];
 export default {
   input: "./src/main.ts",
   external: ["nakama-runtime"],
+  treeshake: false,
   plugins: [
     resolve({ extensions }),
     typescript({ tsconfig: "./tsconfig.json", noEmitOnError: true }),
