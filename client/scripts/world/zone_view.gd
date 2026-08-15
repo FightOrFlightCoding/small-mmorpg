@@ -38,7 +38,7 @@ func _add_floor(width: float, height: float, visual: Dictionary) -> void:
 	var texture: Texture2D = load(texture_path)
 	if texture == null:
 		return
-	add_child(_repeating_sprite("FloorTiles", texture, Rect2(0.0, 0.0, width, height), 0))
+	add_child(_repeating_fill("FloorTiles", texture, Rect2(0.0, 0.0, width, height), 0))
 
 
 func _add_bounds(width: float, height: float) -> void:
@@ -94,22 +94,31 @@ func _add_collisions(collisions: Variant, visual: Dictionary) -> void:
 		poly.color = fill
 		holder.add_child(poly)
 		if obstacle_tex != null:
-			poly.add_child(_repeating_sprite("Tiles", obstacle_tex, Rect2(Vector2.ZERO, box.size), 0))
+			poly.add_child(_repeating_fill("Tiles", obstacle_tex, Rect2(Vector2.ZERO, box.size), 0))
 		index += 1
 
 
-func _repeating_sprite(p_name: String, texture: Texture2D, rect: Rect2, z: int) -> Sprite2D:
-	var sprite := Sprite2D.new()
-	sprite.name = p_name
-	sprite.texture = texture
-	sprite.centered = false
-	sprite.position = rect.position
-	sprite.z_index = z
-	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	sprite.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-	sprite.region_enabled = true
-	sprite.region_rect = Rect2(0.0, 0.0, rect.size.x, rect.size.y)
-	return sprite
+func _repeating_fill(p_name: String, texture: Texture2D, rect: Rect2, z: int) -> Polygon2D:
+	var poly := Polygon2D.new()
+	poly.name = p_name
+	poly.position = rect.position
+	poly.z_index = z
+	poly.polygon = PackedVector2Array([
+		Vector2.ZERO,
+		Vector2(rect.size.x, 0.0),
+		rect.size,
+		Vector2(0.0, rect.size.y),
+	])
+	poly.uv = PackedVector2Array([
+		Vector2.ZERO,
+		Vector2(rect.size.x, 0.0),
+		rect.size,
+		Vector2(0.0, rect.size.y),
+	])
+	poly.texture = texture
+	poly.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	poly.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	return poly
 
 
 func _add_spawn(spawn: Variant) -> void:

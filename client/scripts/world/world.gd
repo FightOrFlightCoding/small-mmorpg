@@ -21,7 +21,8 @@ var _reconciler: MovementReconciler
 var _buffer: SnapshotBuffer = SnapshotBuffer.new()
 var _sent_at: Dictionary = {}
 var _ping_ms: int = 0
-var _overlay_accum: float = 0.0
+var _ping_ema_ms: float = 0.0
+var _frame_ms: float = 0.0
 
 
 func _ready() -> void:
@@ -50,18 +51,19 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	_frame_ms = delta * 1000.0
+	var axis := MoveIntent.read_axes()
+	if not NetworkService.match_id.is_empty():
+		_entities.pose_local(_reconciler.advance(delta, axis))
 	_input_accum += delta
 	var interval := 1.0 / MatchProtocol.INPUT_SEND_HZ
-	if _input_accum >= interval:
-		_input_accum = 0.0
-		_send_move_intent()
+	while _input_accum >= interval:
+		_input_accum -= interval
+		_send_move_intent(axis)
 	if not _snapshot_stale:
 		_entities.apply_remote_poses(_buffer.sample(_buffer.render_tick()))
 	_check_snapshot_timeout()
-	_overlay_accum += delta
-	if _overlay_accum >= 0.25:
-		_overlay_accum = 0.0
-		_refresh_overlay()
+	_refresh_overlay()
 
 
 func _exit_tree() -> void:
@@ -140,13 +142,11 @@ func _on_zone_state_updated() -> void:
 	_apply_zone_state()
 
 
-func _send_move_intent() -> void:
+func _send_move_intent(axis: Vector2) -> void:
 	if NetworkService.match_id.is_empty():
 		return
 	_input_seq += 1
-	var axis := MoveIntent.read_axes()
-	var display: Vector2 = _reconciler.predict(_input_seq, axis)
-	_entities.pose_local(display)
+	_reconciler.predict(_input_seq, axis)
 	_sent_at[_input_seq] = Time.get_ticks_msec()
 	NetworkService.send_input(_input_seq, axis.x, axis.y)
 
@@ -154,6 +154,10 @@ func _send_move_intent() -> void:
 func _update_ping(ack_seq: int) -> void:
 	if _sent_at.has(ack_seq):
 		_ping_ms = maxi(0, Time.get_ticks_msec() - int(_sent_at[ack_seq]))
+		if _ping_ema_ms <= 0.0:
+			_ping_ema_ms = float(_ping_ms)
+		else:
+			_ping_ema_ms = _ping_ema_ms * 0.7 + float(_ping_ms) * 0.3
 	var stale: Array = []
 	for seq in _sent_at.keys():
 		if int(seq) <= ack_seq:
@@ -181,7 +185,9 @@ func _refresh_overlay() -> void:
 	if _overlay == null or not _overlay.visible:
 		return
 	var hash := ContentRegistry.get_content_hash()
-	_overlay.ping_ms = _ping_ms
+	_overlay.fps = Engine.get_frames_per_second()
+	_overlay.frame_ms = _frame_ms
+	_overlay.ping_ms = int(round(_ping_ema_ms)) if _ping_ema_ms > 0.0 else _ping_ms
 	_overlay.server_tick = _last_tick
 	_overlay.last_sent_seq = _input_seq
 	_overlay.last_ack_seq = _reconciler.last_ack_seq

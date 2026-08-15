@@ -58,15 +58,16 @@ Local identities:
 
 ```powershell
 # After scripts/backend-up.ps1
-# In Godot: Project → Run (F5), then Sign in as Alice.
-# Second window: Sign in as Bob.
+# Fastest two-client path (game windows, not the editor Game workspace):
+# powershell -File scripts/run-client-dev.ps1 -DevUser alice
 # powershell -File scripts/run-client-dev.ps1 -DevUser bob
+# In Godot editor Play (slower): Sign in as Alice in one window and Bob in the other.
 # Or from a terminal:
-# Godot --path client -- --dev-user=alice
-# Godot --path client -- --dev-user=bob
+# Godot --path client --scene res://scenes/boot/boot.tscn -- --dev-user=alice
+# Godot --path client --scene res://scenes/boot/boot.tscn -- --dev-user=bob
 ```
 
-`--dev-user=alice` authenticates as device id `vibecode-dev-alice`. The editor Play button does not pass that flag and does not auto-sign in; use **Sign in as Alice** in one window and **Sign in as Bob** in the other. Those buttons continue into the zone after character bootstrap. A second join on the same account is rejected (`already_in_match`). Omit `--dev-user` and press **Sign in with this machine** to use `OS.get_unique_id()`. That fallback is not a production identity: launches on the same machine share one account. Sign-in failures are shown in the error dialog. Character storage is server-only (`permissionWrite: 0`). The world renders the zone, Elder, slime, and other players from content IDs. WASD or arrows send movement intentions; the client predicts locally and the server owns position. Protocol or content mismatch is a fatal compatibility error. There is no combat yet.
+`--dev-user=alice` authenticates as device id `vibecode-dev-alice`. The editor Play button does not pass that flag and does not auto-sign in; use **Sign in as Alice** in one window and **Sign in as Bob** in the other. Those buttons continue into the zone after character bootstrap. A second join on the same account is rejected (`already_in_match`). Two editor Play sessions embed the Game workspace debugger and feel much slower than `run-client-dev.ps1`. Omit `--dev-user` and press **Sign in with this machine** to use `OS.get_unique_id()`. That fallback is not a production identity: launches on the same machine share one account. Sign-in failures are shown in the error dialog. Character storage is server-only (`permissionWrite: 0`). The world renders the zone, Elder, slime, and other players from content IDs. WASD or arrows send movement intentions; the client predicts locally at frame rate and the server owns position. Protocol or content mismatch is a fatal compatibility error. There is no combat yet.
 
 ## Local Nakama and PostgreSQL
 

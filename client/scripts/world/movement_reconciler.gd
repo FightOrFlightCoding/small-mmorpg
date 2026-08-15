@@ -45,7 +45,14 @@ func predict(seq: int, axis: Vector2) -> Vector2:
 	var clean := MovementSim.sanitize_axes(axis)
 	_pending.append({"seq": seq, "axis": clean})
 	predicted = sim.step(predicted, clean)
-	display = sim.step(display, clean)
+	return predicted
+
+
+func advance(delta: float, axis: Vector2) -> Vector2:
+	var dt := clampf(delta, 0.0, MovementSim.TICK_DT)
+	if dt <= 0.0:
+		return display
+	display = sim.step(display, axis, dt)
 	return display
 
 

@@ -131,9 +131,9 @@ The local avatar snaps to the authoritative pose. Remote players lerp between sn
 
 Movement prediction is presentation-only. `MovementSim` copies server constants (`moveSpeed` 120, `dt` 0.1, half-extent 12, zone AABBs). `MovementReconciler` keeps unacked seq/axis commands, replays them from the server pose, and never sends a client position.
 
-Correction policy: error ≤ 0.5 px is agreement (no visual correction); error ≤ 24 px is smoothed with blend 0.35; larger error snaps. Remote interpolation uses a snapshot buffer of up to 8 frames, sampled one tick (100 ms) behind the latest server tick. Samples past the latest frame clamp to that frame. After `SNAPSHOT_TIMEOUT_SEC` (2 s) the buffer freezes and the HUD reports a degraded connection.
+Correction policy: error ≤ 0.5 px is agreement (no visual correction); error ≤ 24 px is smoothed with blend 0.35; larger error snaps. Local presentation integrates `axis * moveSpeed * frameDelta` every render frame so walking is not quantized to the 10 Hz send rate. `INPUT` is still sent at 10 Hz and reconciliation still replays unacked 10 Hz steps from the server pose. Remote interpolation uses a snapshot buffer of up to 8 frames, sampled one tick (100 ms) behind the latest server tick. Samples past the latest frame clamp to that frame. After `SNAPSHOT_TIMEOUT_SEC` (2 s) the buffer freezes and the HUD reports a degraded connection.
 
-`NetDebugOverlay` is visible only when `OS.is_debug_build()` is true. Release exports hide it. There is still no combat or interaction prediction.
+`NetDebugOverlay` is visible only when `OS.is_debug_build()` is true. It shows `Engine.get_frames_per_second()`, frame time, and an EMA of input-to-ack RTT. That ping is not ICMP; it jumps with the 10 Hz snapshot clock if shown raw. Release exports hide the overlay. Two editor Play sessions use the embedded Game workspace (Input/2D/3D toolbar) and are much slower than `scripts/run-client-dev.ps1`, which runs the main scene without the editor. There is still no combat or interaction prediction.
 
 ## 2026-08-15 — Editor login identities
 
@@ -141,7 +141,7 @@ Godot editor Play does not pass `--dev-user`. The login scene wraps copy in a 64
 
 Editor Play does not auto-authenticate. Two Play windows both signing in as Alice are the same Nakama user; the match keys presence by `userId` and a second join is rejected with `already_in_match`. Use Alice in one window and Bob in the other, or `powershell -File scripts/run-client-dev.ps1 -DevUser bob`. Alice/Bob buttons continue into the zone after character bootstrap so two-client setup is one click per window. GdUnit keeps `SceneRouter.apply_scene_changes` false so tests do not auto-join.
 
-The 2D client uses the GL Compatibility renderer. Zone floor and collision overlays are repeating `Sprite2D` regions, not tiled `TextureRect`s, because the latter issued thousands of draws for the 1280×768 starter floor.
+The 2D client uses the GL Compatibility renderer. Zone floor and collision overlays are a single repeating `Polygon2D` each (UVs in texture pixels), not tiled `TextureRect`s or oversized `Sprite2D` regions.
 
 Nakama does not hot-reload `server/build/index.js`. A container started against an older bundle keeps only the RPCs it loaded at boot (`vibecode_health` in the first local stack). `scripts/backend-up.ps1` recreates the Nakama container after `npm run build` and `scripts/backend-verify.ps1` refuses a health-only runtime.
 

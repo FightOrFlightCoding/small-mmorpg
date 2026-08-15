@@ -1,4 +1,5 @@
-# Launch the Godot client as a named development identity (alice or bob).
+# Launch the Godot *game* (not the editor) as a named development identity.
+# Two editor Play windows embed the Game workspace debugger and feel far slower.
 param(
 	[Parameter(Mandatory = $true)]
 	[ValidateSet("alice", "bob")]
@@ -16,5 +17,10 @@ if (-not (Test-Path $Godot)) {
 	throw "Godot 4.7.1 not found. Set GODOT_BIN."
 }
 
-Write-Host "Launching $DevUser from $Godot"
-Start-Process -FilePath $Godot -ArgumentList @("--path", $Client, "--", "--dev-user=$DevUser")
+Write-Host "Launching $DevUser from $Godot (game, not editor)"
+Start-Process -FilePath $Godot -ArgumentList @(
+	"--path", $Client,
+	"--scene", "res://scenes/boot/boot.tscn",
+	"--",
+	"--dev-user=$DevUser"
+)

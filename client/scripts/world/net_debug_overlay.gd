@@ -4,6 +4,8 @@ extends CanvasLayer
 ## Development-only net stats. Hidden in release builds.
 
 var debug_build: bool = true
+var fps: int = 0
+var frame_ms: float = 0.0
 var ping_ms: int = 0
 var server_tick: int = 0
 var last_sent_seq: int = 0
@@ -35,6 +37,7 @@ func refresh() -> void:
 	if _label == null:
 		return
 	_label.text = "\n".join(PackedStringArray([
+		"fps %s (%.1fms)" % [str(fps), frame_ms],
 		"ping %sms" % str(ping_ms),
 		"tick %s" % str(server_tick),
 		"sent seq %s" % str(last_sent_seq),

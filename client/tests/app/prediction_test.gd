@@ -17,11 +17,22 @@ func test_no_correction_when_state_agrees() -> void:
 	var rec := _reconciler()
 	rec.reset(Vector2(400, 400))
 	rec.predict(1, Vector2.RIGHT)
+	rec.advance(MovementSim.TICK_DT, Vector2.RIGHT)
 	var result: Dictionary = rec.reconcile(Vector2(412, 400), 1)
 	assert_str(String(result["correction"])).is_equal("none")
 	assert_float(float(result["error"])).is_less_equal(MovementReconciler.AGREE_EPSILON)
 	assert_vector(result["display"]).is_equal_approx(Vector2(412, 400), Vector2(0.01, 0.01))
 	assert_int(int(result["pending"])).is_equal(0)
+
+
+func test_display_advances_per_frame_instead_of_per_tick() -> void:
+	var rec := _reconciler()
+	rec.reset(Vector2(400, 400))
+	rec.advance(1.0 / 60.0, Vector2.RIGHT)
+	var moved := rec.display.x - 400.0
+	assert_float(moved).is_equal_approx(120.0 / 60.0, 0.05)
+	assert_float(moved).is_less(12.0)
+	assert_int(rec.pending_count()).is_equal(0)
 
 
 func test_acknowledged_input_is_removed() -> void:
@@ -41,7 +52,9 @@ func test_remaining_input_is_replayed() -> void:
 	var rec := _reconciler()
 	rec.reset(Vector2(400, 400))
 	rec.predict(1, Vector2.RIGHT)
+	rec.advance(MovementSim.TICK_DT, Vector2.RIGHT)
 	rec.predict(2, Vector2.RIGHT)
+	rec.advance(MovementSim.TICK_DT, Vector2.RIGHT)
 	var result: Dictionary = rec.reconcile(Vector2(412, 400), 1)
 	assert_int(int(result["pending"])).is_equal(1)
 	assert_vector(result["predicted"]).is_equal_approx(Vector2(424, 400), Vector2(0.01, 0.01))
@@ -52,6 +65,7 @@ func test_small_correction_is_smoothed() -> void:
 	var rec := _reconciler()
 	rec.reset(Vector2(400, 400))
 	rec.predict(1, Vector2.RIGHT)
+	rec.advance(MovementSim.TICK_DT, Vector2.RIGHT)
 	var result: Dictionary = rec.reconcile(Vector2(410, 400), 1)
 	assert_str(String(result["correction"])).is_equal("smooth")
 	var x := float((result["display"] as Vector2).x)
@@ -64,6 +78,7 @@ func test_large_correction_snaps() -> void:
 	var rec := _reconciler()
 	rec.reset(Vector2(400, 400))
 	rec.predict(1, Vector2.RIGHT)
+	rec.advance(MovementSim.TICK_DT, Vector2.RIGHT)
 	var result: Dictionary = rec.reconcile(Vector2(500, 400), 1)
 	assert_str(String(result["correction"])).is_equal("snap")
 	assert_float(float(result["error"])).is_greater(MovementReconciler.SNAP_THRESHOLD)
@@ -101,6 +116,8 @@ func test_debug_overlay_hides_in_release() -> void:
 	assert_bool(overlay.visible).is_false()
 	overlay.set_debug_build(true)
 	overlay.ping_ms = 42
+	overlay.fps = 60
+	overlay.frame_ms = 16.6
 	overlay.server_tick = 9
 	overlay.last_sent_seq = 11
 	overlay.last_ack_seq = 8
@@ -111,6 +128,7 @@ func test_debug_overlay_hides_in_release() -> void:
 	overlay.refresh()
 	assert_bool(overlay.visible).is_true()
 	var text := String(overlay.get_node("Root/Panel/Label").text)
+	assert_str(text).contains("fps 60 (16.6ms)")
 	assert_str(text).contains("ping 42ms")
 	assert_str(text).contains("tick 9")
 	assert_str(text).contains("sent seq 11")
