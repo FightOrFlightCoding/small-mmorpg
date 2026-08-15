@@ -11,6 +11,7 @@ signal scene_changed(scene_id: String)
 signal user_authenticated(user_id: String)
 signal logged_out
 signal character_loaded(created: bool)
+signal zone_state_updated
 
 var current_scene_id: String = "boot"
 var is_loading: bool = false
@@ -24,6 +25,8 @@ var username: String = ""
 var has_character: bool = false
 var character_created: bool = false
 var character_view: Dictionary = {}
+var has_zone_state: bool = false
+var zone_view: Dictionary = {}
 
 
 func notify_loading_started(reason: String) -> void:
@@ -78,6 +81,7 @@ func notify_logged_out() -> void:
 	has_character = false
 	character_created = false
 	character_view = {}
+	clear_zone_state()
 	logged_out.emit()
 
 
@@ -86,6 +90,17 @@ func notify_character_loaded(view: Dictionary, created: bool) -> void:
 	character_created = created
 	character_view = view.duplicate(true)
 	character_loaded.emit(created)
+
+
+func notify_zone_state(view: Dictionary) -> void:
+	has_zone_state = true
+	zone_view = view.duplicate(true)
+	zone_state_updated.emit()
+
+
+func clear_zone_state() -> void:
+	has_zone_state = false
+	zone_view = {}
 
 
 func reset_for_tests() -> void:
@@ -101,3 +116,5 @@ func reset_for_tests() -> void:
 	has_character = false
 	character_created = false
 	character_view = {}
+	has_zone_state = false
+	zone_view = {}

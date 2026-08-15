@@ -40,4 +40,14 @@ func test_character_and_world_require_auth_and_character() -> void:
 	assert_bool(SceneRouter.transition_to(SceneRouter.SCENE_CHARACTER)).is_true()
 	assert_bool(SceneRouter.transition_to(SceneRouter.SCENE_WORLD)).is_false()
 	AppState.notify_character_loaded({"name": "Alice"}, false)
+	assert_bool(SceneRouter.transition_to(SceneRouter.SCENE_WORLD)).is_false()
+	AppState.notify_zone_state({
+		"self_id": "user-alice",
+		"zone_id": "zone.starter",
+		"tick": 1,
+		"players": [],
+		"npcs": [],
+		"enemies": [],
+		"loot": [],
+	})
 	assert_bool(SceneRouter.transition_to(SceneRouter.SCENE_WORLD)).is_true()

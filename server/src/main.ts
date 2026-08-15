@@ -1,5 +1,9 @@
 import { handleHealthRpc } from "./rpcs/health";
 import { rpcCharacterBootstrap } from "./rpcs/character_bootstrap";
+import { rpcFindOrCreateStarterZone } from "./rpcs/find_or_create_starter_zone";
+import { starterZoneMatchHandler } from "./nakama/starter_zone_match";
+import { STARTER_ZONE_MODULE } from "./domain/match_state";
+import { PROTOCOL_VERSION } from "./domain/protocol";
 import { content, contentHash } from "./generated/content";
 
 function rpcVibecodeHealth(
@@ -25,8 +29,12 @@ function InitModule(
 ): void {
   initializer.registerRpc("vibecode_health", rpcVibecodeHealth);
   initializer.registerRpc("character_bootstrap", rpcCharacterBootstrap);
+  initializer.registerRpc("find_or_create_starter_zone", rpcFindOrCreateStarterZone);
+  initializer.registerMatch(STARTER_ZONE_MODULE, starterZoneMatchHandler);
   logger.info(
-    "vibecode runtime loaded rpc=vibecode_health,character_bootstrap protocol_version=1 content_hash=%s zone=%s",
+    "vibecode runtime loaded rpc=vibecode_health,character_bootstrap,find_or_create_starter_zone match=%s protocol_version=%s content_hash=%s zone=%s",
+    STARTER_ZONE_MODULE,
+    String(PROTOCOL_VERSION),
     contentHash,
     content.zones["zone.starter"].id,
   );

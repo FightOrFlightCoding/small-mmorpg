@@ -1,11 +1,11 @@
 ; Engine configuration file.
-; Godot 4.7.1 application shell. Does not connect to Nakama.
+; Godot 4.7.1 client. Authenticates, bootstraps one character, joins the starter zone.
 config_version=5
 
 [application]
 
 config/name="small-mmorpg"
-config/description="Client application shell. Content-checked boot to login. No Nakama connection."
+config/description="Client. Device auth, one character, starter-zone join after FULL_STATE. No movement."
 run/main_scene="res://scenes/boot/boot.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"

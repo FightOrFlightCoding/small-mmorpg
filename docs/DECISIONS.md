@@ -99,4 +99,14 @@ When `--dev-user` is omitted, the client uses `vibecode-local-` plus a sanitized
 
 RPC `character_bootstrap` requires `ctx.userId`. Collection `player`, key `character`, `permissionRead: 1`, `permissionWrite: 0`. One character per account. Name is optional, 3–16 characters matching `^[A-Za-z][A-Za-z0-9_]{2,15}$`. Client-supplied stats, position, and unknown fields are rejected. Existing records are returned unchanged (idempotent). Base stats always come from `player.base`; spawn comes from `zone.starter.playerSpawn`.
 
-Continue on the character scene opens the world shell only. The starter-zone match is not implemented in this phase.
+Continue on the character scene calls `find_or_create_starter_zone`, joins the returned match, and opens the world only after a valid `FULL_STATE`.
+
+## 2026-08-15 — Network protocol and authoritative zone skeleton
+
+Protocol version is `1`, shared by `vibecode_health` and match envelopes. JSON keys are camelCase. Client→server match bodies are capped at 2048 bytes. Reward opcodes (`PICKUP`, `QUEST_ACCEPT`, `QUEST_TURN_IN`) require `requestId` matching `^[A-Za-z0-9_-]{8,64}$`.
+
+The starter-zone match module is `starter_zone` with label `zone.starter`, tick rate 10 Hz, and a maximum of 8 players. An empty match shuts down after 30 seconds (300 ticks). Join metadata is `{ protocolVersion, contentHash }` as strings. Character state is loaded in `matchJoin` / `matchJoinAttempt` only; the tick loop does not read storage. `INPUT` is validated and ignored. There is no movement or combat simulation.
+
+`find_or_create_starter_zone` is an authenticated RPC. It prefers a live system-owned storage singleton (`collection` `match`, key `starter_zone`, `permissionRead: 0`, `permissionWrite: 0`), then `matchList` by label, then `matchCreate`. Concurrent creates reconverge on the stored or lexicographically canonical running match id. Extra raced matches remain empty and time out.
+
+The client enters `world` only after parsing a valid `FULL_STATE`. Protocol or content mismatch is a fatal compatibility error. `RESYNC_REQUEST` asks for a fresh `FULL_STATE`. `SNAPSHOT` updates the remote player list on join/leave.

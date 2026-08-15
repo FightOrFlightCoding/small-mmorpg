@@ -35,7 +35,12 @@ func can_transition_to(scene_id: String) -> bool:
 	if scene_id == SCENE_CHARACTER:
 		return AppState.can_enter_gameplay_scenes() and AppState.is_authenticated
 	if scene_id == SCENE_WORLD:
-		return AppState.can_enter_gameplay_scenes() and AppState.is_authenticated and AppState.has_character
+		return (
+			AppState.can_enter_gameplay_scenes()
+			and AppState.is_authenticated
+			and AppState.has_character
+			and AppState.has_zone_state
+		)
 	if scene_id == SCENE_LOGIN:
 		return AppState.content_ready and not AppState.has_fatal_error
 	return true

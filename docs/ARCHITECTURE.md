@@ -69,10 +69,11 @@ No project-defined SQL schema is allowed.
 
 There is exactly one gameplay match module for this slice: the starter zone.
 
-- Players join that match after authentication and character bootstrap (single character, no slots).
-- The match owns live positions, collision, combatants, ground loot, and in-memory cooldowns.
+- Module name `starter_zone`, label `zone.starter`, 10 Hz, maximum 8 players.
+- Players join that match after authentication and character bootstrap (single character, no slots) via `find_or_create_starter_zone`.
+- The match owns live positions, collision, combatants, ground loot, and in-memory cooldowns. This phase stores presence and static NPC/enemy definitions only; it does not simulate movement or combat.
 - The client never hosts a second simulation of those values.
-- Leaving the match does not invent extra zones; reconnect re-enters the same starter-zone match with loaded persistent state plus last checkpointed position.
+- An empty match shuts down after 30 seconds. Reconnect re-enters the shared starter-zone match with loaded persistent state plus last checkpointed position.
 
 ## Client/server trust boundaries
 
@@ -97,8 +98,8 @@ Third-party libraries are implementation details. Game code talks to project-own
 | --- | --- | --- |
 | `AppState` | none | Non-authoritative client/session flags and shell signals. Never canonical game data. |
 | `ContentRegistry` | generated `client/content/bundle.json` | Schema version check, content hash, lookup by stable ID |
-| `NetworkService` | Nakama Godot SDK 3.4.0 | Device auth, in-memory session cache, refresh, reauth, realtime socket, logout, `character_bootstrap` RPC. Does not join a match yet. |
-| `GameService` | the autoloads above | Boot, login, character bootstrap, temporary world entry. Not a gameplay authority. |
+| `NetworkService` | Nakama Godot SDK 3.4.0 | Device auth, in-memory session cache, refresh, reauth, realtime socket, logout, `character_bootstrap`, `find_or_create_starter_zone`, match join/leave, `RESYNC_REQUEST`. |
+| `GameService` | the autoloads above | Boot, login, character bootstrap, starter-zone join. Not a gameplay authority. |
 | `SceneRouter` | Godot scene tree | Transitions among boot, login, character, and world |
 | Inventory presenter (later) | GLoot 3.0.2 | Display of server inventory/equipment |
 | Dialogue presenter (later) | Dialogue Manager 3.10.5 | Display of server-offered lines/choices |
@@ -106,7 +107,7 @@ Third-party libraries are implementation details. Game code talks to project-own
 
 Do not call addon APIs from feature scenes except through these adapters. Do not edit files under `client/addons/`. See [THIRD_PARTY.md](THIRD_PARTY.md).
 
-Shell signals live on `AppState`: `loading_started`, `loading_completed`, `recoverable_error`, `fatal_compatibility_error`, `content_loaded`, `scene_changed`, `user_authenticated`, `logged_out`, `character_loaded`. After a fatal content error the client must stay on boot and must not enter login, character, or world. Character and world require a successful sign-in; world also requires a bootstrapped character.
+Shell signals live on `AppState`: `loading_started`, `loading_completed`, `recoverable_error`, `fatal_compatibility_error`, `content_loaded`, `scene_changed`, `user_authenticated`, `logged_out`, `character_loaded`, `zone_state_updated`. After a fatal content or protocol error the client must not enter login, character, or world. Character requires a successful sign-in; world also requires a bootstrapped character and a valid `FULL_STATE`.
 
 ## Shared content generation
 

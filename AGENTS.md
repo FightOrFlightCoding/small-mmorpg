@@ -90,8 +90,8 @@ Record necessary assumptions in `docs/DECISIONS.md`.
 
 | Path | Role |
 | --- | --- |
-| `client/` | Godot 4.7.1 application shell (boot → login → character → temporary world). Device auth; no match yet. |
-| `server/` | TypeScript Nakama runtime (health RPC, `character_bootstrap`; generated content catalog; no matches yet). |
+| `client/` | Godot 4.7.1 application (boot → login → character → starter zone after `FULL_STATE`). Device auth; joins `zone.starter`. |
+| `server/` | TypeScript Nakama runtime (health RPC, `character_bootstrap`, `find_or_create_starter_zone`, starter-zone match; generated content catalog). |
 | `content/schemas/` | JSON Schemas for authored content. |
 | `content/source/` | ID-addressed source content documents. |
 | `infra/` | Docker Compose and Nakama configuration. |

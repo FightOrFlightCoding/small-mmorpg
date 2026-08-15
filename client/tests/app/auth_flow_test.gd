@@ -102,7 +102,12 @@ func test_character_created_path() -> void:
 	assert_bool(AppState.character_created).is_true()
 	assert_str(AppState.character_view["character_id"]).is_equal("char-new")
 	assert_str(AppState.character_view["name"]).is_equal("Alice")
-	assert_bool(GameService.enter_temporary_world()).is_true()
+	assert_bool(await GameService.enter_starter_zone()).is_true()
+	assert_str(fake.last_rpc_id).is_equal(MatchProtocol.FIND_OR_CREATE_STARTER_ZONE_RPC)
+	assert_str(fake.last_join_match_id).is_equal("match-starter-shared")
+	assert_str(String(fake.last_join_metadata.get("protocolVersion", ""))).is_equal(str(MatchProtocol.VERSION))
+	assert_bool(AppState.has_zone_state).is_true()
+	assert_str(AppState.zone_view["self_id"]).is_equal("user-alice")
 	assert_str(SceneRouter.current_scene_id).is_equal(SceneRouter.SCENE_WORLD)
 
 

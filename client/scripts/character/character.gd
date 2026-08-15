@@ -49,7 +49,10 @@ func _show_character(view: Dictionary, created: bool) -> void:
 
 
 func _on_continue_pressed() -> void:
-	GameService.enter_temporary_world()
+	_continue_button.disabled = true
+	var entered := await GameService.enter_starter_zone()
+	if not entered:
+		_continue_button.disabled = false
 
 
 func _on_logout_pressed() -> void:

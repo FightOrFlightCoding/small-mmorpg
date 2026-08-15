@@ -1,8 +1,9 @@
+import { PROTOCOL_VERSION } from "../domain/protocol";
 import { contentHash } from "../generated/content";
 
 export const HEALTH_RPC_ID = "vibecode_health";
 
-export const PROTOCOL_VERSION = 1;
+export { PROTOCOL_VERSION };
 export const SERVICE_NAME = "vibecode-server";
 
 export interface HealthResponse {

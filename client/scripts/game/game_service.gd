@@ -59,11 +59,18 @@ func request_character_bootstrap(proposed_name: String = "") -> void:
 	await NetworkService.bootstrap_character(name)
 
 
-func enter_temporary_world() -> bool:
+func enter_starter_zone() -> bool:
 	if not AppState.has_character:
 		AppState.report_recoverable("character_missing", "A character is required before entering the world.")
 		return false
+	var joined := await NetworkService.join_starter_zone()
+	if not joined or not AppState.has_zone_state:
+		return false
 	return SceneRouter.transition_to(SceneRouter.SCENE_WORLD)
+
+
+func request_resync() -> bool:
+	return await NetworkService.request_resync()
 
 
 func request_logout() -> void:

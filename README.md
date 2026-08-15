@@ -2,7 +2,7 @@
 
 Server-authoritative 2D MMORPG vertical slice.
 
-The Godot 4.7.1 client is an **application shell** with local device authentication and one character per account. Continue enters a temporary world screen. There is still no starter-zone match or gameplay.
+The Godot 4.7.1 client authenticates locally by device, bootstraps one character per account, and joins the shared starter-zone authoritative match. There is still no movement or combat.
 
 ## Read first
 
@@ -15,8 +15,8 @@ The Godot 4.7.1 client is an **application shell** with local device authenticat
 ## Layout
 
 ```
-client/     Godot 4.7.1 application shell (import this folder)
-server/     Nakama TypeScript runtime (health RPC + generated content)
+client/     Godot 4.7.1 client (import this folder)
+server/     Nakama TypeScript runtime (RPCs + starter-zone match + generated content)
 content/    JSON Schema + source content
 infra/      Docker Compose + Nakama config
 scripts/    Developer commands
@@ -63,7 +63,7 @@ Local identities:
 # Godot --path client -- --dev-user=bob
 ```
 
-`--dev-user=alice` authenticates as device id `vibecode-dev-alice`. Omit `--dev-user` to use a machine-local device id (`OS.get_unique_id()`). That fallback is not a production identity: launches on the same machine share one account. Sign-in failures are shown in the error dialog. Character storage is server-only (`permissionWrite: 0`). Continue does not join a match yet.
+`--dev-user=alice` authenticates as device id `vibecode-dev-alice`. Omit `--dev-user` to use a machine-local device id (`OS.get_unique_id()`). That fallback is not a production identity: launches on the same machine share one account. Sign-in failures are shown in the error dialog. Character storage is server-only (`permissionWrite: 0`). Continue joins the shared starter-zone match and enters the world only after a valid `FULL_STATE`. Protocol or content mismatch is a fatal compatibility error. There is no movement yet.
 
 ## Local Nakama and PostgreSQL
 
