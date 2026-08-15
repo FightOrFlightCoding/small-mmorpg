@@ -12,7 +12,7 @@ It may:
 
 - Render the starter-zone floor, bounds, collision AABBs, spawn marker, and entities from server snapshots plus content IDs.
 - Capture local input and send **intentions** (move, attack, interact, loot, equip, dialogue choice).
-- Predict cosmetic motion only when a later phase explicitly allows it; prediction never grants rewards or changes canonical stats.
+- Predict local movement presentation using the same speed, dt, and collision rules as the server, then reconcile to `lastProcessedSeq`. Prediction never grants rewards or changes canonical stats.
 - Display inventory, equipment, dialogue, quest, and currency **views** from server-owned state.
 - Map stable content IDs to scenes, sprites, and Dialogue Manager resources through a project-owned catalog.
 - Show visible connection, validation, and rejection errors. It must not spin on an indefinite loading state.
@@ -101,7 +101,7 @@ Third-party libraries are implementation details. Game code talks to project-own
 | `NetworkService` | Nakama Godot SDK 3.4.0 | Device auth, in-memory session cache, refresh, reauth, realtime socket, logout, `character_bootstrap`, `find_or_create_starter_zone`, match join/leave, `INPUT`, `RESYNC_REQUEST`. |
 | `GameService` | the autoloads above | Boot, login, character bootstrap, starter-zone join. Not a gameplay authority. |
 | `SceneRouter` | Godot scene tree | Transitions among boot, login, character, and world |
-| `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE`/`SNAPSHOT`. Local poses snap; remotes interpolate. Not a gameplay authority. |
+| `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE`/`SNAPSHOT`. Local movement is predicted and reconciled; remotes interpolate from a snapshot buffer. Not a gameplay authority. |
 | Inventory presenter (later) | GLoot 3.0.2 | Display of server inventory/equipment |
 | Dialogue presenter (later) | Dialogue Manager 3.10.5 | Display of server-offered lines/choices |
 | Test runner scripts | GdUnit4 6.2.0 | Client unit/scene tests |

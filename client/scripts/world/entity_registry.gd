@@ -94,6 +94,23 @@ func advance_interpolation(delta: float) -> void:
 			(node as WorldAvatar).advance_interpolation(delta)
 
 
+func apply_remote_poses(poses: Dictionary) -> void:
+	for id in poses.keys():
+		if String(id) == local_server_id:
+			continue
+		var node: Node2D = get_entity("%s:%s" % [KIND_PLAYER, String(id)])
+		if node != null:
+			node.position = poses[id]
+
+
+func pose_local(pos: Vector2) -> void:
+	var node: Node2D = get_entity("%s:%s" % [KIND_PLAYER, local_server_id])
+	if node is WorldAvatar:
+		(node as WorldAvatar).set_server_position(pos.x, pos.y)
+	elif node != null:
+		node.position = pos
+
+
 func apply_unknown_kind(kind: String, _records: Array = []) -> void:
 	_reject_kind(kind)
 
@@ -133,8 +150,8 @@ func _apply_kind(kind: String, records: Variant, keep: Dictionary, interpolate_r
 			node.position = pose
 		elif node is WorldAvatar:
 			(node as WorldAvatar).configure(kind, server_id, _name_for(kind, record), _visual_for(kind, record), is_local)
-			if interpolate_remotes and kind == KIND_PLAYER and not is_local:
-				(node as WorldAvatar).interpolate_toward(pose, interp_duration)
+			if interpolate_remotes and kind == KIND_PLAYER:
+				pass
 			else:
 				(node as WorldAvatar).set_server_position(pose.x, pose.y)
 		else:

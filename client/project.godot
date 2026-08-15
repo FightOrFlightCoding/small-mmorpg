@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="small-mmorpg"
-config/description="Client. Device auth, one character, content-driven starter zone. Server-authoritative movement."
+config/description="Client. Device auth, one character, content-driven starter zone. Predicted movement, server authority."
 run/main_scene="res://scenes/boot/boot.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"

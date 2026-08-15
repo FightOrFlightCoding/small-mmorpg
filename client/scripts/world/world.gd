@@ -1,6 +1,6 @@
 extends Node2D
 
-## Starter-zone presentation. Local avatars snap to server poses; remotes interpolate.
+## Starter-zone presentation. Predicts local movement; remotes interpolate from a snapshot buffer.
 
 @onready var _zone: ZoneView = $Zone
 @onready var _entities: EntityRegistry = $EntityRegistry
@@ -8,6 +8,7 @@ extends Node2D
 @onready var _hud: WorldHud = $WorldHud
 @onready var _error_dialog: CanvasLayer = $ErrorDialog
 @onready var _loading_overlay: CanvasLayer = $LoadingOverlay
+@onready var _overlay: NetDebugOverlay = $NetDebugOverlay
 
 var _input_seq: int = 0
 var _input_accum: float = 0.0
@@ -15,6 +16,11 @@ var _last_state_msec: int = 0
 var _last_tick: int = 0
 var _snapshot_timeout_reported: bool = false
 var _snapshot_stale: bool = false
+var _sim: MovementSim
+var _reconciler: MovementReconciler
+var _buffer: SnapshotBuffer = SnapshotBuffer.new()
+var _sent_at: Dictionary = {}
+var _ping_ms: int = 0
 
 
 func _ready() -> void:
@@ -31,6 +37,10 @@ func _ready() -> void:
 	_hud.resync_pressed.connect(_on_resync_pressed)
 	_hud.logout_pressed.connect(_on_logout_pressed)
 	_entities.follow_camera = _camera
+	_sim = MovementSim.from_content()
+	_reconciler = MovementReconciler.new(_sim)
+	if _overlay != null:
+		_overlay.set_debug_build(OS.is_debug_build())
 	_render_zone_geometry()
 	_apply_zone_state()
 	_last_state_msec = Time.get_ticks_msec()
@@ -39,13 +49,15 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	_entities.advance_interpolation(delta)
 	_input_accum += delta
 	var interval := 1.0 / MatchProtocol.INPUT_SEND_HZ
 	if _input_accum >= interval:
 		_input_accum = 0.0
 		_send_move_intent()
+	if not _snapshot_stale:
+		_entities.apply_remote_poses(_buffer.sample(_buffer.render_tick()))
 	_check_snapshot_timeout()
+	_refresh_overlay()
 
 
 func _exit_tree() -> void:
@@ -74,18 +86,50 @@ func _apply_zone_state() -> void:
 		return
 	_last_state_msec = Time.get_ticks_msec()
 	_snapshot_timeout_reported = false
+	if _snapshot_stale:
+		_buffer.frozen = false
 	_snapshot_stale = false
 	var state: Dictionary = AppState.zone_view
 	if AppState.zone_view_is_full:
 		_entities.apply_full_state(state)
+		_reset_prediction(state)
+		_buffer.clear()
+		_buffer.push(int(state.get("tick", 0)), _remote_poses(state))
 	else:
-		var duration := 1.0 / MatchProtocol.SNAPSHOT_RATE_HZ
-		var new_tick := int(state.get("tick", _last_tick))
-		if _last_tick > 0 and new_tick > _last_tick:
-			duration = float(new_tick - _last_tick) / MatchProtocol.SNAPSHOT_RATE_HZ
-		_entities.apply_snapshot(state, duration)
+		_entities.apply_snapshot(state)
+		var ack := int(state.get("ack_seq", 0))
+		var result: Dictionary = _reconciler.reconcile(_local_server_pos(state), ack)
+		_entities.pose_local(result["display"])
+		_update_ping(ack)
+		_buffer.push(int(state.get("tick", 0)), _remote_poses(state))
 	_last_tick = int(state.get("tick", _last_tick))
 	_hud.refresh(state, _entities.summaries(), false)
+
+
+func _reset_prediction(state: Dictionary) -> void:
+	_reconciler.reset(_local_server_pos(state))
+	_sent_at.clear()
+
+
+func _local_server_pos(state: Dictionary) -> Vector2:
+	var self_id := String(state.get("self_id", _entities.local_server_id))
+	for entry in state.get("players", []):
+		if typeof(entry) == TYPE_DICTIONARY and String(entry.get("userId", "")) == self_id:
+			return Vector2(float(entry.get("x", 0.0)), float(entry.get("y", 0.0)))
+	return _reconciler.display
+
+
+func _remote_poses(state: Dictionary) -> Dictionary:
+	var poses: Dictionary = {}
+	var self_id := String(state.get("self_id", _entities.local_server_id))
+	for entry in state.get("players", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var user_id := String(entry.get("userId", ""))
+		if user_id.is_empty() or user_id == self_id:
+			continue
+		poses[user_id] = Vector2(float(entry.get("x", 0.0)), float(entry.get("y", 0.0)))
+	return poses
 
 
 func _on_zone_state_updated() -> void:
@@ -97,7 +141,21 @@ func _send_move_intent() -> void:
 		return
 	_input_seq += 1
 	var axis := MoveIntent.read_axes()
+	var display: Vector2 = _reconciler.predict(_input_seq, axis)
+	_entities.pose_local(display)
+	_sent_at[_input_seq] = Time.get_ticks_msec()
 	NetworkService.send_input(_input_seq, axis.x, axis.y)
+
+
+func _update_ping(ack_seq: int) -> void:
+	if _sent_at.has(ack_seq):
+		_ping_ms = maxi(0, Time.get_ticks_msec() - int(_sent_at[ack_seq]))
+	var stale: Array = []
+	for seq in _sent_at.keys():
+		if int(seq) <= ack_seq:
+			stale.append(seq)
+	for seq in stale:
+		_sent_at.erase(seq)
 
 
 func _check_snapshot_timeout() -> void:
@@ -108,10 +166,26 @@ func _check_snapshot_timeout() -> void:
 	if stale == _snapshot_stale:
 		return
 	_snapshot_stale = stale
+	_buffer.frozen = stale
 	_hud.refresh(AppState.zone_view, _entities.summaries(), stale)
 	if stale and not _snapshot_timeout_reported:
 		_snapshot_timeout_reported = true
-		AppState.report_recoverable("snapshot_timeout", "No snapshot from the server. Check the connection.")
+		AppState.report_recoverable("snapshot_timeout", "Connection degraded. Remote movement is frozen.")
+
+
+func _refresh_overlay() -> void:
+	if _overlay == null or not _overlay.visible:
+		return
+	var hash := ContentRegistry.get_content_hash()
+	_overlay.ping_ms = _ping_ms
+	_overlay.server_tick = _last_tick
+	_overlay.last_sent_seq = _input_seq
+	_overlay.last_ack_seq = _reconciler.last_ack_seq
+	_overlay.prediction_error = _reconciler.last_error
+	_overlay.snapshot_depth = _buffer.depth()
+	_overlay.protocol_version = MatchProtocol.VERSION
+	_overlay.content_hash_prefix = hash.substr(0, 8) if hash.length() >= 8 else hash
+	_overlay.refresh()
 
 
 func _on_resync_pressed() -> void:

@@ -21,7 +21,7 @@ func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool =
 		_entities.text = ""
 		return
 	if snapshot_stale:
-		_status.text = "No snapshot from the server. Check the connection."
+		_status.text = "Connection degraded. Remote movement is frozen."
 	else:
 		_status.text = "In %s as %s. Tick %s. Ack seq %s." % [
 			String(state.get("zone_id", "zone.starter")),

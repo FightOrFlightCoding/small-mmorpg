@@ -8,7 +8,7 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Attack:** Client sends a world position or snaps itself across the map.
 
-**Defense:** Movement messages are intentions. The match integrates movement, clamps to max speed, and resolves collision. Broadcast state uses server position only.
+**Defense:** Movement messages are intentions. The match integrates movement, clamps to max speed, and resolves collision. Broadcast state uses server position only. Local prediction is display-only and is never accepted as an authoritative transform.
 
 ### Speed hacking
 

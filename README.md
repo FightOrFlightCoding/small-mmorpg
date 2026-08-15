@@ -2,7 +2,7 @@
 
 Server-authoritative 2D MMORPG vertical slice.
 
-The Godot 4.7.1 client authenticates locally by device, bootstraps one character per account, and joins the shared starter-zone authoritative match. The starter zone is rendered from content IDs. Movement is server-authoritative. There is still no combat.
+The Godot 4.7.1 client authenticates locally by device, bootstraps one character per account, and joins the shared starter-zone authoritative match. The starter zone is rendered from content IDs. Movement is server-authoritative with local prediction. There is still no combat.
 
 ## Read first
 
@@ -63,7 +63,7 @@ Local identities:
 # Godot --path client -- --dev-user=bob
 ```
 
-`--dev-user=alice` authenticates as device id `vibecode-dev-alice`. Omit `--dev-user` to use a machine-local device id (`OS.get_unique_id()`). That fallback is not a production identity: launches on the same machine share one account. Sign-in failures are shown in the error dialog. Character storage is server-only (`permissionWrite: 0`). Continue joins the shared starter-zone match and enters the world only after a valid `FULL_STATE`. The world renders the zone, Elder, slime, and other players from content IDs. WASD or arrows send movement intentions; the server owns position. Protocol or content mismatch is a fatal compatibility error. There is no combat yet.
+`--dev-user=alice` authenticates as device id `vibecode-dev-alice`. Omit `--dev-user` to use a machine-local device id (`OS.get_unique_id()`). That fallback is not a production identity: launches on the same machine share one account. Sign-in failures are shown in the error dialog. Character storage is server-only (`permissionWrite: 0`). Continue joins the shared starter-zone match and enters the world only after a valid `FULL_STATE`. The world renders the zone, Elder, slime, and other players from content IDs. WASD or arrows send movement intentions; the client predicts locally and the server owns position. Protocol or content mismatch is a fatal compatibility error. There is no combat yet.
 
 ## Local Nakama and PostgreSQL
 

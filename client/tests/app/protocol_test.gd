@@ -30,6 +30,8 @@ func test_opcodes_match_the_server_allocation() -> void:
 	assert_float(MatchProtocol.INPUT_SEND_HZ).is_equal(10.0)
 	assert_float(MatchProtocol.SNAPSHOT_RATE_HZ).is_equal(10.0)
 	assert_float(MatchProtocol.SNAPSHOT_TIMEOUT_SEC).is_equal(2.0)
+	assert_float(MatchProtocol.INTERP_DELAY_TICKS).is_equal(1.0)
+	assert_float(MatchProtocol.SNAP_THRESHOLD_PX).is_equal(24.0)
 	assert_str(MatchProtocol.FIND_OR_CREATE_STARTER_ZONE_RPC).is_equal("find_or_create_starter_zone")
 
 

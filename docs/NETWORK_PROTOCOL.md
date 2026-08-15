@@ -56,7 +56,7 @@ Match and RPC payloads for the slice are JSON objects.
 | 107 | `INTERACTION_RESULT` | `{ protocolVersion, ok, code }` |
 | 108 | `SYSTEM_MESSAGE` | `{ protocolVersion, code, message }` |
 
-`FULL_STATE` is sent to the joining presence after character load, and again on `RESYNC_REQUEST`. Occupied matches broadcast `SNAPSHOT` every tick (10 Hz). Each player record includes `x`, `y`, and `lastProcessedSeq` so the local client can ack input. A client that receives no snapshot or full state for **2 seconds** shows a visible `snapshot_timeout`. There is no combat.
+`FULL_STATE` is sent to the joining presence after character load, and again on `RESYNC_REQUEST`. Occupied matches broadcast `SNAPSHOT` every tick (10 Hz). Each player record includes `x`, `y`, and `lastProcessedSeq` so the local client can ack input. A client that receives no snapshot or full state for **2 seconds** freezes remote interpolation and shows a degraded-connection state (`snapshot_timeout`). Local prediction still reconciles when snapshots resume. There is no combat.
 
 ## Client sends intentions only
 
@@ -76,6 +76,16 @@ Illegal client messages (must be rejected if they appear):
 - currency delta
 
 Those keys are rejected as `stat_injection:<key>`.
+
+## Local prediction and remote interpolation
+
+Prediction is client presentation only. `INPUT` still carries direction and sequence. The client applies the same speed, dt, and AABB rules as the match, stores unacked commands, and on each `SNAPSHOT` / `FULL_STATE`:
+
+1. Drops commands with `seq <= lastProcessedSeq`.
+2. Replays remaining commands from the server pose.
+3. Leaves the display pose if error ≤ 0.5 px, blends toward the replayed pose if error ≤ 24 px, and snaps if error is larger.
+
+Remote players are sampled from a short snapshot buffer (max 8 frames) one tick behind the latest server tick. Samples past the newest frame clamp to that frame. After 2 seconds without a snapshot the buffer freezes and the HUD reports a degraded connection. There is no combat or interaction prediction.
 
 ## Unique request ID on rewarded actions
 

@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Server-authoritative movement**.
+Last accepted phase: **Local prediction and reconciliation**.
 
 Current phase: none requested. Do not add combat until asked.
 
@@ -111,3 +111,9 @@ npm test
 npm run build
 powershell -File ..\scripts\run-client-shell.ps1
 ```
+
+## Local prediction and reconciliation acceptance (2026-08-15)
+
+The client predicts local movement with the same speed, dt, bounds, and AABB collision as the server. Unacked `INPUT` commands are stored, dropped when `lastProcessedSeq` advances, and replayed from the authoritative pose. Display error at or below 0.5 px is left alone; error up to 24 px is blended; larger error snaps. Remote players render one snapshot tick behind from a short buffer, without extrapolation. After 2 seconds without a snapshot the remotes freeze and the HUD shows a degraded connection. A net debug overlay (ping, tick, sent/ack seq, prediction error, buffer depth, protocol version, content-hash prefix) is shown only in debug builds.
+
+Godot 4.7.1 imported `client/`, printed `SHELL_LOGIN`, and GdUnit4 ran `res://tests` with 61/61 passed. No combat or interaction prediction was added. Server tests were not required this phase (authority unchanged).

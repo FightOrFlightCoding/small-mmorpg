@@ -126,3 +126,11 @@ World root is `Node2D` with `ZoneView`, `EntityRegistry`, `Camera2D` following t
 The match applies the last accepted intent once per 10 Hz tick using `player.base.moveSpeed` (120) and `dt = 0.1`. Axes are clamped to [-1, 1] then shrunk if longer than 1 so diagonals and extreme axes cannot exceed content speed. Player collision is a 24×24 AABB (half-extent 12, matching the avatar primitive) tested against `walkableBounds` and the zone collision rectangles. Sequence numbers must be finite integers; `seq <= lastProcessedSeq` is ignored. Health `<= 0` or a missing presence produces no movement. `SNAPSHOT` is broadcast every occupied tick (10 Hz) and includes `lastProcessedSeq` on each player.
 
 The local avatar snaps to the authoritative pose. Remote players lerp between snapshots. Missing snapshots for 2 seconds show a recoverable `snapshot_timeout`. There is still no input replay, prediction, or combat. Position checkpoints are not written this phase.
+
+## 2026-08-15 — Local prediction and reconciliation
+
+Movement prediction is presentation-only. `MovementSim` copies server constants (`moveSpeed` 120, `dt` 0.1, half-extent 12, zone AABBs). `MovementReconciler` keeps unacked seq/axis commands, replays them from the server pose, and never sends a client position.
+
+Correction policy: error ≤ 0.5 px is agreement (no visual correction); error ≤ 24 px is smoothed with blend 0.35; larger error snaps. Remote interpolation uses a snapshot buffer of up to 8 frames, sampled one tick (100 ms) behind the latest server tick. Samples past the latest frame clamp to that frame. After `SNAPSHOT_TIMEOUT_SEC` (2 s) the buffer freezes and the HUD reports a degraded connection.
+
+`NetDebugOverlay` is visible only when `OS.is_debug_build()` is true. Release exports hide it. There is still no combat or interaction prediction.

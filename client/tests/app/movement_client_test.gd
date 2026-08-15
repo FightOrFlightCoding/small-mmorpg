@@ -60,7 +60,7 @@ func test_send_input_uses_input_opcode() -> void:
 	assert_bool(body.has("x")).is_false()
 
 
-func test_local_player_snaps_remote_interpolates() -> void:
+func test_local_prediction_leaves_remote_to_the_buffer() -> void:
 	var registry: EntityRegistry = auto_free(EntityRegistry.new())
 	add_child(registry)
 	registry.apply_full_state(_alice_bob_state(240, 260, 3))
@@ -68,16 +68,13 @@ func test_local_player_snaps_remote_interpolates() -> void:
 	var bob := registry.get_entity("player:user-bob") as WorldAvatar
 	assert_vector(alice.position).is_equal(Vector2(240, 384))
 	assert_vector(bob.position).is_equal(Vector2(260, 400))
+	alice.position = Vector2(250, 384)
 	registry.apply_snapshot(_alice_bob_state(300, 360, 4), 0.1)
-	assert_vector(alice.position).is_equal(Vector2(300, 384))
-	assert_bool(bob.interpolating).is_true()
+	assert_vector(alice.position).is_equal(Vector2(250, 384))
 	assert_vector(bob.position).is_equal(Vector2(260, 400))
-	registry.advance_interpolation(0.05)
-	assert_float(bob.position.x).is_greater(260.0)
-	assert_float(bob.position.x).is_less(360.0)
-	assert_vector(alice.position).is_equal(Vector2(300, 384))
-	registry.advance_interpolation(0.05)
-	assert_vector(bob.position).is_equal(Vector2(360, 400))
+	registry.apply_remote_poses({"user-bob": Vector2(310, 400)})
+	assert_vector(bob.position).is_equal(Vector2(310, 400))
+	assert_vector(alice.position).is_equal(Vector2(250, 384))
 	assert_int(registry.entity_count()).is_equal(4)
 
 
@@ -86,6 +83,6 @@ func test_snapshot_timeout_is_visible() -> void:
 	add_child(hud)
 	await get_tree().process_frame
 	hud.refresh(_alice_bob_state(), PackedStringArray(["Alice", "Bob"]), true)
-	assert_str(hud.get_node("Root/Margin/VBox/Status").text).contains("No snapshot from the server")
+	assert_str(hud.get_node("Root/Margin/VBox/Status").text).contains("Connection degraded")
 	hud.refresh(_alice_bob_state(), PackedStringArray(["Alice", "Bob"]), false)
 	assert_str(hud.get_node("Root/Margin/VBox/Status").text).contains("Ack seq")

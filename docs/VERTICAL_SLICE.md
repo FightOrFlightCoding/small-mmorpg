@@ -11,7 +11,7 @@ A new player can, without developer console cheats:
 1. Launch the Godot client and see a non-blocking boot/login state (success or a visible error).
 2. Authenticate (device auth is sufficient) and receive a single character record created by the server.
 3. Enter the one starter-zone authoritative match.
-4. Move. The server rejects impossible movement; the client displays the server position.
+4. Move. The server rejects impossible movement; the client predicts locally and reconciles to the server position.
 5. Fight the slice’s enemy type. The client sends an attack intention; the server applies damage, cooldowns, and death.
 6. Loot a dropped item with a unique `requestId`. Repeating the same `requestId` does not duplicate the grant.
 7. See the item in the GLoot-backed view that mirrors server inventory.
