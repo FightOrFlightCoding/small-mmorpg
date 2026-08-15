@@ -58,12 +58,13 @@ Local identities:
 
 ```powershell
 # After scripts/backend-up.ps1
-# In Godot: Project → Run, or:
+# In Godot: Project → Run, then Sign in as Alice (or Bob).
+# Or from a terminal:
 # Godot --path client -- --dev-user=alice
 # Godot --path client -- --dev-user=bob
 ```
 
-`--dev-user=alice` authenticates as device id `vibecode-dev-alice`. Omit `--dev-user` to use a machine-local device id (`OS.get_unique_id()`). That fallback is not a production identity: launches on the same machine share one account. Sign-in failures are shown in the error dialog. Character storage is server-only (`permissionWrite: 0`). Continue joins the shared starter-zone match and enters the world only after a valid `FULL_STATE`. The world renders the zone, Elder, slime, and other players from content IDs. WASD or arrows send movement intentions; the client predicts locally and the server owns position. Protocol or content mismatch is a fatal compatibility error. There is no combat yet.
+`--dev-user=alice` authenticates as device id `vibecode-dev-alice`. The editor Play button does not pass that flag; use **Sign in as Alice** or **Sign in as Bob** on the login screen. Omit `--dev-user` and press **Sign in with this machine** to use `OS.get_unique_id()`. That fallback is not a production identity: launches on the same machine share one account. Sign-in failures are shown in the error dialog. After sign-in, **Continue** on the character screen joins the starter-zone match. Character storage is server-only (`permissionWrite: 0`). The world renders the zone, Elder, slime, and other players from content IDs. WASD or arrows send movement intentions; the client predicts locally and the server owns position. Protocol or content mismatch is a fatal compatibility error. There is no combat yet.
 
 ## Local Nakama and PostgreSQL
 

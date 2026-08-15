@@ -31,10 +31,13 @@ func start_boot(bundle_path: String = ContentRegistry.DEFAULT_BUNDLE_PATH) -> bo
 	return routed
 
 
-func request_authenticate(device_id: String = "") -> void:
+func request_authenticate(device_id: String = "", dev_user: String = "") -> void:
 	if AppState.has_fatal_error:
 		return
-	last_identity = DevIdentity.resolve(OS.get_cmdline_user_args(), OS.get_unique_id())
+	if not dev_user.is_empty():
+		last_identity = DevIdentity.resolve(PackedStringArray(["--dev-user=%s" % dev_user]), OS.get_unique_id())
+	else:
+		last_identity = DevIdentity.resolve(OS.get_cmdline_user_args(), OS.get_unique_id())
 	if not String(last_identity.get("error", "")).is_empty():
 		AppState.report_recoverable(String(last_identity["error"]), String(last_identity["warning"]))
 		return

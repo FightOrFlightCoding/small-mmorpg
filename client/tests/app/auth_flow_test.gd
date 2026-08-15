@@ -140,6 +140,29 @@ func test_visible_network_error_on_login() -> void:
 	assert_bool(SceneRouter.transition_to(SceneRouter.SCENE_WORLD)).is_false()
 
 
+func test_named_dev_user_authenticates_alice() -> void:
+	var fake := _fake()
+	fake.rpc_payload = _created_payload()
+	assert_bool(GameService.start_boot()).is_true()
+	await GameService.request_authenticate("", "alice")
+	assert_str(fake.last_device_id).is_equal("vibecode-dev-alice")
+	assert_str(fake.last_username).is_equal("alice")
+	assert_str(String(GameService.last_identity.get("dev_user", ""))).is_equal("alice")
+	assert_bool(AppState.is_authenticated).is_true()
+
+
+func test_login_hint_wraps_and_offers_named_identities() -> void:
+	var page: Control = auto_free(preload("res://scenes/login/login.tscn").instantiate())
+	add_child(page)
+	await get_tree().process_frame
+	var hint: Label = page.get_node("Center/VBox/Hint")
+	assert_int(int(hint.autowrap_mode)).is_equal(TextServer.AUTOWRAP_WORD_SMART)
+	assert_float(hint.custom_minimum_size.x).is_equal(640.0)
+	assert_str(page.get_node("Center/VBox/AliceButton").text).is_equal("Sign in as Alice")
+	assert_str(page.get_node("Center/VBox/BobButton").text).is_equal("Sign in as Bob")
+	assert_bool(String(page.get_node("Center/VBox/ServerHint").text).contains("127.0.0.1:7350")).is_true()
+
+
 func test_logout_returns_to_login() -> void:
 	var fake := _fake()
 	fake.rpc_payload = _created_payload()

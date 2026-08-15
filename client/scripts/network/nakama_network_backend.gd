@@ -168,6 +168,7 @@ func _from_exception(exception: NakamaException, fallback_code: String, fallback
 		code = "session_expired"
 	elif _looks_like_unreachable(message):
 		code = "network_unreachable"
+		message = "Cannot reach Nakama at 127.0.0.1:7350. Start it with powershell -File scripts/backend-up.ps1."
 	return _fail(code, message)
 
 

@@ -134,3 +134,7 @@ Movement prediction is presentation-only. `MovementSim` copies server constants 
 Correction policy: error ≤ 0.5 px is agreement (no visual correction); error ≤ 24 px is smoothed with blend 0.35; larger error snaps. Remote interpolation uses a snapshot buffer of up to 8 frames, sampled one tick (100 ms) behind the latest server tick. Samples past the latest frame clamp to that frame. After `SNAPSHOT_TIMEOUT_SEC` (2 s) the buffer freezes and the HUD reports a degraded connection.
 
 `NetDebugOverlay` is visible only when `OS.is_debug_build()` is true. Release exports hide it. There is still no combat or interaction prediction.
+
+## 2026-08-15 — Editor login identities
+
+Godot editor Play does not pass `--dev-user`. The login scene wraps the identity warning in a 640 px column and offers **Sign in as Alice** / **Sign in as Bob**, which use the same device IDs as the CLI flags. **Sign in with this machine** remains the `OS.get_unique_id()` path. Local Nakama at `127.0.0.1:7350` is required before any of those buttons work.
