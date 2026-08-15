@@ -1,7 +1,7 @@
 class_name SnapshotBuffer
 extends RefCounted
 
-## Short history of remote poses. Samples behind server time; does not extrapolate.
+## Short history of remote poses. Samples behind estimated server time; does not extrapolate.
 
 const INTERP_DELAY_TICKS := 1.0
 const MAX_FRAMES := 8
@@ -9,10 +9,12 @@ const MAX_FRAMES := 8
 var frozen: bool = false
 
 var _frames: Array[Dictionary] = []
+var _since_latest_sec: float = 0.0
 
 
 func clear() -> void:
 	_frames.clear()
+	_since_latest_sec = 0.0
 	frozen = false
 
 
@@ -32,9 +34,16 @@ func push(tick: int, poses: Dictionary) -> bool:
 	if not _frames.is_empty() and tick <= int(_frames[_frames.size() - 1]["tick"]):
 		return false
 	_frames.append({"tick": tick, "poses": poses.duplicate(true)})
+	_since_latest_sec = 0.0
 	while _frames.size() > MAX_FRAMES:
 		_frames.remove_at(0)
 	return true
+
+
+func advance(delta: float) -> void:
+	if frozen or _frames.is_empty():
+		return
+	_since_latest_sec += maxf(delta, 0.0)
 
 
 func sample(render_tick: float) -> Dictionary:
@@ -71,4 +80,9 @@ func sample(render_tick: float) -> Dictionary:
 
 
 func render_tick() -> float:
-	return float(latest_tick()) - INTERP_DELAY_TICKS
+	if _frames.is_empty():
+		return 0.0
+	var latest := float(latest_tick())
+	var tick_dt := 1.0 / MatchProtocol.SNAPSHOT_RATE_HZ
+	var estimated := latest + _since_latest_sec / tick_dt
+	return clampf(estimated - INTERP_DELAY_TICKS, float(_frames[0]["tick"]), latest)

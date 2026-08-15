@@ -97,15 +97,34 @@ func test_old_snapshots_are_rejected() -> void:
 
 func test_remote_sample_interpolates_and_does_not_extrapolate() -> void:
 	var buffer := SnapshotBuffer.new()
-	buffer.push(10, {"user-bob": Vector2(0, 0)})
-	buffer.push(11, {"user-bob": Vector2(100, 0)})
+	buffer.push(10, {"player:user-bob": Vector2(0, 0)})
+	buffer.push(11, {"player:user-bob": Vector2(100, 0)})
 	var mid: Dictionary = buffer.sample(10.5)
-	assert_float((mid["user-bob"] as Vector2).x).is_equal_approx(50.0, 0.01)
+	assert_float((mid["player:user-bob"] as Vector2).x).is_equal_approx(50.0, 0.01)
 	var late: Dictionary = buffer.sample(40.0)
-	assert_vector(late["user-bob"]).is_equal(Vector2(100, 0))
+	assert_vector(late["player:user-bob"]).is_equal(Vector2(100, 0))
 	buffer.frozen = true
-	assert_bool(buffer.push(12, {"user-bob": Vector2(200, 0)})).is_false()
+	assert_bool(buffer.push(12, {"player:user-bob": Vector2(200, 0)})).is_false()
 	assert_int(buffer.depth()).is_equal(2)
+
+
+func test_render_tick_advances_between_snapshots_without_extrapolating() -> void:
+	var buffer := SnapshotBuffer.new()
+	buffer.push(11, {"player:user-bob": Vector2(0, 0), "npc:npc.elder": Vector2(160, 320)})
+	buffer.push(12, {"player:user-bob": Vector2(100, 0), "npc:npc.elder": Vector2(160, 320)})
+	assert_float(buffer.render_tick()).is_equal_approx(11.0, 0.0001)
+	buffer.advance(0.04)
+	assert_float(buffer.render_tick()).is_equal_approx(11.4, 0.0001)
+	var mid: Dictionary = buffer.sample(buffer.render_tick())
+	assert_float((mid["player:user-bob"] as Vector2).x).is_equal_approx(40.0, 0.01)
+	assert_vector(mid["npc:npc.elder"]).is_equal(Vector2(160, 320))
+	buffer.advance(0.20)
+	assert_float(buffer.render_tick()).is_equal_approx(12.0, 0.0001)
+	assert_vector(buffer.sample(buffer.render_tick())["player:user-bob"]).is_equal(Vector2(100, 0))
+	buffer.frozen = true
+	var frozen_tick := buffer.render_tick()
+	buffer.advance(0.05)
+	assert_float(buffer.render_tick()).is_equal(frozen_tick)
 
 
 func test_debug_overlay_hides_in_release() -> void:

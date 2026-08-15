@@ -74,10 +74,26 @@ func apply_snapshot(state: Dictionary, interp_duration: float = 0.1) -> void:
 	if not String(state.get("self_id", "")).is_empty():
 		local_server_id = String(state.get("self_id", ""))
 	var keep: Dictionary = {}
+	var prune_prefixes: PackedStringArray = PackedStringArray(["player:"])
 	_apply_kind(KIND_PLAYER, state.get("players", []), keep, true, interp_duration)
+	if state.has("npcs"):
+		prune_prefixes.append("npc:")
+		_apply_kind(KIND_NPC, state.get("npcs", []), keep, true, interp_duration)
+	if state.has("enemies"):
+		prune_prefixes.append("enemy:")
+		_apply_kind(KIND_ENEMY, state.get("enemies", []), keep, true, interp_duration)
+	if state.has("loot"):
+		prune_prefixes.append("loot:")
+		_apply_kind(KIND_LOOT, state.get("loot", []), keep, true, interp_duration)
 	var stale: Array = []
 	for key in _nodes.keys():
-		if String(key).begins_with("player:") and not keep.has(key):
+		var key_text := String(key)
+		var tracked := false
+		for prefix in prune_prefixes:
+			if key_text.begins_with(prefix):
+				tracked = true
+				break
+		if tracked and not keep.has(key):
 			stale.append(key)
 	for key in stale:
 		var node: Node = _nodes[key]
@@ -95,10 +111,14 @@ func advance_interpolation(delta: float) -> void:
 
 
 func apply_remote_poses(poses: Dictionary) -> void:
+	var local_key := "%s:%s" % [KIND_PLAYER, local_server_id]
 	for id in poses.keys():
-		if String(id) == local_server_id:
+		var key := String(id)
+		if key == local_key:
 			continue
-		var node: Node2D = get_entity("%s:%s" % [KIND_PLAYER, String(id)])
+		var node: Node2D = get_entity(key)
+		if node == null and not key.contains(":"):
+			node = get_entity("%s:%s" % [KIND_PLAYER, key])
 		if node != null:
 			node.position = poses[id]
 
@@ -158,7 +178,7 @@ func _apply_kind(kind: String, records: Variant, keep: Dictionary, interpolate_r
 				or avatar.is_local != is_local
 			):
 				avatar.configure(kind, server_id, named, _visual_for(kind, record), is_local)
-			if interpolate_remotes and kind == KIND_PLAYER:
+			if interpolate_remotes:
 				pass
 			else:
 				avatar.set_server_position(pose.x, pose.y)

@@ -85,7 +85,7 @@ Prediction is client presentation only. `INPUT` still carries direction and sequ
 2. Replays remaining commands from the server pose.
 3. Leaves the display pose if error ≤ 0.5 px, blends toward the replayed pose if error ≤ 24 px, and snaps if error is larger.
 
-Remote players are sampled from a short snapshot buffer (max 8 frames) one tick behind the latest server tick. Samples past the newest frame clamp to that frame. After 2 seconds without a snapshot the buffer freezes and the HUD reports a degraded connection. There is no combat or interaction prediction.
+Remote entities are sampled from one snapshot buffer (max 8 frames) keyed `kind:id`. The render tick is an estimated server tick (`latest + time since that snapshot / 0.1`) minus one snapshot, clamped to the latest received tick so sampling stays between frames and never extrapolates. After 2 seconds without a snapshot the buffer freezes and the HUD reports a degraded connection. There is no combat or interaction prediction.
 
 ## Unique request ID on rewarded actions
 

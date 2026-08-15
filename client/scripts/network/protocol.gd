@@ -122,6 +122,9 @@ static func parse_snapshot(raw: String, expected_content_hash: String, previous:
 		view["zone_id"] = String(parsed["zoneId"])
 	view["players"] = (parsed["players"] as Array).duplicate(true)
 	view["ack_seq"] = _ack_seq(view["players"], String(view.get("self_id", "")))
+	for key in ["npcs", "enemies", "loot"]:
+		if typeof(parsed.get(key, null)) == TYPE_ARRAY:
+			view[key] = (parsed[key] as Array).duplicate(true)
 	return {"ok": true, "view": view}
 
 

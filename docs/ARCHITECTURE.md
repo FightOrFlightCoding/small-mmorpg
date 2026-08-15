@@ -101,7 +101,7 @@ Third-party libraries are implementation details. Game code talks to project-own
 | `NetworkService` | Nakama Godot SDK 3.4.0 | Device auth, in-memory session cache, refresh, reauth, realtime socket, logout, `character_bootstrap`, `find_or_create_starter_zone`, match join/leave, `INPUT`, `RESYNC_REQUEST`. |
 | `GameService` | the autoloads above | Boot, login, character bootstrap, starter-zone join. Not a gameplay authority. |
 | `SceneRouter` | Godot scene tree | Transitions among boot, login, character, and world |
-| `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE`/`SNAPSHOT`. Local movement is predicted and reconciled; remotes interpolate from a snapshot buffer. Not a gameplay authority. |
+| `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE`/`SNAPSHOT`. Local movement is predicted and reconciled; all remote entities interpolate from one snapshot buffer keyed `kind:id`. Not a gameplay authority. |
 | Inventory presenter (later) | GLoot 3.0.2 | Display of server inventory/equipment |
 | Dialogue presenter (later) | Dialogue Manager 3.10.5 | Display of server-offered lines/choices |
 | Test runner scripts | GdUnit4 6.2.0 | Client unit/scene tests |

@@ -72,8 +72,13 @@ func test_local_prediction_leaves_remote_to_the_buffer() -> void:
 	registry.apply_snapshot(_alice_bob_state(300, 360, 4), 0.1)
 	assert_vector(alice.position).is_equal(Vector2(250, 384))
 	assert_vector(bob.position).is_equal(Vector2(260, 400))
-	registry.apply_remote_poses({"user-bob": Vector2(310, 400)})
+	var elder := registry.get_entity("npc:npc.elder") as WorldAvatar
+	registry.apply_remote_poses({
+		"player:user-bob": Vector2(310, 400),
+		"npc:npc.elder": Vector2(165, 325),
+	})
 	assert_vector(bob.position).is_equal(Vector2(310, 400))
+	assert_vector(elder.position).is_equal(Vector2(165, 325))
 	assert_vector(alice.position).is_equal(Vector2(250, 384))
 	assert_int(registry.entity_count()).is_equal(4)
 

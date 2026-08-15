@@ -60,6 +60,7 @@ func _process(delta: float) -> void:
 	while _input_accum >= interval:
 		_input_accum -= interval
 		_send_move_intent(axis)
+	_buffer.advance(delta)
 	if not _snapshot_stale:
 		_entities.apply_remote_poses(_buffer.sample(_buffer.render_tick()))
 	_check_snapshot_timeout()
@@ -128,14 +129,34 @@ func _local_server_pos(state: Dictionary) -> Vector2:
 func _remote_poses(state: Dictionary) -> Dictionary:
 	var poses: Dictionary = {}
 	var self_id := String(state.get("self_id", _entities.local_server_id))
-	for entry in state.get("players", []):
+	_collect_poses(poses, "player", state.get("players", []), self_id)
+	_collect_poses(poses, "npc", state.get("npcs", []), "")
+	_collect_poses(poses, "enemy", state.get("enemies", []), "")
+	_collect_poses(poses, "loot", state.get("loot", []), "")
+	return poses
+
+
+func _collect_poses(poses: Dictionary, kind: String, records: Variant, skip_id: String) -> void:
+	if typeof(records) != TYPE_ARRAY:
+		return
+	for entry in records:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
-		var user_id := String(entry.get("userId", ""))
-		if user_id.is_empty() or user_id == self_id:
+		var record: Dictionary = entry
+		var server_id := ""
+		if kind == "player":
+			server_id = String(record.get("userId", record.get("user_id", "")))
+		elif kind == "npc":
+			server_id = String(record.get("id", record.get("npcId", "")))
+		elif kind == "enemy":
+			server_id = String(record.get("id", ""))
+			if server_id.is_empty():
+				server_id = String(record.get("enemyId", ""))
+		else:
+			server_id = String(record.get("id", ""))
+		if server_id.is_empty() or server_id == skip_id:
 			continue
-		poses[user_id] = Vector2(float(entry.get("x", 0.0)), float(entry.get("y", 0.0)))
-	return poses
+		poses["%s:%s" % [kind, server_id]] = Vector2(float(record.get("x", 0.0)), float(record.get("y", 0.0)))
 
 
 func _on_zone_state_updated() -> void:
