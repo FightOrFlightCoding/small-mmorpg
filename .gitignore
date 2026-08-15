@@ -1,0 +1,43 @@
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*~
+
+# Godot
+client/.godot/
+client/.import/
+client/export/
+client/exports/
+client/.gdunit_report/
+client/reports/
+*.translation
+
+# Node / TypeScript runtime
+server/node_modules/
+server/build/
+server/dist/
+server/dist-test/
+npm-debug.log*
+
+# Docker / local data
+infra/**/.env
+infra/**/*.local.env
+**/*.log
+
+# Generated content and tool output
+content/generated/
+tools/**/__pycache__/
+tools/**/node_modules/
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+credentials.json
