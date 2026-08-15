@@ -6,7 +6,7 @@ The repository contains documentation and empty layout directories. No Godot pro
 
 ## 2026-08-15 — Repository path
 
-The working tree is `C:\Users\Eszter\small-mmorpg`. `C:\Users\Eszter\Documents\small-mmorpg` is not used. Godot must import `client/` (`client/project.godot`), never the repo root.
+The working tree is `C:\Users\Eszter\small-mmorpg`. Godot must import `client/` (`client/project.godot`), never the repo root. A previous project at `C:\Users\Eszter\Documents\small-mmorpg` was decommissioned; do not revive it.
 
 ## 2026-08-15 — Directory names
 
@@ -54,3 +54,9 @@ Console is `http://127.0.0.1:7351`. Username `admin` and password `password` are
 ## 2026-08-15 — Local backend is health-only
 
 This phase adds PostgreSQL, Nakama, and RPC `vibecode_health`. Player authentication, storage, and the starter-zone match are not implemented yet.
+
+## 2026-08-15 — Previous Documents small-mmorpg removed
+
+An older Nakama/Docker project lived at `C:\Users\Eszter\Documents\small-mmorpg` and used Compose project name `infra`. It bound host ports 5432 and 7349–7351 and left containers, volumes, and images that collided with this repo.
+
+That tree and its Docker resources were deleted. This repository’s Compose project is `vibecode` only (`vibecode-nakama`, `vibecode-postgres`, volume `vibecode_postgres_data`). Do not start leftover `infra` or `small-mmorpg-*` stacks. If an old bind-mount directory under Documents is locked by Windows, delete it from a container that mounts `C:\Users\Eszter\Documents`.
