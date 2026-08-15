@@ -18,6 +18,12 @@ client/.gdunit_report/
 client/reports/
 *.translation
 
+# Engine-generated sidecars for vendored addons that omit them.
+# Dialogue Manager 3.10.5 and GLoot 3.0.2 ship their own .uid/.import files; keep those.
+client/addons/com.heroiclabs.nakama/**/*.uid
+client/addons/gdUnit4/**/*.uid
+client/addons/gdUnit4/**/*.import
+
 # Node / TypeScript runtime
 server/node_modules/
 server/build/

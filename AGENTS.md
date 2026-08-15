@@ -90,11 +90,11 @@ Record necessary assumptions in `docs/DECISIONS.md`.
 
 | Path | Role |
 | --- | --- |
-| `client/` | Godot 4.7.1 project. Created in a later phase. |
+| `client/` | Godot 4.7.1 project. Compatibility spike only; no gameplay scenes. |
 | `server/` | TypeScript Nakama runtime. Created in a later phase. |
 | `content/schemas/` | JSON Schemas for authored content. |
 | `content/source/` | ID-addressed source content documents. |
 | `infra/` | Docker Compose and Nakama configuration. |
-| `scripts/` | Repeatable developer and CI commands. |
+| `scripts/` | Repeatable developer and CI commands (`run-client-compatibility.ps1`). |
 | `tools/` | Content generation and repo utilities. |
 | `docs/` | Binding project contract. |
