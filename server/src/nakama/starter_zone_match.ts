@@ -31,7 +31,11 @@ export function matchInit(
     const id = enemyIds[i];
     enemiesById[id] = { id: id, maxHealth: content.enemies[id as keyof typeof content.enemies].maxHealth };
   }
-  const zone = createStarterZoneState(contentHash, content.zones["zone.starter"], enemiesById);
+  const zone = createStarterZoneState(contentHash, content.zones["zone.starter"], enemiesById, {
+    id: content.player.id,
+    maxHealth: content.player.maxHealth,
+    moveSpeed: content.player.moveSpeed,
+  });
   logger.info("starter_zone init label=%s content_hash=%s", STARTER_ZONE_LABEL, contentHash);
   return {
     state: { zone: zone, presences: {} },
@@ -106,6 +110,9 @@ export function matchJoin(
       y: character.position.y,
       maxHealth: content.player.maxHealth,
       health: content.player.maxHealth,
+      lastProcessedSeq: 0,
+      axisX: 0,
+      axisY: 0,
     };
     zone = addPlayer(zone, player);
     joined.push(presence);

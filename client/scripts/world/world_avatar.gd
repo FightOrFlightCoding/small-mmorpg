@@ -9,6 +9,15 @@ var kind: String = ""
 var is_local: bool = false
 var used_fallback: bool = false
 var visual_id: String = ""
+var interpolating: bool:
+	get:
+		return _interpolating
+
+var _from: Vector2 = Vector2.ZERO
+var _to: Vector2 = Vector2.ZERO
+var _interp_t: float = 0.0
+var _interp_duration: float = 0.1
+var _interpolating: bool = false
 
 @onready var _sprite: Sprite2D = $Sprite
 @onready var _body: Polygon2D = $Body
@@ -41,7 +50,30 @@ func configure(p_kind: String, p_server_id: String, p_name: String, visual: Dict
 
 
 func set_server_position(x: float, y: float) -> void:
+	_interpolating = false
 	position = Vector2(x, y)
+
+
+func interpolate_toward(target: Vector2, duration: float) -> void:
+	if duration <= 0.0:
+		set_server_position(target.x, target.y)
+		return
+	_from = position
+	_to = target
+	_interp_t = 0.0
+	_interp_duration = duration
+	_interpolating = true
+
+
+func advance_interpolation(delta: float) -> void:
+	if not _interpolating:
+		return
+	_interp_t += delta
+	var t := clampf(_interp_t / _interp_duration, 0.0, 1.0)
+	position = _from.lerp(_to, t)
+	if t >= 1.0:
+		_interpolating = false
+		position = _to
 
 
 func _apply_visual(visual: Dictionary) -> void:

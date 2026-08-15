@@ -48,7 +48,7 @@ const REWARD_OPCODES: ClientOpcode[] = [
 const COMMON_KEYS = ["protocolVersion", "contentHash", "requestId"];
 
 const OPCODE_KEYS: { [opcode: number]: string[] } = {};
-OPCODE_KEYS[ClientOpcode.INPUT] = [];
+OPCODE_KEYS[ClientOpcode.INPUT] = ["seq", "axisX", "axisY"];
 OPCODE_KEYS[ClientOpcode.INTERACT] = ["targetId"];
 OPCODE_KEYS[ClientOpcode.ATTACK] = ["targetId"];
 OPCODE_KEYS[ClientOpcode.PICKUP] = ["lootId"];
@@ -67,12 +67,21 @@ const OUTCOME_KEYS = [
   "y",
   "dx",
   "dy",
+  "speed",
+  "moveSpeed",
+  "dt",
+  "elapsed",
+  "elapsedTime",
+  "deltaTime",
+  "velocity",
   "currency",
   "gold",
   "items",
   "questComplete",
   "stats",
 ];
+
+const INPUT_NUMBER_KEYS = ["seq", "axisX", "axisY"];
 
 export interface ProtocolError {
   code: string;
@@ -85,6 +94,9 @@ export interface ParsedClientMessage {
   contentHash?: string;
   requestId?: string;
   fields: { [key: string]: string };
+  seq?: number;
+  axisX?: number;
+  axisY?: number;
 }
 
 export function isClientOpcode(opcode: number): opcode is ClientOpcode {
@@ -179,6 +191,9 @@ export function parseClientMessage(
   const fields: { [key: string]: string } = {};
   for (let i = 0; i < required.length; i++) {
     const key = required[i];
+    if (INPUT_NUMBER_KEYS.indexOf(key) !== -1) {
+      continue;
+    }
     if (key === "slot" && !Object.prototype.hasOwnProperty.call(data, key)) {
       continue;
     }
@@ -200,6 +215,20 @@ export function parseClientMessage(
   }
   if (requestId !== undefined) {
     message.requestId = requestId;
+  }
+  if (opcode === ClientOpcode.INPUT) {
+    const seq = data.seq;
+    const axisX = data.axisX;
+    const axisY = data.axisY;
+    if (typeof seq !== "number" || !isFinite(seq) || seq !== Math.floor(seq)) {
+      return { code: "invalid_input", message: "INPUT seq must be a finite integer." };
+    }
+    if (typeof axisX !== "number" || !isFinite(axisX) || typeof axisY !== "number" || !isFinite(axisY)) {
+      return { code: "invalid_input", message: "INPUT axes must be finite numbers." };
+    }
+    message.seq = seq;
+    message.axisX = axisX;
+    message.axisY = axisY;
   }
   return message;
 }

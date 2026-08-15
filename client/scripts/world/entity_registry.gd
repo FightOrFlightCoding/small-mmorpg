@@ -1,7 +1,7 @@
 class_name EntityRegistry
 extends Node2D
 
-## Creates, updates, and removes zone entities from authoritative FULL_STATE. No movement.
+## Creates, updates, and removes zone entities from authoritative state.
 
 const KIND_PLAYER := "player"
 const KIND_NPC := "npc"
@@ -53,12 +53,12 @@ func apply_full_state(state: Dictionary) -> void:
 	rejected_kinds.clear()
 	local_server_id = String(state.get("self_id", ""))
 	var keep: Dictionary = {}
-	_apply_kind(KIND_PLAYER, state.get("players", []), keep)
-	_apply_kind(KIND_NPC, state.get("npcs", []), keep)
-	_apply_kind(KIND_ENEMY, state.get("enemies", []), keep)
-	_apply_kind(KIND_LOOT, state.get("loot", []), keep)
+	_apply_kind(KIND_PLAYER, state.get("players", []), keep, false)
+	_apply_kind(KIND_NPC, state.get("npcs", []), keep, false)
+	_apply_kind(KIND_ENEMY, state.get("enemies", []), keep, false)
+	_apply_kind(KIND_LOOT, state.get("loot", []), keep, false)
 	for extra_key in state.keys():
-		if extra_key in ["players", "npcs", "enemies", "loot", "self_id", "selfId", "tick", "zone_id", "zoneId", "protocol_version", "protocolVersion", "content_hash", "contentHash"]:
+		if extra_key in ["players", "npcs", "enemies", "loot", "self_id", "selfId", "tick", "zone_id", "zoneId", "protocol_version", "protocolVersion", "content_hash", "contentHash", "ack_seq"]:
 			continue
 		if typeof(state[extra_key]) == TYPE_ARRAY and extra_key.ends_with("s"):
 			var kind_guess := String(extra_key)
@@ -68,6 +68,30 @@ func apply_full_state(state: Dictionary) -> void:
 				_reject_kind(kind_guess)
 	_prune(keep)
 	_attach_camera()
+
+
+func apply_snapshot(state: Dictionary, interp_duration: float = 0.1) -> void:
+	if not String(state.get("self_id", "")).is_empty():
+		local_server_id = String(state.get("self_id", ""))
+	var keep: Dictionary = {}
+	_apply_kind(KIND_PLAYER, state.get("players", []), keep, true, interp_duration)
+	var stale: Array = []
+	for key in _nodes.keys():
+		if String(key).begins_with("player:") and not keep.has(key):
+			stale.append(key)
+	for key in stale:
+		var node: Node = _nodes[key]
+		_nodes.erase(key)
+		if is_instance_valid(node):
+			node.queue_free()
+	_attach_camera()
+
+
+func advance_interpolation(delta: float) -> void:
+	for key in _nodes.keys():
+		var node: Node = _nodes[key]
+		if node is WorldAvatar:
+			(node as WorldAvatar).advance_interpolation(delta)
 
 
 func apply_unknown_kind(kind: String, _records: Array = []) -> void:
@@ -82,7 +106,7 @@ func _reject_kind(kind: String) -> void:
 	rejected_kinds.append(kind)
 
 
-func _apply_kind(kind: String, records: Variant, keep: Dictionary) -> void:
+func _apply_kind(kind: String, records: Variant, keep: Dictionary, interpolate_remotes: bool = false, interp_duration: float = 0.1) -> void:
 	if kind not in SCENE_PATHS:
 		_reject_kind(kind)
 		return
@@ -99,15 +123,22 @@ func _apply_kind(kind: String, records: Variant, keep: Dictionary) -> void:
 		keep[key] = true
 		var pose := _pose(record)
 		var node: Node2D = _nodes.get(key)
+		var is_local := kind == KIND_PLAYER and server_id == local_server_id
 		if node == null:
 			node = _spawn(kind, server_id, record)
 			if node == null:
 				continue
 			_nodes[key] = node
 			add_child(node)
+			node.position = pose
 		elif node is WorldAvatar:
-			(node as WorldAvatar).configure(kind, server_id, _name_for(kind, record), _visual_for(kind, record), kind == KIND_PLAYER and server_id == local_server_id)
-		node.position = pose
+			(node as WorldAvatar).configure(kind, server_id, _name_for(kind, record), _visual_for(kind, record), is_local)
+			if interpolate_remotes and kind == KIND_PLAYER and not is_local:
+				(node as WorldAvatar).interpolate_toward(pose, interp_duration)
+			else:
+				(node as WorldAvatar).set_server_position(pose.x, pose.y)
+		else:
+			node.position = pose
 
 
 func _spawn(kind: String, server_id: String, record: Dictionary) -> Node2D:

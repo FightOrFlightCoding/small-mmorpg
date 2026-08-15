@@ -27,6 +27,7 @@ var character_created: bool = false
 var character_view: Dictionary = {}
 var has_zone_state: bool = false
 var zone_view: Dictionary = {}
+var zone_view_is_full: bool = true
 
 
 func notify_loading_started(reason: String) -> void:
@@ -92,14 +93,16 @@ func notify_character_loaded(view: Dictionary, created: bool) -> void:
 	character_loaded.emit(created)
 
 
-func notify_zone_state(view: Dictionary) -> void:
+func notify_zone_state(view: Dictionary, is_full: bool = true) -> void:
 	has_zone_state = true
+	zone_view_is_full = is_full
 	zone_view = view.duplicate(true)
 	zone_state_updated.emit()
 
 
 func clear_zone_state() -> void:
 	has_zone_state = false
+	zone_view_is_full = true
 	zone_view = {}
 
 
@@ -118,3 +121,4 @@ func reset_for_tests() -> void:
 	character_view = {}
 	has_zone_state = false
 	zone_view = {}
+	zone_view_is_full = true

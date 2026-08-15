@@ -15,14 +15,18 @@ func _ready() -> void:
 	_logout.pressed.connect(func() -> void: logout_pressed.emit())
 
 
-func refresh(state: Dictionary, names: PackedStringArray) -> void:
+func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool = false) -> void:
 	if state.is_empty():
 		_status.text = "Waiting for authoritative zone state."
 		_entities.text = ""
 		return
-	_status.text = "In %s as %s. Tick %s. Movement is not available yet." % [
-		String(state.get("zone_id", "zone.starter")),
-		String(state.get("self_id", "")),
-		str(state.get("tick", 0)),
-	]
+	if snapshot_stale:
+		_status.text = "No snapshot from the server. Check the connection."
+	else:
+		_status.text = "In %s as %s. Tick %s. Ack seq %s." % [
+			String(state.get("zone_id", "zone.starter")),
+			String(state.get("self_id", "")),
+			str(state.get("tick", 0)),
+			str(state.get("ack_seq", 0)),
+		]
 	_entities.text = "Present: %s" % ", ".join(names)

@@ -9,13 +9,16 @@ import {
 } from "./protocol";
 import {
   EMPTY_MATCH_TIMEOUT_TICKS,
+  MATCH_TICK_RATE,
   playerCount,
   type StarterZoneState,
   buildFullState,
   buildSnapshot,
+  cloneStarterZoneState,
   fullStateOpcode,
   snapshotOpcode,
 } from "./match_state";
+import { intendedDelta, resolveMove } from "./movement";
 
 export interface MatchOutbound {
   opcode: number;
@@ -43,7 +46,7 @@ export function applyMatchLoop(
   messages: IncomingMatchData[],
 ): MatchLoopResult {
   const outbound: MatchOutbound[] = [];
-  let next = state;
+  const next = cloneStarterZoneState(state);
 
   for (let i = 0; i < messages.length; i++) {
     const incoming = messages[i];
@@ -56,26 +59,16 @@ export function applyMatchLoop(
     handleValidated(parsed, incoming.userId, next, tick, outbound);
   }
 
+  simulateMovement(next, 1 / MATCH_TICK_RATE);
+
   if (playerCount(next) === 0) {
-    next = {
-      zoneId: next.zoneId,
-      contentHash: next.contentHash,
-      emptyTicks: next.emptyTicks + 1,
-      players: next.players,
-      npcs: next.npcs,
-      enemies: next.enemies,
-      loot: next.loot,
-    };
+    next.emptyTicks = next.emptyTicks + 1;
   } else {
-    next = {
-      zoneId: next.zoneId,
-      contentHash: next.contentHash,
-      emptyTicks: 0,
-      players: next.players,
-      npcs: next.npcs,
-      enemies: next.enemies,
-      loot: next.loot,
-    };
+    next.emptyTicks = 0;
+    outbound.push({
+      opcode: snapshotOpcode(),
+      body: buildSnapshot(next, tick),
+    });
   }
 
   return {
@@ -101,6 +94,7 @@ function handleValidated(
     return;
   }
   if (parsed.opcode === ClientOpcode.INPUT) {
+    applyInput(state, userId, parsed.seq as number, parsed.axisX as number, parsed.axisY as number);
     return;
   }
   if (parsed.opcode === ClientOpcode.INTERACT) {
@@ -110,6 +104,46 @@ function handleValidated(
   }
   const result = actionResult("not_implemented", false, parsed.requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+}
+
+function applyInput(state: StarterZoneState, userId: string, seq: number, axisX: number, axisY: number): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    return;
+  }
+  if (seq <= player.lastProcessedSeq) {
+    return;
+  }
+  player.lastProcessedSeq = seq;
+  if (player.health <= 0) {
+    player.axisX = 0;
+    player.axisY = 0;
+    return;
+  }
+  player.axisX = axisX;
+  player.axisY = axisY;
+}
+
+function simulateMovement(state: StarterZoneState, dt: number): void {
+  const ids = Object.keys(state.players);
+  for (let i = 0; i < ids.length; i++) {
+    const player = state.players[ids[i]];
+    if (player.health <= 0) {
+      continue;
+    }
+    const delta = intendedDelta(player.axisX, player.axisY, state.moveSpeed, dt);
+    const next = resolveMove(
+      player.x,
+      player.y,
+      delta.x,
+      delta.y,
+      state.playerHalfExtent,
+      state.collisions,
+      state.walkableBounds,
+    );
+    player.x = next.x;
+    player.y = next.y;
+  }
 }
 
 export function snapshotForOthers(state: StarterZoneState, tick: number, fromUserId: string): MatchOutbound {

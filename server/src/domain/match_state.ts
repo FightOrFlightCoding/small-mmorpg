@@ -1,12 +1,15 @@
 import { PROTOCOL_VERSION, ServerOpcode } from "./protocol";
+import { PLAYER_HALF_EXTENT, SNAPSHOT_RATE_HZ, type Aabb } from "./movement";
 
 export const STARTER_ZONE_ID = "zone.starter";
 export const STARTER_ZONE_LABEL = "zone.starter";
 export const STARTER_ZONE_MODULE = "starter_zone";
 export const MATCH_TICK_RATE = 10;
+export const MATCH_SNAPSHOT_RATE_HZ = SNAPSHOT_RATE_HZ;
 export const MATCH_MAX_PLAYERS = 8;
 export const EMPTY_MATCH_TIMEOUT_SEC = 30;
 export const EMPTY_MATCH_TIMEOUT_TICKS = MATCH_TICK_RATE * EMPTY_MATCH_TIMEOUT_SEC;
+export { PLAYER_HALF_EXTENT };
 
 export interface Vec2 {
   x: number;
@@ -23,6 +26,9 @@ export interface MatchPlayer {
   y: number;
   maxHealth: number;
   health: number;
+  lastProcessedSeq: number;
+  axisX: number;
+  axisY: number;
 }
 
 export interface MatchNpc {
@@ -56,6 +62,10 @@ export interface StarterZoneState {
   npcs: MatchNpc[];
   enemies: MatchEnemy[];
   loot: MatchLoot[];
+  walkableBounds: Aabb;
+  collisions: Aabb[];
+  moveSpeed: number;
+  playerHalfExtent: number;
 }
 
 export interface ZoneSpawnContent {
@@ -63,6 +73,8 @@ export interface ZoneSpawnContent {
   playerSpawn: Vec2;
   npcs: ReadonlyArray<{ npcId: string; x: number; y: number }>;
   enemies: ReadonlyArray<{ enemyId: string; x: number; y: number }>;
+  walkableBounds: Aabb;
+  collisions: ReadonlyArray<Aabb>;
 }
 
 export interface EnemyContent {
@@ -73,12 +85,14 @@ export interface EnemyContent {
 export interface PlayerContent {
   id: string;
   maxHealth: number;
+  moveSpeed: number;
 }
 
 export function createStarterZoneState(
   contentHash: string,
   zone: ZoneSpawnContent,
   enemiesById: { [id: string]: EnemyContent },
+  playerContent: PlayerContent,
 ): StarterZoneState {
   const npcs: MatchNpc[] = [];
   for (let i = 0; i < zone.npcs.length; i++) {
@@ -104,6 +118,11 @@ export function createStarterZoneState(
       health: maxHealth,
     });
   }
+  const collisions: Aabb[] = [];
+  for (let i = 0; i < zone.collisions.length; i++) {
+    const box = zone.collisions[i];
+    collisions.push({ x: box.x, y: box.y, width: box.width, height: box.height });
+  }
   return {
     zoneId: zone.id,
     contentHash: contentHash,
@@ -112,6 +131,15 @@ export function createStarterZoneState(
     npcs: npcs,
     enemies: enemies,
     loot: [],
+    walkableBounds: {
+      x: zone.walkableBounds.x,
+      y: zone.walkableBounds.y,
+      width: zone.walkableBounds.width,
+      height: zone.walkableBounds.height,
+    },
+    collisions: collisions,
+    moveSpeed: playerContent.moveSpeed,
+    playerHalfExtent: PLAYER_HALF_EXTENT,
   };
 }
 
@@ -123,14 +151,14 @@ export function addPlayer(
   state: StarterZoneState,
   player: MatchPlayer,
 ): StarterZoneState {
-  const next = cloneState(state);
+  const next = cloneStarterZoneState(state);
   next.players[player.userId] = player;
   next.emptyTicks = 0;
   return next;
 }
 
 export function removePlayer(state: StarterZoneState, userId: string): StarterZoneState {
-  const next = cloneState(state);
+  const next = cloneStarterZoneState(state);
   delete next.players[userId];
   if (playerCount(next) === 0) {
     next.emptyTicks = 0;
@@ -170,17 +198,32 @@ export function snapshotOpcode(): number {
   return ServerOpcode.SNAPSHOT;
 }
 
-function playersList(state: StarterZoneState): MatchPlayer[] {
+function publicPlayer(player: MatchPlayer): { [key: string]: unknown } {
+  return {
+    userId: player.userId,
+    sessionId: player.sessionId,
+    username: player.username,
+    characterId: player.characterId,
+    name: player.name,
+    x: player.x,
+    y: player.y,
+    maxHealth: player.maxHealth,
+    health: player.health,
+    lastProcessedSeq: player.lastProcessedSeq,
+  };
+}
+
+function playersList(state: StarterZoneState): { [key: string]: unknown }[] {
   const ids = Object.keys(state.players);
   ids.sort();
-  const list: MatchPlayer[] = [];
+  const list: { [key: string]: unknown }[] = [];
   for (let i = 0; i < ids.length; i++) {
-    list.push(state.players[ids[i]]);
+    list.push(publicPlayer(state.players[ids[i]]));
   }
   return list;
 }
 
-function cloneState(state: StarterZoneState): StarterZoneState {
+export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState {
   const players: { [userId: string]: MatchPlayer } = {};
   const ids = Object.keys(state.players);
   for (let i = 0; i < ids.length; i++) {
@@ -196,6 +239,9 @@ function cloneState(state: StarterZoneState): StarterZoneState {
       y: p.y,
       maxHealth: p.maxHealth,
       health: p.health,
+      lastProcessedSeq: p.lastProcessedSeq,
+      axisX: p.axisX,
+      axisY: p.axisY,
     };
   }
   return {
@@ -206,5 +252,9 @@ function cloneState(state: StarterZoneState): StarterZoneState {
     npcs: state.npcs,
     enemies: state.enemies,
     loot: state.loot,
+    walkableBounds: state.walkableBounds,
+    collisions: state.collisions,
+    moveSpeed: state.moveSpeed,
+    playerHalfExtent: state.playerHalfExtent,
   };
 }

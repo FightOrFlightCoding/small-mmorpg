@@ -71,7 +71,7 @@ There is exactly one gameplay match module for this slice: the starter zone.
 
 - Module name `starter_zone`, label `zone.starter`, 10 Hz, maximum 8 players.
 - Players join that match after authentication and character bootstrap (single character, no slots) via `find_or_create_starter_zone`.
-- The match owns live positions, collision, combatants, ground loot, and in-memory cooldowns. This phase stores presence and static NPC/enemy definitions only; it does not simulate movement or combat.
+- The match owns live positions, collision, combatants, ground loot, and in-memory cooldowns. This phase simulates player movement and collision; it does not simulate combat.
 - The client never hosts a second simulation of those values.
 - An empty match shuts down after 30 seconds. Reconnect re-enters the shared starter-zone match with loaded persistent state plus last checkpointed position.
 
@@ -98,10 +98,10 @@ Third-party libraries are implementation details. Game code talks to project-own
 | --- | --- | --- |
 | `AppState` | none | Non-authoritative client/session flags and shell signals. Never canonical game data. |
 | `ContentRegistry` | generated `client/content/bundle.json` plus `client/content/visual_map.json` | Schema version check, content hash, lookup by stable ID, visual ID → local texture/fallback |
-| `NetworkService` | Nakama Godot SDK 3.4.0 | Device auth, in-memory session cache, refresh, reauth, realtime socket, logout, `character_bootstrap`, `find_or_create_starter_zone`, match join/leave, `RESYNC_REQUEST`. |
+| `NetworkService` | Nakama Godot SDK 3.4.0 | Device auth, in-memory session cache, refresh, reauth, realtime socket, logout, `character_bootstrap`, `find_or_create_starter_zone`, match join/leave, `INPUT`, `RESYNC_REQUEST`. |
 | `GameService` | the autoloads above | Boot, login, character bootstrap, starter-zone join. Not a gameplay authority. |
 | `SceneRouter` | Godot scene tree | Transitions among boot, login, character, and world |
-| `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE` and zone content. Not a gameplay authority. |
+| `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE`/`SNAPSHOT`. Local poses snap; remotes interpolate. Not a gameplay authority. |
 | Inventory presenter (later) | GLoot 3.0.2 | Display of server inventory/equipment |
 | Dialogue presenter (later) | Dialogue Manager 3.10.5 | Display of server-offered lines/choices |
 | Test runner scripts | GdUnit4 6.2.0 | Client unit/scene tests |

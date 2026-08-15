@@ -118,3 +118,11 @@ Kenney RPG Base 1.0 was vendored from the official zip on kenney.nl (CC0). Gamep
 The pack is tiles and props, not a character sheet. `visual.player` therefore uses a colored primitive. Elder uses a doorway tile (`rpgTile165`), slime `rpgTile160`, floor `rpgTile019`, collisions `rpgTile080`. If a mapped texture is missing, avatars keep a polygon body and show `MISSING`.
 
 World root is `Node2D` with `ZoneView`, `EntityRegistry`, `Camera2D` following the local avatar, and `WorldHud` as a `CanvasLayer`. No movement input is sent.
+
+## 2026-08-15 — Server-authoritative movement
+
+`INPUT` JSON is camelCase `{ protocolVersion, seq, axisX, axisY }`. The conceptual snake_case example is the same fields. The client never sends position, speed, or elapsed time.
+
+The match applies the last accepted intent once per 10 Hz tick using `player.base.moveSpeed` (120) and `dt = 0.1`. Axes are clamped to [-1, 1] then shrunk if longer than 1 so diagonals and extreme axes cannot exceed content speed. Player collision is a 24×24 AABB (half-extent 12, matching the avatar primitive) tested against `walkableBounds` and the zone collision rectangles. Sequence numbers must be finite integers; `seq <= lastProcessedSeq` is ignored. Health `<= 0` or a missing presence produces no movement. `SNAPSHOT` is broadcast every occupied tick (10 Hz) and includes `lastProcessedSeq` on each player.
+
+The local avatar snaps to the authoritative pose. Remote players lerp between snapshots. Missing snapshots for 2 seconds show a recoverable `snapshot_timeout`. There is still no input replay, prediction, or combat. Position checkpoints are not written this phase.

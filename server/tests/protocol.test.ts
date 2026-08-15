@@ -36,6 +36,30 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ServerOpcode.SYSTEM_MESSAGE, 108);
 });
 
+test("valid movement input parses direction and sequence only", () => {
+  const parsed = parse(
+    ClientOpcode.INPUT,
+    JSON.stringify({ protocolVersion: PROTOCOL_VERSION, seq: 42, axisX: 1, axisY: 0 }),
+  );
+  assert.equal(isProtocolError(parsed), false);
+  if (!isProtocolError(parsed)) {
+    assert.equal(parsed.seq, 42);
+    assert.equal(parsed.axisX, 1);
+    assert.equal(parsed.axisY, 0);
+  }
+});
+
+test("fabricated position on INPUT is rejected", () => {
+  const parsed = parse(
+    ClientOpcode.INPUT,
+    JSON.stringify({ protocolVersion: PROTOCOL_VERSION, seq: 1, axisX: 1, axisY: 0, x: 999, y: 999 }),
+  );
+  assert.equal(isProtocolError(parsed), true);
+  if (isProtocolError(parsed)) {
+    assert.equal(parsed.code, "stat_injection:x");
+  }
+});
+
 test("valid resync request parses", () => {
   const parsed = parse(ClientOpcode.RESYNC_REQUEST, JSON.stringify({ protocolVersion: PROTOCOL_VERSION }));
   assert.equal(isProtocolError(parsed), false);

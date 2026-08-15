@@ -1,8 +1,8 @@
 # Progress
 
-Last accepted phase: **Content-driven starter-zone rendering**.
+Last accepted phase: **Server-authoritative movement**.
 
-Current phase: none requested. Do not add movement or combat until asked.
+Current phase: none requested. Do not add combat until asked.
 
 ## Phase 0 acceptance (2026-08-15)
 
@@ -94,3 +94,20 @@ The world scene renders zone bounds, a tiled floor, collision AABBs, the player 
 Godot 4.7.1 imported `client/`, printed `SHELL_LOGIN`, and GdUnit4 ran `res://tests` with 48/48 passed, including entity-registry and world-render suites. There is still no movement or combat.
 
 Reproduction: `powershell -File scripts/run-client-shell.ps1`
+
+## Server-authoritative movement acceptance (2026-08-15)
+
+`INPUT` now carries `{ protocolVersion, seq, axisX, axisY }` only. The match validates finite numbers, clamps axes, normalizes diagonals, applies `player.base` move speed at 10 Hz, resolves `zone.starter` walkable bounds and collision AABBs, ignores stale sequence numbers, and broadcasts `SNAPSHOT` at 10 Hz with entity positions and `lastProcessedSeq`. Client-supplied position, speed, or dt is rejected. Dead and disconnected players do not move.
+
+The client sends normalized WASD/arrow intent at 10 Hz, snaps the local avatar to server poses, interpolates remote players between snapshots, and shows a visible `snapshot_timeout` after 2 seconds without a snapshot. There is no local prediction, input replay, or combat.
+
+Server `npm test` 55/55, `npm run typecheck`, and `npm run build` succeeded. Godot 4.7.1 imported `client/`, printed `SHELL_LOGIN`, and GdUnit4 ran `res://tests` with 53/53 passed.
+
+Reproduction:
+
+```powershell
+Set-Location server
+npm test
+npm run build
+powershell -File ..\scripts\run-client-shell.ps1
+```

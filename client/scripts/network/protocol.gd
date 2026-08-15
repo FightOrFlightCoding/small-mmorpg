@@ -7,6 +7,9 @@ const VERSION: int = 1
 const MAX_PAYLOAD_BYTES: int = 2048
 const REQUEST_ID_PATTERN := "^[A-Za-z0-9_-]{8,64}$"
 const CONTENT_HASH_PATTERN := "^[a-f0-9]{64}$"
+const INPUT_SEND_HZ: float = 10.0
+const SNAPSHOT_RATE_HZ: float = 10.0
+const SNAPSHOT_TIMEOUT_SEC: float = 2.0
 
 const CLIENT_INPUT: int = 1
 const CLIENT_INTERACT: int = 2
@@ -89,6 +92,7 @@ static func parse_full_state(raw: String, expected_content_hash: String) -> Dict
 			"tick": int(parsed["tick"]),
 			"zone_id": String(parsed["zoneId"]),
 			"self_id": self_id,
+			"ack_seq": _ack_seq(players, self_id),
 			"players": players.duplicate(true),
 			"npcs": (parsed["npcs"] as Array).duplicate(true),
 			"enemies": (parsed["enemies"] as Array).duplicate(true),
@@ -115,6 +119,7 @@ static func parse_snapshot(raw: String, expected_content_hash: String, previous:
 	if parsed.has("zoneId"):
 		view["zone_id"] = String(parsed["zoneId"])
 	view["players"] = (parsed["players"] as Array).duplicate(true)
+	view["ack_seq"] = _ack_seq(view["players"], String(view.get("self_id", "")))
 	return {"ok": true, "view": view}
 
 
@@ -175,6 +180,13 @@ static func _hash_ok(data: Dictionary, expected_content_hash: String) -> bool:
 	if regex.search(hash) == null:
 		return false
 	return hash == expected_content_hash
+
+
+static func _ack_seq(players: Array, self_id: String) -> int:
+	for entry in players:
+		if typeof(entry) == TYPE_DICTIONARY and String(entry.get("userId", "")) == self_id:
+			return int(entry.get("lastProcessedSeq", 0))
+	return 0
 
 
 static func _fail(code: String, message: String) -> Dictionary:

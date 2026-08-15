@@ -116,6 +116,15 @@ func join_starter_zone() -> bool:
 	return true
 
 
+func send_input(seq: int, axis_x: float, axis_y: float) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_INPUT,
+		MoveIntent.payload_json(seq, Vector2(axis_x, axis_y))
+	)
+
+
 func request_resync() -> bool:
 	if match_id.is_empty():
 		AppState.report_recoverable("not_in_match", "Join the starter zone before requesting a resync.")
@@ -229,7 +238,7 @@ func _on_match_state(opcode: int, payload: String) -> void:
 		if not bool(parsed.get("ok", false)):
 			_fail_zone(parsed)
 			return
-		AppState.notify_zone_state(parsed["view"])
+		AppState.notify_zone_state(parsed["view"], true)
 		_got_full_state = true
 		return
 	if opcode == MatchProtocol.SERVER_SNAPSHOT:
@@ -239,7 +248,7 @@ func _on_match_state(opcode: int, payload: String) -> void:
 		if not bool(snap.get("ok", false)):
 			_fail_zone(snap)
 			return
-		AppState.notify_zone_state(snap["view"])
+		AppState.notify_zone_state(snap["view"], false)
 		return
 	if opcode == MatchProtocol.SERVER_SYSTEM_MESSAGE:
 		var sys: Dictionary = MatchProtocol.parse_system_message(payload)

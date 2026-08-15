@@ -30,7 +30,11 @@ function enemiesById() {
 }
 
 function emptyZone(): StarterZoneState {
-  return createStarterZoneState(contentHash, content.zones["zone.starter"], enemiesById());
+  return createStarterZoneState(contentHash, content.zones["zone.starter"], enemiesById(), {
+    id: content.player.id,
+    maxHealth: content.player.maxHealth,
+    moveSpeed: content.player.moveSpeed,
+  });
 }
 
 function player(userId: string, name: string): MatchPlayer {
@@ -44,6 +48,9 @@ function player(userId: string, name: string): MatchPlayer {
     y: content.zones["zone.starter"].playerSpawn.y,
     maxHealth: content.player.maxHealth,
     health: content.player.maxHealth,
+    lastProcessedSeq: 0,
+    axisX: 0,
+    axisY: 0,
   };
 }
 
@@ -113,9 +120,9 @@ test("resync returns a fresh full state without moving the player", () => {
     { opcode: ClientOpcode.RESYNC_REQUEST, raw: envelope(), userId: "user-alice" },
   ]);
   assert.equal(result.terminate, false);
-  assert.equal(result.outbound.length, 1);
-  assert.equal(result.outbound[0].opcode, ServerOpcode.FULL_STATE);
-  const body = JSON.parse(result.outbound[0].body);
+  const full = result.outbound.filter((item) => item.opcode === ServerOpcode.FULL_STATE);
+  assert.equal(full.length, 1);
+  const body = JSON.parse(full[0].body);
   assert.equal(body.tick, 44);
   assert.equal(body.selfId, "user-alice");
   assert.equal(body.contentHash, contentHash);
@@ -123,15 +130,21 @@ test("resync returns a fresh full state without moving the player", () => {
   assert.equal(result.state.players["user-alice"].y, before.y);
 });
 
-test("input does not change position", () => {
+test("idle input does not change position and snapshots include lastProcessedSeq", () => {
   let state = addPlayer(emptyZone(), player("user-alice", "Alice"));
   const before = state.players["user-alice"];
   const result = applyMatchLoop(state, 3, contentHash, [
-    { opcode: ClientOpcode.INPUT, raw: envelope(), userId: "user-alice" },
+    { opcode: ClientOpcode.INPUT, raw: envelope({ seq: 1, axisX: 0, axisY: 0 }), userId: "user-alice" },
   ]);
   assert.equal(result.state.players["user-alice"].x, before.x);
   assert.equal(result.state.players["user-alice"].y, before.y);
-  assert.equal(result.outbound.length, 0);
+  assert.equal(result.state.players["user-alice"].lastProcessedSeq, 1);
+  const snap = result.outbound.filter((item) => item.opcode === ServerOpcode.SNAPSHOT);
+  assert.equal(snap.length, 1);
+  const body = JSON.parse(snap[0].body);
+  assert.equal(body.tick, 3);
+  assert.equal(body.players[0].lastProcessedSeq, 1);
+  assert.equal(body.players[0].x, before.x);
 });
 
 test("malformed payloads do not crash the match", () => {
@@ -143,11 +156,12 @@ test("malformed payloads do not crash the match", () => {
   ]);
   assert.equal(result.terminate, false);
   assert.equal(playerCount(result.state), 1);
-  assert.equal(result.outbound.length, 3);
+  assert.equal(result.outbound.length, 4);
   assert.equal(result.outbound[0].opcode, ServerOpcode.SYSTEM_MESSAGE);
   assert.equal(JSON.parse(result.outbound[0].body).code, "malformed_json");
   assert.equal(JSON.parse(result.outbound[1].body).code, "unknown_opcode");
   assert.equal(result.outbound[2].opcode, ServerOpcode.FULL_STATE);
+  assert.equal(result.outbound[3].opcode, ServerOpcode.SNAPSHOT);
 });
 
 test("empty match shuts down after the documented timeout", () => {

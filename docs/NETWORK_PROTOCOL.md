@@ -22,7 +22,7 @@ Match and RPC payloads for the slice are JSON objects.
 - Envelopes are UTF-8 JSON.
 - Strict client intentions reject unknown fields.
 - Client→server match payloads are rejected above **2048** bytes (`payload_too_large`).
-- `FULL_STATE` / `SNAPSHOT` require the documented fields. Additive snapshot fields are not used in this phase.
+- `FULL_STATE` / `SNAPSHOT` require the documented fields. `SNAPSHOT` is broadcast at **10 Hz** (the match tick rate) while the zone is occupied.
 
 ## Opcodes
 
@@ -30,7 +30,7 @@ Match and RPC payloads for the slice are JSON objects.
 
 | Opcode | Name | Body | Notes |
 | --- | --- | --- | --- |
-| 1 | `INPUT` | `{ protocolVersion }` | Accepted and ignored. No movement yet. |
+| 1 | `INPUT` | `{ protocolVersion, seq, axisX, axisY }` | Direction and sequence only. `seq` is a finite integer. Axes are finite numbers. Position, speed, and dt are rejected. |
 | 2 | `INTERACT` | `{ protocolVersion, targetId }` | Returns `INTERACTION_RESULT` `not_implemented`. |
 | 3 | `ATTACK` | `{ protocolVersion, targetId }` | Returns `ACTION_RESULT` `not_implemented`. |
 | 4 | `PICKUP` | `{ protocolVersion, lootId, requestId }` | Reward opcode. `requestId` required. |
@@ -56,7 +56,7 @@ Match and RPC payloads for the slice are JSON objects.
 | 107 | `INTERACTION_RESULT` | `{ protocolVersion, ok, code }` |
 | 108 | `SYSTEM_MESSAGE` | `{ protocolVersion, code, message }` |
 
-`FULL_STATE` is sent to the joining presence after character load, and again on `RESYNC_REQUEST`. `SNAPSHOT` is sent to other presences on join/leave so they see the updated player list. There is no per-tick snapshot; there is no movement.
+`FULL_STATE` is sent to the joining presence after character load, and again on `RESYNC_REQUEST`. Occupied matches broadcast `SNAPSHOT` every tick (10 Hz). Each player record includes `x`, `y`, and `lastProcessedSeq` so the local client can ack input. A client that receives no snapshot or full state for **2 seconds** shows a visible `snapshot_timeout`. There is no combat.
 
 ## Client sends intentions only
 
@@ -128,3 +128,4 @@ Authenticated HTTP/RPC only. Payload is empty or `{}`. Returns `{ matchId, zoneI
 - Join loads the character from storage once. The tick loop does not read storage
 - Join metadata must include matching `protocolVersion` and `contentHash`
 - Players spawn at their saved position, or the zone default if that is what was stored
+- Movement uses content `moveSpeed`, server `dt`, zone `walkableBounds`, and zone `collisions`. Client position is never accepted
