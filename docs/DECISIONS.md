@@ -16,9 +16,9 @@ The working tree is `C:\Users\Eszter\small-mmorpg`. `C:\Users\Eszter\Documents\s
 
 An earlier experimental Godot/Nakama tree in this folder was removed so Phase 0 matches the empty-repository contract. Nothing from that tree is authoritative.
 
-## 2026-08-15 — Postgres image tag
+## 2026-08-15 — Postgres image tag (deferred, then pinned)
 
-The exact Postgres Docker tag is deferred to the infra phase. Nakama 3.40.0 remains the server pin. No custom SQL tables.
+The exact Postgres Docker tag was deferred at Phase 0. The infra phase pinned `postgres:16.15-alpine`. See the later decision in this file.
 
 ## 2026-08-15 — nakama-runtime install source
 
@@ -38,3 +38,19 @@ Official install rules used:
 The Nakama 3.4.0 release zip includes `Satori.gd` inside `addons/com.heroiclabs.nakama`. That file is left in place as shipped and is not autoloaded.
 
 Godot 4.7.1 writes `.uid` files for vendored scripts that predate UID sidecars (Nakama 3.4.0, GdUnit4 6.2.0 zipball). Those generated files are gitignored. They are not treated as package source modifications.
+
+## 2026-08-15 — Postgres image tag
+
+Image is `postgres:16.15-alpine`. Host port 5432 is not published; Nakama talks to Postgres on the Compose network. Named volume `vibecode_postgres_data` survives `docker compose down`. `docker compose down -v` / `scripts/backend-volume-destroy.ps1` is the only volume-destroy path. No custom SQL tables.
+
+## 2026-08-15 — TypeScript runtime bundle
+
+Nakama 3.40.0 requires a global `function InitModule` and RPC handlers as named function declarations. The official path is Rollup + Babel `@babel/preset-env` to ES5, `output.format: "cjs"`, and `runtime.js_entrypoint: "build/index.js"`. `registerRpc` IDs are string literals. Bundled `server/src` must not use Node `fs`, `process`, `crypto`, or other Node APIs. TypeScript is pinned at 5.8.3. The Docker builder is `node:20.20.2-alpine`.
+
+## 2026-08-15 — Local Nakama Console credentials
+
+Console is `http://127.0.0.1:7351`. Username `admin` and password `password` are Nakama's built-in insecure local defaults. They are documented, not stored as project production secrets. Do not commit production console, session, or HTTP keys. `infra/.env` is gitignored for future overrides.
+
+## 2026-08-15 — Local backend is health-only
+
+This phase adds PostgreSQL, Nakama, and RPC `vibecode_health`. Player authentication, storage, and the starter-zone match are not implemented yet.

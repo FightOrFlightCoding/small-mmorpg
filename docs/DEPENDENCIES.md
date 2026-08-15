@@ -25,7 +25,7 @@ Upgrade policy for every row: **locked**. A later phase may change a pin only by
 | Version | 3.40.0 |
 | Official source | https://github.com/heroiclabs/nakama and Docker image `heroiclabs/nakama:3.40.0` |
 | License | Apache-2.0 |
-| Installation | Docker Compose in `infra/` (later phase) |
+| Installation | Docker Compose in `infra/`. Image `heroiclabs/nakama:3.40.0`. |
 | Executes on | Server |
 | Upgrade policy | Locked |
 
@@ -37,7 +37,7 @@ Upgrade policy for every row: **locked**. A later phase may change a pin only by
 | Version | 1.47.0 |
 | Official source | https://github.com/heroiclabs/nakama-common/tree/v1.47.0 (npm package name `nakama-runtime`; install from the Git tag, not the public npm copy) |
 | License | Apache-2.0 |
-| Installation | `npm` dependency in `server/` (later phase): `github:heroiclabs/nakama-common#v1.47.0` |
+| Installation | `server/package.json` devDependency: `github:heroiclabs/nakama-common#v1.47.0` (resolved commit `449b77ecc8789aa466c36b67f6e498033dfcd9c5`) |
 | Executes on | Build tooling (types only). Runtime code executes inside Nakama, not Node. |
 | Upgrade policy | Locked |
 
@@ -122,24 +122,48 @@ Upgrade policy for every row: **locked**. A later phase may change a pin only by
 | Field | Value |
 | --- | --- |
 | Purpose | Nakama persistence backend |
-| Version | Not a gameplay framework pin. Use an official Postgres image compatible with Nakama 3.40.0; record the exact tag in `infra/` when Compose is added. |
+| Version | 16.15 |
 | Official source | https://hub.docker.com/_/postgres |
 | License | PostgreSQL License |
-| Installation | Docker Compose in `infra/` |
+| Installation | Docker image `postgres:16.15-alpine` in `infra/docker-compose.yml`. Data lives in named volume `vibecode_postgres_data`. Not published to the host; Nakama reaches it on the Compose network. |
 | Executes on | Server infrastructure |
-| Upgrade policy | Minor image tags may be chosen at infra introduction; no custom SQL. |
+| Upgrade policy | Locked. No custom SQL. |
 
 ## TypeScript
 
 | Field | Value |
 | --- | --- |
 | Purpose | Compile `server/` to JS for Nakama |
-| Version | Chosen in the server-bootstrap phase; must emit a global `InitModule` compatible with Nakama 3.40.0 |
+| Version | 5.8.3 |
 | Official source | https://www.typescriptlang.org/ |
 | License | Apache-2.0 |
-| Installation | `server/package.json` devDependency |
+| Installation | `server/package.json` devDependency `typescript` `5.8.3` |
 | Executes on | Build tooling |
-| Upgrade policy | Locked once the bootstrap phase pins a compiler version in this file |
+| Upgrade policy | Locked |
+
+## Node.js (runtime build image)
+
+| Field | Value |
+| --- | --- |
+| Purpose | Reproducible `npm ci` + Rollup build inside `server/Dockerfile` |
+| Version | 20.20.2 |
+| Official source | https://hub.docker.com/_/node |
+| License | MIT |
+| Installation | Docker image `node:20.20.2-alpine` (builder stage). Host `npm` commands require Node `>=20.20.0`. |
+| Executes on | Build tooling |
+| Upgrade policy | Locked |
+
+## Rollup + Babel (Nakama JS bundle)
+
+| Field | Value |
+| --- | --- |
+| Purpose | Emit an ES5 CommonJS bundle with a global `InitModule` for Nakama 3.40.0 |
+| Version | Rollup 4.62.4 (lockfile); Babel preset-env via `server/babel.config.json` targeting IE 11 |
+| Official source | https://heroiclabs.com/docs/nakama/server-framework/typescript-runtime/ |
+| License | MIT |
+| Installation | `server/` devDependencies; `npm run build` writes `server/build/index.js` |
+| Executes on | Build tooling. Bundled JS executes inside Nakama, not Node. |
+| Upgrade policy | Locked |
 
 ## Reproduction commands (Godot 4.7.1 compatibility)
 
@@ -160,5 +184,37 @@ $Client = "C:\Users\Eszter\small-mmorpg\client"
 ```
 
 Expected: import exit 0, scene prints `COMPATIBILITY_OK` and exits 0, GdUnit4 reports 4/4 passed and exit 0.
+
+## Reproduction commands (local Nakama + PostgreSQL)
+
+From the repo root, Node `>=20.20.0` and Docker Desktop required:
+
+```powershell
+Set-Location server
+npm ci
+npm run typecheck
+npm test
+npm run build
+powershell -File ..\scripts\backend-up.ps1
+```
+
+Equivalent script wrappers:
+
+```powershell
+powershell -File scripts/server-typecheck.ps1
+powershell -File scripts/server-test.ps1
+powershell -File scripts/server-build.ps1
+powershell -File scripts/backend-up.ps1
+powershell -File scripts/backend-logs.ps1
+powershell -File scripts/backend-down.ps1
+```
+
+`backend-down.ps1` stops containers and **keeps** `vibecode_postgres_data`. Destroying local Postgres data is a separate explicit command:
+
+```powershell
+powershell -File scripts/backend-volume-destroy.ps1
+```
+
+Expected after `backend-up.ps1`: both services healthy; Nakama log line `vibecode runtime loaded rpc=vibecode_health`; HTTP RPC `POST http://127.0.0.1:7350/v2/rpc/vibecode_health?http_key=defaulthttpkey&unwrap` with body `{}` returns the health JSON. `http_key=defaulthttpkey` is Nakama's built-in local default, not a production secret.
 
 Installed-tree SHA-256 values are SHA-256 of a sorted `hash length relative-path` listing of every file in the addon folder as extracted from the pinned archive, before Godot generated extra `.uid`/`.import` sidecars.
