@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { parseFindOrCreatePayload, FIND_OR_CREATE_STARTER_ZONE_RPC_ID } from "../src/rpcs/find_or_create_starter_zone";
 import { resolveStarterMatchId, selectCanonicalMatchId } from "../src/domain/starter_zone_registry";
+import { SYSTEM_USER_ID } from "../src/nakama/starter_zone_registry";
 import { requireAuthenticatedUserId } from "../src/domain/character";
 
 test("find_or_create rpc id is the documented string", () => {
   assert.equal(FIND_OR_CREATE_STARTER_ZONE_RPC_ID, "find_or_create_starter_zone");
+  assert.equal(SYSTEM_USER_ID, "00000000-0000-0000-0000-000000000000");
 });
 
 test("find_or_create requires authentication", () => {

@@ -61,7 +61,15 @@ export function matchJoinAttempt(
     meta[key] = String(metadata[key]);
   }
   const alreadyJoined = Object.prototype.hasOwnProperty.call(state.zone.players, presence.userId);
-  const gate = validateJoinAttempt(state.zone, contentHash, meta, alreadyJoined);
+  const existing = state.presences[presence.userId];
+  const gate = validateJoinAttempt(
+    state.zone,
+    contentHash,
+    meta,
+    alreadyJoined,
+    presence.sessionId,
+    existing !== undefined ? existing.sessionId : "",
+  );
   if (!gate.accept) {
     logger.info("starter_zone join rejected user_id=%s reason=%s", presence.userId, gate.rejectMessage);
     return { state: state, accept: false, rejectMessage: gate.rejectMessage };

@@ -8,6 +8,7 @@ func before_test() -> void:
 	AppState.reset_for_tests()
 	NetworkService.reset_for_tests()
 	GameService.last_identity = {}
+	GameService.enter_world_after_bootstrap = false
 
 
 func _fake() -> FakeNetworkBackend:
@@ -120,6 +121,18 @@ func test_join_rejection_for_content_mismatch_is_fatal() -> void:
 	assert_bool(await GameService.enter_starter_zone()).is_false()
 	assert_bool(AppState.has_fatal_error).is_true()
 	assert_str(AppState.last_error_code).is_equal("content_mismatch")
+
+
+func test_duplicate_account_join_is_recoverable() -> void:
+	var fake := _fake()
+	await _boot_and_character(fake)
+	fake.join_ok = false
+	fake.join_code = "already_in_match"
+	fake.join_message = "This account is already in the starter zone. Sign in as Alice in one window and Bob in the other."
+	assert_bool(await GameService.enter_starter_zone()).is_false()
+	assert_bool(AppState.has_fatal_error).is_false()
+	assert_str(AppState.last_error_code).is_equal("already_in_match")
+	assert_str(SceneRouter.current_scene_id).is_not_equal(SceneRouter.SCENE_WORLD)
 
 
 func test_resync_requests_a_fresh_full_state() -> void:

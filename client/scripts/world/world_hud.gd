@@ -23,10 +23,27 @@ func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool =
 	if snapshot_stale:
 		_status.text = "Connection degraded. Remote movement is frozen."
 	else:
-		_status.text = "In %s as %s. Tick %s. Ack seq %s." % [
+		_status.text = "In %s as %s (you). Tick %s. Ack seq %s." % [
 			String(state.get("zone_id", "zone.starter")),
-			String(state.get("self_id", "")),
+			_local_name(state),
 			str(state.get("tick", 0)),
 			str(state.get("ack_seq", 0)),
 		]
 	_entities.text = "Present: %s" % ", ".join(names)
+
+
+func _local_name(state: Dictionary) -> String:
+	var self_id := String(state.get("self_id", ""))
+	for entry in state.get("players", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("userId", "")) != self_id:
+			continue
+		var named := String(entry.get("name", ""))
+		if not named.is_empty():
+			return named
+	if not AppState.character_view.is_empty():
+		var from_character := String(AppState.character_view.get("name", ""))
+		if not from_character.is_empty():
+			return from_character
+	return self_id if not self_id.is_empty() else "unknown"

@@ -137,4 +137,12 @@ Correction policy: error ≤ 0.5 px is agreement (no visual correction); error �
 
 ## 2026-08-15 — Editor login identities
 
-Godot editor Play does not pass `--dev-user`. The login scene wraps the identity warning in a 640 px column and offers **Sign in as Alice** / **Sign in as Bob**, which use the same device IDs as the CLI flags. **Sign in with this machine** remains the `OS.get_unique_id()` path. Local Nakama at `127.0.0.1:7350` is required before any of those buttons work.
+Godot editor Play does not pass `--dev-user`. The login scene wraps copy in a 640 px column and offers **Sign in as Alice** / **Sign in as Bob**, which use the same device IDs as the CLI flags. **Sign in with this machine** remains the `OS.get_unique_id()` path. Local Nakama at `127.0.0.1:7350` is required before any of those buttons work.
+
+Editor Play does not auto-authenticate. Two Play windows both signing in as Alice are the same Nakama user; the match keys presence by `userId` and a second join is rejected with `already_in_match`. Use Alice in one window and Bob in the other, or `powershell -File scripts/run-client-dev.ps1 -DevUser bob`. Alice/Bob buttons continue into the zone after character bootstrap so two-client setup is one click per window. GdUnit keeps `SceneRouter.apply_scene_changes` false so tests do not auto-join.
+
+The 2D client uses the GL Compatibility renderer. Zone floor and collision overlays are repeating `Sprite2D` regions, not tiled `TextureRect`s, because the latter issued thousands of draws for the 1280×768 starter floor.
+
+Nakama does not hot-reload `server/build/index.js`. A container started against an older bundle keeps only the RPCs it loaded at boot (`vibecode_health` in the first local stack). `scripts/backend-up.ps1` recreates the Nakama container after `npm run build` and `scripts/backend-verify.ps1` refuses a health-only runtime.
+
+`nakama-runtime` is a type-only package and is Rollup-external. Runtime values such as `nkruntime.SystemUserId` are not available inside Goja. System-owned storage uses the literal UUID `00000000-0000-0000-0000-000000000000`.

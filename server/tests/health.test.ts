@@ -4,6 +4,7 @@ import { contentHash } from "../src/generated/content";
 import {
   HEALTH_RPC_ID,
   PROTOCOL_VERSION,
+  REGISTERED_RPC_IDS,
   SERVICE_NAME,
   buildHealthResponse,
   handleHealthRpc,
@@ -18,6 +19,9 @@ test("health response has the required shape", () => {
   assert.equal(body.service, SERVICE_NAME);
   assert.equal(body.protocol_version, PROTOCOL_VERSION);
   assert.equal(HEALTH_RPC_ID, "vibecode_health");
+  assert.deepEqual(body.rpcs, REGISTERED_RPC_IDS);
+  assert.ok(body.rpcs.includes("character_bootstrap"));
+  assert.ok(body.rpcs.includes("find_or_create_starter_zone"));
   assert.match(body.content_version, /^[a-f0-9]{64}$/);
 });
 

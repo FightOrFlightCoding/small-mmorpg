@@ -46,6 +46,9 @@ func _show_character(view: Dictionary, created: bool) -> void:
 		str(stats.get("moveSpeed", "")),
 	]
 	_continue_button.disabled = false
+	if GameService.enter_world_after_bootstrap:
+		GameService.enter_world_after_bootstrap = false
+		_on_continue_pressed()
 
 
 func _on_continue_pressed() -> void:

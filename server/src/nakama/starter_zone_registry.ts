@@ -7,6 +7,7 @@ import {
 
 export const MATCH_COLLECTION = "match";
 export const MATCH_KEY = "starter_zone";
+export const SYSTEM_USER_ID = "00000000-0000-0000-0000-000000000000";
 
 interface StoredMatch {
   matchId: string;
@@ -57,7 +58,7 @@ function readStoredMatchId(nk: nkruntime.Nakama): string | null {
     {
       collection: MATCH_COLLECTION,
       key: MATCH_KEY,
-      userId: nkruntime.SystemUserId,
+      userId: SYSTEM_USER_ID,
     },
   ]);
   if (objects.length === 0) {
@@ -76,7 +77,7 @@ function persistMatchIdIfAbsentOrDead(nk: nkruntime.Nakama, matchId: string): vo
       {
         collection: MATCH_COLLECTION,
         key: MATCH_KEY,
-        userId: nkruntime.SystemUserId,
+        userId: SYSTEM_USER_ID,
       },
     ],
     function (objects: nkruntime.StorageObject[]): nkruntime.StorageWriteRequest[] {
@@ -100,7 +101,7 @@ function writeRequest(matchId: string, version: string | undefined): nkruntime.S
   const write: nkruntime.StorageWriteRequest = {
     collection: MATCH_COLLECTION,
     key: MATCH_KEY,
-    userId: nkruntime.SystemUserId,
+    userId: SYSTEM_USER_ID,
     value: { matchId: matchId },
     permissionRead: 0,
     permissionWrite: 0,

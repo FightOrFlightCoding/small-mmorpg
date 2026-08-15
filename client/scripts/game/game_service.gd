@@ -3,6 +3,7 @@ extends Node
 ## Orchestrates shell flow. Not a gameplay authority.
 
 var last_identity: Dictionary = {}
+var enter_world_after_bootstrap: bool = false
 
 
 func _ready() -> void:
@@ -77,15 +78,23 @@ func request_resync() -> bool:
 
 
 func request_logout() -> void:
+	enter_world_after_bootstrap = false
 	await NetworkService.logout()
 
 
 func _on_authentication_finished(success: bool, _message: String) -> void:
-	if success:
-		SceneRouter.transition_to(SceneRouter.SCENE_CHARACTER)
+	if not success:
+		return
+	if SceneRouter.transition_to(SceneRouter.SCENE_CHARACTER):
+		return
+	AppState.report_recoverable(
+		"character_blocked",
+		"Sign-in succeeded but the character screen could not open. Press Play on the project (F5), not a nested UI scene."
+	)
 
 
 func _on_logged_out() -> void:
+	enter_world_after_bootstrap = false
 	if AppState.has_fatal_error:
 		return
 	if AppState.content_ready:

@@ -150,6 +150,9 @@ func _from_join_exception(exception: NakamaException) -> Dictionary:
 	elif message.contains("content_mismatch"):
 		mapped["code"] = "content_mismatch"
 		mapped["message"] = "The client content catalog does not match the server."
+	elif message.contains("already_in_match"):
+		mapped["code"] = "already_in_match"
+		mapped["message"] = "This account is already in the starter zone. Sign in as Alice in one window and Bob in the other."
 	elif message.contains("match_full"):
 		mapped["code"] = "match_full"
 	elif message.contains("character_missing"):
@@ -166,10 +169,17 @@ func _from_exception(exception: NakamaException, fallback_code: String, fallback
 	var code := fallback_code
 	if exception.grpc_status_code == 16 or exception.status_code == 401:
 		code = "session_expired"
+	elif _looks_like_missing_rpc(message):
+		code = "rpc_missing"
+		message = "Nakama is running an old runtime. Rebuild and restart with powershell -File scripts/backend-up.ps1."
 	elif _looks_like_unreachable(message):
 		code = "network_unreachable"
 		message = "Cannot reach Nakama at 127.0.0.1:7350. Start it with powershell -File scripts/backend-up.ps1."
 	return _fail(code, message)
+
+
+func _looks_like_missing_rpc(message: String) -> bool:
+	return message.to_lower().contains("rpc function not found")
 
 
 func _looks_like_unreachable(message: String) -> bool:

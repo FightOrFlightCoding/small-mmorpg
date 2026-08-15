@@ -21,6 +21,7 @@ var _reconciler: MovementReconciler
 var _buffer: SnapshotBuffer = SnapshotBuffer.new()
 var _sent_at: Dictionary = {}
 var _ping_ms: int = 0
+var _overlay_accum: float = 0.0
 
 
 func _ready() -> void:
@@ -57,7 +58,10 @@ func _process(delta: float) -> void:
 	if not _snapshot_stale:
 		_entities.apply_remote_poses(_buffer.sample(_buffer.render_tick()))
 	_check_snapshot_timeout()
-	_refresh_overlay()
+	_overlay_accum += delta
+	if _overlay_accum >= 0.25:
+		_overlay_accum = 0.0
+		_refresh_overlay()
 
 
 func _exit_tree() -> void:

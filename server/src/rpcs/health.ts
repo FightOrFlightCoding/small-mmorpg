@@ -2,6 +2,11 @@ import { PROTOCOL_VERSION } from "../domain/protocol";
 import { contentHash } from "../generated/content";
 
 export const HEALTH_RPC_ID = "vibecode_health";
+export const REGISTERED_RPC_IDS = [
+  "vibecode_health",
+  "character_bootstrap",
+  "find_or_create_starter_zone",
+] as const;
 
 export { PROTOCOL_VERSION };
 export const SERVICE_NAME = "vibecode-server";
@@ -11,6 +16,7 @@ export interface HealthResponse {
   service: typeof SERVICE_NAME;
   protocol_version: typeof PROTOCOL_VERSION;
   content_version: string;
+  rpcs: typeof REGISTERED_RPC_IDS;
 }
 
 export function buildHealthResponse(): HealthResponse {
@@ -19,6 +25,7 @@ export function buildHealthResponse(): HealthResponse {
     service: SERVICE_NAME,
     protocol_version: PROTOCOL_VERSION,
     content_version: contentHash,
+    rpcs: REGISTERED_RPC_IDS,
   };
 }
 

@@ -141,6 +141,7 @@ func _apply_kind(kind: String, records: Variant, keep: Dictionary, interpolate_r
 		var pose := _pose(record)
 		var node: Node2D = _nodes.get(key)
 		var is_local := kind == KIND_PLAYER and server_id == local_server_id
+		var named := _name_for(kind, record)
 		if node == null:
 			node = _spawn(kind, server_id, record)
 			if node == null:
@@ -149,11 +150,18 @@ func _apply_kind(kind: String, records: Variant, keep: Dictionary, interpolate_r
 			add_child(node)
 			node.position = pose
 		elif node is WorldAvatar:
-			(node as WorldAvatar).configure(kind, server_id, _name_for(kind, record), _visual_for(kind, record), is_local)
+			var avatar := node as WorldAvatar
+			if (
+				avatar.kind != kind
+				or avatar.server_id != server_id
+				or avatar.display_name != named
+				or avatar.is_local != is_local
+			):
+				avatar.configure(kind, server_id, named, _visual_for(kind, record), is_local)
 			if interpolate_remotes and kind == KIND_PLAYER:
 				pass
 			else:
-				(node as WorldAvatar).set_server_position(pose.x, pose.y)
+				avatar.set_server_position(pose.x, pose.y)
 		else:
 			node.position = pose
 
@@ -260,4 +268,5 @@ func _attach_camera() -> void:
 	if follow_camera.get_parent() != avatar:
 		follow_camera.reparent(avatar)
 		follow_camera.position = Vector2.ZERO
-	follow_camera.make_current()
+	if not follow_camera.is_current():
+		follow_camera.make_current()

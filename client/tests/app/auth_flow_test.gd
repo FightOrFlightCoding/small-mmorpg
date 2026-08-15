@@ -8,6 +8,7 @@ func before_test() -> void:
 	AppState.reset_for_tests()
 	NetworkService.reset_for_tests()
 	GameService.last_identity = {}
+	GameService.enter_world_after_bootstrap = false
 
 
 func _fake() -> FakeNetworkBackend:
@@ -161,6 +162,15 @@ func test_login_hint_wraps_and_offers_named_identities() -> void:
 	assert_str(page.get_node("Center/VBox/AliceButton").text).is_equal("Sign in as Alice")
 	assert_str(page.get_node("Center/VBox/BobButton").text).is_equal("Sign in as Bob")
 	assert_bool(String(page.get_node("Center/VBox/ServerHint").text).contains("127.0.0.1:7350")).is_true()
+	assert_bool(NetworkService.last_auth_attempted).is_false()
+
+
+func test_play_does_not_auto_sign_in() -> void:
+	assert_bool(GameService.enter_world_after_bootstrap).is_false()
+	var page: Control = auto_free(preload("res://scenes/login/login.tscn").instantiate())
+	add_child(page)
+	await get_tree().process_frame
+	assert_bool(NetworkService.last_auth_attempted).is_false()
 
 
 func test_logout_returns_to_login() -> void:

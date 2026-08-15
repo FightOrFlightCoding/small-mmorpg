@@ -41,11 +41,13 @@ func configure(p_kind: String, p_server_id: String, p_name: String, visual: Dict
 	if _fallback_label == null:
 		_fallback_label = $FallbackLabel
 	_apply_visual(visual)
+	if p_kind == "player":
+		_body.color = _tint_for_player(p_name, p_local)
 	_label.text = p_name
 	_fallback_label.visible = used_fallback
 	if p_local:
 		_label.text = "%s (you)" % p_name
-		modulate = Color(1.12, 1.12, 1.18, 1.0)
+	modulate = Color.WHITE
 	z_index = _z_for_kind(p_kind, p_local)
 
 
@@ -108,3 +110,18 @@ func _z_for_kind(p_kind: String, p_local: bool) -> int:
 	if p_kind == "player":
 		return 7 if p_local else 6
 	return 2
+
+
+func _tint_for_player(p_name: String, p_local: bool) -> Color:
+	var base := Color(0.24, 0.48, 0.84, 1.0)
+	match p_name:
+		"Alice":
+			base = Color(0.24, 0.48, 0.84, 1.0)
+		"Bob":
+			base = Color(0.86, 0.42, 0.18, 1.0)
+		_:
+			var h := float(absi(p_name.hash()) % 360) / 360.0
+			base = Color.from_hsv(h, 0.55, 0.92)
+	if p_local:
+		return base.lightened(0.08)
+	return base

@@ -113,6 +113,26 @@ test("join rejects protocol and content mismatches", () => {
   assert.equal(ok.accept, true);
 });
 
+test("join rejects a second session for the same account", () => {
+  const state = addPlayer(emptyZone(), player("user-alice", "Alice"));
+  const meta = { protocolVersion: "1", contentHash: contentHash };
+  const duplicate = validateJoinAttempt(state, contentHash, meta, true, "session-new", "session-user-alice");
+  assert.equal(duplicate.accept, false);
+  assert.equal(duplicate.rejectMessage, "already_in_match");
+  const sameSession = validateJoinAttempt(state, contentHash, meta, true, "session-user-alice", "session-user-alice");
+  assert.equal(sameSession.accept, true);
+});
+
+test("join rejects when the match is full", () => {
+  let state = emptyZone();
+  for (let i = 0; i < MATCH_MAX_PLAYERS; i++) {
+    state = addPlayer(state, player("user-" + String(i), "P" + String(i)));
+  }
+  const full = validateJoinAttempt(state, contentHash, { protocolVersion: "1", contentHash: contentHash }, false);
+  assert.equal(full.accept, false);
+  assert.equal(full.rejectMessage, "match_full");
+});
+
 test("resync returns a fresh full state without moving the player", () => {
   let state = addPlayer(emptyZone(), player("user-alice", "Alice"));
   const before = state.players["user-alice"];

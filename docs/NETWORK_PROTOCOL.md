@@ -118,7 +118,7 @@ The server rejects:
 - wrong content hash
 - missing/malformed `requestId` on reward opcodes
 
-Rejections are typed (`unknown_opcode`, `malformed_json`, `unknown_field`, `invalid_id`, `protocol_mismatch`, `content_mismatch`, `payload_too_large`, `unauthenticated`, `invalid_name`, `stat_injection`, `invalid_request_id`, `match_full`, `character_missing`). They are logged without tokens or personal data. They are sent as `SYSTEM_MESSAGE` (or join reject) and never crash the match.
+Rejections are typed (`unknown_opcode`, `malformed_json`, `unknown_field`, `invalid_id`, `protocol_mismatch`, `content_mismatch`, `payload_too_large`, `unauthenticated`, `invalid_name`, `stat_injection`, `invalid_request_id`, `match_full`, `already_in_match`, `character_missing`). They are logged without tokens or personal data. They are sent as `SYSTEM_MESSAGE` (or join reject) and never crash the match.
 
 ## RPC `character_bootstrap`
 
@@ -137,5 +137,6 @@ Authenticated HTTP/RPC only. Payload is empty or `{}`. Returns `{ matchId, zoneI
 - Empty-match shutdown: **30 seconds** (300 ticks) after the last presence leaves, or if nobody ever joins
 - Join loads the character from storage once. The tick loop does not read storage
 - Join metadata must include matching `protocolVersion` and `contentHash`
+- A second socket for an account already in the match is rejected with `already_in_match`. True reconnect of the same session is allowed. The same account cannot occupy two presences.
 - Players spawn at their saved position, or the zone default if that is what was stored
 - Movement uses content `moveSpeed`, server `dt`, zone `walkableBounds`, and zone `collisions`. Client position is never accepted

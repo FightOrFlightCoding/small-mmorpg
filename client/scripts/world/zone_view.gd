@@ -20,27 +20,25 @@ func render_zone(zone: Dictionary) -> void:
 
 
 func _add_floor(width: float, height: float, visual: Dictionary) -> void:
-	var floor_rect := ColorRect.new()
-	floor_rect.name = "Floor"
-	floor_rect.size = Vector2(width, height)
-	floor_rect.color = Color(0.49, 0.75, 0.29, 1.0)
+	var floor_poly := Polygon2D.new()
+	floor_poly.name = "Floor"
+	floor_poly.polygon = PackedVector2Array([
+		Vector2.ZERO,
+		Vector2(width, 0.0),
+		Vector2(width, height),
+		Vector2(0.0, height),
+	])
+	floor_poly.color = Color(0.49, 0.75, 0.29, 1.0)
 	if visual.get("fallback_color") is Color:
-		floor_rect.color = visual["fallback_color"]
-	floor_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(floor_rect)
+		floor_poly.color = visual["fallback_color"]
+	add_child(floor_poly)
 	var texture_path := String(visual.get("texture_path", ""))
 	if texture_path.is_empty():
 		return
 	var texture: Texture2D = load(texture_path)
 	if texture == null:
 		return
-	var tiled := TextureRect.new()
-	tiled.name = "FloorTiles"
-	tiled.texture = texture
-	tiled.stretch_mode = TextureRect.STRETCH_TILE
-	tiled.size = Vector2(width, height)
-	tiled.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(tiled)
+	add_child(_repeating_sprite("FloorTiles", texture, Rect2(0.0, 0.0, width, height), 0))
 
 
 func _add_bounds(width: float, height: float) -> void:
@@ -70,28 +68,48 @@ func _add_collisions(collisions: Variant, visual: Dictionary) -> void:
 	var obstacle_path := String(visual.get("obstacle_texture_path", ""))
 	if not obstacle_path.is_empty():
 		obstacle_tex = load(obstacle_path)
+	var fill := Color(0.35, 0.27, 0.22, 1.0)
+	if visual.get("obstacle_fallback_color") is Color:
+		fill = visual["obstacle_fallback_color"]
 	var index := 0
 	for entry in collisions:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
 		var rect: Dictionary = entry
-		var box := ColorRect.new()
-		box.name = "Collision_%s" % str(index)
-		box.position = Vector2(float(rect.get("x", 0.0)), float(rect.get("y", 0.0)))
-		box.size = Vector2(float(rect.get("width", 16.0)), float(rect.get("height", 16.0)))
-		box.color = Color(0.35, 0.27, 0.22, 1.0)
-		if visual.get("obstacle_fallback_color") is Color:
-			box.color = visual["obstacle_fallback_color"]
-		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		holder.add_child(box)
+		var box := Rect2(
+			float(rect.get("x", 0.0)),
+			float(rect.get("y", 0.0)),
+			float(rect.get("width", 16.0)),
+			float(rect.get("height", 16.0)),
+		)
+		var poly := Polygon2D.new()
+		poly.name = "Collision_%s" % str(index)
+		poly.position = box.position
+		poly.polygon = PackedVector2Array([
+			Vector2.ZERO,
+			Vector2(box.size.x, 0.0),
+			box.size,
+			Vector2(0.0, box.size.y),
+		])
+		poly.color = fill
+		holder.add_child(poly)
 		if obstacle_tex != null:
-			var overlay := TextureRect.new()
-			overlay.texture = obstacle_tex
-			overlay.stretch_mode = TextureRect.STRETCH_TILE
-			overlay.size = box.size
-			overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			box.add_child(overlay)
+			poly.add_child(_repeating_sprite("Tiles", obstacle_tex, Rect2(Vector2.ZERO, box.size), 0))
 		index += 1
+
+
+func _repeating_sprite(p_name: String, texture: Texture2D, rect: Rect2, z: int) -> Sprite2D:
+	var sprite := Sprite2D.new()
+	sprite.name = p_name
+	sprite.texture = texture
+	sprite.centered = false
+	sprite.position = rect.position
+	sprite.z_index = z
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	sprite.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	sprite.region_enabled = true
+	sprite.region_rect = Rect2(0.0, 0.0, rect.size.x, rect.size.y)
+	return sprite
 
 
 func _add_spawn(spawn: Variant) -> void:

@@ -227,7 +227,7 @@ powershell -File scripts/backend-down.ps1
 powershell -File scripts/backend-volume-destroy.ps1
 ```
 
-Expected after `backend-up.ps1`: both services healthy; Nakama log line `vibecode runtime loaded rpc=vibecode_health`; HTTP RPC `POST http://127.0.0.1:7350/v2/rpc/vibecode_health?http_key=defaulthttpkey&unwrap` with body `{}` returns the health JSON. `http_key=defaulthttpkey` is Nakama's built-in local default, not a production secret.
+Expected after `backend-up.ps1`: both services healthy; Nakama log line includes `character_bootstrap`; HTTP health RPC returns `rpcs` containing `character_bootstrap` and `find_or_create_starter_zone`. `scripts/backend-verify.ps1` fails if Nakama is still running a stale health-only module. `http_key=defaulthttpkey` is Nakama's built-in local default, not a production secret.
 
 ## Reproduction commands (content database)
 

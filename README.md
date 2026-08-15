@@ -58,13 +58,15 @@ Local identities:
 
 ```powershell
 # After scripts/backend-up.ps1
-# In Godot: Project → Run, then Sign in as Alice (or Bob).
+# In Godot: Project → Run (F5), then Sign in as Alice.
+# Second window: Sign in as Bob.
+# powershell -File scripts/run-client-dev.ps1 -DevUser bob
 # Or from a terminal:
 # Godot --path client -- --dev-user=alice
 # Godot --path client -- --dev-user=bob
 ```
 
-`--dev-user=alice` authenticates as device id `vibecode-dev-alice`. The editor Play button does not pass that flag; use **Sign in as Alice** or **Sign in as Bob** on the login screen. Omit `--dev-user` and press **Sign in with this machine** to use `OS.get_unique_id()`. That fallback is not a production identity: launches on the same machine share one account. Sign-in failures are shown in the error dialog. After sign-in, **Continue** on the character screen joins the starter-zone match. Character storage is server-only (`permissionWrite: 0`). The world renders the zone, Elder, slime, and other players from content IDs. WASD or arrows send movement intentions; the client predicts locally and the server owns position. Protocol or content mismatch is a fatal compatibility error. There is no combat yet.
+`--dev-user=alice` authenticates as device id `vibecode-dev-alice`. The editor Play button does not pass that flag and does not auto-sign in; use **Sign in as Alice** in one window and **Sign in as Bob** in the other. Those buttons continue into the zone after character bootstrap. A second join on the same account is rejected (`already_in_match`). Omit `--dev-user` and press **Sign in with this machine** to use `OS.get_unique_id()`. That fallback is not a production identity: launches on the same machine share one account. Sign-in failures are shown in the error dialog. Character storage is server-only (`permissionWrite: 0`). The world renders the zone, Elder, slime, and other players from content IDs. WASD or arrows send movement intentions; the client predicts locally and the server owns position. Protocol or content mismatch is a fatal compatibility error. There is no combat yet.
 
 ## Local Nakama and PostgreSQL
 
@@ -89,7 +91,7 @@ powershell -File scripts/backend-logs.ps1
 powershell -File scripts/backend-down.ps1
 ```
 
-`backend-up.ps1` builds `server/build/index.js` then starts Compose. `backend-down.ps1` stops containers and **keeps** named volume `vibecode_postgres_data`. Restarting the stack therefore keeps PostgreSQL data.
+`backend-up.ps1` builds `server/build/index.js`, recreates the Nakama container so it loads that file (JS is not hot-reloaded), then runs `scripts/backend-verify.ps1`. That check requires `character_bootstrap` and `find_or_create_starter_zone` to be registered and bootstraps Alice and Bob. `backend-down.ps1` stops containers and **keeps** named volume `vibecode_postgres_data`. Restarting the stack therefore keeps PostgreSQL data.
 
 Destroying the development volume is a separate explicit operation:
 
@@ -111,7 +113,7 @@ After the stack is healthy:
 Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:7350/v2/rpc/vibecode_health?http_key=defaulthttpkey&unwrap" -ContentType "application/json" -Body "{}"
 ```
 
-`http_key=defaulthttpkey` is also a Nakama local default. Expected body has `ok`, `service`, `protocol_version`, and `content_version` set to the generated content hash (64 hex characters). Rebuild the runtime after `scripts/content-build.ps1` so the hash matches `client/content/bundle.json`.
+`http_key=defaulthttpkey` is also a Nakama local default. Expected body has `ok`, `service`, `protocol_version`, `rpcs` including `character_bootstrap` and `find_or_create_starter_zone`, and `content_version` set to the generated content hash (64 hex characters). Rebuild and recreate Nakama after `scripts/content-build.ps1` so the hash matches `client/content/bundle.json`. `scripts/backend-verify.ps1` performs that check.
 
 ## Content database
 

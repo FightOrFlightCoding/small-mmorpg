@@ -49,6 +49,9 @@ func test_alice_sees_alice_bob_elder_and_slime() -> void:
 	assert_str(names).contains("Bob")
 	assert_str(names).contains("Elder")
 	assert_str(names).contains("Green Slime")
+	var alice_body: Polygon2D = local_avatar.get_node("Body")
+	var bob_body: Polygon2D = remote_avatar.get_node("Body")
+	assert_bool(alice_body.color.is_equal_approx(bob_body.color)).is_false()
 
 
 func test_repeated_full_state_does_not_duplicate() -> void:

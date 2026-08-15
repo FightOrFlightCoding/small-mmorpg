@@ -86,3 +86,5 @@ func test_snapshot_timeout_is_visible() -> void:
 	assert_str(hud.get_node("Root/Margin/VBox/Status").text).contains("Connection degraded")
 	hud.refresh(_alice_bob_state(), PackedStringArray(["Alice", "Bob"]), false)
 	assert_str(hud.get_node("Root/Margin/VBox/Status").text).contains("Ack seq")
+	assert_str(hud.get_node("Root/Margin/VBox/Status").text).contains("as Alice (you)")
+	assert_str(hud.get_node("Root/Margin/VBox/Status").text).not_contains("user-alice")

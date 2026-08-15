@@ -33,6 +33,8 @@ func test_zone_view_renders_bounds_floor_collisions_and_spawn() -> void:
 	add_child(zone_view)
 	zone_view.render_zone(ContentRegistry.get_by_id("zone.starter"))
 	assert_object(zone_view.get_node_or_null("Floor")).is_not_null()
+	assert_object(zone_view.get_node_or_null("FloorTiles")).is_not_null()
+	assert_bool(zone_view.get_node("FloorTiles") is Sprite2D).is_true()
 	assert_object(zone_view.get_node_or_null("Bounds")).is_not_null()
 	assert_object(zone_view.get_node_or_null("PlayerSpawn")).is_not_null()
 	assert_int(zone_view.collision_count()).is_equal(6)

@@ -26,21 +26,28 @@ func _ready() -> void:
 		_hint.text = "Development identity: %s" % String(identity.get("dev_user", ""))
 		_sign_in_button.text = "Sign in"
 	else:
-		_hint.text = String(identity.get("warning", "This client will use a local device identity."))
+		_hint.text = "Sign in as Alice in one Play window and Bob in the other. The same account cannot occupy the zone twice."
 		_sign_in_button.text = "Sign in with this machine"
-	_server_hint.text = "Requires local Nakama at 127.0.0.1:7350 (scripts/backend-up.ps1). Then sign in as Alice or Bob and press Continue on the character screen."
+	_server_hint.text = "Nakama must be running at 127.0.0.1:7350 (scripts/backend-up.ps1). Alice and Bob continue into the zone after sign-in."
+	if not AppState.content_ready:
+		ContentRegistry.load_bundle()
+	_alice_button.grab_focus()
 	if _wants_shell_self_test():
 		print("SHELL_LOGIN")
 		get_tree().quit(0)
+		return
 
 
 func _on_alice_pressed() -> void:
+	GameService.enter_world_after_bootstrap = true
 	GameService.request_authenticate("", "alice")
 
 
 func _on_bob_pressed() -> void:
+	GameService.enter_world_after_bootstrap = true
 	GameService.request_authenticate("", "bob")
 
 
 func _on_sign_in_pressed() -> void:
+	GameService.enter_world_after_bootstrap = false
 	GameService.request_authenticate()
