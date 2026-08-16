@@ -1,4 +1,272 @@
 {
+  "abilities": {
+    "test.ability.basic_melee": {
+      "animationAssetId": "visual.ability_melee",
+      "areaRadius": 0,
+      "areaShape": "none",
+      "castTime": 0,
+      "channelTime": 0,
+      "damageInterruptsCast": false,
+      "descriptionKey": "ability.basic_melee.desc",
+      "displayName": "Basic Melee",
+      "displayNameKey": "ability.basic_melee.name",
+      "effects": [
+        {
+          "duration": 0,
+          "id": "hit",
+          "magnitude": {
+            "kind": "stat_role",
+            "role": "attack"
+          },
+          "maxStacks": 1,
+          "refreshPolicy": "refresh",
+          "removalReason": "expired",
+          "source": "caster",
+          "stackPolicy": "replace",
+          "tags": [
+            "physical"
+          ],
+          "target": "primary",
+          "tickInterval": 0,
+          "type": "direct_damage"
+        }
+      ],
+      "globalCooldown": 0.7,
+      "iconAssetId": "visual.ability_melee_icon",
+      "id": "test.ability.basic_melee",
+      "individualCooldown": 0.7,
+      "kind": "ability",
+      "maxRank": 1,
+      "minimumRange": 0,
+      "movementInterruptsCast": false,
+      "prerequisites": [],
+      "range": 40,
+      "relationFilter": "hostile",
+      "requiredClassTags": [],
+      "requiredLevel": 1,
+      "resourceCosts": [],
+      "skillPointCost": 0,
+      "soundAssetId": "visual.ability_melee_sound",
+      "targetMode": "entity"
+    },
+    "test.ability.damage_over_time": {
+      "animationAssetId": "visual.ability_dot",
+      "areaRadius": 40,
+      "areaShape": "circle",
+      "castTime": 0,
+      "channelTime": 0,
+      "damageInterruptsCast": false,
+      "descriptionKey": "ability.damage_over_time.desc",
+      "displayName": "Damage Over Time",
+      "displayNameKey": "ability.damage_over_time.name",
+      "effects": [
+        {
+          "duration": 3,
+          "id": "burn",
+          "magnitude": {
+            "kind": "constant",
+            "value": 3
+          },
+          "maxStacks": 1,
+          "refreshPolicy": "refresh",
+          "removalReason": "expired",
+          "source": "caster",
+          "stackPolicy": "replace",
+          "tags": [
+            "fire"
+          ],
+          "target": "area",
+          "tickInterval": 1,
+          "type": "periodic_damage"
+        }
+      ],
+      "globalCooldown": 0.5,
+      "iconAssetId": "visual.ability_dot_icon",
+      "id": "test.ability.damage_over_time",
+      "individualCooldown": 4,
+      "kind": "ability",
+      "maxRank": 1,
+      "minimumRange": 0,
+      "movementInterruptsCast": false,
+      "prerequisites": [],
+      "range": 120,
+      "relationFilter": "hostile",
+      "requiredClassTags": [],
+      "requiredLevel": 1,
+      "resourceCosts": [
+        {
+          "amount": 8,
+          "resourceId": "test.resource.mana"
+        }
+      ],
+      "skillPointCost": 1,
+      "soundAssetId": "visual.ability_dot_sound",
+      "targetMode": "ground_point"
+    },
+    "test.ability.power_buff": {
+      "animationAssetId": "visual.ability_buff",
+      "areaRadius": 0,
+      "areaShape": "none",
+      "castTime": 0,
+      "channelTime": 0,
+      "damageInterruptsCast": false,
+      "descriptionKey": "ability.power_buff.desc",
+      "displayName": "Power Buff",
+      "displayNameKey": "ability.power_buff.name",
+      "effects": [
+        {
+          "duration": 5,
+          "id": "might",
+          "magnitude": {
+            "kind": "constant",
+            "value": 4
+          },
+          "maxStacks": 1,
+          "refreshPolicy": "refresh",
+          "removalReason": "expired",
+          "source": "caster",
+          "stackPolicy": "refresh",
+          "statChannel": "attack",
+          "tags": [
+            "buff"
+          ],
+          "target": "self",
+          "tickInterval": 0,
+          "type": "timed_stat_modifier"
+        }
+      ],
+      "globalCooldown": 0.5,
+      "iconAssetId": "visual.ability_buff_icon",
+      "id": "test.ability.power_buff",
+      "individualCooldown": 8,
+      "kind": "ability",
+      "maxRank": 2,
+      "minimumRange": 0,
+      "movementInterruptsCast": false,
+      "prerequisites": [],
+      "range": 0,
+      "relationFilter": "self",
+      "requiredClassTags": [],
+      "requiredLevel": 1,
+      "resourceCosts": [
+        {
+          "amount": 6,
+          "resourceId": "test.resource.mana"
+        }
+      ],
+      "skillPointCost": 1,
+      "soundAssetId": "visual.ability_buff_sound",
+      "targetMode": "self"
+    },
+    "test.ability.ranged_bolt": {
+      "animationAssetId": "visual.ability_bolt",
+      "areaRadius": 0,
+      "areaShape": "none",
+      "castTime": 0.4,
+      "channelTime": 0,
+      "damageInterruptsCast": true,
+      "descriptionKey": "ability.ranged_bolt.desc",
+      "displayName": "Ranged Bolt",
+      "displayNameKey": "ability.ranged_bolt.name",
+      "effects": [
+        {
+          "duration": 0,
+          "id": "bolt",
+          "magnitude": {
+            "kind": "constant",
+            "value": 6
+          },
+          "maxStacks": 1,
+          "refreshPolicy": "refresh",
+          "removalReason": "expired",
+          "source": "caster",
+          "stackPolicy": "replace",
+          "tags": [
+            "arcane"
+          ],
+          "target": "primary",
+          "tickInterval": 0,
+          "type": "direct_damage"
+        }
+      ],
+      "globalCooldown": 0.5,
+      "iconAssetId": "visual.ability_bolt_icon",
+      "id": "test.ability.ranged_bolt",
+      "individualCooldown": 1.2,
+      "kind": "ability",
+      "maxRank": 1,
+      "minimumRange": 0,
+      "movementInterruptsCast": true,
+      "prerequisites": [],
+      "range": 180,
+      "relationFilter": "hostile",
+      "requiredClassTags": [],
+      "requiredLevel": 1,
+      "resourceCosts": [
+        {
+          "amount": 8,
+          "resourceId": "test.resource.mana"
+        }
+      ],
+      "skillPointCost": 1,
+      "soundAssetId": "visual.ability_bolt_sound",
+      "targetMode": "entity"
+    },
+    "test.ability.small_heal": {
+      "animationAssetId": "visual.ability_heal",
+      "areaRadius": 0,
+      "areaShape": "none",
+      "castTime": 0.5,
+      "channelTime": 0,
+      "damageInterruptsCast": true,
+      "descriptionKey": "ability.small_heal.desc",
+      "displayName": "Small Heal",
+      "displayNameKey": "ability.small_heal.name",
+      "effects": [
+        {
+          "duration": 0,
+          "id": "heal",
+          "magnitude": {
+            "kind": "constant",
+            "value": 15
+          },
+          "maxStacks": 1,
+          "refreshPolicy": "refresh",
+          "removalReason": "expired",
+          "source": "caster",
+          "stackPolicy": "replace",
+          "tags": [
+            "holy"
+          ],
+          "target": "self",
+          "tickInterval": 0,
+          "type": "direct_heal"
+        }
+      ],
+      "globalCooldown": 0.5,
+      "iconAssetId": "visual.ability_heal_icon",
+      "id": "test.ability.small_heal",
+      "individualCooldown": 2,
+      "kind": "ability",
+      "maxRank": 1,
+      "minimumRange": 0,
+      "movementInterruptsCast": true,
+      "prerequisites": [],
+      "range": 0,
+      "relationFilter": "self",
+      "requiredClassTags": [],
+      "requiredLevel": 1,
+      "resourceCosts": [
+        {
+          "amount": 10,
+          "resourceId": "test.resource.mana"
+        }
+      ],
+      "skillPointCost": 1,
+      "soundAssetId": "visual.ability_heal_sound",
+      "targetMode": "self"
+    }
+  },
   "attributes": {
     "test.attribute.focus": {
       "displayName": "Focus",
@@ -107,12 +375,19 @@
       "id": "test.class.arcanist",
       "kind": "class",
       "progressionId": "test.progression.arcanist",
-      "startingAbilities": [],
+      "startingAbilities": [
+        "test.ability.basic_melee",
+        "test.ability.ranged_bolt"
+      ],
       "startingEquipment": [
         {
           "itemId": "item.training_sword",
           "quantity": 1
         }
+      ],
+      "tags": [
+        "arcanist",
+        "caster"
       ],
       "visualAssetSetId": "visual.class_arcanist"
     },
@@ -130,17 +405,23 @@
       "kind": "class",
       "legacyMigrationDefault": true,
       "progressionId": "test.progression.vanguard",
-      "startingAbilities": [],
+      "startingAbilities": [
+        "test.ability.basic_melee"
+      ],
       "startingEquipment": [
         {
           "itemId": "item.training_sword",
           "quantity": 1
         }
       ],
+      "tags": [
+        "vanguard",
+        "melee"
+      ],
       "visualAssetSetId": "visual.class_vanguard"
     }
   },
-  "contentHash": "5f2d9340dc76b62b169af5f0ec85372394adc0e4be2d8a77b9ae608b42780ceb",
+  "contentHash": "7a3006806260ec57ddf338c72dbf5d932786909143acab0abc7b5d9e2e6b024a",
   "derivedStats": {
     "test.stat.attack": {
       "components": [
@@ -627,6 +908,7 @@
     "attack": 4,
     "attackCooldown": 0.7,
     "attackRange": 40,
+    "basicAbilityId": "test.ability.basic_melee",
     "id": "player.base",
     "interactionRange": 48,
     "inventoryCapacity": 20,

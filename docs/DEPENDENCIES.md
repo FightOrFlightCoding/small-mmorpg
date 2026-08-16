@@ -268,5 +268,5 @@ powershell -File scripts/test-all.ps1
 bash scripts/test-all.sh
 ```
 
-Expected: content tests pass and hashes match (`5f2d9340dc76b62b169af5f0ec85372394adc0e4be2d8a77b9ae608b42780ceb` for the current source; Prompt 18 freeze snapshot remains `3db1de356fc85fb6eb96489ddc04f47049b906ef915d2baa241cae38159a6e85`), `FOUNDATION_AUDIT_OK`, server tests pass, client prints `SHELL_LOGIN` and GdUnit4 passes with 0 orphans, then `E2E_SLICE_OK`. Any failed step exits nonzero. The e2e driver starts Nakama if the health RPC is down.
+Expected: content tests pass and hashes match (`7a3006806260ec57ddf338c72dbf5d932786909143acab0abc7b5d9e2e6b024a` for the current source; Prompt 18 freeze snapshot remains `3db1de356fc85fb6eb96489ddc04f47049b906ef915d2baa241cae38159a6e85`), `FOUNDATION_AUDIT_OK`, server tests pass, client prints `SHELL_LOGIN` and GdUnit4 passes with 0 orphans, then `E2E_SLICE_OK`. Any failed step exits nonzero. The e2e driver starts Nakama if the health RPC is down.
 

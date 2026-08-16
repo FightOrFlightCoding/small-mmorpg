@@ -1,7 +1,7 @@
 {
   "protocolVersion": 1,
   "contentSchemaVersion": 1,
-  "contentHash": "5f2d9340dc76b62b169af5f0ec85372394adc0e4be2d8a77b9ae608b42780ceb",
+  "contentHash": "7a3006806260ec57ddf338c72dbf5d932786909143acab0abc7b5d9e2e6b024a",
   "exactDependencies": {
     "server/package.json:typescript": "5.8.3",
     "server/package.json:nakama-runtime": "github:heroiclabs/nakama-common#v1.47.0",
@@ -52,7 +52,11 @@
     "ALLOCATE_ATTRIBUTES": 9,
     "DESTROY_ITEM": 10,
     "SPLIT_STACK": 11,
-    "MOVE_ITEM": 12
+    "MOVE_ITEM": 12,
+    "USE_ABILITY": 13,
+    "CANCEL_CAST": 14,
+    "ASSIGN_HOTBAR": 15,
+    "UNLOCK_ABILITY": 16
   },
   "serverOpcodes": {
     "FULL_STATE": 101,
@@ -65,7 +69,8 @@
     "SYSTEM_MESSAGE": 108,
     "EQUIPMENT_STATE": 109,
     "WALLET_STATE": 110,
-    "PROGRESSION_STATE": 111
+    "PROGRESSION_STATE": 111,
+    "ABILITY_STATE": 112
   },
   "storageRecords": [
     { "collection": "player", "key": "character", "permissionWrite": 0, "schemaVersion": 1 },
@@ -100,6 +105,11 @@
     "slot.legs.json",
     "slot.main_hand.json",
     "slot.off_hand.json",
+    "test.ability.basic_melee.json",
+    "test.ability.damage_over_time.json",
+    "test.ability.power_buff.json",
+    "test.ability.ranged_bolt.json",
+    "test.ability.small_heal.json",
     "test.attribute.focus.json",
     "test.attribute.might.json",
     "test.attribute.vitality.json",

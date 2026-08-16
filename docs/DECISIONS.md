@@ -273,7 +273,7 @@ Password-recovery email is out of Foundation v1. Operators assist through the Na
 
 ## 2026-08-16 — Generic statistics, experience, levels, and point allocation
 
-The issued Prompt 22 includes XP, the derived-stat pipeline, and attribute allocation. Skill points persist and display now; spending them to unlock abilities is Prompt 24. Temporary content IDs (`test.attribute.*`, `test.resource.*`, `test.stat.*`, `test.curve.standard`, `test.progression.*`) are examples only. Runtime iterates catalogs and looks up by stable ID or `role`.
+The issued Prompt 22 includes XP, the derived-stat pipeline, and attribute allocation. Skill points persist and display; spending them to unlock abilities is Prompt 24 (accepted as issued). Temporary content IDs (`test.attribute.*`, `test.resource.*`, `test.stat.*`, `test.curve.standard`, `test.progression.*`) are examples only. Runtime iterates catalogs and looks up by stable ID or `role`.
 
 A class document points at `progressionId`. Numeric bases, growth, allowed attributes, and create-time points live on `class_progression`. The shared test curve has `maxLevel` 5, XP thresholds `[50, 75, 100, 150]`, and one attribute plus one skill point per level-up. One grant can cross multiple levels. At max level leftover XP increases `lifetimeXp` only; `currentXp` stays 0; no further points or automatic unlocks. Duplicate `eventId` values do not grant XP twice.
 
@@ -287,7 +287,7 @@ Storage is `player`/`progression` (`permissionWrite: 0`). Prompt 18 characters w
 
 ## 2026-08-16 — Generic items, inventory, equipment, currency, and transaction core
 
-The issued Prompt 23 generalizes the Prompt 18 item systems. It supersedes the earlier roadmap row that named “Abilities and hotbar” as Prompt 23. Ability unlock remains later. Merchants and player trading are not in this phase.
+The issued Prompt 23 generalizes the Prompt 18 item systems. It supersedes the earlier roadmap row that named “Abilities and hotbar” as Prompt 23. Ability unlock is Prompt 24 as issued. Merchants and player trading are not in this phase.
 
 Wire and storage keep `itemId` (not `definitionId`). Content JSON is camelCase (`displayName`, `maxStack`, `uniquePolicy`, `equipmentSlotTags`). Categories are `weapon`, `armor`, `consumable`, `quest`, `material`, and `miscellaneous`. Non-stackable items use server-generated `instanceId` values. Instance records store `createdAt`, `sourceType`, `sourceId`, `metadata`, `lockReason`, `lockId`, and `slotIndex`. Clients never invent instance ids. Prompt 18 blobs keep existing instance ids and stacks; missing fields default (`sourceType` `migration`, `createdAt` 0, empty locks, sequential `slotIndex`). `SAVE_SCHEMA_VERSION` stays 1.
 
@@ -299,3 +299,16 @@ GLoot remains a presentation mirror. UI operations send intentions. Canonical se
 
 New ordinary items are introduced through `content/source` without protocol changes. Test items (`item.test_*`) are catalog examples, not hardcoded runtime ids.
 
+## 2026-08-16 — Generic ability, casting, cooldown, resource, and effect engine
+
+The issued Prompt 24 generalizes the Prompt 18 basic attack into a data-defined ability and effect engine. It supersedes the earlier roadmap row that named “public village-and-fields world” as Prompt 24. Public-world remains later. Complex enemy behavior is not in this phase. PvP remains disabled.
+
+`ATTACK` (opcode 3) stays for Prompt 18 e2e. When the match catalog includes `player.base.basicAbilityId` and the caster has unlocked it, ATTACK uses that ability. Combat unit tests without `abilitiesById` keep `applyPlayerAttack`. `USE_ABILITY` (13), `CANCEL_CAST` (14), `ASSIGN_HOTBAR` (15), and `UNLOCK_ABILITY` (16) share one intention path. The client may send ability ID, target entity or point, and `requestId` only. Damage, healing, range, cooldown, cast time, resource cost, and effect duration are `stat_injection`.
+
+Ability documents use camelCase content JSON. Target modes are `self`, `entity`, and `ground_point`. Relation filters are `self`, `friendly`, `hostile`, and `any`. Other living players are `friendly`; a hostile filter against a player is `pvp_disabled`. Damaging effects still no-op on other players. Magnitude formulas are structured (`constant`, `stat_role`, `stat_id`) with no eval. Effect handlers are project-owned: `direct_damage`, `direct_heal`, `resource_change`, `timed_stat_modifier`, `periodic_damage`, `periodic_heal`, `stun`, and `root`. Stack policies are `replace`, `refresh`, `stack`, and `ignore`.
+
+Unlocked abilities, hotbar (8 slots, `""` empty), and optional ranks persist on `player`/`progression`. `SAVE_SCHEMA_VERSION` stays 1. Client hotbar is not proof of ownership. Cooldowns, resources in the live match, active casts, and status effects are match-lived. Reconnect grace keeps resources/effects/cooldowns and clears `activeCast`. Skill-point unlock is idempotent on `requestId`. Adding another ordinary ability that uses existing handlers is content-only.
+
+Certification abilities (`test.ability.basic_melee`, `ranged_bolt`, `small_heal`, `power_buff`, `damage_over_time`) are examples. Vanguard starts with basic melee; arcanist starts with melee and ranged bolt. Runtime looks up `basicAbilityId` and class `startingAbilities` from the catalog. Nakama JSON-roundtrips match state between ticks, so the adapter rebinds ability, item, quest, and progression catalogs from the generated module each tick instead of trusting the serialized copies. Goja can materialize omitted numeric fields as `null`; `isFinite(null)` is true, so magnitude scale/bonus must require `typeof value === "number"` or melee damage becomes 0.
+
+The client `AbilityService` mirrors server state. Hotbar keys 1–8, Escape cancels targeting or the active cast, and ground-target abilities show a preview circle. Space still sends `ATTACK` for the Prompt 18 control.

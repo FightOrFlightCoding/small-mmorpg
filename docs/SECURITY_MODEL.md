@@ -20,13 +20,13 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Attack:** Client sends damage dealt or victim health.
 
-**Defense:** Attack intent carries target ID and `requestId` only. Damage and health exist only in match simulation. Player damage is the server's canonical derived attack. Duplicate `requestId` does not apply a second hit. Client `attack` / `attackBonus` / `xp` fields are rejected.
+**Defense:** Attack intent carries target ID and `requestId` only. Ability use carries ability ID, optional target entity or point, and `requestId` only. Damage, healing, range, cooldown, cast duration, resource cost, and effect duration exist only in match simulation. Duplicate `requestId` does not apply a second hit. Client `attack` / `attackBonus` / `xp` / `healing` / `castTime` / `cooldown` / `duration` fields are rejected.
 
 ### Cooldown bypassing
 
-**Attack:** Client fires attack intents faster than the weapon/skill cooldown.
+**Attack:** Client fires attack or ability intents faster than the weapon/skill cooldown.
 
-**Defense:** Cooldown clocks live on the server. Early intents are rejected. Client cooldown UI is cosmetic.
+**Defense:** Individual and global cooldown clocks live on the server. Early intents are rejected. Client cooldown UI is cosmetic.
 
 ### Item injection
 
@@ -102,7 +102,7 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 ### Rate-limit abuse
 
-**Attack:** Flood `INPUT`, `ATTACK`, `INTERACT`, `PICKUP`, `EQUIP`, `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, quest opcodes, `ALLOCATE_ATTRIBUTES`, or `RESYNC_REQUEST` faster than an honest client.
+**Attack:** Flood `INPUT`, `ATTACK`, `USE_ABILITY`, `CANCEL_CAST`, `INTERACT`, `PICKUP`, `EQUIP`, `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, quest opcodes, `ALLOCATE_ATTRIBUTES`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, or `RESYNC_REQUEST` faster than an honest client.
 
 **Defense:** Match state stores per-user `actionRates` for a 10-tick window. Excess is `rate_limited`, logged, and not applied. Honest 10 Hz movement stays under the `INPUT` cap of 20/s.
 
@@ -128,10 +128,12 @@ Every expected attack maps to a validation rule, an automated test, and a safe s
 | --- | --- | --- | --- |
 | Position spoofing | `INPUT` is axes+seq only; `x`/`y` are `stat_injection` | `server/tests/security.test.ts`, `protocol.test.ts`, `movement.test.ts` | `SYSTEM_MESSAGE` `stat_injection:x`; pose unchanged |
 | Speed hacking | Server dt and `moveSpeed`; extra axis magnitude clamped | `movement.test.ts`, `security.test.ts` | Applied speed matches a unit vector |
-| Damage spoofing | `ATTACK` is `targetId`+`requestId`; `damage` rejected | `combat.test.ts`, `protocol.test.ts`, `security.test.ts` | `stat_injection:damage`; HP uses server attack |
+| Damage spoofing | `ATTACK`/`USE_ABILITY` are intentions; outcome keys rejected | `combat.test.ts`, `ability.test.ts`, `protocol.test.ts`, `security.test.ts` | `stat_injection:damage`; HP uses server attack |
+| Ability injection / locked use | Server catalog + unlock list; hotbar is not ownership | `ability.test.ts`, `protocol.test.ts` | `ability_locked` / `stat_injection:*` |
+| Hostile player targeting | Other living players are friendly; PvP off | `ability.test.ts` | `pvp_disabled`; damaging effects no-op on other players |
+| Cooldown bypassing | Server individual + global cooldown clocks | `combat.test.ts`, `ability.test.ts`, `security.test.ts` | `ACTION_RESULT` `on_cooldown` / `on_global_cooldown` |
 | XP injection | No client XP amount; `xp`/`level`/`currentXp` rejected | `progression.test.ts`, `protocol.test.ts` | `stat_injection:xp`; progression unchanged |
 | Attribute overspend / unknown / negative | Server validates catalog, class, unspent points | `progression.test.ts` | `insufficient_points` / `unknown_attribute` / `invalid_amount` |
-| Cooldown bypassing | Server `lastAttackTick` vs `attackCooldown` | `combat.test.ts`, `security.test.ts` | `ACTION_RESULT` `on_cooldown` |
 | Item injection | No grant opcode; `instanceId` on `PICKUP` rejected; storage `permissionWrite: 0` | `protocol.test.ts`, `inventory.test.ts`, `security.test.ts` | `unknown_opcode` / `stat_injection:instanceId` |
 | Equipment spoofing | Own instance, equippable `main_hand`, server derived attack | `equipment.test.ts`, `security.test.ts` | `unowned` / `not_equippable` / `stat_injection:attack` |
 | Duplicate pickup | First success despawns loot; same `requestId` replays | `inventory.test.ts`, `security.test.ts` | Second apply `ok` without a second grant |

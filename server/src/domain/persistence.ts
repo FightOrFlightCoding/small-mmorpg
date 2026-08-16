@@ -9,6 +9,8 @@ import {
 } from "./match_state";
 import { cloneProgression, type CharacterProgression } from "./progression";
 import { cloneQuestLog, type QuestLog } from "./quest";
+import { cloneCooldownMap, cloneResourceMap } from "./ability";
+import { cloneActiveEffects } from "./effects";
 
 export const CHECKPOINT_INTERVAL_SEC = 5;
 export const CHECKPOINT_INTERVAL_TICKS = 50;
@@ -146,6 +148,13 @@ export function restoreGracePlayer(
     lastCheckpointTick: parked.lastCheckpointTick,
     lastCheckpointX: parked.lastCheckpointX,
     lastCheckpointY: parked.lastCheckpointY,
+    resources: cloneResourceMap(parked.resources),
+    effects: cloneActiveEffects(parked.effects),
+    activeCast: undefined,
+    abilityCooldowns: cloneCooldownMap(parked.abilityCooldowns),
+    globalCooldownUntilTick: parked.globalCooldownUntilTick,
+    abilityUseByRequestId: parked.abilityUseByRequestId,
+    abilityUseTicks: parked.abilityUseTicks,
   };
 }
 
@@ -233,12 +242,32 @@ export function prunePlayerRequestHistory(player: MatchPlayer, tick: number): Re
   const inventoryChanged = player.inventory !== undefined ? pruneInventoryHistory(player.inventory, tick) : false;
   const equipmentChanged = player.equipment !== undefined ? pruneEquipmentHistory(player.equipment, tick) : false;
   const progressionChanged = player.progression !== undefined ? pruneProgressionHistory(player.progression, tick) : false;
+  pruneAbilityUseHistory(player, tick);
   return {
     questsChanged: questsChanged,
     inventoryChanged: inventoryChanged,
     equipmentChanged: equipmentChanged,
     progressionChanged: progressionChanged,
   };
+}
+
+function pruneAbilityUseHistory(player: MatchPlayer, tick: number): void {
+  const map = dict(player.abilityUseByRequestId);
+  const keys = Object.keys(map);
+  const pruned = pruneKeyedHistory(keys, player.abilityUseTicks, tick);
+  if (!pruned.changed) {
+    player.abilityUseTicks = pruned.ticks;
+    return;
+  }
+  const next: { [requestId: string]: { ok: boolean; code: string } } = {};
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    if (pruned.keep[key] === true && map[key] !== undefined) {
+      next[key] = map[key];
+    }
+  }
+  player.abilityUseByRequestId = next;
+  player.abilityUseTicks = pruned.ticks;
 }
 
 function pruneQuestHistory(log: QuestLog, tick: number): boolean {
@@ -334,9 +363,17 @@ function pruneProgressionHistory(progression: CharacterProgression, tick: number
   const xp = pruneKeyedHistory(xpKeys, progression.xpEventTicks, tick);
   const allocateKeys = Object.keys(progression.allocateByRequestId);
   const allocate = pruneKeyedHistory(allocateKeys, progression.allocateRequestTicks, tick);
-  if (!xp.changed && !allocate.changed) {
+  progression.assignHotbarByRequestId = dict(progression.assignHotbarByRequestId);
+  progression.unlockAbilityByRequestId = dict(progression.unlockAbilityByRequestId);
+  const hotbarKeys = Object.keys(progression.assignHotbarByRequestId);
+  const hotbar = pruneKeyedHistory(hotbarKeys, progression.hotbarRequestTicks, tick);
+  const unlockKeys = Object.keys(progression.unlockAbilityByRequestId);
+  const unlock = pruneKeyedHistory(unlockKeys, progression.unlockRequestTicks, tick);
+  if (!xp.changed && !allocate.changed && !hotbar.changed && !unlock.changed) {
     progression.xpEventTicks = xp.ticks;
     progression.allocateRequestTicks = allocate.ticks;
+    progression.hotbarRequestTicks = hotbar.ticks;
+    progression.unlockRequestTicks = unlock.ticks;
     return false;
   }
   const nextXp: CharacterProgression["xpByEventId"] = {};
@@ -357,5 +394,23 @@ function pruneProgressionHistory(progression: CharacterProgression, tick: number
   progression.allocateByRequestId = nextAllocate;
   progression.xpEventTicks = xp.ticks;
   progression.allocateRequestTicks = allocate.ticks;
+  const nextHotbar: NonNullable<CharacterProgression["assignHotbarByRequestId"]> = {};
+  for (let h = 0; h < hotbarKeys.length; h++) {
+    const key = hotbarKeys[h];
+    if (hotbar.keep[key] === true && progression.assignHotbarByRequestId[key] !== undefined) {
+      nextHotbar[key] = progression.assignHotbarByRequestId[key];
+    }
+  }
+  const nextUnlock: NonNullable<CharacterProgression["unlockAbilityByRequestId"]> = {};
+  for (let u = 0; u < unlockKeys.length; u++) {
+    const key = unlockKeys[u];
+    if (unlock.keep[key] === true && progression.unlockAbilityByRequestId[key] !== undefined) {
+      nextUnlock[key] = progression.unlockAbilityByRequestId[key];
+    }
+  }
+  progression.assignHotbarByRequestId = nextHotbar;
+  progression.unlockAbilityByRequestId = nextUnlock;
+  progression.hotbarRequestTicks = hotbar.ticks;
+  progression.unlockRequestTicks = unlock.ticks;
   return true;
 }

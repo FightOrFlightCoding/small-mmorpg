@@ -18,6 +18,7 @@ export const KIND_PREFIX: Record<string, string> = {
   level_curve: "test.curve",
   class_progression: "test.progression",
   equipment_slot: "slot",
+  ability: "test.ability",
 };
 
 export function isContentId(value: string): boolean {

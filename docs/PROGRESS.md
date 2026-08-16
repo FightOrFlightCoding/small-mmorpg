@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Generic items, inventory, equipment, currency, and transaction core**.
+Last accepted phase: **Generic ability, casting, cooldown, resource, and effect engine**.
 
 Current phase: none.
 
@@ -427,6 +427,28 @@ Prompt 18 inventory and equipment behavior is unchanged for the slice path. Item
 | Audit | `FOUNDATION_AUDIT_OK` (10 storage records, 12 client opcodes, 11 server opcodes) |
 | Server | 227/227 |
 | Client GdUnit | 138/138, 0 orphans, `SHELL_LOGIN` |
+| E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect) |
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-content.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+powershell -File scripts/test-e2e.ps1
+```
+
+## Generic ability, casting, cooldown, resource, and effect engine acceptance (2026-08-16)
+
+The Prompt 18 basic attack is `test.ability.basic_melee` (`player.base.basicAbilityId`). Opcode 3 `ATTACK` and opcode 13 `USE_ABILITY` share one server path. The client may send ability id, target entity or point, and `requestId` only. The match owns cast timing, cooldowns, resource spend, and effect results. Hostile player targeting returns `pvp_disabled`. Unlocked abilities, hotbar, and optional ranks persist on the progression record (`permissionWrite: 0`); reconnect clears transient casts. Certification abilities (`basic_melee`, `ranged_bolt`, `small_heal`, `power_buff`, `damage_over_time`) exercise direct, periodic, and status handlers. Adding another ordinary ability that uses those handlers is content-only. Merchants, trading, parties, public world, and extra enemy AI were not added.
+
+| Gate | Result |
+| --- | --- |
+| Content | 14/14, matching hash `7a3006806260ec57ddf338c72dbf5d932786909143acab0abc7b5d9e2e6b024a` |
+| Audit | `FOUNDATION_AUDIT_OK` (10 storage records, 16 client opcodes, 12 server opcodes) |
+| Server | 254/254 |
+| Client GdUnit | 142/142, 0 orphans, `SHELL_LOGIN` |
 | E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect) |
 
 Reproduction:

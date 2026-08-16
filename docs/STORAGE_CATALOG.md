@@ -171,22 +171,22 @@ Value: `{ schemaVersion, createdAt, updatedAt, currencies: ["gold"] }`.
 
 | Field             | Value                                                                                                      |
 | ----------------- | ---------------------------------------------------------------------------------------------------------- |
-| Purpose           | Per-character level, XP, allocated attributes, unspent points, unlocked ability ids                        |
-| Owner             | Server match (trusted XP grants and `ALLOCATE_ATTRIBUTES`)                                                 |
+| Purpose           | Per-character level, XP, allocated attributes, unspent points, unlocked abilities, hotbar, optional ranks |
+| Owner             | Server match (trusted XP grants, `ALLOCATE_ATTRIBUTES`, `UNLOCK_ABILITY`, `ASSIGN_HOTBAR`)                 |
 | Scope             | Account-scoped; key `progression_<compactCharacterId>`                                                     |
 | `permissionRead`  | 1                                                                                                          |
 | `permissionWrite` | 0                                                                                                          |
 | Schema version    | 1 (`schemaVersion` envelope plus `progressionSchemaVersion`)                                               |
 | Creation          | Join initializes level 1, 0 XP, class `pointsAtCreate`, class `startingAbilities` when the blob is missing |
 | Read              | `matchJoin`                                                                                                |
-| Update            | Kill credit, quest XP, admin domain grant, attribute allocation, request-id prune                          |
+| Update            | Kill credit, quest XP, admin domain grant, attribute allocation, ability unlock, hotbar assignment, request-id prune |
 | Concurrency       | OCC `storageWriteRetry`                                                                                    |
 | Migration         | Missing is not join-fatal: initialize and persist once. Present v0 → v1 on load                            |
 | Deletion          | None (character soft-delete leaves the blob)                                                               |
 | Client access     | Mirror via `FULL_STATE.progression` / `PROGRESSION_STATE`. Client never sends XP amounts.                  |
 
 
-Value: `{ schemaVersion, createdAt, updatedAt, level, currentXp, lifetimeXp, allocatedAttributes, unspentAttributePoints, unspentSkillPoints, unlockedAbilityIds, progressionSchemaVersion, xpByEventId, allocateByRequestId, xpEventTicks?, allocateRequestTicks? }`. Allocations are never negative.
+Value: `{ schemaVersion, createdAt, updatedAt, level, currentXp, lifetimeXp, allocatedAttributes, unspentAttributePoints, unspentSkillPoints, unlockedAbilityIds, hotbar?, abilityRanks?, assignHotbarByRequestId?, unlockAbilityByRequestId?, hotbarRequestTicks?, unlockRequestTicks?, progressionSchemaVersion, xpByEventId, allocateByRequestId, xpEventTicks?, allocateRequestTicks? }`. Allocations are never negative. Client hotbar state is not proof of ownership.
 
 ## `match` / `starter_zone`
 

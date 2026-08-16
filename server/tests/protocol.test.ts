@@ -30,6 +30,10 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ClientOpcode.DESTROY_ITEM, 10);
   assert.equal(ClientOpcode.SPLIT_STACK, 11);
   assert.equal(ClientOpcode.MOVE_ITEM, 12);
+  assert.equal(ClientOpcode.USE_ABILITY, 13);
+  assert.equal(ClientOpcode.CANCEL_CAST, 14);
+  assert.equal(ClientOpcode.ASSIGN_HOTBAR, 15);
+  assert.equal(ClientOpcode.UNLOCK_ABILITY, 16);
   assert.equal(ServerOpcode.FULL_STATE, 101);
   assert.equal(ServerOpcode.SNAPSHOT, 102);
   assert.equal(ServerOpcode.ACTION_RESULT, 103);
@@ -41,6 +45,7 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ServerOpcode.EQUIPMENT_STATE, 109);
   assert.equal(ServerOpcode.WALLET_STATE, 110);
   assert.equal(ServerOpcode.PROGRESSION_STATE, 111);
+  assert.equal(ServerOpcode.ABILITY_STATE, 112);
 });
 
 test("valid movement input parses direction and sequence only", () => {
@@ -388,6 +393,88 @@ test("inventory mutation opcodes parse instance ids and reject client balances",
   if (isProtocolError(gold)) {
     assert.equal(gold.code, "stat_injection:resultingGold");
   }
+});
+
+test("ability opcodes parse intentions and reject client outcomes", () => {
+  const use = parse(
+    ClientOpcode.USE_ABILITY,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      abilityId: "test.ability.basic_melee",
+      targetId: "enemy.green_slime:0",
+      requestId: "req-ability-ok01",
+    }),
+  );
+  assert.equal(isProtocolError(use), false);
+  if (!isProtocolError(use)) {
+    assert.equal(use.fields.abilityId, "test.ability.basic_melee");
+    assert.equal(use.fields.targetId, "enemy.green_slime:0");
+  }
+  const ground = parse(
+    ClientOpcode.USE_ABILITY,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      abilityId: "test.ability.damage_over_time",
+      targetX: 960,
+      targetY: 400,
+      requestId: "req-ability-ok02",
+    }),
+  );
+  assert.equal(isProtocolError(ground), false);
+  if (!isProtocolError(ground)) {
+    assert.equal(ground.targetX, 960);
+    assert.equal(ground.targetY, 400);
+  }
+  const injected = parse(
+    ClientOpcode.USE_ABILITY,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      abilityId: "test.ability.basic_melee",
+      targetId: "enemy.green_slime:0",
+      requestId: "req-ability-bad1",
+      damage: 99,
+    }),
+  );
+  assert.equal(isProtocolError(injected), true);
+  if (isProtocolError(injected)) {
+    assert.equal(injected.code, "stat_injection:damage");
+  }
+  const duration = parse(
+    ClientOpcode.USE_ABILITY,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      abilityId: "test.ability.small_heal",
+      requestId: "req-ability-bad2",
+      castTime: 0.1,
+    }),
+  );
+  assert.equal(isProtocolError(duration), true);
+  if (isProtocolError(duration)) {
+    assert.equal(duration.code, "stat_injection:castTime");
+  }
+  const hotbar = parse(
+    ClientOpcode.ASSIGN_HOTBAR,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      slotIndex: 1,
+      abilityId: "test.ability.small_heal",
+      requestId: "req-hotbar-ok01",
+    }),
+  );
+  assert.equal(isProtocolError(hotbar), false);
+  if (!isProtocolError(hotbar)) {
+    assert.equal(hotbar.slotIndex, 1);
+    assert.equal(hotbar.fields.abilityId, "test.ability.small_heal");
+  }
+  const unlock = parse(
+    ClientOpcode.UNLOCK_ABILITY,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      abilityId: "test.ability.power_buff",
+      requestId: "req-unlock-ok01",
+    }),
+  );
+  assert.equal(isProtocolError(unlock), false);
 });
 
 test("oversized payloads are rejected", () => {

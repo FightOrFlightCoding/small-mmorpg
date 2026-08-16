@@ -36,6 +36,7 @@ export interface PlayerDef {
   interactionRange: number;
   pickupRange: number;
   inventoryCapacity?: number;
+  basicAbilityId?: string;
 }
 
 export interface ItemStatModifier {
@@ -135,6 +136,7 @@ export interface ClassDef {
   startingEquipment: ItemStack[];
   startingAbilities: string[];
   allowedEquipmentTags: string[];
+  tags?: string[];
 }
 
 export interface AttributeDef {
@@ -199,6 +201,74 @@ export interface ClassProgressionDef {
   skillPointRules: { pointsAtCreate: number };
 }
 
+export interface ResourceCost {
+  resourceId: string;
+  amount: number;
+}
+
+export interface MagnitudeFormula {
+  kind: "constant" | "stat_role" | "stat_id";
+  value?: number;
+  role?: "attack" | "max_health" | "max_mana" | "generic";
+  statId?: string;
+  scale?: number;
+}
+
+export interface AbilityEffectDef {
+  id: string;
+  type:
+    | "direct_damage"
+    | "direct_heal"
+    | "resource_change"
+    | "timed_stat_modifier"
+    | "periodic_damage"
+    | "periodic_heal"
+    | "stun"
+    | "root";
+  source: "caster";
+  target: "primary" | "area" | "self";
+  magnitude: MagnitudeFormula;
+  duration: number;
+  tickInterval: number;
+  stackPolicy: "replace" | "refresh" | "stack" | "ignore";
+  maxStacks: number;
+  refreshPolicy: "refresh" | "extend" | "ignore";
+  removalReason: "expired" | "dispelled" | "death" | "replaced";
+  tags: string[];
+  statChannel?: string;
+  resourceRole?: "health" | "mana" | "generic";
+}
+
+export interface AbilityDef {
+  id: string;
+  kind: "ability";
+  displayName: string;
+  displayNameKey: string;
+  descriptionKey: string;
+  targetMode: "self" | "entity" | "ground_point";
+  relationFilter: "self" | "friendly" | "hostile" | "any";
+  range: number;
+  minimumRange: number;
+  areaShape: "none" | "circle";
+  areaRadius: number;
+  castTime: number;
+  channelTime: number;
+  globalCooldown: number;
+  individualCooldown: number;
+  resourceCosts: ResourceCost[];
+  movementInterruptsCast: boolean;
+  damageInterruptsCast: boolean;
+  requiredLevel: number;
+  requiredClassTags: string[];
+  prerequisites: string[];
+  effects: AbilityEffectDef[];
+  animationAssetId: string;
+  iconAssetId: string;
+  soundAssetId: string;
+  skillPointCost?: number;
+  maxRank?: number;
+}
+
 export interface ContentPayload {
   player: PlayerDef;
   items: Record<string, ItemDef>;
@@ -213,6 +283,7 @@ export interface ContentPayload {
   levelCurves: Record<string, LevelCurveDef>;
   classProgressions: Record<string, ClassProgressionDef>;
   equipmentSlots: Record<string, EquipmentSlotDef>;
+  abilities: Record<string, AbilityDef>;
 }
 
 export interface ContentBundle extends ContentPayload {

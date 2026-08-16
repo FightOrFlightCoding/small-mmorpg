@@ -67,6 +67,100 @@
         "amount": { "type": "number" }
       }
     },
+    "resourceCost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resourceId", "amount"],
+      "properties": {
+        "resourceId": { "$ref": "#/$defs/contentId" },
+        "amount": { "$ref": "#/$defs/positiveNumber" }
+      }
+    },
+    "magnitudeFormula": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["constant", "stat_role", "stat_id"]
+        },
+        "value": { "type": "number" },
+        "role": {
+          "type": "string",
+          "enum": ["attack", "max_health", "max_mana", "generic"]
+        },
+        "statId": { "$ref": "#/$defs/contentId" },
+        "scale": { "type": "number" }
+      }
+    },
+    "abilityEffect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "source",
+        "target",
+        "magnitude",
+        "duration",
+        "tickInterval",
+        "stackPolicy",
+        "maxStacks",
+        "refreshPolicy",
+        "removalReason",
+        "tags"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": {
+          "type": "string",
+          "enum": [
+            "direct_damage",
+            "direct_heal",
+            "resource_change",
+            "timed_stat_modifier",
+            "periodic_damage",
+            "periodic_heal",
+            "stun",
+            "root"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "enum": ["caster"]
+        },
+        "target": {
+          "type": "string",
+          "enum": ["primary", "area", "self"]
+        },
+        "magnitude": { "$ref": "#/$defs/magnitudeFormula" },
+        "duration": { "$ref": "#/$defs/nonNegativeNumber" },
+        "tickInterval": { "$ref": "#/$defs/nonNegativeNumber" },
+        "stackPolicy": {
+          "type": "string",
+          "enum": ["replace", "refresh", "stack", "ignore"]
+        },
+        "maxStacks": { "$ref": "#/$defs/positiveInteger" },
+        "refreshPolicy": {
+          "type": "string",
+          "enum": ["refresh", "extend", "ignore"]
+        },
+        "removalReason": {
+          "type": "string",
+          "enum": ["expired", "dispelled", "death", "replaced"]
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "statChannel": { "type": "string", "minLength": 1 },
+        "resourceRole": {
+          "type": "string",
+          "enum": ["health", "mana", "generic"]
+        }
+      }
+    },
     "statComponent": {
       "type": "object",
       "additionalProperties": false,

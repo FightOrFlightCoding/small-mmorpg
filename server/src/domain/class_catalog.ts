@@ -78,6 +78,26 @@ export function classDefinitionsFromContent(classes: {
   return mapped;
 }
 
+export function classTagsFromContent(classes: {
+  [id: string]: { tags?: ReadonlyArray<string> };
+}): { [classId: string]: string[] } {
+  const map: { [classId: string]: string[] } = {};
+  const ids = Object.keys(classes);
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
+    const tags = classes[id].tags;
+    if (tags === undefined) {
+      continue;
+    }
+    const copy: string[] = [];
+    for (let t = 0; t < tags.length; t++) {
+      copy.push(tags[t]);
+    }
+    map[id] = copy;
+  }
+  return map;
+}
+
 export function classEquipmentTagsFromContent(classes: {
   [id: string]: { allowedEquipmentTags?: ReadonlyArray<string> };
 }): { [classId: string]: string[] } {

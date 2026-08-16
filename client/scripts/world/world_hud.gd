@@ -27,8 +27,13 @@ signal logout_pressed
 @onready var _progression_xp: Label = $Root/Progression/Margin/VBox/Xp
 @onready var _progression_points: Label = $Root/Progression/Margin/VBox/Points
 @onready var _progression_skills: Label = $Root/Progression/Margin/VBox/Skills
+@onready var _progression_unlocks: VBoxContainer = $Root/Progression/Margin/VBox/Unlocks
 @onready var _progression_attributes: VBoxContainer = $Root/Progression/Margin/VBox/Attributes
 @onready var _progression_derived: Label = $Root/Progression/Margin/VBox/Derived
+@onready var _hotbar: HBoxContainer = $Root/Hotbar
+@onready var _cast_bar: ProgressBar = $Root/CastBar
+@onready var _resource_hint: Label = $Root/ResourceHint
+@onready var _status_icons: HBoxContainer = $Root/StatusIcons
 
 var _inventory_list: Control
 var _slot_view: Control
@@ -65,6 +70,10 @@ func _ready() -> void:
 		WalletService.notice_received.connect(_on_notice)
 	if not ProgressionService.progression_changed.is_connected(refresh_progression):
 		ProgressionService.progression_changed.connect(refresh_progression)
+	if not AbilityService.abilities_changed.is_connected(refresh_abilities):
+		AbilityService.abilities_changed.connect(refresh_abilities)
+	_bind_hotbar()
+	refresh_abilities()
 
 
 func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool = false) -> void:
@@ -145,7 +154,8 @@ func refresh_progression() -> void:
 	if _progression_points != null:
 		_progression_points.text = "Attribute points: %s" % str(ProgressionService.unspent_attribute_points)
 	if _progression_skills != null:
-		_progression_skills.text = "Skill points: %s (unlock later)" % str(ProgressionService.unspent_skill_points)
+		_progression_skills.text = "Skill points: %s" % str(ProgressionService.unspent_skill_points)
+	_rebuild_unlock_rows()
 	_rebuild_attribute_rows()
 	if _progression_derived != null:
 		var lines := PackedStringArray(["Derived:"])
@@ -228,6 +238,137 @@ func _fill_slot_option() -> void:
 	_slot_option.select(selected)
 
 
+func refresh_abilities() -> void:
+	_refresh_hotbar()
+	_refresh_cast_bar()
+	_refresh_status_icons()
+	_rebuild_unlock_rows()
+	if _resource_hint != null:
+		var selected := ""
+		if AbilityService.is_targeting():
+			selected = AbilityService.targeting_ability_id
+		elif not AbilityService.hotbar.is_empty():
+			selected = String(AbilityService.hotbar[0])
+		_resource_hint.text = AbilityService.resource_cost_text(selected)
+		if not AbilityService.last_rejection_message.is_empty():
+			show_notice(AbilityService.last_rejection_message)
+
+
+func _bind_hotbar() -> void:
+	if _hotbar == null:
+		return
+	for i in range(_hotbar.get_child_count()):
+		var button := _hotbar.get_child(i)
+		if button is Button and not (button as Button).pressed.is_connected(_on_hotbar_pressed):
+			(button as Button).pressed.connect(_on_hotbar_pressed.bind(i))
+
+
+func _on_hotbar_pressed(slot_index: int) -> void:
+	AbilityService.try_hotbar(slot_index)
+
+
+func _refresh_hotbar() -> void:
+	if _hotbar == null:
+		return
+	for i in range(_hotbar.get_child_count()):
+		var button := _hotbar.get_child(i)
+		if not (button is Button):
+			continue
+		var ability_id := ""
+		if i < AbilityService.hotbar.size():
+			ability_id = String(AbilityService.hotbar[i])
+		var label := str(i + 1)
+		if not ability_id.is_empty():
+			var definition := AbilityService.ability_definition(ability_id)
+			label = String(definition.get("displayName", ability_id))
+			var remaining := AbilityService.cooldown_remaining(ability_id)
+			if remaining > 0:
+				label = "%s\n%s" % [label, str(remaining)]
+			if not AbilityService.can_afford(ability_id):
+				label = "%s\n--" % label
+		(button as Button).text = label
+		(button as Button).disabled = ability_id.is_empty()
+
+
+func _refresh_cast_bar() -> void:
+	if _cast_bar == null:
+		return
+	if AbilityService.active_cast.is_empty():
+		_cast_bar.visible = false
+		_cast_bar.value = 0.0
+		return
+	_cast_bar.visible = true
+	var start_tick := float(AbilityService.active_cast.get("startTick", 0))
+	var complete_tick := float(AbilityService.active_cast.get("completionTick", start_tick))
+	var now := float(AppState.zone_view.get("tick", complete_tick))
+	var span := complete_tick - start_tick
+	if span <= 0.0:
+		_cast_bar.value = 1.0
+	else:
+		_cast_bar.value = clampf((now - start_tick) / span, 0.0, 1.0)
+
+
+func _refresh_status_icons() -> void:
+	if _status_icons == null:
+		return
+	while _status_icons.get_child_count() > AbilityService.effects.size():
+		_status_icons.get_child(_status_icons.get_child_count() - 1).queue_free()
+	for i in range(AbilityService.effects.size()):
+		var effect: Variant = AbilityService.effects[i]
+		if typeof(effect) != TYPE_DICTIONARY:
+			continue
+		var data: Dictionary = effect
+		var icon: ColorRect
+		if i < _status_icons.get_child_count():
+			icon = _status_icons.get_child(i)
+		else:
+			icon = ColorRect.new()
+			icon.custom_minimum_size = Vector2(18, 18)
+			_status_icons.add_child(icon)
+		var effect_type := String(data.get("type", ""))
+		if effect_type == "stun":
+			icon.color = Color(0.85, 0.75, 0.2)
+		elif effect_type == "root":
+			icon.color = Color(0.55, 0.35, 0.15)
+		elif effect_type.find("heal") != -1:
+			icon.color = Color(0.3, 0.75, 0.4)
+		elif effect_type.find("damage") != -1:
+			icon.color = Color(0.75, 0.25, 0.2)
+		else:
+			icon.color = Color(0.45, 0.55, 0.85)
+		icon.tooltip_text = "%s x%s" % [String(data.get("effectId", effect_type)), str(int(data.get("stacks", 1)))]
+
+
+func _rebuild_unlock_rows() -> void:
+	if _progression_unlocks == null:
+		return
+	for child in _progression_unlocks.get_children():
+		child.queue_free()
+	for ability_id in AbilityService.catalog_ability_ids():
+		var definition := AbilityService.ability_definition(ability_id)
+		if definition.is_empty():
+			continue
+		var cost := int(definition.get("skillPointCost", 0))
+		if cost <= 0:
+			continue
+		var unlocked := AbilityService.unlocked_ability_ids.has(ability_id)
+		var max_rank := int(definition.get("maxRank", 1))
+		var rank := int(AbilityService.ability_ranks.get(ability_id, 0))
+		if unlocked and rank >= max_rank:
+			continue
+		var row := HBoxContainer.new()
+		var label := Label.new()
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.text = String(definition.get("displayName", ability_id))
+		var button := Button.new()
+		button.text = "Unlock %s" % str(cost)
+		button.disabled = ProgressionService.unspent_skill_points < cost
+		button.pressed.connect(func() -> void: AbilityService.request_unlock(ability_id))
+		row.add_child(label)
+		row.add_child(button)
+		_progression_unlocks.add_child(row)
+
+
 func _bind_inventory() -> void:
 	if _inventory_host == null or _inventory_list != null:
 		return
@@ -251,6 +392,8 @@ func _exit_tree() -> void:
 		WalletService.notice_received.disconnect(_on_notice)
 	if ProgressionService.progression_changed.is_connected(refresh_progression):
 		ProgressionService.progression_changed.disconnect(refresh_progression)
+	if AbilityService.abilities_changed.is_connected(refresh_abilities):
+		AbilityService.abilities_changed.disconnect(refresh_abilities)
 
 
 func _rebuild_attribute_rows() -> void:

@@ -86,6 +86,8 @@ test("valid source documents compile to a payload", () => {
   assert.ok(Object.keys(payload.levelCurves).length >= 1);
   assert.ok(Object.keys(payload.classProgressions).length >= 2);
   assert.ok(Object.keys(payload.equipmentSlots).length >= 6);
+  assert.ok(Object.keys(payload.abilities).length >= 5);
+  assert.equal(payload.abilities["test.ability.basic_melee"].targetMode, "entity");
   assert.equal(payload.items["item.training_sword"].category, "weapon");
   assert.equal(payload.items["item.slime_gel"].destroyable, false);
   assert.equal(typeof payload.enemies["enemy.green_slime"].xpReward, "number");

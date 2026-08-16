@@ -49,5 +49,20 @@
   },
   "visual.item_pebble": {
     "fallback_color": "#7F8C8D"
-  }
+  },
+  "visual.ability_melee": { "fallback_color": "#8D99AE" },
+  "visual.ability_melee_icon": { "fallback_color": "#8D99AE" },
+  "visual.ability_melee_sound": { "fallback_color": "#8D99AE" },
+  "visual.ability_bolt": { "fallback_color": "#7B4DB8" },
+  "visual.ability_bolt_icon": { "fallback_color": "#7B4DB8" },
+  "visual.ability_bolt_sound": { "fallback_color": "#7B4DB8" },
+  "visual.ability_heal": { "fallback_color": "#4CAF50" },
+  "visual.ability_heal_icon": { "fallback_color": "#4CAF50" },
+  "visual.ability_heal_sound": { "fallback_color": "#4CAF50" },
+  "visual.ability_buff": { "fallback_color": "#C9A227" },
+  "visual.ability_buff_icon": { "fallback_color": "#C9A227" },
+  "visual.ability_buff_sound": { "fallback_color": "#C9A227" },
+  "visual.ability_dot": { "fallback_color": "#C0392B" },
+  "visual.ability_dot_icon": { "fallback_color": "#C0392B" },
+  "visual.ability_dot_sound": { "fallback_color": "#C0392B" }
 }

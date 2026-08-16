@@ -21,6 +21,12 @@ export interface CharacterProgression {
   unspentAttributePoints: number;
   unspentSkillPoints: number;
   unlockedAbilityIds: string[];
+  hotbar?: string[];
+  abilityRanks?: { [abilityId: string]: number };
+  assignHotbarByRequestId?: { [requestId: string]: AbilityActionRecord };
+  unlockAbilityByRequestId?: { [requestId: string]: AbilityActionRecord };
+  hotbarRequestTicks?: { [requestId: string]: number };
+  unlockRequestTicks?: { [requestId: string]: number };
   progressionSchemaVersion: number;
   xpByEventId: { [eventId: string]: XpGrantRecord };
   allocateByRequestId: { [requestId: string]: AllocateRecord };
@@ -43,6 +49,11 @@ export interface AllocateRecord {
   code: string;
   attributeId: string;
   amount: number;
+}
+
+export interface AbilityActionRecord {
+  ok: boolean;
+  code: string;
 }
 
 export interface XpGrant {
@@ -105,6 +116,12 @@ export function cloneProgression(progression: CharacterProgression | undefined):
     unspentAttributePoints: progression.unspentAttributePoints,
     unspentSkillPoints: progression.unspentSkillPoints,
     unlockedAbilityIds: copyStringList(progression.unlockedAbilityIds),
+    hotbar: copyHotbar(progression.hotbar),
+    abilityRanks: copyNumberMap(progression.abilityRanks),
+    assignHotbarByRequestId: copyAbilityActionMap(progression.assignHotbarByRequestId),
+    unlockAbilityByRequestId: copyAbilityActionMap(progression.unlockAbilityByRequestId),
+    hotbarRequestTicks: cloneTickMap(progression.hotbarRequestTicks),
+    unlockRequestTicks: cloneTickMap(progression.unlockRequestTicks),
     progressionSchemaVersion:
       progression.progressionSchemaVersion !== undefined
         ? progression.progressionSchemaVersion
@@ -453,6 +470,33 @@ function copyAllocateMap(map: { [requestId: string]: AllocateRecord } | undefine
     };
   }
   return out;
+}
+
+function copyAbilityActionMap(map: { [requestId: string]: AbilityActionRecord } | undefined): {
+  [requestId: string]: AbilityActionRecord;
+} {
+  const out: { [requestId: string]: AbilityActionRecord } = {};
+  const source = dict(map);
+  const keys = Object.keys(source);
+  for (let i = 0; i < keys.length; i++) {
+    const record = source[keys[i]];
+    if (record == null) {
+      continue;
+    }
+    out[keys[i]] = { ok: record.ok === true, code: record.code };
+  }
+  return out;
+}
+
+function copyHotbar(values: string[] | undefined): string[] | undefined {
+  if (values === undefined) {
+    return undefined;
+  }
+  const list: string[] = [];
+  for (let i = 0; i < values.length; i++) {
+    list.push(values[i]);
+  }
+  return list;
 }
 
 function isNonNegativeInteger(value: number): boolean {

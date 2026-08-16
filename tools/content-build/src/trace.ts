@@ -32,6 +32,9 @@ function outboundRefs(payload: ContentPayload, id: string): string[] {
   const refs: string[] = [];
   if (payload.player.id === id) {
     refs.push(payload.player.visualId);
+    if (payload.player.basicAbilityId !== undefined) {
+      refs.push(payload.player.basicAbilityId);
+    }
     return refs;
   }
   const item = payload.items[id];
@@ -87,6 +90,25 @@ function outboundRefs(payload: ContentPayload, id: string): string[] {
     }
     for (let a = 0; a < classDef.startingAbilities.length; a++) {
       refs.push(classDef.startingAbilities[a]);
+    }
+    return refs;
+  }
+  const ability = payload.abilities[id];
+  if (ability) {
+    refs.push(ability.animationAssetId);
+    refs.push(ability.iconAssetId);
+    refs.push(ability.soundAssetId);
+    for (let r = 0; r < ability.resourceCosts.length; r++) {
+      refs.push(ability.resourceCosts[r].resourceId);
+    }
+    for (let p = 0; p < ability.prerequisites.length; p++) {
+      refs.push(ability.prerequisites[p]);
+    }
+    for (let e = 0; e < ability.effects.length; e++) {
+      const statId = ability.effects[e].magnitude.statId;
+      if (statId !== undefined) {
+        refs.push(statId);
+      }
     }
     return refs;
   }

@@ -1,6 +1,6 @@
 # Test catalog
 
-Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, and Prompt 23 economy coverage. Do not weaken these tests. Live gate counts after Prompt 23: content 14/14, server 227/227, client 138/138 (0 orphans), `E2E_SLICE_OK`.
+Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, and Prompt 24 ability coverage. Do not weaken these tests. Live gate counts after Prompt 24: content 14/14, server 254/254, client 142/142 (0 orphans), `E2E_SLICE_OK`.
 
 Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDATION_BASELINE.md).
 
@@ -58,6 +58,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `chat.test.ts` | RT hooks | |
 | `content.test.ts` | generated catalog shape | VS-T8 analog |
 | `progression.test.ts` | XP thresholds, multi-level, max level, duplicate event, allocate, derived-stat order, equipment/effect hooks, Prompt 18 migrate, reconnect FULL_STATE | |
+| `ability.test.ts` | locked use, valid melee, ATTACK wrapper, range, PvP, relation, resource, ICD/GCD, duplicate request, movement/damage interrupt, cancel, heal, DoT, stack policies, expiration, unlock, hotbar, reconnect clears casts, null magnitude scale, catalog strip/rebind | |
 | `health.test.ts` | `vibecode_health` | |
 
 ## Client GdUnit (`client/tests`)
@@ -78,6 +79,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `quest_service_test.gd` | accept/turn-in intents | VS-T6 analog |
 | `inventory_service_test.gd` / `equipment_service_test.gd` / `wallet_service_test.gd` / `progression_service_test.gd` | mirrors | VS-T5, T8 |
 | `combat_client_test.gd` | attack intent | VS-T3 analog |
+| `ability_service_test.gd` | use/ground-target intentions, canonical hotbar/cooldown/cast bar | |
 | `chat_client_test.gd` | Label, no BBCode | |
 | `reconnect_test.gd` | overlay, seq adopt | |
 | `e2e_hooks_test.gd` | `--e2e-slice` required | VS-T10 helper |

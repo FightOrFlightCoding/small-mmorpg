@@ -5,16 +5,38 @@ export const PLAYER_RESPAWN_DELAY_SEC = 3;
 export const NEVER_ATTACKED_TICK = -1;
 
 export interface CombatEvent {
-  type: "hit" | "death" | "respawn";
+  type: "hit" | "heal" | "death" | "respawn" | "interrupt" | "effect_applied" | "effect_tick" | "resource";
   sourceId: string;
   sourceKind: "player" | "enemy";
   targetId: string;
   targetKind: "player" | "enemy";
   damage?: number;
+  healing?: number;
   remainingHealth?: number;
   x?: number;
   y?: number;
   respawnDelaySec?: number;
+  interruptReason?: string;
+  effectId?: string;
+  abilityId?: string;
+  resourceId?: string;
+  resourceDelta?: number;
+}
+
+export function applyDamageAmount(health: number, amount: number): number {
+  let remaining = health - amount;
+  if (remaining < 0) {
+    remaining = 0;
+  }
+  return remaining;
+}
+
+export function applyHealAmount(health: number, maxHealth: number, amount: number): number {
+  let remaining = health + amount;
+  if (remaining > maxHealth) {
+    remaining = maxHealth;
+  }
+  return remaining;
 }
 
 export interface PlayerAttackInput {
@@ -47,9 +69,10 @@ export function isCooldownReady(lastTick: number, tick: number, ticks: number): 
 }
 
 export function findEnemy(enemies: ReadonlyArray<MatchEnemy>, targetId: string): MatchEnemy | null {
+  const wanted = String(targetId);
   for (let i = 0; i < enemies.length; i++) {
     const enemy = enemies[i];
-    if (enemy.id === targetId || enemy.enemyId === targetId) {
+    if (String(enemy.id) === wanted || String(enemy.enemyId) === wanted) {
       return enemy;
     }
   }

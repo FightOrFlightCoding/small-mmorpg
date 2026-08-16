@@ -28,14 +28,15 @@ IDs match `^[a-z]+(\.[a-z0-9_]+)+$` (two or more segments). The source filename 
 
 | Kind | Source file | Role |
 | --- | --- | --- |
-| `player` | `player.base.json` | Base max health, attack, movement speed, attack range, attack cooldown, interaction range, pickup range, `inventoryCapacity` |
+| `player` | `player.base.json` | Base max health, attack, movement speed, attack range, attack cooldown, interaction range, pickup range, `inventoryCapacity`, optional `basicAbilityId` |
 | `npc` | `npc.elder.json` | Slice NPC definition |
 | `enemy` | `enemy.green_slime.json` | Combat stats, aggro/leash, respawn, `xpReward` 10, guaranteed `item.slime_gel` drop |
 | `item` | `item.training_sword.json`, `item.slime_gel.json`, `item.iron_sword.json`, plus ordinary test items | Categories `weapon`/`armor`/`consumable`/`quest`/`material`/`miscellaneous`; stack, trade/destroy, unique policy, slot tags, class/level, stat modifiers, sell value, icon/world asset ids |
 | `equipment_slot` | `slot.main_hand.json` and the other temporary tags | Content-defined equipment tags (`main_hand`, `off_hand`, `head`, `chest`, `legs`, `feet`). Classes list allowed tags; not every class uses every slot. |
 | `quest` | `quest.slime_problem.json` | Accept/turn-in at `npc.elder`, acquire and consume one gel, reward iron sword + 25 gold + 20 XP, once only |
 | `zone` | `zone.starter.json` | World size, tile size, spawn points, walkable bounds, collision AABBs, visual ID |
-| `class` | `test.class.vanguard.json`, `test.class.arcanist.json` | Temporary Foundation test classes: `progressionId`, starting equipment/abilities, allowed equipment tags, visual asset set. Exactly one class may set `legacyMigrationDefault`. Class id is immutable after character create. Numeric bases live on `class_progression`, not on the class document. |
+| `class` | `test.class.vanguard.json`, `test.class.arcanist.json` | Temporary Foundation test classes: `progressionId`, starting equipment/abilities, allowed equipment tags, class tags, visual asset set. Exactly one class may set `legacyMigrationDefault`. Class id is immutable after character create. Numeric bases live on `class_progression`, not on the class document. |
+| `ability` | `test.ability.basic_melee.json`, `test.ability.ranged_bolt.json`, `test.ability.small_heal.json`, `test.ability.power_buff.json`, `test.ability.damage_over_time.json` | Content-defined abilities: target mode, relation filter, range, cast/channel/cooldowns, resource costs, interrupt flags, structured effects. Certification examples, not final skills. Adding another ordinary ability that uses existing effect handlers is content-only. |
 | `attribute` | `test.attribute.might.json`, `test.attribute.vitality.json`, `test.attribute.focus.json` | Temporary named attributes. Runtime looks up by stable ID, never a fixed enum of these examples. |
 | `resource` | `test.resource.health.json`, `test.resource.mana.json` | Temporary resources with roles (`health`, `mana`). |
 | `derived_stat` | `test.stat.attack.json`, `test.stat.max_health.json`, `test.stat.max_mana.json` | Structured formula components (layers). No script strings. Roles `attack`, `max_health`, `max_mana`. |

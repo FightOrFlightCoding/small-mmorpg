@@ -40,11 +40,12 @@ import {
 } from "../domain/persistence";
 import { migrateLegacyCharacterIntoRoster } from "../domain/character_lifecycle";
 import { invalidateTicket, validateJoinSelection } from "../domain/character_ticket";
-import { classDefinitionsFromContent, classEquipmentTagsFromContent, startingEquipmentForClass } from "../domain/class_catalog";
+import { classDefinitionsFromContent, classEquipmentTagsFromContent, classTagsFromContent, startingEquipmentForClass } from "../domain/class_catalog";
 import { characterLifecycleDeps } from "./character_lifecycle_deps";
 import { readSelection, writeSelection } from "./selection_store";
 import { catalogFromContent, syncCombatStatsFromPipeline } from "../domain/stats";
 import { initializeProgression } from "../domain/progression";
+import { abilityDefinitionsFromContent, prepareJoinedPlayerAbilities } from "../domain/ability";
 import { readProgression, writeProgression, writeProgressionOnce } from "./progression_store";
 
 export interface StarterMatchRuntimeState {
@@ -72,6 +73,7 @@ export function matchInit(
       attackCooldown: content.player.attackCooldown,
       respawnDelaySec: PLAYER_RESPAWN_DELAY_SEC,
       pickupRange: content.player.pickupRange,
+      basicAbilityId: content.player.basicAbilityId,
     },
     questDefinitionsFromContent(content.quests),
     itemDefinitionsFromContent(content.items),
@@ -80,12 +82,15 @@ export function matchInit(
       classEquipmentTags: classEquipmentTagsFromContent(content.classes),
       inventoryCapacity:
         typeof content.player.inventoryCapacity === "number" ? content.player.inventoryCapacity : INVENTORY_CAPACITY,
+      abilitiesById: abilityDefinitionsFromContent(content.abilities),
+      basicAbilityId: content.player.basicAbilityId,
+      classTags: classTagsFromContent(content.classes),
     },
   );
   zone.progressionCatalog = catalogFromContent(content);
   logger.info("starter_zone init label=%s content_hash=%s", STARTER_ZONE_LABEL, contentHash);
   return {
-    state: { zone: zone, presences: {} },
+    state: persistable({ zone: zone, presences: {} }),
     tickRate: MATCH_TICK_RATE,
     label: STARTER_ZONE_LABEL,
   };
@@ -120,12 +125,12 @@ export function matchJoinAttempt(
   );
   if (!gate.accept) {
     logger.info("starter_zone join rejected user_id=%s reason=%s", presence.userId, gate.rejectMessage);
-    return { state: state, accept: false, rejectMessage: gate.rejectMessage };
+    return { state: persistable(state), accept: false, rejectMessage: gate.rejectMessage };
   }
   const alreadySameSession =
     alreadyJoined && (existing === undefined || existing.sessionId === presence.sessionId || existing.sessionId === "");
   if (alreadySameSession) {
-    return { state: state, accept: true };
+    return { state: persistable(state), accept: true };
   }
   try {
     const deps = characterLifecycleDeps(nk);
@@ -137,11 +142,11 @@ export function matchJoinAttempt(
     const selected = validateJoinSelection(presented, ticket, presence.userId, character, Date.now());
     if (!selected.ok) {
       logger.info("starter_zone join rejected user_id=%s reason=%s", presence.userId, selected.reason);
-      return { state: state, accept: false, rejectMessage: selected.reason };
+      return { state: persistable(state), accept: false, rejectMessage: selected.reason };
     }
     if (character === null) {
       logger.info("starter_zone join rejected user_id=%s reason=character_missing", presence.userId);
-      return { state: state, accept: false, rejectMessage: "character_missing" };
+      return { state: persistable(state), accept: false, rejectMessage: "character_missing" };
     }
     readInventory(nk, presence.userId, character.characterId);
     readEquipment(nk, presence.userId, character.characterId);
@@ -150,9 +155,9 @@ export function matchJoinAttempt(
   } catch (error) {
     const reason = error instanceof Error ? error.message : "save_incompatible";
     logger.info("starter_zone join rejected user_id=%s reason=%s", presence.userId, reason);
-    return { state: state, accept: false, rejectMessage: reason };
+    return { state: persistable(state), accept: false, rejectMessage: reason };
   }
-  return { state: state, accept: true };
+  return { state: persistable(state), accept: true };
 }
 
 export function matchJoin(
@@ -260,7 +265,6 @@ export function matchJoin(
         player.classId = classId;
       }
       applyJoinDerived(zone, player);
-      logger.info("starter_zone grace rejoin user_id=%s", presence.userId);
     } else {
       player = {
         userId: presence.userId,
@@ -288,6 +292,14 @@ export function matchJoin(
       };
       applyJoinDerived(zone, player);
       player.health = joinHealth(player.maxHealth);
+    }
+    const ownershipChanged = prepareJoinedPlayerAbilities(zone, player, parked === null);
+    if (ownershipChanged && player.progression !== undefined) {
+      writeProgression(nk, presence.userId, player.progression, character.characterId);
+    }
+    if (parked !== null) {
+      logger.info("starter_zone grace rejoin user_id=%s", presence.userId);
+    } else {
       logger.info("starter_zone join user_id=%s character_id=%s", presence.userId, character.characterId);
     }
     zone = addPlayer(zone, player);
@@ -306,7 +318,7 @@ export function matchJoin(
     }
   }
 
-  return { state: { zone: zone, presences: nextPresences } };
+  return { state: persistable({ zone: zone, presences: nextPresences }) };
 }
 
 export function matchLeave(
@@ -341,7 +353,7 @@ export function matchLeave(
     const snapshot = snapshotForOthers(zone, tick, "");
     dispatcher.broadcastMessage(snapshot.opcode, snapshot.body, remaining, null, true);
   }
-  return { state: { zone: zone, presences: nextPresences } };
+  return { state: persistable({ zone: zone, presences: nextPresences }) };
 }
 
 export function matchLoop(
@@ -402,7 +414,7 @@ export function matchLoop(
     logger.info("starter_zone empty timeout tick=%s", String(tick));
     return null;
   }
-  return { state: { zone: result.state, presences: state.presences } };
+  return { state: persistable({ zone: result.state, presences: state.presences }) };
 }
 
 export function matchTerminate(
@@ -416,7 +428,7 @@ export function matchTerminate(
 ): { state: StarterMatchRuntimeState } {
   state = hydrateRuntime(state);
   writeCheckpoints(nk, logger, checkpointsForTerminate(state.zone));
-  return { state: state };
+  return { state: persistable(state) };
 }
 
 export function matchSignal(
@@ -430,7 +442,7 @@ export function matchSignal(
 ): { state: StarterMatchRuntimeState; data: string } {
   state = hydrateRuntime(state);
   return {
-    state: state,
+    state: persistable(state),
     data: JSON.stringify({
       tick: tick,
       zoneId: state.zone.zoneId,
@@ -444,10 +456,73 @@ function hydrateRuntime(state: StarterMatchRuntimeState): StarterMatchRuntimeSta
   zone.players = dict(zone.players);
   zone.disconnected = dict(zone.disconnected);
   zone.actionRates = dict(zone.actionRates);
+  bindContentCatalogs(zone);
   return {
     zone: zone,
     presences: dict(state.presences),
   };
+}
+
+function persistable(state: StarterMatchRuntimeState): StarterMatchRuntimeState {
+  stripContentCatalogs(state.zone);
+  return state;
+}
+
+function bindContentCatalogs(zone: StarterZoneState): void {
+  zone.abilitiesById = abilityDefinitionsFromContent(content.abilities);
+  zone.basicAbilityId = content.player.basicAbilityId;
+  zone.progressionCatalog = catalogFromContent(content);
+  zone.classTags = classTagsFromContent(content.classes);
+  zone.itemsById = itemDefinitionsFromContent(content.items);
+  zone.questsById = questDefinitionsFromContent(content.quests);
+  zone.equipmentSlotsByTag = equipmentSlotsFromContent(content.equipmentSlots);
+  zone.classEquipmentTags = classEquipmentTagsFromContent(content.classes);
+  zone.enemyLootById = enemyLootFromContent();
+  zone.playerAttack = content.player.attack;
+  zone.playerAttackRange = content.player.attackRange;
+  zone.playerAttackCooldownSec = content.player.attackCooldown;
+  zone.moveSpeed = content.player.moveSpeed;
+  zone.interactionRange = content.player.interactionRange;
+  if (typeof content.player.pickupRange === "number") {
+    zone.pickupRange = content.player.pickupRange;
+  }
+}
+
+function stripContentCatalogs(zone: StarterZoneState): void {
+  zone.abilitiesById = undefined;
+  zone.progressionCatalog = undefined;
+  zone.classTags = undefined;
+  zone.equipmentSlotsByTag = undefined;
+  zone.classEquipmentTags = undefined;
+  zone.itemsById = {};
+  zone.questsById = {};
+  zone.enemyLootById = {};
+}
+
+function enemyLootFromContent(): { [id: string]: { itemId: string; quantity: number; guaranteed?: boolean }[] } {
+  const enemies = enemyDefinitionsFromContent(content.enemies);
+  const loot: { [id: string]: { itemId: string; quantity: number; guaranteed?: boolean }[] } = {};
+  const ids = Object.keys(enemies);
+  for (let i = 0; i < ids.length; i++) {
+    const def = enemies[ids[i]];
+    if (def.loot === undefined) {
+      continue;
+    }
+    const drops: { itemId: string; quantity: number; guaranteed?: boolean }[] = [];
+    for (let d = 0; d < def.loot.length; d++) {
+      const drop = def.loot[d];
+      const copied: { itemId: string; quantity: number; guaranteed?: boolean } = {
+        itemId: drop.itemId,
+        quantity: drop.quantity,
+      };
+      if (drop.guaranteed !== undefined) {
+        copied.guaranteed = drop.guaranteed;
+      }
+      drops.push(copied);
+    }
+    loot[ids[i]] = drops;
+  }
+  return loot;
 }
 
 function persistEconomy(

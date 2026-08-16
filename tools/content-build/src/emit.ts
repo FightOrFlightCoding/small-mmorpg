@@ -49,6 +49,7 @@ export function buildPackage(payload: ContentPayload, options: BuildPackageOptio
     levelCurves: canonicalPayload.levelCurves,
     classProgressions: canonicalPayload.classProgressions,
     equipmentSlots: canonicalPayload.equipmentSlots,
+    abilities: canonicalPayload.abilities,
   };
 }
 
@@ -78,6 +79,7 @@ export function toContentBundle(pkg: ContentPackage): ContentBundle {
     levelCurves: pkg.levelCurves,
     classProgressions: pkg.classProgressions,
     equipmentSlots: pkg.equipmentSlots,
+    abilities: pkg.abilities,
   };
 }
 
@@ -100,6 +102,7 @@ export function emitServerModule(bundle: ContentBundle): string {
     levelCurves: bundle.levelCurves,
     classProgressions: bundle.classProgressions,
     equipmentSlots: bundle.equipmentSlots,
+    abilities: bundle.abilities,
   };
   const body = JSON.stringify(canonicalize(payload), null, 2);
   return [

@@ -168,8 +168,12 @@ autowrap_mode = 3
 
 [node name="Skills" type="Label" parent="Root/Progression/Margin/VBox"]
 layout_mode = 2
-text = "Skill points: 0 (unlock later)"
+text = "Skill points: 0"
 autowrap_mode = 3
+
+[node name="Unlocks" type="VBoxContainer" parent="Root/Progression/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
 
 [node name="Attributes" type="VBoxContainer" parent="Root/Progression/Margin/VBox"]
 layout_mode = 2
@@ -261,5 +265,106 @@ text = "Split"
 layout_mode = 2
 size_flags_vertical = 3
 custom_minimum_size = Vector2(0, 140)
+
+[node name="Hotbar" type="HBoxContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -220.0
+offset_top = -108.0
+offset_right = 220.0
+offset_bottom = -52.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="Slot0" type="Button" parent="Root/Hotbar"]
+layout_mode = 2
+custom_minimum_size = Vector2(48, 48)
+text = "1"
+
+[node name="Slot1" type="Button" parent="Root/Hotbar"]
+layout_mode = 2
+custom_minimum_size = Vector2(48, 48)
+text = "2"
+
+[node name="Slot2" type="Button" parent="Root/Hotbar"]
+layout_mode = 2
+custom_minimum_size = Vector2(48, 48)
+text = "3"
+
+[node name="Slot3" type="Button" parent="Root/Hotbar"]
+layout_mode = 2
+custom_minimum_size = Vector2(48, 48)
+text = "4"
+
+[node name="Slot4" type="Button" parent="Root/Hotbar"]
+layout_mode = 2
+custom_minimum_size = Vector2(48, 48)
+text = "5"
+
+[node name="Slot5" type="Button" parent="Root/Hotbar"]
+layout_mode = 2
+custom_minimum_size = Vector2(48, 48)
+text = "6"
+
+[node name="Slot6" type="Button" parent="Root/Hotbar"]
+layout_mode = 2
+custom_minimum_size = Vector2(48, 48)
+text = "7"
+
+[node name="Slot7" type="Button" parent="Root/Hotbar"]
+layout_mode = 2
+custom_minimum_size = Vector2(48, 48)
+text = "8"
+
+[node name="CastBar" type="ProgressBar" parent="Root"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -180.0
+offset_top = -148.0
+offset_right = 180.0
+offset_bottom = -124.0
+grow_horizontal = 2
+grow_vertical = 0
+max_value = 1.0
+show_percentage = false
+
+[node name="ResourceHint" type="Label" parent="Root"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -220.0
+offset_top = -176.0
+offset_right = 220.0
+offset_bottom = -152.0
+grow_horizontal = 2
+grow_vertical = 0
+horizontal_alignment = 1
+text = ""
+
+[node name="StatusIcons" type="HBoxContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -160.0
+offset_top = 12.0
+offset_right = 160.0
+offset_bottom = 44.0
+grow_horizontal = 2
+theme_override_constants/separation = 6
+alignment = 1
 
 

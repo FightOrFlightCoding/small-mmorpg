@@ -8,6 +8,7 @@
   "startingEquipment": [
     { "itemId": "item.training_sword", "quantity": 1 }
   ],
-  "startingAbilities": [],
-  "allowedEquipmentTags": ["main_hand", "off_hand", "head", "chest", "legs", "feet"]
+  "startingAbilities": ["test.ability.basic_melee"],
+  "allowedEquipmentTags": ["main_hand", "off_hand", "head", "chest", "legs", "feet"],
+  "tags": ["vanguard", "melee"]
 }

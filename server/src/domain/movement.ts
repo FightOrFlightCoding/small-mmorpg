@@ -127,3 +127,64 @@ export function resolveMove(
 
   return { x: nextX, y: nextY };
 }
+
+export function segmentIntersectsAabb(ax: number, ay: number, bx: number, by: number, box: Aabb): boolean {
+  const minX = box.x;
+  const maxX = box.x + box.width;
+  const minY = box.y;
+  const maxY = box.y + box.height;
+  let t0 = 0;
+  let t1 = 1;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const xSlab = clipSlab(ax, dx, minX, maxX, t0, t1);
+  if (!xSlab.ok) {
+    return false;
+  }
+  t0 = xSlab.t0;
+  t1 = xSlab.t1;
+  const ySlab = clipSlab(ay, dy, minY, maxY, t0, t1);
+  return ySlab.ok;
+}
+
+export function lineBlocked(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  collisions: ReadonlyArray<Aabb>,
+): boolean {
+  for (let i = 0; i < collisions.length; i++) {
+    if (segmentIntersectsAabb(ax, ay, bx, by, collisions[i])) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function clipSlab(
+  start: number,
+  delta: number,
+  min: number,
+  max: number,
+  t0: number,
+  t1: number,
+): { ok: boolean; t0: number; t1: number } {
+  if (delta === 0) {
+    if (start < min || start > max) {
+      return { ok: false, t0: t0, t1: t1 };
+    }
+    return { ok: t0 <= t1, t0: t0, t1: t1 };
+  }
+  const tEnter = (min - start) / delta;
+  const tExit = (max - start) / delta;
+  const near = tEnter < tExit ? tEnter : tExit;
+  const far = tEnter > tExit ? tEnter : tExit;
+  const nextT0 = near > t0 ? near : t0;
+  const nextT1 = far < t1 ? far : t1;
+  if (nextT0 > nextT1) {
+    return { ok: false, t0: nextT0, t1: nextT1 };
+  }
+  return { ok: true, t0: nextT0, t1: nextT1 };
+}
+

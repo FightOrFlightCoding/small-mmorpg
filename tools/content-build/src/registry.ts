@@ -34,6 +34,7 @@ export const DEFAULT_MANIFEST: ContentPackageManifest = {
     level_curve: { schema: "level_curve.json", definitionSchemaVersion: 1, idPrefix: "test.curve" },
     class_progression: { schema: "class_progression.json", definitionSchemaVersion: 1, idPrefix: "test.progression" },
     equipment_slot: { schema: "equipment_slot.json", definitionSchemaVersion: 1, idPrefix: "slot" },
+    ability: { schema: "ability.json", definitionSchemaVersion: 1, idPrefix: "test.ability" },
   },
 };
 

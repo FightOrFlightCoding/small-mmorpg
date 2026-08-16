@@ -7,6 +7,7 @@ import {
 } from "./combat";
 import type { MatchEnemy, MatchPlayer, StarterZoneState } from "./match_state";
 import { distance, resolveMove } from "./movement";
+import { hasControlTag } from "./effects";
 
 export const EnemyAiState = {
   Idle: "idle",
@@ -94,11 +95,17 @@ function stepEnemy(
     }
     return;
   }
+  if (hasControlTag(enemy.effects, "stun")) {
+    return;
+  }
 
   const fromSpawn = distance(enemy.x, enemy.y, enemy.spawnX, enemy.spawnY);
   if (enemy.aiState === EnemyAiState.Returning || fromSpawn > enemy.leashRadius) {
     enemy.aiState = EnemyAiState.Returning;
     enemy.aggroTarget = "";
+    if (hasControlTag(enemy.effects, "root")) {
+      return;
+    }
     const arrived = moveToward(
       enemy,
       enemy.spawnX,
@@ -125,6 +132,10 @@ function stepEnemy(
   if (range <= enemy.attackRange) {
     enemy.aiState = EnemyAiState.Attacking;
     tryEnemyAttack(state, enemy, target, tick, tickRate, events);
+    return;
+  }
+  if (hasControlTag(enemy.effects, "root")) {
+    enemy.aiState = EnemyAiState.Idle;
     return;
   }
   enemy.aiState = EnemyAiState.Chasing;

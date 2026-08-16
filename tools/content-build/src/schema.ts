@@ -18,6 +18,7 @@ const KIND_SCHEMA: Record<string, string> = {
   level_curve: "https://vibecode.local/content-schemas/level_curve.json",
   class_progression: "https://vibecode.local/content-schemas/class_progression.json",
   equipment_slot: "https://vibecode.local/content-schemas/equipment_slot.json",
+  ability: "https://vibecode.local/content-schemas/ability.json",
 };
 
 export function loadAjv(schemaDir: string, manifest: ContentPackageManifest = DEFAULT_MANIFEST): Ajv2020 {

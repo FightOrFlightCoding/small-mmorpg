@@ -27,6 +27,7 @@
     "interactionRange": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
     "pickupRange": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
     "inventoryCapacity": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+    "basicAbilityId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
     "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
     "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
   }

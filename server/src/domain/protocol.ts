@@ -16,6 +16,10 @@ export const ClientOpcode = {
   DESTROY_ITEM: 10,
   SPLIT_STACK: 11,
   MOVE_ITEM: 12,
+  USE_ABILITY: 13,
+  CANCEL_CAST: 14,
+  ASSIGN_HOTBAR: 15,
+  UNLOCK_ABILITY: 16,
 } as const;
 
 export const ServerOpcode = {
@@ -30,6 +34,7 @@ export const ServerOpcode = {
   EQUIPMENT_STATE: 109,
   WALLET_STATE: 110,
   PROGRESSION_STATE: 111,
+  ABILITY_STATE: 112,
 } as const;
 
 export type ClientOpcode = (typeof ClientOpcode)[keyof typeof ClientOpcode];
@@ -48,6 +53,10 @@ const CLIENT_OPCODES: ClientOpcode[] = [
   ClientOpcode.DESTROY_ITEM,
   ClientOpcode.SPLIT_STACK,
   ClientOpcode.MOVE_ITEM,
+  ClientOpcode.USE_ABILITY,
+  ClientOpcode.CANCEL_CAST,
+  ClientOpcode.ASSIGN_HOTBAR,
+  ClientOpcode.UNLOCK_ABILITY,
 ];
 
 const REWARD_OPCODES: ClientOpcode[] = [
@@ -71,6 +80,10 @@ OPCODE_KEYS[ClientOpcode.ALLOCATE_ATTRIBUTES] = ["attributeId", "amount"];
 OPCODE_KEYS[ClientOpcode.DESTROY_ITEM] = ["instanceId", "quantity"];
 OPCODE_KEYS[ClientOpcode.SPLIT_STACK] = ["instanceId", "quantity"];
 OPCODE_KEYS[ClientOpcode.MOVE_ITEM] = ["instanceId", "toSlotIndex"];
+OPCODE_KEYS[ClientOpcode.USE_ABILITY] = ["abilityId", "targetId", "targetX", "targetY"];
+OPCODE_KEYS[ClientOpcode.CANCEL_CAST] = [];
+OPCODE_KEYS[ClientOpcode.ASSIGN_HOTBAR] = ["slotIndex", "abilityId"];
+OPCODE_KEYS[ClientOpcode.UNLOCK_ABILITY] = ["abilityId"];
 
 const OUTCOME_KEYS = [
   "attack",
@@ -106,11 +119,23 @@ const OUTCOME_KEYS = [
   "allocatedAttributes",
   "resultingGold",
   "resultingBalance",
+  "healing",
+  "heal",
+  "range",
+  "cooldown",
+  "castTime",
+  "channelTime",
+  "resourceCost",
+  "duration",
+  "effectDuration",
+  "magnitude",
+  "stacks",
 ];
 
 const INPUT_NUMBER_KEYS = ["seq", "axisX", "axisY"];
 const ALLOCATE_NUMBER_KEYS = ["amount"];
 const INVENTORY_NUMBER_KEYS = ["quantity", "toSlotIndex"];
+const ABILITY_NUMBER_KEYS = ["targetX", "targetY", "slotIndex"];
 
 export interface ProtocolError {
   code: string;
@@ -129,6 +154,9 @@ export interface ParsedClientMessage {
   amount?: number;
   quantity?: number;
   toSlotIndex?: number;
+  targetX?: number;
+  targetY?: number;
+  slotIndex?: number;
 }
 
 export function isClientOpcode(opcode: number): opcode is ClientOpcode {
@@ -148,7 +176,11 @@ function requiresRequestId(opcode: ClientOpcode): boolean {
     opcode === ClientOpcode.ALLOCATE_ATTRIBUTES ||
     opcode === ClientOpcode.DESTROY_ITEM ||
     opcode === ClientOpcode.SPLIT_STACK ||
-    opcode === ClientOpcode.MOVE_ITEM
+    opcode === ClientOpcode.MOVE_ITEM ||
+    opcode === ClientOpcode.USE_ABILITY ||
+    opcode === ClientOpcode.CANCEL_CAST ||
+    opcode === ClientOpcode.ASSIGN_HOTBAR ||
+    opcode === ClientOpcode.UNLOCK_ABILITY
   );
 }
 
@@ -247,7 +279,16 @@ export function parseClientMessage(
     if (INVENTORY_NUMBER_KEYS.indexOf(key) !== -1) {
       continue;
     }
+    if (ABILITY_NUMBER_KEYS.indexOf(key) !== -1) {
+      continue;
+    }
     if (key === "instanceId" && !Object.prototype.hasOwnProperty.call(data, key)) {
+      continue;
+    }
+    if (key === "targetId" && opcode === ClientOpcode.USE_ABILITY && !Object.prototype.hasOwnProperty.call(data, key)) {
+      continue;
+    }
+    if (key === "abilityId" && opcode === ClientOpcode.ASSIGN_HOTBAR && !Object.prototype.hasOwnProperty.call(data, key)) {
       continue;
     }
     if (typeof data[key] !== "string") {
@@ -308,6 +349,29 @@ export function parseClientMessage(
       return { code: "invalid_slot", message: "MOVE toSlotIndex must be a finite integer." };
     }
     message.toSlotIndex = toSlotIndex;
+  }
+  if (opcode === ClientOpcode.USE_ABILITY) {
+    const hasX = Object.prototype.hasOwnProperty.call(data, "targetX");
+    const hasY = Object.prototype.hasOwnProperty.call(data, "targetY");
+    if (hasX !== hasY) {
+      return { code: "invalid_target", message: "Ability ground targets require both targetX and targetY." };
+    }
+    if (hasX) {
+      const targetX = data.targetX;
+      const targetY = data.targetY;
+      if (typeof targetX !== "number" || !isFinite(targetX) || typeof targetY !== "number" || !isFinite(targetY)) {
+        return { code: "invalid_target", message: "Ability target point must be finite numbers." };
+      }
+      message.targetX = targetX;
+      message.targetY = targetY;
+    }
+  }
+  if (opcode === ClientOpcode.ASSIGN_HOTBAR) {
+    const slotIndex = data.slotIndex;
+    if (typeof slotIndex !== "number" || !isFinite(slotIndex) || slotIndex !== Math.floor(slotIndex)) {
+      return { code: "invalid_slot", message: "ASSIGN_HOTBAR slotIndex must be a finite integer." };
+    }
+    message.slotIndex = slotIndex;
   }
   return message;
 }
@@ -463,6 +527,25 @@ export function progressionState(
   }
   return {
     opcode: ServerOpcode.PROGRESSION_STATE,
+    body: JSON.stringify(payload),
+  };
+}
+
+export function abilityState(
+  contentHash: string,
+  abilities: { [key: string]: unknown },
+  requestId?: string,
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    contentHash: contentHash,
+    abilities: abilities,
+  };
+  if (requestId !== undefined) {
+    payload.requestId = requestId;
+  }
+  return {
+    opcode: ServerOpcode.ABILITY_STATE,
     body: JSON.stringify(payload),
   };
 }

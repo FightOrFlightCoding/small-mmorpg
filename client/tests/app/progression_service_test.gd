@@ -77,7 +77,7 @@ func test_hud_allocate_buttons_are_enabled_and_skill_points_are_display_only() -
 	var skills: Label = hud.get_node("Root/Progression/Margin/VBox/Skills")
 	assert_str(points.text).is_equal("Attribute points: 1")
 	assert_str(skills.text).contains("Skill points: 1")
-	assert_str(skills.text).contains("unlock later")
+	assert_bool(skills.text.contains("unlock later")).is_false()
 	var attributes: VBoxContainer = hud.get_node("Root/Progression/Margin/VBox/Attributes")
 	assert_int(attributes.get_child_count()).is_equal(1)
 	var button: Button = attributes.get_child(0).get_child(1)

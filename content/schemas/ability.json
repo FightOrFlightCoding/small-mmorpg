@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/ability.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "displayName",
+    "displayNameKey",
+    "descriptionKey",
+    "targetMode",
+    "relationFilter",
+    "range",
+    "minimumRange",
+    "areaShape",
+    "areaRadius",
+    "castTime",
+    "channelTime",
+    "globalCooldown",
+    "individualCooldown",
+    "resourceCosts",
+    "movementInterruptsCast",
+    "damageInterruptsCast",
+    "requiredLevel",
+    "requiredClassTags",
+    "prerequisites",
+    "effects",
+    "animationAssetId",
+    "iconAssetId",
+    "soundAssetId"
+  ],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "ability" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "displayNameKey": { "type": "string", "minLength": 1 },
+    "descriptionKey": { "type": "string", "minLength": 1 },
+    "targetMode": {
+      "type": "string",
+      "enum": ["self", "entity", "ground_point"]
+    },
+    "relationFilter": {
+      "type": "string",
+      "enum": ["self", "friendly", "hostile", "any"]
+    },
+    "range": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "minimumRange": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "areaShape": {
+      "type": "string",
+      "enum": ["none", "circle"]
+    },
+    "areaRadius": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "castTime": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "channelTime": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "globalCooldown": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "individualCooldown": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "resourceCosts": {
+      "type": "array",
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/resourceCost" }
+    },
+    "movementInterruptsCast": { "type": "boolean" },
+    "damageInterruptsCast": { "type": "boolean" },
+    "requiredLevel": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+    "requiredClassTags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "prerequisites": {
+      "type": "array",
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+    },
+    "effects": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/abilityEffect" }
+    },
+    "animationAssetId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "iconAssetId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "soundAssetId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "skillPointCost": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
+    "maxRank": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+  }
+}

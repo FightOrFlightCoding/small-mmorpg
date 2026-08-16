@@ -21,6 +21,7 @@ import type {
   ResourceDef,
   SourceDocument,
   ZoneDef,
+  AbilityDef,
 } from "./types";
 
 export interface ValidateOptions {
@@ -99,9 +100,13 @@ export function validateDocuments(
   const levelCurves = asKindMap<LevelCurveDef>(selected, "level_curve");
   const classProgressions = asKindMap<ClassProgressionDef>(selected, "class_progression");
   const equipmentSlots = asKindMap<EquipmentSlotDef>(selected, "equipment_slot");
+  const abilities = asKindMap<AbilityDef>(selected, "ability");
 
   if (player) {
     checkVisual(player.visualId, issues);
+    if (player.basicAbilityId !== undefined && !abilities[player.basicAbilityId]) {
+      issues.push(issue("missing_reference:" + player.basicAbilityId));
+    }
   }
 
   const slotTags = slotTagsFrom(equipmentSlots, issues);
@@ -125,8 +130,9 @@ export function validateDocuments(
   for (let i = 0; i < zoneIds.length; i++) {
     checkZone(zones[zoneIds[i]], npcs, enemies, issues);
   }
-  checkClasses(classes, items, classProgressions, slotTags, issues);
+  checkClasses(classes, items, classProgressions, slotTags, abilities, issues);
   checkProgressionCatalog(attributes, resources, derivedStats, levelCurves, classProgressions, classes, issues);
+  checkAbilities(abilities, resources, derivedStats, classes, issues);
 
   if (issues.length > 0) {
     throw new ContentValidationError(uniqueIssues(issues));
@@ -150,6 +156,7 @@ export function validateDocuments(
     levelCurves,
     classProgressions,
     equipmentSlots,
+    abilities,
   };
 }
 
@@ -373,6 +380,7 @@ function checkClasses(
   items: Record<string, ItemDef>,
   progressions: Record<string, ClassProgressionDef>,
   slotTags: readonly string[],
+  abilities: Record<string, AbilityDef>,
   issues: ContentIssue[],
 ): void {
   const ids = Object.keys(classes);
@@ -386,6 +394,11 @@ function checkClasses(
     checkVisual(def.visualAssetSetId, issues);
     for (let e = 0; e < def.startingEquipment.length; e++) {
       requireItem(def.startingEquipment[e].itemId, items, issues);
+    }
+    for (let a = 0; a < def.startingAbilities.length; a++) {
+      if (!abilities[def.startingAbilities[a]]) {
+        issues.push(issue("missing_reference:" + def.startingAbilities[a]));
+      }
     }
     if (!progressions[def.progressionId]) {
       issues.push(issue("missing_reference:" + def.progressionId));
@@ -486,6 +499,82 @@ function checkProgressionCatalog(
         issues.push(issue("missing_reference:" + progression.allowedAttributeIds[a]));
       }
     }
+  }
+}
+
+function checkAbilities(
+  abilities: Record<string, AbilityDef>,
+  resources: Record<string, ResourceDef>,
+  derivedStats: Record<string, DerivedStatDef>,
+  classes: Record<string, ClassDef>,
+  issues: ContentIssue[],
+): void {
+  const classTags: { [tag: string]: boolean } = {};
+  const classIds = Object.keys(classes);
+  for (let c = 0; c < classIds.length; c++) {
+    const source = classes[classIds[c]].tags;
+    if (source !== undefined) {
+      for (let t = 0; t < source.length; t++) {
+        classTags[source[t]] = true;
+      }
+    }
+  }
+  const ids = Object.keys(abilities);
+  for (let i = 0; i < ids.length; i++) {
+    const ability = abilities[ids[i]];
+    checkVisual(ability.animationAssetId, issues);
+    checkVisual(ability.iconAssetId, issues);
+    checkVisual(ability.soundAssetId, issues);
+    if (ability.minimumRange > ability.range) {
+      issues.push(issue("invalid_range:minimumRange"));
+    }
+    if (ability.areaShape === "circle" && ability.areaRadius <= 0) {
+      issues.push(issue("invalid_range:areaRadius"));
+    }
+    for (let r = 0; r < ability.resourceCosts.length; r++) {
+      if (!resources[ability.resourceCosts[r].resourceId]) {
+        issues.push(issue("missing_reference:" + ability.resourceCosts[r].resourceId));
+      }
+    }
+    for (let p = 0; p < ability.prerequisites.length; p++) {
+      if (!abilities[ability.prerequisites[p]]) {
+        issues.push(issue("missing_reference:" + ability.prerequisites[p]));
+      }
+    }
+    for (let t = 0; t < ability.requiredClassTags.length; t++) {
+      const tag = ability.requiredClassTags[t];
+      if (classTags[tag] !== true && !classes[tag]) {
+        issues.push(issue("missing_reference:" + tag));
+      }
+    }
+    for (let e = 0; e < ability.effects.length; e++) {
+      checkAbilityEffect(ability.effects[e], derivedStats, issues);
+    }
+  }
+}
+
+function checkAbilityEffect(
+  effect: AbilityDef["effects"][number],
+  derivedStats: Record<string, DerivedStatDef>,
+  issues: ContentIssue[],
+): void {
+  const formula = effect.magnitude;
+  if (formula.kind === "constant" && formula.value === undefined) {
+    issues.push(issue("missing_field:value"));
+  }
+  if (formula.kind === "stat_id") {
+    if (formula.statId === undefined || !derivedStats[formula.statId]) {
+      issues.push(issue("missing_reference:" + (formula.statId !== undefined ? formula.statId : "statId")));
+    }
+  }
+  if (effect.type === "timed_stat_modifier" && (effect.statChannel === undefined || effect.statChannel.length === 0)) {
+    issues.push(issue("missing_field:statChannel"));
+  }
+  if (
+    (effect.type === "periodic_damage" || effect.type === "periodic_heal") &&
+    (effect.duration <= 0 || effect.tickInterval <= 0)
+  ) {
+    issues.push(issue("invalid_range:tickInterval"));
   }
 }
 

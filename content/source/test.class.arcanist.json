@@ -7,6 +7,7 @@
   "startingEquipment": [
     { "itemId": "item.training_sword", "quantity": 1 }
   ],
-  "startingAbilities": [],
-  "allowedEquipmentTags": ["main_hand", "head", "chest", "legs", "feet"]
+  "startingAbilities": ["test.ability.basic_melee", "test.ability.ranged_bolt"],
+  "allowedEquipmentTags": ["main_hand", "head", "chest", "legs", "feet"],
+  "tags": ["arcanist", "caster"]
 }

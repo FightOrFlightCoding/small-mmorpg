@@ -18,6 +18,7 @@ signal inventory_state_received(payload: Dictionary)
 signal equipment_state_received(payload: Dictionary)
 signal wallet_state_received(payload: Dictionary)
 signal progression_state_received(payload: Dictionary)
+signal ability_state_received(payload: Dictionary)
 signal system_notice_received(code: String, message: String)
 signal logged_out
 
@@ -456,6 +457,45 @@ func send_allocate_attributes(attribute_id: String, amount: int, request_id: Str
 			"amount": amount,
 			"requestId": request_id,
 		})
+	)
+
+
+func send_use_ability(extra: Dictionary) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_USE_ABILITY,
+		MatchProtocol.client_envelope_json(extra)
+	)
+
+
+func send_cancel_cast(request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_CANCEL_CAST,
+		MatchProtocol.client_envelope_json({"requestId": request_id})
+	)
+
+
+func send_assign_hotbar(slot_index: int, ability_id: String, request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var extra: Dictionary = {"slotIndex": slot_index, "requestId": request_id}
+	if not ability_id.is_empty():
+		extra["abilityId"] = ability_id
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_ASSIGN_HOTBAR,
+		MatchProtocol.client_envelope_json(extra)
+	)
+
+
+func send_unlock_ability(ability_id: String, request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_UNLOCK_ABILITY,
+		MatchProtocol.client_envelope_json({"abilityId": ability_id, "requestId": request_id})
 	)
 
 
@@ -960,6 +1000,13 @@ func _on_match_state(opcode: int, payload: String) -> void:
 			AppState.report_recoverable(String(progression.get("code", "progression_state_failed")), String(progression.get("message", "Progression state was invalid.")))
 			return
 		progression_state_received.emit(progression)
+		return
+	if opcode == MatchProtocol.SERVER_ABILITY_STATE:
+		var abilities: Dictionary = MatchProtocol.parse_ability_state(payload)
+		if not bool(abilities.get("ok", false)):
+			AppState.report_recoverable(String(abilities.get("code", "ability_state_failed")), String(abilities.get("message", "Ability state was invalid.")))
+			return
+		ability_state_received.emit(abilities)
 		return
 
 

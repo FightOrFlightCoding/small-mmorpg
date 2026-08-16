@@ -2,6 +2,7 @@ import {
   ClientOpcode,
   ServerOpcode,
   actionResult,
+  abilityState,
   combatEvent,
   equipmentState,
   interactionResult,
@@ -33,7 +34,19 @@ import {
   type QuestRewardWrite,
   type RewardCommitter,
 } from "./quest_reward";
-import { applyPlayerAttack, type CombatEvent } from "./combat";
+import { type CombatEvent } from "./combat";
+import {
+  assignHotbar,
+  cancelCast,
+  interruptMovingCasters,
+  interruptOnDamage,
+  publicAbilityState,
+  tickCasts,
+  unlockAbility,
+  useAbility,
+  useLegacyAttackOrAbility,
+} from "./ability";
+import { effectModifiersFrom, hasControlTag, tickEffects } from "./effects";
 import { simulateCombatants } from "./enemy_ai";
 import { publicInventory, applyDestroyItem, applyMoveItem, applySplitStack, emptyInventory, type PlayerInventory } from "./inventory";
 import {
@@ -194,8 +207,15 @@ export function applyMatchLoop(
     collectFailedApplies(outbound, outboundBefore, incoming.userId, action, tick, rejections);
   }
 
+  const previousPos = capturePlayerPositions(next);
   simulateMovement(next, 1 / MATCH_TICK_RATE);
+  interruptMovingCasters(next, previousPos, tick, combatEvents);
+  tickCasts(next, tick, combatEvents);
   simulateCombatants(next, tick, 1 / MATCH_TICK_RATE, MATCH_TICK_RATE, combatEvents);
+  interruptDamagedCasters(next, combatEvents, tick);
+  tickEffects(next, tick, combatEvents);
+  grantKillXpFromEvents(next, combatEvents, tick, persistProgressionByUser, outbound);
+  refreshAllDerived(next);
   spawnLootFromDeaths(next, tick, combatEvents, makeId);
   next.loot = expireLoot(next.loot, tick);
   pushCombatEvents(outbound, tick, combatEvents);
@@ -392,7 +412,23 @@ function handleValidated(
     return;
   }
   if (parsed.opcode === ClientOpcode.ATTACK) {
-    handleAttack(parsed, userId, state, tick, outbound, combatEvents, persistProgressionByUser);
+    handleAttack(parsed, userId, state, tick, outbound, combatEvents);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.USE_ABILITY) {
+    handleUseAbility(parsed, userId, state, tick, outbound, combatEvents);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.CANCEL_CAST) {
+    handleCancelCast(parsed, userId, state, tick, outbound, combatEvents);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.ASSIGN_HOTBAR) {
+    handleAssignHotbar(parsed, userId, state, tick, outbound, persistProgressionByUser);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.UNLOCK_ABILITY) {
+    handleUnlockAbility(parsed, userId, state, tick, outbound, persistProgressionByUser);
     return;
   }
   if (parsed.opcode === ClientOpcode.PICKUP) {
@@ -604,28 +640,134 @@ function handleAttack(
   tick: number,
   outbound: MatchOutbound[],
   combatEvents: CombatEvent[],
-  persistProgressionByUser: { [userId: string]: CharacterProgression },
 ): void {
-  const eventStart = combatEvents.length;
-  const decision = applyPlayerAttack(
+  const decision = useLegacyAttackOrAbility(
+    state,
+    userId,
+    parsed.fields.targetId,
+    parsed.requestId as string,
+    tick,
+    combatEvents,
+    playerAttack(state, userId),
+    state.playerAttackRange,
+    state.playerAttackCooldownSec,
+  );
+  const result = actionResult(decision.code, decision.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+}
+
+function handleUseAbility(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  tick: number,
+  outbound: MatchOutbound[],
+  combatEvents: CombatEvent[],
+): void {
+  const decision = useAbility(
+    state,
+    userId,
     {
-      player: state.players[userId],
+      abilityId: parsed.fields.abilityId,
       targetId: parsed.fields.targetId,
+      targetX: parsed.targetX,
+      targetY: parsed.targetY,
       requestId: parsed.requestId as string,
-      tick: tick,
-      enemies: state.enemies,
-      attack: playerAttack(state, userId),
-      attackRange: state.playerAttackRange,
-      attackCooldownSec: state.playerAttackCooldownSec,
-      tickRate: MATCH_TICK_RATE,
     },
+    tick,
     combatEvents,
   );
   const result = actionResult(decision.code, decision.ok, parsed.requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  pushAbilityState(state, userId, outbound, tick, parsed.requestId);
   if (decision.ok && !decision.replay) {
-    grantKillXpFromEvents(state, userId, combatEvents, eventStart, tick, persistProgressionByUser, outbound);
+    refreshPlayerDerived(state, userId);
   }
+}
+
+function handleCancelCast(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  tick: number,
+  outbound: MatchOutbound[],
+  combatEvents: CombatEvent[],
+): void {
+  const decision = cancelCast(state.players[userId], parsed.requestId as string, tick, combatEvents);
+  const result = actionResult(decision.code, decision.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  pushAbilityState(state, userId, outbound, tick, parsed.requestId);
+}
+
+function handleAssignHotbar(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  tick: number,
+  outbound: MatchOutbound[],
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
+): void {
+  const player = state.players[userId];
+  if (player === undefined || player.progression === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  const abilityId = parsed.fields.abilityId !== undefined ? parsed.fields.abilityId : "";
+  const outcome = assignHotbar(
+    player.progression,
+    parsed.slotIndex !== undefined ? parsed.slotIndex : -1,
+    abilityId,
+    parsed.requestId as string,
+    tick,
+  );
+  player.progression = outcome.progression;
+  if (outcome.changed) {
+    persistProgressionByUser[userId] = cloneProgression(player.progression);
+  }
+  const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  pushAbilityState(state, userId, outbound, tick, parsed.requestId);
+}
+
+function handleUnlockAbility(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  tick: number,
+  outbound: MatchOutbound[],
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
+): void {
+  const player = state.players[userId];
+  if (player === undefined || player.progression === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  const abilityId = parsed.fields.abilityId;
+  const definition = state.abilitiesById !== undefined ? state.abilitiesById[abilityId] : undefined;
+  const classId = player.classId !== undefined ? player.classId : "";
+  const tags = state.classTags !== undefined && classId.length > 0 && state.classTags[classId] !== undefined
+    ? state.classTags[classId]
+    : [];
+  const outcome = unlockAbility(
+    player.progression,
+    definition,
+    tags,
+    classId,
+    parsed.requestId as string,
+    tick,
+  );
+  player.progression = outcome.progression;
+  if (outcome.changed) {
+    persistProgressionByUser[userId] = cloneProgression(player.progression);
+  }
+  const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  if (outcome.ok) {
+    pushProgressionState(state, userId, outbound, parsed.requestId);
+  }
+  pushAbilityState(state, userId, outbound, tick, parsed.requestId);
 }
 
 function handlePickup(
@@ -895,7 +1037,12 @@ function refreshPlayerDerived(state: StarterZoneState, userId: string): void {
     player.classId.length > 0 &&
     player.progression !== undefined
   ) {
-    const synced = syncCombatStatsFromPipeline(player, state.progressionCatalog, state.itemsById);
+    const synced = syncCombatStatsFromPipeline(
+      player,
+      state.progressionCatalog,
+      state.itemsById,
+      effectModifiersFrom(player.effects),
+    );
     if (synced !== null) {
       return;
     }
@@ -1021,6 +1168,24 @@ function pushCombatEvents(outbound: MatchOutbound[], tick: number, events: Comba
     if (event.respawnDelaySec !== undefined) {
       row.respawnDelaySec = event.respawnDelaySec;
     }
+    if (event.healing !== undefined) {
+      row.healing = event.healing;
+    }
+    if (event.interruptReason !== undefined) {
+      row.interruptReason = event.interruptReason;
+    }
+    if (event.effectId !== undefined) {
+      row.effectId = event.effectId;
+    }
+    if (event.abilityId !== undefined) {
+      row.abilityId = event.abilityId;
+    }
+    if (event.resourceId !== undefined) {
+      row.resourceId = event.resourceId;
+    }
+    if (event.resourceDelta !== undefined) {
+      row.resourceDelta = event.resourceDelta;
+    }
     payload.push(row);
   }
   const message = combatEvent(tick, payload);
@@ -1050,6 +1215,9 @@ function simulateMovement(state: StarterZoneState, dt: number): void {
   for (let i = 0; i < ids.length; i++) {
     const player = state.players[ids[i]];
     if (player.health <= 0) {
+      continue;
+    }
+    if (hasControlTag(player.effects, "stun") || hasControlTag(player.effects, "root")) {
       continue;
     }
     const delta = intendedDelta(player.axisX, player.axisY, state.moveSpeed, dt);
@@ -1147,18 +1315,17 @@ function handleAllocate(
 
 function grantKillXpFromEvents(
   state: StarterZoneState,
-  userId: string,
   events: CombatEvent[],
-  startIndex: number,
   tick: number,
   persistProgressionByUser: { [userId: string]: CharacterProgression },
   outbound: MatchOutbound[],
 ): void {
-  for (let i = startIndex; i < events.length; i++) {
+  for (let i = 0; i < events.length; i++) {
     const event = events[i];
-    if (event.type !== "death" || event.targetKind !== "enemy" || event.sourceId !== userId) {
+    if (event.type !== "death" || event.targetKind !== "enemy") {
       continue;
     }
+    const userId = event.sourceId;
     const enemy = findMatchEnemy(state, event.targetId);
     if (enemy === null || enemy.xpReward <= 0) {
       continue;
@@ -1260,7 +1427,7 @@ function pushProgressionState(
     level: player.progression.level,
     allocatedAttributes: player.progression.allocatedAttributes,
     equipmentModifiers: equipmentModifiersFromGear(player.equipment, player.inventory, state.itemsById),
-    effectModifiers: emptyModifierMap(),
+    effectModifiers: effectModifiersFrom(player.effects),
     percentModifiers: emptyModifierMap(),
     multiplyModifiers: emptyModifierMap(),
   });
@@ -1276,4 +1443,55 @@ function findMatchEnemy(state: StarterZoneState, targetId: string) {
     }
   }
   return null;
+}
+
+function capturePlayerPositions(state: StarterZoneState): { [userId: string]: { x: number; y: number } } {
+  const map: { [userId: string]: { x: number; y: number } } = {};
+  const ids = Object.keys(state.players);
+  for (let i = 0; i < ids.length; i++) {
+    const player = state.players[ids[i]];
+    map[player.userId] = { x: player.x, y: player.y };
+  }
+  return map;
+}
+
+function interruptDamagedCasters(state: StarterZoneState, events: CombatEvent[], tick: number): void {
+  const seen: { [userId: string]: boolean } = {};
+  const limit = events.length;
+  for (let i = 0; i < limit; i++) {
+    const event = events[i];
+    if (event.type !== "hit" || event.targetKind !== "player") {
+      continue;
+    }
+    if (seen[event.targetId] === true) {
+      continue;
+    }
+    seen[event.targetId] = true;
+    const player = state.players[event.targetId];
+    if (player !== undefined) {
+      interruptOnDamage(player, state, tick, events);
+    }
+  }
+}
+
+function refreshAllDerived(state: StarterZoneState): void {
+  const ids = Object.keys(state.players);
+  for (let i = 0; i < ids.length; i++) {
+    refreshPlayerDerived(state, ids[i]);
+  }
+}
+
+function pushAbilityState(
+  state: StarterZoneState,
+  userId: string,
+  outbound: MatchOutbound[],
+  tick: number,
+  requestId?: string,
+): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    return;
+  }
+  const message = abilityState(state.contentHash, publicAbilityState(player, tick), requestId);
+  outbound.push({ opcode: message.opcode, body: message.body, toUserId: userId });
 }

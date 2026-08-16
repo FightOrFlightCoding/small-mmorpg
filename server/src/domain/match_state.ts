@@ -28,6 +28,15 @@ import {
   type ProgressionCatalog,
 } from "./stats";
 import { publicWallet } from "./wallet";
+import {
+  cloneActiveCast,
+  cloneCooldownMap,
+  cloneResourceMap,
+  publicAbilityState,
+  type AbilityDefinition,
+  type ActiveCast,
+} from "./ability";
+import { cloneActiveEffects, effectModifiersFrom, type ActiveEffect } from "./effects";
 
 export type { MatchLoot };
 
@@ -74,6 +83,13 @@ export interface MatchPlayer {
   lastCheckpointTick?: number;
   lastCheckpointX?: number;
   lastCheckpointY?: number;
+  resources?: { [id: string]: number };
+  effects?: ActiveEffect[];
+  activeCast?: ActiveCast;
+  abilityCooldowns?: { [abilityId: string]: number };
+  globalCooldownUntilTick?: number;
+  abilityUseByRequestId?: { [requestId: string]: { ok: boolean; code: string } };
+  abilityUseTicks?: { [requestId: string]: number };
 }
 
 export interface DisconnectedPlayer {
@@ -112,6 +128,7 @@ export interface MatchEnemy {
   respawnDelaySec: number;
   xpReward: number;
   deathCount: number;
+  effects?: ActiveEffect[];
 }
 
 export interface StarterZoneState {
@@ -143,6 +160,9 @@ export interface StarterZoneState {
   equipmentSlotsByTag?: { [tag: string]: EquipmentSlotContent };
   classEquipmentTags?: { [classId: string]: string[] };
   inventoryCapacity?: number;
+  abilitiesById?: { [id: string]: AbilityDefinition };
+  basicAbilityId?: string;
+  classTags?: { [classId: string]: string[] };
 }
 
 export interface ZoneSpawnContent {
@@ -179,12 +199,16 @@ export interface PlayerContent {
   respawnDelaySec?: number;
   pickupRange?: number;
   inventoryCapacity?: number;
+  basicAbilityId?: string;
 }
 
 export interface StarterZoneCatalogExtras {
   equipmentSlotsByTag?: { [tag: string]: EquipmentSlotContent };
   classEquipmentTags?: { [classId: string]: string[] };
   inventoryCapacity?: number;
+  abilitiesById?: { [id: string]: AbilityDefinition };
+  basicAbilityId?: string;
+  classTags?: { [classId: string]: string[] };
 }
 
 export function enemyDefinitionsFromContent(enemies: {
@@ -257,9 +281,10 @@ export function createStarterZoneState(
       attackCooldownSec: numberOr(def !== undefined ? def.attackCooldown : undefined, 1.4),
       leashRadius: numberOr(def !== undefined ? def.leashRadius : undefined, 256),
       respawnDelaySec: numberOr(def !== undefined ? def.respawnDelay : undefined, 10),
-      xpReward: numberOr(def !== undefined ? def.xpReward : undefined, 0),
-      deathCount: 0,
-    });
+    xpReward: numberOr(def !== undefined ? def.xpReward : undefined, 0),
+    deathCount: 0,
+    effects: [],
+  });
     if (def !== undefined && def.loot !== undefined && enemyLootById[spawn.enemyId] === undefined) {
       enemyLootById[spawn.enemyId] = copyLootDrops(def.loot);
     }
@@ -305,6 +330,9 @@ export function createStarterZoneState(
       extras.inventoryCapacity !== undefined ? extras.inventoryCapacity : playerContent.inventoryCapacity,
       INVENTORY_CAPACITY,
     ),
+    abilitiesById: extras.abilitiesById,
+    basicAbilityId: extras.basicAbilityId !== undefined ? extras.basicAbilityId : playerContent.basicAbilityId,
+    classTags: extras.classTags,
   };
 }
 
@@ -348,6 +376,7 @@ export function buildFullState(state: StarterZoneState, tick: number, selfId: st
     derived: derivedFor(state, selfId),
     wallet: walletFor(state, selfId),
     progression: progressionFor(state, selfId),
+    abilities: abilitiesFor(state, selfId, tick),
   });
 }
 
@@ -384,6 +413,9 @@ function publicPlayer(player: MatchPlayer): { [key: string]: unknown } {
     health: player.health,
     alive: player.health > 0,
     lastProcessedSeq: player.lastProcessedSeq,
+    resources: cloneResourceMap(player.resources),
+    effects: publicEntityEffects(player.effects),
+    activeCast: player.activeCast !== undefined ? cloneActiveCast(player.activeCast) : null,
   };
 }
 
@@ -397,6 +429,7 @@ function publicEnemy(enemy: MatchEnemy): { [key: string]: unknown } {
     health: enemy.health,
     alive: enemy.health > 0 && enemy.aiState !== "dead",
     state: enemy.aiState,
+    effects: publicEntityEffects(enemy.effects),
   };
 }
 
@@ -441,6 +474,7 @@ function cloneEnemy(enemy: MatchEnemy): MatchEnemy {
     respawnDelaySec: enemy.respawnDelaySec,
     xpReward: enemy.xpReward !== undefined ? enemy.xpReward : 0,
     deathCount: enemy.deathCount !== undefined ? enemy.deathCount : 0,
+    effects: cloneActiveEffects(enemy.effects),
   };
 }
 
@@ -493,6 +527,13 @@ function cloneMatchPlayer(p: MatchPlayer, state: StarterZoneState): MatchPlayer 
     lastCheckpointTick: p.lastCheckpointTick,
     lastCheckpointX: p.lastCheckpointX,
     lastCheckpointY: p.lastCheckpointY,
+    resources: cloneResourceMap(p.resources),
+    effects: cloneActiveEffects(p.effects),
+    activeCast: cloneActiveCast(p.activeCast),
+    abilityCooldowns: cloneCooldownMap(p.abilityCooldowns),
+    globalCooldownUntilTick: p.globalCooldownUntilTick != null ? p.globalCooldownUntilTick : 0,
+    abilityUseByRequestId: cloneAbilityUseMap(p.abilityUseByRequestId),
+    abilityUseTicks: cloneCooldownMap(p.abilityUseTicks),
   };
 }
 
@@ -551,6 +592,9 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     equipmentSlotsByTag: state.equipmentSlotsByTag,
     classEquipmentTags: state.classEquipmentTags,
     inventoryCapacity: state.inventoryCapacity,
+    abilitiesById: state.abilitiesById,
+    basicAbilityId: state.basicAbilityId,
+    classTags: state.classTags,
   };
 }
 
@@ -602,7 +646,7 @@ function progressionFor(state: StarterZoneState, selfId: string): { [key: string
     level: player.progression.level,
     allocatedAttributes: player.progression.allocatedAttributes,
     equipmentModifiers: equipmentModifiersFromGear(player.equipment, player.inventory, state.itemsById),
-    effectModifiers: emptyModifierMap(),
+    effectModifiers: effectModifiersFrom(player.effects),
     percentModifiers: emptyModifierMap(),
     multiplyModifiers: emptyModifierMap(),
   });
@@ -615,6 +659,46 @@ function walletFor(state: StarterZoneState, selfId: string): { [key: string]: un
     return publicWallet(0);
   }
   return publicWallet(player.gold);
+}
+
+function abilitiesFor(state: StarterZoneState, selfId: string, tick: number): { [key: string]: unknown } {
+  const player = state.players[selfId];
+  if (player === undefined) {
+    return {};
+  }
+  return publicAbilityState(player, tick);
+}
+
+function publicEntityEffects(effects: ActiveEffect[] | undefined): { [key: string]: unknown }[] {
+  const list: { [key: string]: unknown }[] = [];
+  const source = effects !== undefined ? effects : [];
+  for (let i = 0; i < source.length; i++) {
+    list.push({
+      effectId: source[i].effectId,
+      abilityId: source[i].abilityId,
+      type: source[i].type,
+      stacks: source[i].stacks,
+      remainingTicks: source[i].remainingTicks,
+      tags: source[i].tags,
+    });
+  }
+  return list;
+}
+
+function cloneAbilityUseMap(
+  map: { [requestId: string]: { ok: boolean; code: string } } | undefined,
+): { [requestId: string]: { ok: boolean; code: string } } {
+  const out: { [requestId: string]: { ok: boolean; code: string } } = {};
+  const source = dict(map);
+  const keys = Object.keys(source);
+  for (let i = 0; i < keys.length; i++) {
+    const row = source[keys[i]];
+    if (row == null) {
+      continue;
+    }
+    out[keys[i]] = { ok: row.ok === true, code: row.code };
+  }
+  return out;
 }
 
 function copyLootDrops(drops: ReadonlyArray<LootDrop>): LootDrop[] {

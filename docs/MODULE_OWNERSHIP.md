@@ -22,9 +22,10 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `EquipmentService` | C | Equipment mirror; equip intents | GLoot ItemSlot clone | GLoot 3.0.2 | `NetworkService`, `InventoryService` | no | EQUIP | no |
 | `WalletService` | C | Gold label mirror | In-memory gold | none | none | no | no | no |
 | `ProgressionService` | C | Progression mirror; allocate intent; preview replaced by server | In-memory level/XP/attributes | none | `NetworkService` | no | ALLOCATE_ATTRIBUTES | no |
+| `AbilityService` | C | Ability/hotbar/cast/cooldown mirror; use/cancel/unlock/hotbar intents | In-memory unlocked ids, hotbar, resources, cooldowns, active cast, effects | none | `NetworkService`, `ContentRegistry`, `AttackIntent` | no | USE_ABILITY / CANCEL_CAST / ASSIGN_HOTBAR / UNLOCK_ABILITY | no |
 | `DialogueCatalog` / `DialoguePresenter` | C | Map NPC id → `.dialogue`; open after INTERACTION_RESULT | pending request ids | Dialogue Manager 3.10.5 | `QuestService` from dialogue `do` lines | no | no | no |
 | `ZoneChat` / `ChatPanel` | C | Room join/leave, history Label | chat lines | none | `NetworkService` | no | chat channel, not match opcode | no |
-| `World` / `ZoneView` / `EntityRegistry` / avatars / `WorldHud` | C | Render zone and HUD | display poses | none | services above | no | INPUT via World | no |
+| `World` / `ZoneView` / `EntityRegistry` / avatars / `WorldHud` | C | Render zone and HUD (hotbar, cast bar, ground-target preview, status icons) | display poses | none | services above | no | INPUT via World | no |
 | `MoveIntent` / `MovementSim` / `MovementReconciler` / `SnapshotBuffer` | C | Prediction and interpolation | unacked cmds, buffer | none | `MatchProtocol` | no | INPUT | no |
 | `AttackIntent` / `CombatFeedback` / `InteractIntent` / `PickupIntent` | C | Usability targeting | none | none | `NetworkService` | no | ATTACK / INTERACT / PICKUP | no |
 | `NetDebugOverlay` | C | Debug FPS / ping EMA | none | none | none | no | no | no |
@@ -35,6 +36,8 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `match_state.ts` / `match_loop.ts` | S | Zone simulation tick | live match state | none | domain combat, inventory, quests | no (tick) | emit snapshots | no (tick) |
 | `movement.ts` | S | Axes, collision, speed | none | none | none | no | no | no |
 | `combat.ts` / `enemy_ai.ts` | S | Hits, death, AI, respawn | enemy/player combat fields in match | none | `loot.ts` | no | COMBAT_EVENT | no |
+| `ability.ts` | S | Ability use, casts, cooldowns, unlock, hotbar, ATTACK wrapper | match casts/cooldowns; progression unlocks/hotbar | none | effects, combat, stats | serialize via progression | USE_ABILITY / CANCEL_CAST / ASSIGN_HOTBAR / UNLOCK_ABILITY | no |
+| `effects.ts` | S | Structured effect handlers (damage, heal, resource, modifier, periodic, stun, root) | match effect lists | none | combat, stats | no | COMBAT_EVENT | no |
 | `stats.ts` | S | Deterministic derived-stat pipeline | none | none | equipment modifiers | no | no | no |
 | `progression.ts` / `progression_store.ts` (domain) | S | XP, levels, allocation, serialize progression | none | none | stats.ts | serialize only | no | no |
 | `interaction.ts` | S | NPC range checks | none | none | none | no | INTERACTION_RESULT | no |

@@ -27,6 +27,7 @@ export function collectDefinitionIds(payload: ContentPayload): string[] {
   pushKeys(ids, payload.levelCurves);
   pushKeys(ids, payload.classProgressions);
   pushKeys(ids, payload.equipmentSlots);
+  pushKeys(ids, payload.abilities);
   ids.sort();
   return ids;
 }
@@ -70,6 +71,9 @@ export function definitionById(payload: ContentPayload, id: string): unknown | u
   }
   if (payload.equipmentSlots[id]) {
     return payload.equipmentSlots[id];
+  }
+  if (payload.abilities[id]) {
+    return payload.abilities[id];
   }
   return undefined;
 }

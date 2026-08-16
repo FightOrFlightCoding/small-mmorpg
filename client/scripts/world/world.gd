@@ -27,9 +27,11 @@ var _attack_requests: Dictionary = {}
 var _pickup_requests: Dictionary = {}
 var _equip_requests: Dictionary = {}
 var _inventory_requests: Dictionary = {}
+var _ability_requests: Dictionary = {}
 var _ping_ms: int = 0
 var _ping_ema_ms: float = 0.0
 var _frame_ms: float = 0.0
+var _ground_preview: Polygon2D
 
 
 func _ready() -> void:
@@ -60,6 +62,7 @@ func _ready() -> void:
 	if _overlay != null:
 		_overlay.set_debug_build(OS.is_debug_build())
 	_render_zone_geometry()
+	_ensure_ground_preview()
 	_apply_zone_state()
 	_last_state_msec = Time.get_ticks_msec()
 	if AppState.has_fatal_error:
@@ -81,6 +84,7 @@ func _process(delta: float) -> void:
 		_input_accum -= interval
 		_send_move_intent(axis)
 	_buffer.advance(delta)
+	_update_ground_preview()
 	if not _snapshot_stale:
 		_entities.apply_remote_poses(_buffer.sample(_buffer.render_tick()))
 	_check_snapshot_timeout()
@@ -109,6 +113,38 @@ func _render_zone_geometry() -> void:
 	if AppState.has_zone_state:
 		zone_id = String(AppState.zone_view.get("zone_id", zone_id))
 	_zone.render_zone(ContentRegistry.get_by_id(zone_id))
+
+
+func _ensure_ground_preview() -> void:
+	if _ground_preview != null:
+		return
+	_ground_preview = Polygon2D.new()
+	_ground_preview.color = Color(0.48, 0.72, 1.0, 0.28)
+	_ground_preview.visible = false
+	add_child(_ground_preview)
+
+
+func _update_ground_preview() -> void:
+	if _ground_preview == null:
+		return
+	if not AbilityService.is_targeting():
+		_ground_preview.visible = false
+		return
+	var definition := AbilityService.ability_definition(AbilityService.targeting_ability_id)
+	var radius := float(definition.get("areaRadius", 40.0))
+	if radius <= 0.0:
+		radius = 24.0
+	_ground_preview.polygon = _circle_points(radius, 24)
+	_ground_preview.position = get_global_mouse_position()
+	_ground_preview.visible = true
+
+
+func _circle_points(radius: float, steps: int) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	for i in range(steps):
+		var angle := TAU * float(i) / float(steps)
+		points.append(Vector2(cos(angle), sin(angle)) * radius)
+	return points
 
 
 func _apply_zone_state() -> void:
@@ -261,6 +297,29 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("pickup"):
 		try_pickup()
 		get_viewport().set_input_as_handled()
+	elif event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ESCAPE:
+			if AbilityService.is_targeting():
+				AbilityService.cancel_targeting()
+			else:
+				var cancel_id := AbilityService.request_cancel_cast()
+				if not cancel_id.is_empty():
+					_ability_requests[cancel_id] = true
+			get_viewport().set_input_as_handled()
+		elif event.keycode >= KEY_1 and event.keycode <= KEY_8:
+			var request_id := AbilityService.try_hotbar(event.keycode - KEY_1)
+			if not request_id.is_empty():
+				_ability_requests[request_id] = true
+			get_viewport().set_input_as_handled()
+	elif event is InputEventMouseButton and event.pressed:
+		if AbilityService.is_targeting():
+			if event.button_index == MOUSE_BUTTON_LEFT:
+				var request_id := AbilityService.confirm_ground_target(get_global_mouse_position())
+				if not request_id.is_empty():
+					_ability_requests[request_id] = true
+			else:
+				AbilityService.cancel_targeting()
+			get_viewport().set_input_as_handled()
 
 
 func _input_blocked() -> bool:
@@ -337,6 +396,8 @@ func _connect_interaction_signals() -> void:
 		EquipmentService.request_started.connect(_on_equip_request_started)
 	if not InventoryService.request_started.is_connected(_on_inventory_request_started):
 		InventoryService.request_started.connect(_on_inventory_request_started)
+	if not AbilityService.request_started.is_connected(_on_ability_request_started):
+		AbilityService.request_started.connect(_on_ability_request_started)
 	if not WalletService.wallet_changed.is_connected(_on_wallet_changed):
 		WalletService.wallet_changed.connect(_on_wallet_changed)
 
@@ -358,6 +419,8 @@ func _disconnect_interaction_signals() -> void:
 		EquipmentService.request_started.disconnect(_on_equip_request_started)
 	if InventoryService.request_started.is_connected(_on_inventory_request_started):
 		InventoryService.request_started.disconnect(_on_inventory_request_started)
+	if AbilityService.request_started.is_connected(_on_ability_request_started):
+		AbilityService.request_started.disconnect(_on_ability_request_started)
 	if WalletService.wallet_changed.is_connected(_on_wallet_changed):
 		WalletService.wallet_changed.disconnect(_on_wallet_changed)
 
@@ -395,6 +458,9 @@ func _on_action_result(payload: Dictionary) -> void:
 			return
 		AppState.report_recoverable(String(payload.get("code", "inventory_failed")), _inventory_message(String(payload.get("code", ""))))
 		return
+	if _ability_requests.has(request_id) or AbilityService.owns_request(request_id):
+		_ability_requests.erase(request_id)
+		return
 	if bool(payload.get("result_ok", false)):
 		return
 	var code := String(payload.get("code", "action_failed"))
@@ -431,6 +497,11 @@ func _on_equip_request_started(request_id: String) -> void:
 func _on_inventory_request_started(request_id: String) -> void:
 	if not request_id.is_empty():
 		_inventory_requests[request_id] = true
+
+
+func _on_ability_request_started(request_id: String) -> void:
+	if not request_id.is_empty():
+		_ability_requests[request_id] = true
 
 
 func _on_combat_event(payload: Dictionary) -> void:
