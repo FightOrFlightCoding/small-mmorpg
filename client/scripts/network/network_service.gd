@@ -12,6 +12,7 @@ signal chat_error(code: String, message: String)
 signal interaction_result_received(payload: Dictionary)
 signal action_result_received(payload: Dictionary)
 signal quest_state_received(payload: Dictionary)
+signal combat_event_received(payload: Dictionary)
 signal logged_out
 
 const CHARACTER_BOOTSTRAP_RPC := "character_bootstrap"
@@ -153,6 +154,15 @@ func send_quest_accept(quest_id: String, request_id: String = "") -> Dictionary:
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_QUEST_ACCEPT,
 		MatchProtocol.client_envelope_json({"questId": quest_id, "requestId": rid})
+	)
+
+
+func send_attack(target_id: String, request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_ATTACK,
+		MatchProtocol.client_envelope_json({"targetId": target_id, "requestId": request_id})
 	)
 
 
@@ -413,6 +423,13 @@ func _on_match_state(opcode: int, payload: String) -> void:
 			AppState.report_recoverable(String(quests.get("code", "quest_state_failed")), String(quests.get("message", "Quest state was invalid.")))
 			return
 		quest_state_received.emit(quests)
+		return
+	if opcode == MatchProtocol.SERVER_COMBAT_EVENT:
+		var combat: Dictionary = MatchProtocol.parse_combat_event(payload)
+		if not bool(combat.get("ok", false)):
+			AppState.report_recoverable(String(combat.get("code", "combat_event_failed")), String(combat.get("message", "Combat event was invalid.")))
+			return
+		combat_event_received.emit(combat)
 		return
 
 

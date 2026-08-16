@@ -1,8 +1,8 @@
 # Progress
 
-Last accepted phase: **NPC interaction, dialogue, and quest acceptance**.
+Last accepted phase: **Authoritative enemy AI and combat**.
 
-Current phase: none requested. Do not add combat until asked.
+Current phase: none requested. Do not add loot until asked.
 
 ## Phase 0 acceptance (2026-08-15)
 
@@ -157,4 +157,23 @@ powershell -File ..\scripts\run-client-shell.ps1
 ```
 
 Local play: start the stack, walk to the elder (spawn is too far), press E, accept **Slime Problem**. The journal should show the accepted quest. Relog should restore it. Restart Nakama after this build so the match module loads.
+
+## Authoritative enemy AI and combat (2026-08-16)
+
+One shared green slime is simulated in the starter-zone match. The AI is a 10 Hz state machine (`idle`, `chasing`, `attacking`, `returning`, `dead`) using `enemy.green_slime` aggro, leash, speed, damage, cooldown, and respawn. The Godot client does not run enemy AI. `ATTACK` sends `targetId` and `requestId` only; the server applies `player.base.attack` after alive/target/range/cooldown checks. Duplicate `requestId` does not double-hit. Client `damage` is rejected. `SNAPSHOT` includes slime pose, health, `alive`, and `state`. `COMBAT_EVENT` carries hits, death, and respawn for floating numbers. Player death stops movement and attacks, then respawns at `zone.starter.playerSpawn` after 3 seconds with full health. The slime respawns at its spawn after 10 seconds. No loot is created.
+
+Server `npm test` 87/87, `npm run typecheck`, and `npm run build` succeeded. Godot 4.7.1 imported `client/`, printed `SHELL_LOGIN`, and GdUnit4 ran `res://tests` with 89/89 passed.
+
+Reproduction:
+
+```powershell
+Set-Location server
+npm test
+npm run build
+powershell -File ..\scripts\backend-up.ps1
+powershell -File ..\scripts\run-client-shell.ps1
+```
+
+Local play: start the stack, walk east to the slime, press **Space** to attack. Both Alice and Bob should see the same slime health. Dying shows **Defeated. Respawning...** then return to spawn. Restart Nakama after this build so the combat runtime loads.
+
 

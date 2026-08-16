@@ -144,6 +144,14 @@ test("reward and interact requests require a unique requestId", () => {
     }),
   );
   assert.equal(isProtocolError(valid), false);
+  const missingAttack = parse(
+    ClientOpcode.ATTACK,
+    JSON.stringify({ protocolVersion: PROTOCOL_VERSION, targetId: "enemy.green_slime:0" }),
+  );
+  assert.equal(isProtocolError(missingAttack), true);
+  if (isProtocolError(missingAttack)) {
+    assert.equal(missingAttack.code, "invalid_request_id");
+  }
 });
 
 test("stat injection keys are rejected", () => {

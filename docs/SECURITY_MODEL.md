@@ -20,7 +20,7 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Attack:** Client sends damage dealt or victim health.
 
-**Defense:** Attack intent carries target ID only. Damage and health exist only in match simulation.
+**Defense:** Attack intent carries target ID and `requestId` only. Damage and health exist only in match simulation. Duplicate `requestId` does not apply a second hit.
 
 ### Cooldown bypassing
 

@@ -14,6 +14,12 @@ export interface Vec2 {
   y: number;
 }
 
+export function distance(ax: number, ay: number, bx: number, by: number): number {
+  const dx = ax - bx;
+  const dy = ay - by;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
 export function clampAxis(value: number): number {
   if (value < -1) {
     return -1;

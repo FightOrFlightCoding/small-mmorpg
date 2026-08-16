@@ -108,7 +108,7 @@ export function isRewardOpcode(opcode: ClientOpcode): boolean {
 }
 
 function requiresRequestId(opcode: ClientOpcode): boolean {
-  return isRewardOpcode(opcode) || opcode === ClientOpcode.INTERACT;
+  return isRewardOpcode(opcode) || opcode === ClientOpcode.INTERACT || opcode === ClientOpcode.ATTACK;
 }
 
 export function parseClientMessage(
@@ -310,5 +310,19 @@ export function questState(
   return {
     opcode: ServerOpcode.QUEST_STATE,
     body: JSON.stringify(payload),
+  };
+}
+
+export function combatEvent(
+  tick: number,
+  events: { [key: string]: unknown }[],
+): { opcode: number; body: string } {
+  return {
+    opcode: ServerOpcode.COMBAT_EVENT,
+    body: JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      tick: tick,
+      events: events,
+    }),
   };
 }

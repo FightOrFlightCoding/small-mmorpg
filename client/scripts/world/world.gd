@@ -11,6 +11,7 @@ extends Node2D
 @onready var _loading_overlay: CanvasLayer = $LoadingOverlay
 @onready var _overlay: NetDebugOverlay = $NetDebugOverlay
 @onready var _dialogue: DialoguePresenter = $DialoguePresenter
+@onready var _combat: CombatFeedback = $CombatFeedback
 
 var _input_seq: int = 0
 var _input_accum: float = 0.0
@@ -22,6 +23,7 @@ var _sim: MovementSim
 var _reconciler: MovementReconciler
 var _buffer: SnapshotBuffer = SnapshotBuffer.new()
 var _sent_at: Dictionary = {}
+var _attack_requests: Dictionary = {}
 var _ping_ms: int = 0
 var _ping_ema_ms: float = 0.0
 var _frame_ms: float = 0.0
@@ -59,7 +61,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_frame_ms = delta * 1000.0
 	var axis := Vector2.ZERO
-	if not _input_blocked():
+	if not _input_blocked() and _local_alive():
 		axis = MoveIntent.read_axes()
 	if not NetworkService.match_id.is_empty():
 		_entities.pose_local(_reconciler.advance(delta, axis))
@@ -234,6 +236,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact"):
 		try_interact()
 		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("attack"):
+		try_attack()
+		get_viewport().set_input_as_handled()
 
 
 func _input_blocked() -> bool:
@@ -244,8 +249,21 @@ func _input_blocked() -> bool:
 	return false
 
 
+func _local_alive() -> bool:
+	if not AppState.has_zone_state:
+		return true
+	var self_id := String(AppState.zone_view.get("self_id", _entities.local_server_id))
+	for entry in AppState.zone_view.get("players", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("userId", "")) != self_id:
+			continue
+		return int(entry.get("health", 1)) > 0
+	return true
+
+
 func try_interact() -> void:
-	if _input_blocked() or NetworkService.match_id.is_empty():
+	if _input_blocked() or not _local_alive() or NetworkService.match_id.is_empty():
 		return
 	var npc_id := InteractIntent.nearest_npc_id(_reconciler.display, AppState.zone_view.get("npcs", []))
 	if npc_id.is_empty():
@@ -256,6 +274,17 @@ func try_interact() -> void:
 	NetworkService.send_interact(npc_id, request_id)
 
 
+func try_attack() -> void:
+	if _input_blocked() or not _local_alive() or NetworkService.match_id.is_empty():
+		return
+	var enemy_id := AttackIntent.nearest_enemy_id(_reconciler.display, AppState.zone_view.get("enemies", []))
+	if enemy_id.is_empty():
+		return
+	var request_id := MatchProtocol.new_request_id()
+	_attack_requests[request_id] = true
+	NetworkService.send_attack(enemy_id, request_id)
+
+
 func _connect_interaction_signals() -> void:
 	if not NetworkService.interaction_result_received.is_connected(_on_interaction_result):
 		NetworkService.interaction_result_received.connect(_on_interaction_result)
@@ -263,6 +292,8 @@ func _connect_interaction_signals() -> void:
 		NetworkService.action_result_received.connect(_on_action_result)
 	if not QuestService.quests_changed.is_connected(_on_quests_changed):
 		QuestService.quests_changed.connect(_on_quests_changed)
+	if not NetworkService.combat_event_received.is_connected(_on_combat_event):
+		NetworkService.combat_event_received.connect(_on_combat_event)
 
 
 func _disconnect_interaction_signals() -> void:
@@ -272,6 +303,8 @@ func _disconnect_interaction_signals() -> void:
 		NetworkService.action_result_received.disconnect(_on_action_result)
 	if QuestService.quests_changed.is_connected(_on_quests_changed):
 		QuestService.quests_changed.disconnect(_on_quests_changed)
+	if NetworkService.combat_event_received.is_connected(_on_combat_event):
+		NetworkService.combat_event_received.disconnect(_on_combat_event)
 
 
 func _on_interaction_result(payload: Dictionary) -> void:
@@ -285,6 +318,10 @@ func _on_interaction_result(payload: Dictionary) -> void:
 
 
 func _on_action_result(payload: Dictionary) -> void:
+	var request_id := String(payload.get("request_id", ""))
+	if _attack_requests.has(request_id):
+		_attack_requests.erase(request_id)
+		return
 	if bool(payload.get("result_ok", false)):
 		return
 	var code := String(payload.get("code", "action_failed"))
@@ -296,6 +333,21 @@ func _on_action_result(payload: Dictionary) -> void:
 func _on_quests_changed() -> void:
 	if _hud != null:
 		_hud.refresh_journal(QuestService.journal_view())
+
+
+func _on_combat_event(payload: Dictionary) -> void:
+	for entry in payload.get("events", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var event: Dictionary = entry
+		var event_type := String(event.get("type", ""))
+		if event_type == "hit" and _combat != null:
+			var pos := Vector2(float(event.get("x", 0.0)), float(event.get("y", 0.0)))
+			_combat.show_hit(pos, int(event.get("damage", 0)), String(event.get("targetKind", "")) == "player")
+		if event_type == "respawn" and String(event.get("targetKind", "")) == "player":
+			if String(event.get("targetId", "")) == String(AppState.zone_view.get("self_id", "")):
+				_reconciler.reset(Vector2(float(event.get("x", 0.0)), float(event.get("y", 0.0))))
+				_entities.pose_local(_reconciler.display)
 
 
 func _interaction_message(payload: Dictionary) -> String:

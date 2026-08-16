@@ -6,9 +6,11 @@ signal logout_pressed
 
 @onready var _status: Label = $Root/Margin/VBox/Status
 @onready var _entities: Label = $Root/Margin/VBox/Entities
+@onready var _health: Label = $Root/Margin/VBox/Health
 @onready var _resync: Button = $Root/Margin/VBox/Buttons/ResyncButton
 @onready var _logout: Button = $Root/Margin/VBox/Buttons/LogoutButton
 @onready var _journal_body: Label = $Root/Journal/Margin/VBox/Body
+@onready var _death: Label = $Root/Death
 
 
 func _ready() -> void:
@@ -21,6 +23,10 @@ func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool =
 	if state.is_empty():
 		_status.text = "Waiting for authoritative zone state."
 		_entities.text = ""
+		if _health != null:
+			_health.text = ""
+		if _death != null:
+			_death.visible = false
 		refresh_journal(QuestService.journal_view())
 		return
 	if snapshot_stale:
@@ -33,6 +39,7 @@ func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool =
 			str(state.get("ack_seq", 0)),
 		]
 	_entities.text = "Present: %s" % ", ".join(names)
+	_refresh_health(state)
 	refresh_journal(QuestService.journal_view())
 
 
@@ -49,6 +56,39 @@ func refresh_journal(view: Dictionary) -> void:
 		"Count: %s / %s" % [str(int(view.get("current", 0))), str(int(view.get("required", 0)))],
 		"Turn-in: %s" % String(view.get("turn_in_npc", "")),
 	]))
+
+
+func _refresh_health(state: Dictionary) -> void:
+	var self_id := String(state.get("self_id", ""))
+	var player_hp := "You: --"
+	var local_dead := false
+	for entry in state.get("players", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("userId", "")) != self_id:
+			continue
+		var health := int(entry.get("health", 0))
+		var max_health := int(entry.get("maxHealth", health))
+		player_hp = "You: %s / %s" % [str(health), str(max_health)]
+		local_dead = health <= 0
+		break
+	var slime_hp := "Slime: --"
+	for entry in state.get("enemies", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var enemy: Dictionary = entry
+		if String(enemy.get("enemyId", "")).find("slime") == -1 and String(enemy.get("id", "")).find("slime") == -1:
+			continue
+		slime_hp = "Slime: %s / %s" % [str(int(enemy.get("health", 0))), str(int(enemy.get("maxHealth", 0)))]
+		if enemy.has("state") and String(enemy["state"]) != "":
+			slime_hp += " (%s)" % String(enemy["state"])
+		break
+	if _health != null:
+		_health.text = "%s    %s    Attack: Space" % [player_hp, slime_hp]
+	if _death != null:
+		_death.visible = local_dead
+		if local_dead:
+			_death.text = "Defeated. Respawning..."
 
 
 func _local_name(state: Dictionary) -> String:

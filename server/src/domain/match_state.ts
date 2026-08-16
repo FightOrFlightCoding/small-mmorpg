@@ -37,6 +37,11 @@ export interface MatchPlayer {
   axisX: number;
   axisY: number;
   questLog: QuestLog;
+  lastAttackTick?: number;
+  deadUntilTick?: number;
+  lastAttackRequestId?: string;
+  lastAttackResultCode?: string;
+  lastAttackResultOk?: boolean;
 }
 
 export interface MatchNpc {
@@ -46,13 +51,28 @@ export interface MatchNpc {
   y: number;
 }
 
+export type EnemyAiState = "idle" | "chasing" | "attacking" | "returning" | "dead";
+
 export interface MatchEnemy {
   id: string;
   enemyId: string;
+  spawnX: number;
+  spawnY: number;
   x: number;
   y: number;
   maxHealth: number;
   health: number;
+  aiState: EnemyAiState;
+  aggroTarget: string;
+  lastAttackTick: number;
+  deadUntilTick: number;
+  damage: number;
+  moveSpeed: number;
+  aggroRadius: number;
+  attackRange: number;
+  attackCooldownSec: number;
+  leashRadius: number;
+  respawnDelaySec: number;
 }
 
 export interface MatchLoot {
@@ -75,6 +95,12 @@ export interface StarterZoneState {
   moveSpeed: number;
   playerHalfExtent: number;
   interactionRange: number;
+  playerAttack: number;
+  playerAttackRange: number;
+  playerAttackCooldownSec: number;
+  playerSpawnX: number;
+  playerSpawnY: number;
+  playerRespawnDelaySec: number;
   questsById: { [id: string]: QuestDefinition };
 }
 
@@ -90,6 +116,13 @@ export interface ZoneSpawnContent {
 export interface EnemyContent {
   id: string;
   maxHealth: number;
+  damage?: number;
+  moveSpeed?: number;
+  aggroRadius?: number;
+  attackRange?: number;
+  attackCooldown?: number;
+  leashRadius?: number;
+  respawnDelay?: number;
 }
 
 export interface PlayerContent {
@@ -97,6 +130,10 @@ export interface PlayerContent {
   maxHealth: number;
   moveSpeed: number;
   interactionRange: number;
+  attack?: number;
+  attackRange?: number;
+  attackCooldown?: number;
+  respawnDelaySec?: number;
 }
 
 export function createStarterZoneState(
@@ -124,10 +161,23 @@ export function createStarterZoneState(
     enemies.push({
       id: spawn.enemyId + ":" + String(i),
       enemyId: spawn.enemyId,
+      spawnX: spawn.x,
+      spawnY: spawn.y,
       x: spawn.x,
       y: spawn.y,
       maxHealth: maxHealth,
       health: maxHealth,
+      aiState: "idle",
+      aggroTarget: "",
+      lastAttackTick: -1,
+      deadUntilTick: 0,
+      damage: numberOr(def !== undefined ? def.damage : undefined, 2),
+      moveSpeed: numberOr(def !== undefined ? def.moveSpeed : undefined, 45),
+      aggroRadius: numberOr(def !== undefined ? def.aggroRadius : undefined, 128),
+      attackRange: numberOr(def !== undefined ? def.attackRange : undefined, 28),
+      attackCooldownSec: numberOr(def !== undefined ? def.attackCooldown : undefined, 1.4),
+      leashRadius: numberOr(def !== undefined ? def.leashRadius : undefined, 256),
+      respawnDelaySec: numberOr(def !== undefined ? def.respawnDelay : undefined, 10),
     });
   }
   const collisions: Aabb[] = [];
@@ -153,6 +203,12 @@ export function createStarterZoneState(
     moveSpeed: playerContent.moveSpeed,
     playerHalfExtent: PLAYER_HALF_EXTENT,
     interactionRange: playerContent.interactionRange,
+    playerAttack: numberOr(playerContent.attack, 4),
+    playerAttackRange: numberOr(playerContent.attackRange, 40),
+    playerAttackCooldownSec: numberOr(playerContent.attackCooldown, 0.7),
+    playerSpawnX: zone.playerSpawn.x,
+    playerSpawnY: zone.playerSpawn.y,
+    playerRespawnDelaySec: numberOr(playerContent.respawnDelaySec, 3),
     questsById: questsById,
   };
 }
@@ -189,7 +245,7 @@ export function buildFullState(state: StarterZoneState, tick: number, selfId: st
     selfId: selfId,
     players: playersList(state),
     npcs: state.npcs,
-    enemies: state.enemies,
+    enemies: enemiesList(state),
     loot: state.loot,
     quests: questsFor(state, selfId),
   });
@@ -202,6 +258,7 @@ export function buildSnapshot(state: StarterZoneState, tick: number): string {
     tick: tick,
     zoneId: state.zoneId,
     players: playersList(state),
+    enemies: enemiesList(state),
   });
 }
 
@@ -224,7 +281,21 @@ function publicPlayer(player: MatchPlayer): { [key: string]: unknown } {
     y: player.y,
     maxHealth: player.maxHealth,
     health: player.health,
+    alive: player.health > 0,
     lastProcessedSeq: player.lastProcessedSeq,
+  };
+}
+
+function publicEnemy(enemy: MatchEnemy): { [key: string]: unknown } {
+  return {
+    id: enemy.id,
+    enemyId: enemy.enemyId,
+    x: enemy.x,
+    y: enemy.y,
+    maxHealth: enemy.maxHealth,
+    health: enemy.health,
+    alive: enemy.health > 0 && enemy.aiState !== "dead",
+    state: enemy.aiState,
   };
 }
 
@@ -236,6 +307,53 @@ function playersList(state: StarterZoneState): { [key: string]: unknown }[] {
     list.push(publicPlayer(state.players[ids[i]]));
   }
   return list;
+}
+
+function enemiesList(state: StarterZoneState): { [key: string]: unknown }[] {
+  const list: { [key: string]: unknown }[] = [];
+  for (let i = 0; i < state.enemies.length; i++) {
+    list.push(publicEnemy(state.enemies[i]));
+  }
+  return list;
+}
+
+function cloneEnemy(enemy: MatchEnemy): MatchEnemy {
+  return {
+    id: enemy.id,
+    enemyId: enemy.enemyId,
+    spawnX: enemy.spawnX,
+    spawnY: enemy.spawnY,
+    x: enemy.x,
+    y: enemy.y,
+    maxHealth: enemy.maxHealth,
+    health: enemy.health,
+    aiState: enemy.aiState,
+    aggroTarget: enemy.aggroTarget,
+    lastAttackTick: enemy.lastAttackTick,
+    deadUntilTick: enemy.deadUntilTick,
+    damage: enemy.damage,
+    moveSpeed: enemy.moveSpeed,
+    aggroRadius: enemy.aggroRadius,
+    attackRange: enemy.attackRange,
+    attackCooldownSec: enemy.attackCooldownSec,
+    leashRadius: enemy.leashRadius,
+    respawnDelaySec: enemy.respawnDelaySec,
+  };
+}
+
+function cloneEnemies(enemies: MatchEnemy[]): MatchEnemy[] {
+  const list: MatchEnemy[] = [];
+  for (let i = 0; i < enemies.length; i++) {
+    list.push(cloneEnemy(enemies[i]));
+  }
+  return list;
+}
+
+function numberOr(value: number | undefined, fallback: number): number {
+  if (value === undefined) {
+    return fallback;
+  }
+  return value;
 }
 
 export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState {
@@ -258,6 +376,11 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
       axisX: p.axisX,
       axisY: p.axisY,
       questLog: cloneQuestLog(p.questLog !== undefined ? p.questLog : emptyQuestLog()),
+      lastAttackTick: p.lastAttackTick !== undefined ? p.lastAttackTick : -1,
+      deadUntilTick: p.deadUntilTick !== undefined ? p.deadUntilTick : 0,
+      lastAttackRequestId: p.lastAttackRequestId !== undefined ? p.lastAttackRequestId : "",
+      lastAttackResultCode: p.lastAttackResultCode !== undefined ? p.lastAttackResultCode : "",
+      lastAttackResultOk: p.lastAttackResultOk === true,
     };
   }
   return {
@@ -266,13 +389,19 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     emptyTicks: state.emptyTicks,
     players: players,
     npcs: state.npcs,
-    enemies: state.enemies,
+    enemies: cloneEnemies(state.enemies),
     loot: state.loot,
     walkableBounds: state.walkableBounds,
     collisions: state.collisions,
     moveSpeed: state.moveSpeed,
     playerHalfExtent: state.playerHalfExtent,
     interactionRange: state.interactionRange,
+    playerAttack: state.playerAttack,
+    playerAttackRange: state.playerAttackRange,
+    playerAttackCooldownSec: state.playerAttackCooldownSec,
+    playerSpawnX: state.playerSpawnX,
+    playerSpawnY: state.playerSpawnY,
+    playerRespawnDelaySec: state.playerRespawnDelaySec,
     questsById: state.questsById,
   };
 }

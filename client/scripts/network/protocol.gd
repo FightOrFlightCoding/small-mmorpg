@@ -199,6 +199,19 @@ static func parse_quest_state(raw: String) -> Dictionary:
 	}
 
 
+static func parse_combat_event(raw: String) -> Dictionary:
+	var parsed: Dictionary = _parse_object(raw)
+	if parsed.has("ok") and not bool(parsed["ok"]):
+		return parsed
+	if not _version_ok(parsed):
+		return _fail("protocol_mismatch", "The combat-event protocol version does not match this client.")
+	return {
+		"ok": true,
+		"tick": int(parsed.get("tick", 0)),
+		"events": _optional_array(parsed, "events"),
+	}
+
+
 static func new_request_id() -> String:
 	return "r_%s_%s" % [str(Time.get_ticks_usec()), str(randi() % 1000000)]
 

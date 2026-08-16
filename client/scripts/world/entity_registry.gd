@@ -58,7 +58,7 @@ func apply_full_state(state: Dictionary) -> void:
 	_apply_kind(KIND_ENEMY, state.get("enemies", []), keep, false)
 	_apply_kind(KIND_LOOT, state.get("loot", []), keep, false)
 	for extra_key in state.keys():
-		if extra_key in ["players", "npcs", "enemies", "loot", "self_id", "selfId", "tick", "zone_id", "zoneId", "protocol_version", "protocolVersion", "content_hash", "contentHash", "ack_seq"]:
+		if extra_key in ["players", "npcs", "enemies", "loot", "quests", "self_id", "selfId", "tick", "zone_id", "zoneId", "protocol_version", "protocolVersion", "content_hash", "contentHash", "ack_seq"]:
 			continue
 		if typeof(state[extra_key]) == TYPE_ARRAY and extra_key.ends_with("s"):
 			var kind_guess := String(extra_key)
@@ -169,6 +169,8 @@ func _apply_kind(kind: String, records: Variant, keep: Dictionary, interpolate_r
 			_nodes[key] = node
 			add_child(node)
 			node.position = pose
+			if node is WorldAvatar:
+				_apply_vitals(node as WorldAvatar, kind, record)
 		elif node is WorldAvatar:
 			var avatar := node as WorldAvatar
 			if (
@@ -182,6 +184,7 @@ func _apply_kind(kind: String, records: Variant, keep: Dictionary, interpolate_r
 				pass
 			else:
 				avatar.set_server_position(pose.x, pose.y)
+			_apply_vitals(avatar, kind, record)
 		else:
 			node.position = pose
 
@@ -262,6 +265,17 @@ func _visual_for(kind: String, record: Dictionary) -> Dictionary:
 
 func _pose(record: Dictionary) -> Vector2:
 	return Vector2(float(record.get("x", 0.0)), float(record.get("y", 0.0)))
+
+
+func _apply_vitals(avatar: WorldAvatar, kind: String, record: Dictionary) -> void:
+	if kind != KIND_PLAYER and kind != KIND_ENEMY:
+		return
+	var max_health := int(record.get("maxHealth", record.get("max_health", 1)))
+	var health := int(record.get("health", max_health))
+	var alive := health > 0
+	if record.has("alive"):
+		alive = bool(record["alive"])
+	avatar.set_vitals(health, max_health, alive)
 
 
 func _prune(keep: Dictionary) -> void:

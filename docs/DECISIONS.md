@@ -133,9 +133,9 @@ Movement prediction is presentation-only. `MovementSim` copies server constants 
 
 Correction policy: error ≤ 0.5 px is agreement (no visual correction); error ≤ 24 px is smoothed with blend 0.35; larger error snaps. Local presentation integrates `axis * moveSpeed * frameDelta` every render frame so walking is not quantized to the 10 Hz send rate. `INPUT` is still sent at 10 Hz and reconciliation still replays unacked 10 Hz steps from the server pose.
 
-Remote interpolation uses one snapshot buffer (max 8 frames) for every moving entity, keyed `kind:id` (`player:…`, later `npc:…`, `enemy:…`, `loot:…`). The buffer clocks with frame delta: estimated tick is `latest + timeSinceLatest / 0.1`, and the render tick is that value minus one snapshot (`INTERP_DELAY_TICKS` = 1.0), clamped to the latest received tick so the client never extrapolates. Sampling a fractional tick lerps between the two surrounding 10 Hz poses, so other players (and later NPCs/mobs) do not teleport every 100 ms. After `SNAPSHOT_TIMEOUT_SEC` (2 s) the buffer freezes and the HUD reports a degraded connection. Server snapshots remain players-only until a later phase moves NPCs or enemies; static poses stay in the buffer from `FULL_STATE` until then.
+Remote interpolation uses one snapshot buffer (max 8 frames) for every moving entity, keyed `kind:id` (`player:…`, `npc:…`, `enemy:…`, `loot:…`). The buffer clocks with frame delta: estimated tick is `latest + timeSinceLatest / 0.1`, and the render tick is that value minus one snapshot (`INTERP_DELAY_TICKS` = 1.0), clamped to the latest received tick so the client never extrapolates. Sampling a fractional tick lerps between the two surrounding 10 Hz poses, so other players and the shared slime do not teleport every 100 ms. After `SNAPSHOT_TIMEOUT_SEC` (2 s) the buffer freezes and the HUD reports a degraded connection. Occupied snapshots include enemy poses.
 
-`NetDebugOverlay` is visible only when `OS.is_debug_build()` is true. It shows `Engine.get_frames_per_second()`, frame time, and an EMA of input-to-ack RTT. That ping is not ICMP; it jumps with the 10 Hz snapshot clock if shown raw. Release exports hide the overlay. Two editor Play sessions use the embedded Game workspace (Input/2D/3D toolbar) and are much slower than `scripts/run-client-dev.ps1`, which runs the main scene without the editor. There is still no combat or interaction prediction.
+`NetDebugOverlay` is visible only when `OS.is_debug_build()` is true. It shows `Engine.get_frames_per_second()`, frame time, and an EMA of input-to-ack RTT. That ping is not ICMP; it jumps with the 10 Hz snapshot clock if shown raw. Release exports hide the overlay. Two editor Play sessions use the embedded Game workspace (Input/2D/3D toolbar) and are much slower than `scripts/run-client-dev.ps1`, which runs the main scene without the editor. Combat is server-only; the client does not predict hits.
 
 ## 2026-08-15 — Editor login identities
 
@@ -166,4 +166,14 @@ Elder lines live in `client/content/dialogue/npc.elder.dialogue` mapped by `clie
 Quest progress is stored at collection `player`, key `quests`, `permissionRead: 1`, `permissionWrite: 0`. The match loads it on join and writes it when acceptance first succeeds or when a new `requestId` is recorded for an already-accepted quest. Duplicate `requestId` replays `accepted` with no extra write. A second `requestId` returns `already_accepted` and the current log. Unknown quest IDs are `invalid_id`. Client `status` / `questComplete` fields are protocol rejections. Turn-in, loot apply, and combat are not in this phase.
 
 The journal is a `WorldHud` panel (title, state, objective, current/required, turn-in NPC) bound to `QuestService`. Dialogue Manager is not a quest authority. QuestSystem is not used.
+
+## 2026-08-16 — Authoritative enemy AI and combat
+
+One shared `enemy.green_slime:0` lives in the starter-zone match. The server owns spawn, pose, health, alive flag, aggro target, chase, leash, attack cooldown, death, and respawn. The AI is a deterministic 10 Hz state machine: `idle`, `chasing`, `attacking`, `returning`, `dead`. Idle selects the nearest living player inside `aggroRadius` (128). A valid target is followed until it dies or disconnects, or the slime's distance from spawn exceeds `leashRadius` (256), which forces `returning` and ignores aggro until the spawn pose. Attack and move values come from `enemy.green_slime`. There is no Godot AI.
+
+`ATTACK` is `{ protocolVersion, targetId, requestId }`. The match uses `player.base.attack` (4), `attackRange` (40), and `attackCooldown` (0.7s). Client `damage` / `health` fields are protocol rejections. Duplicate `requestId` replays the original `ACTION_RESULT` without applying damage again. Hits, deaths, and respawns broadcast `COMBAT_EVENT`; `SNAPSHOT` includes enemy pose, health, `alive`, and `state` so both clients see the same slime.
+
+Player death stops movement and attacks, broadcasts death, waits **3 seconds** (`PLAYER_RESPAWN_DELAY_SEC`), restores `player.base.maxHealth`, and teleports to `zone.starter.playerSpawn`. Slime death waits `respawnDelay` (10 seconds) then restores health at its spawn. Loot is not created.
+
+The client sends Space (`attack`) against the nearest living enemy for usability, draws health bars and floating numbers from server events, and does not predict combat.
 

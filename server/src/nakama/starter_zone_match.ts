@@ -3,6 +3,7 @@ import { readCharacter } from "./character_store";
 import { readQuests, writeQuests } from "./quest_store";
 import { validateJoinAttempt } from "../domain/join_validation";
 import { applyMatchLoop, snapshotForOthers, type IncomingMatchData } from "../domain/match_loop";
+import { PLAYER_RESPAWN_DELAY_SEC } from "../domain/combat";
 import { questDefinitionsFromContent } from "../domain/quest";
 import {
   MATCH_TICK_RATE,
@@ -27,11 +28,34 @@ export function matchInit(
   _nk: nkruntime.Nakama,
   _params: { [key: string]: any },
 ): { state: StarterMatchRuntimeState; tickRate: number; label: string } {
-  const enemiesById: { [id: string]: { id: string; maxHealth: number } } = {};
+  const enemiesById: {
+    [id: string]: {
+      id: string;
+      maxHealth: number;
+      damage: number;
+      moveSpeed: number;
+      aggroRadius: number;
+      attackRange: number;
+      attackCooldown: number;
+      leashRadius: number;
+      respawnDelay: number;
+    };
+  } = {};
   const enemyIds = Object.keys(content.enemies);
   for (let i = 0; i < enemyIds.length; i++) {
     const id = enemyIds[i];
-    enemiesById[id] = { id: id, maxHealth: content.enemies[id as keyof typeof content.enemies].maxHealth };
+    const def = content.enemies[id as keyof typeof content.enemies];
+    enemiesById[id] = {
+      id: id,
+      maxHealth: def.maxHealth,
+      damage: def.damage,
+      moveSpeed: def.moveSpeed,
+      aggroRadius: def.aggroRadius,
+      attackRange: def.attackRange,
+      attackCooldown: def.attackCooldown,
+      leashRadius: def.leashRadius,
+      respawnDelay: def.respawnDelay,
+    };
   }
   const zone = createStarterZoneState(
     contentHash,
@@ -42,6 +66,10 @@ export function matchInit(
       maxHealth: content.player.maxHealth,
       moveSpeed: content.player.moveSpeed,
       interactionRange: content.player.interactionRange,
+      attack: content.player.attack,
+      attackRange: content.player.attackRange,
+      attackCooldown: content.player.attackCooldown,
+      respawnDelaySec: PLAYER_RESPAWN_DELAY_SEC,
     },
     questDefinitionsFromContent(content.quests),
   );

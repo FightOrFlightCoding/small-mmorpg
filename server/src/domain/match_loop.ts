@@ -1,6 +1,7 @@
 import {
   ClientOpcode,
   actionResult,
+  combatEvent,
   interactionResult,
   isProtocolError,
   parseClientMessage,
@@ -22,6 +23,8 @@ import {
 import { intendedDelta, resolveMove } from "./movement";
 import { resolveInteraction } from "./interaction";
 import { applyQuestAccept, cloneQuestLog, publicQuestPayloads, type QuestLog } from "./quest";
+import { applyPlayerAttack, type CombatEvent } from "./combat";
+import { simulateCombatants } from "./enemy_ai";
 
 export interface MatchOutbound {
   opcode: number;
@@ -57,6 +60,7 @@ export function applyMatchLoop(
   const outbound: MatchOutbound[] = [];
   const next = cloneStarterZoneState(state);
   const persistByUser: { [userId: string]: QuestLog } = {};
+  const combatEvents: CombatEvent[] = [];
 
   for (let i = 0; i < messages.length; i++) {
     const incoming = messages[i];
@@ -66,10 +70,12 @@ export function applyMatchLoop(
       outbound.push({ opcode: sys.opcode, body: sys.body, toUserId: incoming.userId });
       continue;
     }
-    handleValidated(parsed, incoming.userId, next, tick, outbound, persistByUser);
+    handleValidated(parsed, incoming.userId, next, tick, outbound, persistByUser, combatEvents);
   }
 
   simulateMovement(next, 1 / MATCH_TICK_RATE);
+  simulateCombatants(next, tick, 1 / MATCH_TICK_RATE, MATCH_TICK_RATE, combatEvents);
+  pushCombatEvents(outbound, tick, combatEvents);
 
   if (playerCount(next) === 0) {
     next.emptyTicks = next.emptyTicks + 1;
@@ -103,6 +109,7 @@ function handleValidated(
   tick: number,
   outbound: MatchOutbound[],
   persistByUser: { [userId: string]: QuestLog },
+  combatEvents: CombatEvent[],
 ): void {
   if (parsed.opcode === ClientOpcode.RESYNC_REQUEST) {
     outbound.push({
@@ -122,6 +129,10 @@ function handleValidated(
   }
   if (parsed.opcode === ClientOpcode.QUEST_ACCEPT) {
     handleQuestAccept(parsed, userId, state, outbound, persistByUser);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.ATTACK) {
+    handleAttack(parsed, userId, state, tick, outbound, combatEvents);
     return;
   }
   const result = actionResult("not_implemented", false, parsed.requestId);
@@ -191,6 +202,67 @@ function handleQuestAccept(
     );
     outbound.push({ opcode: quests.opcode, body: quests.body, toUserId: userId });
   }
+}
+
+function handleAttack(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  tick: number,
+  outbound: MatchOutbound[],
+  combatEvents: CombatEvent[],
+): void {
+  const decision = applyPlayerAttack(
+    {
+      player: state.players[userId],
+      targetId: parsed.fields.targetId,
+      requestId: parsed.requestId as string,
+      tick: tick,
+      enemies: state.enemies,
+      attack: state.playerAttack,
+      attackRange: state.playerAttackRange,
+      attackCooldownSec: state.playerAttackCooldownSec,
+      tickRate: MATCH_TICK_RATE,
+    },
+    combatEvents,
+  );
+  const result = actionResult(decision.code, decision.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+}
+
+function pushCombatEvents(outbound: MatchOutbound[], tick: number, events: CombatEvent[]): void {
+  if (events.length === 0) {
+    return;
+  }
+  const payload: { [key: string]: unknown }[] = [];
+  for (let i = 0; i < events.length; i++) {
+    const event = events[i];
+    const row: { [key: string]: unknown } = {
+      type: event.type,
+      sourceId: event.sourceId,
+      sourceKind: event.sourceKind,
+      targetId: event.targetId,
+      targetKind: event.targetKind,
+    };
+    if (event.damage !== undefined) {
+      row.damage = event.damage;
+    }
+    if (event.remainingHealth !== undefined) {
+      row.remainingHealth = event.remainingHealth;
+    }
+    if (event.x !== undefined) {
+      row.x = event.x;
+    }
+    if (event.y !== undefined) {
+      row.y = event.y;
+    }
+    if (event.respawnDelaySec !== undefined) {
+      row.respawnDelaySec = event.respawnDelaySec;
+    }
+    payload.push(row);
+  }
+  const message = combatEvent(tick, payload);
+  outbound.push({ opcode: message.opcode, body: message.body });
 }
 
 function applyInput(state: StarterZoneState, userId: string, seq: number, axisX: number, axisY: number): void {

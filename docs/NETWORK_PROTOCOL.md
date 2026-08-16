@@ -32,7 +32,7 @@ Match and RPC payloads for the slice are JSON objects.
 | --- | --- | --- | --- |
 | 1 | `INPUT` | `{ protocolVersion, seq, axisX, axisY }` | Direction and sequence only. `seq` is a finite integer. Axes are finite numbers. Position, speed, and dt are rejected. |
 | 2 | `INTERACT` | `{ protocolVersion, targetId, requestId }` | Correlation `requestId` required. Server checks NPC existence, server-side distance vs `player.base.interactionRange`, and live health. Returns `INTERACTION_RESULT`. |
-| 3 | `ATTACK` | `{ protocolVersion, targetId }` | Returns `ACTION_RESULT` `not_implemented`. |
+| 3 | `ATTACK` | `{ protocolVersion, targetId, requestId }` | Correlation `requestId` required. Server checks live health, enemy existence, range vs `player.base.attackRange`, and cooldown vs `player.base.attackCooldown`. Damage is always `player.base.attack`. Returns `ACTION_RESULT` plus `COMBAT_EVENT` on a hit. |
 | 4 | `PICKUP` | `{ protocolVersion, lootId, requestId }` | Reward opcode. `requestId` required. |
 | 5 | `EQUIP` | `{ protocolVersion, itemId, slot? }` | Returns `ACTION_RESULT` `not_implemented`. |
 | 6 | `QUEST_ACCEPT` | `{ protocolVersion, questId, requestId }` | Reward opcode. `requestId` required. Validates quest ID and elder range, creates accepted state once, persists, returns `ACTION_RESULT` plus `QUEST_STATE`. |
@@ -48,22 +48,22 @@ Match and RPC payloads for the slice are JSON objects.
 | Opcode | Name | Body |
 | --- | --- | --- |
 | 101 | `FULL_STATE` | `{ protocolVersion, contentHash, tick, zoneId, selfId, players, npcs, enemies, loot, quests }` |
-| 102 | `SNAPSHOT` | `{ protocolVersion, contentHash, tick, zoneId, players }` |
+| 102 | `SNAPSHOT` | `{ protocolVersion, contentHash, tick, zoneId, players, enemies }` |
 | 103 | `ACTION_RESULT` | `{ protocolVersion, ok, code, requestId? }` |
-| 104 | `COMBAT_EVENT` | reserved; unused in this phase |
+| 104 | `COMBAT_EVENT` | `{ protocolVersion, tick, events }` |
 | 105 | `INVENTORY_STATE` | reserved; unused in this phase |
 | 106 | `QUEST_STATE` | `{ protocolVersion, contentHash, requestId?, quests }` |
 | 107 | `INTERACTION_RESULT` | `{ protocolVersion, ok, code, requestId?, targetId? }` |
 | 108 | `SYSTEM_MESSAGE` | `{ protocolVersion, code, message }` |
 
-`FULL_STATE` is sent to the joining presence after character and quest storage load, and again on `RESYNC_REQUEST`. Occupied matches broadcast `SNAPSHOT` every tick (10 Hz). Each player record includes `x`, `y`, and `lastProcessedSeq` so the local client can ack input. `quests` on `FULL_STATE` is the recipient's quest log only. A client that receives no snapshot or full state for **2 seconds** freezes remote interpolation and shows a degraded-connection state (`snapshot_timeout`). Local prediction still reconciles when snapshots resume. There is no combat. Dialogue opens only after `INTERACTION_RESULT` `ok`.
+`FULL_STATE` is sent to the joining presence after character and quest storage load, and again on `RESYNC_REQUEST`. Occupied matches broadcast `SNAPSHOT` every tick (10 Hz) with player poses and the shared slime's pose, health, `alive`, and `state`. Each player record includes `x`, `y`, `health`, `maxHealth`, `alive`, and `lastProcessedSeq`. `quests` on `FULL_STATE` is the recipient's quest log only. A client that receives no snapshot or full state for **2 seconds** freezes remote interpolation and shows a degraded-connection state (`snapshot_timeout`). Local prediction still reconciles when snapshots resume. Dialogue opens only after `INTERACTION_RESULT` `ok`. `COMBAT_EVENT.events` entries are `{ type, sourceId, sourceKind, targetId, targetKind, damage?, remainingHealth?, x?, y?, respawnDelaySec? }` with `type` `hit`, `death`, or `respawn`. Damage numbers are presentation only.
 
 ## Client sends intentions only
 
 Legal client messages name what the player **wants to try**:
 
 - move intent (direction or target point — never a final authoritative transform)
-- attack intent (target ID)
+- attack intent (target ID and `requestId` — never a damage or health value)
 - interact / loot / equip / dialogue-choice intents
 
 Illegal client messages (must be rejected if they appear):
@@ -85,7 +85,7 @@ Prediction is client presentation only. `INPUT` still carries direction and sequ
 2. Replays remaining commands from the server pose.
 3. Leaves the display pose if error ≤ 0.5 px, blends toward the replayed pose if error ≤ 24 px, and snaps if error is larger.
 
-Remote entities are sampled from one snapshot buffer (max 8 frames) keyed `kind:id`. The render tick is an estimated server tick (`latest + time since that snapshot / 0.1`) minus one snapshot, clamped to the latest received tick so sampling stays between frames and never extrapolates. After 2 seconds without a snapshot the buffer freezes and the HUD reports a degraded connection. There is no combat or interaction prediction.
+Remote entities are sampled from one snapshot buffer (max 8 frames) keyed `kind:id`. The render tick is an estimated server tick (`latest + time since that snapshot / 0.1`) minus one snapshot, clamped to the latest received tick so sampling stays between frames and never extrapolates. After 2 seconds without a snapshot the buffer freezes and the HUD reports a degraded connection. Enemy poses and health come from `SNAPSHOT`; the client does not run slime AI. There is no combat prediction.
 
 ## Unique request ID on rewarded actions
 
@@ -95,9 +95,9 @@ Any action that can grant loot, quest rewards, or currency **must** include a cl
 - Replays of the same `requestId` return the original result and must not mutate inventory or wallet again.
 - Missing or malformed `requestId` is rejected as `invalid_request_id`.
 
-`INTERACT` also requires `requestId` so the client can match `INTERACTION_RESULT` before opening dialogue. It is not a loot grant.
+`INTERACT` also requires `requestId` so the client can match `INTERACTION_RESULT` before opening dialogue. It is not a loot grant. `ATTACK` requires `requestId` so a replay of the same id cannot apply damage twice. Missing or malformed `requestId` is `invalid_request_id`.
 
-`PICKUP` and `QUEST_TURN_IN` are defined but not applied in this phase (`not_implemented`). `QUEST_ACCEPT` is applied: first success stores accepted progress (`current` 0) and the `requestId`; a replay of the same `requestId` returns `accepted` without writing again; a later `requestId` for the same quest returns `already_accepted` and the current log. Client-supplied `status`, `questComplete`, or reward fields are rejected.
+`PICKUP` and `QUEST_TURN_IN` are defined but not applied in this phase (`not_implemented`). `QUEST_ACCEPT` is applied: first success stores accepted progress (`current` 0) and the `requestId`; a replay of the same `requestId` returns `accepted` without writing again; a later `requestId` for the same quest returns `already_accepted` and the current log. Client-supplied `status`, `questComplete`, or reward fields are rejected. `ATTACK` is applied: codes `ok`, `out_of_range`, `on_cooldown`, `invalid_target`, `target_dead`, `player_dead`.
 
 ## Full-state resynchronization
 
@@ -118,7 +118,7 @@ The server rejects:
 - oversized payloads (2048 bytes for client→server match bodies)
 - wrong protocol version
 - wrong content hash
-- missing/malformed `requestId` on `INTERACT` and reward opcodes
+- missing/malformed `requestId` on `INTERACT`, `ATTACK`, and reward opcodes
 
 Rejections are typed (`unknown_opcode`, `malformed_json`, `unknown_field`, `invalid_id`, `protocol_mismatch`, `content_mismatch`, `payload_too_large`, `unauthenticated`, `invalid_name`, `stat_injection`, `invalid_request_id`, `match_full`, `already_in_match`, `character_missing`, `empty_message`, `message_too_long`, `invalid_payload`, `invalid_channel`). They are logged without tokens or personal data. They are sent as `SYSTEM_MESSAGE` (or join reject) and never crash the match.
 
@@ -142,6 +142,7 @@ Authenticated HTTP/RPC only. Payload is empty or `{}`. Returns `{ matchId, zoneI
 - A second socket for an account already in the match is rejected with `already_in_match`. True reconnect of the same session is allowed. The same account cannot occupy two presences.
 - Players spawn at their saved position, or the zone default if that is what was stored
 - Movement uses content `moveSpeed`, server `dt`, zone `walkableBounds`, and zone `collisions`. Client position is never accepted
+- One shared `enemy.green_slime:0` is simulated in the match. Snapshots include its pose, health, and AI state. Player death restores health at `zone.starter.playerSpawn` after 3 seconds. Slime death restores it at its spawn after `respawnDelay` (10 seconds). There is no loot drop.
 
 ## Starter-zone room chat
 

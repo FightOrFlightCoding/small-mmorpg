@@ -38,6 +38,11 @@ layout_mode = 2
 text = "Present:"
 autowrap_mode = 3
 
+[node name="Health" type="Label" parent="Root/Margin/VBox"]
+layout_mode = 2
+text = "You: --    Slime: --"
+autowrap_mode = 3
+
 [node name="Buttons" type="HBoxContainer" parent="Root/Margin/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 12
@@ -80,4 +85,21 @@ text = "Quest"
 layout_mode = 2
 text = "No active quest."
 autowrap_mode = 3
+
+[node name="Death" type="Label" parent="Root"]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -180.0
+offset_top = -24.0
+offset_right = 180.0
+offset_bottom = 24.0
+theme_override_colors/font_color = Color(0.95, 0.32, 0.28, 1)
+theme_override_font_sizes/font_size = 22
+text = "Defeated. Respawning..."
+horizontal_alignment = 1
 

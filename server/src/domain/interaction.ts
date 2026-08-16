@@ -1,3 +1,7 @@
+import { distance } from "./movement";
+
+export { distance };
+
 export interface InteractionNpc {
   id: string;
   npcId: string;
@@ -17,12 +21,6 @@ export interface InteractionInput {
 export interface InteractionDecision {
   ok: boolean;
   code: string;
-}
-
-export function distance(ax: number, ay: number, bx: number, by: number): number {
-  const dx = ax - bx;
-  const dy = ay - by;
-  return Math.sqrt(dx * dx + dy * dy);
 }
 
 export function findNpc(npcs: ReadonlyArray<InteractionNpc>, targetId: string): InteractionNpc | null {

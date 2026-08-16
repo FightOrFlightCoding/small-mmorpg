@@ -18,6 +18,11 @@ var _to: Vector2 = Vector2.ZERO
 var _interp_t: float = 0.0
 var _interp_duration: float = 0.1
 var _interpolating: bool = false
+var _health: int = 0
+var _max_health: int = 1
+var _alive: bool = true
+var _health_back: ColorRect
+var _health_fill: ColorRect
 
 @onready var _sprite: Sprite2D = $Sprite
 @onready var _body: Polygon2D = $Body
@@ -49,6 +54,21 @@ func configure(p_kind: String, p_server_id: String, p_name: String, visual: Dict
 		_label.text = "%s (you)" % p_name
 	modulate = Color.WHITE
 	z_index = _z_for_kind(p_kind, p_local)
+	if p_kind == "player" or p_kind == "enemy":
+		_ensure_health_bar()
+
+
+func set_vitals(health: int, max_health: int, alive: bool) -> void:
+	_health = health
+	_max_health = maxi(1, max_health)
+	_alive = alive and health > 0
+	if kind == "player" or kind == "enemy":
+		_ensure_health_bar()
+		_refresh_health_bar()
+	if _alive:
+		modulate = Color.WHITE
+	else:
+		modulate = Color(0.45, 0.45, 0.5, 0.7)
 
 
 func set_server_position(x: float, y: float) -> void:
@@ -125,3 +145,36 @@ func _tint_for_player(p_name: String, p_local: bool) -> Color:
 	if p_local:
 		return base.lightened(0.08)
 	return base
+
+
+func _ensure_health_bar() -> void:
+	if _health_back != null:
+		return
+	_health_back = ColorRect.new()
+	_health_back.name = "HealthBack"
+	_health_back.size = Vector2(24, 3)
+	_health_back.position = Vector2(-12, -18)
+	_health_back.color = Color(0.08, 0.08, 0.08, 0.8)
+	_health_back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_health_back)
+	_health_fill = ColorRect.new()
+	_health_fill.name = "HealthFill"
+	_health_fill.size = Vector2(24, 3)
+	_health_fill.position = Vector2.ZERO
+	_health_fill.color = Color(0.28, 0.78, 0.32, 1)
+	_health_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_health_back.add_child(_health_fill)
+
+
+func _refresh_health_bar() -> void:
+	if _health_back == null or _health_fill == null:
+		return
+	_health_back.visible = true
+	var ratio := clampf(float(_health) / float(_max_health), 0.0, 1.0)
+	_health_fill.size = Vector2(24.0 * ratio, 3.0)
+	if kind == "enemy":
+		_health_fill.color = Color(0.86, 0.28, 0.22, 1)
+	elif is_local:
+		_health_fill.color = Color(0.32, 0.82, 0.38, 1)
+	else:
+		_health_fill.color = Color(0.28, 0.62, 0.9, 1)
