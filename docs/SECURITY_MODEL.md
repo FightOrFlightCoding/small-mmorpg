@@ -74,7 +74,7 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Attack:** Huge JSON to stall the runtime.
 
-**Defense:** Nakama socket limits plus application max payload size. Oversize is rejected before domain apply. Zone chat messages longer than 200 characters are rejected by a realtime before hook.
+**Defense:** Nakama socket limits plus application max payload size (**2048** bytes for client→server match bodies). Oversize is rejected before domain apply. Each player is also limited to **24** parsed match messages per tick and the documented per-action windows. Zone chat messages longer than 200 characters are rejected by a realtime before hook.
 
 ### Chat injection and markup
 
@@ -94,10 +94,44 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Defense:** The RPC is strict. Only optional `name` is accepted. Stat and position fields return `stat_injection`. Created records use `player.base` and `zone.starter` spawn. Storage writes use `permissionWrite: 0`.
 
+### Rate-limit abuse
+
+**Attack:** Flood `INPUT`, `ATTACK`, `INTERACT`, `PICKUP`, `EQUIP`, quest opcodes, or `RESYNC_REQUEST` faster than an honest client.
+
+**Defense:** Match state stores per-user `actionRates` for a 10-tick window. Excess is `rate_limited`, logged, and not applied. Honest 10 Hz movement stays under the `INPUT` cap of 20/s.
+
 ## Client local storage
 
 The Godot client must not write canonical inventory, equipment, quest, currency, health, or position records to `user://` or other local files. `AppState` is in-memory presentation/session flags only. Persistence is Nakama storage and wallet, written by the server. Session tokens stay in memory; reconnect uses refresh then device reauthentication.
 
 ## Logging
 
-Structured logs may include opcode, rejection reason, user ID, match ID, and `requestId`. They must not include session tokens, passwords, device identifiers beyond Nakama’s own account ID, or raw full untrusted payloads when oversized.
+Structured logs may include opcode, rejection reason, user ID, match ID, and `requestId`. Match rejections use `match_action rejected user_id=… action=… reason=… tick=…`. They must not include session tokens, passwords, device identifiers beyond Nakama’s own account ID, or raw full untrusted payloads when oversized.
+
+## Attack mapping
+
+Every expected attack maps to a validation rule, an automated test, and a safe server response:
+
+| Attack | Rule | Test | Response |
+| --- | --- | --- | --- |
+| Position spoofing | `INPUT` is axes+seq only; `x`/`y` are `stat_injection` | `server/tests/security.test.ts`, `protocol.test.ts`, `movement.test.ts` | `SYSTEM_MESSAGE` `stat_injection:x`; pose unchanged |
+| Speed hacking | Server dt and `moveSpeed`; extra axis magnitude clamped | `movement.test.ts`, `security.test.ts` | Applied speed matches a unit vector |
+| Damage spoofing | `ATTACK` is `targetId`+`requestId`; `damage` rejected | `combat.test.ts`, `protocol.test.ts`, `security.test.ts` | `stat_injection:damage`; HP uses server attack |
+| Cooldown bypassing | Server `lastAttackTick` vs `attackCooldown` | `combat.test.ts`, `security.test.ts` | `ACTION_RESULT` `on_cooldown` |
+| Item injection | No grant opcode; `instanceId` on `PICKUP` rejected; storage `permissionWrite: 0` | `protocol.test.ts`, `inventory.test.ts`, `security.test.ts` | `unknown_opcode` / `stat_injection:instanceId` |
+| Equipment spoofing | Own instance, equippable `main_hand`, server derived attack | `equipment.test.ts`, `security.test.ts` | `unowned` / `not_equippable` / `stat_injection:attack` |
+| Duplicate pickup | First success despawns loot; same `requestId` replays | `inventory.test.ts`, `security.test.ts` | Second apply `ok` without a second grant |
+| Duplicate reward | `requestId` idempotency on pickup, equip, quest | `inventory.test.ts`, `quest.test.ts`, `quest_reward.test.ts`, `security.test.ts` | Replay `ok`/`accepted`; no second mutate |
+| Quest skipping | Turn-in requires accepted stage, NPC, range, items | `quest_reward.test.ts`, `security.test.ts` | `invalid_id` / `incomplete_objective`; gold unchanged |
+| Client quest progress | `status` / `questComplete` / `gold` rejected | `protocol.test.ts`, `security.test.ts` | `unknown_field` / `stat_injection:questComplete` |
+| Fabricated NPC interaction | Server range and live health | `interaction.test.ts` | `out_of_range` / `invalid_target` / `player_dead` |
+| Invalid target IDs | Match entity + content indexes | `combat.test.ts`, `inventory.test.ts`, `interaction.test.ts`, `security.test.ts` | `invalid_target` / `invalid_id`; match continues |
+| Oversized payloads | 2048-byte client match cap; 24 messages/tick | `protocol.test.ts`, `security.test.ts` | `payload_too_large` / `rate_limited` |
+| Chat injection | Before-hook JSON `{message}`; Label render, no BBCode | `chat.test.ts`, `chat_client_test.gd`, `security.test.ts` | `message_too_long` / `invalid_payload`; markup is plain text |
+| Protocol-version mismatch | Envelope version checked first | `protocol.test.ts`, `match.test.ts` | `protocol_mismatch`; no apply |
+| Character stat injection | Bootstrap accepts optional `name` only | `character.test.ts` | `stat_injection`; `permissionWrite: 0` |
+| Stale movement sequence | `seq <= lastProcessedSeq` ignored | `movement.test.ts`, `security.test.ts` | Pose unchanged |
+| Excessive movement / resync | Per-player `actionRates` in match state | `security.test.ts` | `rate_limited`; extra seq/full states dropped |
+| Dead-player actions | Health checked before move/attack/interact/loot/equip | `combat.test.ts`, `interaction.test.ts`, `inventory.test.ts`, `equipment.test.ts`, `security.test.ts` | `player_dead`; no mutate |
+| Malformed JSON / unknown opcode / unknown fields / NaN / missing fields | Strict `parseClientMessage` | `protocol.test.ts`, `match.test.ts`, `security.test.ts` fixtures | `SYSTEM_MESSAGE`; match does not crash |
+

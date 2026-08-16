@@ -1,5 +1,6 @@
 import {
   ClientOpcode,
+  ServerOpcode,
   actionResult,
   combatEvent,
   equipmentState,
@@ -52,6 +53,13 @@ import {
   prunePlayerRequestHistory,
   type PositionCheckpoint,
 } from "./persistence";
+import {
+  MAX_MESSAGES_PER_PLAYER_PER_TICK,
+  actionForOpcode,
+  consumeActionRate,
+  type RateAction,
+} from "./rate_limit";
+import { type RejectedAction } from "./security_log";
 
 export interface MatchOutbound {
   opcode: number;
@@ -89,6 +97,7 @@ export interface MatchLoopResult {
   persistEquipment: EquipmentPersist[];
   persistRewards: RewardPersist[];
   persistCheckpoints: PositionCheckpoint[];
+  rejections: RejectedAction[];
 }
 
 export interface IncomingMatchData {
@@ -106,6 +115,9 @@ export function applyMatchLoop(
   commitReward?: RewardCommitter,
 ): MatchLoopResult {
   const outbound: MatchOutbound[] = [];
+  const rejections: RejectedAction[] = [];
+  const messagesThisTick: { [userId: string]: number } = {};
+  const rateNotified: { [key: string]: boolean } = {};
   const next = cloneStarterZoneState(state);
   const persistByUser: { [userId: string]: QuestLog } = {};
   const persistInventoryByUser: { [userId: string]: PlayerInventory } = {};
@@ -118,12 +130,25 @@ export function applyMatchLoop(
 
   for (let i = 0; i < messages.length; i++) {
     const incoming = messages[i];
+    const seen = messagesThisTick[incoming.userId] !== undefined ? messagesThisTick[incoming.userId] : 0;
+    if (seen >= MAX_MESSAGES_PER_PLAYER_PER_TICK) {
+      notifyRateLimited(incoming.userId, "unknown", tick, outbound, rejections, rateNotified);
+      continue;
+    }
+    messagesThisTick[incoming.userId] = seen + 1;
     const parsed = parseClientMessage(incoming.opcode, incoming.raw, expectedContentHash);
+    const action = actionForOpcode(incoming.opcode);
     if (isProtocolError(parsed)) {
       const sys = systemMessage(parsed.code, parsed.message);
       outbound.push({ opcode: sys.opcode, body: sys.body, toUserId: incoming.userId });
+      rejections.push({ userId: incoming.userId, action: action, code: parsed.code, tick: tick });
       continue;
     }
+    if (!consumeActionRate(next.actionRates, incoming.userId, action, tick)) {
+      notifyRateLimited(incoming.userId, action, tick, outbound, rejections, rateNotified);
+      continue;
+    }
+    const outboundBefore = outbound.length;
     handleValidated(
       parsed,
       incoming.userId,
@@ -139,6 +164,7 @@ export function applyMatchLoop(
       makeId,
       commitReward,
     );
+    collectFailedApplies(outbound, outboundBefore, incoming.userId, action, tick, rejections);
   }
 
   simulateMovement(next, 1 / MATCH_TICK_RATE);
@@ -200,7 +226,51 @@ export function applyMatchLoop(
     persistEquipment: persistEquipment,
     persistRewards: persistRewards,
     persistCheckpoints: persistCheckpoints,
+    rejections: rejections,
   };
+}
+
+function notifyRateLimited(
+  userId: string,
+  action: RateAction,
+  tick: number,
+  outbound: MatchOutbound[],
+  rejections: RejectedAction[],
+  rateNotified: { [key: string]: boolean },
+): void {
+  const key = userId + ":" + action;
+  if (rateNotified[key] === true) {
+    return;
+  }
+  rateNotified[key] = true;
+  const sys = systemMessage("rate_limited", "Too many " + action + " requests.");
+  outbound.push({ opcode: sys.opcode, body: sys.body, toUserId: userId });
+  rejections.push({ userId: userId, action: action, code: "rate_limited", tick: tick });
+}
+
+function collectFailedApplies(
+  outbound: MatchOutbound[],
+  startIndex: number,
+  userId: string,
+  action: RateAction,
+  tick: number,
+  rejections: RejectedAction[],
+): void {
+  for (let i = startIndex; i < outbound.length; i++) {
+    const message = outbound[i];
+    if (message.opcode !== ServerOpcode.ACTION_RESULT && message.opcode !== ServerOpcode.INTERACTION_RESULT) {
+      continue;
+    }
+    let parsed: { ok?: unknown; code?: unknown };
+    try {
+      parsed = JSON.parse(message.body) as { ok?: unknown; code?: unknown };
+    } catch {
+      continue;
+    }
+    if (parsed.ok === false && typeof parsed.code === "string") {
+      rejections.push({ userId: userId, action: action, code: parsed.code, tick: tick });
+    }
+  }
 }
 
 function handleValidated(

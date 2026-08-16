@@ -225,3 +225,9 @@ Nakama JSON-roundtrips match state between handlers. Empty objects such as `disc
 
 Local Nakama `socket.max_message_size_bytes` is **32768** so `FULL_STATE` with inventory, equipment, quests, and wallet cannot drop the websocket.
 
+## 2026-08-16 — Security and abuse test pass
+
+No gameplay was added. Per-player match-action counters live on `StarterZoneState.actionRates` (cloned with match state, never as TypeScript globals). A 10-tick window allows 20 `INPUT`, 8 attack/interact/pickup/equip/quest actions, and 2 resyncs. The match also parses at most 24 messages per player per tick. Excess is `rate_limited`. Honest 10 Hz movement is unchanged.
+
+Rejected match actions are logged as `match_action rejected user_id=… action=… reason=… tick=…` without tokens, device credentials, or raw payloads. `docs/SECURITY_MODEL.md` maps each documented attack to a validation rule, a test, and a safe response. Malformed-message fixtures live in `server/tests/fixtures/malformed_messages.ts`.
+

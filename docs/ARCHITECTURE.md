@@ -35,7 +35,7 @@ It must:
 - Authenticate the player and load persistent state on join.
 - Host **one** authoritative match for the starter zone.
 - Simulate movement collision, combat, cooldowns, enemy behavior, loot, inventory, equipment, quests, and currency.
-- Validate every external payload. Reject unknown opcodes, strict unknown fields, malformed JSON, invalid IDs, oversized messages, and protocol-version mismatch.
+- Validate every external payload. Reject unknown opcodes, strict unknown fields, malformed JSON, invalid IDs, oversized messages, protocol-version mismatch, and rate-limited floods.
 - Reject empty, oversized, and malformed zone-chat payloads in a realtime before hook.
 - Apply rewarded actions idempotently using a unique client `requestId`.
 - Broadcast snapshots and support full-state resynchronization.

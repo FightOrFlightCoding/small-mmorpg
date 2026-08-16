@@ -18,6 +18,7 @@ import {
 } from "./equipment";
 import { cloneLoot, publicLoot, type LootDrop, type MatchLoot } from "./loot";
 import { dict } from "./maps";
+import { cloneActionRates, emptyActionRates, type PlayerActionRate } from "./rate_limit";
 import { publicWallet } from "./wallet";
 
 export type { MatchLoot };
@@ -125,6 +126,7 @@ export interface StarterZoneState {
   questsById: { [id: string]: QuestDefinition };
   itemsById: { [id: string]: ItemDefinition };
   enemyLootById: { [id: string]: LootDrop[] };
+  actionRates: { [userId: string]: PlayerActionRate };
 }
 
 export interface ZoneSpawnContent {
@@ -268,6 +270,7 @@ export function createStarterZoneState(
     questsById: questsById,
     itemsById: itemsById,
     enemyLootById: enemyLootById,
+    actionRates: emptyActionRates(),
   };
 }
 
@@ -504,6 +507,7 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     questsById: dict(state.questsById),
     itemsById: dict(state.itemsById),
     enemyLootById: dict(state.enemyLootById),
+    actionRates: cloneActionRates(state.actionRates),
   };
 }
 

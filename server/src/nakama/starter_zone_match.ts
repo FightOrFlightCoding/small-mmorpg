@@ -292,6 +292,16 @@ export function matchLoop(
     logger.info("starter_zone persist equipment user_id=%s", persist.userId);
   }
   writeCheckpoints(nk, logger, result.persistCheckpoints);
+  for (let r = 0; r < result.rejections.length; r++) {
+    const rejected = result.rejections[r];
+    logger.info(
+      "match_action rejected user_id=%s action=%s reason=%s tick=%s",
+      rejected.userId,
+      rejected.action,
+      rejected.code,
+      String(rejected.tick),
+    );
+  }
   for (let i = 0; i < result.outbound.length; i++) {
     const out = result.outbound[i];
     const targets = resolveTargets(state.presences, out.toUserId, out.broadcastOthersFrom);
@@ -345,6 +355,7 @@ function hydrateRuntime(state: StarterMatchRuntimeState): StarterMatchRuntimeSta
   const zone = state.zone;
   zone.players = dict(zone.players);
   zone.disconnected = dict(zone.disconnected);
+  zone.actionRates = dict(zone.actionRates);
   return {
     zone: zone,
     presences: dict(state.presences),

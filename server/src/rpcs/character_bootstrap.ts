@@ -35,7 +35,11 @@ export function rpcCharacterBootstrap(
     return JSON.stringify(response);
   } catch (error) {
     const message = error instanceof Error ? error.message : "internal_error";
-    logger.error("character_bootstrap rejected reason=%s", message);
+    logger.error(
+      "character_bootstrap rejected user_id=%s action=character_bootstrap reason=%s",
+      ctx.userId !== undefined ? ctx.userId : "",
+      message,
+    );
     throw error;
   }
 }

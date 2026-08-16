@@ -45,7 +45,11 @@ export function rpcFindOrCreateStarterZone(
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "internal_error";
-    logger.error("find_or_create_starter_zone rejected reason=%s", message);
+    logger.error(
+      "find_or_create_starter_zone rejected user_id=%s action=find_or_create_starter_zone reason=%s",
+      ctx.userId !== undefined ? ctx.userId : "",
+      message,
+    );
     throw error;
   }
 }

@@ -22,6 +22,7 @@ Match and RPC payloads for the slice are JSON objects.
 - Envelopes are UTF-8 JSON.
 - Strict client intentions reject unknown fields.
 - Client→server match payloads are rejected above **2048** bytes (`payload_too_large`).
+- Per-player action windows live on match state (`actionRates`) and reset every **10 ticks** (1 second at 10 Hz). Limits: `INPUT` **20**, `ATTACK` **8**, `INTERACT` **8**, `PICKUP` **8**, `EQUIP` **8**, `QUEST_ACCEPT`+`QUEST_TURN_IN` **8**, `RESYNC_REQUEST` **2**. Extra requests are `rate_limited` (`SYSTEM_MESSAGE`), are logged, and do not apply. At most **24** match messages are parsed per player per tick.
 - `FULL_STATE` / `SNAPSHOT` require the documented fields. `SNAPSHOT` is broadcast at **10 Hz** (the match tick rate) while the zone is occupied.
 
 ## Opcodes
@@ -118,11 +119,12 @@ The server rejects:
 - malformed JSON
 - invalid content or entity IDs
 - oversized payloads (2048 bytes for client→server match bodies)
+- rate-limited match actions (`rate_limited`)
 - wrong protocol version
 - wrong content hash
 - missing/malformed `requestId` on `INTERACT`, `ATTACK`, `EQUIP`, and reward opcodes
 
-Rejections are typed (`unknown_opcode`, `malformed_json`, `unknown_field`, `invalid_id`, `protocol_mismatch`, `content_mismatch`, `payload_too_large`, `unauthenticated`, `invalid_name`, `stat_injection`, `invalid_request_id`, `match_full`, `already_in_match`, `character_missing`, `empty_message`, `message_too_long`, `invalid_payload`, `invalid_channel`). They are logged without tokens or personal data. They are sent as `SYSTEM_MESSAGE` (or join reject) and never crash the match.
+Rejections are typed (`unknown_opcode`, `malformed_json`, `unknown_field`, `invalid_id`, `protocol_mismatch`, `content_mismatch`, `payload_too_large`, `rate_limited`, `unauthenticated`, `invalid_name`, `stat_injection`, `invalid_request_id`, `match_full`, `already_in_match`, `character_missing`, `empty_message`, `message_too_long`, `invalid_payload`, `invalid_channel`). They are logged as `match_action rejected user_id=… action=… reason=… tick=…` without tokens, device credentials, or raw private payloads. They are sent as `SYSTEM_MESSAGE` or `ACTION_RESULT` / `INTERACTION_RESULT` (or join reject) and never crash the match.
 
 ## RPC `character_bootstrap`
 
@@ -143,6 +145,7 @@ Authenticated HTTP/RPC only. Payload is empty or `{}`. Returns `{ matchId, zoneI
 - Join metadata must include matching `protocolVersion` and `contentHash`
 - A second socket for an account already in the match is rejected with `already_in_match`. True reconnect of the same session is allowed. After leave, a new session may rejoin: within **5 seconds** the match restores live pose and health from grace memory; after that, or after a new match, it loads the checkpointed position and full health. If a live player record remains but the presence is already gone, join is treated as reconnect rather than `already_in_match`. The same account cannot occupy two visible presences. Snapshots omit disconnected players immediately.
 - Abandoned pickup, equip, and quest `requestId` history is pruned after **10 minutes** (`6000` ticks) and is not scanned every tick.
+- Per-player action counters live in match state and enforce the documented 1-second windows. They are not TypeScript globals.
 - Players spawn at their saved position, or the zone default if that is what was stored
 - Movement uses content `moveSpeed`, server `dt`, zone `walkableBounds`, and zone `collisions`. Client position is never accepted
 - One shared `enemy.green_slime:0` is simulated in the match. Snapshots include its pose, health, and AI state. Player death restores health at `zone.starter.playerSpawn` after 3 seconds. Slime death restores it at its spawn after `respawnDelay` (10 seconds) and creates one transient `item.slime_gel` loot entity at the death pose. That loot expires after 30 seconds.

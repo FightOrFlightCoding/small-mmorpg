@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Persistence, disconnect, and reconnection**.
+Last accepted phase: **Security and abuse test pass**.
 
 Current phase: none.
 
@@ -253,5 +253,22 @@ powershell -File ..\scripts\run-client-shell.ps1
 ```
 
 Local play: start the stack, walk away from spawn, pick up loot, equip, accept or complete the quest. Close the client and reopen with the same `-- --dev-user=`. Position, inventory, equipment, quest, and gold should restore. A second client should stop seeing the disconnected avatar immediately. Kill the Godot process mid-session: the ghost should disappear and reconnect should not duplicate entities. Restart Nakama after this build so the persistence runtime loads; after restart, character data should survive while slime, loot, and cooldowns reset.
+
+## Security and abuse test pass (2026-08-16)
+
+No gameplay was added. Strict `parseClientMessage` still rejects malformed JSON, missing required fields, unknown fields, unknown opcodes, wrong protocol version, wrong content hash, NaN/Infinity, oversized bodies, fabricated position, client damage/stats, item-instance injection, and quest-progress injection. Match apply still ignores stale `seq`, clamps speed, enforces cooldown and range, blocks dead-player actions, unknown IDs, unowned equip, quest skip, duplicate pickup/reward, and oversized chat.
+
+Per-player `actionRates` live on match state (not TypeScript globals) with a 10-tick window: `INPUT` 20, attack/interact/pickup/equip/quest 8, `RESYNC_REQUEST` 2, plus 24 parsed messages per player per tick. Excess is `rate_limited` and is not applied. Honest 10 Hz movement stays under the cap. Rejected match actions log `match_action rejected user_id=… action=… reason=… tick=…` without tokens or payloads. `docs/SECURITY_MODEL.md` maps each documented attack to a rule, a test, and a safe response. Fixtures: `server/tests/fixtures/malformed_messages.ts`.
+
+Server `npm test` 161/161, `npm run typecheck`, and `npm run build` succeeded. Godot 4.7.1 imported `client/`, printed `SHELL_LOGIN`, and GdUnit4 ran `res://tests` with 119/119 passed (0 orphans). Existing movement, combat, loot, equip, quest, and persistence tests still pass.
+
+Reproduction:
+
+```powershell
+Set-Location server
+npm test
+npm run build
+powershell -File ..\scripts\run-client-shell.ps1
+```
 
 

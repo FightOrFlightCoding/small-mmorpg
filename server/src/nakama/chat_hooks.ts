@@ -10,7 +10,11 @@ export function beforeChannelMessageSend(
     return filterChannelMessageSend(envelope);
   } catch (error) {
     const reason = error instanceof Error ? error.message : "invalid_payload";
-    logger.error("channel_message_send rejected user_id=%s reason=%s", ctx.userId, reason);
+    logger.error(
+      "match_action rejected user_id=%s action=channel_message_send reason=%s tick=0",
+      ctx.userId,
+      reason,
+    );
     throw error;
   }
 }
@@ -25,7 +29,11 @@ export function beforeChannelJoin(
     return filterChannelJoin(envelope);
   } catch (error) {
     const reason = error instanceof Error ? error.message : "invalid_payload";
-    logger.error("channel_join rejected user_id=%s reason=%s", ctx.userId, reason);
+    logger.error(
+      "match_action rejected user_id=%s action=channel_join reason=%s tick=0",
+      ctx.userId,
+      reason,
+    );
     throw error;
   }
 }
