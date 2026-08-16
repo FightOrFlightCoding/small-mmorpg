@@ -1,0 +1,22 @@
+{
+  "id": "item.test_vanguard_mail",
+  "kind": "item",
+  "displayName": "Test Vanguard Mail",
+  "displayNameKey": "item.test_vanguard_mail.name",
+  "descriptionKey": "item.test_vanguard_mail.desc",
+  "visualId": "visual.item_vanguard_mail",
+  "iconAssetId": "visual.item_vanguard_mail",
+  "worldAssetId": "visual.item_vanguard_mail",
+  "category": "armor",
+  "maxStack": 1,
+  "tradeable": true,
+  "destroyable": true,
+  "uniquePolicy": "none",
+  "equipSlot": "chest",
+  "equipmentSlotTags": ["chest"],
+  "classRequirements": ["test.class.vanguard"],
+  "levelRequirement": 0,
+  "attackBonus": 0,
+  "statModifiers": [{ "statId": "test.stat.max_health", "amount": 8 }],
+  "sellValue": 4
+}

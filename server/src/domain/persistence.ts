@@ -278,8 +278,12 @@ function pruneInventoryHistory(inventory: PlayerInventory, tick: number): boolea
   inventory.pickupByRequestId = dict(inventory.pickupByRequestId);
   const keys = Object.keys(inventory.pickupByRequestId);
   const pruned = pruneKeyedHistory(keys, inventory.pickupRequestTicks, tick);
-  if (!pruned.changed) {
+  inventory.mutationByRequestId = dict(inventory.mutationByRequestId);
+  const mutationKeys = Object.keys(inventory.mutationByRequestId);
+  const mutationPruned = pruneKeyedHistory(mutationKeys, inventory.mutationRequestTicks, tick);
+  if (!pruned.changed && !mutationPruned.changed) {
     inventory.pickupRequestTicks = pruned.ticks;
+    inventory.mutationRequestTicks = mutationPruned.ticks;
     return false;
   }
   const next: PlayerInventory["pickupByRequestId"] = {};
@@ -291,6 +295,15 @@ function pruneInventoryHistory(inventory: PlayerInventory, tick: number): boolea
   }
   inventory.pickupByRequestId = next;
   inventory.pickupRequestTicks = pruned.ticks;
+  const nextMutations: NonNullable<PlayerInventory["mutationByRequestId"]> = {};
+  for (let m = 0; m < mutationKeys.length; m++) {
+    const key = mutationKeys[m];
+    if (mutationPruned.keep[key] === true && inventory.mutationByRequestId[key] !== undefined) {
+      nextMutations[key] = inventory.mutationByRequestId[key];
+    }
+  }
+  inventory.mutationByRequestId = nextMutations;
+  inventory.mutationRequestTicks = mutationPruned.ticks;
   return true;
 }
 

@@ -1,7 +1,7 @@
 import { distance, findNpc, type InteractionNpc } from "./interaction";
 import {
   addOrStackItem,
-  canAcceptItem,
+  acceptItemFailureCode,
   cloneInventory,
   consumeItem,
   countItem,
@@ -16,7 +16,7 @@ import {
   type QuestDefinition,
   type QuestLog,
 } from "./quest";
-import { WALLET_CURRENCY_GOLD } from "./wallet";
+import { applyGoldMutation, WALLET_CURRENCY_GOLD } from "./wallet";
 
 export interface QuestTurnInInput {
   playerHealth: number;
@@ -132,10 +132,15 @@ export function applyQuestTurnIn(input: QuestTurnInInput): QuestTurnInOutcome {
     if (itemDef === undefined) {
       return fail("invalid_id", log, inventory, input.gold);
     }
-    if (!canAcceptItem(nextInventory, reward.itemId, reward.quantity, itemDef)) {
-      return fail("inventory_full", log, inventory, input.gold);
+    const failCode = acceptItemFailureCode(nextInventory, reward.itemId, reward.quantity, itemDef);
+    if (failCode.length > 0) {
+      return fail(failCode, log, inventory, input.gold);
     }
-    nextInventory = addOrStackItem(nextInventory, reward.itemId, reward.quantity, input.newId(), itemDef);
+    nextInventory = addOrStackItem(nextInventory, reward.itemId, reward.quantity, input.newId(), itemDef, {
+      sourceType: "quest_reward",
+      sourceId: input.questId,
+      createdAt: 0,
+    });
   }
   progress.status = QUEST_STATUS_COMPLETED;
   log.turnInByRequestId[input.requestId] = "ok";
@@ -151,6 +156,18 @@ export function applyQuestTurnIn(input: QuestTurnInInput): QuestTurnInOutcome {
     log.turnInRequestTicks = ticks;
   }
   const goldDelta = definition.rewards.gold > 0 ? definition.rewards.gold : 0;
+  const gold = applyGoldMutation({
+    characterId: "",
+    currentGold: input.gold,
+    delta: goldDelta,
+    reasonType: "quest_reward",
+    reasonId: input.questId,
+    requestId: input.requestId,
+    metadata: rewardMetadata(input.questId, input.requestId, input.npcId, definition),
+  });
+  if (!gold.ok) {
+    return fail(gold.code, log, inventory, input.gold);
+  }
   return {
     ok: true,
     code: "ok",
@@ -158,9 +175,9 @@ export function applyQuestTurnIn(input: QuestTurnInInput): QuestTurnInOutcome {
     replay: false,
     log: log,
     inventory: nextInventory,
-    gold: input.gold + goldDelta,
-    goldDelta: goldDelta,
-    metadata: rewardMetadata(input.questId, input.requestId, input.npcId, definition),
+    gold: gold.resultingBalance,
+    goldDelta: gold.goldDelta,
+    metadata: gold.metadata,
   };
 }
 

@@ -85,6 +85,9 @@ test("valid source documents compile to a payload", () => {
   assert.ok(Object.keys(payload.derivedStats).length >= 1);
   assert.ok(Object.keys(payload.levelCurves).length >= 1);
   assert.ok(Object.keys(payload.classProgressions).length >= 2);
+  assert.ok(Object.keys(payload.equipmentSlots).length >= 6);
+  assert.equal(payload.items["item.training_sword"].category, "weapon");
+  assert.equal(payload.items["item.slime_gel"].destroyable, false);
   assert.equal(typeof payload.enemies["enemy.green_slime"].xpReward, "number");
   assert.equal(typeof payload.quests["quest.slime_problem"].rewards.xp, "number");
 });
@@ -116,9 +119,9 @@ test("invalid numerical ranges are rejected", () => {
 
 test("unknown equipment slots are rejected", () => {
   const docs = clone(loadValid());
-  find(docs, "item.training_sword")["equipSlot"] = "head";
+  find(docs, "item.training_sword")["equipSlot"] = "tail";
   const codes = codesOf(() => validateDocuments(SCHEMA_DIR, docs));
-  assert.ok(codes.indexOf("unknown_equipment_slot:head") !== -1);
+  assert.ok(codes.indexOf("unknown_equipment_slot:tail") !== -1);
 });
 
 test("duplicate quest rewards are rejected", () => {
@@ -187,6 +190,7 @@ test("development-only definitions are excluded from the production payload", ()
       kind: "item",
       displayName: "Debug Widget",
       visualId: "visual.item_training_sword",
+      category: "miscellaneous",
       maxStack: 1,
       attackBonus: 0,
       developmentOnly: true,
@@ -224,6 +228,7 @@ test("content diff reports added, removed, and changed IDs", () => {
       kind: "item",
       displayName: "Debug Widget",
       visualId: "visual.item_training_sword",
+      category: "miscellaneous",
       maxStack: 1,
       attackBonus: 0,
     },

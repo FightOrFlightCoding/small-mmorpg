@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Generic statistics, experience, levels, and point allocation**.
+Last accepted phase: **Generic items, inventory, equipment, currency, and transaction core**.
 
 Current phase: none.
 
@@ -405,6 +405,28 @@ Content defines attributes, resources, derived stats, a shared level curve, and 
 | Audit | `FOUNDATION_AUDIT_OK` (10 storage records, 9 client opcodes, 11 server opcodes) |
 | Server | 208/208 |
 | Client GdUnit | 134/134, 0 orphans, `SHELL_LOGIN` |
+| E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect) |
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-content.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+powershell -File scripts/test-e2e.ps1
+```
+
+## Generic items, inventory, equipment, currency, and transaction core acceptance (2026-08-16)
+
+Prompt 18 inventory and equipment behavior is unchanged for the slice path. Item definitions are content-driven with categories `weapon`, `armor`, `consumable`, `quest`, `material`, and `miscellaneous`. Non-stackable items use server-generated instance IDs. Inventory supports capacity, stack merge/split/move, destroy, locks, full-inventory errors, and idempotent mutations. Equipment slots are content-defined (temporary tags `main_hand`, `off_hand`, `head`, `chest`, `legs`, `feet`); class and level requirements are server-enforced. Gold mutations go through `applyGoldMutation` with character id, delta, reason, request id, and resulting balance. Loot, quest rewards, equipment, and item destruction persist through one transaction boundary (`commitTransaction` / `nk.multiUpdate`, `memoryCommitter` in tests). Existing instance IDs, stacks, equipment, and gold migrate without duplication. GLoot remains a presentation mirror. A new ordinary item is added through content without protocol changes. Merchants and trading were not added. Ability unlock remains later.
+
+| Gate | Result |
+| --- | --- |
+| Content | 14/14, matching hash `5f2d9340dc76b62b169af5f0ec85372394adc0e4be2d8a77b9ae608b42780ceb` |
+| Audit | `FOUNDATION_AUDIT_OK` (10 storage records, 12 client opcodes, 11 server opcodes) |
+| Server | 227/227 |
+| Client GdUnit | 138/138, 0 orphans, `SHELL_LOGIN` |
 | E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect) |
 
 Reproduction:

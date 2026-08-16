@@ -27,6 +27,9 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ClientOpcode.QUEST_TURN_IN, 7);
   assert.equal(ClientOpcode.RESYNC_REQUEST, 8);
   assert.equal(ClientOpcode.ALLOCATE_ATTRIBUTES, 9);
+  assert.equal(ClientOpcode.DESTROY_ITEM, 10);
+  assert.equal(ClientOpcode.SPLIT_STACK, 11);
+  assert.equal(ClientOpcode.MOVE_ITEM, 12);
   assert.equal(ServerOpcode.FULL_STATE, 101);
   assert.equal(ServerOpcode.SNAPSHOT, 102);
   assert.equal(ServerOpcode.ACTION_RESULT, 103);
@@ -318,6 +321,72 @@ test("quest turn-in intention accepts quest id and npc id", () => {
     assert.equal(parsed.fields.questId, "quest.slime_problem");
     assert.equal(parsed.fields.npcId, "npc.elder");
     assert.equal(parsed.requestId, "req-turnin-ok1");
+  }
+});
+
+test("inventory mutation opcodes parse instance ids and reject client balances", () => {
+  const destroy = parse(
+    ClientOpcode.DESTROY_ITEM,
+    JSON.stringify({ protocolVersion: PROTOCOL_VERSION, instanceId: "cloth-a", requestId: "req-destroy-ok1" }),
+  );
+  assert.equal(isProtocolError(destroy), false);
+  if (!isProtocolError(destroy)) {
+    assert.equal(destroy.fields.instanceId, "cloth-a");
+    assert.equal(destroy.requestId, "req-destroy-ok1");
+  }
+  const split = parse(
+    ClientOpcode.SPLIT_STACK,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      instanceId: "cloth-a",
+      quantity: 2,
+      requestId: "req-split-ok1xx",
+    }),
+  );
+  assert.equal(isProtocolError(split), false);
+  if (!isProtocolError(split)) {
+    assert.equal(split.fields.instanceId, "cloth-a");
+    assert.equal(split.quantity, 2);
+  }
+  const move = parse(
+    ClientOpcode.MOVE_ITEM,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      instanceId: "cloth-a",
+      toSlotIndex: 4,
+      requestId: "req-move-ok1xxx",
+    }),
+  );
+  assert.equal(isProtocolError(move), false);
+  if (!isProtocolError(move)) {
+    assert.equal(move.toSlotIndex, 4);
+  }
+  const injected = parse(
+    ClientOpcode.DESTROY_ITEM,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      instanceId: "cloth-a",
+      requestId: "req-destroy-bal1",
+      resultingBalance: 99,
+    }),
+  );
+  assert.equal(isProtocolError(injected), true);
+  if (isProtocolError(injected)) {
+    assert.equal(injected.code, "stat_injection:resultingBalance");
+  }
+  const gold = parse(
+    ClientOpcode.MOVE_ITEM,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      instanceId: "cloth-a",
+      toSlotIndex: 1,
+      requestId: "req-move-gold1xx",
+      resultingGold: 40,
+    }),
+  );
+  assert.equal(isProtocolError(gold), true);
+  if (isProtocolError(gold)) {
+    assert.equal(gold.code, "stat_injection:resultingGold");
   }
 });
 

@@ -7,13 +7,14 @@ import {
   type QuestDefinition,
   type QuestLog,
 } from "./quest";
-import { cloneInventory, emptyInventory, publicInventory, type ItemDefinition, type PlayerInventory } from "./inventory";
+import { cloneInventory, emptyInventory, publicInventory, INVENTORY_CAPACITY, type ItemDefinition, type PlayerInventory } from "./inventory";
 import {
   cloneEquipment,
   derivedAttack,
   emptyEquipment,
   publicDerived,
   publicEquipment,
+  type EquipmentSlotContent,
   type PlayerEquipment,
 } from "./equipment";
 import { cloneLoot, publicLoot, type LootDrop, type MatchLoot } from "./loot";
@@ -139,6 +140,9 @@ export interface StarterZoneState {
   enemyLootById: { [id: string]: LootDrop[] };
   actionRates: { [userId: string]: PlayerActionRate };
   progressionCatalog?: ProgressionCatalog;
+  equipmentSlotsByTag?: { [tag: string]: EquipmentSlotContent };
+  classEquipmentTags?: { [classId: string]: string[] };
+  inventoryCapacity?: number;
 }
 
 export interface ZoneSpawnContent {
@@ -174,6 +178,13 @@ export interface PlayerContent {
   attackCooldown?: number;
   respawnDelaySec?: number;
   pickupRange?: number;
+  inventoryCapacity?: number;
+}
+
+export interface StarterZoneCatalogExtras {
+  equipmentSlotsByTag?: { [tag: string]: EquipmentSlotContent };
+  classEquipmentTags?: { [classId: string]: string[] };
+  inventoryCapacity?: number;
 }
 
 export function enemyDefinitionsFromContent(enemies: {
@@ -208,6 +219,7 @@ export function createStarterZoneState(
   playerContent: PlayerContent,
   questsById: { [id: string]: QuestDefinition },
   itemsById: { [id: string]: ItemDefinition } = {},
+  extras: StarterZoneCatalogExtras = {},
 ): StarterZoneState {
   const npcs: MatchNpc[] = [];
   for (let i = 0; i < zone.npcs.length; i++) {
@@ -287,6 +299,12 @@ export function createStarterZoneState(
     itemsById: itemsById,
     enemyLootById: enemyLootById,
     actionRates: emptyActionRates(),
+    equipmentSlotsByTag: extras.equipmentSlotsByTag,
+    classEquipmentTags: extras.classEquipmentTags,
+    inventoryCapacity: numberOr(
+      extras.inventoryCapacity !== undefined ? extras.inventoryCapacity : playerContent.inventoryCapacity,
+      INVENTORY_CAPACITY,
+    ),
   };
 }
 
@@ -530,6 +548,9 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     enemyLootById: dict(state.enemyLootById),
     actionRates: cloneActionRates(state.actionRates),
     progressionCatalog: state.progressionCatalog,
+    equipmentSlotsByTag: state.equipmentSlotsByTag,
+    classEquipmentTags: state.classEquipmentTags,
+    inventoryCapacity: state.inventoryCapacity,
   };
 }
 

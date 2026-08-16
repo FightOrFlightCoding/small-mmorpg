@@ -1,0 +1,7 @@
+{
+  "id": "slot.main_hand",
+  "kind": "equipment_slot",
+  "tag": "main_hand",
+  "displayName": "Main Hand",
+  "allowedCategories": ["weapon"]
+}

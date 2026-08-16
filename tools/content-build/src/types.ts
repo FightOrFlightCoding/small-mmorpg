@@ -35,16 +35,43 @@ export interface PlayerDef {
   attackCooldown: number;
   interactionRange: number;
   pickupRange: number;
+  inventoryCapacity?: number;
+}
+
+export interface ItemStatModifier {
+  statId: string;
+  amount: number;
 }
 
 export interface ItemDef {
   id: string;
   kind: "item";
   displayName: string;
+  displayNameKey?: string;
+  descriptionKey?: string;
   visualId: string;
+  iconAssetId?: string;
+  worldAssetId?: string;
+  category: "weapon" | "armor" | "consumable" | "quest" | "material" | "miscellaneous";
   maxStack: number;
+  tradeable?: boolean;
+  destroyable?: boolean;
+  uniquePolicy?: "none" | "character" | "equipped";
   equipSlot?: string;
-  attackBonus: number;
+  equipmentSlotTags?: string[];
+  classRequirements?: string[];
+  levelRequirement?: number;
+  attackBonus?: number;
+  statModifiers?: ItemStatModifier[];
+  sellValue?: number;
+}
+
+export interface EquipmentSlotDef {
+  id: string;
+  kind: "equipment_slot";
+  tag: string;
+  displayName: string;
+  allowedCategories: Array<"weapon" | "armor" | "consumable" | "quest" | "material" | "miscellaneous">;
 }
 
 export interface NpcDef {
@@ -185,6 +212,7 @@ export interface ContentPayload {
   derivedStats: Record<string, DerivedStatDef>;
   levelCurves: Record<string, LevelCurveDef>;
   classProgressions: Record<string, ClassProgressionDef>;
+  equipmentSlots: Record<string, EquipmentSlotDef>;
 }
 
 export interface ContentBundle extends ContentPayload {

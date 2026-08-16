@@ -6,8 +6,12 @@ import {
   INVENTORY_CAPACITY,
   STARTER_ITEM_ID,
   addOrStackItem,
+  applyDestroyItem,
+  applyMoveItem,
+  applySplitStack,
   initializeInventory,
   itemDefinitionsFromContent,
+  setItemLock,
   type PlayerInventory,
 } from "../src/domain/inventory";
 import {
@@ -151,6 +155,8 @@ test("inventory initialization grants one training sword and capacity 20", () =>
   assert.equal(first.inventory.items[0].itemId, STARTER_ITEM_ID);
   assert.equal(first.inventory.items[0].quantity, 1);
   assert.equal(first.inventory.items[0].instanceId, "init-1");
+  assert.equal(first.inventory.items[0].sourceType, "starter");
+  assert.equal(first.inventory.items[0].slotIndex, 0);
   assert.deepEqual(first.inventory.items[0].metadata, {});
 });
 
@@ -470,4 +476,215 @@ test("applyPickup domain path matches match-loop success", () => {
   assert.equal(decision.persist, true);
   assert.equal(decision.loot.length, 0);
   assert.equal(gelCount(decision.inventory), 1);
+});
+
+test("Prompt 18 inventory blobs keep instance ids and fill slot fields", () => {
+  const parsed = storedInventoryFromValue({
+    capacity: 20,
+    items: [
+      { instanceId: "p18-sword", itemId: "item.training_sword", quantity: 1, metadata: {} },
+      { instanceId: "p18-gel", itemId: "item.slime_gel", quantity: 3, metadata: { note: "keep" } },
+    ],
+    pickupByRequestId: {},
+  });
+  assert.equal(parsed !== null, true);
+  if (parsed === null) {
+    return;
+  }
+  assert.equal(parsed.items.length, 2);
+  assert.equal(parsed.items[0].instanceId, "p18-sword");
+  assert.equal(parsed.items[1].instanceId, "p18-gel");
+  assert.equal(parsed.items[1].quantity, 3);
+  assert.equal(parsed.items[0].sourceType, "migration");
+  assert.equal(parsed.items[0].slotIndex, 0);
+  assert.equal(parsed.items[1].slotIndex, 1);
+  assert.equal(parsed.items[1].metadata.note, "keep");
+  const again = storedInventoryFromValue(storedInventoryWriteValue(parsed));
+  assert.equal(again !== null, true);
+  if (again !== null) {
+    assert.equal(again.items[0].instanceId, "p18-sword");
+    assert.equal(again.items[1].instanceId, "p18-gel");
+  }
+});
+
+test("stack merge, split, move, destroy, and locked items", () => {
+  const defs = itemsById();
+  let inventory = initializeInventory(null, ids("mut")).inventory;
+  inventory = addOrStackItem(inventory, "item.test_cloth", 8, "cloth-a", defs["item.test_cloth"]);
+  inventory = addOrStackItem(inventory, "item.test_cloth", 5, "cloth-b", defs["item.test_cloth"]);
+  const cloths = inventory.items.filter((item) => item.itemId === "item.test_cloth");
+  assert.equal(cloths.length, 1);
+  assert.equal(cloths[0].quantity, 13);
+  assert.equal(cloths[0].instanceId, "cloth-a");
+  const split = applySplitStack({
+    playerHealth: 100,
+    inventory: inventory,
+    equippedInstanceIds: [],
+    instanceId: "cloth-a",
+    quantity: 4,
+    requestId: "req-split-ok1",
+    itemsById: defs,
+    newId: ids("split"),
+  });
+  assert.equal(split.ok, true);
+  assert.equal(split.newInstanceId, "split-1");
+  const afterSplit = split.inventory.items.filter((item) => item.itemId === "item.test_cloth");
+  assert.equal(afterSplit.length, 2);
+  const moved = applyMoveItem({
+    playerHealth: 100,
+    inventory: split.inventory,
+    instanceId: "split-1",
+    toSlotIndex: 10,
+    requestId: "req-move-ok1",
+    itemsById: defs,
+  });
+  assert.equal(moved.ok, true);
+  const relocated = moved.inventory.items.find((item) => item.instanceId === "split-1");
+  assert.equal(relocated !== undefined, true);
+  if (relocated !== undefined) {
+    assert.equal(relocated.slotIndex, 10);
+  }
+  const emptyMove = applyMoveItem({
+    playerHealth: 100,
+    inventory: moved.inventory,
+    instanceId: "split-1",
+    toSlotIndex: 11,
+    requestId: "req-move-empty1",
+    itemsById: defs,
+  });
+  assert.equal(emptyMove.ok, true);
+  const destroyed = applyDestroyItem({
+    playerHealth: 100,
+    inventory: emptyMove.inventory,
+    equippedInstanceIds: [],
+    instanceId: "split-1",
+    requestId: "req-destroy-ok1",
+    itemsById: defs,
+  });
+  assert.equal(destroyed.ok, true);
+  assert.equal(destroyed.inventory.items.filter((item) => item.instanceId === "split-1").length, 0);
+  const gel = addOrStackItem(destroyed.inventory, "item.slime_gel", 1, "gel-locked", defs["item.slime_gel"]);
+  const blocked = applyDestroyItem({
+    playerHealth: 100,
+    inventory: gel,
+    equippedInstanceIds: [],
+    instanceId: "gel-locked",
+    requestId: "req-destroy-gel1",
+    itemsById: defs,
+  });
+  assert.equal(blocked.ok, false);
+  assert.equal(blocked.code, "not_destroyable");
+  const lockedInv = setItemLock(destroyed.inventory, "cloth-a", "quest", "lock-1");
+  const locked = applyDestroyItem({
+    playerHealth: 100,
+    inventory: lockedInv,
+    equippedInstanceIds: [],
+    instanceId: "cloth-a",
+    requestId: "req-destroy-lock1",
+    itemsById: defs,
+  });
+  assert.equal(locked.ok, false);
+  assert.equal(locked.code, "item_locked");
+});
+
+test("match-loop split uses a server-generated instance id and duplicate requests do not split twice", () => {
+  const defs = itemsById();
+  let inventory = starterInventory(ids("alice-split"));
+  inventory = addOrStackItem(inventory, "item.test_cloth", 6, "cloth-live", defs["item.test_cloth"]);
+  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", 640, 400, inventory));
+  const first = applyMatchLoop(
+    state,
+    4,
+    contentHash,
+    [
+      {
+        opcode: ClientOpcode.SPLIT_STACK,
+        raw: envelope({ instanceId: "cloth-live", quantity: 2, requestId: "req-split-live1" }),
+        userId: "user-alice",
+      },
+    ],
+    ids("srv"),
+  );
+  assert.equal(actionCodes(first)[0].code, "ok");
+  const cloths = first.state.players["user-alice"].inventory?.items.filter((item) => item.itemId === "item.test_cloth") ?? [];
+  assert.equal(cloths.length, 2);
+  const generated = cloths.find((item) => item.instanceId !== "cloth-live");
+  assert.equal(generated !== undefined, true);
+  if (generated !== undefined) {
+    assert.equal(generated.instanceId.indexOf("srv-") === 0, true);
+    assert.equal(generated.sourceType, "split");
+    assert.equal(generated.quantity, 2);
+  }
+  const second = applyMatchLoop(
+    first.state,
+    5,
+    contentHash,
+    [
+      {
+        opcode: ClientOpcode.SPLIT_STACK,
+        raw: envelope({ instanceId: "cloth-live", quantity: 2, requestId: "req-split-live1" }),
+        userId: "user-alice",
+      },
+    ],
+    ids("srv2"),
+  );
+  assert.equal(actionCodes(second)[0].code, "ok");
+  assert.equal(second.persistInventories.length, 0);
+  const again = second.state.players["user-alice"].inventory?.items.filter((item) => item.itemId === "item.test_cloth") ?? [];
+  assert.equal(again.length, 2);
+});
+
+test("unique character items cannot be granted twice", () => {
+  const defs = itemsById();
+  let inventory = starterInventory(ids("unique"));
+  inventory = addOrStackItem(inventory, "item.test_relic_blade", 1, "relic-1", defs["item.test_relic_blade"]);
+  const spawn = content.zones["zone.starter"].enemies[0];
+  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", spawn.x, spawn.y, inventory));
+  state.loot = [
+    {
+      id: "loot-relic",
+      itemId: "item.test_relic_blade",
+      quantity: 1,
+      instanceId: "relic-2",
+      x: spawn.x,
+      y: spawn.y,
+      expiresAtTick: 9999,
+    },
+  ];
+  const result = applyMatchLoop(state, 4, contentHash, [pickup("user-alice", "loot-relic", "req-pickup-relic1")], ids("loop"));
+  assert.equal(actionCodes(result)[0].code, "unique_restricted");
+});
+
+test("inventory mutations survive reconnect into a restarted match", () => {
+  const defs = itemsById();
+  let inventory = starterInventory(ids("restart"));
+  inventory = addOrStackItem(inventory, "item.test_cloth", 4, "cloth-restart", defs["item.test_cloth"]);
+  const split = applySplitStack({
+    playerHealth: 100,
+    inventory: inventory,
+    equippedInstanceIds: [],
+    instanceId: "cloth-restart",
+    quantity: 1,
+    requestId: "req-split-restart1",
+    itemsById: defs,
+    newId: ids("restart-id"),
+  });
+  const storedIds = split.inventory.items.map((item) => item.instanceId).sort();
+  const restarted = emptyZone();
+  const player = playerAt("user-alice", "Alice", 640, 400, split.inventory);
+  const next = addPlayer(restarted, player);
+  const liveIds = next.players["user-alice"].inventory?.items.map((item) => item.instanceId).sort();
+  assert.deepEqual(liveIds, storedIds);
+  const replay = applySplitStack({
+    playerHealth: 100,
+    inventory: next.players["user-alice"].inventory as PlayerInventory,
+    equippedInstanceIds: [],
+    instanceId: "cloth-restart",
+    quantity: 1,
+    requestId: "req-split-restart1",
+    itemsById: defs,
+    newId: ids("should-not"),
+  });
+  assert.equal(replay.replay, true);
+  assert.equal(replay.persist, false);
 });

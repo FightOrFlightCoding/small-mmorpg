@@ -10,6 +10,7 @@ const MAIN_HAND_SLOT := "main_hand"
 var slot: ItemSlot
 var attack: int = 4
 var main_hand_instance_id: String = ""
+var selected_slot: String = MAIN_HAND_SLOT
 var slots: Dictionary = {"main_hand": ""}
 
 var _applying: bool = false
@@ -33,6 +34,7 @@ func _ready() -> void:
 func reset() -> void:
 	attack = 4
 	main_hand_instance_id = ""
+	selected_slot = MAIN_HAND_SLOT
 	slots = {"main_hand": ""}
 	_ensure_slot()
 	_rebuild_slot()
@@ -55,12 +57,17 @@ func apply_canonical(state: Dictionary) -> void:
 	var raw_slots: Variant = state.get("slots", {})
 	if typeof(raw_slots) == TYPE_DICTIONARY:
 		incoming_slots = raw_slots
-	var main_hand := ""
-	var raw_main: Variant = incoming_slots.get(MAIN_HAND_SLOT, null)
-	if typeof(raw_main) == TYPE_STRING:
-		main_hand = String(raw_main)
-	slots = {"main_hand": main_hand}
-	main_hand_instance_id = main_hand
+	var next_slots: Dictionary = {}
+	for key in incoming_slots.keys():
+		var raw_value: Variant = incoming_slots[key]
+		if typeof(raw_value) == TYPE_STRING:
+			next_slots[String(key)] = String(raw_value)
+		else:
+			next_slots[String(key)] = ""
+	if not next_slots.has(MAIN_HAND_SLOT):
+		next_slots[MAIN_HAND_SLOT] = ""
+	slots = next_slots
+	main_hand_instance_id = String(slots.get(MAIN_HAND_SLOT, ""))
 	var derived: Variant = state.get("derived", {})
 	if typeof(derived) == TYPE_DICTIONARY:
 		attack = int((derived as Dictionary).get("attack", attack))
@@ -71,6 +78,7 @@ func apply_canonical(state: Dictionary) -> void:
 func request_equip(instance_id: String, equip_slot: String = MAIN_HAND_SLOT) -> String:
 	if instance_id.is_empty() or equip_slot.is_empty():
 		return ""
+	selected_slot = equip_slot
 	var request_id := MatchProtocol.new_request_id()
 	NetworkService.send_equip(instance_id, equip_slot, request_id)
 	request_started.emit(request_id)
@@ -86,10 +94,11 @@ func request_unequip(equip_slot: String = MAIN_HAND_SLOT) -> String:
 	return request_id
 
 
-func equipped_display_name() -> String:
-	if main_hand_instance_id.is_empty():
+func equipped_display_name(equip_slot: String = MAIN_HAND_SLOT) -> String:
+	var instance_id := String(slots.get(equip_slot, ""))
+	if instance_id.is_empty():
 		return "Empty"
-	var item_id := InventoryService.item_id_of_instance(main_hand_instance_id)
+	var item_id := InventoryService.item_id_of_instance(instance_id)
 	if item_id.is_empty():
 		return "Empty"
 	var record: Dictionary = ContentRegistry.get_by_id(item_id)
@@ -97,6 +106,18 @@ func equipped_display_name() -> String:
 	if named.is_empty():
 		return item_id
 	return named
+
+
+func slot_tags() -> PackedStringArray:
+	var tags := PackedStringArray()
+	for slot_id in ContentRegistry.ids_of_kind("equipment_slot"):
+		var record: Dictionary = ContentRegistry.get_by_id(slot_id)
+		var tag := String(record.get("tag", ""))
+		if not tag.is_empty() and tags.find(tag) < 0:
+			tags.append(tag)
+	if tags.is_empty():
+		tags.append(MAIN_HAND_SLOT)
+	return tags
 
 
 func attach_slot(host: Control) -> Control:

@@ -58,6 +58,15 @@
         "quantity": { "$ref": "#/$defs/positiveInteger" }
       }
     },
+    "itemStatModifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["statId", "amount"],
+      "properties": {
+        "statId": { "$ref": "#/$defs/contentId" },
+        "amount": { "type": "number" }
+      }
+    },
     "statComponent": {
       "type": "object",
       "additionalProperties": false,

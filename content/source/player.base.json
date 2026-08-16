@@ -8,5 +8,6 @@
   "attackRange": 40,
   "attackCooldown": 0.7,
   "interactionRange": 48,
-  "pickupRange": 40
+  "pickupRange": 40,
+  "inventoryCapacity": 20
 }

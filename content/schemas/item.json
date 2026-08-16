@@ -3,15 +3,40 @@
   "$id": "https://vibecode.local/content-schemas/item.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "kind", "displayName", "visualId", "maxStack", "attackBonus"],
+  "required": ["id", "kind", "displayName", "visualId", "maxStack", "category"],
   "properties": {
     "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
     "kind": { "const": "item" },
     "displayName": { "type": "string", "minLength": 1 },
+    "displayNameKey": { "type": "string", "minLength": 1 },
+    "descriptionKey": { "type": "string", "minLength": 1 },
     "visualId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "iconAssetId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "worldAssetId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "category": {
+      "type": "string",
+      "enum": ["weapon", "armor", "consumable", "quest", "material", "miscellaneous"]
+    },
     "maxStack": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+    "tradeable": { "type": "boolean" },
+    "destroyable": { "type": "boolean" },
+    "uniquePolicy": { "type": "string", "enum": ["none", "character", "equipped"] },
     "equipSlot": { "type": "string", "minLength": 1 },
+    "equipmentSlotTags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "classRequirements": {
+      "type": "array",
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+    },
+    "levelRequirement": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
     "attackBonus": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "statModifiers": {
+      "type": "array",
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/itemStatModifier" }
+    },
+    "sellValue": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
     "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
     "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
   }

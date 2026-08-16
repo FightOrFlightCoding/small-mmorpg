@@ -76,15 +76,15 @@ Turn-in apply already uses quest definition rewards from content, not a second h
 | Assumption | Where | Class |
 | --- | --- | --- |
 | One selected character per account; three live slots | `roster` + `selection` ticket | Architectural (Prompt 21). ID hard-coding of `zone.starter` remains later. |
-| One equipment slot `main_hand` | `equipment.ts`, `EQUIP` parser, HUD | Architectural hard-coding requiring later removal |
+| Temporary equipment tags `main_hand`/`off_hand`/`head`/`chest`/`legs`/`feet` | content `equipment_slot` docs; runtime iterates catalog | Temporary Foundation tags. Do not hard-code a final equipment type enum in protocol. |
+| Inventory capacity fallback 20 | `INVENTORY_CAPACITY`; live capacity is `player.base.inventoryCapacity` | Fallback remains architectural; content now owns the live value |
 | One public match module `starter_zone` | `InitModule`, registry singleton | Architectural hard-coding requiring later removal |
-| Inventory capacity 20 | `INVENTORY_CAPACITY` | Architectural hard-coding requiring later removal |
 | Player respawn delay 3 s default | `PLAYER_RESPAWN_DELAY_SEC` / match_state fallback | Temporary Prompt 18 assumption (content has no player respawn field in source) |
 | Player AABB 12 px | `PLAYER_HALF_EXTENT` | Temporary Prompt 18 assumption |
 | Dialogue example balloon path | `DialoguePresenter.BALLOON_SCENE` | Temporary Prompt 18 assumption |
 | Movement fallback bounds 16,16,1248×736 | `movement_sim.gd` defaults | Temporary Prompt 18 assumption |
 | Max level / XP / attributes are content-defined | `level_curve` / `class_progression` catalogs | Temporary test curve (`maxLevel` 5). Ability unlock still later |
-| Item categories = equippable vs not via `equipSlot` only | content schema | Temporary Prompt 18 assumption |
+| Item categories are content fields (`weapon`, `armor`, `consumable`, `quest`, `material`, `miscellaneous`) | item schema + runtime validation | Prompt 23. Protocol does not enumerate item definition ids. |
 | World dimensions from `zone.starter` JSON | Correct content for the slice; runtime still assumes that one zone | Architectural hard-coding requiring later removal |
 
 ## Out of scope for this file

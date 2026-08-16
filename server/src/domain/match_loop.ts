@@ -35,12 +35,13 @@ import {
 } from "./quest_reward";
 import { applyPlayerAttack, type CombatEvent } from "./combat";
 import { simulateCombatants } from "./enemy_ai";
-import { publicInventory, type PlayerInventory } from "./inventory";
+import { publicInventory, applyDestroyItem, applyMoveItem, applySplitStack, emptyInventory, type PlayerInventory } from "./inventory";
 import {
   applyEquip,
   cloneEquipment,
   derivedAttack,
   emptyEquipment,
+  equippedInstanceIds,
   publicDerived,
   publicEquipment,
   reconcileEquipment,
@@ -402,6 +403,18 @@ function handleValidated(
     handleEquip(parsed, userId, state, tick, outbound, persistEquipmentByUser);
     return;
   }
+  if (parsed.opcode === ClientOpcode.DESTROY_ITEM) {
+    handleDestroyItem(parsed, userId, state, tick, outbound, persistInventoryByUser, persistEquipmentByUser);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.SPLIT_STACK) {
+    handleSplitStack(parsed, userId, state, tick, outbound, persistInventoryByUser, makeId);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.MOVE_ITEM) {
+    handleMoveItem(parsed, userId, state, tick, outbound, persistInventoryByUser);
+    return;
+  }
   if (parsed.opcode === ClientOpcode.ALLOCATE_ATTRIBUTES) {
     handleAllocate(parsed, userId, state, tick, outbound, persistProgressionByUser);
     return;
@@ -689,6 +702,9 @@ function handleEquip(
     return;
   }
   const unequip = parsed.fields.instanceId === undefined;
+  const classId = player.classId !== undefined ? player.classId : "";
+  const classTags =
+    classId.length > 0 && state.classEquipmentTags !== undefined ? state.classEquipmentTags[classId] : undefined;
   const outcome = applyEquip({
     playerHealth: player.health,
     userId: userId,
@@ -702,6 +718,10 @@ function handleEquip(
     owners: inventoryOwners(state),
     unequip: unequip,
     tick: tick,
+    classId: classId,
+    playerLevel: player.progression !== undefined ? player.progression.level : 1,
+    classEquipmentTags: classTags,
+    equipmentSlotsByTag: state.equipmentSlotsByTag,
   });
   player.equipment = outcome.equipment;
   refreshPlayerDerived(state, userId);
@@ -718,6 +738,132 @@ function handleEquip(
       parsed.requestId,
     );
     outbound.push({ opcode: equipment.opcode, body: equipment.body, toUserId: userId });
+  }
+}
+
+function handleDestroyItem(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  tick: number,
+  outbound: MatchOutbound[],
+  persistInventoryByUser: { [userId: string]: PlayerInventory },
+  persistEquipmentByUser: { [userId: string]: PlayerEquipment },
+): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  const inventory = player.inventory !== undefined ? player.inventory : emptyInventory(state.inventoryCapacity);
+  const outcome = applyDestroyItem({
+    playerHealth: player.health,
+    inventory: inventory,
+    equippedInstanceIds: equippedInstanceIds(player.equipment),
+    instanceId: parsed.fields.instanceId,
+    quantity: parsed.quantity,
+    requestId: parsed.requestId as string,
+    itemsById: state.itemsById,
+    tick: tick,
+  });
+  player.inventory = outcome.inventory;
+  if (outcome.persist) {
+    persistInventoryByUser[userId] = outcome.inventory;
+  }
+  refreshDerivedFromInventory(state, userId, persistEquipmentByUser);
+  const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  if (outcome.ok) {
+    const inventoryStateMsg = inventoryState(
+      state.contentHash,
+      publicInventory(player.inventory),
+      parsed.requestId,
+    );
+    outbound.push({ opcode: inventoryStateMsg.opcode, body: inventoryStateMsg.body, toUserId: userId });
+  }
+}
+
+function handleSplitStack(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  tick: number,
+  outbound: MatchOutbound[],
+  persistInventoryByUser: { [userId: string]: PlayerInventory },
+  makeId: () => string,
+): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  const inventory = player.inventory !== undefined ? player.inventory : emptyInventory(state.inventoryCapacity);
+  const outcome = applySplitStack({
+    playerHealth: player.health,
+    inventory: inventory,
+    equippedInstanceIds: equippedInstanceIds(player.equipment),
+    instanceId: parsed.fields.instanceId,
+    quantity: parsed.quantity as number,
+    requestId: parsed.requestId as string,
+    itemsById: state.itemsById,
+    newId: makeId,
+    tick: tick,
+  });
+  player.inventory = outcome.inventory;
+  if (outcome.persist) {
+    persistInventoryByUser[userId] = outcome.inventory;
+  }
+  const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  if (outcome.ok) {
+    const inventoryStateMsg = inventoryState(
+      state.contentHash,
+      publicInventory(player.inventory),
+      parsed.requestId,
+    );
+    outbound.push({ opcode: inventoryStateMsg.opcode, body: inventoryStateMsg.body, toUserId: userId });
+  }
+}
+
+function handleMoveItem(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  tick: number,
+  outbound: MatchOutbound[],
+  persistInventoryByUser: { [userId: string]: PlayerInventory },
+): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  const inventory = player.inventory !== undefined ? player.inventory : emptyInventory(state.inventoryCapacity);
+  const outcome = applyMoveItem({
+    playerHealth: player.health,
+    inventory: inventory,
+    instanceId: parsed.fields.instanceId,
+    toSlotIndex: parsed.toSlotIndex as number,
+    requestId: parsed.requestId as string,
+    itemsById: state.itemsById,
+    tick: tick,
+  });
+  player.inventory = outcome.inventory;
+  if (outcome.persist) {
+    persistInventoryByUser[userId] = outcome.inventory;
+  }
+  const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  if (outcome.ok) {
+    const inventoryStateMsg = inventoryState(
+      state.contentHash,
+      publicInventory(player.inventory),
+      parsed.requestId,
+    );
+    outbound.push({ opcode: inventoryStateMsg.opcode, body: inventoryStateMsg.body, toUserId: userId });
   }
 }
 

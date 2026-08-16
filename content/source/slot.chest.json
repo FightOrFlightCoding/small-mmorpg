@@ -1,0 +1,7 @@
+{
+  "id": "slot.chest",
+  "kind": "equipment_slot",
+  "tag": "chest",
+  "displayName": "Chest",
+  "allowedCategories": ["armor"]
+}

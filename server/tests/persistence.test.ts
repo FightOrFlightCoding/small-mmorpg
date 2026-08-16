@@ -278,7 +278,18 @@ test("inventory, quest, equipment, and wallet survive a fresh match after restar
   previous.players["user-alice"].inventory = {
     capacity: 20,
     items: [
-      { instanceId: "inst-iron", itemId: "item.iron_sword", quantity: 1, metadata: {} },
+      {
+        instanceId: "inst-iron",
+        itemId: "item.iron_sword",
+        quantity: 1,
+        createdAt: 0,
+        sourceType: "quest_reward",
+        sourceId: "quest.slime_problem",
+        metadata: {},
+        lockReason: "",
+        lockId: "",
+        slotIndex: 0,
+      },
     ],
     pickupByRequestId: {},
   };

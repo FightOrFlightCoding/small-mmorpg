@@ -1,6 +1,6 @@
 # Test catalog
 
-Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, and Prompt 22 progression coverage. Do not weaken these tests. Live gate counts after Prompt 22: content 14/14, server 208/208, client 134/134 (0 orphans), `E2E_SLICE_OK`.
+Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, and Prompt 23 economy coverage. Do not weaken these tests. Live gate counts after Prompt 23: content 14/14, server 227/227, client 138/138 (0 orphans), `E2E_SLICE_OK`.
 
 Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDATION_BASELINE.md).
 
@@ -41,8 +41,9 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `fixtures/malformed_messages.ts` | malformed JSON corpus | VS-T1 |
 | `movement.test.ts` | teleport/overspeed, seq | VS-T2 |
 | `combat.test.ts` | server damage, cooldown, death, slime AI | VS-T3 |
-| `inventory.test.ts` | pickup, duplicate `requestId`, capacity | VS-T4, T5 |
-| `equipment.test.ts` | main_hand, derived attack | VS-T5 |
+| `inventory.test.ts` | pickup, stack merge/split/move, destroy, locks, capacity, Prompt 18 instance ids | VS-T4, T5 |
+| `equipment.test.ts` | weapons/armor slots, class/level/lock, derived attack | VS-T5 |
+| `transaction.test.ts` | gold add/remove/insufficient, idempotency, OCC, audit, in-memory committer | |
 | `quest.test.ts` | accept, already_accepted | VS-T6 |
 | `quest_reward.test.ts` | turn-in, `multiUpdate` fake, duplicate reward | VS-T4, T6, T7 |
 | `quest_store.test.ts` | serialize/load | |

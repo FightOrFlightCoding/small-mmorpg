@@ -125,3 +125,27 @@ func test_hud_lists_canonical_inventory() -> void:
 	var capacity: Label = hud.get_node("Root/Inventory/Margin/VBox/Capacity")
 	assert_str(capacity.text).contains("2 / 20")
 	assert_str(hud.get_node("Root/Inventory/Margin/VBox/Heading").text).is_equal("Inventory")
+	assert_object(hud.get_node("Root/Inventory/Margin/VBox/MutateRow/DestroyButton")).is_not_null()
+	assert_object(hud.get_node("Root/Inventory/Margin/VBox/MutateRow/SplitButton")).is_not_null()
+
+
+func test_destroy_and_split_send_intentions_without_instance_id_invention() -> void:
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	var destroy_id := InventoryService.request_destroy("inst-cloth")
+	await get_tree().process_frame
+	assert_str(destroy_id).is_not_empty()
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_DESTROY_ITEM)
+	var destroy_payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_str(String(destroy_payload.get("instanceId", ""))).is_equal("inst-cloth")
+	assert_str(String(destroy_payload.get("requestId", ""))).is_equal(destroy_id)
+	assert_bool(destroy_payload.has("newInstanceId")).is_false()
+	var split_id := InventoryService.request_split("inst-cloth", 2)
+	await get_tree().process_frame
+	assert_str(split_id).is_not_empty()
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_SPLIT_STACK)
+	var split_payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_str(String(split_payload.get("instanceId", ""))).is_equal("inst-cloth")
+	assert_int(int(split_payload.get("quantity", 0))).is_equal(2)
+	assert_bool(split_payload.has("newInstanceId")).is_false()

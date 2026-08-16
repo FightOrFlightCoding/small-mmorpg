@@ -114,3 +114,24 @@ func test_hud_shows_server_attack_and_main_hand() -> void:
 	assert_str(main_hand.text).contains("Training Sword")
 	assert_object(hud.get_node("Root/Inventory/Margin/VBox/EquipRow/EquipButton")).is_not_null()
 	assert_object(hud.get_node("Root/Inventory/Margin/VBox/EquipRow/UnequipButton")).is_not_null()
+	assert_object(hud.get_node("Root/Inventory/Margin/VBox/EquipRow/SlotOption")).is_not_null()
+	assert_int(EquipmentService.slot_tags().size()).is_greater_equal(6)
+
+
+func test_equipment_state_mirrors_extra_slots_from_the_server() -> void:
+	InventoryService.apply_canonical({
+		"capacity": 20,
+		"items": [
+			{"instanceId": "inst-sword", "itemId": "item.training_sword", "quantity": 1, "metadata": {}},
+			{"instanceId": "inst-cap", "itemId": "item.test_leather_cap", "quantity": 1, "metadata": {}},
+		],
+	})
+	EquipmentService.apply_canonical({
+		"slots": {"main_hand": "inst-sword", "head": "inst-cap", "chest": ""},
+		"derived": {"attack": 6},
+	})
+	assert_str(EquipmentService.main_hand_instance_id).is_equal("inst-sword")
+	assert_str(String(EquipmentService.slots.get("head", ""))).is_equal("inst-cap")
+	assert_str(String(EquipmentService.slots.get("chest", ""))).is_equal("")
+	var request_id := EquipmentService.request_equip("inst-cap", "head")
+	assert_str(request_id).is_not_empty()

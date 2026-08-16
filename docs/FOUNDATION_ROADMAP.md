@@ -1,6 +1,6 @@
 # Foundation roadmap
 
-Prompt 19 (catalogs/audit), Prompt 20 (versioned content and save schemas), and Prompt 21 (authentication, slots, and class selection) are accepted. Prompt 21 as issued supersedes the earlier “remove ID hard-coding” label for that number. Prompt 22 as issued includes XP, derived stats, and attribute allocation (the earlier roadmap split that named allocation as Prompt 23 is superseded for those items).
+Prompt 19 (catalogs/audit), Prompt 20 (versioned content and save schemas), and Prompt 21 (authentication, slots, and class selection) are accepted. Prompt 21 as issued supersedes the earlier “remove ID hard-coding” label for that number. Prompt 22 as issued includes XP, derived stats, and attribute allocation (the earlier roadmap split that named allocation as Prompt 23 is superseded for those items). Prompt 23 as issued is generic items, inventory, equipment, currency, and the transaction core; it supersedes the earlier “Abilities and hotbar” label for that number. Ability unlock remains later.
 
 | Order | Theme | Outcome | Depends on |
 | --- | --- | --- | --- |
@@ -8,14 +8,15 @@ Prompt 19 (catalogs/audit), Prompt 20 (versioned content and save schemas), and 
 | 20 | Versioned content and save schemas | Content-package manifest, client/server bundles, gameplay `schemaVersion` on canonical player records, idempotent Prompt 18 load. | 19 |
 | 21 | Real authentication, character slots, class selection | Email/password accounts; three slots; content classes; selection tickets; Prompt 18 migrate into slot 1. Architectural ID hard-coding remains later. | 19–20 |
 | 22 | Character level, experience, derived stats, attribute allocation | Server XP, level curves, stat pipeline, allocate command; skill points persist. Ability unlock is later. | 21 |
-| 23 | Abilities and hotbar | Spend skill points / unlock abilities; server validates hotbar. | 22 |
+| 23 | Generic items, inventory, equipment, currency, transaction core | Data-defined item categories, instance ids, stack ops, content slots, gold service, one transaction boundary. No merchants or trading. | 22 |
 | 24 | Public village-and-fields world | One public-world template (may still be one match). No sharding. Respawn bind still later. | 21 |
 | 25 | Temporary parties (max 5) and party chat | Server membership; group credit hooks; party channel. Zone chat remains. | 24 |
 | 26 | Cave instances and transfer tickets | Private matches; party-shared instance; one-time server tickets; reconnect restores the correct match; empty-cave grace. | 25 |
-| 27 | Generalized target PvE | Resources, casts, cooldowns, status, data-defined enemies. Keep intention-only client. | 23, 24 |
-| 28 | Merchants | Server prices and stock; gold `multiUpdate`; audit ids. | 20, 24 |
+| 27 | Generalized target PvE | Resources, casts, cooldowns, status, data-defined enemies. Keep intention-only client. | 24 |
+| 28 | Merchants | Server prices and stock; gold `multiUpdate`; audit ids. | 20, 23, 24 |
 | 29 | Inn and respawn binding | Server bind point; death uses bind, not a hardcoded pond spawn. | 24, 26 |
 | 30 | Secure direct trade | Server trade state machine; no client-complete; idempotent. | 25, 28 |
+| Later | Abilities and hotbar | Spend skill points / unlock abilities; server validates hotbar. Previously numbered as Prompt 23. | 22 |
 | Content | Names, balance, extra IDs, art | Authored under `content/source` after systems exist. | relevant systems |
 
 ## Rules for every later phase
@@ -37,3 +38,7 @@ Accepted in [PROGRESS.md](PROGRESS.md) as **Real authentication, character slots
 ## Prompt 22 status
 
 Accepted in [PROGRESS.md](PROGRESS.md) as **Generic statistics, experience, levels, and point allocation**.
+
+## Prompt 23 status
+
+Accepted in [PROGRESS.md](PROGRESS.md) as **Generic items, inventory, equipment, currency, and transaction core**. Ability unlock remains later.

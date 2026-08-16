@@ -27,4 +27,9 @@ test("generated server content is importable without filesystem access", () => {
   assert.ok(Object.keys(content.derivedStats).length >= 1);
   assert.ok(Object.keys(content.levelCurves).length >= 1);
   assert.ok(Object.keys(content.classProgressions).length >= 2);
+  assert.ok(Object.keys(content.equipmentSlots).length >= 6);
+  assert.equal(content.items["item.training_sword"].category, "weapon");
+  assert.equal(content.items["item.test_leather_cap"].category, "armor");
+  assert.equal(content.items["item.slime_gel"].destroyable, false);
+  assert.equal(content.player.inventoryCapacity, 20);
 });

@@ -6,6 +6,7 @@ export interface ClassItemStack {
 export interface ClassDefinition {
   id: string;
   startingEquipment: ClassItemStack[];
+  allowedEquipmentTags?: string[];
   legacyMigrationDefault?: boolean;
 }
 
@@ -48,6 +49,7 @@ export function classDefinitionsFromContent(classes: {
   [id: string]: {
     id: string;
     startingEquipment: ReadonlyArray<{ itemId: string; quantity: number }>;
+    allowedEquipmentTags?: ReadonlyArray<string>;
     legacyMigrationDefault?: boolean;
   };
 }): { [id: string]: ClassDefinition } {
@@ -64,7 +66,34 @@ export function classDefinitionsFromContent(classes: {
     if (def.legacyMigrationDefault === true) {
       mappedDef.legacyMigrationDefault = true;
     }
+    if (def.allowedEquipmentTags !== undefined) {
+      const tags: string[] = [];
+      for (let t = 0; t < def.allowedEquipmentTags.length; t++) {
+        tags.push(def.allowedEquipmentTags[t]);
+      }
+      mappedDef.allowedEquipmentTags = tags;
+    }
     mapped[id] = mappedDef;
   }
   return mapped;
+}
+
+export function classEquipmentTagsFromContent(classes: {
+  [id: string]: { allowedEquipmentTags?: ReadonlyArray<string> };
+}): { [classId: string]: string[] } {
+  const map: { [classId: string]: string[] } = {};
+  const ids = Object.keys(classes);
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
+    const tags = classes[id].allowedEquipmentTags;
+    if (tags === undefined) {
+      continue;
+    }
+    const copy: string[] = [];
+    for (let t = 0; t < tags.length; t++) {
+      copy.push(tags[t]);
+    }
+    map[id] = copy;
+  }
+  return map;
 }

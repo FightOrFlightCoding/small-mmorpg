@@ -98,7 +98,7 @@ Notifications: **none** registered.
 
 ## Client → server match opcodes
 
-Per-player windows (10 ticks): INPUT 20; ATTACK/INTERACT/PICKUP/EQUIP/quest/ALLOCATE_ATTRIBUTES 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
+Per-player windows (10 ticks): INPUT 20; ATTACK/INTERACT/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/quest/ALLOCATE_ATTRIBUTES 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
 
 ### 1 `INPUT`
 
@@ -146,9 +146,9 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/INTERACT/PICKUP/EQUIP/quest/ALLO
 | Field | Value |
 | --- | --- |
 | Body | `{ protocolVersion, instanceId?, slot, requestId }` |
-| Authority | Server ownership + `main_hand` |
+| Authority | Server ownership, category, slot tags, class, level, locks |
 | Idempotency | Successful `requestId` replays `ok` |
-| Errors | `unowned`, `not_equippable`, `invalid_slot`, `invalid_id`, `player_dead` |
+| Errors | `unowned`, `not_equippable`, `invalid_slot`, `invalid_id`, `player_dead`, `item_locked`, `class_restricted`, `level_restricted`, `unique_restricted`, `invalid_category` |
 | Tests | `equipment.test.ts`, `equipment_service_test.gd` |
 
 ### 6 `QUEST_ACCEPT`
@@ -190,6 +190,39 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/INTERACT/PICKUP/EQUIP/quest/ALLO
 | Errors | `invalid_amount`, `unknown_attribute`, `class_restricted`, `insufficient_points`, `invalid_request_id`, `stat_injection:xp` |
 | Rate limit | 8 / window |
 | Tests | `progression.test.ts`, `progression_service_test.gd` |
+
+### 10 `DESTROY_ITEM`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, instanceId, quantity?, requestId }` (`quantity` optional JSON number) |
+| Authority | Server destroyable flag, locks, equipped check |
+| Idempotency | Successful `requestId` replays `ok` |
+| Errors | `not_destroyable`, `item_locked`, `item_equipped`, `invalid_id`, `player_dead` |
+| Rate limit | Shares EQUIP window (8) |
+| Tests | `inventory.test.ts`, `inventory_service_test.gd` |
+
+### 11 `SPLIT_STACK`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, instanceId, quantity, requestId }` (`quantity` is a JSON number) |
+| Authority | Server generates the new `instanceId` |
+| Idempotency | Successful `requestId` replays `ok` without a second split |
+| Errors | `inventory_full`, `item_locked`, `item_equipped`, `invalid_id`, `player_dead` |
+| Rate limit | Shares EQUIP window (8) |
+| Tests | `inventory.test.ts`, `inventory_service_test.gd` |
+
+### 12 `MOVE_ITEM`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, instanceId, toSlotIndex, requestId }` (`toSlotIndex` is a JSON number) |
+| Authority | Server slot indices; local GLoot drag is display-only |
+| Idempotency | Successful `requestId` replays `ok` |
+| Errors | `invalid_slot`, `item_locked`, `invalid_id`, `player_dead` |
+| Rate limit | Shares EQUIP window (8) |
+| Tests | `inventory.test.ts` |
 
 No other client opcodes exist. Unknown opcode → `unknown_opcode`.
 

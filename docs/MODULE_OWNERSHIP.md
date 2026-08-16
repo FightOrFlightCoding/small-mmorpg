@@ -18,7 +18,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `GameService` | C | Boot, login, bootstrap, zone join orchestration | none | autoloads | `NetworkService`, `SceneRouter`, `AppState` | no | via NetworkService | no |
 | `SceneRouter` | C | Boot/login/character/world | current scene id | Godot tree | `AppState` | no | no | no |
 | `QuestService` | C | Journal mirror; accept/turn-in intents | In-memory quest view | none | `NetworkService` | no | QUEST_ACCEPT / QUEST_TURN_IN | no |
-| `InventoryService` | C | Inventory mirror; pickup intent | GLoot inventory clone | GLoot 3.0.2 | `NetworkService` | no | PICKUP | no grants |
+| `InventoryService` | C | Inventory mirror; pickup/destroy/split/move intents | GLoot inventory clone | GLoot 3.0.2 | `NetworkService` | no | PICKUP / DESTROY_ITEM / SPLIT_STACK / MOVE_ITEM | no grants |
 | `EquipmentService` | C | Equipment mirror; equip intents | GLoot ItemSlot clone | GLoot 3.0.2 | `NetworkService`, `InventoryService` | no | EQUIP | no |
 | `WalletService` | C | Gold label mirror | In-memory gold | none | none | no | no | no |
 | `ProgressionService` | C | Progression mirror; allocate intent; preview replaced by server | In-memory level/XP/attributes | none | `NetworkService` | no | ALLOCATE_ATTRIBUTES | no |
@@ -39,11 +39,12 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `progression.ts` / `progression_store.ts` (domain) | S | XP, levels, allocation, serialize progression | none | none | stats.ts | serialize only | no | no |
 | `interaction.ts` | S | NPC range checks | none | none | none | no | INTERACTION_RESULT | no |
 | `loot.ts` | S | Ground loot TTL and pickup apply | match loot list | none | `inventory.ts` | no | via loop | grant in memory |
-| `inventory.ts` / `inventory_store.ts` (domain) | S | Stack rules, serialize inventory | none | none | none | serialize only | no | yes (pure) |
-| `equipment.ts` / `equipment_store.ts` (domain) | S | main_hand + derived attack serialize | none | none | none | serialize only | no | no |
+| `inventory.ts` / `inventory_store.ts` (domain) | S | Stack rules, instance fields, locks, serialize inventory | none | none | none | serialize only | no | yes (pure) |
+| `equipment.ts` / `equipment_store.ts` (domain) | S | Content-defined slots + derived attack serialize | none | none | inventory locks | serialize only | no | no |
+| `transaction.ts` | S | Idempotent gold + version check, audit events, in-memory committer | none | none | `wallet.ts` | no | no | yes (pure) |
+| `wallet.ts` | S | Canonical gold mutations (character, delta, reason, request, resulting balance) | none | none | none | no | no | yes (pure) |
 | `quest.ts` / `quest_store.ts` (domain) | S | Quest log serialize/progress | none | none | none | serialize only | no | no |
-| `quest_reward.ts` | S | Turn-in apply + wallet metadata | none | none | inventory, quest | no | no | yes (pure) |
-| `wallet.ts` | S | Gold helpers | none | none | none | no | no | yes (pure) |
+| `quest_reward.ts` | S | Turn-in apply + gold via currency helper | none | none | inventory, quest, wallet | no | no | yes (pure) |
 | `character.ts` / `character_name.ts` / `character_roster.ts` / `character_ticket.ts` / `character_lifecycle.ts` / `class_catalog.ts` | S | Name policy, roster, tickets, class lookup | none | none | content classes | serialize character | RPC bodies | starter stacks via class |
 | `join_validation.ts` | S | Match join rules including selection ticket | none | none | none | no | join reject | no |
 | `persistence.ts` | S | Grace, seq reset, checkpoints | disconnected map | none | match_state | no (decides when) | no | no |
@@ -55,7 +56,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `quest_store.ts` (nakama) | A | Read/write quests | none | Nakama storage | domain quest_store | yes | no | no |
 | `equipment_store.ts` (nakama) | A | Read/write equipment | none | Nakama storage | domain equipment_store | yes | no | no |
 | `progression_store.ts` (nakama) | A | Read/write progression | none | Nakama storage | domain progression_store | yes | no | no |
-| `quest_reward_store.ts` | A | `nk.multiUpdate` turn-in | none | Nakama storage + wallet | domain quest_reward | yes | no | yes |
+| `quest_reward_store.ts` / `transaction_store.ts` | A | `nk.multiUpdate` transaction boundary (loot/equipment/destroy/turn-in) | none | Nakama storage + wallet | domain transaction | yes | no | yes |
 | `starter_zone_registry.ts` (nakama) | A | Find/create match + singleton | none | Nakama match + storage | domain registry | yes (match id) | no | no |
 | `starter_zone_match.ts` | A | Match handler lifecycle | live zone + presences | Nakama match | all domain + stores | yes (join/txn/checkpoint) | yes | yes (via stores) |
 | `chat_hooks.ts` | A | `registerRtBefore` | none | Nakama RT | domain chat | no | RT | no |

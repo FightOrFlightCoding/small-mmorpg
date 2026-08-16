@@ -1,4 +1,4 @@
-import type { PlayerEquipment } from "./equipment";
+import { channelFromStatId, type PlayerEquipment } from "./equipment";
 import { findItem, type ItemDefinition, type PlayerInventory } from "./inventory";
 
 export const STAT_LAYER_ORDER = [
@@ -233,20 +233,39 @@ export function equipmentModifiersFromGear(
   itemsById: { [id: string]: ItemDefinition },
 ): { [channel: string]: number } {
   const modifiers: { [channel: string]: number } = {};
-  if (equipment === undefined || equipment.slots.main_hand.length === 0) {
+  if (equipment === undefined) {
     return modifiers;
   }
-  const item = findItem(inventory, equipment.slots.main_hand);
-  if (item === null) {
-    return modifiers;
-  }
-  const definition = itemsById[item.itemId];
-  if (definition === undefined) {
-    return modifiers;
-  }
-  const bonus = definition.attackBonus !== undefined ? definition.attackBonus : 0;
-  if (bonus !== 0) {
-    modifiers.attack = bonus;
+  const tags = Object.keys(equipment.slots);
+  for (let t = 0; t < tags.length; t++) {
+    const instanceId = equipment.slots[tags[t]];
+    if (instanceId.length === 0) {
+      continue;
+    }
+    const item = findItem(inventory, instanceId);
+    if (item === null) {
+      continue;
+    }
+    const definition = itemsById[item.itemId];
+    if (definition === undefined) {
+      continue;
+    }
+    let attackFromModifiers = 0;
+    const statModifiers = definition.statModifiers !== undefined ? definition.statModifiers : [];
+    for (let i = 0; i < statModifiers.length; i++) {
+      const channel = channelFromStatId(statModifiers[i].statId);
+      const current = modifiers[channel] !== undefined ? modifiers[channel] : 0;
+      modifiers[channel] = current + statModifiers[i].amount;
+      if (channel === "attack") {
+        attackFromModifiers += statModifiers[i].amount;
+      }
+    }
+    if (attackFromModifiers === 0) {
+      const bonus = definition.attackBonus !== undefined ? definition.attackBonus : 0;
+      if (bonus !== 0) {
+        modifiers.attack = (modifiers.attack !== undefined ? modifiers.attack : 0) + bonus;
+      }
+    }
   }
   return modifiers;
 }

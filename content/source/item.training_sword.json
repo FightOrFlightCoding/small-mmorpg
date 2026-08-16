@@ -2,8 +2,21 @@
   "id": "item.training_sword",
   "kind": "item",
   "displayName": "Training Sword",
+  "displayNameKey": "item.training_sword.name",
+  "descriptionKey": "item.training_sword.desc",
   "visualId": "visual.item_training_sword",
+  "iconAssetId": "visual.item_training_sword",
+  "worldAssetId": "visual.item_training_sword",
+  "category": "weapon",
   "maxStack": 1,
+  "tradeable": true,
+  "destroyable": true,
+  "uniquePolicy": "none",
   "equipSlot": "main_hand",
-  "attackBonus": 2
+  "equipmentSlotTags": ["main_hand"],
+  "classRequirements": [],
+  "levelRequirement": 0,
+  "attackBonus": 2,
+  "statModifiers": [{ "statId": "test.stat.attack", "amount": 2 }],
+  "sellValue": 1
 }

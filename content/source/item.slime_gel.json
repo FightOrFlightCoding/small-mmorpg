@@ -2,7 +2,19 @@
   "id": "item.slime_gel",
   "kind": "item",
   "displayName": "Slime Gel",
+  "displayNameKey": "item.slime_gel.name",
+  "descriptionKey": "item.slime_gel.desc",
   "visualId": "visual.item_slime_gel",
+  "iconAssetId": "visual.item_slime_gel",
+  "worldAssetId": "visual.item_slime_gel",
+  "category": "quest",
   "maxStack": 20,
-  "attackBonus": 0
+  "tradeable": false,
+  "destroyable": false,
+  "uniquePolicy": "none",
+  "classRequirements": [],
+  "levelRequirement": 0,
+  "attackBonus": 0,
+  "statModifiers": [],
+  "sellValue": 0
 }

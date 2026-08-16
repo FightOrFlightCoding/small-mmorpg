@@ -285,3 +285,17 @@ The stat pipeline is fixed code order: class base, level growth, allocated attri
 
 Storage is `player`/`progression` (`permissionWrite: 0`). Prompt 18 characters without a blob join at level 1 with previous vanguard combat numbers when using the default class and training sword.
 
+## 2026-08-16 — Generic items, inventory, equipment, currency, and transaction core
+
+The issued Prompt 23 generalizes the Prompt 18 item systems. It supersedes the earlier roadmap row that named “Abilities and hotbar” as Prompt 23. Ability unlock remains later. Merchants and player trading are not in this phase.
+
+Wire and storage keep `itemId` (not `definitionId`). Content JSON is camelCase (`displayName`, `maxStack`, `uniquePolicy`, `equipmentSlotTags`). Categories are `weapon`, `armor`, `consumable`, `quest`, `material`, and `miscellaneous`. Non-stackable items use server-generated `instanceId` values. Instance records store `createdAt`, `sourceType`, `sourceId`, `metadata`, `lockReason`, `lockId`, and `slotIndex`. Clients never invent instance ids. Prompt 18 blobs keep existing instance ids and stacks; missing fields default (`sourceType` `migration`, `createdAt` 0, empty locks, sequential `slotIndex`). `SAVE_SCHEMA_VERSION` stays 1.
+
+Equipment slots are content `equipment_slot` documents. Temporary tags sufficient to prove weapons and armor are `main_hand`, `off_hand`, `head`, `chest`, `legs`, and `feet`. Classes list `allowedEquipmentTags`; arcanist omits `off_hand`. Equipped items remain in inventory. Destroy of an equipped instance is `item_equipped`. Unique `character` blocks a second grant that cannot fully stack; unique `equipped` blocks a second equipped instance of the same definition. Slime gel is `quest`, not destroyable, not tradeable.
+
+Gold stays the account Nakama wallet. Every gold mutation goes through `applyGoldMutation` / `simulateCommit` with character id, delta, reason type, reason id, request id, resulting balance, and audit metadata. The client cannot send `resultingGold` or `resultingBalance`. Loot, quest rewards, equipment, and item destruction persist through `commitTransaction` (`nk.multiUpdate` when storage and wallet change together). Tests use `memoryCommitter` without Nakama adapters.
+
+GLoot remains a presentation mirror. UI operations send intentions. Canonical server responses rebuild GLoot. Rejected operations restore canonical state. Local drag/drop is not authoritative.
+
+New ordinary items are introduced through `content/source` without protocol changes. Test items (`item.test_*`) are catalog examples, not hardcoded runtime ids.
+

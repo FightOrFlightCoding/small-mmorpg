@@ -35,10 +35,10 @@ A later phase may implement a Required-for-Foundation-v1 row only when that phas
 | Quests | Existing and accepted | One quest, server-owned, idempotent turn-in. |
 | Merchants | Required for Foundation v1 | Absent. |
 | Inn and respawn binding | Required for Foundation v1 | Absent. Death teleports to `zone.starter.playerSpawn`. |
-| Inventory | Existing and accepted | Server-owned, capacity 20 stacks, `permissionWrite: 0`. |
-| Equipment | Existing and accepted | One `main_hand` slot, server-derived attack. |
+| Inventory | Existing and accepted (Prompt 23) | Server-owned, content `inventoryCapacity`, stack merge/split/move, destroy, locks, `permissionWrite: 0`. |
+| Equipment | Existing and accepted (Prompt 23) | Content-defined slots (temporary six tags), server-enforced requirements, canonical stat recalc. |
+| Primary currency gold | Existing and accepted (Prompt 23) | Nakama wallet `gold`; every mutation goes through the currency/transaction service. |
 | Simple loot | Existing and accepted | Transient ground loot, `requestId` pickup. |
-| Primary currency gold | Existing and accepted | Nakama wallet `gold`; quest turn-in credits 25. |
 | Zone chat | Existing and accepted | Room `zone.starter`, 200 characters, no BBCode. |
 | Party chat | Required for Foundation v1 | Absent. Direct-message and group joins are rejected. |
 | Temporary parties | Required for Foundation v1 | Absent. |

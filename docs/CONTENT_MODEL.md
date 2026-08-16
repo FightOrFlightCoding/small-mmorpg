@@ -28,10 +28,11 @@ IDs match `^[a-z]+(\.[a-z0-9_]+)+$` (two or more segments). The source filename 
 
 | Kind | Source file | Role |
 | --- | --- | --- |
-| `player` | `player.base.json` | Base max health, attack, movement speed, attack range, attack cooldown, interaction range, pickup range |
+| `player` | `player.base.json` | Base max health, attack, movement speed, attack range, attack cooldown, interaction range, pickup range, `inventoryCapacity` |
 | `npc` | `npc.elder.json` | Slice NPC definition |
 | `enemy` | `enemy.green_slime.json` | Combat stats, aggro/leash, respawn, `xpReward` 10, guaranteed `item.slime_gel` drop |
-| `item` | `item.training_sword.json`, `item.slime_gel.json`, `item.iron_sword.json` | Stack size, optional `main_hand` slot, attack bonus |
+| `item` | `item.training_sword.json`, `item.slime_gel.json`, `item.iron_sword.json`, plus ordinary test items | Categories `weapon`/`armor`/`consumable`/`quest`/`material`/`miscellaneous`; stack, trade/destroy, unique policy, slot tags, class/level, stat modifiers, sell value, icon/world asset ids |
+| `equipment_slot` | `slot.main_hand.json` and the other temporary tags | Content-defined equipment tags (`main_hand`, `off_hand`, `head`, `chest`, `legs`, `feet`). Classes list allowed tags; not every class uses every slot. |
 | `quest` | `quest.slime_problem.json` | Accept/turn-in at `npc.elder`, acquire and consume one gel, reward iron sword + 25 gold + 20 XP, once only |
 | `zone` | `zone.starter.json` | World size, tile size, spawn points, walkable bounds, collision AABBs, visual ID |
 | `class` | `test.class.vanguard.json`, `test.class.arcanist.json` | Temporary Foundation test classes: `progressionId`, starting equipment/abilities, allowed equipment tags, visual asset set. Exactly one class may set `legacyMigrationDefault`. Class id is immutable after character create. Numeric bases live on `class_progression`, not on the class document. |
@@ -41,7 +42,7 @@ IDs match `^[a-z]+(\.[a-z0-9_]+)+$` (two or more segments). The source filename 
 | `level_curve` | `test.curve.standard.json` | Max level, XP per level, attribute/skill points per level, optional automatic unlocks. Shared by test classes. |
 | `class_progression` | `test.progression.vanguard.json`, `test.progression.arcanist.json` | Per-class starting attributes/resources/derived values, growth, allowed attributes, points at create. |
 
-Equipment slots allowed in this slice: `main_hand`. Equippable items must have `maxStack` 1. Unequippable items omit `equipSlot`.
+Equipment slots are content-defined (`kind` `equipment_slot`). Equippable items list `equipmentSlotTags` (and may keep `equipSlot` as an alias). Unequippable items omit slot tags. A new ordinary item is introduced through content without protocol changes.
 
 No RPG database plugin is used. Dialogue source is not part of this phase.
 
@@ -69,7 +70,7 @@ Canonical character data lives in Nakama storage, not in Godot `user://`.
 
 An account may have up to **three live** characters. The roster is `player`/`roster`. Each character object is keyed `character_<compactCharacterId>` after Prompt 21 (legacy `character` remains the Prompt 18 fallback). Quests, inventory, equipment, and progression follow the same namespacing. Gold is still the account wallet. RPC `character_bootstrap` remains a compatibility wrapper: it migrates a Prompt 18 character into slot 1 if needed, then returns the first live character (or creates one). New UI uses `character_list`, `character_create`, `character_select`, `character_soft_delete`, and `character_restore`. Match join requires a server-issued `selectionTicket`. Base stats in the bootstrap RPC response still come from content `player.base`. Live combat and HUD derived stats come from the server stat pipeline for the character's class. Class starting equipment is applied only to newly created characters. Missing progression blobs initialize at level 1 on join. Prompt 18 blobs without `schemaVersion` migrate on load; see [MIGRATIONS.md](MIGRATIONS.md).
 
-Quest progress is a second object (`key` `quests`), loaded when the player joins `zone.starter` and written when `QUEST_ACCEPT` first succeeds, when pickup advances an objective, and when turn-in completes the quest. Inventory is a third object (`key` `inventory`), loaded or initialized on join and written when a pickup first succeeds or when turn-in consumes and grants items. Equipment is a fourth object (`key` `equipment`), loaded on join and written when equip or unequip first succeeds. Progression is a fifth object (`key` `progression`), loaded or initialized on join and written on trusted XP grants, attribute allocation, and request-id pruning. Gold is the Nakama wallet currency `gold`, loaded on join and credited only through `nk.multiUpdate` on successful turn-in. `player`/`wallet_ref` is a versioned pointer at that wallet; it does not store the gold amount. The Godot client must not write any of those objects.
+Quest progress is a second object (`key` `quests`), loaded when the player joins `zone.starter` and written when `QUEST_ACCEPT` first succeeds, when pickup advances an objective, and when turn-in completes the quest. Inventory is a third object (`key` `inventory`), loaded or initialized on join and written when a pickup, destroy, split, or move first succeeds or when turn-in consumes and grants items. Equipment is a fourth object (`key` `equipment`), loaded on join and written when equip or unequip first succeeds. Progression is a fifth object (`key` `progression`), loaded or initialized on join and written on trusted XP grants, attribute allocation, and request-id pruning. Gold is the Nakama wallet currency `gold`, loaded on join and mutated only through the project-owned currency helper and transaction boundary (`nk.multiUpdate` when storage and wallet must change together). `player`/`wallet_ref` is a versioned pointer at that wallet; it does not store the gold amount. The Godot client must not write any of those objects.
 
 ## Reproduction
 

@@ -11,6 +11,7 @@ import type {
   ContentPayload,
   DerivedStatDef,
   EnemyDef,
+  EquipmentSlotDef,
   ItemDef,
   ItemStack,
   LevelCurveDef,
@@ -97,14 +98,16 @@ export function validateDocuments(
   const derivedStats = asKindMap<DerivedStatDef>(selected, "derived_stat");
   const levelCurves = asKindMap<LevelCurveDef>(selected, "level_curve");
   const classProgressions = asKindMap<ClassProgressionDef>(selected, "class_progression");
+  const equipmentSlots = asKindMap<EquipmentSlotDef>(selected, "equipment_slot");
 
   if (player) {
     checkVisual(player.visualId, issues);
   }
 
+  const slotTags = slotTagsFrom(equipmentSlots, issues);
   const itemIds = Object.keys(items);
   for (let i = 0; i < itemIds.length; i++) {
-    checkItem(items[itemIds[i]], issues);
+    checkItem(items[itemIds[i]], classes, derivedStats, slotTags, issues);
   }
   const npcIds = Object.keys(npcs);
   for (let i = 0; i < npcIds.length; i++) {
@@ -122,7 +125,7 @@ export function validateDocuments(
   for (let i = 0; i < zoneIds.length; i++) {
     checkZone(zones[zoneIds[i]], npcs, enemies, issues);
   }
-  checkClasses(classes, items, classProgressions, issues);
+  checkClasses(classes, items, classProgressions, slotTags, issues);
   checkProgressionCatalog(attributes, resources, derivedStats, levelCurves, classProgressions, classes, issues);
 
   if (issues.length > 0) {
@@ -146,6 +149,7 @@ export function validateDocuments(
     derivedStats,
     levelCurves,
     classProgressions,
+    equipmentSlots,
   };
 }
 
@@ -203,16 +207,68 @@ export function developmentOnlyIds(documents: SourceDocument[]): string[] {
   return ids;
 }
 
-function checkItem(item: ItemDef, issues: ContentIssue[]): void {
+function slotTagsFrom(slots: Record<string, EquipmentSlotDef>, issues: ContentIssue[]): string[] {
+  const tags: string[] = [];
+  const seen: { [tag: string]: boolean } = {};
+  const ids = Object.keys(slots);
+  for (let i = 0; i < ids.length; i++) {
+    const slot = slots[ids[i]];
+    if (seen[slot.tag] === true) {
+      issues.push(issue("duplicate_equipment_slot:" + slot.tag));
+      continue;
+    }
+    seen[slot.tag] = true;
+    tags.push(slot.tag);
+  }
+  return tags;
+}
+
+function checkItem(
+  item: ItemDef,
+  classes: Record<string, ClassDef>,
+  derivedStats: Record<string, DerivedStatDef>,
+  slotTags: readonly string[],
+  issues: ContentIssue[],
+): void {
   checkVisual(item.visualId, issues);
+  if (item.iconAssetId !== undefined) {
+    checkVisual(item.iconAssetId, issues);
+  }
+  if (item.worldAssetId !== undefined) {
+    checkVisual(item.worldAssetId, issues);
+  }
   if (item.maxStack < 1) {
     issues.push(issue("invalid_stack_size:" + item.id));
   }
+  const tags = item.equipmentSlotTags !== undefined ? item.equipmentSlotTags : [];
   if (item.equipSlot !== undefined) {
-    if (!isAllowedEquipSlot(item.equipSlot)) {
+    if (!isAllowedEquipSlot(item.equipSlot, slotTags)) {
       issues.push(issue("unknown_equipment_slot:" + item.equipSlot));
     } else if (item.maxStack !== 1) {
       issues.push(issue("invalid_stack_size:" + item.id));
+    }
+  }
+  for (let t = 0; t < tags.length; t++) {
+    if (!isAllowedEquipSlot(tags[t], slotTags)) {
+      issues.push(issue("unknown_equipment_slot:" + tags[t]));
+    }
+  }
+  if (item.equipSlot !== undefined && tags.length > 0 && tags.indexOf(item.equipSlot) === -1) {
+    issues.push(issue("unknown_equipment_slot:" + item.equipSlot));
+  }
+  if ((item.equipSlot !== undefined || tags.length > 0) && item.maxStack !== 1) {
+    issues.push(issue("invalid_stack_size:" + item.id));
+  }
+  const classReqs = item.classRequirements !== undefined ? item.classRequirements : [];
+  for (let c = 0; c < classReqs.length; c++) {
+    if (!classes[classReqs[c]]) {
+      issues.push(issue("missing_reference:" + classReqs[c]));
+    }
+  }
+  const modifiers = item.statModifiers !== undefined ? item.statModifiers : [];
+  for (let m = 0; m < modifiers.length; m++) {
+    if (!derivedStats[modifiers[m].statId]) {
+      issues.push(issue("missing_reference:" + modifiers[m].statId));
     }
   }
 }
@@ -316,6 +372,7 @@ function checkClasses(
   classes: Record<string, ClassDef>,
   items: Record<string, ItemDef>,
   progressions: Record<string, ClassProgressionDef>,
+  slotTags: readonly string[],
   issues: ContentIssue[],
 ): void {
   const ids = Object.keys(classes);
@@ -335,6 +392,11 @@ function checkClasses(
     }
     if (def.legacyMigrationDefault === true) {
       defaults += 1;
+    }
+    for (let t = 0; t < def.allowedEquipmentTags.length; t++) {
+      if (!isAllowedEquipSlot(def.allowedEquipmentTags[t], slotTags)) {
+        issues.push(issue("unknown_equipment_slot:" + def.allowedEquipmentTags[t]));
+      }
     }
   }
   if (defaults !== 1) {

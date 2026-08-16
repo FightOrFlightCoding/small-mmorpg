@@ -1,7 +1,7 @@
 import { distance } from "./movement";
 import {
   addOrStackItem,
-  canAcceptItem,
+  acceptItemFailureCode,
   cloneInventory,
   emptyInventory,
   rememberPickup,
@@ -149,10 +149,15 @@ export function applyPickup(input: PickupInput): PickupDecision {
   if (definition === undefined) {
     return fail("invalid_id", inventory, input.loot);
   }
-  if (!canAcceptItem(inventory, entity.itemId, entity.quantity, definition)) {
-    return fail("inventory_full", inventory, input.loot);
+  const failCode = acceptItemFailureCode(inventory, entity.itemId, entity.quantity, definition);
+  if (failCode.length > 0) {
+    return fail(failCode, inventory, input.loot);
   }
-  const granted = addOrStackItem(inventory, entity.itemId, entity.quantity, entity.instanceId, definition);
+  const granted = addOrStackItem(inventory, entity.itemId, entity.quantity, entity.instanceId, definition, {
+    sourceType: "loot",
+    sourceId: entity.id,
+    createdAt: 0,
+  });
   const remembered = rememberPickup(granted, input.requestId, {
     ok: true,
     code: "ok",

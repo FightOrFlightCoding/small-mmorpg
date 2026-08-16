@@ -1,18 +1,20 @@
 import { content, contentHash } from "../generated/content";
 import { readCharacter, writeCharacterCheckpoint } from "./character_store";
 import { readQuests, writeQuests } from "./quest_store";
-import { readInventory, writeInventory, writeInventoryOnce } from "./inventory_store";
+import { readInventory, writeInventoryOnce } from "./inventory_store";
 import { readEquipment, writeEquipment } from "./equipment_store";
 import { loadWalletRef } from "./wallet_ref_store";
 import { SAVE_SCHEMA_VERSION } from "../domain/save_schema";
-import { commitQuestReward, readGold } from "./quest_reward_store";
+import { commitQuestReward, commitTransaction, readGold } from "./quest_reward_store";
+import { TX_REASON_EQUIPMENT, TX_REASON_LOOT } from "../domain/transaction";
 import { validateJoinAttempt } from "../domain/join_validation";
-import { applyMatchLoop, snapshotForOthers, type IncomingMatchData } from "../domain/match_loop";
+import { applyMatchLoop, snapshotForOthers, type IncomingMatchData, type EquipmentPersist, type InventoryPersist } from "../domain/match_loop";
 import { PLAYER_RESPAWN_DELAY_SEC } from "../domain/combat";
 import { questDefinitionsFromContent } from "../domain/quest";
-import { initializeInventoryFromStacks, itemDefinitionsFromContent } from "../domain/inventory";
+import { initializeInventoryFromStacks, itemDefinitionsFromContent, INVENTORY_CAPACITY } from "../domain/inventory";
 import {
   derivedAttack,
+  equipmentSlotsFromContent,
   loadEquipment,
 } from "../domain/equipment";
 import {
@@ -38,7 +40,7 @@ import {
 } from "../domain/persistence";
 import { migrateLegacyCharacterIntoRoster } from "../domain/character_lifecycle";
 import { invalidateTicket, validateJoinSelection } from "../domain/character_ticket";
-import { classDefinitionsFromContent, startingEquipmentForClass } from "../domain/class_catalog";
+import { classDefinitionsFromContent, classEquipmentTagsFromContent, startingEquipmentForClass } from "../domain/class_catalog";
 import { characterLifecycleDeps } from "./character_lifecycle_deps";
 import { readSelection, writeSelection } from "./selection_store";
 import { catalogFromContent, syncCombatStatsFromPipeline } from "../domain/stats";
@@ -73,6 +75,12 @@ export function matchInit(
     },
     questDefinitionsFromContent(content.quests),
     itemDefinitionsFromContent(content.items),
+    {
+      equipmentSlotsByTag: equipmentSlotsFromContent(content.equipmentSlots),
+      classEquipmentTags: classEquipmentTagsFromContent(content.classes),
+      inventoryCapacity:
+        typeof content.player.inventoryCapacity === "number" ? content.player.inventoryCapacity : INVENTORY_CAPACITY,
+    },
   );
   zone.progressionCatalog = catalogFromContent(content);
   logger.info("starter_zone init label=%s content_hash=%s", STARTER_ZONE_LABEL, contentHash);
@@ -365,16 +373,7 @@ export function matchLoop(
     writeQuests(nk, persist.userId, persist.log, persist.characterId);
     logger.info("starter_zone persist quests user_id=%s", persist.userId);
   }
-  for (let inv = 0; inv < result.persistInventories.length; inv++) {
-    const persist = result.persistInventories[inv];
-    writeInventory(nk, persist.userId, persist.inventory, persist.characterId);
-    logger.info("starter_zone persist inventory user_id=%s", persist.userId);
-  }
-  for (let eq = 0; eq < result.persistEquipment.length; eq++) {
-    const persist = result.persistEquipment[eq];
-    writeEquipment(nk, persist.userId, persist.equipment, persist.characterId);
-    logger.info("starter_zone persist equipment user_id=%s", persist.userId);
-  }
+  persistEconomy(nk, logger, tick, result.persistInventories, result.persistEquipment);
   for (let pg = 0; pg < result.persistProgression.length; pg++) {
     const persist = result.persistProgression[pg];
     writeProgression(nk, persist.userId, persist.progression, persist.characterId);
@@ -449,6 +448,59 @@ function hydrateRuntime(state: StarterMatchRuntimeState): StarterMatchRuntimeSta
     zone: zone,
     presences: dict(state.presences),
   };
+}
+
+function persistEconomy(
+  nk: nkruntime.Nakama,
+  logger: nkruntime.Logger,
+  tick: number,
+  inventories: InventoryPersist[],
+  equipment: EquipmentPersist[],
+): void {
+  const byUser: {
+    [userId: string]: {
+      characterId?: string;
+      inventory?: InventoryPersist["inventory"];
+      equipment?: EquipmentPersist["equipment"];
+    };
+  } = {};
+  for (let i = 0; i < inventories.length; i++) {
+    const persist = inventories[i];
+    byUser[persist.userId] = {
+      characterId: persist.characterId,
+      inventory: persist.inventory,
+    };
+  }
+  for (let e = 0; e < equipment.length; e++) {
+    const persist = equipment[e];
+    const current = byUser[persist.userId] !== undefined ? byUser[persist.userId] : {};
+    current.characterId = persist.characterId !== undefined ? persist.characterId : current.characterId;
+    current.equipment = persist.equipment;
+    byUser[persist.userId] = current;
+  }
+  const userIds = Object.keys(byUser);
+  for (let u = 0; u < userIds.length; u++) {
+    const userId = userIds[u];
+    const row = byUser[userId];
+    const hasInventory = row.inventory !== undefined;
+    const result = commitTransaction(nk, {
+      requestId: "match-persist-" + userId + "-" + String(tick),
+      characterId: row.characterId !== undefined ? row.characterId : "",
+      userId: userId,
+      reasonType: hasInventory ? TX_REASON_LOOT : TX_REASON_EQUIPMENT,
+      reasonId: hasInventory ? "inventory" : "equipment",
+      goldDelta: 0,
+      currentGold: 0,
+      inventory: row.inventory,
+      equipment: row.equipment,
+      metadata: { tick: tick },
+    });
+    if (!result.ok) {
+      logger.info("starter_zone persist economy failed user_id=%s reason=%s", userId, result.code);
+      continue;
+    }
+    logger.info("starter_zone persist economy user_id=%s", userId);
+  }
 }
 
 function writeCheckpoints(

@@ -25,7 +25,7 @@ export function storedEquipmentWriteValue(equipment: PlayerEquipment): { [key: s
     };
   }
   const gameplay: { [key: string]: unknown } = {
-    slots: { main_hand: equipment.slots.main_hand },
+    slots: copySlotRecord(equipment.slots),
     equipByRequestId: equipByRequestId,
   };
   if (equipment.equipRequestTicks !== undefined) {
@@ -56,8 +56,12 @@ export function storedEquipmentFromValue(value: unknown): PlayerEquipment | null
   equipment.extras = optionalExtras(data, EQUIPMENT_SAVE_KEYS);
   if (data.slots !== null && typeof data.slots === "object" && !Array.isArray(data.slots)) {
     const slots = data.slots as { [key: string]: unknown };
-    if (typeof slots.main_hand === "string") {
-      equipment.slots.main_hand = slots.main_hand;
+    const keys = Object.keys(slots);
+    for (let s = 0; s < keys.length; s++) {
+      const key = keys[s];
+      if (typeof slots[key] === "string") {
+        equipment.slots[key] = slots[key];
+      }
     }
   }
   if (data.equipByRequestId !== null && typeof data.equipByRequestId === "object" && !Array.isArray(data.equipByRequestId)) {
@@ -100,4 +104,13 @@ function parseEquipRecord(value: unknown): EquipRecord | null {
     slot: data.slot,
     instanceId: data.instanceId,
   };
+}
+
+function copySlotRecord(slots: { [slot: string]: string }): { [slot: string]: string } {
+  const copy: { [slot: string]: string } = {};
+  const keys = Object.keys(slots);
+  for (let i = 0; i < keys.length; i++) {
+    copy[keys[i]] = slots[keys[i]];
+  }
+  return copy;
 }

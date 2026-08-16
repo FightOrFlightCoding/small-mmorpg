@@ -17,12 +17,16 @@ export const KIND_PREFIX: Record<string, string> = {
   derived_stat: "test.stat",
   level_curve: "test.curve",
   class_progression: "test.progression",
+  equipment_slot: "slot",
 };
 
 export function isContentId(value: string): boolean {
   return CONTENT_ID_PATTERN.test(value);
 }
 
-export function isAllowedEquipSlot(value: string): value is EquipSlot {
+export function isAllowedEquipSlot(value: string, slotTags: readonly string[] = []): boolean {
+  if (slotTags.length > 0) {
+    return slotTags.indexOf(value) !== -1;
+  }
   return (ALLOWED_EQUIP_SLOTS as readonly string[]).indexOf(value) !== -1;
 }

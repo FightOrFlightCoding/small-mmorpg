@@ -19,6 +19,9 @@ signal logout_pressed
 @onready var _slot_host: Control = $Root/Inventory/Margin/VBox/SlotHost
 @onready var _equip: Button = $Root/Inventory/Margin/VBox/EquipRow/EquipButton
 @onready var _unequip: Button = $Root/Inventory/Margin/VBox/EquipRow/UnequipButton
+@onready var _slot_option: OptionButton = $Root/Inventory/Margin/VBox/EquipRow/SlotOption
+@onready var _destroy: Button = $Root/Inventory/Margin/VBox/MutateRow/DestroyButton
+@onready var _split: Button = $Root/Inventory/Margin/VBox/MutateRow/SplitButton
 @onready var _notice: Label = $Root/Notice
 @onready var _progression_summary: Label = $Root/Progression/Margin/VBox/Summary
 @onready var _progression_xp: Label = $Root/Progression/Margin/VBox/Xp
@@ -45,6 +48,13 @@ func _ready() -> void:
 		_equip.pressed.connect(_on_equip_pressed)
 	if _unequip != null:
 		_unequip.pressed.connect(_on_unequip_pressed)
+	if _destroy != null:
+		_destroy.pressed.connect(_on_destroy_pressed)
+	if _split != null:
+		_split.pressed.connect(_on_split_pressed)
+	_fill_slot_option()
+	if _slot_option != null and not _slot_option.item_selected.is_connected(_on_slot_selected):
+		_slot_option.item_selected.connect(_on_slot_selected)
 	if not InventoryService.item_activated.is_connected(_on_item_activated):
 		InventoryService.item_activated.connect(_on_item_activated)
 	if not EquipmentService.equipment_changed.is_connected(refresh_equipment):
@@ -113,6 +123,7 @@ func refresh_equipment() -> void:
 		_attack.text = "Attack: %s" % str(EquipmentService.attack)
 	if _main_hand != null:
 		_main_hand.text = "Main hand: %s" % EquipmentService.equipped_display_name()
+	_fill_slot_option()
 
 
 func refresh_wallet() -> void:
@@ -160,17 +171,61 @@ func _on_equip_pressed() -> void:
 	var instance_id := InventoryService.selected_instance_id
 	if instance_id.is_empty():
 		return
-	EquipmentService.request_equip(instance_id, EquipmentService.MAIN_HAND_SLOT)
+	EquipmentService.request_equip(instance_id, EquipmentService.selected_slot)
 
 
 func _on_unequip_pressed() -> void:
-	EquipmentService.request_unequip(EquipmentService.MAIN_HAND_SLOT)
+	EquipmentService.request_unequip(EquipmentService.selected_slot)
 
 
 func _on_item_activated(instance_id: String) -> void:
 	if instance_id.is_empty():
 		return
-	EquipmentService.request_equip(instance_id, EquipmentService.MAIN_HAND_SLOT)
+	EquipmentService.request_equip(instance_id, EquipmentService.selected_slot)
+
+
+func _on_destroy_pressed() -> void:
+	var instance_id := InventoryService.selected_instance_id
+	if instance_id.is_empty():
+		return
+	InventoryService.request_destroy(instance_id)
+
+
+func _on_split_pressed() -> void:
+	var instance_id := InventoryService.selected_instance_id
+	if instance_id.is_empty():
+		return
+	var quantity := 0
+	for entry in InventoryService.items:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("instanceId", "")) != instance_id:
+			continue
+		quantity = int(entry.get("quantity", 0))
+		break
+	if quantity < 2:
+		return
+	InventoryService.request_split(instance_id, int(floor(float(quantity) / 2.0)))
+
+
+func _on_slot_selected(index: int) -> void:
+	if _slot_option == null or index < 0 or index >= _slot_option.item_count:
+		return
+	EquipmentService.selected_slot = _slot_option.get_item_text(index)
+
+
+func _fill_slot_option() -> void:
+	if _slot_option == null:
+		return
+	var tags := EquipmentService.slot_tags()
+	var current := EquipmentService.selected_slot
+	_slot_option.clear()
+	var selected := 0
+	for i in range(tags.size()):
+		_slot_option.add_item(tags[i])
+		if tags[i] == current:
+			selected = i
+	_slot_option.select(selected)
 
 
 func _bind_inventory() -> void:

@@ -26,6 +26,7 @@ var _sent_at: Dictionary = {}
 var _attack_requests: Dictionary = {}
 var _pickup_requests: Dictionary = {}
 var _equip_requests: Dictionary = {}
+var _inventory_requests: Dictionary = {}
 var _ping_ms: int = 0
 var _ping_ema_ms: float = 0.0
 var _frame_ms: float = 0.0
@@ -334,6 +335,8 @@ func _connect_interaction_signals() -> void:
 		EquipmentService.equipment_changed.connect(_on_equipment_changed)
 	if not EquipmentService.request_started.is_connected(_on_equip_request_started):
 		EquipmentService.request_started.connect(_on_equip_request_started)
+	if not InventoryService.request_started.is_connected(_on_inventory_request_started):
+		InventoryService.request_started.connect(_on_inventory_request_started)
 	if not WalletService.wallet_changed.is_connected(_on_wallet_changed):
 		WalletService.wallet_changed.connect(_on_wallet_changed)
 
@@ -353,6 +356,8 @@ func _disconnect_interaction_signals() -> void:
 		EquipmentService.equipment_changed.disconnect(_on_equipment_changed)
 	if EquipmentService.request_started.is_connected(_on_equip_request_started):
 		EquipmentService.request_started.disconnect(_on_equip_request_started)
+	if InventoryService.request_started.is_connected(_on_inventory_request_started):
+		InventoryService.request_started.disconnect(_on_inventory_request_started)
 	if WalletService.wallet_changed.is_connected(_on_wallet_changed):
 		WalletService.wallet_changed.disconnect(_on_wallet_changed)
 
@@ -383,6 +388,12 @@ func _on_action_result(payload: Dictionary) -> void:
 		if bool(payload.get("result_ok", false)):
 			return
 		AppState.report_recoverable(String(payload.get("code", "equip_failed")), _equip_message(String(payload.get("code", ""))))
+		return
+	if _inventory_requests.has(request_id):
+		_inventory_requests.erase(request_id)
+		if bool(payload.get("result_ok", false)):
+			return
+		AppState.report_recoverable(String(payload.get("code", "inventory_failed")), _inventory_message(String(payload.get("code", ""))))
 		return
 	if bool(payload.get("result_ok", false)):
 		return
@@ -415,6 +426,11 @@ func _on_wallet_changed() -> void:
 func _on_equip_request_started(request_id: String) -> void:
 	if not request_id.is_empty():
 		_equip_requests[request_id] = true
+
+
+func _on_inventory_request_started(request_id: String) -> void:
+	if not request_id.is_empty():
+		_inventory_requests[request_id] = true
 
 
 func _on_combat_event(payload: Dictionary) -> void:
@@ -454,6 +470,8 @@ func _pickup_message(code: String) -> String:
 		return "You cannot loot while defeated."
 	if code == "invalid_id":
 		return "That item is not valid."
+	if code == "unique_restricted":
+		return "You already have a unique item of that type."
 	return "The server rejected that pickup."
 
 
@@ -468,7 +486,35 @@ func _equip_message(code: String) -> String:
 		return "That item is not valid."
 	if code == "player_dead":
 		return "You cannot change equipment while defeated."
+	if code == "item_locked":
+		return "That item is locked."
+	if code == "class_restricted":
+		return "Your class cannot use that item or slot."
+	if code == "level_restricted":
+		return "Your level is too low for that item."
+	if code == "invalid_category":
+		return "That item cannot go in that slot."
+	if code == "unique_restricted":
+		return "You already have a unique item of that type."
 	return "The server rejected that equipment action."
+
+
+func _inventory_message(code: String) -> String:
+	if code == "not_destroyable":
+		return "That item cannot be destroyed."
+	if code == "item_locked":
+		return "That item is locked."
+	if code == "item_equipped":
+		return "Unequip that item before destroying it."
+	if code == "inventory_full":
+		return "Your inventory is full."
+	if code == "player_dead":
+		return "You cannot do that while defeated."
+	if code == "invalid_id":
+		return "That item is not valid."
+	if code == "invalid_slot":
+		return "That inventory slot is not valid."
+	return "The server rejected that inventory action."
 
 
 func _quest_message(code: String) -> String:

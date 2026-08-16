@@ -408,6 +408,44 @@ func send_equip(instance_id: String, slot: String, request_id: String) -> Dictio
 	)
 
 
+func send_destroy_item(instance_id: String, request_id: String, quantity: int = -1) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var extra: Dictionary = {"instanceId": instance_id, "requestId": request_id}
+	if quantity >= 1:
+		extra["quantity"] = quantity
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_DESTROY_ITEM,
+		MatchProtocol.client_envelope_json(extra)
+	)
+
+
+func send_split_stack(instance_id: String, quantity: int, request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_SPLIT_STACK,
+		MatchProtocol.client_envelope_json({
+			"instanceId": instance_id,
+			"quantity": quantity,
+			"requestId": request_id,
+		})
+	)
+
+
+func send_move_item(instance_id: String, to_slot_index: int, request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_MOVE_ITEM,
+		MatchProtocol.client_envelope_json({
+			"instanceId": instance_id,
+			"toSlotIndex": to_slot_index,
+			"requestId": request_id,
+		})
+	)
+
+
 func send_allocate_attributes(attribute_id: String, amount: int, request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}

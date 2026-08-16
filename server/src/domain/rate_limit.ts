@@ -35,7 +35,7 @@ export function actionForOpcode(opcode: number): RateAction {
   if (opcode === ClientOpcode.PICKUP) {
     return "pickup";
   }
-  if (opcode === ClientOpcode.EQUIP) {
+  if (opcode === ClientOpcode.EQUIP || opcode === ClientOpcode.DESTROY_ITEM || opcode === ClientOpcode.SPLIT_STACK || opcode === ClientOpcode.MOVE_ITEM) {
     return "equip";
   }
   if (opcode === ClientOpcode.QUEST_ACCEPT || opcode === ClientOpcode.QUEST_TURN_IN) {

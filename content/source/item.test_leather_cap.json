@@ -1,0 +1,22 @@
+{
+  "id": "item.test_leather_cap",
+  "kind": "item",
+  "displayName": "Test Leather Cap",
+  "displayNameKey": "item.test_leather_cap.name",
+  "descriptionKey": "item.test_leather_cap.desc",
+  "visualId": "visual.item_leather_cap",
+  "iconAssetId": "visual.item_leather_cap",
+  "worldAssetId": "visual.item_leather_cap",
+  "category": "armor",
+  "maxStack": 1,
+  "tradeable": true,
+  "destroyable": true,
+  "uniquePolicy": "none",
+  "equipSlot": "head",
+  "equipmentSlotTags": ["head"],
+  "classRequirements": [],
+  "levelRequirement": 0,
+  "attackBonus": 0,
+  "statModifiers": [{ "statId": "test.stat.max_health", "amount": 5 }],
+  "sellValue": 2
+}

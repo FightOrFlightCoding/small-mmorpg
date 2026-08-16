@@ -13,6 +13,9 @@ export const ClientOpcode = {
   QUEST_TURN_IN: 7,
   RESYNC_REQUEST: 8,
   ALLOCATE_ATTRIBUTES: 9,
+  DESTROY_ITEM: 10,
+  SPLIT_STACK: 11,
+  MOVE_ITEM: 12,
 } as const;
 
 export const ServerOpcode = {
@@ -42,6 +45,9 @@ const CLIENT_OPCODES: ClientOpcode[] = [
   ClientOpcode.QUEST_TURN_IN,
   ClientOpcode.RESYNC_REQUEST,
   ClientOpcode.ALLOCATE_ATTRIBUTES,
+  ClientOpcode.DESTROY_ITEM,
+  ClientOpcode.SPLIT_STACK,
+  ClientOpcode.MOVE_ITEM,
 ];
 
 const REWARD_OPCODES: ClientOpcode[] = [
@@ -62,6 +68,9 @@ OPCODE_KEYS[ClientOpcode.QUEST_ACCEPT] = ["questId"];
 OPCODE_KEYS[ClientOpcode.QUEST_TURN_IN] = ["questId", "npcId"];
 OPCODE_KEYS[ClientOpcode.RESYNC_REQUEST] = [];
 OPCODE_KEYS[ClientOpcode.ALLOCATE_ATTRIBUTES] = ["attributeId", "amount"];
+OPCODE_KEYS[ClientOpcode.DESTROY_ITEM] = ["instanceId", "quantity"];
+OPCODE_KEYS[ClientOpcode.SPLIT_STACK] = ["instanceId", "quantity"];
+OPCODE_KEYS[ClientOpcode.MOVE_ITEM] = ["instanceId", "toSlotIndex"];
 
 const OUTCOME_KEYS = [
   "attack",
@@ -95,10 +104,13 @@ const OUTCOME_KEYS = [
   "unspentAttributePoints",
   "unspentSkillPoints",
   "allocatedAttributes",
+  "resultingGold",
+  "resultingBalance",
 ];
 
 const INPUT_NUMBER_KEYS = ["seq", "axisX", "axisY"];
 const ALLOCATE_NUMBER_KEYS = ["amount"];
+const INVENTORY_NUMBER_KEYS = ["quantity", "toSlotIndex"];
 
 export interface ProtocolError {
   code: string;
@@ -115,6 +127,8 @@ export interface ParsedClientMessage {
   axisX?: number;
   axisY?: number;
   amount?: number;
+  quantity?: number;
+  toSlotIndex?: number;
 }
 
 export function isClientOpcode(opcode: number): opcode is ClientOpcode {
@@ -131,7 +145,10 @@ function requiresRequestId(opcode: ClientOpcode): boolean {
     opcode === ClientOpcode.INTERACT ||
     opcode === ClientOpcode.ATTACK ||
     opcode === ClientOpcode.EQUIP ||
-    opcode === ClientOpcode.ALLOCATE_ATTRIBUTES
+    opcode === ClientOpcode.ALLOCATE_ATTRIBUTES ||
+    opcode === ClientOpcode.DESTROY_ITEM ||
+    opcode === ClientOpcode.SPLIT_STACK ||
+    opcode === ClientOpcode.MOVE_ITEM
   );
 }
 
@@ -227,6 +244,9 @@ export function parseClientMessage(
     if (ALLOCATE_NUMBER_KEYS.indexOf(key) !== -1) {
       continue;
     }
+    if (INVENTORY_NUMBER_KEYS.indexOf(key) !== -1) {
+      continue;
+    }
     if (key === "instanceId" && !Object.prototype.hasOwnProperty.call(data, key)) {
       continue;
     }
@@ -267,6 +287,27 @@ export function parseClientMessage(
       return { code: "invalid_amount", message: "ALLOCATE amount must be a finite integer." };
     }
     message.amount = amount;
+  }
+  if (opcode === ClientOpcode.DESTROY_ITEM && Object.prototype.hasOwnProperty.call(data, "quantity")) {
+    const quantity = data.quantity;
+    if (typeof quantity !== "number" || !isFinite(quantity) || quantity !== Math.floor(quantity)) {
+      return { code: "invalid_amount", message: "DESTROY quantity must be a finite integer." };
+    }
+    message.quantity = quantity;
+  }
+  if (opcode === ClientOpcode.SPLIT_STACK) {
+    const quantity = data.quantity;
+    if (typeof quantity !== "number" || !isFinite(quantity) || quantity !== Math.floor(quantity)) {
+      return { code: "invalid_amount", message: "SPLIT quantity must be a finite integer." };
+    }
+    message.quantity = quantity;
+  }
+  if (opcode === ClientOpcode.MOVE_ITEM) {
+    const toSlotIndex = data.toSlotIndex;
+    if (typeof toSlotIndex !== "number" || !isFinite(toSlotIndex) || toSlotIndex !== Math.floor(toSlotIndex)) {
+      return { code: "invalid_slot", message: "MOVE toSlotIndex must be a finite integer." };
+    }
+    message.toSlotIndex = toSlotIndex;
   }
   return message;
 }

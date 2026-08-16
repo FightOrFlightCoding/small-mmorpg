@@ -1,7 +1,7 @@
 {
   "protocolVersion": 1,
   "contentSchemaVersion": 1,
-  "contentHash": "92acd85d31c8e291790ef67e27cea10ada40932529885d744b15dc1af6f6c0cf",
+  "contentHash": "5f2d9340dc76b62b169af5f0ec85372394adc0e4be2d8a77b9ae608b42780ceb",
   "exactDependencies": {
     "server/package.json:typescript": "5.8.3",
     "server/package.json:nakama-runtime": "github:heroiclabs/nakama-common#v1.47.0",
@@ -49,7 +49,10 @@
     "QUEST_ACCEPT": 6,
     "QUEST_TURN_IN": 7,
     "RESYNC_REQUEST": 8,
-    "ALLOCATE_ATTRIBUTES": 9
+    "ALLOCATE_ATTRIBUTES": 9,
+    "DESTROY_ITEM": 10,
+    "SPLIT_STACK": 11,
+    "MOVE_ITEM": 12
   },
   "serverOpcodes": {
     "FULL_STATE": 101,
@@ -81,10 +84,22 @@
     "enemy.green_slime.json",
     "item.iron_sword.json",
     "item.slime_gel.json",
+    "item.test_cloth.json",
+    "item.test_leather_cap.json",
+    "item.test_pebble.json",
+    "item.test_potion.json",
+    "item.test_relic_blade.json",
+    "item.test_vanguard_mail.json",
     "item.training_sword.json",
     "npc.elder.json",
     "player.base.json",
     "quest.slime_problem.json",
+    "slot.chest.json",
+    "slot.feet.json",
+    "slot.head.json",
+    "slot.legs.json",
+    "slot.main_hand.json",
+    "slot.off_hand.json",
     "test.attribute.focus.json",
     "test.attribute.might.json",
     "test.attribute.vitality.json",

@@ -241,6 +241,22 @@ text = "Equip"
 layout_mode = 2
 text = "Unequip"
 
+[node name="SlotOption" type="OptionButton" parent="Root/Inventory/Margin/VBox/EquipRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MutateRow" type="HBoxContainer" parent="Root/Inventory/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="DestroyButton" type="Button" parent="Root/Inventory/Margin/VBox/MutateRow"]
+layout_mode = 2
+text = "Destroy"
+
+[node name="SplitButton" type="Button" parent="Root/Inventory/Margin/VBox/MutateRow"]
+layout_mode = 2
+text = "Split"
+
 [node name="ListHost" type="Control" parent="Root/Inventory/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3

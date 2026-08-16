@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "92acd85d31c8e291790ef67e27cea10ada40932529885d744b15dc1af6f6c0cf";
+export const contentHash = "5f2d9340dc76b62b169af5f0ec85372394adc0e4be2d8a77b9ae608b42780ceb";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = [] as const;
 export const content = {
@@ -104,7 +104,11 @@ export const content = {
   "classes": {
     "test.class.arcanist": {
       "allowedEquipmentTags": [
-        "main_hand"
+        "main_hand",
+        "head",
+        "chest",
+        "legs",
+        "feet"
       ],
       "displayName": "Test Arcanist",
       "id": "test.class.arcanist",
@@ -121,7 +125,12 @@ export const content = {
     },
     "test.class.vanguard": {
       "allowedEquipmentTags": [
-        "main_hand"
+        "main_hand",
+        "off_hand",
+        "head",
+        "chest",
+        "legs",
+        "feet"
       ],
       "displayName": "Test Vanguard",
       "id": "test.class.vanguard",
@@ -296,32 +305,290 @@ export const content = {
       "xpReward": 10
     }
   },
+  "equipmentSlots": {
+    "slot.chest": {
+      "allowedCategories": [
+        "armor"
+      ],
+      "displayName": "Chest",
+      "id": "slot.chest",
+      "kind": "equipment_slot",
+      "tag": "chest"
+    },
+    "slot.feet": {
+      "allowedCategories": [
+        "armor"
+      ],
+      "displayName": "Feet",
+      "id": "slot.feet",
+      "kind": "equipment_slot",
+      "tag": "feet"
+    },
+    "slot.head": {
+      "allowedCategories": [
+        "armor"
+      ],
+      "displayName": "Head",
+      "id": "slot.head",
+      "kind": "equipment_slot",
+      "tag": "head"
+    },
+    "slot.legs": {
+      "allowedCategories": [
+        "armor"
+      ],
+      "displayName": "Legs",
+      "id": "slot.legs",
+      "kind": "equipment_slot",
+      "tag": "legs"
+    },
+    "slot.main_hand": {
+      "allowedCategories": [
+        "weapon"
+      ],
+      "displayName": "Main Hand",
+      "id": "slot.main_hand",
+      "kind": "equipment_slot",
+      "tag": "main_hand"
+    },
+    "slot.off_hand": {
+      "allowedCategories": [
+        "weapon",
+        "armor"
+      ],
+      "displayName": "Off Hand",
+      "id": "slot.off_hand",
+      "kind": "equipment_slot",
+      "tag": "off_hand"
+    }
+  },
   "items": {
     "item.iron_sword": {
       "attackBonus": 5,
+      "category": "weapon",
+      "classRequirements": [],
+      "descriptionKey": "item.iron_sword.desc",
+      "destroyable": true,
       "displayName": "Iron Sword",
+      "displayNameKey": "item.iron_sword.name",
       "equipSlot": "main_hand",
+      "equipmentSlotTags": [
+        "main_hand"
+      ],
+      "iconAssetId": "visual.item_iron_sword",
       "id": "item.iron_sword",
       "kind": "item",
+      "levelRequirement": 0,
       "maxStack": 1,
-      "visualId": "visual.item_iron_sword"
+      "sellValue": 8,
+      "statModifiers": [
+        {
+          "amount": 5,
+          "statId": "test.stat.attack"
+        }
+      ],
+      "tradeable": true,
+      "uniquePolicy": "none",
+      "visualId": "visual.item_iron_sword",
+      "worldAssetId": "visual.item_iron_sword"
     },
     "item.slime_gel": {
       "attackBonus": 0,
+      "category": "quest",
+      "classRequirements": [],
+      "descriptionKey": "item.slime_gel.desc",
+      "destroyable": false,
       "displayName": "Slime Gel",
+      "displayNameKey": "item.slime_gel.name",
+      "iconAssetId": "visual.item_slime_gel",
       "id": "item.slime_gel",
       "kind": "item",
+      "levelRequirement": 0,
       "maxStack": 20,
-      "visualId": "visual.item_slime_gel"
+      "sellValue": 0,
+      "statModifiers": [],
+      "tradeable": false,
+      "uniquePolicy": "none",
+      "visualId": "visual.item_slime_gel",
+      "worldAssetId": "visual.item_slime_gel"
+    },
+    "item.test_cloth": {
+      "attackBonus": 0,
+      "category": "material",
+      "classRequirements": [],
+      "descriptionKey": "item.test_cloth.desc",
+      "destroyable": true,
+      "displayName": "Test Cloth",
+      "displayNameKey": "item.test_cloth.name",
+      "iconAssetId": "visual.item_cloth",
+      "id": "item.test_cloth",
+      "kind": "item",
+      "levelRequirement": 0,
+      "maxStack": 20,
+      "sellValue": 1,
+      "statModifiers": [],
+      "tradeable": true,
+      "uniquePolicy": "none",
+      "visualId": "visual.item_cloth",
+      "worldAssetId": "visual.item_cloth"
+    },
+    "item.test_leather_cap": {
+      "attackBonus": 0,
+      "category": "armor",
+      "classRequirements": [],
+      "descriptionKey": "item.test_leather_cap.desc",
+      "destroyable": true,
+      "displayName": "Test Leather Cap",
+      "displayNameKey": "item.test_leather_cap.name",
+      "equipSlot": "head",
+      "equipmentSlotTags": [
+        "head"
+      ],
+      "iconAssetId": "visual.item_leather_cap",
+      "id": "item.test_leather_cap",
+      "kind": "item",
+      "levelRequirement": 0,
+      "maxStack": 1,
+      "sellValue": 2,
+      "statModifiers": [
+        {
+          "amount": 5,
+          "statId": "test.stat.max_health"
+        }
+      ],
+      "tradeable": true,
+      "uniquePolicy": "none",
+      "visualId": "visual.item_leather_cap",
+      "worldAssetId": "visual.item_leather_cap"
+    },
+    "item.test_pebble": {
+      "attackBonus": 0,
+      "category": "miscellaneous",
+      "classRequirements": [],
+      "descriptionKey": "item.test_pebble.desc",
+      "destroyable": true,
+      "displayName": "Test Pebble",
+      "displayNameKey": "item.test_pebble.name",
+      "iconAssetId": "visual.item_pebble",
+      "id": "item.test_pebble",
+      "kind": "item",
+      "levelRequirement": 0,
+      "maxStack": 50,
+      "sellValue": 0,
+      "statModifiers": [],
+      "tradeable": true,
+      "uniquePolicy": "none",
+      "visualId": "visual.item_pebble",
+      "worldAssetId": "visual.item_pebble"
+    },
+    "item.test_potion": {
+      "attackBonus": 0,
+      "category": "consumable",
+      "classRequirements": [],
+      "descriptionKey": "item.test_potion.desc",
+      "destroyable": true,
+      "displayName": "Test Potion",
+      "displayNameKey": "item.test_potion.name",
+      "iconAssetId": "visual.item_potion",
+      "id": "item.test_potion",
+      "kind": "item",
+      "levelRequirement": 0,
+      "maxStack": 10,
+      "sellValue": 3,
+      "statModifiers": [],
+      "tradeable": true,
+      "uniquePolicy": "none",
+      "visualId": "visual.item_potion",
+      "worldAssetId": "visual.item_potion"
+    },
+    "item.test_relic_blade": {
+      "attackBonus": 6,
+      "category": "weapon",
+      "classRequirements": [],
+      "descriptionKey": "item.test_relic_blade.desc",
+      "destroyable": true,
+      "displayName": "Test Relic Blade",
+      "displayNameKey": "item.test_relic_blade.name",
+      "equipSlot": "main_hand",
+      "equipmentSlotTags": [
+        "main_hand"
+      ],
+      "iconAssetId": "visual.item_relic_blade",
+      "id": "item.test_relic_blade",
+      "kind": "item",
+      "levelRequirement": 5,
+      "maxStack": 1,
+      "sellValue": 20,
+      "statModifiers": [
+        {
+          "amount": 6,
+          "statId": "test.stat.attack"
+        }
+      ],
+      "tradeable": true,
+      "uniquePolicy": "character",
+      "visualId": "visual.item_relic_blade",
+      "worldAssetId": "visual.item_relic_blade"
+    },
+    "item.test_vanguard_mail": {
+      "attackBonus": 0,
+      "category": "armor",
+      "classRequirements": [
+        "test.class.vanguard"
+      ],
+      "descriptionKey": "item.test_vanguard_mail.desc",
+      "destroyable": true,
+      "displayName": "Test Vanguard Mail",
+      "displayNameKey": "item.test_vanguard_mail.name",
+      "equipSlot": "chest",
+      "equipmentSlotTags": [
+        "chest"
+      ],
+      "iconAssetId": "visual.item_vanguard_mail",
+      "id": "item.test_vanguard_mail",
+      "kind": "item",
+      "levelRequirement": 0,
+      "maxStack": 1,
+      "sellValue": 4,
+      "statModifiers": [
+        {
+          "amount": 8,
+          "statId": "test.stat.max_health"
+        }
+      ],
+      "tradeable": true,
+      "uniquePolicy": "none",
+      "visualId": "visual.item_vanguard_mail",
+      "worldAssetId": "visual.item_vanguard_mail"
     },
     "item.training_sword": {
       "attackBonus": 2,
+      "category": "weapon",
+      "classRequirements": [],
+      "descriptionKey": "item.training_sword.desc",
+      "destroyable": true,
       "displayName": "Training Sword",
+      "displayNameKey": "item.training_sword.name",
       "equipSlot": "main_hand",
+      "equipmentSlotTags": [
+        "main_hand"
+      ],
+      "iconAssetId": "visual.item_training_sword",
       "id": "item.training_sword",
       "kind": "item",
+      "levelRequirement": 0,
       "maxStack": 1,
-      "visualId": "visual.item_training_sword"
+      "sellValue": 1,
+      "statModifiers": [
+        {
+          "amount": 2,
+          "statId": "test.stat.attack"
+        }
+      ],
+      "tradeable": true,
+      "uniquePolicy": "none",
+      "visualId": "visual.item_training_sword",
+      "worldAssetId": "visual.item_training_sword"
     }
   },
   "levelCurves": {
@@ -364,6 +631,7 @@ export const content = {
     "attackRange": 40,
     "id": "player.base",
     "interactionRange": 48,
+    "inventoryCapacity": 20,
     "kind": "player",
     "maxHealth": 100,
     "moveSpeed": 120,

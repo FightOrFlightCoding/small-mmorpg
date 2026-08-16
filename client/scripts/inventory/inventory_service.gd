@@ -4,6 +4,7 @@ extends Node
 
 signal inventory_changed
 signal item_activated(instance_id: String)
+signal request_started(request_id: String)
 
 var mirror: Inventory
 var capacity: int = 20
@@ -93,6 +94,33 @@ func request_pickup(loot_id: String) -> String:
 		return ""
 	var request_id := MatchProtocol.new_request_id()
 	NetworkService.send_pickup(loot_id, request_id)
+	return request_id
+
+
+func request_destroy(instance_id: String, quantity: int = -1) -> String:
+	if instance_id.is_empty():
+		return ""
+	var request_id := MatchProtocol.new_request_id()
+	NetworkService.send_destroy_item(instance_id, request_id, quantity)
+	request_started.emit(request_id)
+	return request_id
+
+
+func request_split(instance_id: String, quantity: int) -> String:
+	if instance_id.is_empty() or quantity < 1:
+		return ""
+	var request_id := MatchProtocol.new_request_id()
+	NetworkService.send_split_stack(instance_id, quantity, request_id)
+	request_started.emit(request_id)
+	return request_id
+
+
+func request_move(instance_id: String, to_slot_index: int) -> String:
+	if instance_id.is_empty():
+		return ""
+	var request_id := MatchProtocol.new_request_id()
+	NetworkService.send_move_item(instance_id, to_slot_index, request_id)
+	request_started.emit(request_id)
 	return request_id
 
 

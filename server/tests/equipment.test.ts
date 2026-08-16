@@ -6,14 +6,17 @@ import {
   addOrStackItem,
   initializeInventory,
   itemDefinitionsFromContent,
+  setItemLock,
   type PlayerInventory,
 } from "../src/domain/inventory";
 import {
   derivedAttack,
   emptyEquipment,
+  equipmentSlotsFromContent,
   loadEquipment,
   MAIN_HAND_SLOT,
 } from "../src/domain/equipment";
+import { classEquipmentTagsFromContent } from "../src/domain/class_catalog";
 import {
   EQUIPMENT_COLLECTION,
   EQUIPMENT_KEY,
@@ -63,6 +66,10 @@ function emptyZone(): StarterZoneState {
     },
     questDefinitionsFromContent(content.quests),
     itemsById(),
+    {
+      equipmentSlotsByTag: equipmentSlotsFromContent(content.equipmentSlots),
+      classEquipmentTags: classEquipmentTagsFromContent(content.classes),
+    },
   );
 }
 
@@ -356,4 +363,88 @@ test("dead player cannot equip", () => {
   ]);
   assert.equal(actionCodes(result)[0].ok, false);
   assert.equal(actionCodes(result)[0].code, "player_dead");
+});
+
+test("equip armor into the head slot", () => {
+  const inventory = addOrStackItem(
+    swordBag("alice-cap"),
+    "item.test_leather_cap",
+    1,
+    "cap-1",
+    itemsById()["item.test_leather_cap"],
+  );
+  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", inventory));
+  const result = applyMatchLoop(state, 4, contentHash, [
+    equip("user-alice", { instanceId: "cap-1", slot: "head", requestId: "req-equip-head1" }),
+  ]);
+  assert.equal(actionCodes(result)[0].ok, true);
+  assert.equal(result.state.players["user-alice"].equipment?.slots.head, "cap-1");
+  assert.equal(result.state.players["user-alice"].equipment?.slots.main_hand, "");
+  assert.equal(equipmentMessages(result)[0].slots.head, "cap-1");
+  assert.equal(result.persistEquipment.length, 1);
+});
+
+test("equip vanguard-only armor as an arcanist is class_restricted", () => {
+  const inventory = addOrStackItem(
+    swordBag("alice-mail"),
+    "item.test_vanguard_mail",
+    1,
+    "mail-1",
+    itemsById()["item.test_vanguard_mail"],
+  );
+  const player = playerAt("user-alice", "Alice", inventory);
+  player.classId = "test.class.arcanist";
+  let state = addPlayer(emptyZone(), player);
+  const result = applyMatchLoop(state, 4, contentHash, [
+    equip("user-alice", { instanceId: "mail-1", slot: "chest", requestId: "req-equip-class1" }),
+  ]);
+  assert.equal(actionCodes(result)[0].ok, false);
+  assert.equal(actionCodes(result)[0].code, "class_restricted");
+  assert.equal(result.state.players["user-alice"].equipment?.slots.chest, "");
+});
+
+test("equip a high-level weapon at level 1 is level_restricted", () => {
+  const inventory = addOrStackItem(
+    swordBag("alice-relic"),
+    "item.test_relic_blade",
+    1,
+    "relic-eq",
+    itemsById()["item.test_relic_blade"],
+  );
+  const player = playerAt("user-alice", "Alice", inventory);
+  player.classId = "test.class.vanguard";
+  let state = addPlayer(emptyZone(), player);
+  const result = applyMatchLoop(state, 4, contentHash, [
+    equip("user-alice", { instanceId: "relic-eq", slot: MAIN_HAND_SLOT, requestId: "req-equip-level1" }),
+  ]);
+  assert.equal(actionCodes(result)[0].ok, false);
+  assert.equal(actionCodes(result)[0].code, "level_restricted");
+  assert.equal(mainHand(result.state, "user-alice"), "");
+});
+
+test("locked items cannot be equipped", () => {
+  const inventory = swordBag("alice-lock");
+  const instanceId = inventory.items[0].instanceId;
+  const locked = setItemLock(inventory, instanceId, "quest", "lock-eq");
+  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", locked));
+  const result = applyMatchLoop(state, 4, contentHash, [
+    equip("user-alice", { instanceId: instanceId, slot: MAIN_HAND_SLOT, requestId: "req-equip-lock1" }),
+  ]);
+  assert.equal(actionCodes(result)[0].ok, false);
+  assert.equal(actionCodes(result)[0].code, "item_locked");
+  assert.equal(mainHand(result.state, "user-alice"), "");
+});
+
+test("Prompt 18 equipment blobs keep the main-hand instance and fill extra slots empty", () => {
+  const parsed = storedEquipmentFromValue({
+    slots: { main_hand: "p18-sword" },
+    equipByRequestId: {},
+  });
+  assert.equal(parsed !== null, true);
+  if (parsed === null) {
+    return;
+  }
+  assert.equal(parsed.slots.main_hand, "p18-sword");
+  assert.equal(parsed.slots.head, "");
+  assert.equal(parsed.slots.chest, "");
 });

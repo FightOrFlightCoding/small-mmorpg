@@ -9,5 +9,5 @@
     { "itemId": "item.training_sword", "quantity": 1 }
   ],
   "startingAbilities": [],
-  "allowedEquipmentTags": ["main_hand"]
+  "allowedEquipmentTags": ["main_hand", "off_hand", "head", "chest", "legs", "feet"]
 }

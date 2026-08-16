@@ -22,6 +22,9 @@ const CLIENT_QUEST_ACCEPT: int = 6
 const CLIENT_QUEST_TURN_IN: int = 7
 const CLIENT_RESYNC_REQUEST: int = 8
 const CLIENT_ALLOCATE_ATTRIBUTES: int = 9
+const CLIENT_DESTROY_ITEM: int = 10
+const CLIENT_SPLIT_STACK: int = 11
+const CLIENT_MOVE_ITEM: int = 12
 
 const SERVER_FULL_STATE: int = 101
 const SERVER_SNAPSHOT: int = 102
