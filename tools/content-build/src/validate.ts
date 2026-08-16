@@ -5,6 +5,7 @@ import { DEFAULT_MANIFEST, type ContentPackageManifest } from "./registry";
 import { loadAjv, mapAjvErrors, validatorForKind } from "./schema";
 import type {
   Aabb,
+  ClassDef,
   ContentPayload,
   EnemyDef,
   ItemDef,
@@ -85,6 +86,7 @@ export function validateDocuments(
   const enemies = asKindMap<EnemyDef>(selected, "enemy");
   const quests = asKindMap<QuestDef>(selected, "quest");
   const zones = asKindMap<ZoneDef>(selected, "zone");
+  const classes = asKindMap<ClassDef>(selected, "class");
 
   if (player) {
     checkVisual(player.visualId, issues);
@@ -110,6 +112,7 @@ export function validateDocuments(
   for (let i = 0; i < zoneIds.length; i++) {
     checkZone(zones[zoneIds[i]], npcs, enemies, issues);
   }
+  checkClasses(classes, items, issues);
 
   if (issues.length > 0) {
     throw new ContentValidationError(uniqueIssues(issues));
@@ -119,7 +122,7 @@ export function validateDocuments(
     throw new Error("missing_player");
   }
 
-  return { player, items, npcs, enemies, quests, zones };
+  return { player, items, npcs, enemies, quests, zones, classes };
 }
 
 function selectDocuments(byId: Map<string, SourceDocument>, includeDevelopment: boolean): Map<string, SourceDocument> {
@@ -282,6 +285,28 @@ function checkAabbInWorld(zone: ZoneDef, box: Aabb, label: string, issues: Conte
   }
   if (box.x < 0 || box.y < 0 || box.x + box.width > zone.width || box.y + box.height > zone.height) {
     issues.push(issue("invalid_range:" + label));
+  }
+}
+
+function checkClasses(classes: Record<string, ClassDef>, items: Record<string, ItemDef>, issues: ContentIssue[]): void {
+  const ids = Object.keys(classes);
+  if (ids.length === 0) {
+    issues.push(issue("missing_class_catalog"));
+    return;
+  }
+  let defaults = 0;
+  for (let i = 0; i < ids.length; i++) {
+    const def = classes[ids[i]];
+    checkVisual(def.visualAssetSetId, issues);
+    for (let e = 0; e < def.startingEquipment.length; e++) {
+      requireItem(def.startingEquipment[e].itemId, items, issues);
+    }
+    if (def.legacyMigrationDefault === true) {
+      defaults += 1;
+    }
+  }
+  if (defaults !== 1) {
+    issues.push(issue("legacy_migration_default:" + String(defaults)));
   }
 }
 

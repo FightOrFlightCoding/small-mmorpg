@@ -47,10 +47,11 @@ static func client_envelope_json(extra: Dictionary = {}) -> String:
 	return JSON.stringify(client_envelope(extra))
 
 
-static func join_metadata(content_hash: String) -> Dictionary:
+static func join_metadata(content_hash: String, selection_ticket: String = "") -> Dictionary:
 	return {
 		"protocolVersion": str(VERSION),
 		"contentHash": content_hash,
+		"selectionTicket": selection_ticket,
 	}
 
 

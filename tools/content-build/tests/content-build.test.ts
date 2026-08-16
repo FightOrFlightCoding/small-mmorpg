@@ -68,6 +68,17 @@ test("valid source documents compile to a payload", () => {
   assert.equal(payload.zones["zone.starter"].npcs[0].npcId, "npc.elder");
   assert.equal(payload.zones["zone.starter"].enemies[0].enemyId, "enemy.green_slime");
   assert.ok(payload.zones["zone.starter"].collisions.length >= 4);
+  const classIds = Object.keys(payload.classes).sort();
+  assert.ok(classIds.length >= 2);
+  let defaults = 0;
+  for (let i = 0; i < classIds.length; i++) {
+    if (payload.classes[classIds[i]].legacyMigrationDefault === true) {
+      defaults += 1;
+    }
+    assert.ok(payload.classes[classIds[i]].startingEquipment.length >= 0);
+    assert.ok(typeof payload.classes[classIds[i]].visualAssetSetId === "string");
+  }
+  assert.equal(defaults, 1);
 });
 
 test("duplicate IDs are rejected", () => {

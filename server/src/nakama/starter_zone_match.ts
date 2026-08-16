@@ -10,7 +10,7 @@ import { validateJoinAttempt } from "../domain/join_validation";
 import { applyMatchLoop, snapshotForOthers, type IncomingMatchData } from "../domain/match_loop";
 import { PLAYER_RESPAWN_DELAY_SEC } from "../domain/combat";
 import { questDefinitionsFromContent } from "../domain/quest";
-import { initializeInventory, itemDefinitionsFromContent } from "../domain/inventory";
+import { initializeInventoryFromStacks, itemDefinitionsFromContent } from "../domain/inventory";
 import {
   derivedAttack,
   loadEquipment,
@@ -36,6 +36,11 @@ import {
   takeGracePlayer,
   type PositionCheckpoint,
 } from "../domain/persistence";
+import { migrateLegacyCharacterIntoRoster } from "../domain/character_lifecycle";
+import { invalidateTicket, validateJoinSelection } from "../domain/character_ticket";
+import { classDefinitionsFromContent, startingEquipmentForClass } from "../domain/class_catalog";
+import { characterLifecycleDeps } from "./character_lifecycle_deps";
+import { readSelection, writeSelection } from "./selection_store";
 
 export interface StarterMatchRuntimeState {
   zone: StarterZoneState;
@@ -105,15 +110,30 @@ export function matchJoinAttempt(
     logger.info("starter_zone join rejected user_id=%s reason=%s", presence.userId, gate.rejectMessage);
     return { state: state, accept: false, rejectMessage: gate.rejectMessage };
   }
+  const alreadySameSession =
+    alreadyJoined && (existing === undefined || existing.sessionId === presence.sessionId || existing.sessionId === "");
+  if (alreadySameSession) {
+    return { state: state, accept: true };
+  }
   try {
-    const character = readCharacter(nk, presence.userId);
+    const deps = characterLifecycleDeps(nk);
+    migrateLegacyCharacterIntoRoster(presence.userId, deps);
+    const ticket = readSelection(nk, presence.userId);
+    const presented = meta.selectionTicket !== undefined ? meta.selectionTicket : "";
+    const selectedId = ticket !== null ? ticket.characterId : "";
+    const character = selectedId.length > 0 ? readCharacter(nk, presence.userId, selectedId) : null;
+    const selected = validateJoinSelection(presented, ticket, presence.userId, character, Date.now());
+    if (!selected.ok) {
+      logger.info("starter_zone join rejected user_id=%s reason=%s", presence.userId, selected.reason);
+      return { state: state, accept: false, rejectMessage: selected.reason };
+    }
     if (character === null) {
       logger.info("starter_zone join rejected user_id=%s reason=character_missing", presence.userId);
       return { state: state, accept: false, rejectMessage: "character_missing" };
     }
-    readInventory(nk, presence.userId);
-    readEquipment(nk, presence.userId);
-    readQuests(nk, presence.userId);
+    readInventory(nk, presence.userId, character.characterId);
+    readEquipment(nk, presence.userId, character.characterId);
+    readQuests(nk, presence.userId, character.characterId);
   } catch (error) {
     const reason = error instanceof Error ? error.message : "save_incompatible";
     logger.info("starter_zone join rejected user_id=%s reason=%s", presence.userId, reason);
@@ -145,7 +165,9 @@ export function matchJoin(
     nextPresences[presence.userId] = presence;
     let character;
     try {
-      character = readCharacter(nk, presence.userId);
+      const ticket = readSelection(nk, presence.userId);
+      const characterId = ticket !== null ? ticket.characterId : "";
+      character = characterId.length > 0 ? readCharacter(nk, presence.userId, characterId) : readCharacter(nk, presence.userId);
       if (character === null) {
         dispatcher.matchKick([presence]);
         delete nextPresences[presence.userId];
@@ -169,15 +191,19 @@ export function matchJoin(
       logger.info("starter_zone session resume user_id=%s", presence.userId);
       continue;
     }
+    const ticket = readSelection(nk, presence.userId);
+    if (ticket !== null && !ticket.invalidated) {
+      writeSelection(nk, presence.userId, invalidateTicket(ticket, Date.now()));
+    }
     let inventory!: ReturnType<typeof loadPlayerInventory>;
     let loadedEquipment!: ReturnType<typeof loadEquipment>;
     let gold!: number;
     let questLog!: ReturnType<typeof readQuests>;
     try {
-      inventory = loadPlayerInventory(nk, presence.userId);
-      loadedEquipment = loadEquipment(readEquipment(nk, presence.userId), inventory);
+      inventory = loadPlayerInventory(nk, presence.userId, character);
+      loadedEquipment = loadEquipment(readEquipment(nk, presence.userId, character.characterId), inventory);
       gold = readGold(nk, presence.userId);
-      questLog = readQuests(nk, presence.userId);
+      questLog = readQuests(nk, presence.userId, character.characterId);
     } catch (error) {
       logger.info(
         "starter_zone join rejected user_id=%s reason=%s",
@@ -189,7 +215,7 @@ export function matchJoin(
       continue;
     }
     if (loadedEquipment.persist) {
-      writeEquipment(nk, presence.userId, loadedEquipment.equipment);
+      writeEquipment(nk, presence.userId, loadedEquipment.equipment, character.characterId);
       logger.info("starter_zone reconcile equipment user_id=%s", presence.userId);
     }
     const derived = derivedAttack(
@@ -277,7 +303,7 @@ export function matchLeave(
     const left = applyPlayerLeave(zone, presence.userId, tick);
     zone = left.state;
     if (left.checkpoint !== null) {
-      writeCharacterCheckpoint(nk, left.checkpoint.userId, left.checkpoint.x, left.checkpoint.y);
+      writeCharacterCheckpoint(nk, left.checkpoint.userId, left.checkpoint.x, left.checkpoint.y, left.checkpoint.characterId);
       logger.info("starter_zone leave checkpoint user_id=%s", presence.userId);
     }
     delete nextPresences[presence.userId];
@@ -317,17 +343,17 @@ export function matchLoop(
   });
   for (let p = 0; p < result.persistQuests.length; p++) {
     const persist = result.persistQuests[p];
-    writeQuests(nk, persist.userId, persist.log);
+    writeQuests(nk, persist.userId, persist.log, persist.characterId);
     logger.info("starter_zone persist quests user_id=%s", persist.userId);
   }
   for (let inv = 0; inv < result.persistInventories.length; inv++) {
     const persist = result.persistInventories[inv];
-    writeInventory(nk, persist.userId, persist.inventory);
+    writeInventory(nk, persist.userId, persist.inventory, persist.characterId);
     logger.info("starter_zone persist inventory user_id=%s", persist.userId);
   }
   for (let eq = 0; eq < result.persistEquipment.length; eq++) {
     const persist = result.persistEquipment[eq];
-    writeEquipment(nk, persist.userId, persist.equipment);
+    writeEquipment(nk, persist.userId, persist.equipment, persist.characterId);
     logger.info("starter_zone persist equipment user_id=%s", persist.userId);
   }
   writeCheckpoints(nk, logger, result.persistCheckpoints);
@@ -408,7 +434,7 @@ function writeCheckpoints(
 ): void {
   for (let i = 0; i < checkpoints.length; i++) {
     const checkpoint = checkpoints[i];
-    writeCharacterCheckpoint(nk, checkpoint.userId, checkpoint.x, checkpoint.y);
+    writeCharacterCheckpoint(nk, checkpoint.userId, checkpoint.x, checkpoint.y, checkpoint.characterId);
     logger.info("starter_zone persist checkpoint user_id=%s", checkpoint.userId);
   }
 }
@@ -445,17 +471,19 @@ function presencesNotIn(
   return list;
 }
 
-function loadPlayerInventory(nk: nkruntime.Nakama, userId: string) {
-  const existing = readInventory(nk, userId);
-  const loaded = initializeInventory(existing, function () {
+function loadPlayerInventory(nk: nkruntime.Nakama, userId: string, character: { characterId: string; classId?: string }) {
+  const existing = readInventory(nk, userId, character.characterId);
+  const classId = character.classId !== undefined ? character.classId : "";
+  const stacks = startingEquipmentForClass(classDefinitionsFromContent(content.classes), classId);
+  const loaded = initializeInventoryFromStacks(existing, function () {
     return nk.uuidv4();
-  });
+  }, stacks);
   if (loaded.created) {
     const now = Date.now();
     loaded.inventory.schemaVersion = SAVE_SCHEMA_VERSION;
     loaded.inventory.createdAt = now;
     loaded.inventory.updatedAt = now;
-    writeInventoryOnce(nk, userId, loaded.inventory);
+    writeInventoryOnce(nk, userId, loaded.inventory, character.characterId);
   }
   return loaded.inventory;
 }

@@ -11,6 +11,14 @@ const MAX_DEVICE_ID_LENGTH := 128
 const DEV_USER_PATTERN := "^[a-z][a-z0-9_]{0,31}$"
 const DEVICE_ID_PATTERN := "^[a-zA-Z0-9._-]+$"
 
+static var force_release_config: bool = false
+
+
+static func development_auth_allowed() -> bool:
+	if force_release_config:
+		return false
+	return OS.is_debug_build()
+
 
 static func parse_dev_user(args: PackedStringArray) -> String:
 	for arg in args:

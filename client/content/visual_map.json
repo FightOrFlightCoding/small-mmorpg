@@ -8,6 +8,12 @@
   "visual.player": {
     "fallback_color": "#3D7AD6"
   },
+  "visual.class_vanguard": {
+    "fallback_color": "#3D7AD6"
+  },
+  "visual.class_arcanist": {
+    "fallback_color": "#7B4DB8"
+  },
   "visual.npc_elder": {
     "texture": "res://assets/third_party/kenney_rpg_base/PNG/rpgTile165.png",
     "fallback_color": "#D4A017"

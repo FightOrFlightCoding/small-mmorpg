@@ -70,16 +70,19 @@ export interface MatchOutbound {
 
 export interface QuestPersist {
   userId: string;
+  characterId?: string;
   log: QuestLog;
 }
 
 export interface InventoryPersist {
   userId: string;
+  characterId?: string;
   inventory: PlayerInventory;
 }
 
 export interface EquipmentPersist {
   userId: string;
+  characterId?: string;
   equipment: PlayerEquipment;
 }
 
@@ -193,7 +196,11 @@ export function applyMatchLoop(
     if (skipStorageUsers[userId] === true) {
       continue;
     }
-    persistQuests.push({ userId: userId, log: persistByUser[userId] });
+    persistQuests.push({
+      userId: userId,
+      characterId: characterIdOf(next, userId),
+      log: persistByUser[userId],
+    });
   }
   const persistInventories: InventoryPersist[] = [];
   const inventoryIds = Object.keys(persistInventoryByUser);
@@ -202,13 +209,21 @@ export function applyMatchLoop(
     if (skipStorageUsers[userId] === true) {
       continue;
     }
-    persistInventories.push({ userId: userId, inventory: persistInventoryByUser[userId] });
+    persistInventories.push({
+      userId: userId,
+      characterId: characterIdOf(next, userId),
+      inventory: persistInventoryByUser[userId],
+    });
   }
   const persistEquipment: EquipmentPersist[] = [];
   const equipmentIds = Object.keys(persistEquipmentByUser);
   for (let e = 0; e < equipmentIds.length; e++) {
     const userId = equipmentIds[e];
-    persistEquipment.push({ userId: userId, equipment: persistEquipmentByUser[userId] });
+    persistEquipment.push({
+      userId: userId,
+      characterId: characterIdOf(next, userId),
+      equipment: persistEquipmentByUser[userId],
+    });
   }
   const persistRewards: RewardPersist[] = [];
   const rewardIds = Object.keys(persistRewardByUser);
@@ -228,6 +243,14 @@ export function applyMatchLoop(
     persistCheckpoints: persistCheckpoints,
     rejections: rejections,
   };
+}
+
+function characterIdOf(state: StarterZoneState, userId: string): string | undefined {
+  const player = state.players[userId];
+  if (player === undefined) {
+    return undefined;
+  }
+  return player.characterId;
 }
 
 function notifyRateLimited(
@@ -453,6 +476,7 @@ function handleQuestTurnIn(
     if (commitReward !== undefined) {
       const committed = commitReward({
         userId: userId,
+        characterId: player.characterId,
         requestId: requestId,
         questId: parsed.fields.questId,
         inventory: outcome.inventory,
@@ -470,6 +494,7 @@ function handleQuestTurnIn(
       player.gold = outcome.gold;
       persistRewardByUser[userId] = {
         userId: userId,
+        characterId: player.characterId,
         requestId: requestId,
         questId: parsed.fields.questId,
         inventory: outcome.inventory,

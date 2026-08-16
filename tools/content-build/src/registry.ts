@@ -27,6 +27,7 @@ export const DEFAULT_MANIFEST: ContentPackageManifest = {
     enemy: { schema: "enemy.json", definitionSchemaVersion: 1, idPrefix: "enemy" },
     quest: { schema: "quest.json", definitionSchemaVersion: 1, idPrefix: "quest" },
     zone: { schema: "zone.json", definitionSchemaVersion: 1, idPrefix: "zone" },
+    class: { schema: "class.json", definitionSchemaVersion: 1, idPrefix: "test.class" },
   },
 };
 

@@ -12,7 +12,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `ContentRegistry` / `ContentCatalog` / `VisualCatalog` | C | Load bundle, ID lookup, visual ID → texture | Parsed catalog in memory | `bundle.json`, `visual_map.json` | none | no | no | no |
 | `NetworkService` | C | Auth, socket, RPCs, match send/recv, chat join/send, reconnect | In-memory Nakama session | `NakamaNetworkBackend` | `AppState`, `MatchProtocol`, `ContentRegistry` | no | yes (send/recv) | no |
 | `NakamaNetworkBackend` | C | Thin Nakama SDK | Client, session, socket, match id | Nakama Godot SDK 3.4.0 | none | no | transport only | no |
-| `DevIdentity` | C | `--dev-user` / unique id | none | none | none | no | no | no |
+| `SessionCache` / `DevIdentity` | C | Token cache (never passwords); debug identity gate | `user://session_cache.json` tokens only | none | none | tokens only | no | no |
 | `ReconnectPolicy` | C | Backoff timings | none | none | none | no | no | no |
 | `MatchProtocol` | C | Opcodes, envelopes, FULL_STATE parse | none | none | none | no | schema only | no |
 | `GameService` | C | Boot, login, bootstrap, zone join orchestration | none | autoloads | `NetworkService`, `SceneRouter`, `AppState` | no | via NetworkService | no |
@@ -41,13 +41,13 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `quest.ts` / `quest_store.ts` (domain) | S | Quest log serialize/progress | none | none | none | serialize only | no | no |
 | `quest_reward.ts` | S | Turn-in apply + wallet metadata | none | none | inventory, quest | no | no | yes (pure) |
 | `wallet.ts` | S | Gold helpers | none | none | none | no | no | yes (pure) |
-| `character.ts` | S | Bootstrap parse/create | none | none | none | serialize character | RPC body | no |
-| `join_validation.ts` | S | Match join rules | none | none | none | no | join reject | no |
+| `character.ts` / `character_name.ts` / `character_roster.ts` / `character_ticket.ts` / `character_lifecycle.ts` / `class_catalog.ts` | S | Name policy, roster, tickets, class lookup | none | none | content classes | serialize character | RPC bodies | starter stacks via class |
+| `join_validation.ts` | S | Match join rules including selection ticket | none | none | none | no | join reject | no |
 | `persistence.ts` | S | Grace, seq reset, checkpoints | disconnected map | none | match_state | no (decides when) | no | no |
 | `rate_limit.ts` / `security_log.ts` | S | Action windows, reject logs | actionRates in match | none | none | no | SYSTEM_MESSAGE | no |
 | `chat.ts` | S | Channel join/send filters | none | none | none | no | RT hooks | no |
 | `starter_zone_registry.ts` (domain) | S | Canonical match-id selection | none | none | none | no | no | no |
-| `character_store.ts` | A | Read/write `player`/`character` | none | Nakama storage | domain character | yes | no | no |
+| `character_store.ts` / `roster_store.ts` / `selection_store.ts` / `name_reservation_store.ts` | A | Character, roster, ticket, name reservation | none | Nakama storage | domain character/roster | yes | no | no |
 | `inventory_store.ts` (nakama) | A | Read/write inventory | none | Nakama storage | domain inventory_store | yes | no | yes |
 | `quest_store.ts` (nakama) | A | Read/write quests | none | Nakama storage | domain quest_store | yes | no | no |
 | `equipment_store.ts` (nakama) | A | Read/write equipment | none | Nakama storage | domain equipment_store | yes | no | no |
@@ -56,7 +56,8 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `starter_zone_match.ts` | A | Match handler lifecycle | live zone + presences | Nakama match | all domain + stores | yes (join/txn/checkpoint) | yes | yes (via stores) |
 | `chat_hooks.ts` | A | `registerRtBefore` | none | Nakama RT | domain chat | no | RT | no |
 | `rpcs/health.ts` | A | `vibecode_health` | none | none | generated hash | no | RPC | no |
-| `rpcs/character_bootstrap.ts` | A | `character_bootstrap` | none | character_store | domain character, content | yes | RPC | no |
+| `rpcs/character_lifecycle.ts` | A | `character_bootstrap` wrapper plus list/create/select/soft-delete/restore | none | character/roster/selection/name stores | domain lifecycle | yes | RPC | new characters only |
+| `rpcs/character_bootstrap.ts` | A | Re-exports bootstrap wrapper | none | character_lifecycle | domain lifecycle | yes | RPC | no |
 | `rpcs/find_or_create_starter_zone.ts` | A | Join ticket for starter match | none | registry | protocol version | yes (match singleton) | RPC | no |
 | `main.ts` | A | `InitModule` registrations | none | Nakama initializer | RPCs, match, hooks | no | register | no |
 | `generated/content.ts` | S generated | Catalog | immutable content | content-build | none | no | no | no |

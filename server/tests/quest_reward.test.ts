@@ -14,7 +14,12 @@ import {
   INVENTORY_KEY,
   INVENTORY_PERMISSION_WRITE,
 } from "../src/domain/inventory_store";
-import { QUEST_COLLECTION, QUEST_KEY, QUEST_PERMISSION_WRITE } from "../src/domain/quest_store";
+import {
+  QUEST_COLLECTION,
+  QUEST_KEY,
+  QUEST_PERMISSION_WRITE,
+} from "../src/domain/quest_store";
+import { storageKey } from "../src/domain/storage_scope";
 import { commitQuestReward } from "../src/nakama/quest_reward_store";
 import { MAIN_HAND_SLOT } from "../src/domain/equipment";
 import {
@@ -406,7 +411,11 @@ test("quest reward storage writes use multiUpdate with server-only permissions",
     assert.equal(capturedWrites[i].permissionWrite, 0);
   }
   const collections = capturedWrites.map((write) => write.collection + ":" + write.key).sort();
-  assert.deepEqual(collections, [INVENTORY_COLLECTION + ":" + INVENTORY_KEY, QUEST_COLLECTION + ":" + QUEST_KEY].sort());
+  const expected = [
+    INVENTORY_COLLECTION + ":" + storageKey(INVENTORY_KEY, request.characterId),
+    QUEST_COLLECTION + ":" + storageKey(QUEST_KEY, request.characterId),
+  ].sort();
+  assert.deepEqual(collections, expected);
   assert.equal(capturedWrites[0].permissionWrite, INVENTORY_PERMISSION_WRITE);
   assert.equal(capturedWrites[1].permissionWrite, QUEST_PERMISSION_WRITE);
   assert.equal(capturedWallets[0].changeset.gold, 25);

@@ -20,6 +20,8 @@ var _socket: NakamaSocket
 var _match_id: String = ""
 var _closing: bool = false
 var _socket_generation: int = 0
+var _auth_mode: String = SessionCache.AUTH_MODE_DEVICE
+var _device_id: String = ""
 
 
 func is_session_expired() -> bool:
@@ -33,9 +35,37 @@ func is_socket_connected() -> bool:
 
 
 func authenticate_device(device_id: String, username: String) -> Dictionary:
+	_auth_mode = SessionCache.AUTH_MODE_DEVICE
+	_device_id = device_id
 	_ensure_client()
 	var session: NakamaSession = await _client.authenticate_device_async(device_id, username, true, null)
 	return _store_session(session, "authentication_failed")
+
+
+func authenticate_email(email: String, password: String, username: String = "", create: bool = false) -> Dictionary:
+	_auth_mode = SessionCache.AUTH_MODE_EMAIL
+	_device_id = ""
+	_ensure_client()
+	var session: NakamaSession = await _client.authenticate_email_async(email, password, username, create, null)
+	return _store_session(session, "invalid_credentials")
+
+
+func restore_cached_session() -> Dictionary:
+	var cached := SessionCache.load_cache()
+	if cached.is_empty():
+		return _fail("session_expired", "No cached session is available.")
+	_ensure_client()
+	_auth_mode = String(cached.get("auth_mode", SessionCache.AUTH_MODE_EMAIL))
+	_device_id = String(cached.get("device_id", ""))
+	_session = NakamaSession.new(String(cached["token"]), false, String(cached["refresh_token"]))
+	if _session == null or _session.is_exception():
+		SessionCache.clear()
+		return _fail("session_expired", "The cached session could not be restored.")
+	var refreshed: Dictionary = await refresh_session()
+	if not bool(refreshed.get("ok", false)):
+		SessionCache.clear()
+		return refreshed
+	return refreshed
 
 
 func refresh_session() -> Dictionary:
@@ -147,6 +177,8 @@ func logout() -> void:
 		var _ignored: NakamaAsyncResult = await _client.session_logout_async(_session)
 	_detach_socket()
 	_session = null
+	_device_id = ""
+	SessionCache.clear()
 
 
 func _ensure_client() -> void:
@@ -284,6 +316,14 @@ func _store_session(session: NakamaSession, fallback_code: String) -> Dictionary
 			exception = session.get_exception()
 		return _from_exception(exception, fallback_code, "Could not sign in to Nakama.")
 	_session = session
+	SessionCache.save(
+		session.token,
+		session.refresh_token,
+		session.user_id,
+		session.username,
+		_auth_mode,
+		_device_id
+	)
 	return {
 		"ok": true,
 		"user_id": session.user_id,
@@ -305,8 +345,14 @@ func _from_join_exception(exception: NakamaException) -> Dictionary:
 		mapped["message"] = "This account is already in the starter zone. Sign in as Alice in one window and Bob in the other."
 	elif message.contains("match_full"):
 		mapped["code"] = "match_full"
-	elif message.contains("character_missing"):
-		mapped["code"] = "character_missing"
+	elif message.contains("selection_expired"):
+		mapped["code"] = "selection_expired"
+	elif message.contains("selection_required"):
+		mapped["code"] = "selection_required"
+	elif message.contains("selection_foreign"):
+		mapped["code"] = "selection_foreign"
+	elif message.contains("character_deleted"):
+		mapped["code"] = "character_deleted"
 	else:
 		mapped = _map_save_incompatible(mapped)
 	return mapped
@@ -337,8 +383,20 @@ func _from_exception(exception: NakamaException, fallback_code: String, fallback
 	if message.is_empty():
 		message = fallback_message
 	var code := fallback_code
+	var lowered := exception.message.to_lower()
 	if exception.grpc_status_code == 16 or exception.status_code == 401:
-		code = "session_expired"
+		if fallback_code == "invalid_credentials" or lowered.contains("invalid"):
+			code = "invalid_credentials"
+			message = "Email or password is incorrect."
+		else:
+			code = "session_expired"
+	elif fallback_code == "invalid_credentials" and (lowered.contains("invalid") or lowered.contains("already in use") or lowered.contains("exists")):
+		if lowered.contains("exists") or lowered.contains("already"):
+			code = "email_taken"
+			message = "That email is already registered."
+		else:
+			code = "invalid_credentials"
+			message = "Email or password is incorrect."
 	elif _looks_like_missing_rpc(message):
 		code = "rpc_missing"
 		message = "Nakama is running an old runtime. Rebuild and restart with powershell -File scripts/backend-up.ps1."

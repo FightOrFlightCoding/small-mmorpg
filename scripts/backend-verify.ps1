@@ -35,7 +35,7 @@ if ($health.content_version -notmatch "^[a-f0-9]{64}$") {
 	throw "vibecode_health content_version is missing or not a 64-hex catalog hash."
 }
 $rpcs = @($health.rpcs)
-if ($rpcs -notcontains "character_bootstrap" -or $rpcs -notcontains "find_or_create_starter_zone") {
+if ($rpcs -notcontains "character_bootstrap" -or $rpcs -notcontains "find_or_create_starter_zone" -or $rpcs -notcontains "character_list") {
 	throw "Nakama is running a stale runtime. Health rpcs=$($rpcs -join ','). Rebuild with scripts/backend-up.ps1."
 }
 

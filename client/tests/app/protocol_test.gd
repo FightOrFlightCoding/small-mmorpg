@@ -9,7 +9,11 @@ func before_test() -> void:
 	NetworkService.reset_for_tests()
 
 
-func test_opcodes_match_the_server_allocation() -> void:
+func test_join_metadata_carries_selection_ticket_not_character_id() -> void:
+	var meta: Dictionary = MatchProtocol.join_metadata("aa", "ticket-9")
+	assert_str(String(meta.get("selectionTicket", ""))).is_equal("ticket-9")
+	assert_bool(meta.has("characterId")).is_false()
+	assert_str(String(meta.get("protocolVersion", ""))).is_equal(str(MatchProtocol.VERSION))
 	assert_int(MatchProtocol.VERSION).is_equal(1)
 	assert_int(MatchProtocol.CLIENT_INPUT).is_equal(1)
 	assert_int(MatchProtocol.CLIENT_INTERACT).is_equal(2)

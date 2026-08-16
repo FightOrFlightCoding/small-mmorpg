@@ -13,6 +13,7 @@ const REQUIRED_KEYS := [
 	"enemies",
 	"quests",
 	"zones",
+	"classes",
 ]
 const REQUIRED_IDS := [
 	"player.base",
@@ -77,6 +78,10 @@ func parse_text(text: String) -> bool:
 		return false
 	if not _index_catalog(data["zones"], "zone"):
 		return false
+	if not _index_catalog(data["classes"], "class"):
+		return false
+	if ids_of_kind("class").size() == 0:
+		return _fail("content_incompatible", "The content bundle has no class definitions.")
 
 	for id in REQUIRED_IDS:
 		if not has_id(id):

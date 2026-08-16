@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/class.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "displayName",
+    "visualAssetSetId",
+    "startingAttributes",
+    "attributeGrowth",
+    "startingResources",
+    "startingEquipment",
+    "startingAbilities",
+    "levelCurve",
+    "attributePointRules",
+    "skillPointRules",
+    "allowedEquipmentTags"
+  ],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "class" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "visualAssetSetId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "legacyMigrationDefault": { "type": "boolean" },
+    "startingAttributes": {
+      "type": "object",
+      "additionalProperties": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" }
+    },
+    "attributeGrowth": {
+      "type": "object",
+      "additionalProperties": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" }
+    },
+    "startingResources": {
+      "type": "object",
+      "additionalProperties": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" }
+    },
+    "startingEquipment": {
+      "type": "array",
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/itemStack" }
+    },
+    "startingAbilities": {
+      "type": "array",
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+    },
+    "levelCurve": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseXp", "growth"],
+      "properties": {
+        "baseXp": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+        "growth": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" }
+      }
+    },
+    "attributePointRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pointsAtCreate", "pointsPerLevel"],
+      "properties": {
+        "pointsAtCreate": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
+        "pointsPerLevel": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" }
+      }
+    },
+    "skillPointRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pointsAtCreate", "pointsPerLevel"],
+      "properties": {
+        "pointsAtCreate": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
+        "pointsPerLevel": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" }
+      }
+    },
+    "allowedEquipmentTags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+  }
+}

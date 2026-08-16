@@ -18,7 +18,7 @@ The Nakama JS runtime must not read `content/source/` or any other JSON from dis
 
 ## Stable IDs
 
-IDs match `^[a-z]+\.[a-z0-9_]+$`. The source filename stem must equal the document `id` (for example `item.training_sword.json`).
+IDs match `^[a-z]+(\.[a-z0-9_]+)+$` (two or more segments). The source filename stem must equal the document `id` (for example `item.training_sword.json`, `test.class.vanguard.json`).
 
 - Network, storage, and quest logic use IDs only.
 - Visual assets are referenced by IDs such as `visual.zone_starter`, never by `res://` paths or machine-absolute paths.
@@ -34,6 +34,7 @@ IDs match `^[a-z]+\.[a-z0-9_]+$`. The source filename stem must equal the docume
 | `item` | `item.training_sword.json`, `item.slime_gel.json`, `item.iron_sword.json` | Stack size, optional `main_hand` slot, attack bonus |
 | `quest` | `quest.slime_problem.json` | Accept/turn-in at `npc.elder`, acquire and consume one gel, reward iron sword + 25 gold, once only |
 | `zone` | `zone.starter.json` | World size, tile size, spawn points, walkable bounds, collision AABBs, visual ID |
+| `class` | `test.class.vanguard.json`, `test.class.arcanist.json` | Temporary Foundation test classes: starting attributes/resources/equipment/abilities, growth, level curve, point rules, allowed equipment tags, visual asset set. Exactly one class may set `legacyMigrationDefault`. Class id is immutable after character create. |
 
 Equipment slots allowed in this slice: `main_hand`. Equippable items must have `maxStack` 1. Unequippable items omit `equipSlot`.
 
@@ -61,15 +62,7 @@ Unchanged source produces byte-identical outputs. Generated files contain no mac
 
 Canonical character data lives in Nakama storage, not in Godot `user://`.
 
-| Field | Character | Quests | Inventory | Equipment |
-| --- | --- | --- | --- | --- |
-| Collection | `player` | `player` | `player` | `player` |
-| Key | `character` | `quests` | `inventory` | `equipment` |
-| Owner | Authenticated Nakama user id | Authenticated Nakama user id | Authenticated Nakama user id | Authenticated Nakama user id |
-| `permissionRead` | `1` (owner) | `1` (owner) | `1` (owner) | `1` (owner) |
-| `permissionWrite` | `0` (server only) | `0` (server only) | `0` (server only) | `0` (server only) |
-
-There is exactly one character object per account. The storage key is `character`; the character id is a server-generated UUID stored in the value. The value stores `schemaVersion`, `createdAt`, `updatedAt`, `characterId`, `name`, `contentId`, `zoneId`, and `position`. It does not store client-supplied stats. RPC `character_bootstrap` is the only writer of new character objects. Base stats in the RPC response always come from content `player.base`. Prompt 18 blobs without `schemaVersion` migrate on load; see [MIGRATIONS.md](MIGRATIONS.md).
+An account may have up to **three live** characters. The roster is `player`/`roster`. Each character object is keyed `character_<compactCharacterId>` after Prompt 21 (legacy `character` remains the Prompt 18 fallback). Quests, inventory, and equipment follow the same namespacing. Gold is still the account wallet. RPC `character_bootstrap` remains a compatibility wrapper: it migrates a Prompt 18 character into slot 1 if needed, then returns the first live character (or creates one). New UI uses `character_list`, `character_create`, `character_select`, `character_soft_delete`, and `character_restore`. Match join requires a server-issued `selectionTicket`. Base stats in the bootstrap RPC response still come from content `player.base`. Class starting equipment is applied only to newly created characters. Prompt 18 blobs without `schemaVersion` migrate on load; see [MIGRATIONS.md](MIGRATIONS.md).
 
 Quest progress is a second object (`key` `quests`), loaded when the player joins `zone.starter` and written when `QUEST_ACCEPT` first succeeds, when pickup advances an objective, and when turn-in completes the quest. Inventory is a third object (`key` `inventory`), loaded or initialized on join and written when a pickup first succeeds or when turn-in consumes and grants items. Equipment is a fourth object (`key` `equipment`), loaded on join and written when equip or unequip first succeeds. Gold is the Nakama wallet currency `gold`, loaded on join and credited only through `nk.multiUpdate` on successful turn-in. `player`/`wallet_ref` is a versioned pointer at that wallet; it does not store the gold amount. The Godot client must not write any of those objects.
 

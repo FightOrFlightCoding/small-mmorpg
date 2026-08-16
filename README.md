@@ -2,7 +2,7 @@
 
 Server-authoritative 2D MMORPG **vertical slice**.
 
-The Godot 4.7.1 client authenticates locally by device, bootstraps one character per account, and joins the shared starter-zone match. Movement, combat, loot, equipment, quests, and gold are server-authoritative. The client predicts movement and mirrors inventory, equipment, quest, and wallet views.
+The Godot 4.7.1 client registers or logs in with email and password, lists up to three characters, selects a content-defined class at create, and joins the shared starter-zone match with a server-issued selection ticket. Debug builds still offer Alice/Bob device identities. Movement, combat, loot, equipment, quests, and gold are server-authoritative.
 
 ## Read first
 
@@ -101,7 +101,9 @@ powershell -File scripts/run-client.ps1 -DevUser alice
 powershell -File scripts/run-client.ps1 -DevUser bob
 ```
 
-`--dev-user=alice` authenticates as device id `vibecode-dev-alice`. The editor Play button does not pass that flag; use **Sign in as Alice** in one window and **Sign in as Bob** in the other. Those buttons continue into the zone after character bootstrap. A second join on the same account is `already_in_match`.
+`--dev-user=alice` authenticates as device id `vibecode-dev-alice` in **debug** builds. The editor Play button does not pass that flag; use **Sign in as Alice** in one window and **Sign in as Bob** in the other, or register two email accounts. Release exports hide those shortcuts. A second join on the same account is `already_in_match`.
+
+Password recovery for this private release is administrator-assisted via the Nakama console; there is no recovery email.
 
 Manual loop: WASD/arrows move, **E** talk to the Elder, accept **Slime Problem**, **Space** attack the slime, **F** pick up gel, turn in at the Elder, then log out and back in. Inventory should keep the Iron Sword and **25** gold; a second turn-in must not pay again.
 
@@ -178,15 +180,18 @@ Do not modify `client/addons/`. Godot may rewrite GLoot `images/*.svg.import`; d
 
 ## Known vertical-slice limitations
 
-This repository implements only [docs/VERTICAL_SLICE.md](docs/VERTICAL_SLICE.md). It does **not** include extra zones, character slots, guilds, parties, trading, auction houses, crafting, PvP, monetization, procedural generation, or open-world streaming.
+This repository implements [docs/VERTICAL_SLICE.md](docs/VERTICAL_SLICE.md) plus accepted Foundation phases. It does **not** include extra overworlds, guilds, parties, trading, auction houses, crafting, PvP, monetization, procedural generation, or open-world streaming.
 
-Other slice limits:
+Other limits:
 
 - One shared `zone.starter` match, maximum 8 players, empty-match shutdown after 30 seconds.
+- Up to three live characters per account; one selected character in the match.
+- Temporary test class ids; final class art is not required.
 - Health is not persisted. After reconnect grace (5 seconds) or a new match, HP is full `player.base.maxHealth`.
 - Ground loot, slime AI, and cooldowns reset with the match.
 - Device auth and Nakama local keys are for development, not production identity or secrets management.
 - Chat is the `zone.starter` room only (200 character plain text).
+- No password-recovery email. Operators assist through the Nakama console.
 
 ## Layout
 

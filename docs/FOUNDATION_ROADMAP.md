@@ -1,13 +1,13 @@
 # Foundation roadmap
 
-Ordered work after the Prompt 18 freeze. Prompt 19 (catalogs/audit) and Prompt 20 (versioned content and save schemas) are accepted. Each later prompt must still read [AGENTS.md](../AGENTS.md), run `scripts/test-all`, and refuse excluded features in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md).
+Prompt 19 (catalogs/audit), Prompt 20 (versioned content and save schemas), and Prompt 21 (authentication, slots, and class selection) are accepted. Prompt 21 as issued supersedes the earlier “remove ID hard-coding” label for that number.
 
 | Order | Theme | Outcome | Depends on |
 | --- | --- | --- | --- |
 | 19 | Freeze, scope, audit | This document set + `tools/foundation-audit`. Prompt 18 behavior unchanged. | Prompt 18 accepted |
 | 20 | Versioned content and save schemas | Content-package manifest, client/server bundles, gameplay `schemaVersion` on canonical player records, idempotent Prompt 18 load. | 19 |
-| 21 | Remove architectural ID hard-coding | Runtime uses catalog iteration and content fields; `REQUIRED_IDS` / `STARTER_ZONE_ID` / `STARTER_ITEM_ID` / dialogue `do` IDs go away. Slice content IDs remain as data. | 19–20 |
-| 22 | Character classes, level, experience | Data-defined classes; server XP; client never submits totals. | 21 |
+| 21 | Real authentication, character slots, class selection | Email/password accounts; three slots; content classes; selection tickets; Prompt 18 migrate into slot 1. Architectural ID hard-coding remains later. | 19–20 |
+| 22 | Character level and experience | Server XP on the selected class; client never submits totals. | 21 |
 | 23 | Attribute and skill points, abilities, hotbar | Optional allocation; server validates hotbar. | 22 |
 | 24 | Public village-and-fields world | One public-world template (may still be one match). No sharding. Respawn bind still later. | 21 |
 | 25 | Temporary parties (max 5) and party chat | Server membership; group credit hooks; party channel. Zone chat remains. | 24 |
@@ -29,3 +29,7 @@ Ordered work after the Prompt 18 freeze. Prompt 19 (catalogs/audit) and Prompt 2
 ## Prompt 20 status
 
 Accepted in [PROGRESS.md](PROGRESS.md) as **Versioned content, save schemas, and migration kernel**.
+
+## Prompt 21 status
+
+Accepted in [PROGRESS.md](PROGRESS.md) as **Real authentication, character slots, and class selection**.

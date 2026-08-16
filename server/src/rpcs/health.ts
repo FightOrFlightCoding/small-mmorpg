@@ -5,6 +5,11 @@ export const HEALTH_RPC_ID = "vibecode_health";
 export const REGISTERED_RPC_IDS = [
   "vibecode_health",
   "character_bootstrap",
+  "character_list",
+  "character_create",
+  "character_select",
+  "character_soft_delete",
+  "character_restore",
   "find_or_create_starter_zone",
 ] as const;
 

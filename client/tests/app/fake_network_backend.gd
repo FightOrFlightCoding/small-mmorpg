@@ -9,6 +9,8 @@ signal channel_presence_received(payload: Dictionary)
 signal socket_closed
 
 var authenticate_ok: bool = true
+var authenticate_email_ok: bool = true
+var restore_cache_ok: bool = false
 var authenticate_code: String = "network_unreachable"
 var authenticate_message: String = "Cannot reach Nakama."
 var refresh_ok: bool = true
@@ -23,6 +25,8 @@ var username: String = "alice"
 var rpc_payload: String = ""
 var last_device_id: String = ""
 var last_username: String = ""
+var last_email: String = ""
+var last_create_account: bool = false
 var last_rpc_id: String = ""
 var last_rpc_payload: String = ""
 var authenticate_calls: int = 0
@@ -84,6 +88,22 @@ func authenticate_device(device_id: String, p_username: String) -> Dictionary:
 	return {"ok": true, "user_id": user_id, "username": username}
 
 
+func authenticate_email(email: String, _password: String, p_username: String, create: bool) -> Dictionary:
+	last_email = email
+	last_username = p_username
+	last_create_account = create
+	authenticate_calls += 1
+	if fail_reauth and authenticate_calls > 1:
+		return {"ok": false, "code": "session_expired", "message": "Reauthentication failed."}
+	if not authenticate_email_ok:
+		return {"ok": false, "code": authenticate_code, "message": authenticate_message}
+	session_expired = false
+	socket_is_connected = false
+	if not p_username.is_empty():
+		username = p_username
+	return {"ok": true, "user_id": user_id, "username": username}
+
+
 func refresh_session() -> Dictionary:
 	refresh_calls += 1
 	if refresh_ok:
@@ -120,6 +140,14 @@ func rpc(id: String, payload: String) -> Dictionary:
 		if body.is_empty():
 			body = default_find_payload()
 		return {"ok": true, "payload": body}
+	if id == "character_list":
+		return {"ok": true, "payload": default_character_list_payload()}
+	if id == "character_select":
+		return {"ok": true, "payload": default_character_select_payload(payload)}
+	if id == "character_create":
+		return {"ok": true, "payload": rpc_payload if not rpc_payload.is_empty() else _created_character_payload()}
+	if id == "character_soft_delete" or id == "character_restore":
+		return {"ok": true, "payload": default_character_list_payload()}
 	return {"ok": true, "payload": rpc_payload}
 
 
@@ -190,10 +218,19 @@ func send_chat_message(channel_id: String, content: Dictionary) -> Dictionary:
 	return {"ok": true}
 
 
+func restore_cached_session() -> Dictionary:
+	if not restore_cache_ok:
+		return {"ok": false, "code": "session_expired", "message": "No cached session is available."}
+	session_expired = false
+	socket_is_connected = false
+	return {"ok": true, "user_id": user_id, "username": username}
+
+
 func logout() -> void:
 	logout_calls += 1
 	session_expired = true
 	socket_is_connected = false
+	SessionCache.clear()
 
 
 func default_find_payload() -> String:
@@ -245,4 +282,71 @@ func default_full_state_payload(tick: int = 1) -> String:
 				"metadata": {},
 			}],
 		},
+	})
+
+
+func default_character_list_payload() -> String:
+	var characters: Array = []
+	var parsed: Variant = JSON.parse_string(rpc_payload)
+	if typeof(parsed) == TYPE_DICTIONARY:
+		var data: Dictionary = parsed
+		if not String(data.get("characterId", "")).is_empty():
+			characters.append({
+				"characterId": String(data.get("characterId", "")),
+				"accountUserId": user_id,
+				"name": String(data.get("name", "")),
+				"canonicalName": String(data.get("name", "")).to_lower(),
+				"classId": String(data.get("classId", "")),
+				"createdAt": 0,
+				"lastPlayedAt": 0,
+				"deletedAt": 0,
+				"schemaVersion": 1,
+			})
+	return JSON.stringify({
+		"slotLimit": 3,
+		"liveCount": characters.size(),
+		"characters": characters,
+	})
+
+
+func default_character_select_payload(payload: String) -> String:
+	var character_id := "char-1"
+	var parsed: Variant = JSON.parse_string(payload)
+	if typeof(parsed) == TYPE_DICTIONARY:
+		var requested := String((parsed as Dictionary).get("characterId", ""))
+		if not requested.is_empty():
+			character_id = requested
+	var character_name := "Alice"
+	var class_id := ""
+	var from_rpc: Variant = JSON.parse_string(rpc_payload)
+	if typeof(from_rpc) == TYPE_DICTIONARY:
+		var data: Dictionary = from_rpc
+		if not String(data.get("name", "")).is_empty():
+			character_name = String(data.get("name", ""))
+		if not String(data.get("classId", "")).is_empty():
+			class_id = String(data.get("classId", ""))
+	var class_ids := ContentRegistry.ids_of_kind("class")
+	if class_id.is_empty() and class_ids.size() > 0:
+		class_id = class_ids[0]
+	return JSON.stringify({
+		"ticketId": "ticket-1",
+		"characterId": character_id,
+		"accountUserId": user_id,
+		"expiresAt": 9999999999999,
+		"name": character_name,
+		"classId": class_id,
+	})
+
+
+func _created_character_payload() -> String:
+	var class_ids := ContentRegistry.ids_of_kind("class")
+	var class_id := ""
+	if class_ids.size() > 0:
+		class_id = class_ids[0]
+	return JSON.stringify({
+		"characterId": "char-new",
+		"name": "Adventurer",
+		"canonicalName": "adventurer",
+		"classId": class_id,
+		"created": true,
 	})

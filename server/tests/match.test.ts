@@ -113,8 +113,28 @@ test("join rejects protocol and content mismatches", () => {
   );
   assert.equal(hash.accept, false);
   assert.equal(hash.rejectMessage, "content_mismatch");
-  const ok = validateJoinAttempt(state, contentHash, { protocolVersion: "1", contentHash: contentHash }, false);
+  const ok = validateJoinAttempt(
+    state,
+    contentHash,
+    { protocolVersion: "1", contentHash: contentHash, selectionTicket: "ticket-1" },
+    false,
+  );
   assert.equal(ok.accept, true);
+});
+
+test("join requires a selection ticket and rejects character id injection", () => {
+  const state = emptyZone();
+  const missing = validateJoinAttempt(state, contentHash, { protocolVersion: "1", contentHash: contentHash }, false);
+  assert.equal(missing.accept, false);
+  assert.equal(missing.rejectMessage, "selection_required");
+  const forged = validateJoinAttempt(
+    state,
+    contentHash,
+    { protocolVersion: "1", contentHash: contentHash, selectionTicket: "ticket-1", characterId: "char-other" },
+    false,
+  );
+  assert.equal(forged.accept, false);
+  assert.equal(forged.rejectMessage, "stat_injection:characterId");
 });
 
 test("join rejects client-supplied save versions", () => {
@@ -146,7 +166,12 @@ test("join rejects when the match is full", () => {
   for (let i = 0; i < MATCH_MAX_PLAYERS; i++) {
     state = addPlayer(state, player("user-" + String(i), "P" + String(i)));
   }
-  const full = validateJoinAttempt(state, contentHash, { protocolVersion: "1", contentHash: contentHash }, false);
+  const full = validateJoinAttempt(
+    state,
+    contentHash,
+    { protocolVersion: "1", contentHash: contentHash, selectionTicket: "ticket-1" },
+    false,
+  );
   assert.equal(full.accept, false);
   assert.equal(full.rejectMessage, "match_full");
 });

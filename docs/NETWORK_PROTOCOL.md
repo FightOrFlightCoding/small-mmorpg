@@ -12,7 +12,7 @@ Every client→server and server→client envelope includes a protocol version i
 
 - The server advertises the version it speaks (`vibecode_health`, `find_or_create_starter_zone`, and `FULL_STATE`).
 - The client sends the version it encoded.
-- Join metadata carries `protocolVersion` and `contentHash` as strings (Nakama metadata is string-valued).
+- Join metadata carries `protocolVersion`, `contentHash`, and `selectionTicket` as strings (Nakama metadata is string-valued). `characterId` is rejected as `stat_injection`.
 - Mismatch is a hard rejection. The client shows a visible error. No partial apply.
 
 ## JSON for the first slice
@@ -129,7 +129,11 @@ Rejections are typed (`unknown_opcode`, `malformed_json`, `unknown_field`, `inva
 
 ## RPC `character_bootstrap`
 
-Authenticated HTTP/RPC only. Payload is JSON, optional `{"name":"Alice"}`, or empty. Unknown fields and any client-supplied stats or position are rejected. Response includes `characterId`, `name`, `created`, `storageVersion`, `contentId`, `zoneId`, `baseStats` (from `player.base`), and `position` (saved or starter spawn).
+Authenticated HTTP/RPC only. Compatibility wrapper around the roster. Payload is JSON, optional `{"name":"Alice"}`, or empty. Unknown fields and any client-supplied stats or position are rejected. Response includes `characterId`, `name`, `created`, `storageVersion`, `contentId`, `zoneId`, `baseStats` (from `player.base`), and `position` (saved or starter spawn). New clients should list/create/select and join with a selection ticket.
+
+## RPC `character_list` / `character_create` / `character_select` / `character_soft_delete` / `character_restore`
+
+Authenticated. Create takes `{ name, classId }`. Select takes `{ characterId }` and returns `{ ticketId, expiresAt, ... }`. Soft-delete and restore take `{ characterId }`. Slot limit is 3 live characters. Canonical names are globally unique.
 
 ## RPC `find_or_create_starter_zone`
 
@@ -143,7 +147,7 @@ Authenticated HTTP/RPC only. Payload is empty or `{}`. Returns `{ matchId, zoneI
 - Maximum players: **8**
 - Empty-match shutdown: **30 seconds** (300 ticks) after the last presence leaves, or if nobody ever joins
 - Join loads the character, quest, inventory, equipment, and wallet once. The tick loop does not read storage. Quest acceptance and objective progress write `collection` `player`, key `quests`, `permissionWrite: 0`. Successful pickup writes `collection` `player`, key `inventory`, `permissionWrite: 0`. Successful equip or unequip writes `collection` `player`, key `equipment`, `permissionWrite: 0`. Successful turn-in uses `nk.multiUpdate` for inventory, quests, and wallet gold together. Position checkpoints write `collection` `player`, key `character` every 5 seconds if the pose changed, on leave, and on match terminate. Ground loot is match-only and is not persisted. Health is not written.
-- Join metadata must include matching `protocolVersion` and `contentHash`
+- Join metadata must include matching `protocolVersion`, `contentHash`, and a live `selectionTicket` on a new join
 - A second socket for an account already in the match is rejected with `already_in_match`. True reconnect of the same session is allowed. After leave, a new session may rejoin: within **5 seconds** the match restores live pose and health from grace memory but resets `lastProcessedSeq` (a new Godot world starts sending seq 1). Same-session resume keeps `lastProcessedSeq`. After grace, or after a new match, join loads the checkpointed position and full health. If a live player record remains but the presence is already gone, join is treated as reconnect rather than `already_in_match`; a different sessionId on that live record also resets `lastProcessedSeq`. The same account cannot occupy two visible presences. Snapshots omit disconnected players immediately.
 - Logout waits for match leave, shows **Leaving…**, then returns to login. There is no extra multi-second logout delay; new-session sequence reset is what makes an immediate rejoin movable.
 - Debug builds may run `res://scenes/e2e/e2e_slice.tscn` with `--e2e-slice`. That driver opens two device-auth sessions and sends the documented opcodes only. Release builds refuse it. It does not grant items, complete quests, or move the player without match validation.

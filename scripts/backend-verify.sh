@@ -24,7 +24,7 @@ const health = JSON.parse(process.argv[1]);
 if (!health.ok) process.exit(1);
 if (!/^[a-f0-9]{64}$/.test(health.content_version || "")) process.exit(2);
 const rpcs = health.rpcs || [];
-if (!rpcs.includes("character_bootstrap") || !rpcs.includes("find_or_create_starter_zone")) process.exit(3);
+if (!rpcs.includes("character_bootstrap") || !rpcs.includes("find_or_create_starter_zone") || !rpcs.includes("character_list")) process.exit(3);
 ' "$health"
 
 echo "Backend verified."

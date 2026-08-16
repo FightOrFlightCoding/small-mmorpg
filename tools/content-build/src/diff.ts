@@ -20,6 +20,7 @@ export function collectDefinitionIds(payload: ContentPayload): string[] {
   pushKeys(ids, payload.enemies);
   pushKeys(ids, payload.quests);
   pushKeys(ids, payload.zones);
+  pushKeys(ids, payload.classes);
   ids.sort();
   return ids;
 }
@@ -42,6 +43,9 @@ export function definitionById(payload: ContentPayload, id: string): unknown | u
   }
   if (payload.zones[id]) {
     return payload.zones[id];
+  }
+  if (payload.classes[id]) {
+    return payload.classes[id];
   }
   return undefined;
 }

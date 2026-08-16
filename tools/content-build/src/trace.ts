@@ -76,6 +76,17 @@ function outboundRefs(payload: ContentPayload, id: string): string[] {
     for (let e = 0; e < zone.enemies.length; e++) {
       refs.push(zone.enemies[e].enemyId);
     }
+    return refs;
+  }
+  const classDef = payload.classes[id];
+  if (classDef) {
+    refs.push(classDef.visualAssetSetId);
+    for (let i = 0; i < classDef.startingEquipment.length; i++) {
+      refs.push(classDef.startingEquipment[i].itemId);
+    }
+    for (let a = 0; a < classDef.startingAbilities.length; a++) {
+      refs.push(classDef.startingAbilities[a]);
+    }
   }
   return refs;
 }

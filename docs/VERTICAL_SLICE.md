@@ -20,6 +20,8 @@ A new player can, without developer console cheats:
 10. Complete the slice quest. The server advances quest state and grants the slice currency through the wallet.
 11. Disconnect, relaunch, authenticate, and recover inventory, equipment, quest state, currency, and last checkpointed position.
 
+Prompt 21 keeps this loop. Debug device auth and `character_bootstrap` still work. Graphical and e2e joins send a server-issued `selectionTicket`. Email/password and extra character slots are additive.
+
 ## Required automated checks
 
 These must exist and pass before the slice is marked complete in [PROGRESS.md](PROGRESS.md):

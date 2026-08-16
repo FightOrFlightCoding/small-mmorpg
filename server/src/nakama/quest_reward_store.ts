@@ -4,6 +4,7 @@ import { INVENTORY_COLLECTION, INVENTORY_KEY } from "../domain/inventory_store";
 import { QUEST_COLLECTION, QUEST_KEY, storedQuestFromValue } from "../domain/quest_store";
 import { QUEST_STATUS_COMPLETED } from "../domain/quest";
 import { goldFromWallet } from "../domain/wallet";
+import { storageKey } from "../domain/storage_scope";
 import {
   walletChangeset,
   type QuestRewardWrite,
@@ -18,21 +19,24 @@ export function readGold(nk: nkruntime.Nakama, userId: string): number {
 }
 
 export function commitQuestReward(nk: nkruntime.Nakama, request: QuestRewardWrite): RewardCommitResult {
+  const characterId = request.characterId;
+  const questKey = storageKey(QUEST_KEY, characterId);
+  const inventoryKey = storageKey(INVENTORY_KEY, characterId);
   for (let attempt = 0; attempt < MAX_REWARD_RETRIES; attempt++) {
     const objects = nk.storageRead([
-      { collection: QUEST_COLLECTION, key: QUEST_KEY, userId: request.userId },
-      { collection: INVENTORY_COLLECTION, key: INVENTORY_KEY, userId: request.userId },
+      { collection: QUEST_COLLECTION, key: questKey, userId: request.userId },
+      { collection: INVENTORY_COLLECTION, key: inventoryKey, userId: request.userId },
     ]);
     let questVersion: string | undefined;
     let inventoryVersion: string | undefined;
     let storedLog = storedQuestFromValue(null);
     for (let i = 0; i < objects.length; i++) {
       const object = objects[i];
-      if (object.collection === QUEST_COLLECTION && object.key === QUEST_KEY) {
+      if (object.collection === QUEST_COLLECTION && object.key === questKey) {
         storedLog = storedQuestFromValue(object.value);
         questVersion = object.version;
       }
-      if (object.collection === INVENTORY_COLLECTION && object.key === INVENTORY_KEY) {
+      if (object.collection === INVENTORY_COLLECTION && object.key === inventoryKey) {
         inventoryVersion = object.version;
       }
     }
@@ -45,8 +49,8 @@ export function commitQuestReward(nk: nkruntime.Nakama, request: QuestRewardWrit
       return { ok: true, code: "already_completed", gold: readGold(nk, request.userId) };
     }
     const writes: nkruntime.StorageWriteRequest[] = [
-      buildInventoryWrite(request.userId, request.inventory, inventoryVersion),
-      buildQuestWrite(request.userId, request.log, questVersion),
+      buildInventoryWrite(request.userId, request.inventory, inventoryVersion, characterId),
+      buildQuestWrite(request.userId, request.log, questVersion, characterId),
     ];
     const wallets: nkruntime.WalletUpdate[] = [
       {

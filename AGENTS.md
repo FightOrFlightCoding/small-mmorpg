@@ -82,8 +82,8 @@ Record necessary assumptions in `docs/DECISIONS.md`.
 
 | Path | Role |
 | --- | --- |
-| `client/` | Godot 4.7.1 application (boot → login → character → content-driven starter zone after `FULL_STATE`). Device auth; joins `zone.starter`. Visual IDs in `client/content/visual_map.json`. |
-| `server/` | TypeScript Nakama runtime (health RPC, `character_bootstrap`, `find_or_create_starter_zone`, starter-zone match; generated content catalog). |
+| `client/` | Godot 4.7.1 application (boot → login → character list → content-driven starter zone after `FULL_STATE`). Email/password; debug device auth; joins `zone.starter` with a selection ticket. Visual IDs in `client/content/visual_map.json`. |
+| `server/` | TypeScript Nakama runtime (health RPC, character lifecycle RPCs, `find_or_create_starter_zone`, starter-zone match; generated content catalog including classes). |
 | `content/schemas/` | JSON Schemas for authored content. |
 | `content/source/` | ID-addressed source content documents. |
 | `infra/` | Docker Compose and Nakama configuration. |

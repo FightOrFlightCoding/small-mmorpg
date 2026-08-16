@@ -75,7 +75,7 @@ Turn-in apply already uses quest definition rewards from content, not a second h
 
 | Assumption | Where | Class |
 | --- | --- | --- |
-| One character per account | `CHARACTER_KEY = "character"` only | Architectural hard-coding requiring later removal |
+| One selected character per account; three live slots | `roster` + `selection` ticket | Architectural (Prompt 21). ID hard-coding of `zone.starter` remains later. |
 | One equipment slot `main_hand` | `equipment.ts`, `EQUIP` parser, HUD | Architectural hard-coding requiring later removal |
 | One public match module `starter_zone` | `InitModule`, registry singleton | Architectural hard-coding requiring later removal |
 | Inventory capacity 20 | `INVENTORY_CAPACITY` | Architectural hard-coding requiring later removal |

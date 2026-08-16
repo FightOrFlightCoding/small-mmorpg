@@ -4,6 +4,7 @@ extends RefCounted
 ## One Nakama identity for the debug-only slice journey. Sends intentions only.
 
 const BOOTSTRAP_RPC := "character_bootstrap"
+const SELECT_RPC := "character_select"
 const FULL_STATE_TIMEOUT_SEC := 12.0
 const ACTION_TIMEOUT_SEC := 8.0
 const INPUT_INTERVAL_SEC := 0.1
@@ -14,6 +15,8 @@ var label: String = ""
 var user_id: String = ""
 var username: String = ""
 var match_id: String = ""
+var character_id: String = ""
+var selection_ticket: String = ""
 var view: Dictionary = {}
 var seq: int = 0
 var last_action: Dictionary = {}
@@ -58,10 +61,31 @@ func bootstrap(character_name: String) -> bool:
 		return _fail("bootstrap:missing_character")
 	if String((parsed as Dictionary).get("name", "")) != character_name:
 		return _fail("bootstrap:name")
+	character_id = String((parsed as Dictionary).get("characterId", ""))
+	return true
+
+
+func select_character() -> bool:
+	if character_id.is_empty():
+		return _fail("select:missing_character")
+	var rpc_result: Dictionary = await backend.rpc(
+		SELECT_RPC,
+		JSON.stringify({"characterId": character_id})
+	)
+	if not bool(rpc_result.get("ok", false)):
+		return _fail("select:%s" % String(rpc_result.get("code", "failed")))
+	var parsed: Variant = JSON.parse_string(String(rpc_result.get("payload", "")))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return _fail("select:malformed")
+	selection_ticket = String((parsed as Dictionary).get("ticketId", ""))
+	if selection_ticket.is_empty():
+		return _fail("select:missing_ticket")
 	return true
 
 
 func join_zone() -> bool:
+	if not await select_character():
+		return false
 	got_full_state = false
 	view = {}
 	seq = 0
@@ -76,7 +100,7 @@ func join_zone() -> bool:
 		return _fail("find_zone:%s" % String(found.get("code", "failed")))
 	var join_result: Dictionary = await backend.join_match(
 		String(found["match_id"]),
-		MatchProtocol.join_metadata(ContentRegistry.get_content_hash())
+		MatchProtocol.join_metadata(ContentRegistry.get_content_hash(), selection_ticket)
 	)
 	if not bool(join_result.get("ok", false)):
 		return _fail("join:%s" % String(join_result.get("code", "failed")))

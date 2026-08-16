@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Versioned content, save schemas, and migration kernel**.
+Last accepted phase: **Real authentication, character slots, and class selection**.
 
 Current phase: none.
 
@@ -365,6 +365,32 @@ powershell -File scripts/test-server.ps1
 powershell -File scripts/test-client.ps1
 powershell -File scripts/test-e2e.ps1
 powershell -File scripts/migrate-status.ps1 --fixture server/tests/fixtures/saves/p18-alice.json
+```
+
+## Real authentication, character slots, and class selection acceptance (2026-08-16)
+
+Email-and-password registration and login replace the one-character development bootstrap as the supported account path. The client confirms the password on register, caches session tokens (never passwords) in `user://session_cache.json`, refreshes, and shows `session_expired` when email refresh fails. Debug device identities (Alice, Bob, machine unique id) remain only when `OS.is_debug_build()` is true and `DevIdentity.force_release_config` is false. Password-recovery email is out of Foundation v1; operators reset accounts from the Nakama console.
+
+An account may have three live characters. Server RPCs `character_list`, `character_create`, `character_select`, `character_soft_delete`, and `character_restore` own the roster. Names go through one validator; canonical names are reserved on system-owned `names` objects. Concurrent creates of the same canonical name leave one winner. Class definitions are content (`test.class.vanguard`, `test.class.arcanist`); runtime does not hard-code class IDs. Class id is immutable after create. Prompt 18 characters migrate into slot 1, keep gameplay state, receive the `legacyMigrationDefault` class, and do not get a second starter grant. Gold stays the account wallet.
+
+Selecting a character issues a 300-second ticket. Match join metadata is `{ protocolVersion, contentHash, selectionTicket }`. The match checks ownership, existence, not deleted, and that the ticket is unexpired and not previously invalidated, then invalidates it on successful join. A new join after leave must select again. `character_bootstrap` remains a compatibility wrapper.
+
+| Gate | Result |
+| --- | --- |
+| Content | 14/14, matching hash `e7e2625ff9e92d4905422efeba0c36554d45136578c27f8a6989f06e0ce94721` |
+| Audit | `FOUNDATION_AUDIT_OK` (9 storage records, 8 RPCs) |
+| Server | 191/191 |
+| Client GdUnit | 131/131, 0 orphans, `SHELL_LOGIN` |
+| E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect with a fresh selection ticket) |
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-content.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+powershell -File scripts/test-e2e.ps1
 ```
 
 

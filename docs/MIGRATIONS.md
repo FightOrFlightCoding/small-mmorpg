@@ -56,3 +56,5 @@ Gold stays in the Nakama wallet. Migration never credits gold or grants starter 
 ## Runtime
 
 `character_bootstrap` and starter-zone join load storage through the same kernel, persist a successful v0→v1 result once (OCC), and reject visibly on future or corrupted required fields. Join metadata cannot carry a save version. Bootstrap `schemaVersion` / `createdAt` / `updatedAt` are `stat_injection`.
+
+Prompt 21 additionally moves a Prompt 18 `player`/`character` object into the account roster as slot 1, copies inventory/quests/equipment onto character-scoped keys **without** re-running starter grants, and fills `classId` from the content class with `legacyMigrationDefault: true`. `SAVE_SCHEMA_VERSION` stays **1**. Gold is not copied or credited.

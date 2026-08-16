@@ -1,5 +1,12 @@
 import { handleHealthRpc } from "./rpcs/health";
-import { rpcCharacterBootstrap } from "./rpcs/character_bootstrap";
+import {
+  rpcCharacterBootstrap,
+  rpcCharacterCreate,
+  rpcCharacterList,
+  rpcCharacterRestore,
+  rpcCharacterSelect,
+  rpcCharacterSoftDelete,
+} from "./rpcs/character_lifecycle";
 import { rpcFindOrCreateStarterZone } from "./rpcs/find_or_create_starter_zone";
 import { starterZoneMatchHandler } from "./nakama/starter_zone_match";
 import { beforeChannelJoin, beforeChannelMessageSend } from "./nakama/chat_hooks";
@@ -30,13 +37,18 @@ function InitModule(
 ): void {
   initializer.registerRpc("vibecode_health", rpcVibecodeHealth);
   initializer.registerRpc("character_bootstrap", rpcCharacterBootstrap);
+  initializer.registerRpc("character_list", rpcCharacterList);
+  initializer.registerRpc("character_create", rpcCharacterCreate);
+  initializer.registerRpc("character_select", rpcCharacterSelect);
+  initializer.registerRpc("character_soft_delete", rpcCharacterSoftDelete);
+  initializer.registerRpc("character_restore", rpcCharacterRestore);
   initializer.registerRpc("find_or_create_starter_zone", rpcFindOrCreateStarterZone);
   initializer.registerMatch(STARTER_ZONE_MODULE, starterZoneMatchHandler);
   // Nakama 3.40.0 walks InitModule's AST for registerRtBefore; a helper call is not visible.
   initializer.registerRtBefore("ChannelMessageSend", beforeChannelMessageSend);
   initializer.registerRtBefore("ChannelJoin", beforeChannelJoin);
   logger.info(
-    "vibecode runtime loaded rpc=vibecode_health,character_bootstrap,find_or_create_starter_zone match=%s protocol_version=%s content_hash=%s zone=%s chat_room=zone.starter",
+    "vibecode runtime loaded rpc=vibecode_health,character_bootstrap,character_list,character_create,character_select,character_soft_delete,character_restore,find_or_create_starter_zone match=%s protocol_version=%s content_hash=%s zone=%s chat_room=zone.starter",
     STARTER_ZONE_MODULE,
     String(PROTOCOL_VERSION),
     contentHash,

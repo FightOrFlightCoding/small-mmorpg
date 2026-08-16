@@ -1,0 +1,37 @@
+{
+  "id": "test.class.vanguard",
+  "kind": "class",
+  "displayName": "Test Vanguard",
+  "visualAssetSetId": "visual.class_vanguard",
+  "legacyMigrationDefault": true,
+  "startingAttributes": {
+    "might": 6,
+    "focus": 2,
+    "vitality": 6
+  },
+  "attributeGrowth": {
+    "might": 1,
+    "focus": 0,
+    "vitality": 1
+  },
+  "startingResources": {
+    "health": 100
+  },
+  "startingEquipment": [
+    { "itemId": "item.training_sword", "quantity": 1 }
+  ],
+  "startingAbilities": [],
+  "levelCurve": {
+    "baseXp": 100,
+    "growth": 1.2
+  },
+  "attributePointRules": {
+    "pointsAtCreate": 0,
+    "pointsPerLevel": 0
+  },
+  "skillPointRules": {
+    "pointsAtCreate": 0,
+    "pointsPerLevel": 0
+  },
+  "allowedEquipmentTags": ["main_hand"]
+}

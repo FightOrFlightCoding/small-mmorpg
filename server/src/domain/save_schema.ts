@@ -26,10 +26,15 @@ export const CHARACTER_SAVE_KEYS = [
   "createdAt",
   "updatedAt",
   "characterId",
+  "accountUserId",
   "name",
+  "canonicalName",
+  "classId",
   "contentId",
   "zoneId",
   "position",
+  "lastPlayedAt",
+  "deletedAt",
 ];
 export const INVENTORY_SAVE_KEYS = [
   "schemaVersion",

@@ -92,7 +92,7 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Attack:** Client sends `schemaVersion`, `createdAt`, or a migration id in bootstrap or join metadata.
 
-**Defense:** Bootstrap treats those keys as `stat_injection`. Join metadata is only `protocolVersion` and `contentHash`. Migrations run only on server-read storage. Future save versions reject join with a visible `save_incompatible` error; data is not reset.
+**Defense:** Bootstrap treats those keys as `stat_injection`. Join metadata is only `protocolVersion`, `contentHash`, and `selectionTicket`. `characterId` in join metadata is `stat_injection`. Migrations run only on server-read storage. Future save versions reject join with a visible `save_incompatible` error; data is not reset.
 
 ### Rate-limit abuse
 
@@ -102,7 +102,11 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 ## Client local storage
 
-The Godot client must not write canonical inventory, equipment, quest, currency, health, or position records to `user://` or other local files. `AppState` is in-memory presentation/session flags only. Persistence is Nakama storage and wallet, written by the server. Session tokens stay in memory; reconnect uses refresh then device reauthentication.
+The Godot client must not write canonical inventory, equipment, quest, currency, health, or position records to `user://` or other local files. `AppState` is in-memory presentation/session flags only. Persistence is Nakama storage and wallet, written by the server. Session tokens (never passwords) may be cached in `user://session_cache.json` for refresh. Email reauthentication cannot use a stored password: refresh, then a visible `session_expired` if the refresh token is dead. Device reauthentication remains available only for debug device-auth sessions.
+
+Debug Alice/Bob/machine device identities are gated by `OS.is_debug_build()` (tests may set `DevIdentity.force_release_config`). Release builds expose email registration and login only.
+
+Password-recovery email is out of Foundation v1. For this small private release, an operator resets the account from the Nakama console (local defaults `admin` / `password` on `http://127.0.0.1:7351`): locate the user, change or disable the login, and tell the player to register again if the email must be reused. Do not store raw passwords in project storage or logs.
 
 Debug-only `--e2e-slice` opens two real sessions and sends ordinary intentions. It is compiled out of usefulness in release builds (`OS.is_debug_build()` plus an explicit flag). GdUnit `client/tests/app/e2e_hooks_test.gd` requires the flag. `scripts/test-e2e` drives the live journey. It must not call storage, wallet, or match APIs that a player client cannot call, and it must not skip match validation.
 
@@ -131,7 +135,9 @@ Every expected attack maps to a validation rule, an automated test, and a safe s
 | Oversized payloads | 2048-byte client match cap; 24 messages/tick | `protocol.test.ts`, `security.test.ts` | `payload_too_large` / `rate_limited` |
 | Chat injection | Before-hook JSON `{message}`; Label render, no BBCode | `chat.test.ts`, `chat_client_test.gd`, `security.test.ts` | `message_too_long` / `invalid_payload`; markup is plain text |
 | Protocol-version mismatch | Envelope version checked first | `protocol.test.ts`, `match.test.ts` | `protocol_mismatch`; no apply |
-| Character stat injection | Bootstrap accepts optional `name` only | `character.test.ts` | `stat_injection`; `permissionWrite: 0` |
+| Character stat injection | Bootstrap/create accept name and classId only | `character.test.ts`, `character_lifecycle.test.ts` | `stat_injection`; `permissionWrite: 0` |
+| Foreign character select | Ticket and roster ownership | `character_lifecycle.test.ts`, `match.test.ts` | `selection_foreign` / `character_missing` |
+| Expired or reused selection ticket | TTL 300 s; invalidate on join | `character_lifecycle.test.ts` | `selection_expired` / `selection_invalidated` |
 | Forged save version | Server detects storage version; client fields rejected | `migration.test.ts`, `character.test.ts` | `stat_injection` / `unsupported_future_version`; no reset |
 | Stale movement sequence | `seq <= lastProcessedSeq` ignored | `movement.test.ts`, `security.test.ts` | Pose unchanged |
 | Excessive movement / resync | Per-player `actionRates` in match state | `security.test.ts` | `rate_limited`; extra seq/full states dropped |

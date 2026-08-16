@@ -97,6 +97,23 @@ export interface ZoneDef {
   collisions: Aabb[];
 }
 
+export interface ClassDef {
+  id: string;
+  kind: "class";
+  displayName: string;
+  visualAssetSetId: string;
+  legacyMigrationDefault?: boolean;
+  startingAttributes: Record<string, number>;
+  attributeGrowth: Record<string, number>;
+  startingResources: Record<string, number>;
+  startingEquipment: ItemStack[];
+  startingAbilities: string[];
+  levelCurve: { baseXp: number; growth: number };
+  attributePointRules: { pointsAtCreate: number; pointsPerLevel: number };
+  skillPointRules: { pointsAtCreate: number; pointsPerLevel: number };
+  allowedEquipmentTags: string[];
+}
+
 export interface ContentPayload {
   player: PlayerDef;
   items: Record<string, ItemDef>;
@@ -104,6 +121,7 @@ export interface ContentPayload {
   enemies: Record<string, EnemyDef>;
   quests: Record<string, QuestDef>;
   zones: Record<string, ZoneDef>;
+  classes: Record<string, ClassDef>;
 }
 
 export interface ContentBundle extends ContentPayload {

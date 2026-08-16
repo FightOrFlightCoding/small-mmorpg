@@ -6,7 +6,7 @@ Related: [NETWORK_PROTOCOL.md](NETWORK_PROTOCOL.md), [SECURITY_MODEL.md](SECURIT
 
 Shared envelope: JSON camelCase, `protocolVersion` must be `1`. Optional client `contentHash` must match the server catalog. Client→server match bodies > **2048** bytes are `payload_too_large`. Unknown fields on client match JSON are `unknown_field:<key>`. Outcome keys are `stat_injection:<key>`.
 
-Authentication: device auth is Nakama built-in. This repository registers **no** `Authenticate*` hooks.
+Authentication: Nakama built-in email/password and (debug builds only) device auth. This repository registers **no** `Authenticate*` hooks. Password-recovery email is out of Foundation v1; operators reset accounts in the Nakama console.
 
 Notifications: **none** registered.
 
@@ -34,13 +34,52 @@ Notifications: **none** registered.
 | Direction | Client → server HTTP RPC |
 | Request | `` or `{ "name"?: string }` |
 | Response | `{ characterId, name, created, storageVersion, contentId, zoneId, baseStats, position }` |
-| Authority | Server creates/reads `player`/`character`. Stats from `player.base`. |
+| Authority | Compatibility wrapper: migrate Prompt 18 → roster slot 1, then return the first live character or create one |
 | Auth | Nakama session (`ctx.userId` required) |
 | Rate limit | None in-app |
 | Payload | Strict keys; stats/position `stat_injection` |
-| Idempotency | Existing record returned unchanged |
-| Errors | `unauthenticated`, `malformed_json`, `invalid_name`, `stat_injection`, `unknown_field` |
-| Tests | `server/tests/character.test.ts`, `client/tests/app/auth_flow_test.gd` |
+| Idempotency | Existing live character returned unchanged |
+| Errors | `unauthenticated`, `malformed_json`, `invalid_name`, `stat_injection`, `unknown_field`, `name_taken`, `slot_limit` |
+| Tests | `server/tests/character.test.ts`, `character_lifecycle.test.ts`, `client/tests/app/auth_flow_test.gd` |
+
+### `character_list`
+
+| Field | Value |
+| --- | --- |
+| Request | `{}` |
+| Response | `{ slotLimit, liveCount, characters[] }` |
+| Authority | Server roster |
+| Errors | `unauthenticated` |
+| Tests | `character_lifecycle.test.ts`, `auth_flow_test.gd` |
+
+### `character_create`
+
+| Field | Value |
+| --- | --- |
+| Request | `{ name, classId }` |
+| Response | `{ characterId, name, canonicalName, classId, created: true }` |
+| Authority | Server name policy, class catalog, slot limit 3, canonical reservation |
+| Errors | `invalid_name`, `invalid_class`, `name_taken`, `slot_limit`, `stat_injection` |
+| Tests | `character_lifecycle.test.ts` |
+
+### `character_select`
+
+| Field | Value |
+| --- | --- |
+| Request | `{ characterId }` |
+| Response | `{ ticketId, characterId, accountUserId, expiresAt, name, classId }` |
+| Authority | Ownership, not deleted, replaces the account's previous ticket |
+| Errors | `character_missing`, `character_deleted`, `selection_foreign` |
+| Tests | `character_lifecycle.test.ts` |
+
+### `character_soft_delete` / `character_restore`
+
+| Field | Value |
+| --- | --- |
+| Request | `{ characterId }` |
+| Response | Updated list payload |
+| Authority | Soft-delete sets `deletedAt`; restore requires a free live slot |
+| Tests | `character_lifecycle.test.ts` |
 
 ### `find_or_create_starter_zone`
 
@@ -190,7 +229,7 @@ No `registerRtAfter`. No group/DM channels.
 
 | Identifier | Status |
 | --- | --- |
-| AuthenticateDevice / custom auth hooks | Not registered. Nakama built-in device auth. |
+| AuthenticateDevice / AuthenticateEmail / custom auth hooks | Not registered. Nakama built-in email/password and debug device auth. |
 | Notification codes | None |
 
 ## Duplicate / undocumented scan

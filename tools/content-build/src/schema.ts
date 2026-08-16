@@ -11,6 +11,7 @@ const KIND_SCHEMA: Record<string, string> = {
   enemy: "https://vibecode.local/content-schemas/enemy.json",
   quest: "https://vibecode.local/content-schemas/quest.json",
   zone: "https://vibecode.local/content-schemas/zone.json",
+  class: "https://vibecode.local/content-schemas/class.json",
 };
 
 export function loadAjv(schemaDir: string, manifest: ContentPackageManifest = DEFAULT_MANIFEST): Ajv2020 {

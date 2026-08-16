@@ -26,6 +26,11 @@ var username: String = ""
 var has_character: bool = false
 var character_created: bool = false
 var character_view: Dictionary = {}
+var character_list: Array = []
+var slot_limit: int = 3
+var live_count: int = 0
+var selection_ticket: String = ""
+var selection_expires_at: int = 0
 var has_zone_state: bool = false
 var zone_view: Dictionary = {}
 var zone_view_is_full: bool = true
@@ -84,6 +89,11 @@ func notify_logged_out() -> void:
 	has_character = false
 	character_created = false
 	character_view = {}
+	character_list = []
+	slot_limit = 3
+	live_count = 0
+	selection_ticket = ""
+	selection_expires_at = 0
 	clear_zone_state()
 	is_reconnecting = false
 	logged_out.emit()
@@ -94,6 +104,21 @@ func notify_character_loaded(view: Dictionary, created: bool) -> void:
 	character_created = created
 	character_view = view.duplicate(true)
 	character_loaded.emit(created)
+
+
+func notify_character_list(characters: Array, p_slot_limit: int, p_live_count: int) -> void:
+	character_list = characters.duplicate(true)
+	slot_limit = p_slot_limit
+	live_count = p_live_count
+
+
+func notify_selection(ticket_id: String, expires_at: int, view: Dictionary) -> void:
+	selection_ticket = ticket_id
+	selection_expires_at = expires_at
+	if not view.is_empty():
+		has_character = true
+		character_view = view.duplicate(true)
+	character_loaded.emit(false)
 
 
 func notify_reconnecting(active: bool) -> void:
@@ -127,6 +152,11 @@ func reset_for_tests() -> void:
 	has_character = false
 	character_created = false
 	character_view = {}
+	character_list = []
+	slot_limit = 3
+	live_count = 0
+	selection_ticket = ""
+	selection_expires_at = 0
 	has_zone_state = false
 	zone_view = {}
 	zone_view_is_full = true

@@ -11,6 +11,19 @@ const SAVE_VERSION_METADATA_KEYS = [
   "updated_at",
 ];
 
+const JOIN_INJECTION_KEYS = SAVE_VERSION_METADATA_KEYS.concat([
+  "characterId",
+  "classId",
+  "health",
+  "maxHealth",
+  "attack",
+  "damage",
+  "position",
+  "x",
+  "y",
+]);
+const JOIN_ALLOWED_KEYS = ["protocolVersion", "contentHash", "selectionTicket"];
+
 export function validateJoinAttempt(
   state: StarterZoneState,
   expectedContentHash: string,
@@ -22,8 +35,11 @@ export function validateJoinAttempt(
   const metaKeys = Object.keys(metadata);
   for (let i = 0; i < metaKeys.length; i++) {
     const key = metaKeys[i];
-    if (SAVE_VERSION_METADATA_KEYS.indexOf(key) !== -1) {
+    if (JOIN_INJECTION_KEYS.indexOf(key) !== -1) {
       return { accept: false, rejectMessage: "stat_injection:" + key };
+    }
+    if (JOIN_ALLOWED_KEYS.indexOf(key) === -1) {
+      return { accept: false, rejectMessage: "unknown_field:" + key };
     }
   }
   const versionRaw = metadata.protocolVersion;
@@ -43,6 +59,10 @@ export function validateJoinAttempt(
   }
   if (playerCount(state) >= MATCH_MAX_PLAYERS) {
     return { accept: false, rejectMessage: "match_full" };
+  }
+  const ticket = metadata.selectionTicket;
+  if (typeof ticket !== "string" || ticket.length === 0) {
+    return { accept: false, rejectMessage: "selection_required" };
   }
   return { accept: true };
 }

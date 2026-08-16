@@ -1,7 +1,7 @@
 {
   "protocolVersion": 1,
   "contentSchemaVersion": 1,
-  "contentHash": "3db1de356fc85fb6eb96489ddc04f47049b906ef915d2baa241cae38159a6e85",
+  "contentHash": "e7e2625ff9e92d4905422efeba0c36554d45136578c27f8a6989f06e0ce94721",
   "exactDependencies": {
     "server/package.json:typescript": "5.8.3",
     "server/package.json:nakama-runtime": "github:heroiclabs/nakama-common#v1.47.0",
@@ -29,6 +29,11 @@
   "rpcs": [
     "vibecode_health",
     "character_bootstrap",
+    "character_list",
+    "character_create",
+    "character_select",
+    "character_soft_delete",
+    "character_restore",
     "find_or_create_starter_zone"
   ],
   "realtimeBeforeHooks": ["ChannelMessageSend", "ChannelJoin"],
@@ -59,10 +64,13 @@
   },
   "storageRecords": [
     { "collection": "player", "key": "character", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "player", "key": "roster", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "player", "key": "selection", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "player", "key": "quests", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "player", "key": "inventory", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "player", "key": "equipment", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "player", "key": "wallet_ref", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "names", "key": "n", "permissionWrite": 0, "schemaVersion": "absent" },
     { "collection": "match", "key": "starter_zone", "permissionWrite": 0, "schemaVersion": "absent" }
   ],
   "walletCurrencies": ["gold"],
@@ -74,6 +82,8 @@
     "npc.elder.json",
     "player.base.json",
     "quest.slime_problem.json",
+    "test.class.arcanist.json",
+    "test.class.vanguard.json",
     "zone.starter.json"
   ],
   "hardcodedIds": {
@@ -82,7 +92,7 @@
       "server/src/domain/chat.ts",
       "server/src/main.ts",
       "server/src/nakama/starter_zone_match.ts",
-      "server/src/rpcs/character_bootstrap.ts",
+      "server/src/nakama/character_lifecycle_deps.ts",
       "client/scripts/content/content_catalog.gd",
       "client/scripts/chat/zone_chat.gd",
       "client/scripts/world/world_hud.gd",

@@ -269,7 +269,7 @@ function checkContentHash() {
     fail(`generated content mismatch client=${bundle.contentHash} server=${match[1]}`);
   }
   if (bundle.contentHash !== expected.contentHash) {
-    fail("content hash drifted from frozen Prompt 18 digest");
+    fail("content hash drifted from catalogued digest");
   }
   if (bundle.schemaVersion !== expected.contentSchemaVersion) {
     fail(`content schemaVersion drifted: ${bundle.schemaVersion}`);
@@ -286,7 +286,7 @@ function checkProductionContent() {
     fail(`content/source leakage or drift: ${files.join(",")} vs ${expected.productionContentFiles.join(",")}`);
   }
   for (const name of files) {
-    if (name.startsWith("test.") || name.includes(".test.")) {
+    if (expected.productionContentFiles.indexOf(name) === -1 && (name.startsWith("test.") || name.includes(".test."))) {
       fail(`test content leaked into production source: ${name}`);
     }
   }

@@ -33,7 +33,7 @@ grow_vertical = 2
 [node name="VBox" type="VBoxContainer" parent="Center"]
 custom_minimum_size = Vector2(640, 0)
 layout_mode = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 12
 
 [node name="Title" type="Label" parent="Center/VBox"]
 layout_mode = 2
@@ -43,7 +43,7 @@ horizontal_alignment = 1
 [node name="Hint" type="Label" parent="Center/VBox"]
 custom_minimum_size = Vector2(640, 0)
 layout_mode = 2
-text = "Sign in with a local Nakama device account."
+text = "Register or log in with email and password."
 horizontal_alignment = 1
 autowrap_mode = 3
 
@@ -53,6 +53,28 @@ layout_mode = 2
 text = "Requires local Nakama at 127.0.0.1:7350."
 horizontal_alignment = 1
 autowrap_mode = 3
+
+[node name="EmailEdit" type="LineEdit" parent="Center/VBox"]
+layout_mode = 2
+placeholder_text = "Email"
+
+[node name="PasswordEdit" type="LineEdit" parent="Center/VBox"]
+layout_mode = 2
+placeholder_text = "Password"
+secret = true
+
+[node name="ConfirmEdit" type="LineEdit" parent="Center/VBox"]
+layout_mode = 2
+placeholder_text = "Confirm password (register)"
+secret = true
+
+[node name="LoginButton" type="Button" parent="Center/VBox"]
+layout_mode = 2
+text = "Log in"
+
+[node name="RegisterButton" type="Button" parent="Center/VBox"]
+layout_mode = 2
+text = "Register"
 
 [node name="AliceButton" type="Button" parent="Center/VBox"]
 layout_mode = 2

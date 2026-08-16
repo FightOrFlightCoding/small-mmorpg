@@ -91,20 +91,38 @@ export function initializeInventory(
   starterItemId: string = STARTER_ITEM_ID,
   capacity: number = INVENTORY_CAPACITY,
 ): InitializeInventoryResult {
+  if (starterItemId.length === 0) {
+    return initializeInventoryFromStacks(existing, newId, [], capacity);
+  }
+  return initializeInventoryFromStacks(existing, newId, [{ itemId: starterItemId, quantity: 1 }], capacity);
+}
+
+export function initializeInventoryFromStacks(
+  existing: PlayerInventory | null,
+  newId: () => string,
+  stacks: Array<{ itemId: string; quantity: number }>,
+  capacity: number = INVENTORY_CAPACITY,
+): InitializeInventoryResult {
   if (existing !== null) {
     return { inventory: cloneInventory(existing), created: false };
+  }
+  const items: PlayerInventory["items"] = [];
+  for (let i = 0; i < stacks.length; i++) {
+    const stack = stacks[i];
+    if (stack.quantity <= 0) {
+      continue;
+    }
+    items.push({
+      instanceId: newId(),
+      itemId: stack.itemId,
+      quantity: stack.quantity,
+      metadata: {},
+    });
   }
   return {
     inventory: {
       capacity: capacity,
-      items: [
-        {
-          instanceId: newId(),
-          itemId: starterItemId,
-          quantity: 1,
-          metadata: {},
-        },
-      ],
+      items: items,
       pickupByRequestId: {},
     },
     created: true,

@@ -42,6 +42,7 @@ export function buildPackage(payload: ContentPayload, options: BuildPackageOptio
     enemies: canonicalPayload.enemies,
     quests: canonicalPayload.quests,
     zones: canonicalPayload.zones,
+    classes: canonicalPayload.classes,
   };
 }
 
@@ -64,6 +65,7 @@ export function toContentBundle(pkg: ContentPackage): ContentBundle {
     enemies: pkg.enemies,
     quests: pkg.quests,
     zones: pkg.zones,
+    classes: pkg.classes,
   };
 }
 
@@ -79,6 +81,7 @@ export function emitServerModule(bundle: ContentBundle): string {
     enemies: bundle.enemies,
     quests: bundle.quests,
     zones: bundle.zones,
+    classes: bundle.classes,
   };
   const body = JSON.stringify(canonicalize(payload), null, 2);
   return [

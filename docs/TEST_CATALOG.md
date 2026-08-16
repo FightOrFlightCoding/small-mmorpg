@@ -1,6 +1,6 @@
 # Test catalog
 
-Prompt 18 automated suites plus the Prompt 19 freeze audit. Do not weaken these tests. Counts below are the accepted Prompt 18 gate (2026-08-16) unless noted.
+Prompt 18 automated suites plus the Prompt 19 freeze audit and Prompt 21 account/character coverage. Do not weaken these tests. Live gate counts after Prompt 21: content 14/14, server 191/191, client 131/131 (0 orphans), `E2E_SLICE_OK`.
 
 Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDATION_BASELINE.md).
 
@@ -10,8 +10,8 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | --- | --- |
 | `scripts/test-content` | Content-build tests + matching `contentHash` (development-only exclusion, diff, trace) |
 | `scripts/test-audit` | Catalog vs code: storage, opcodes, pins, vendor dirty (non-import), player `schemaVersion` presence, test-content leakage, hardcoded ID allowlist |
-| `scripts/test-server` | Nakama domain tests 181/181 |
-| `scripts/test-client` | Import, `SHELL_LOGIN`, GdUnit 122/122 0 orphans |
+| `scripts/test-server` | Nakama domain tests |
+| `scripts/test-client` | Import, `SHELL_LOGIN`, GdUnit, 0 orphans |
 | `scripts/test-e2e` | Live two-client journey `E2E_SLICE_OK` |
 | `scripts/test-all` | setup + all of the above |
 
@@ -49,7 +49,8 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `interaction.test.ts` | range, dead player | |
 | `security.test.ts` | mapped attacks, rate limits | VS-T1–T6, T9 |
 | `match.test.ts` | join, empty shutdown, FULL_STATE | VS-T9 |
-| `character.test.ts` | bootstrap, `permissionWrite: 0` | |
+| `character.test.ts` | bootstrap wrapper, `permissionWrite: 0` | |
+| `character_lifecycle.test.ts` | names, slots, classes, tickets, concurrent `name_taken`, Prompt 18 migrate | |
 | `starter_zone_registry.test.ts` | canonical match id | |
 | `persistence.test.ts` | checkpoints, grace, seq reset, Nakama null maps/extras on tick 0 | VS-M5 automated analog |
 | `migration.test.ts` | v0→v1, retry, future version, missing version, null schemaVersion, corrupt, completed quest, equipment, gold | |
@@ -65,7 +66,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `content_registry_test.gd` | catalog IDs, hash | VS-T8 |
 | `error_state_test.gd` | visible errors, no hang | VS-M4 |
 | `scene_router_test.gd` / `shell_scenes_test.gd` | boot/login/character/world | VS-T8 |
-| `auth_flow_test.gd` | device auth, `network_unreachable` | VS-M4 |
+| `auth_flow_test.gd` | email register/login, invalid credentials, session refresh, release-gated device auth, tickets | VS-M4 |
 | `dev_identity_test.gd` | Alice/Bob ids | |
 | `protocol_test.gd` | client opcodes match | VS-T9 |
 | `zone_join_test.gd` | world after FULL_STATE | |

@@ -50,6 +50,7 @@ export interface QuestTurnInOutcome {
 
 export interface QuestRewardWrite {
   userId: string;
+  characterId?: string;
   requestId: string;
   questId: string;
   inventory: PlayerInventory;

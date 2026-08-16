@@ -5,6 +5,7 @@ extends Node
 signal authentication_started
 signal authentication_finished(success: bool, message: String)
 signal character_bootstrap_finished(success: bool, created: bool, message: String)
+signal character_list_finished(success: bool, message: String)
 signal zone_join_finished(success: bool, message: String)
 signal chat_message_received(payload: Dictionary)
 signal chat_presence_received(payload: Dictionary)
@@ -20,7 +21,14 @@ signal system_notice_received(code: String, message: String)
 signal logged_out
 
 const CHARACTER_BOOTSTRAP_RPC := "character_bootstrap"
+const CHARACTER_LIST_RPC := "character_list"
+const CHARACTER_CREATE_RPC := "character_create"
+const CHARACTER_SELECT_RPC := "character_select"
+const CHARACTER_SOFT_DELETE_RPC := "character_soft_delete"
+const CHARACTER_RESTORE_RPC := "character_restore"
 const FULL_STATE_TIMEOUT_SEC := 10.0
+const AUTH_COOLDOWN_START_MS := 1000
+const AUTH_COOLDOWN_MAX_MS := 8000
 
 var backend: RefCounted
 var last_auth_attempted: bool = false
@@ -30,6 +38,10 @@ var zone_chat_id: String = ""
 
 var _device_id: String = ""
 var _username: String = ""
+var _email: String = ""
+var _auth_mode: String = ""
+var _auth_cooldown_ms: int = 0
+var _auth_blocked_until_ms: int = 0
 var _got_full_state: bool = false
 var _match_signals_connected: bool = false
 var _chat_signals_connected: bool = false
@@ -47,15 +59,68 @@ func is_authentication_configured() -> bool:
 
 
 func authenticate_device(device_id: String, username: String = "") -> void:
+	if not _auth_rate_allows():
+		return
 	last_auth_attempted = true
 	_device_id = device_id
 	_username = username
+	_email = ""
+	_auth_mode = SessionCache.AUTH_MODE_DEVICE
 	authentication_started.emit()
 	AppState.notify_loading_started("auth")
 	var auth: Dictionary = await _backend().authenticate_device(device_id, username)
 	if not bool(auth.get("ok", false)):
 		_fail_auth(auth)
 		return
+	await _finish_auth(auth, username)
+
+
+func authenticate_email(email: String, password: String, username: String = "", create: bool = false) -> void:
+	if not _auth_rate_allows():
+		return
+	last_auth_attempted = true
+	_device_id = ""
+	_email = email
+	_username = username
+	_auth_mode = SessionCache.AUTH_MODE_EMAIL
+	authentication_started.emit()
+	AppState.notify_loading_started("auth")
+	if not _backend().has_method("authenticate_email"):
+		_fail_auth({"code": "authentication_failed", "message": "Email sign-in is unavailable."})
+		return
+	var auth: Dictionary = await _backend().authenticate_email(email, password, username, create)
+	if not bool(auth.get("ok", false)):
+		_fail_auth(auth)
+		return
+	await _finish_auth(auth, username)
+
+
+func restore_cached_session() -> bool:
+	var cached := SessionCache.load_cache()
+	if cached.is_empty():
+		return false
+	if not _backend().has_method("restore_cached_session"):
+		return false
+	last_auth_attempted = true
+	_auth_mode = String(cached.get("auth_mode", ""))
+	_device_id = String(cached.get("device_id", ""))
+	_username = String(cached.get("username", ""))
+	if _auth_mode == SessionCache.AUTH_MODE_EMAIL:
+		_email = String(cached.get("username", "cached"))
+	authentication_started.emit()
+	AppState.notify_loading_started("auth")
+	var restored: Dictionary = await _backend().restore_cached_session()
+	if not bool(restored.get("ok", false)):
+		SessionCache.clear()
+		socket_connected = false
+		AppState.notify_loading_completed("auth")
+		return false
+	await _finish_auth(restored, _username)
+	return true
+
+
+func _finish_auth(auth: Dictionary, username: String) -> void:
+	_note_auth_success()
 	var socket: Dictionary = await _backend().connect_socket()
 	if not bool(socket.get("ok", false)):
 		_fail_auth(socket)
@@ -98,6 +163,114 @@ func bootstrap_character(proposed_name: String = "") -> void:
 	character_bootstrap_finished.emit(true, created, "")
 
 
+func list_characters() -> bool:
+	AppState.notify_loading_started("character")
+	var session_ok := await ensure_session()
+	if not session_ok:
+		AppState.notify_loading_completed("character")
+		character_list_finished.emit(false, AppState.last_error_message)
+		return false
+	var rpc_result: Dictionary = await _backend().rpc(CHARACTER_LIST_RPC, "{}")
+	if not bool(rpc_result.get("ok", false)):
+		_fail_character(rpc_result)
+		character_list_finished.emit(false, AppState.last_error_message)
+		return false
+	var parsed: Variant = JSON.parse_string(String(rpc_result.get("payload", "")))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		_fail_character({"code": "malformed_json", "message": "The character list was not valid JSON."})
+		character_list_finished.emit(false, AppState.last_error_message)
+		return false
+	var data: Dictionary = parsed
+	var characters: Array = data.get("characters", [])
+	AppState.notify_character_list(characters, int(data.get("slotLimit", 3)), int(data.get("liveCount", 0)))
+	AppState.notify_loading_completed("character")
+	character_list_finished.emit(true, "")
+	character_bootstrap_finished.emit(true, false, "")
+	return true
+
+
+func create_character(character_name: String, class_id: String) -> bool:
+	AppState.notify_loading_started("character")
+	var session_ok := await ensure_session()
+	if not session_ok:
+		AppState.notify_loading_completed("character")
+		character_bootstrap_finished.emit(false, false, AppState.last_error_message)
+		return false
+	var rpc_result: Dictionary = await _backend().rpc(
+		CHARACTER_CREATE_RPC,
+		JSON.stringify({"name": character_name, "classId": class_id})
+	)
+	if not bool(rpc_result.get("ok", false)):
+		_fail_character(rpc_result)
+		return false
+	await list_characters()
+	AppState.notify_loading_completed("character")
+	character_bootstrap_finished.emit(true, true, "")
+	return true
+
+
+func select_character(character_id: String) -> bool:
+	AppState.notify_loading_started("character")
+	var session_ok := await ensure_session()
+	if not session_ok:
+		AppState.notify_loading_completed("character")
+		character_bootstrap_finished.emit(false, false, AppState.last_error_message)
+		return false
+	var rpc_result: Dictionary = await _backend().rpc(
+		CHARACTER_SELECT_RPC,
+		JSON.stringify({"characterId": character_id})
+	)
+	if not bool(rpc_result.get("ok", false)):
+		_fail_character(rpc_result)
+		return false
+	var parsed: Variant = JSON.parse_string(String(rpc_result.get("payload", "")))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		_fail_character({"code": "malformed_json", "message": "The selection response was not valid JSON."})
+		return false
+	var data: Dictionary = parsed
+	var view := {
+		"character_id": String(data.get("characterId", character_id)),
+		"name": String(data.get("name", "")),
+		"class_id": String(data.get("classId", "")),
+		"created": false,
+		"storage_version": "",
+		"content_id": "player.base",
+		"zone_id": "zone.starter",
+		"base_stats": {},
+		"position": {},
+	}
+	if AppState.character_view.has("base_stats"):
+		view["base_stats"] = AppState.character_view["base_stats"]
+	if AppState.character_view.has("position"):
+		view["position"] = AppState.character_view["position"]
+	AppState.notify_selection(String(data.get("ticketId", "")), int(data.get("expiresAt", 0)), view)
+	AppState.notify_loading_completed("character")
+	character_bootstrap_finished.emit(true, false, "")
+	return not AppState.selection_ticket.is_empty()
+
+
+func soft_delete_character(character_id: String) -> bool:
+	var rpc_result: Dictionary = await _backend().rpc(
+		CHARACTER_SOFT_DELETE_RPC,
+		JSON.stringify({"characterId": character_id})
+	)
+	if not bool(rpc_result.get("ok", false)):
+		_fail_character(rpc_result)
+		return false
+	return await list_characters()
+
+
+func restore_character(character_id: String) -> bool:
+	var rpc_result: Dictionary = await _backend().rpc(
+		CHARACTER_RESTORE_RPC,
+		JSON.stringify({"characterId": character_id})
+	)
+	if not bool(rpc_result.get("ok", false)):
+		_fail_character(rpc_result)
+		return false
+	return await list_characters()
+
+
 func join_starter_zone() -> bool:
 	AppState.notify_loading_started("zone")
 	_join_in_progress = true
@@ -112,6 +285,17 @@ func join_starter_zone() -> bool:
 	_connect_chat_signals()
 	_connect_socket_signals()
 	_got_full_state = false
+	var character_id := String(AppState.character_view.get("character_id", ""))
+	if character_id.is_empty():
+		_join_in_progress = false
+		_fail_zone({"code": "selection_required", "message": "Select a character before entering the zone."})
+		return false
+	var selected := await select_character(character_id)
+	if not selected:
+		_join_in_progress = false
+		AppState.notify_loading_completed("zone")
+		zone_join_finished.emit(false, AppState.last_error_message)
+		return false
 	var rpc_result: Dictionary = await _backend().rpc(MatchProtocol.FIND_OR_CREATE_STARTER_ZONE_RPC, "{}")
 	if not bool(rpc_result.get("ok", false)):
 		_join_in_progress = false
@@ -127,7 +311,7 @@ func join_starter_zone() -> bool:
 		return false
 	var join_result: Dictionary = await _backend().join_match(
 		String(found["match_id"]),
-		MatchProtocol.join_metadata(ContentRegistry.get_content_hash())
+		MatchProtocol.join_metadata(ContentRegistry.get_content_hash(), AppState.selection_ticket)
 	)
 	if not bool(join_result.get("ok", false)):
 		_join_in_progress = false
@@ -303,6 +487,12 @@ func rejoin_starter_zone() -> bool:
 	_connect_match_signals()
 	_connect_chat_signals()
 	_connect_socket_signals()
+	AppState.selection_ticket = ""
+	var character_id := String(AppState.character_view.get("character_id", ""))
+	if not character_id.is_empty():
+		var selected := await select_character(character_id)
+		if not selected:
+			return false
 	var rpc_result: Dictionary = await _backend().rpc(MatchProtocol.FIND_OR_CREATE_STARTER_ZONE_RPC, "{}")
 	if not bool(rpc_result.get("ok", false)):
 		return false
@@ -316,7 +506,7 @@ func rejoin_starter_zone() -> bool:
 		return false
 	var join_result: Dictionary = await _backend().join_match(
 		String(found["match_id"]),
-		MatchProtocol.join_metadata(ContentRegistry.get_content_hash())
+		MatchProtocol.join_metadata(ContentRegistry.get_content_hash(), AppState.selection_ticket)
 	)
 	if not bool(join_result.get("ok", false)):
 		var code := String(join_result.get("code", ""))
@@ -399,7 +589,7 @@ func _try_reconnect() -> bool:
 
 
 func ensure_session() -> bool:
-	if not AppState.is_authenticated and _device_id.is_empty():
+	if not AppState.is_authenticated and _device_id.is_empty() and _email.is_empty():
 		AppState.report_recoverable("unauthenticated", "Sign-in is required.")
 		return false
 	if not _backend().is_session_expired():
@@ -412,6 +602,15 @@ func ensure_session() -> bool:
 		if show_loading:
 			AppState.notify_loading_completed("session")
 		return true
+	if _device_id.is_empty():
+		socket_connected = false
+		match_id = ""
+		zone_chat_id = ""
+		AppState.notify_logged_out()
+		AppState.report_recoverable("session_expired", "The session expired. Sign in again.")
+		if show_loading:
+			AppState.notify_loading_completed("session")
+		return false
 	var reauth: Dictionary = await _backend().authenticate_device(_device_id, _username)
 	if not bool(reauth.get("ok", false)):
 		socket_connected = false
@@ -464,6 +663,8 @@ func logout() -> void:
 	_got_full_state = false
 	_device_id = ""
 	_username = ""
+	_email = ""
+	_auth_mode = ""
 	_reconnect_in_progress = false
 	_join_in_progress = false
 	_pending_reconnect = false
@@ -493,6 +694,12 @@ func reset_for_tests() -> void:
 	reconnect_policy = ReconnectPolicy.new()
 	_device_id = ""
 	_username = ""
+	_email = ""
+	_auth_mode = ""
+	_auth_cooldown_ms = 0
+	_auth_blocked_until_ms = 0
+	DevIdentity.force_release_config = false
+	SessionCache.clear()
 
 
 func _backend() -> RefCounted:
@@ -712,6 +919,7 @@ func _wait_for_full_state(timeout_sec: float) -> bool:
 
 
 func _fail_auth(result: Dictionary) -> void:
+	_note_auth_failure()
 	socket_connected = false
 	AppState.notify_logged_out()
 	AppState.report_recoverable(
@@ -720,6 +928,27 @@ func _fail_auth(result: Dictionary) -> void:
 	)
 	AppState.notify_loading_completed("auth")
 	authentication_finished.emit(false, AppState.last_error_message)
+
+
+func _auth_rate_allows() -> bool:
+	if Time.get_ticks_msec() < _auth_blocked_until_ms:
+		AppState.report_recoverable("auth_rate_limited", "Wait before trying to sign in again.")
+		authentication_finished.emit(false, AppState.last_error_message)
+		return false
+	return true
+
+
+func _note_auth_failure() -> void:
+	if _auth_cooldown_ms <= 0:
+		_auth_cooldown_ms = AUTH_COOLDOWN_START_MS
+	else:
+		_auth_cooldown_ms = mini(_auth_cooldown_ms * 2, AUTH_COOLDOWN_MAX_MS)
+	_auth_blocked_until_ms = Time.get_ticks_msec() + _auth_cooldown_ms
+
+
+func _note_auth_success() -> void:
+	_auth_cooldown_ms = 0
+	_auth_blocked_until_ms = 0
 
 
 func _fail_character(result: Dictionary) -> void:
@@ -764,6 +993,7 @@ func _character_view(data: Dictionary) -> Dictionary:
 		"storage_version": String(data["storageVersion"]),
 		"content_id": String(data.get("contentId", "player.base")),
 		"zone_id": String(data.get("zoneId", "zone.starter")),
+		"class_id": String(data.get("classId", "")),
 		"base_stats": stats.duplicate(true),
 		"position": position.duplicate(true),
 	}

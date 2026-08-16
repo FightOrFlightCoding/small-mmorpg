@@ -12,21 +12,67 @@ Machine-readable twin: `tools/foundation-audit/expected.json` `storageRecords`. 
 
 | Field | Value |
 | --- | --- |
-| Purpose | One character per account: id, name, content id, zone id, checkpointed position |
-| Owner | Server (`character_bootstrap` create; match checkpoints) |
-| Scope | Account-scoped (Nakama `userId`) |
+| Purpose | One character record: id, account, display/canonical name, class, timestamps, checkpointed position |
+| Owner | Server (`character_create` / Prompt 18 `character_bootstrap` wrapper; match checkpoints) |
+| Scope | Account-scoped (Nakama `userId`). Gameplay objects for a selected character use key `character_<compactCharacterId>` with the legacy key `character` as a Prompt 18 fallback. |
 | `permissionRead` | 1 (owner) |
 | `permissionWrite` | 0 |
 | Schema version | 1 |
-| Creation | `character_bootstrap` via `writeCharacter` (create-if-absent retry) |
-| Read | Bootstrap; `matchJoin` / `matchJoinAttempt` (migrate then persist once) |
-| Update | Position checkpoint every 5 s if changed; leave; terminate (`writeCharacterCheckpoint`, OCC version) |
-| Concurrency | `storageWriteRetry` with object version on checkpoint; create writes nothing if a record already exists |
-| Migration | v0 → v1 on load; persist once. Future versions rejected. Extra fields preserved. |
-| Deletion | None. Account deletion is Nakama’s, not implemented. |
+| Creation | `character_create` or bootstrap-via-roster; migrate copies the Prompt 18 object into the first slot without duplicating inventory, quests, or gold |
+| Read | List/create/select; `matchJoin` / `matchJoinAttempt` (migrate then persist once) |
+| Update | Position checkpoint every 5 s if changed; leave; terminate; soft-delete/restore timestamps |
+| Concurrency | `storageWriteRetry` with object version on checkpoint |
+| Migration | v0 → v1 on load; Prompt 18 account key becomes slot 1; missing `classId` is filled from the content class flagged `legacyMigrationDefault` |
+| Deletion | Soft-delete sets `deletedAt`. Live slot count ignores deleted rows. Restore is allowed while live count < 3. |
 | Client access | Must not write. May see fields only via RPC response / FULL_STATE pose, not by storage read. |
 
-Value: `{ schemaVersion, createdAt, updatedAt, characterId, name, contentId, zoneId, position: { x, y } }`. `storageVersion` in the RPC response is the Nakama OCC version, not stored in the JSON value.
+Value: `{ schemaVersion, createdAt, updatedAt, lastPlayedAt, deletedAt, characterId, accountUserId, name, canonicalName, classId, contentId, zoneId, position: { x, y } }`. `storageVersion` in the bootstrap RPC response is the Nakama OCC version, not stored in the JSON value.
+
+## `player` / `roster`
+
+| Field | Value |
+| --- | --- |
+| Purpose | Ordered character ids for the account (max 3 live) |
+| Owner | Server character RPCs |
+| Scope | Account-scoped |
+| `permissionRead` | 1 |
+| `permissionWrite` | 0 |
+| Schema version | 1 |
+| Creation | First create or Prompt 18 migrate |
+| Read | `character_list` and other character RPCs |
+| Update | Create, soft-delete (id remains), restore |
+| Concurrency | Server-owned rewrite of the roster object |
+| Client access | No. Clients receive the list payload only. |
+
+## `player` / `selection`
+
+| Field | Value |
+| --- | --- |
+| Purpose | Short-lived selection ticket for match join (TTL 300 s). One active selection per account. |
+| Owner | Server `character_select`; match invalidates on successful join |
+| Scope | Account-scoped |
+| `permissionRead` | 1 |
+| `permissionWrite` | 0 |
+| Schema version | 1 |
+| Creation | `character_select` |
+| Read | `matchJoinAttempt` |
+| Update | Invalidate after join; selecting again replaces the ticket |
+| Client access | Ticket id only, via RPC. Join metadata may carry `selectionTicket`, never `characterId`. |
+
+## `names` / `n`
+
+| Field | Value |
+| --- | --- |
+| Purpose | Canonical-name reservation prefix. Actual objects are system-owned keys `n_<encoded canonical name>`. |
+| Owner | Server create path |
+| Scope | System user `00000000-0000-0000-0000-000000000000` |
+| `permissionRead` | 0 |
+| `permissionWrite` | 0 |
+| Schema version | Absent (reservation token, not a player save) |
+| Creation | Write token, re-read; loser is `name_taken` |
+| Client access | No. |
+
+Value: `{ canonicalName, characterId, accountUserId, token }`.
 
 ## `player` / `quests`
 
@@ -34,11 +80,7 @@ Value: `{ schemaVersion, createdAt, updatedAt, characterId, name, contentId, zon
 | --- | --- |
 | Purpose | Quest log, accept/turn-in `requestId` maps, tick stamps |
 | Owner | Server match |
-| Scope | Account-scoped |
-| `permissionRead` | 1 |
-| `permissionWrite` | 0 |
-| Schema version | 1 |
-| Creation | First successful `QUEST_ACCEPT` write; missing record loads as empty log |
+| Scope | Account-scoped; per-character key when selected |
 | Read | `matchJoin` (migrate if present) |
 | Update | Accept; pickup objective progress; turn-in `multiUpdate` |
 | Concurrency | OCC version on write; turn-in retries version conflicts up to 5 |
@@ -46,17 +88,19 @@ Value: `{ schemaVersion, createdAt, updatedAt, characterId, name, contentId, zon
 | Deletion | None |
 | Client access | Mirror via `FULL_STATE` / `QUEST_STATE` only |
 
+Inventory, quests, and equipment for a selected character use `inventory_<compactId>`, `quests_<compactId>`, and `equipment_<compactId>` when a `characterId` is known, with the Prompt 18 keys as fallbacks so migrated slice data is not duplicated. Gold stays the account Nakama wallet.
+
 ## `player` / `inventory`
 
 | Field | Value |
 | --- | --- |
 | Purpose | Stacks, instance ids, pickup `requestId` history |
 | Owner | Server match |
-| Scope | Account-scoped |
+| Scope | Account-scoped; per-character key when selected |
 | `permissionRead` | 1 |
 | `permissionWrite` | 0 |
 | Schema version | 1 |
-| Creation | Join initializes once when **missing**: capacity 20, one `item.training_sword` (`writeInventoryOnce`). Present Prompt 18 inventories are migrated, never re-initialized. |
+| Creation | New characters initialize from the class `startingEquipment` list. Present Prompt 18 inventories are copied onto the migrated character key, never re-granted. |
 | Read | `matchJoin` |
 | Update | Successful pickup; turn-in consume/grant |
 | Concurrency | OCC; turn-in `multiUpdate` with quests + wallet |
@@ -70,11 +114,7 @@ Value: `{ schemaVersion, createdAt, updatedAt, characterId, name, contentId, zon
 | --- | --- |
 | Purpose | `main_hand` instance id, equip `requestId` history |
 | Owner | Server match |
-| Scope | Account-scoped |
-| `permissionRead` | 1 |
-| `permissionWrite` | 0 |
-| Schema version | 1 |
-| Creation | Missing record starts empty on join |
+| Scope | Account-scoped; per-character key when selected |
 | Read | `matchJoin` |
 | Update | Successful equip/unequip; join repair if instance missing |
 | Concurrency | OCC version |

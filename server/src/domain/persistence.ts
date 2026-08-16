@@ -18,6 +18,7 @@ export const REQUEST_ID_TTL_TICKS = 6000;
 
 export interface PositionCheckpoint {
   userId: string;
+  characterId: string;
   x: number;
   y: number;
 }
@@ -54,7 +55,7 @@ export function applyPlayerLeave(state: StarterZoneState, userId: string, tick: 
   }
   return {
     state: next,
-    checkpoint: { userId: userId, x: parked.x, y: parked.y },
+    checkpoint: { userId: userId, characterId: parked.characterId, x: parked.x, y: parked.y },
   };
 }
 
@@ -166,7 +167,7 @@ export function collectPositionCheckpoints(state: StarterZoneState, tick: number
     player.lastCheckpointTick = tick;
     player.lastCheckpointX = player.x;
     player.lastCheckpointY = player.y;
-    checkpoints.push({ userId: userId, x: player.x, y: player.y });
+    checkpoints.push({ userId: userId, characterId: player.characterId, x: player.x, y: player.y });
   }
   return checkpoints;
 }
@@ -177,14 +178,14 @@ export function checkpointsForTerminate(state: StarterZoneState): PositionCheckp
   for (let i = 0; i < liveIds.length; i++) {
     const userId = liveIds[i];
     const player = state.players[userId];
-    checkpoints.push({ userId: userId, x: player.x, y: player.y });
+    checkpoints.push({ userId: userId, characterId: player.characterId, x: player.x, y: player.y });
   }
   state.disconnected = dict(state.disconnected);
   const parkedIds = Object.keys(state.disconnected);
   for (let j = 0; j < parkedIds.length; j++) {
     const userId = parkedIds[j];
     const parked = state.disconnected[userId].player;
-    checkpoints.push({ userId: userId, x: parked.x, y: parked.y });
+    checkpoints.push({ userId: userId, characterId: parked.characterId, x: parked.x, y: parked.y });
   }
   return checkpoints;
 }

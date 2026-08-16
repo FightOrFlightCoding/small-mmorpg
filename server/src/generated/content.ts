@@ -2,10 +2,95 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "3db1de356fc85fb6eb96489ddc04f47049b906ef915d2baa241cae38159a6e85";
+export const contentHash = "e7e2625ff9e92d4905422efeba0c36554d45136578c27f8a6989f06e0ce94721";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = [] as const;
 export const content = {
+  "classes": {
+    "test.class.arcanist": {
+      "allowedEquipmentTags": [
+        "main_hand"
+      ],
+      "attributeGrowth": {
+        "focus": 1,
+        "might": 0,
+        "vitality": 1
+      },
+      "attributePointRules": {
+        "pointsAtCreate": 0,
+        "pointsPerLevel": 0
+      },
+      "displayName": "Test Arcanist",
+      "id": "test.class.arcanist",
+      "kind": "class",
+      "levelCurve": {
+        "baseXp": 100,
+        "growth": 1.2
+      },
+      "skillPointRules": {
+        "pointsAtCreate": 0,
+        "pointsPerLevel": 0
+      },
+      "startingAbilities": [],
+      "startingAttributes": {
+        "focus": 7,
+        "might": 2,
+        "vitality": 4
+      },
+      "startingEquipment": [
+        {
+          "itemId": "item.training_sword",
+          "quantity": 1
+        }
+      ],
+      "startingResources": {
+        "health": 100
+      },
+      "visualAssetSetId": "visual.class_arcanist"
+    },
+    "test.class.vanguard": {
+      "allowedEquipmentTags": [
+        "main_hand"
+      ],
+      "attributeGrowth": {
+        "focus": 0,
+        "might": 1,
+        "vitality": 1
+      },
+      "attributePointRules": {
+        "pointsAtCreate": 0,
+        "pointsPerLevel": 0
+      },
+      "displayName": "Test Vanguard",
+      "id": "test.class.vanguard",
+      "kind": "class",
+      "legacyMigrationDefault": true,
+      "levelCurve": {
+        "baseXp": 100,
+        "growth": 1.2
+      },
+      "skillPointRules": {
+        "pointsAtCreate": 0,
+        "pointsPerLevel": 0
+      },
+      "startingAbilities": [],
+      "startingAttributes": {
+        "focus": 2,
+        "might": 6,
+        "vitality": 6
+      },
+      "startingEquipment": [
+        {
+          "itemId": "item.training_sword",
+          "quantity": 1
+        }
+      ],
+      "startingResources": {
+        "health": 100
+      },
+      "visualAssetSetId": "visual.class_vanguard"
+    }
+  },
   "enemies": {
     "enemy.green_slime": {
       "aggroRadius": 128,

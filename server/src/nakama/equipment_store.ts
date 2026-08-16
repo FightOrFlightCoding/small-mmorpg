@@ -6,16 +6,19 @@ import {
   storedEquipmentWriteValue,
 } from "../domain/equipment_store";
 import { type PlayerEquipment } from "../domain/equipment";
+import { storageKey } from "../domain/storage_scope";
 import { loadCanonicalEquipment } from "../domain/save_load";
+import { readPlayerObject } from "./player_storage";
 
 export function buildEquipmentWrite(
   userId: string,
   equipment: PlayerEquipment,
   version?: string,
+  characterId?: string,
 ): nkruntime.StorageWriteRequest {
   const write: nkruntime.StorageWriteRequest = {
     collection: EQUIPMENT_COLLECTION,
-    key: EQUIPMENT_KEY,
+    key: storageKey(EQUIPMENT_KEY, characterId),
     userId: userId,
     value: storedEquipmentWriteValue(equipment),
     permissionRead: EQUIPMENT_PERMISSION_READ,
@@ -27,18 +30,12 @@ export function buildEquipmentWrite(
   return write;
 }
 
-export function readEquipment(nk: nkruntime.Nakama, userId: string): PlayerEquipment | null {
-  const objects = nk.storageRead([
-    {
-      collection: EQUIPMENT_COLLECTION,
-      key: EQUIPMENT_KEY,
-      userId: userId,
-    },
-  ]);
-  if (objects.length === 0) {
+export function readEquipment(nk: nkruntime.Nakama, userId: string, characterId?: string): PlayerEquipment | null {
+  const object = readPlayerObject(nk, EQUIPMENT_COLLECTION, EQUIPMENT_KEY, userId, characterId);
+  if (object === null) {
     return null;
   }
-  const loaded = loadCanonicalEquipment(objects[0].value, true);
+  const loaded = loadCanonicalEquipment(object.value, true);
   if (!loaded.ok) {
     throw new Error(loaded.reason);
   }
@@ -46,27 +43,32 @@ export function readEquipment(nk: nkruntime.Nakama, userId: string): PlayerEquip
     return null;
   }
   if (loaded.persist) {
-    persistMigratedEquipment(nk, userId);
+    persistMigratedEquipment(nk, userId, characterId);
   }
   return loaded.value;
 }
 
-export function writeEquipment(nk: nkruntime.Nakama, userId: string, equipment: PlayerEquipment): void {
+export function writeEquipment(
+  nk: nkruntime.Nakama,
+  userId: string,
+  equipment: PlayerEquipment,
+  characterId?: string,
+): void {
   nk.storageWriteRetry(
-    [{ collection: EQUIPMENT_COLLECTION, key: EQUIPMENT_KEY, userId: userId }],
+    [{ collection: EQUIPMENT_COLLECTION, key: storageKey(EQUIPMENT_KEY, characterId), userId: userId }],
     function (objects: nkruntime.StorageObject[]): nkruntime.StorageWriteRequest[] {
       if (objects.length > 0) {
-        return [buildEquipmentWrite(userId, equipment, objects[0].version)];
+        return [buildEquipmentWrite(userId, equipment, objects[0].version, characterId)];
       }
-      return [buildEquipmentWrite(userId, equipment)];
+      return [buildEquipmentWrite(userId, equipment, undefined, characterId)];
     },
     5,
   );
 }
 
-function persistMigratedEquipment(nk: nkruntime.Nakama, userId: string): void {
+function persistMigratedEquipment(nk: nkruntime.Nakama, userId: string, characterId?: string): void {
   nk.storageWriteRetry(
-    [{ collection: EQUIPMENT_COLLECTION, key: EQUIPMENT_KEY, userId: userId }],
+    [{ collection: EQUIPMENT_COLLECTION, key: storageKey(EQUIPMENT_KEY, characterId), userId: userId }],
     function (objects: nkruntime.StorageObject[]): nkruntime.StorageWriteRequest[] {
       if (objects.length === 0) {
         return [];
@@ -75,7 +77,7 @@ function persistMigratedEquipment(nk: nkruntime.Nakama, userId: string): void {
       if (!loaded.ok || loaded.value === null || !loaded.persist) {
         return [];
       }
-      return [buildEquipmentWrite(userId, loaded.value, objects[0].version)];
+      return [buildEquipmentWrite(userId, loaded.value, objects[0].version, characterId)];
     },
     5,
   );

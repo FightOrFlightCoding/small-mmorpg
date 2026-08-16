@@ -39,9 +39,9 @@ static func run(host: Node) -> Dictionary:
 	if not await bob.authenticate("vibecode-e2e-b-%s" % stamp, "b%s" % stamp):
 		return _fail(bob.fail_reason)
 	print("E2E step=bob_authenticated")
-	if not await alice.bootstrap("Alice"):
+	if not await alice.bootstrap(_unique_name("A", stamp)):
 		return _fail(alice.fail_reason)
-	if not await bob.bootstrap("Bob"):
+	if not await bob.bootstrap(_unique_name("B", stamp)):
 		return _fail(bob.fail_reason)
 	if not await alice.join_zone():
 		return _fail(alice.fail_reason)
@@ -164,6 +164,15 @@ static func _pickup_gel(alice: SliceSession) -> bool:
 		alice.fail_reason = "pickup:%s" % String(picked.get("code", "failed"))
 		return false
 	return await alice.wait_until(func() -> bool: return alice.item_count(GEL_ID) >= 1, 4.0)
+
+
+static func _unique_name(prefix: String, stamp: String) -> String:
+	var body := prefix + stamp
+	if body.length() > 16:
+		body = prefix + stamp.substr(stamp.length() - (16 - prefix.length()), 16 - prefix.length())
+	if body.length() < 3:
+		body = (body + "aaa").substr(0, 3)
+	return body
 
 
 static func _fail(reason: String) -> Dictionary:

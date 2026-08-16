@@ -35,6 +35,12 @@ func start_boot(bundle_path: String = ContentRegistry.DEFAULT_BUNDLE_PATH) -> bo
 func request_authenticate(device_id: String = "", dev_user: String = "") -> void:
 	if AppState.has_fatal_error:
 		return
+	if not DevIdentity.development_auth_allowed():
+		AppState.report_recoverable(
+			"development_auth_blocked",
+			"Development sign-in is unavailable in this build. Use email and password."
+		)
+		return
 	if not dev_user.is_empty():
 		last_identity = DevIdentity.resolve(PackedStringArray(["--dev-user=%s" % dev_user]), OS.get_unique_id())
 	else:
@@ -47,6 +53,62 @@ func request_authenticate(device_id: String = "", dev_user: String = "") -> void
 		resolved_id = String(last_identity.get("device_id", ""))
 	var username := String(last_identity.get("dev_user", ""))
 	await NetworkService.authenticate_device(resolved_id, username)
+
+
+func request_register(email: String, password: String, confirm: String) -> void:
+	if AppState.has_fatal_error:
+		return
+	if password != confirm:
+		AppState.report_recoverable("password_mismatch", "Password confirmation does not match.")
+		return
+	if email.strip_edges().is_empty() or password.is_empty():
+		AppState.report_recoverable("invalid_credentials", "Email and password are required.")
+		return
+	await NetworkService.authenticate_email(email.strip_edges(), password, _username_from_email(email), true)
+
+
+func request_login_email(email: String, password: String) -> void:
+	if AppState.has_fatal_error:
+		return
+	if email.strip_edges().is_empty() or password.is_empty():
+		AppState.report_recoverable("invalid_credentials", "Email and password are required.")
+		return
+	await NetworkService.authenticate_email(email.strip_edges(), password, "", false)
+
+
+func try_restore_session() -> void:
+	if AppState.has_fatal_error or AppState.is_authenticated:
+		return
+	await NetworkService.restore_cached_session()
+
+
+func request_character_list() -> void:
+	if AppState.has_fatal_error:
+		return
+	if not AppState.is_authenticated:
+		AppState.report_recoverable("unauthenticated", "Sign-in is required before listing characters.")
+		return
+	await NetworkService.list_characters()
+
+
+func request_character_create(character_name: String, class_id: String) -> void:
+	if AppState.has_fatal_error:
+		return
+	await NetworkService.create_character(character_name, class_id)
+
+
+func request_character_select(character_id: String) -> void:
+	if AppState.has_fatal_error:
+		return
+	await NetworkService.select_character(character_id)
+
+
+func request_character_soft_delete(character_id: String) -> void:
+	await NetworkService.soft_delete_character(character_id)
+
+
+func request_character_restore(character_id: String) -> void:
+	await NetworkService.restore_character(character_id)
 
 
 func request_character_bootstrap(proposed_name: String = "") -> void:
@@ -104,3 +166,19 @@ func _on_logged_out() -> void:
 		return
 	if AppState.content_ready:
 		SceneRouter.transition_to(SceneRouter.SCENE_LOGIN)
+
+
+func _username_from_email(email: String) -> String:
+	var local := email.strip_edges().get_slice("@", 0).to_lower()
+	var cleaned := ""
+	for i in local.length():
+		var ch := local.substr(i, 1)
+		if ch >= "a" and ch <= "z":
+			cleaned += ch
+		elif ch >= "0" and ch <= "9":
+			cleaned += ch
+	if cleaned.length() < 3:
+		return "player"
+	if cleaned.length() > 32:
+		cleaned = cleaned.substr(0, 32)
+	return cleaned

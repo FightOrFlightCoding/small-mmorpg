@@ -1,4 +1,4 @@
-export const CONTENT_ID_PATTERN = /^[a-z]+\.[a-z0-9_]+$/;
+export const CONTENT_ID_PATTERN = /^[a-z]+(\.[a-z0-9_]+)+$/;
 
 export const ALLOWED_EQUIP_SLOTS = ["main_hand"] as const;
 
@@ -11,6 +11,7 @@ export const KIND_PREFIX: Record<string, string> = {
   enemy: "enemy",
   quest: "quest",
   zone: "zone",
+  class: "test.class",
 };
 
 export function isContentId(value: string): boolean {

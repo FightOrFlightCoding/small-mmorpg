@@ -33,5 +33,6 @@ func test_content_hash_is_exposed() -> void:
 	assert_bool(ContentRegistry.load_bundle()).is_true()
 	var hash := ContentRegistry.get_content_hash()
 	assert_int(hash.length()).is_equal(64)
-	assert_str(hash).is_equal("3db1de356fc85fb6eb96489ddc04f47049b906ef915d2baa241cae38159a6e85")
+	assert_str(hash).is_equal("e7e2625ff9e92d4905422efeba0c36554d45136578c27f8a6989f06e0ce94721")
 	assert_int(ContentRegistry.get_schema_version()).is_equal(1)
+	assert_int(ContentRegistry.ids_of_kind("class").size()).is_greater_equal(2)

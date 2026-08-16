@@ -31,18 +31,53 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="VBox" type="VBoxContainer" parent="Center"]
+custom_minimum_size = Vector2(640, 0)
 layout_mode = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 10
 
 [node name="Title" type="Label" parent="Center/VBox"]
 layout_mode = 2
-text = "Character"
+text = "Characters"
 horizontal_alignment = 1
 
 [node name="Status" type="Label" parent="Center/VBox"]
 layout_mode = 2
-text = "Loading character..."
+text = "Loading characters..."
 horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="SlotLabel" type="Label" parent="Center/VBox"]
+layout_mode = 2
+text = "Live slots 0 / 3"
+horizontal_alignment = 1
+
+[node name="CharacterList" type="ItemList" parent="Center/VBox"]
+custom_minimum_size = Vector2(640, 120)
+layout_mode = 2
+
+[node name="NameEdit" type="LineEdit" parent="Center/VBox"]
+layout_mode = 2
+placeholder_text = "Character name"
+max_length = 16
+
+[node name="ClassOption" type="OptionButton" parent="Center/VBox"]
+layout_mode = 2
+
+[node name="CreateButton" type="Button" parent="Center/VBox"]
+layout_mode = 2
+text = "Create character"
+
+[node name="SelectButton" type="Button" parent="Center/VBox"]
+layout_mode = 2
+text = "Select character"
+
+[node name="DeleteButton" type="Button" parent="Center/VBox"]
+layout_mode = 2
+text = "Soft-delete"
+
+[node name="RestoreButton" type="Button" parent="Center/VBox"]
+layout_mode = 2
+text = "Restore"
 
 [node name="NameValue" type="Label" parent="Center/VBox"]
 layout_mode = 2

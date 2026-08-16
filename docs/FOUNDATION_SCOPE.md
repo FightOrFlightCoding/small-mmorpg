@@ -23,7 +23,7 @@ A later phase may implement a Required-for-Foundation-v1 row only when that phas
 | One public village-and-fields world | Required for Foundation v1 | Existing prototype is the single `zone.starter` match. Must become the public-world template; no public-world sharding in v1. |
 | Party-owned cave instances | Required for Foundation v1 | Absent. Private matches, one player or one party, shared instance for members entering together. |
 | Maximum party size of five | Required for Foundation v1 | Absent. Current match cap is 8 unrelated players in one public match. |
-| Data-defined character classes | Required for Foundation v1 | Absent. Every character uses `player.base`. |
+| Data-defined character classes | Existing and accepted (Prompt 21) | Temporary test classes in content; selection is immutable. XP, attribute allocation, and abilities remain later prompts. |
 | Level and experience progression | Required for Foundation v1 | Absent. |
 | Optional attribute-point allocation | Required for Foundation v1 | Absent. |
 | Optional skill-point allocation | Required for Foundation v1 | Absent. |
@@ -46,8 +46,9 @@ A later phase may implement a Required-for-Foundation-v1 row only when that phas
 | Transfer tickets between public world and caves | Required for Foundation v1 | Absent. Join is `find_or_create_starter_zone` only. |
 | Reconnect to the correct public world or cave | Required for Foundation v1 | Slice reconnects only to `zone.starter`. |
 | Empty cave grace shutdown | Required for Foundation v1 | Public match empty shutdown is 30s; caves do not exist. |
-| One character selected per account | Existing and accepted | One storage key `character`; no slots. Foundation v1 keeps a single selected character. |
-| Device authentication (development) | Existing and accepted | Nakama device auth; Alice/Bob flags. Not production identity. |
+| One character selected per account | Existing and accepted | Selection ticket; one active character in the match. Up to three live slots. |
+| Email-and-password authentication | Existing and accepted (Prompt 21) | Nakama email auth; session cache; no password storage. Password-recovery email is out of v1 (admin-assisted). |
+| Device authentication (development) | Existing and accepted | Debug builds only. Alice/Bob flags. Not production identity. |
 | Content IDs, generated catalogs, matching hashes | Existing and accepted | `schemaVersion` 1, SHA-256 `contentHash`. |
 | Local prediction and snapshot interpolation | Existing and accepted | Presentation only. |
 | Debug two-client e2e journey | Existing and accepted | `--e2e-slice`; unavailable in release. |
@@ -66,7 +67,7 @@ A later phase may implement a Required-for-Foundation-v1 row only when that phas
 
 | Feature | Class | Why |
 | --- | --- | --- |
-| Multiple character slots | Explicitly postponed | Not in the locked v1 list. Prompt 18 is one character per account. |
+| Multiple character slots | Existing and accepted (Prompt 21) | Configurable maximum of three live characters. Soft-delete/restore. |
 | Account-wide cosmetics / appearance editor | Explicitly postponed | Not in the locked v1 list. |
 | Friends lists and social directories | Explicitly postponed | Not required for parties or trade. |
 | Mail | Explicitly postponed | Not in the locked v1 list. |
