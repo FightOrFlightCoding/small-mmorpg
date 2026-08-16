@@ -52,6 +52,8 @@
         }
       }
     },
-    "completeOnce": { "type": "boolean" }
+    "completeOnce": { "type": "boolean" },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
   }
 }

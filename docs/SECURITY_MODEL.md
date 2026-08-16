@@ -88,11 +88,11 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Defense:** Version field checked first. Mismatch is rejected; no state apply.
 
-### Character stat injection
+### Forged save schema version
 
-**Attack:** Client sends max health, attack, or position in `character_bootstrap`.
+**Attack:** Client sends `schemaVersion`, `createdAt`, or a migration id in bootstrap or join metadata.
 
-**Defense:** The RPC is strict. Only optional `name` is accepted. Stat and position fields return `stat_injection`. Created records use `player.base` and `zone.starter` spawn. Storage writes use `permissionWrite: 0`.
+**Defense:** Bootstrap treats those keys as `stat_injection`. Join metadata is only `protocolVersion` and `contentHash`. Migrations run only on server-read storage. Future save versions reject join with a visible `save_incompatible` error; data is not reset.
 
 ### Rate-limit abuse
 
@@ -132,6 +132,7 @@ Every expected attack maps to a validation rule, an automated test, and a safe s
 | Chat injection | Before-hook JSON `{message}`; Label render, no BBCode | `chat.test.ts`, `chat_client_test.gd`, `security.test.ts` | `message_too_long` / `invalid_payload`; markup is plain text |
 | Protocol-version mismatch | Envelope version checked first | `protocol.test.ts`, `match.test.ts` | `protocol_mismatch`; no apply |
 | Character stat injection | Bootstrap accepts optional `name` only | `character.test.ts` | `stat_injection`; `permissionWrite: 0` |
+| Forged save version | Server detects storage version; client fields rejected | `migration.test.ts`, `character.test.ts` | `stat_injection` / `unsupported_future_version`; no reset |
 | Stale movement sequence | `seq <= lastProcessedSeq` ignored | `movement.test.ts`, `security.test.ts` | Pose unchanged |
 | Excessive movement / resync | Per-player `actionRates` in match state | `security.test.ts` | `rate_limited`; extra seq/full states dropped |
 | Dead-player actions | Health checked before move/attack/interact/loot/equip | `combat.test.ts`, `interaction.test.ts`, `inventory.test.ts`, `equipment.test.ts`, `security.test.ts` | `player_dead`; no mutate |

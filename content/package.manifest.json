@@ -1,0 +1,14 @@
+{
+  "packageId": "vibecode.foundation",
+  "packageVersion": "1.0.0",
+  "schemaVersion": 1,
+  "minimumProtocolVersion": 1,
+  "kinds": {
+    "player": { "schema": "player.json", "definitionSchemaVersion": 1, "idPrefix": "player" },
+    "item": { "schema": "item.json", "definitionSchemaVersion": 1, "idPrefix": "item" },
+    "npc": { "schema": "npc.json", "definitionSchemaVersion": 1, "idPrefix": "npc" },
+    "enemy": { "schema": "enemy.json", "definitionSchemaVersion": 1, "idPrefix": "enemy" },
+    "quest": { "schema": "quest.json", "definitionSchemaVersion": 1, "idPrefix": "quest" },
+    "zone": { "schema": "zone.json", "definitionSchemaVersion": 1, "idPrefix": "zone" }
+  }
+}

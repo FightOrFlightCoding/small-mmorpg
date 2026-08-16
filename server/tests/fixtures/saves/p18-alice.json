@@ -1,0 +1,32 @@
+{
+  "userId": "user-alice",
+  "gold": 25,
+  "character": {
+    "characterId": "char-alice",
+    "name": "Alice",
+    "contentId": "player.base",
+    "zoneId": "zone.starter",
+    "position": { "x": 640, "y": 400 }
+  },
+  "inventory": {
+    "capacity": 20,
+    "items": [
+      { "instanceId": "inst-sword", "itemId": "item.training_sword", "quantity": 1, "metadata": {} },
+      { "instanceId": "inst-iron", "itemId": "item.iron_sword", "quantity": 1, "metadata": {} }
+    ]
+  },
+  "equipment": {
+    "slots": { "main_hand": "inst-iron" }
+  },
+  "quests": {
+    "quests": [
+      {
+        "questId": "quest.slime_problem",
+        "status": "completed",
+        "objectives": [{ "type": "acquire_item", "itemId": "item.slime_gel", "current": 1, "required": 1 }]
+      }
+    ],
+    "acceptByRequestId": { "req-accept": "accepted" },
+    "turnInByRequestId": { "req-turnin": "ok" }
+  }
+}

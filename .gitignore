@@ -29,6 +29,7 @@ server/node_modules/
 server/build/
 server/dist/
 server/dist-test/
+server/dist-cli/
 npm-debug.log*
 
 # Docker / local data

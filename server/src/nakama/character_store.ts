@@ -4,10 +4,10 @@ import {
   CHARACTER_PERMISSION_READ,
   CHARACTER_PERMISSION_WRITE,
   checkpointCharacterPosition,
-  storedCharacterFromValue,
   storedCharacterWriteValue,
   type StoredCharacter,
 } from "../domain/character";
+import { loadCanonicalCharacter } from "../domain/save_load";
 
 export function buildCharacterWrite(
   userId: string,
@@ -39,7 +39,14 @@ export function readCharacter(nk: nkruntime.Nakama, userId: string): StoredChara
   if (objects.length === 0) {
     return null;
   }
-  return storedCharacterFromValue(objects[0].value, objects[0].version);
+  const loaded = loadCanonicalCharacter(objects[0].value, true, objects[0].version);
+  if (!loaded.ok || loaded.value === null) {
+    throw new Error(loaded.reason);
+  }
+  if (loaded.persist && loaded.raw !== null) {
+    persistMigratedCharacter(nk, userId);
+  }
+  return loaded.value;
 }
 
 export function writeCharacter(nk: nkruntime.Nakama, userId: string, record: StoredCharacter): void {
@@ -63,14 +70,33 @@ export function writeCharacterCheckpoint(nk: nkruntime.Nakama, userId: string, x
       if (objects.length === 0) {
         return [];
       }
-      const current = storedCharacterFromValue(objects[0].value, objects[0].version);
-      if (current === null) {
+      const loaded = loadCanonicalCharacter(objects[0].value, true, objects[0].version);
+      if (!loaded.ok || loaded.value === null) {
         return [];
       }
-      if (current.position.x === x && current.position.y === y) {
+      const current = loaded.value;
+      if (current.position.x === x && current.position.y === y && !loaded.persist) {
         return [];
       }
-      return [buildCharacterWrite(userId, checkpointCharacterPosition(current, x, y), objects[0].version)];
+      const next = checkpointCharacterPosition(current, x, y, Date.now());
+      return [buildCharacterWrite(userId, next, objects[0].version)];
+    },
+    5,
+  );
+}
+
+function persistMigratedCharacter(nk: nkruntime.Nakama, userId: string): void {
+  nk.storageWriteRetry(
+    [{ collection: CHARACTER_COLLECTION, key: CHARACTER_KEY, userId: userId }],
+    function (objects: nkruntime.StorageObject[]): nkruntime.StorageWriteRequest[] {
+      if (objects.length === 0) {
+        return [];
+      }
+      const loaded = loadCanonicalCharacter(objects[0].value, true, objects[0].version);
+      if (!loaded.ok || loaded.value === null || !loaded.persist) {
+        return [];
+      }
+      return [buildCharacterWrite(userId, loaded.value, objects[0].version)];
     },
     5,
   );

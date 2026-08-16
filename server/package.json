@@ -8,7 +8,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "tsc -p tsconfig.test.json && node --test dist-test/tests",
-    "build": "rollup -c rollup.config.mjs"
+    "build": "rollup -c rollup.config.mjs",
+    "migrate": "tsc -p tsconfig.cli.json && node dist-cli/cli/migrate.js"
   },
   "devDependencies": {
     "@babel/core": "^7.28.0",

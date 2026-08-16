@@ -117,6 +117,18 @@ test("join rejects protocol and content mismatches", () => {
   assert.equal(ok.accept, true);
 });
 
+test("join rejects client-supplied save versions", () => {
+  const state = emptyZone();
+  const forged = validateJoinAttempt(
+    state,
+    contentHash,
+    { protocolVersion: "1", contentHash: contentHash, schemaVersion: "0" },
+    false,
+  );
+  assert.equal(forged.accept, false);
+  assert.equal(forged.rejectMessage, "stat_injection:schemaVersion");
+});
+
 test("join rejects a second session for the same account", () => {
   const state = addPlayer(emptyZone(), player("user-alice", "Alice"));
   const meta = { protocolVersion: "1", contentHash: contentHash };

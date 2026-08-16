@@ -1,6 +1,7 @@
 import { distance, findNpc, type InteractionNpc } from "./interaction";
 import { countItem, type PlayerInventory } from "./inventory";
 import { cloneTickMap, dict } from "./maps";
+import { cloneExtras, envelopeFromRecord } from "./save_schema";
 
 export const QUEST_STATUS_ACCEPTED = "accepted";
 export const QUEST_STATUS_COMPLETED = "completed";
@@ -46,6 +47,10 @@ export interface QuestLog {
   turnInByRequestId: { [requestId: string]: string };
   acceptRequestTicks?: { [requestId: string]: number };
   turnInRequestTicks?: { [requestId: string]: number };
+  schemaVersion?: number;
+  createdAt?: number;
+  updatedAt?: number;
+  extras?: { [key: string]: unknown };
 }
 
 export interface PublicQuestObjective {
@@ -131,12 +136,17 @@ export function cloneQuestLog(log: QuestLog): QuestLog {
     const requestId = turnInIds[k];
     turnInByRequestId[requestId] = turnInSource[requestId];
   }
+  const envelope = envelopeFromRecord(log);
   return {
     quests: quests,
     acceptByRequestId: acceptByRequestId,
     turnInByRequestId: turnInByRequestId,
     acceptRequestTicks: cloneTickMap(log.acceptRequestTicks),
     turnInRequestTicks: cloneTickMap(log.turnInRequestTicks),
+    schemaVersion: envelope.schemaVersion,
+    createdAt: envelope.createdAt,
+    updatedAt: envelope.updatedAt,
+    extras: cloneExtras(log.extras),
   };
 }
 

@@ -1,3 +1,12 @@
+import {
+  CHARACTER_SAVE_KEYS,
+  SAVE_SCHEMA_VERSION,
+  attachEnvelope,
+  cloneExtras,
+  envelopeFromRecord,
+  optionalExtras,
+} from "./save_schema";
+
 export const CHARACTER_COLLECTION = "player";
 export const CHARACTER_KEY = "character";
 export const CHARACTER_PERMISSION_READ: 1 = 1;
@@ -24,6 +33,9 @@ const STAT_INJECTION_KEYS = [
   "pickupRange",
   "position",
   "stats",
+  "schemaVersion",
+  "createdAt",
+  "updatedAt",
   "storageVersion",
   "x",
   "y",
@@ -68,6 +80,10 @@ export interface StoredCharacter {
   zoneId: string;
   position: CharacterPosition;
   storageVersion: string;
+  schemaVersion: number;
+  createdAt: number;
+  updatedAt: number;
+  extras?: { [key: string]: unknown };
 }
 
 export interface CharacterBootstrapRequest {
@@ -93,6 +109,7 @@ export interface CharacterStore {
 export interface CharacterBootstrapDeps {
   store: CharacterStore;
   newId: () => string;
+  nowMs: () => number;
   player: PlayerStatsSource;
   zone: ZoneSpawnSource;
 }
@@ -185,6 +202,7 @@ export function createStoredCharacter(
   player: PlayerStatsSource,
   zone: ZoneSpawnSource,
   storageVersion: string,
+  nowMs: number = 0,
 ): StoredCharacter {
   return {
     characterId: characterId,
@@ -193,6 +211,9 @@ export function createStoredCharacter(
     zoneId: zone.id,
     position: { x: zone.playerSpawn.x, y: zone.playerSpawn.y },
     storageVersion: storageVersion,
+    schemaVersion: SAVE_SCHEMA_VERSION,
+    createdAt: nowMs,
+    updatedAt: nowMs,
   };
 }
 
@@ -227,7 +248,7 @@ export function handleCharacterBootstrap(
   }
 
   const name = resolveCreateName(request, username);
-  const record = createStoredCharacter(deps.newId(), name, deps.player, deps.zone, "");
+  const record = createStoredCharacter(deps.newId(), name, deps.player, deps.zone, "", deps.nowMs());
   deps.store.write(authenticatedUserId, record);
   const stored = deps.store.read(authenticatedUserId);
   if (stored === null) {
@@ -264,20 +285,34 @@ export function storedCharacterFromValue(
     zoneId: value.zoneId,
     position: { x: position.x, y: position.y },
     storageVersion: storageVersion,
+    schemaVersion: typeof value.schemaVersion === "number" ? value.schemaVersion : SAVE_SCHEMA_VERSION,
+    createdAt: typeof value.createdAt === "number" ? value.createdAt : 0,
+    updatedAt: typeof value.updatedAt === "number" ? value.updatedAt : 0,
+    extras: optionalExtras(value, CHARACTER_SAVE_KEYS),
   };
 }
 
 export function storedCharacterWriteValue(record: StoredCharacter): { [key: string]: unknown } {
-  return {
-    characterId: record.characterId,
-    name: record.name,
-    contentId: record.contentId,
-    zoneId: record.zoneId,
-    position: { x: record.position.x, y: record.position.y },
-  };
+  return attachEnvelope(
+    {
+      characterId: record.characterId,
+      name: record.name,
+      contentId: record.contentId,
+      zoneId: record.zoneId,
+      position: { x: record.position.x, y: record.position.y },
+    },
+    envelopeFromRecord(record),
+    record.extras,
+  );
 }
 
-export function checkpointCharacterPosition(record: StoredCharacter, x: number, y: number): StoredCharacter {
+export function checkpointCharacterPosition(
+  record: StoredCharacter,
+  x: number,
+  y: number,
+  nowMs: number = record.updatedAt,
+): StoredCharacter {
+  const envelope = envelopeFromRecord(record);
   return {
     characterId: record.characterId,
     name: record.name,
@@ -285,5 +320,9 @@ export function checkpointCharacterPosition(record: StoredCharacter, x: number, 
     zoneId: record.zoneId,
     position: { x: x, y: y },
     storageVersion: record.storageVersion,
+    schemaVersion: envelope.schemaVersion,
+    createdAt: envelope.createdAt,
+    updatedAt: nowMs,
+    extras: cloneExtras(record.extras),
   };
 }

@@ -11,6 +11,8 @@
     "visualId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
     "maxStack": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
     "equipSlot": { "type": "string", "minLength": 1 },
-    "attackBonus": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" }
+    "attackBonus": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
   }
 }

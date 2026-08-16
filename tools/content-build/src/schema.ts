@@ -2,8 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import Ajv2020, { type ErrorObject, type ValidateFunction } from "ajv/dist/2020";
 import { issue, type ContentIssue } from "./issues";
-
-const SCHEMA_FILES = ["common.json", "player.json", "item.json", "npc.json", "enemy.json", "quest.json", "zone.json"];
+import { DEFAULT_MANIFEST, schemaFilesForManifest, type ContentPackageManifest } from "./registry";
 
 const KIND_SCHEMA: Record<string, string> = {
   player: "https://vibecode.local/content-schemas/player.json",
@@ -14,10 +13,11 @@ const KIND_SCHEMA: Record<string, string> = {
   zone: "https://vibecode.local/content-schemas/zone.json",
 };
 
-export function loadAjv(schemaDir: string): Ajv2020 {
+export function loadAjv(schemaDir: string, manifest: ContentPackageManifest = DEFAULT_MANIFEST): Ajv2020 {
   const ajv = new Ajv2020({ allErrors: true, strict: true, validateFormats: false });
-  for (let i = 0; i < SCHEMA_FILES.length; i++) {
-    const name = SCHEMA_FILES[i];
+  const files = schemaFilesForManifest(manifest);
+  for (let i = 0; i < files.length; i++) {
+    const name = files[i];
     const parsed = JSON.parse(readFileSync(join(schemaDir, name), "utf8")) as object;
     ajv.addSchema(parsed);
   }
@@ -59,8 +59,11 @@ function fieldName(instancePath: string): string {
   return parts.length === 0 ? "" : parts[parts.length - 1];
 }
 
-export function validatorForKind(ajv: Ajv2020, kind: string): ValidateFunction | null {
-  const schemaId = KIND_SCHEMA[kind];
+export function validatorForKind(ajv: Ajv2020, kind: string, manifest: ContentPackageManifest = DEFAULT_MANIFEST): ValidateFunction | null {
+  const entry = manifest.kinds[kind];
+  const schemaId = entry
+    ? "https://vibecode.local/content-schemas/" + entry.schema
+    : KIND_SCHEMA[kind];
   if (!schemaId) {
     return null;
   }

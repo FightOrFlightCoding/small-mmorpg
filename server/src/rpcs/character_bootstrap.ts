@@ -23,6 +23,9 @@ export function rpcCharacterBootstrap(
       newId: function () {
         return nk.uuidv4();
       },
+      nowMs: function () {
+        return Date.now();
+      },
       player: content.player,
       zone: content.zones["zone.starter"],
     });

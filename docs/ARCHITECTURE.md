@@ -2,7 +2,7 @@
 
 This document is binding. Implementation phases must not contradict it.
 
-Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [SECURITY_MODEL.md](SECURITY_MODEL.md), [NETWORK_PROTOCOL.md](NETWORK_PROTOCOL.md), [CONTENT_MODEL.md](CONTENT_MODEL.md), [DEPENDENCIES.md](DEPENDENCIES.md), [THIRD_PARTY.md](THIRD_PARTY.md), [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md), [MODULE_OWNERSHIP.md](MODULE_OWNERSHIP.md).
+Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [SECURITY_MODEL.md](SECURITY_MODEL.md), [NETWORK_PROTOCOL.md](NETWORK_PROTOCOL.md), [CONTENT_MODEL.md](CONTENT_MODEL.md), [MIGRATIONS.md](MIGRATIONS.md), [DEPENDENCIES.md](DEPENDENCIES.md), [THIRD_PARTY.md](THIRD_PARTY.md), [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md), [MODULE_OWNERSHIP.md](MODULE_OWNERSHIP.md).
 
 ## Godot client responsibilities
 
@@ -33,7 +33,7 @@ The Nakama 3.40.0 TypeScript runtime (`server/`) is the authority for the slice.
 
 It must:
 
-- Authenticate the player and load persistent state on join.
+- Load persistent player state when the player joins, migrate older save versions server-side, persist the migrated result once, and reject unsupported future or corrupted required fields without resetting them.
 - Host **one** authoritative match for the starter zone.
 - Simulate movement collision, combat, cooldowns, enemy behavior, loot, inventory, equipment, quests, and currency.
 - Validate every external payload. Reject unknown opcodes, strict unknown fields, malformed JSON, invalid IDs, oversized messages, protocol-version mismatch, and rate-limited floods.
@@ -136,9 +136,9 @@ Generated artifacts must preserve IDs. Network messages and storage records carr
 
 **Persistent** (load on join, write on transaction or checkpoint):
 
-- Inventory and equipment
+- Inventory and equipment (`schemaVersion` 1 after Prompt 20; Prompt 18 blobs migrate on load)
 - Quest progress
-- Currency/wallet
+- Currency/wallet (gold amount) plus `player`/`wallet_ref` pointer
 - Position checkpoints
 
 **Transient** (match memory only):
@@ -155,4 +155,4 @@ Transactions that grant items or currency persist immediately with `nk.multiUpda
 
 ## Developer scripts
 
-PowerShell and bash variants live in `scripts/`: `setup`, `dev-up`, `dev-down`, `server-build`, `run-client`, `run-two-clients`, `test-client`, `test-server`, `test-content`, `test-e2e`, and `test-all`. Each command must exit nonzero when a required step fails. `scripts/test-all` is the clean-setup gate (dependencies, matching content hashes, server tests, client GdUnit, then the debug-only two-identity journey). Graphical Alice/Bob windows are `scripts/run-two-clients`. Local Nakama data is kept across `dev-down`; wipe it only with `scripts/backend-volume-destroy`.
+PowerShell and bash variants live in `scripts/`: `setup`, `dev-up`, `dev-down`, `server-build`, `run-client`, `run-two-clients`, `test-client`, `test-server`, `test-content`, `test-e2e`, `test-all`, and `migrate-status` / `migrate-dry-run` / `migrate-apply` / `migrate-verify`. Each command must exit nonzero when a required step fails. `scripts/test-all` is the clean-setup gate (dependencies, matching content hashes, server tests, client GdUnit, then the debug-only two-identity journey). Graphical Alice/Bob windows are `scripts/run-two-clients`. Local Nakama data is kept across `dev-down`; wipe it only with `scripts/backend-volume-destroy`. Save-schema commands are documented in [MIGRATIONS.md](MIGRATIONS.md).

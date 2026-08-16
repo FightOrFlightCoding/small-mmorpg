@@ -229,13 +229,21 @@ function checkStorage() {
     "server/src/domain/inventory_store.ts",
     "server/src/domain/quest_store.ts",
     "server/src/domain/equipment_store.ts",
-    "server/src/nakama/starter_zone_registry.ts",
+    "server/src/domain/wallet_ref.ts",
   ];
   for (const rel of writeFns) {
     const text = read(rel);
-    if (/schemaVersion/.test(text)) {
-      fail(`${rel} includes schemaVersion but the Prompt 18 catalog marks storage schema versions absent`);
+    if (!/schemaVersion/.test(text) && rel !== "server/src/domain/wallet_ref.ts") {
+      fail(`${rel} is missing gameplay schemaVersion on canonical writes`);
     }
+  }
+  const walletRef = read("server/src/domain/wallet_ref.ts");
+  if (!/WALLET_REF_KEY/.test(walletRef)) {
+    fail("wallet_ref storage key is missing");
+  }
+  const registry = read("server/src/nakama/starter_zone_registry.ts");
+  if (/schemaVersion/.test(registry)) {
+    fail("match/starter_zone gained a gameplay schemaVersion; it is a match locator, not a player save");
   }
 }
 

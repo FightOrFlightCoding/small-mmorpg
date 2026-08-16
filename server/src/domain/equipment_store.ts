@@ -1,3 +1,9 @@
+import {
+  EQUIPMENT_SAVE_KEYS,
+  attachEnvelope,
+  envelopeFromRecord,
+  optionalExtras,
+} from "./save_schema";
 import { cloneEquipment, emptyEquipment, type EquipRecord, type PlayerEquipment } from "./equipment";
 
 export const EQUIPMENT_COLLECTION = "player";
@@ -18,14 +24,18 @@ export function storedEquipmentWriteValue(equipment: PlayerEquipment): { [key: s
       instanceId: record.instanceId,
     };
   }
-  const value: { [key: string]: unknown } = {
+  const gameplay: { [key: string]: unknown } = {
     slots: { main_hand: equipment.slots.main_hand },
     equipByRequestId: equipByRequestId,
   };
   if (equipment.equipRequestTicks !== undefined) {
-    value.equipRequestTicks = equipment.equipRequestTicks;
+    gameplay.equipRequestTicks = equipment.equipRequestTicks;
   }
-  return value;
+  return attachEnvelope(
+    gameplay,
+    envelopeFromRecord(equipment),
+    equipment.extras,
+  );
 }
 
 export function storedEquipmentFromValue(value: unknown): PlayerEquipment | null {
@@ -34,6 +44,16 @@ export function storedEquipmentFromValue(value: unknown): PlayerEquipment | null
   }
   const data = value as { [key: string]: unknown };
   const equipment = emptyEquipment();
+  if (typeof data.schemaVersion === "number") {
+    equipment.schemaVersion = data.schemaVersion;
+  }
+  if (typeof data.createdAt === "number") {
+    equipment.createdAt = data.createdAt;
+  }
+  if (typeof data.updatedAt === "number") {
+    equipment.updatedAt = data.updatedAt;
+  }
+  equipment.extras = optionalExtras(data, EQUIPMENT_SAVE_KEYS);
   if (data.slots !== null && typeof data.slots === "object" && !Array.isArray(data.slots)) {
     const slots = data.slots as { [key: string]: unknown };
     if (typeof slots.main_hand === "string") {

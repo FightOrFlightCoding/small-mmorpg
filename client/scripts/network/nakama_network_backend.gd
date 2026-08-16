@@ -78,7 +78,7 @@ func rpc(id: String, payload: String) -> Dictionary:
 		return _fail("unauthenticated", "Sign-in is required.")
 	var result: NakamaAPI.ApiRpc = await _client.rpc_async(_session, id, payload)
 	if result.is_exception():
-		return _from_exception(result.get_exception(), "rpc_failed", "The server rejected the request.")
+		return _map_save_incompatible(_from_exception(result.get_exception(), "rpc_failed", "The server rejected the request."))
 	return {"ok": true, "payload": String(result.payload)}
 
 
@@ -307,6 +307,26 @@ func _from_join_exception(exception: NakamaException) -> Dictionary:
 		mapped["code"] = "match_full"
 	elif message.contains("character_missing"):
 		mapped["code"] = "character_missing"
+	else:
+		mapped = _map_save_incompatible(mapped)
+	return mapped
+
+
+func _map_save_incompatible(mapped: Dictionary) -> Dictionary:
+	var message := String(mapped.get("message", "")).to_lower()
+	if (
+		message.contains("unsupported_future_version")
+		or message.contains("corrupted_required_fields")
+		or message.contains("corrupted_record")
+		or message.contains("corrupted_schema_version")
+		or message.contains("save_incompatible")
+		or message.contains("stat_injection:schemaversion")
+		or message.contains("stat_injection:createdat")
+		or message.contains("stat_injection:updatedat")
+		or message.contains("stat_injection:migrationid")
+	):
+		mapped["code"] = "save_incompatible"
+		mapped["message"] = "This save is incompatible with the server. The client cannot choose a migration version."
 	return mapped
 
 

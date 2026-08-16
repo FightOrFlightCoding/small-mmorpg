@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Freeze, scope, and audit the Prompt 18 baseline**.
+Last accepted phase: **Versioned content, save schemas, and migration kernel**.
 
 Current phase: none.
 
@@ -341,6 +341,30 @@ powershell -File scripts/test-audit.ps1
 powershell -File scripts/test-server.ps1
 powershell -File scripts/test-client.ps1
 powershell -File scripts/test-e2e.ps1
+```
+
+## Versioned content, save schemas, and migration kernel acceptance (2026-08-16)
+
+No new player-facing gameplay. Content packages use `content/package.manifest.json`; production generate excludes `developmentOnly`; client and server hashes remain `3db1de356fc85fb6eb96489ddc04f47049b906ef915d2baa241cae38159a6e85`. Canonical player records (`character`, `inventory`, `equipment`, `quests`, `wallet_ref`) store `schemaVersion` 1, `createdAt`, and `updatedAt`. Prompt 18 blobs migrate on load without duplicating starter items, quest rewards, or gold. The client cannot send a save version. Commands are in [MIGRATIONS.md](MIGRATIONS.md). Future or corrupted required saves reject with a visible `save_incompatible` error.
+
+| Gate | Result |
+| --- | --- |
+| Content | 14/14, matching hash |
+| Audit | `FOUNDATION_AUDIT_OK` |
+| Server | 181/181 |
+| Client GdUnit | 122/122, 0 orphans, `SHELL_LOGIN` |
+| E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect) |
+| Migrate CLI | fixture status/dry-run/apply then verify `already_current` |
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-content.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+powershell -File scripts/test-e2e.ps1
+powershell -File scripts/migrate-status.ps1 --fixture server/tests/fixtures/saves/p18-alice.json
 ```
 
 

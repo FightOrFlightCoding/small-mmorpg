@@ -264,7 +264,7 @@ static func new_request_id() -> String:
 
 
 static func is_compatibility_code(code: String) -> bool:
-	return code == "protocol_mismatch" or code == "content_mismatch"
+	return code == "protocol_mismatch" or code == "content_mismatch" or code == "save_incompatible"
 
 
 static func _parse_object(raw: String) -> Dictionary:

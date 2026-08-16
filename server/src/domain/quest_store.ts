@@ -1,3 +1,9 @@
+import {
+  QUEST_SAVE_KEYS,
+  attachEnvelope,
+  envelopeFromRecord,
+  optionalExtras,
+} from "./save_schema";
 import { QUEST_STATUS_ACCEPTED, QUEST_STATUS_COMPLETED, emptyQuestLog, type QuestLog, type QuestProgress } from "./quest";
 
 export const QUEST_COLLECTION = "player";
@@ -39,13 +45,20 @@ export function storedQuestWriteValue(log: QuestLog): { [key: string]: unknown }
     const requestId = turnInIds[t];
     turnInByRequestId[requestId] = log.turnInByRequestId[requestId];
   }
-  return {
+  const gameplay: { [key: string]: unknown } = {
     quests: quests,
     acceptByRequestId: acceptByRequestId,
     turnInByRequestId: turnInByRequestId,
-    acceptRequestTicks: copyTickMap(log.acceptRequestTicks),
-    turnInRequestTicks: copyTickMap(log.turnInRequestTicks),
   };
+  const acceptTicks = copyTickMap(log.acceptRequestTicks);
+  if (acceptTicks !== undefined) {
+    gameplay.acceptRequestTicks = acceptTicks;
+  }
+  const turnInTicks = copyTickMap(log.turnInRequestTicks);
+  if (turnInTicks !== undefined) {
+    gameplay.turnInRequestTicks = turnInTicks;
+  }
+  return attachEnvelope(gameplay, envelopeFromRecord(log), log.extras);
 }
 
 export function storedQuestFromValue(value: unknown): QuestLog {
@@ -54,6 +67,16 @@ export function storedQuestFromValue(value: unknown): QuestLog {
   }
   const data = value as { [key: string]: unknown };
   const log = emptyQuestLog();
+  if (typeof data.schemaVersion === "number") {
+    log.schemaVersion = data.schemaVersion;
+  }
+  if (typeof data.createdAt === "number") {
+    log.createdAt = data.createdAt;
+  }
+  if (typeof data.updatedAt === "number") {
+    log.updatedAt = data.updatedAt;
+  }
+  log.extras = optionalExtras(data, QUEST_SAVE_KEYS);
   if (Array.isArray(data.quests)) {
     for (let i = 0; i < data.quests.length; i++) {
       const parsed = parseProgress(data.quests[i]);
@@ -87,8 +110,8 @@ export function storedQuestFromValue(value: unknown): QuestLog {
   return log;
 }
 
-function copyTickMap(ticks: { [requestId: string]: number } | undefined): { [requestId: string]: number } | undefined {
-  if (ticks === undefined) {
+function copyTickMap(ticks: { [requestId: string]: number } | null | undefined): { [requestId: string]: number } | undefined {
+  if (ticks === undefined || ticks === null || typeof ticks !== "object" || Array.isArray(ticks)) {
     return undefined;
   }
   const copy: { [requestId: string]: number } = {};

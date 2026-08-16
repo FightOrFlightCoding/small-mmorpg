@@ -40,7 +40,7 @@ Build-tool packages in `server/package.json` (Babel, Rollup plugins, `@types/nod
 
 ## Storage schema versions
 
-Prompt 18 canonical records **do not** store a gameplay `schemaVersion` field. Nakama object `version` is used for OCC retries. Character bootstrap returns that OCC string as `storageVersion`. Foundation persistence rules require a schema version on every canonical record; adding it is a later migration, not this freeze. See [STORAGE_CATALOG.md](STORAGE_CATALOG.md).
+Canonical player records store gameplay `schemaVersion` **1** with `createdAt` / `updatedAt`. Prompt 18 blobs without those fields are v0 and migrate on load. Nakama object `version` remains OCC. Character bootstrap still returns the OCC string as `storageVersion`. See [STORAGE_CATALOG.md](STORAGE_CATALOG.md) and [MIGRATIONS.md](MIGRATIONS.md).
 
 ## Simulation rates
 
@@ -150,7 +150,7 @@ Manual graphical path: `scripts/run-two-clients.ps1`, Sign in as Alice / Bob, WA
 - One public match, one NPC, one enemy, one quest, one equipment slot, one character per account.
 - Health is not persisted.
 - Runtime still special-cases Prompt 18 IDs ([HARDCODED_ASSUMPTIONS.md](HARDCODED_ASSUMPTIONS.md)).
-- Canonical storage objects lack a gameplay schema version field.
+- Canonical player storage objects include gameplay `schemaVersion` 1 after Prompt 20; Prompt 18 blobs migrate on load.
 - Device auth and Nakama local keys are development-only.
 - Debug FPS / input-to-ack EMA exist on `NetDebugOverlay`; there is no CI performance budget.
 - GLoot `images/*.svg.import` may be rewritten by Godot; do not commit those.

@@ -42,6 +42,13 @@
         "height": { "$ref": "#/$defs/positiveNumber" }
       }
     },
+    "definitionSchemaVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "developmentOnly": {
+      "type": "boolean"
+    },
     "itemStack": {
       "type": "object",
       "additionalProperties": false,

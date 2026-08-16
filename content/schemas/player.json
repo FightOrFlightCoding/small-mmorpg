@@ -25,6 +25,8 @@
     "attackRange": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
     "attackCooldown": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
     "interactionRange": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
-    "pickupRange": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" }
+    "pickupRange": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
   }
 }

@@ -1,5 +1,7 @@
+import { definitionSchemaVersion, isDevelopmentOnly, stripDefinitionMeta } from "./definition_meta";
 import { KIND_PREFIX, isAllowedEquipSlot, isContentId } from "./ids";
 import { ContentValidationError, issue, type ContentIssue } from "./issues";
+import { DEFAULT_MANIFEST, type ContentPackageManifest } from "./registry";
 import { loadAjv, mapAjvErrors, validatorForKind } from "./schema";
 import type {
   Aabb,
@@ -14,9 +16,20 @@ import type {
   ZoneDef,
 } from "./types";
 
-export function validateDocuments(schemaDir: string, documents: SourceDocument[]): ContentPayload {
+export interface ValidateOptions {
+  manifest?: ContentPackageManifest;
+  includeDevelopment?: boolean;
+}
+
+export function validateDocuments(
+  schemaDir: string,
+  documents: SourceDocument[],
+  options: ValidateOptions = {},
+): ContentPayload {
+  const manifest = options.manifest ?? DEFAULT_MANIFEST;
+  const includeDevelopment = options.includeDevelopment === true;
   const issues: ContentIssue[] = [];
-  const ajv = loadAjv(schemaDir);
+  const ajv = loadAjv(schemaDir, manifest);
   const byId = new Map<string, SourceDocument>();
 
   for (let i = 0; i < documents.length; i++) {
@@ -37,15 +50,21 @@ export function validateDocuments(schemaDir: string, documents: SourceDocument[]
     byId.set(id, doc);
 
     const kind = doc.data["kind"];
-    if (typeof kind !== "string" || !KIND_PREFIX[kind]) {
+    if (typeof kind !== "string" || !manifest.kinds[kind]) {
       issues.push(issue("unknown_kind:" + id));
       continue;
     }
-    if (id.indexOf(KIND_PREFIX[kind] + ".") !== 0) {
+    const prefix = manifest.kinds[kind].idPrefix || KIND_PREFIX[kind];
+    if (!prefix || id.indexOf(prefix + ".") !== 0) {
       issues.push(issue("kind_prefix_mismatch:" + id));
     }
+    const expectedDefVersion = manifest.kinds[kind].definitionSchemaVersion;
+    const actualDefVersion = definitionSchemaVersion(doc.data, expectedDefVersion);
+    if (actualDefVersion !== expectedDefVersion) {
+      issues.push(issue("definition_schema_version:" + id));
+    }
 
-    const validator = validatorForKind(ajv, kind);
+    const validator = validatorForKind(ajv, kind, manifest);
     if (!validator) {
       issues.push(issue("unknown_kind:" + kind));
       continue;
@@ -59,12 +78,13 @@ export function validateDocuments(schemaDir: string, documents: SourceDocument[]
     }
   }
 
-  const player = asKind<PlayerDef>(byId, "player", issues);
-  const items = asKindMap<ItemDef>(byId, "item");
-  const npcs = asKindMap<NpcDef>(byId, "npc");
-  const enemies = asKindMap<EnemyDef>(byId, "enemy");
-  const quests = asKindMap<QuestDef>(byId, "quest");
-  const zones = asKindMap<ZoneDef>(byId, "zone");
+  const selected = selectDocuments(byId, includeDevelopment);
+  const player = asKind<PlayerDef>(selected, "player", issues);
+  const items = asKindMap<ItemDef>(selected, "item");
+  const npcs = asKindMap<NpcDef>(selected, "npc");
+  const enemies = asKindMap<EnemyDef>(selected, "enemy");
+  const quests = asKindMap<QuestDef>(selected, "quest");
+  const zones = asKindMap<ZoneDef>(selected, "zone");
 
   if (player) {
     checkVisual(player.visualId, issues);
@@ -102,12 +122,27 @@ export function validateDocuments(schemaDir: string, documents: SourceDocument[]
   return { player, items, npcs, enemies, quests, zones };
 }
 
+function selectDocuments(byId: Map<string, SourceDocument>, includeDevelopment: boolean): Map<string, SourceDocument> {
+  if (includeDevelopment) {
+    return byId;
+  }
+  const selected = new Map<string, SourceDocument>();
+  const docs = Array.from(byId.values());
+  for (let i = 0; i < docs.length; i++) {
+    if (isDevelopmentOnly(docs[i].data)) {
+      continue;
+    }
+    selected.set(docs[i].data["id"] as string, docs[i]);
+  }
+  return selected;
+}
+
 function asKind<T>(byId: Map<string, SourceDocument>, kind: string, issues: ContentIssue[]): T | null {
   const matches: T[] = [];
   const docs = Array.from(byId.values());
   for (let i = 0; i < docs.length; i++) {
     if (docs[i].data["kind"] === kind) {
-      matches.push(docs[i].data as T);
+      matches.push(stripDefinitionMeta(docs[i].data) as T);
     }
   }
   if (kind === "player" && matches.length !== 1) {
@@ -122,11 +157,23 @@ function asKindMap<T extends { id: string }>(byId: Map<string, SourceDocument>, 
   const docs = Array.from(byId.values());
   for (let i = 0; i < docs.length; i++) {
     if (docs[i].data["kind"] === kind) {
-      const typed = docs[i].data as T;
+      const typed = stripDefinitionMeta(docs[i].data) as T;
       result[typed.id] = typed;
     }
   }
   return result;
+}
+
+export function developmentOnlyIds(documents: SourceDocument[]): string[] {
+  const ids: string[] = [];
+  for (let i = 0; i < documents.length; i++) {
+    const id = documents[i].data["id"];
+    if (typeof id === "string" && isDevelopmentOnly(documents[i].data)) {
+      ids.push(id);
+    }
+  }
+  ids.sort();
+  return ids;
 }
 
 function checkItem(item: ItemDef, issues: ContentIssue[]): void {

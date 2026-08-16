@@ -55,6 +55,8 @@
       }
     },
     "walkableBounds": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/aabb" },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" },
     "collisions": {
       "type": "array",
       "minItems": 1,

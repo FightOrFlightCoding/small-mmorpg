@@ -8,7 +8,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "tsc -p tsconfig.json && node --test dist/tests",
-    "generate": "tsc -p tsconfig.json && node dist/src/cli.js"
+    "generate": "tsc -p tsconfig.json && node dist/src/cli.js generate",
+    "diff": "tsc -p tsconfig.json && node dist/src/cli.js diff",
+    "trace": "tsc -p tsconfig.json && node dist/src/cli.js trace"
   },
   "devDependencies": {
     "@types/node": "^20.17.0",

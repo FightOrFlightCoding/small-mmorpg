@@ -1,4 +1,10 @@
 import {
+  INVENTORY_SAVE_KEYS,
+  attachEnvelope,
+  envelopeFromRecord,
+  optionalExtras,
+} from "./save_schema";
+import {
   INVENTORY_CAPACITY,
   cloneInventory,
   emptyInventory,
@@ -25,6 +31,16 @@ export function storedInventoryFromValue(value: unknown): PlayerInventory | null
     return null;
   }
   const inventory = emptyInventory(data.capacity > 0 ? data.capacity : INVENTORY_CAPACITY);
+  if (typeof data.schemaVersion === "number") {
+    inventory.schemaVersion = data.schemaVersion;
+  }
+  if (typeof data.createdAt === "number") {
+    inventory.createdAt = data.createdAt;
+  }
+  if (typeof data.updatedAt === "number") {
+    inventory.updatedAt = data.updatedAt;
+  }
+  inventory.extras = optionalExtras(data, INVENTORY_SAVE_KEYS);
   for (let i = 0; i < data.items.length; i++) {
     const parsed = parseItem(data.items[i]);
     if (parsed !== null) {
@@ -79,15 +95,19 @@ function publicStoredInventory(inventory: PlayerInventory): { [key: string]: unk
       lootId: record.lootId,
     };
   }
-  const value: { [key: string]: unknown } = {
+  const gameplay: { [key: string]: unknown } = {
     capacity: inventory.capacity,
     items: items,
     pickupByRequestId: pickupByRequestId,
   };
   if (inventory.pickupRequestTicks !== undefined) {
-    value.pickupRequestTicks = inventory.pickupRequestTicks;
+    gameplay.pickupRequestTicks = inventory.pickupRequestTicks;
   }
-  return value;
+  return attachEnvelope(
+    gameplay,
+    envelopeFromRecord(inventory),
+    inventory.extras,
+  );
 }
 
 function parseItem(value: unknown): ItemInstance | null {

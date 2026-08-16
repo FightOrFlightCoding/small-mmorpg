@@ -8,9 +8,9 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 
 | Command | What it proves |
 | --- | --- |
-| `scripts/test-content` | Content-build 9/9 + matching `contentHash` |
-| `scripts/test-audit` | Catalog vs code: storage, opcodes, RPCs, pins, vendor dirty (non-import), schema-version absence, test-content leakage, hardcoded ID allowlist |
-| `scripts/test-server` | Nakama domain tests 165/165 |
+| `scripts/test-content` | Content-build tests + matching `contentHash` (development-only exclusion, diff, trace) |
+| `scripts/test-audit` | Catalog vs code: storage, opcodes, pins, vendor dirty (non-import), player `schemaVersion` presence, test-content leakage, hardcoded ID allowlist |
+| `scripts/test-server` | Nakama domain tests 181/181 |
 | `scripts/test-client` | Import, `SHELL_LOGIN`, GdUnit 122/122 0 orphans |
 | `scripts/test-e2e` | Live two-client journey `E2E_SLICE_OK` |
 | `scripts/test-all` | setup + all of the above |
@@ -28,6 +28,10 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | deterministic generation | byte-identical reruns |
 | matching hashes | client/server digest |
 | no absolute paths | generated files |
+| development-only exclusion | production payload omits `developmentOnly` |
+| hash ignores timestamp | `buildTimestamp` not in artifacts or hash |
+| diff / trace | added/removed/changed ids; inbound/outbound refs |
+| definition schema version | mismatched per-kind version rejected |
 
 ## Server (`server/tests`)
 
@@ -47,7 +51,8 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `match.test.ts` | join, empty shutdown, FULL_STATE | VS-T9 |
 | `character.test.ts` | bootstrap, `permissionWrite: 0` | |
 | `starter_zone_registry.test.ts` | canonical match id | |
-| `persistence.test.ts` | checkpoints, grace, seq reset | VS-M5 automated analog |
+| `persistence.test.ts` | checkpoints, grace, seq reset, Nakama null maps/extras on tick 0 | VS-M5 automated analog |
+| `migration.test.ts` | v0→v1, retry, future version, missing version, null schemaVersion, corrupt, completed quest, equipment, gold | |
 | `chat.test.ts` | RT hooks | |
 | `content.test.ts` | generated catalog shape | VS-T8 analog |
 | `health.test.ts` | `vibecode_health` | |
@@ -92,7 +97,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | Unpinned foundational deps | Exact `typescript`, `ajv`, `nakama-runtime`; caret build tools must stay caret + lockfile present |
 | Vendor addon edits | `git diff HEAD -- client/addons` excluding `.import`/`.uid` |
 | Generated content mismatch | bundle vs `content.ts` vs frozen digest |
-| Missing schema versions | Write builders must not silently add `schemaVersion` until a migration phase updates the catalog |
+| Missing schema versions | Player write builders include `schemaVersion`; Prompt 18 v0 blobs migrate on load |
 | Test-content leakage | `content/source` file set equals production list |
 
 ## Manual (Prompt 18)

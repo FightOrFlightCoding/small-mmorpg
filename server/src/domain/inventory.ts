@@ -1,4 +1,5 @@
 import { cloneTickMap, dict } from "./maps";
+import { cloneExtras, envelopeFromRecord } from "./save_schema";
 
 export const INVENTORY_CAPACITY = 20;
 export const STARTER_ITEM_ID = "item.training_sword";
@@ -28,6 +29,10 @@ export interface PlayerInventory {
   items: ItemInstance[];
   pickupByRequestId: { [requestId: string]: PickupRecord };
   pickupRequestTicks?: { [requestId: string]: number };
+  schemaVersion?: number;
+  createdAt?: number;
+  updatedAt?: number;
+  extras?: { [key: string]: unknown };
 }
 
 export interface InitializeInventoryResult {
@@ -67,11 +72,16 @@ export function cloneInventory(inventory: PlayerInventory): PlayerInventory {
       lootId: record.lootId,
     };
   }
+  const envelope = envelopeFromRecord(inventory);
   return {
     capacity: inventory.capacity,
     items: items,
     pickupByRequestId: pickupByRequestId,
     pickupRequestTicks: cloneTickMap(inventory.pickupRequestTicks),
+    schemaVersion: envelope.schemaVersion,
+    createdAt: envelope.createdAt,
+    updatedAt: envelope.updatedAt,
+    extras: cloneExtras(inventory.extras),
   };
 }
 

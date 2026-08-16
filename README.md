@@ -126,6 +126,7 @@ bash scripts/test-all.sh
 | `scripts/test-server` | Nakama runtime domain tests |
 | `scripts/test-client` | Godot import, `SHELL_LOGIN`, GdUnit4 `res://tests` |
 | `scripts/test-e2e` | Debug-only headless Alice+Bob journey against live Nakama |
+| `scripts/migrate-status` / `dry-run` / `apply` / `verify` | Save-schema tooling (fixture or local Nakama). See [docs/MIGRATIONS.md](docs/MIGRATIONS.md) |
 | `scripts/server-build` | Rollup bundle `server/build/index.js` |
 
 The e2e scene is `res://scenes/e2e/e2e_slice.tscn`. It runs only in a **debug** Godot build with `--e2e-slice`. It uses two real Nakama sessions and the same match opcodes as the graphical client. It does not skip server validation. Release exports refuse the hook.
@@ -208,7 +209,7 @@ powershell -File scripts/content-test.ps1
 powershell -File scripts/content-build.ps1
 ```
 
-That writes `server/src/generated/content.ts` and `client/content/bundle.json` with the same `contentHash`. The Nakama runtime never reads source JSON from disk.
+That writes `server/src/generated/content.ts` and `client/content/bundle.json` with the same `contentHash`. The Nakama runtime never reads source JSON from disk. `npm run diff` / `npm run trace -- --id item.slime_gel` in `tools/content-build` report content changes and references. Production bundles omit `developmentOnly` definitions.
 
 ## Local Git
 

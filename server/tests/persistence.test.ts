@@ -248,6 +248,9 @@ test("rejoin after grace loads checkpointed position and full health", () => {
       zoneId: "zone.starter",
       position: { x: 240, y: 384 },
       storageVersion: "v1",
+      schemaVersion: 1,
+      createdAt: 0,
+      updatedAt: 0,
     },
     left.checkpoint !== null ? left.checkpoint.x : 0,
     left.checkpoint !== null ? left.checkpoint.y : 0,
@@ -358,11 +361,14 @@ function poisonEmptyMaps(state: StarterZoneState): StarterZoneState {
     player.questLog.quests = null;
     player.questLog.acceptByRequestId = null;
     player.questLog.turnInByRequestId = null;
+    player.questLog.extras = null;
     if (player.inventory !== undefined) {
       player.inventory.pickupByRequestId = null;
+      player.inventory.extras = null;
     }
     if (player.equipment !== undefined) {
       player.equipment.equipByRequestId = null;
+      player.equipment.extras = null;
     }
   }
   return copy as StarterZoneState;

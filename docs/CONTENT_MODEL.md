@@ -41,26 +41,21 @@ No RPG database plugin is used. Dialogue source is not part of this phase.
 
 ## Generation
 
-`tools/content-build` validates every source file against its kind schema, then applies semantic checks:
+`tools/content-build` loads `content/package.manifest.json` (package id, package version, minimum protocol version, per-kind definition schema versions). It then:
 
-- duplicate IDs
-- missing references
-- invalid numerical ranges (including negatives)
-- unknown equipment slots
-- impossible stack sizes
-- duplicate quest item rewards
+1. Validates every source file against its kind schema, including optional `schemaVersion` and `developmentOnly`.
+2. Applies semantic checks: duplicate IDs, missing references, invalid ranges, unknown equipment slots, impossible stacks, duplicate quest rewards.
+3. Excludes `developmentOnly` definitions from the production payload.
+4. Canonicalizes the gameplay payload (sorted object keys). Envelope fields, `developmentOnly` flags, per-definition `schemaVersion`, and `buildTimestamp` are **not** hashed.
+5. Hashes SHA-256 of the compact canonical gameplay JSON (Node `crypto` in the **tool only**).
+6. Wraps the payload with `packageId`, `packageVersion`, `schemaVersion` (package envelope, currently `1`), `contentHash`, `minimumProtocolVersion`, and `developmentOnly` (excluded ids).
+7. Writes `server/src/generated/content.ts` and `client/content/bundle.json` with the same hash. `buildTimestamp` is printed by the CLI only so generated artifacts stay deterministic.
 
-It then:
+`npm run diff` / `npm run trace -- --id item.slime_gel` in `tools/content-build` report content changes and references. Future kinds are added by a schema file plus a `kinds` entry in the package manifest.
 
-1. Canonicalizes the gameplay payload (sorted object keys).
-2. Hashes SHA-256 of the compact canonical JSON (Node `crypto` in the **tool only**). The digest does **not** include `schemaVersion`.
-3. Wraps the payload with envelope fields `schemaVersion` (currently `1`) and `contentHash`.
-4. Writes `server/src/generated/content.ts` (`schemaVersion`, `contentHash`, `content`).
-5. Writes `client/content/bundle.json` with the same `schemaVersion` and `contentHash`.
+The Godot `ContentRegistry` loads `res://content/bundle.json` at boot and rejects any bundle that is missing, malformed, or not package `schemaVersion` 1. Extra envelope fields are ignored. A fatal content error must not continue into login, character, or world.
 
 Unchanged source produces byte-identical outputs. Generated files contain no machine-specific absolute paths.
-
-The Godot `ContentRegistry` loads `res://content/bundle.json` at boot and rejects any bundle that is missing, malformed, or not `schemaVersion` 1. A fatal content error must not continue into login, character, or world.
 
 ## Persistent player storage
 
@@ -74,9 +69,9 @@ Canonical character data lives in Nakama storage, not in Godot `user://`.
 | `permissionRead` | `1` (owner) | `1` (owner) | `1` (owner) | `1` (owner) |
 | `permissionWrite` | `0` (server only) | `0` (server only) | `0` (server only) | `0` (server only) |
 
-There is exactly one character object per account. The storage key is `character`; the character id is a server-generated UUID stored in the value. The value stores `characterId`, `name`, `contentId`, `zoneId`, and `position`. It does not store client-supplied stats. RPC `character_bootstrap` is the only writer of that object. Base stats in the RPC response always come from content `player.base`.
+There is exactly one character object per account. The storage key is `character`; the character id is a server-generated UUID stored in the value. The value stores `schemaVersion`, `createdAt`, `updatedAt`, `characterId`, `name`, `contentId`, `zoneId`, and `position`. It does not store client-supplied stats. RPC `character_bootstrap` is the only writer of new character objects. Base stats in the RPC response always come from content `player.base`. Prompt 18 blobs without `schemaVersion` migrate on load; see [MIGRATIONS.md](MIGRATIONS.md).
 
-Quest progress is a second object (`key` `quests`), loaded when the player joins `zone.starter` and written when `QUEST_ACCEPT` first succeeds, when pickup advances an objective, and when turn-in completes the quest. Inventory is a third object (`key` `inventory`), loaded or initialized on join and written when a pickup first succeeds or when turn-in consumes and grants items. Equipment is a fourth object (`key` `equipment`), loaded on join and written when equip or unequip first succeeds. Gold is the Nakama wallet currency `gold`, loaded on join and credited only through `nk.multiUpdate` on successful turn-in. The Godot client must not write any of those objects.
+Quest progress is a second object (`key` `quests`), loaded when the player joins `zone.starter` and written when `QUEST_ACCEPT` first succeeds, when pickup advances an objective, and when turn-in completes the quest. Inventory is a third object (`key` `inventory`), loaded or initialized on join and written when a pickup first succeeds or when turn-in consumes and grants items. Equipment is a fourth object (`key` `equipment`), loaded on join and written when equip or unequip first succeeds. Gold is the Nakama wallet currency `gold`, loaded on join and credited only through `nk.multiUpdate` on successful turn-in. `player`/`wallet_ref` is a versioned pointer at that wallet; it does not store the gold amount. The Godot client must not write any of those objects.
 
 ## Reproduction
 

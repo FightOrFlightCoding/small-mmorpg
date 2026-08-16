@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.test.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist-cli",
+    "noEmit": false
+  },
+  "include": ["src/cli/**/*.ts", "src/domain/**/*.ts", "src/generated/**/*.ts"],
+  "exclude": ["node_modules", "build", "tests", "dist-test", "src/nakama", "src/rpcs", "src/main.ts"]
+}

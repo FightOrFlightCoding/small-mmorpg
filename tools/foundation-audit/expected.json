@@ -58,10 +58,11 @@
     "WALLET_STATE": 110
   },
   "storageRecords": [
-    { "collection": "player", "key": "character", "permissionWrite": 0, "schemaVersion": "absent" },
-    { "collection": "player", "key": "quests", "permissionWrite": 0, "schemaVersion": "absent" },
-    { "collection": "player", "key": "inventory", "permissionWrite": 0, "schemaVersion": "absent" },
-    { "collection": "player", "key": "equipment", "permissionWrite": 0, "schemaVersion": "absent" },
+    { "collection": "player", "key": "character", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "player", "key": "quests", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "player", "key": "inventory", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "player", "key": "equipment", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "player", "key": "wallet_ref", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "match", "key": "starter_zone", "permissionWrite": 0, "schemaVersion": "absent" }
   ],
   "walletCurrencies": ["gold"],

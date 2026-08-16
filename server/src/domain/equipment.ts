@@ -1,5 +1,6 @@
 import { findItem, type ItemDefinition, type PlayerInventory } from "./inventory";
 import { cloneTickMap, dict } from "./maps";
+import { cloneExtras, envelopeFromRecord } from "./save_schema";
 
 export const MAIN_HAND_SLOT = "main_hand";
 
@@ -14,6 +15,10 @@ export interface PlayerEquipment {
   slots: { main_hand: string };
   equipByRequestId: { [requestId: string]: EquipRecord };
   equipRequestTicks?: { [requestId: string]: number };
+  schemaVersion?: number;
+  createdAt?: number;
+  updatedAt?: number;
+  extras?: { [key: string]: unknown };
 }
 
 export interface InventoryOwner {
@@ -78,10 +83,15 @@ export function cloneEquipment(equipment: PlayerEquipment): PlayerEquipment {
     };
   }
   const slots = equipment.slots != null ? equipment.slots : { main_hand: "" };
+  const envelope = envelopeFromRecord(equipment);
   return {
     slots: { main_hand: typeof slots.main_hand === "string" ? slots.main_hand : "" },
     equipByRequestId: equipByRequestId,
     equipRequestTicks: cloneTickMap(equipment.equipRequestTicks),
+    schemaVersion: envelope.schemaVersion,
+    createdAt: envelope.createdAt,
+    updatedAt: envelope.updatedAt,
+    extras: cloneExtras(equipment.extras),
   };
 }
 

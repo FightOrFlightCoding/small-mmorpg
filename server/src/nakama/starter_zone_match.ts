@@ -3,6 +3,8 @@ import { readCharacter, writeCharacterCheckpoint } from "./character_store";
 import { readQuests, writeQuests } from "./quest_store";
 import { readInventory, writeInventory, writeInventoryOnce } from "./inventory_store";
 import { readEquipment, writeEquipment } from "./equipment_store";
+import { loadWalletRef } from "./wallet_ref_store";
+import { SAVE_SCHEMA_VERSION } from "../domain/save_schema";
 import { commitQuestReward, readGold } from "./quest_reward_store";
 import { validateJoinAttempt } from "../domain/join_validation";
 import { applyMatchLoop, snapshotForOthers, type IncomingMatchData } from "../domain/match_loop";
@@ -103,10 +105,19 @@ export function matchJoinAttempt(
     logger.info("starter_zone join rejected user_id=%s reason=%s", presence.userId, gate.rejectMessage);
     return { state: state, accept: false, rejectMessage: gate.rejectMessage };
   }
-  const character = readCharacter(nk, presence.userId);
-  if (character === null) {
-    logger.info("starter_zone join rejected user_id=%s reason=character_missing", presence.userId);
-    return { state: state, accept: false, rejectMessage: "character_missing" };
+  try {
+    const character = readCharacter(nk, presence.userId);
+    if (character === null) {
+      logger.info("starter_zone join rejected user_id=%s reason=character_missing", presence.userId);
+      return { state: state, accept: false, rejectMessage: "character_missing" };
+    }
+    readInventory(nk, presence.userId);
+    readEquipment(nk, presence.userId);
+    readQuests(nk, presence.userId);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "save_incompatible";
+    logger.info("starter_zone join rejected user_id=%s reason=%s", presence.userId, reason);
+    return { state: state, accept: false, rejectMessage: reason };
   }
   return { state: state, accept: true };
 }
@@ -132,8 +143,21 @@ export function matchJoin(
   for (let i = 0; i < presences.length; i++) {
     const presence = presences[i];
     nextPresences[presence.userId] = presence;
-    const character = readCharacter(nk, presence.userId);
-    if (character === null) {
+    let character;
+    try {
+      character = readCharacter(nk, presence.userId);
+      if (character === null) {
+        dispatcher.matchKick([presence]);
+        delete nextPresences[presence.userId];
+        continue;
+      }
+      loadWalletRef(nk, presence.userId);
+    } catch (error) {
+      logger.info(
+        "starter_zone join rejected user_id=%s reason=%s",
+        presence.userId,
+        error instanceof Error ? error.message : "save_incompatible",
+      );
       dispatcher.matchKick([presence]);
       delete nextPresences[presence.userId];
       continue;
@@ -145,8 +169,25 @@ export function matchJoin(
       logger.info("starter_zone session resume user_id=%s", presence.userId);
       continue;
     }
-    const inventory = loadPlayerInventory(nk, presence.userId);
-    const loadedEquipment = loadEquipment(readEquipment(nk, presence.userId), inventory);
+    let inventory!: ReturnType<typeof loadPlayerInventory>;
+    let loadedEquipment!: ReturnType<typeof loadEquipment>;
+    let gold!: number;
+    let questLog!: ReturnType<typeof readQuests>;
+    try {
+      inventory = loadPlayerInventory(nk, presence.userId);
+      loadedEquipment = loadEquipment(readEquipment(nk, presence.userId), inventory);
+      gold = readGold(nk, presence.userId);
+      questLog = readQuests(nk, presence.userId);
+    } catch (error) {
+      logger.info(
+        "starter_zone join rejected user_id=%s reason=%s",
+        presence.userId,
+        error instanceof Error ? error.message : "save_incompatible",
+      );
+      dispatcher.matchKick([presence]);
+      delete nextPresences[presence.userId];
+      continue;
+    }
     if (loadedEquipment.persist) {
       writeEquipment(nk, presence.userId, loadedEquipment.equipment);
       logger.info("starter_zone reconcile equipment user_id=%s", presence.userId);
@@ -157,8 +198,6 @@ export function matchJoin(
       inventory,
       zone.itemsById,
     );
-    const gold = readGold(nk, presence.userId);
-    const questLog = readQuests(nk, presence.userId);
     const parked = takeGracePlayer(zone, presence.userId, tick);
     let player: MatchPlayer;
     if (parked !== null) {
@@ -412,6 +451,10 @@ function loadPlayerInventory(nk: nkruntime.Nakama, userId: string) {
     return nk.uuidv4();
   });
   if (loaded.created) {
+    const now = Date.now();
+    loaded.inventory.schemaVersion = SAVE_SCHEMA_VERSION;
+    loaded.inventory.createdAt = now;
+    loaded.inventory.updatedAt = now;
     writeInventoryOnce(nk, userId, loaded.inventory);
   }
   return loaded.inventory;

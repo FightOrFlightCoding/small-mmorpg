@@ -723,10 +723,12 @@ func _fail_auth(result: Dictionary) -> void:
 
 
 func _fail_character(result: Dictionary) -> void:
-	AppState.report_recoverable(
-		String(result.get("code", "rpc_failed")),
-		String(result.get("message", "Could not load the character."))
-	)
+	var code := String(result.get("code", "rpc_failed"))
+	var message := String(result.get("message", "Could not load the character."))
+	if MatchProtocol.is_compatibility_code(code):
+		AppState.report_fatal_compatibility(code, message)
+	else:
+		AppState.report_recoverable(code, message)
 	AppState.notify_loading_completed("character")
 	character_bootstrap_finished.emit(false, false, AppState.last_error_message)
 

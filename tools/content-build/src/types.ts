@@ -107,6 +107,15 @@ export interface ContentPayload {
 }
 
 export interface ContentBundle extends ContentPayload {
+  packageId: string;
+  packageVersion: string;
   schemaVersion: number;
   contentHash: string;
+  minimumProtocolVersion: number;
+  developmentOnly: string[];
+}
+
+export interface ContentPackage extends ContentBundle {
+  buildTimestamp: string;
+  definitions: ContentPayload;
 }

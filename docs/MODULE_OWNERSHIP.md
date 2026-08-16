@@ -60,8 +60,11 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `rpcs/find_or_create_starter_zone.ts` | A | Join ticket for starter match | none | registry | protocol version | yes (match singleton) | RPC | no |
 | `main.ts` | A | `InitModule` registrations | none | Nakama initializer | RPCs, match, hooks | no | register | no |
 | `generated/content.ts` | S generated | Catalog | immutable content | content-build | none | no | no | no |
-| `tools/content-build` | T | Validate + generate catalogs | none | Ajv | `content/source` | no | no | no |
+| `tools/content-build` | T | Validate + generate catalogs, diff, trace, package manifest | none | Ajv | `content/source`, `content/package.manifest.json` | no | no | no |
 | `tools/foundation-audit` | T | Freeze checks | none | none | catalogs + git | no | no | no |
+| `server/src/domain/save_schema.ts` / `migration.ts` / `save_load.ts` | S | Save envelope, v0→v1 registry, load | none | none | storage parsers | serialize + migrate | no | no |
+| `wallet_ref.ts` / `wallet_ref_store.ts` | S/A | Versioned gold pointer, not the balance | none | Nakama storage | save_schema | yes | no | pointer only |
+| `server/src/cli/migrate.ts` | T | status / dry-run / apply / verify | none | Node http/fs | domain migration | fixture or console | no | no |
 | `infra/` Compose + `local.yml` | I | Postgres + Nakama process | volume `vibecode_postgres_data` | Docker | none | Nakama’s tables only | no | no |
 | GdUnit tests / `scripts/` | T | Run suites | none | GdUnit4, Node, Docker | repo | no | no | no |
 

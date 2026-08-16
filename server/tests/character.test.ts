@@ -30,6 +30,9 @@ class MemoryCharacterStore {
       zoneId: record.zoneId,
       storageVersion: "v1",
       position: { x: record.position.x, y: record.position.y },
+      schemaVersion: record.schemaVersion,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
     };
     this.records.set(userId, stored);
   }
@@ -39,6 +42,7 @@ function deps(store = new MemoryCharacterStore(), id = "char-1") {
   return {
     store,
     newId: () => id,
+    nowMs: () => 1_700_000_000_000,
     player: content.player,
     zone: content.zones["zone.starter"],
   };
@@ -113,6 +117,10 @@ test("attempted stat injection is rejected", () => {
     () => handleCharacterBootstrap("user-alice", "alice", '{"position":{"x":1,"y":1}}', deps()),
     /stat_injection:position/,
   );
+  assert.throws(
+    () => handleCharacterBootstrap("user-alice", "alice", '{"schemaVersion":0}', deps()),
+    /stat_injection:schemaVersion/,
+  );
   const created = handleCharacterBootstrap("user-alice", "alice", '{"name":"Alice"}', deps());
   assert.equal(created.baseStats.maxHealth, 100);
   assert.notEqual(created.baseStats.maxHealth, 9999);
@@ -157,6 +165,9 @@ test("character storage writes are server-only", () => {
     zoneId: "zone.starter",
     position: { x: 240, y: 384 },
     storageVersion: "",
+    schemaVersion: 1,
+    createdAt: 0,
+    updatedAt: 0,
   };
   const write = buildCharacterWrite("user-alice", record);
   assert.equal(write.collection, CHARACTER_COLLECTION);
@@ -165,6 +176,7 @@ test("character storage writes are server-only", () => {
   assert.equal(write.permissionRead, CHARACTER_PERMISSION_READ);
   assert.equal(write.permissionWrite, CHARACTER_PERMISSION_WRITE);
   assert.equal(write.permissionWrite, 0);
+  assert.equal(write.value.schemaVersion, 1);
   assert.equal(Object.prototype.hasOwnProperty.call(write.value, "maxHealth"), false);
   assert.equal(Object.prototype.hasOwnProperty.call(write.value, "attack"), false);
 });
@@ -177,6 +189,9 @@ test("character checkpoints update stored position without client stats", () => 
     zoneId: "zone.starter",
     position: { x: 240, y: 384 },
     storageVersion: "v1",
+    schemaVersion: 1,
+    createdAt: 0,
+    updatedAt: 0,
   };
   const next = checkpointCharacterPosition(record, 640, 400);
   assert.equal(next.position.x, 640);
