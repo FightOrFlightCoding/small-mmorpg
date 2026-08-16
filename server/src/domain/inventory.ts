@@ -4,6 +4,8 @@ export const STARTER_ITEM_ID = "item.training_sword";
 export interface ItemDefinition {
   id: string;
   maxStack: number;
+  equipSlot?: string;
+  attackBonus?: number;
 }
 
 export interface ItemInstance {
@@ -88,16 +90,35 @@ export function initializeInventory(
 }
 
 export function itemDefinitionsFromContent(items: {
-  [id: string]: { id: string; maxStack: number };
+  [id: string]: { id: string; maxStack: number; equipSlot?: string; attackBonus?: number };
 }): { [id: string]: ItemDefinition } {
   const map: { [id: string]: ItemDefinition } = {};
   const ids = Object.keys(items);
   for (let i = 0; i < ids.length; i++) {
     const id = ids[i];
     const item = items[id];
-    map[id] = { id: item.id, maxStack: item.maxStack };
+    const definition: ItemDefinition = { id: item.id, maxStack: item.maxStack };
+    if (item.equipSlot !== undefined) {
+      definition.equipSlot = item.equipSlot;
+    }
+    if (item.attackBonus !== undefined) {
+      definition.attackBonus = item.attackBonus;
+    }
+    map[id] = definition;
   }
   return map;
+}
+
+export function findItem(inventory: PlayerInventory | undefined, instanceId: string): ItemInstance | null {
+  if (inventory === undefined || instanceId.length === 0) {
+    return null;
+  }
+  for (let i = 0; i < inventory.items.length; i++) {
+    if (inventory.items[i].instanceId === instanceId) {
+      return inventory.items[i];
+    }
+  }
+  return null;
 }
 
 export function occupiedSlots(inventory: PlayerInventory): number {

@@ -23,6 +23,7 @@ export const ServerOpcode = {
   QUEST_STATE: 106,
   INTERACTION_RESULT: 107,
   SYSTEM_MESSAGE: 108,
+  EQUIPMENT_STATE: 109,
 } as const;
 
 export type ClientOpcode = (typeof ClientOpcode)[keyof typeof ClientOpcode];
@@ -52,7 +53,7 @@ OPCODE_KEYS[ClientOpcode.INPUT] = ["seq", "axisX", "axisY"];
 OPCODE_KEYS[ClientOpcode.INTERACT] = ["targetId"];
 OPCODE_KEYS[ClientOpcode.ATTACK] = ["targetId"];
 OPCODE_KEYS[ClientOpcode.PICKUP] = ["lootId"];
-OPCODE_KEYS[ClientOpcode.EQUIP] = ["itemId", "slot"];
+OPCODE_KEYS[ClientOpcode.EQUIP] = ["instanceId", "slot"];
 OPCODE_KEYS[ClientOpcode.QUEST_ACCEPT] = ["questId"];
 OPCODE_KEYS[ClientOpcode.QUEST_TURN_IN] = ["questId"];
 OPCODE_KEYS[ClientOpcode.RESYNC_REQUEST] = [];
@@ -81,6 +82,7 @@ const OUTCOME_KEYS = [
   "itemInstanceId",
   "questComplete",
   "stats",
+  "attackBonus",
 ];
 
 const INPUT_NUMBER_KEYS = ["seq", "axisX", "axisY"];
@@ -110,7 +112,12 @@ export function isRewardOpcode(opcode: ClientOpcode): boolean {
 }
 
 function requiresRequestId(opcode: ClientOpcode): boolean {
-  return isRewardOpcode(opcode) || opcode === ClientOpcode.INTERACT || opcode === ClientOpcode.ATTACK;
+  return (
+    isRewardOpcode(opcode) ||
+    opcode === ClientOpcode.INTERACT ||
+    opcode === ClientOpcode.ATTACK ||
+    opcode === ClientOpcode.EQUIP
+  );
 }
 
 export function parseClientMessage(
@@ -164,14 +171,16 @@ export function parseClientMessage(
     }
   }
 
+  const allowed = COMMON_KEYS.concat(OPCODE_KEYS[opcode]);
   for (let i = 0; i < OUTCOME_KEYS.length; i++) {
     const key = OUTCOME_KEYS[i];
+    if (allowed.indexOf(key) !== -1) {
+      continue;
+    }
     if (Object.prototype.hasOwnProperty.call(data, key)) {
       return { code: "stat_injection:" + key, message: "Clients may not send authoritative " + key + "." };
     }
   }
-
-  const allowed = COMMON_KEYS.concat(OPCODE_KEYS[opcode]);
   const keys = Object.keys(data);
   for (let i = 0; i < keys.length; i++) {
     const key = keys[i];
@@ -200,15 +209,13 @@ export function parseClientMessage(
     if (INPUT_NUMBER_KEYS.indexOf(key) !== -1) {
       continue;
     }
-    if (key === "slot" && !Object.prototype.hasOwnProperty.call(data, key)) {
+    if (key === "instanceId" && !Object.prototype.hasOwnProperty.call(data, key)) {
       continue;
     }
-    if (key !== "slot" && typeof data[key] !== "string") {
+    if (typeof data[key] !== "string") {
       return { code: "invalid_id", message: "Field " + key + " must be a string id." };
     }
-    if (typeof data[key] === "string") {
-      fields[key] = data[key];
-    }
+    fields[key] = data[key];
   }
 
   const message: ParsedClientMessage = {
@@ -311,6 +318,27 @@ export function questState(
   }
   return {
     opcode: ServerOpcode.QUEST_STATE,
+    body: JSON.stringify(payload),
+  };
+}
+
+export function equipmentState(
+  contentHash: string,
+  equipment: { [key: string]: unknown },
+  derived: { [key: string]: unknown },
+  requestId?: string,
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    contentHash: contentHash,
+    slots: equipment.slots,
+    derived: derived,
+  };
+  if (requestId !== undefined) {
+    payload.requestId = requestId;
+  }
+  return {
+    opcode: ServerOpcode.EQUIPMENT_STATE,
     body: JSON.stringify(payload),
   };
 }

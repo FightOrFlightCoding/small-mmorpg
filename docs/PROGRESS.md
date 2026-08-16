@@ -1,8 +1,8 @@
 # Progress
 
-Last accepted phase: **Loot and server-owned inventory**.
+Last accepted phase: **Equipment and authoritative derived stats**.
 
-Current phase: none requested. Do not add equipment apply, quest turn-in, or wallet grants until asked.
+Current phase: none. Do not add quest turn-in or wallet grants until asked.
 
 ## Phase 0 acceptance (2026-08-15)
 
@@ -194,5 +194,24 @@ powershell -File ..\scripts\run-client-shell.ps1
 
 Local play: start the stack, kill the slime, press **F** on the gel. The HUD inventory list should show the training sword plus slime gel. Relog should restore inventory. A second client cannot pick up the same drop. Restart Nakama after this build so the inventory runtime loads.
 
+## Equipment and authoritative derived stats (2026-08-16)
+
+The starter-zone match owns one `main_hand` slot stored as an item-instance ID (`player`/`equipment`, `permissionWrite: 0`). `EQUIP` is `{ instanceId?, slot, requestId }` with `slot` `main_hand`. The match checks the player is alive, owns the instance, the item is equippable into that slot, and the `requestId` has not already succeeded. Omit `instanceId` to unequip. Duplicate successful `requestId` replays `ok` without mutating. `item.slime_gel` is `not_equippable`. Client `attack` / `attackBonus` are `stat_injection`. Derived attack is `player.base.attack` (4) plus the equipped main-hand `attackBonus` (training sword +2). Combat uses that server value. Recalculation runs after character load, equip, unequip, and inventory repair that clears a missing equipped instance. `FULL_STATE` includes recipient `equipment` and `derived`; successful equip/unequip persist immediately and send `EQUIPMENT_STATE`.
+
+`EquipmentService` wraps a GLoot `ItemSlot` as a display-only mirror. The HUD shows the main-hand slot, Equip/Unequip, and the server attack. Select the training sword and Equip (or double-click). The client does not compute attack. Quest turn-in and wallet grants are not in this phase.
+
+Server `npm test` 118/118, `npm run typecheck`, and `npm run build` succeeded. Godot 4.7.1 imported `client/`, printed `SHELL_LOGIN`, and GdUnit4 ran `res://tests` with 101/101 passed.
+
+Reproduction:
+
+```powershell
+Set-Location server
+npm test
+npm run build
+powershell -File ..\scripts\backend-up.ps1
+powershell -File ..\scripts\run-client-shell.ps1
+```
+
+Local play: start the stack, select **Training Sword**, click **Equip** (or double-click). Attack should become **6**. **Unequip** restores **4**. Slime gel cannot be equipped. Relog should keep the sword in main hand. Combat uses the server derived attack. Restart Nakama after this build so the equipment runtime loads.
 
 

@@ -2,6 +2,7 @@ import {
   ClientOpcode,
   actionResult,
   combatEvent,
+  equipmentState,
   interactionResult,
   inventoryState,
   isProtocolError,
@@ -27,6 +28,17 @@ import { applyQuestAccept, cloneQuestLog, publicQuestPayloads, type QuestLog } f
 import { applyPlayerAttack, type CombatEvent } from "./combat";
 import { simulateCombatants } from "./enemy_ai";
 import { publicInventory, type PlayerInventory } from "./inventory";
+import {
+  applyEquip,
+  cloneEquipment,
+  derivedAttack,
+  emptyEquipment,
+  publicDerived,
+  publicEquipment,
+  reconcileEquipment,
+  type InventoryOwner,
+  type PlayerEquipment,
+} from "./equipment";
 import { applyPickup, expireLoot, lootExpireTicks, spawnGuaranteedLoot } from "./loot";
 
 export interface MatchOutbound {
@@ -46,12 +58,18 @@ export interface InventoryPersist {
   inventory: PlayerInventory;
 }
 
+export interface EquipmentPersist {
+  userId: string;
+  equipment: PlayerEquipment;
+}
+
 export interface MatchLoopResult {
   state: StarterZoneState;
   terminate: boolean;
   outbound: MatchOutbound[];
   persistQuests: QuestPersist[];
   persistInventories: InventoryPersist[];
+  persistEquipment: EquipmentPersist[];
 }
 
 export interface IncomingMatchData {
@@ -71,8 +89,10 @@ export function applyMatchLoop(
   const next = cloneStarterZoneState(state);
   const persistByUser: { [userId: string]: QuestLog } = {};
   const persistInventoryByUser: { [userId: string]: PlayerInventory } = {};
+  const persistEquipmentByUser: { [userId: string]: PlayerEquipment } = {};
   const combatEvents: CombatEvent[] = [];
   const makeId = newId !== undefined ? newId : sequentialIdFactory(tick);
+  reconcileAllEquipment(next, persistEquipmentByUser);
 
   for (let i = 0; i < messages.length; i++) {
     const incoming = messages[i];
@@ -82,7 +102,17 @@ export function applyMatchLoop(
       outbound.push({ opcode: sys.opcode, body: sys.body, toUserId: incoming.userId });
       continue;
     }
-    handleValidated(parsed, incoming.userId, next, tick, outbound, persistByUser, persistInventoryByUser, combatEvents);
+    handleValidated(
+      parsed,
+      incoming.userId,
+      next,
+      tick,
+      outbound,
+      persistByUser,
+      persistInventoryByUser,
+      persistEquipmentByUser,
+      combatEvents,
+    );
   }
 
   simulateMovement(next, 1 / MATCH_TICK_RATE);
@@ -113,6 +143,12 @@ export function applyMatchLoop(
     const userId = inventoryIds[k];
     persistInventories.push({ userId: userId, inventory: persistInventoryByUser[userId] });
   }
+  const persistEquipment: EquipmentPersist[] = [];
+  const equipmentIds = Object.keys(persistEquipmentByUser);
+  for (let e = 0; e < equipmentIds.length; e++) {
+    const userId = equipmentIds[e];
+    persistEquipment.push({ userId: userId, equipment: persistEquipmentByUser[userId] });
+  }
 
   return {
     state: next,
@@ -120,6 +156,7 @@ export function applyMatchLoop(
     outbound: outbound,
     persistQuests: persistQuests,
     persistInventories: persistInventories,
+    persistEquipment: persistEquipment,
   };
 }
 
@@ -131,6 +168,7 @@ function handleValidated(
   outbound: MatchOutbound[],
   persistByUser: { [userId: string]: QuestLog },
   persistInventoryByUser: { [userId: string]: PlayerInventory },
+  persistEquipmentByUser: { [userId: string]: PlayerEquipment },
   combatEvents: CombatEvent[],
 ): void {
   if (parsed.opcode === ClientOpcode.RESYNC_REQUEST) {
@@ -158,7 +196,11 @@ function handleValidated(
     return;
   }
   if (parsed.opcode === ClientOpcode.PICKUP) {
-    handlePickup(parsed, userId, state, outbound, persistInventoryByUser);
+    handlePickup(parsed, userId, state, outbound, persistInventoryByUser, persistEquipmentByUser);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.EQUIP) {
+    handleEquip(parsed, userId, state, outbound, persistEquipmentByUser);
     return;
   }
   const result = actionResult("not_implemented", false, parsed.requestId);
@@ -245,7 +287,7 @@ function handleAttack(
       requestId: parsed.requestId as string,
       tick: tick,
       enemies: state.enemies,
-      attack: state.playerAttack,
+      attack: playerAttack(state, userId),
       attackRange: state.playerAttackRange,
       attackCooldownSec: state.playerAttackCooldownSec,
       tickRate: MATCH_TICK_RATE,
@@ -262,6 +304,7 @@ function handlePickup(
   state: StarterZoneState,
   outbound: MatchOutbound[],
   persistInventoryByUser: { [userId: string]: PlayerInventory },
+  persistEquipmentByUser: { [userId: string]: PlayerEquipment },
 ): void {
   const player = state.players[userId];
   if (player === undefined) {
@@ -285,6 +328,7 @@ function handlePickup(
   if (outcome.persist) {
     persistInventoryByUser[userId] = outcome.inventory;
   }
+  refreshDerivedFromInventory(state, userId, persistEquipmentByUser);
   const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
   if (outcome.ok) {
@@ -294,6 +338,110 @@ function handlePickup(
       parsed.requestId,
     );
     outbound.push({ opcode: inventory.opcode, body: inventory.body, toUserId: userId });
+  }
+}
+
+function handleEquip(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  outbound: MatchOutbound[],
+  persistEquipmentByUser: { [userId: string]: PlayerEquipment },
+): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  const unequip = parsed.fields.instanceId === undefined;
+  const outcome = applyEquip({
+    playerHealth: player.health,
+    userId: userId,
+    instanceId: parsed.fields.instanceId !== undefined ? parsed.fields.instanceId : "",
+    slot: parsed.fields.slot,
+    requestId: parsed.requestId as string,
+    equipment: player.equipment !== undefined ? player.equipment : emptyEquipment(),
+    inventory: player.inventory,
+    itemsById: state.itemsById,
+    baseAttack: state.playerAttack,
+    owners: inventoryOwners(state),
+    unequip: unequip,
+  });
+  player.equipment = outcome.equipment;
+  player.derivedAttack = outcome.derivedAttack;
+  if (outcome.persist) {
+    persistEquipmentByUser[userId] = cloneEquipment(outcome.equipment);
+  }
+  const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  if (outcome.ok) {
+    const equipment = equipmentState(
+      state.contentHash,
+      publicEquipment(player.equipment),
+      publicDerived(player.derivedAttack),
+      parsed.requestId,
+    );
+    outbound.push({ opcode: equipment.opcode, body: equipment.body, toUserId: userId });
+  }
+}
+
+function playerAttack(state: StarterZoneState, userId: string): number {
+  const player = state.players[userId];
+  if (player === undefined) {
+    return state.playerAttack;
+  }
+  if (player.derivedAttack !== undefined) {
+    return player.derivedAttack;
+  }
+  return derivedAttack(
+    state.playerAttack,
+    player.equipment !== undefined ? player.equipment : emptyEquipment(),
+    player.inventory,
+    state.itemsById,
+  );
+}
+
+function refreshDerivedFromInventory(
+  state: StarterZoneState,
+  userId: string,
+  persistEquipmentByUser: { [userId: string]: PlayerEquipment },
+): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    return;
+  }
+  const current = player.equipment !== undefined ? player.equipment : emptyEquipment();
+  const reconciled = reconcileEquipment(current, player.inventory);
+  player.equipment = reconciled.equipment;
+  player.derivedAttack = derivedAttack(
+    state.playerAttack,
+    reconciled.equipment,
+    player.inventory,
+    state.itemsById,
+  );
+  if (reconciled.persist) {
+    persistEquipmentByUser[userId] = cloneEquipment(reconciled.equipment);
+  }
+}
+
+function inventoryOwners(state: StarterZoneState): InventoryOwner[] {
+  const owners: InventoryOwner[] = [];
+  const ids = Object.keys(state.players);
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
+    owners.push({ userId: id, inventory: state.players[id].inventory });
+  }
+  return owners;
+}
+
+function reconcileAllEquipment(
+  state: StarterZoneState,
+  persistEquipmentByUser: { [userId: string]: PlayerEquipment },
+): void {
+  const ids = Object.keys(state.players);
+  for (let i = 0; i < ids.length; i++) {
+    refreshDerivedFromInventory(state, ids[i], persistEquipmentByUser);
   }
 }
 

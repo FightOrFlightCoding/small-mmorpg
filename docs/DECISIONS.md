@@ -79,7 +79,7 @@ Generated client and server catalogs include `schemaVersion: 1` beside `contentH
 
 The client main scene is `res://scenes/boot/boot.tscn`. Boot loads the generated content bundle, then `SceneRouter` transitions to login. Character and world scenes exist as empty shells; they are not entered in this phase.
 
-Project-owned autoloads, in order: `AppState`, `ContentRegistry`, `NetworkService`, `QuestService`, `InventoryService`, `GameService`, `SceneRouter`. Then the existing Nakama and Dialogue Manager autoloads. Game code must not call Nakama, GLoot, or Dialogue Manager APIs except through project-owned services.
+Project-owned autoloads, in order: `AppState`, `ContentRegistry`, `NetworkService`, `QuestService`, `InventoryService`, `EquipmentService`, `GameService`, `SceneRouter`. Then the existing Nakama and Dialogue Manager autoloads. Game code must not call Nakama, GLoot, or Dialogue Manager APIs except through project-owned services.
 
 `NetworkService.authenticate_device` is an interface only. It does not construct `Nakama.create_client`, open a socket, or send HTTP. Sign-in on the login scene reports a recoverable `authentication_not_configured` error.
 
@@ -189,5 +189,15 @@ Slime death creates one transient ground loot entity containing one `item.slime_
 
 `PICKUP` is `{ protocolVersion, lootId, requestId }`. The match checks the player is alive, the loot exists, Euclidean distance against `player.base.pickupRange` (40), inventory capacity, and that the item definition exists. The first valid pickup removes the loot atomically, adds or stacks the item, persists inventory immediately, sends `INVENTORY_STATE` to the picker, and broadcasts the empty loot list on the next snapshot. A replay of a **successful** `requestId` returns `ok` without granting again. Two pickups of the same entity in one tick: message order, first success, second `invalid_target`.
 
-`InventoryService` is the only GLoot wrapper. GLoot 3.0.2 is a client-side mirror rebuilt from canonical server inventory. Prototypes use shared content IDs. Local GLoot add/remove is reverted. `client/addons/` is unmodified. Pickup input is **F**. Equip apply, quest turn-in, and wallet grants are not in this phase.
+`InventoryService` is the only GLoot inventory wrapper. GLoot 3.0.2 is a client-side mirror rebuilt from canonical server inventory. Prototypes use shared content IDs. Local GLoot add/remove is reverted. `client/addons/` is unmodified. Pickup input is **F**.
+
+## 2026-08-16 — Equipment and authoritative derived stats
+
+Canonical equipment is Nakama storage collection `player`, key `equipment`, `permissionRead: 1`, `permissionWrite: 0`. The Godot client never writes that object. The only slice slot is `main_hand`, stored as an item-instance ID (empty when unequipped). Missing records start empty. If a stored instance is missing from inventory on join or after inventory changes, the slot is cleared and the record is rewritten.
+
+`EQUIP` is `{ protocolVersion, instanceId?, slot, requestId }`. `slot` must be `main_hand`. A present `instanceId` equips that owned instance; omitting it unequips the slot. The match checks the player is alive, owns the instance, the item definition is equippable, the item permits `main_hand`, and the `requestId` has not already succeeded. Codes: `ok`, `invalid_id`, `unowned`, `not_equippable`, `invalid_slot`, `player_dead`. `item.slime_gel` has no `equipSlot` and is `not_equippable`. Duplicate successful `requestId` replays `ok` without mutating. Client `attack` / `attackBonus` / `itemId` are rejected.
+
+Derived attack is `player.base.attack` (4) plus the equipped main-hand `attackBonus` (training sword +2). Combat uses that server value. It is recalculated after character load, equip, unequip, and inventory changes that affect the equipped instance. `FULL_STATE` includes recipient `equipment` and `derived.attack`. Successful equip/unequip persist immediately and send `EQUIPMENT_STATE`.
+
+`EquipmentService` wraps a GLoot `ItemSlot` as a display-only mirror. The HUD shows the main-hand slot, Equip/Unequip, and the server attack. Double-click or Equip sends the selected instance ID. The client does not compute attack. Quest turn-in and wallet grants are not in this phase.
 

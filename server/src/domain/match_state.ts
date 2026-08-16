@@ -8,6 +8,14 @@ import {
   type QuestLog,
 } from "./quest";
 import { cloneInventory, emptyInventory, publicInventory, type ItemDefinition, type PlayerInventory } from "./inventory";
+import {
+  cloneEquipment,
+  derivedAttack,
+  emptyEquipment,
+  publicDerived,
+  publicEquipment,
+  type PlayerEquipment,
+} from "./equipment";
 import { cloneLoot, publicLoot, type LootDrop, type MatchLoot } from "./loot";
 
 export type { MatchLoot };
@@ -47,6 +55,8 @@ export interface MatchPlayer {
   lastAttackResultCode?: string;
   lastAttackResultOk?: boolean;
   inventory?: PlayerInventory;
+  equipment?: PlayerEquipment;
+  derivedAttack?: number;
 }
 
 export interface MatchNpc {
@@ -284,6 +294,8 @@ export function buildFullState(state: StarterZoneState, tick: number, selfId: st
     loot: publicLoot(state.loot),
     quests: questsFor(state, selfId),
     inventory: inventoryFor(state, selfId),
+    equipment: equipmentFor(state, selfId),
+    derived: derivedFor(state, selfId),
   });
 }
 
@@ -419,6 +431,16 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
       lastAttackResultCode: p.lastAttackResultCode !== undefined ? p.lastAttackResultCode : "",
       lastAttackResultOk: p.lastAttackResultOk === true,
       inventory: cloneInventory(p.inventory !== undefined ? p.inventory : emptyInventory()),
+      equipment: cloneEquipment(p.equipment !== undefined ? p.equipment : emptyEquipment()),
+      derivedAttack:
+        p.derivedAttack !== undefined
+          ? p.derivedAttack
+          : derivedAttack(
+              state.playerAttack,
+              p.equipment !== undefined ? p.equipment : emptyEquipment(),
+              p.inventory,
+              state.itemsById,
+            ),
     };
   }
   return {
@@ -453,6 +475,32 @@ function inventoryFor(state: StarterZoneState, selfId: string): { [key: string]:
     return publicInventory(emptyInventory());
   }
   return publicInventory(player.inventory);
+}
+
+function equipmentFor(state: StarterZoneState, selfId: string): { [key: string]: unknown } {
+  const player = state.players[selfId];
+  if (player === undefined || player.equipment === undefined) {
+    return publicEquipment(emptyEquipment());
+  }
+  return publicEquipment(player.equipment);
+}
+
+function derivedFor(state: StarterZoneState, selfId: string): { [key: string]: unknown } {
+  const player = state.players[selfId];
+  if (player === undefined) {
+    return publicDerived(state.playerAttack);
+  }
+  if (player.derivedAttack !== undefined) {
+    return publicDerived(player.derivedAttack);
+  }
+  return publicDerived(
+    derivedAttack(
+      state.playerAttack,
+      player.equipment !== undefined ? player.equipment : emptyEquipment(),
+      player.inventory,
+      state.itemsById,
+    ),
+  );
 }
 
 function copyLootDrops(drops: ReadonlyArray<LootDrop>): LootDrop[] {

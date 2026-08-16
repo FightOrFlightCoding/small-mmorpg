@@ -3,10 +3,12 @@ extends Node
 ## Project-owned GLoot adapter. Canonical inventory is server-owned.
 
 signal inventory_changed
+signal item_activated(instance_id: String)
 
 var mirror: Inventory
 var capacity: int = 20
 var items: Array = []
+var selected_instance_id: String = ""
 
 var _constraint: ItemCountConstraint
 var _applying: bool = false
@@ -31,6 +33,7 @@ func reset() -> void:
 	_canonical = {"capacity": 20, "items": []}
 	items = []
 	capacity = 20
+	selected_instance_id = ""
 	_ensure_mirror()
 	_rebuild_mirror()
 	inventory_changed.emit()
@@ -105,6 +108,7 @@ func attach_list(host: Control) -> Control:
 	if existing != null:
 		if existing is CtrlInventory:
 			(existing as CtrlInventory).inventory = mirror
+			_bind_list_signals(existing as CtrlInventory)
 		return existing
 	var list := CtrlInventory.new()
 	list.name = "List"
@@ -116,6 +120,7 @@ func attach_list(host: Control) -> Control:
 	list.mouse_filter = Control.MOUSE_FILTER_STOP
 	host.add_child(list)
 	list.inventory = mirror
+	_bind_list_signals(list)
 	return list
 
 
@@ -166,7 +171,44 @@ func _rebuild_mirror() -> void:
 		if quantity > max_stack:
 			created.set_max_stack_size(quantity)
 		created.set_stack_size(quantity)
+		var instance_id := String(entry.get("instanceId", ""))
+		if not instance_id.is_empty():
+			created.set_property("instanceId", instance_id)
 	_applying = false
+
+
+func instance_id_of(item: InventoryItem) -> String:
+	if item == null:
+		return ""
+	return String(item.get_property("instanceId", ""))
+
+
+func item_id_of_instance(instance_id: String) -> String:
+	if instance_id.is_empty():
+		return ""
+	for entry in items:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("instanceId", "")) == instance_id:
+			return String(entry.get("itemId", ""))
+	return ""
+
+
+func _bind_list_signals(list: CtrlInventory) -> void:
+	if not list.inventory_item_selected.is_connected(_on_item_selected):
+		list.inventory_item_selected.connect(_on_item_selected)
+	if not list.inventory_item_activated.is_connected(_on_item_activated):
+		list.inventory_item_activated.connect(_on_item_activated)
+
+
+func _on_item_selected(item: InventoryItem) -> void:
+	selected_instance_id = instance_id_of(item)
+
+
+func _on_item_activated(item: InventoryItem) -> void:
+	selected_instance_id = instance_id_of(item)
+	if not selected_instance_id.is_empty():
+		item_activated.emit(selected_instance_id)
 
 
 func _on_local_item_added(_item: InventoryItem) -> void:

@@ -111,7 +111,7 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -320.0
-offset_top = -236.0
+offset_top = -380.0
 offset_right = -16.0
 offset_bottom = -16.0
 grow_horizontal = 0
@@ -135,6 +135,30 @@ text = "Inventory"
 [node name="Capacity" type="Label" parent="Root/Inventory/Margin/VBox"]
 layout_mode = 2
 text = "0 / 20 stacks"
+
+[node name="Attack" type="Label" parent="Root/Inventory/Margin/VBox"]
+layout_mode = 2
+text = "Attack: 4"
+
+[node name="MainHand" type="Label" parent="Root/Inventory/Margin/VBox"]
+layout_mode = 2
+text = "Main hand: Empty"
+
+[node name="SlotHost" type="Control" parent="Root/Inventory/Margin/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 48)
+
+[node name="EquipRow" type="HBoxContainer" parent="Root/Inventory/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="EquipButton" type="Button" parent="Root/Inventory/Margin/VBox/EquipRow"]
+layout_mode = 2
+text = "Equip"
+
+[node name="UnequipButton" type="Button" parent="Root/Inventory/Margin/VBox/EquipRow"]
+layout_mode = 2
+text = "Unequip"
 
 [node name="ListHost" type="Control" parent="Root/Inventory/Margin/VBox"]
 layout_mode = 2

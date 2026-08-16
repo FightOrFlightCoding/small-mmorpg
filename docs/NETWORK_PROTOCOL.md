@@ -32,9 +32,9 @@ Match and RPC payloads for the slice are JSON objects.
 | --- | --- | --- | --- |
 | 1 | `INPUT` | `{ protocolVersion, seq, axisX, axisY }` | Direction and sequence only. `seq` is a finite integer. Axes are finite numbers. Position, speed, and dt are rejected. |
 | 2 | `INTERACT` | `{ protocolVersion, targetId, requestId }` | Correlation `requestId` required. Server checks NPC existence, server-side distance vs `player.base.interactionRange`, and live health. Returns `INTERACTION_RESULT`. |
-| 3 | `ATTACK` | `{ protocolVersion, targetId, requestId }` | Correlation `requestId` required. Server checks live health, enemy existence, range vs `player.base.attackRange`, and cooldown vs `player.base.attackCooldown`. Damage is always `player.base.attack`. Returns `ACTION_RESULT` plus `COMBAT_EVENT` on a hit. |
+| 3 | `ATTACK` | `{ protocolVersion, targetId, requestId }` | Correlation `requestId` required. Server checks live health, enemy existence, range vs `player.base.attackRange`, and cooldown vs `player.base.attackCooldown`. Damage is the server's derived attack (`player.base.attack` plus equipped main-hand `attackBonus`). Client `damage` / `attack` are rejected. Returns `ACTION_RESULT` plus `COMBAT_EVENT` on a hit. |
 | 4 | `PICKUP` | `{ protocolVersion, lootId, requestId }` | Reward opcode. `requestId` required. |
-| 5 | `EQUIP` | `{ protocolVersion, itemId, slot? }` | Returns `ACTION_RESULT` `not_implemented`. |
+| 5 | `EQUIP` | `{ protocolVersion, instanceId?, slot, requestId }` | Equip or unequip. `slot` must be `main_hand`. Omit `instanceId` to unequip. `requestId` required. Client `attack` / `attackBonus` are rejected. |
 | 6 | `QUEST_ACCEPT` | `{ protocolVersion, questId, requestId }` | Reward opcode. `requestId` required. Validates quest ID and elder range, creates accepted state once, persists, returns `ACTION_RESULT` plus `QUEST_STATE`. |
 | 7 | `QUEST_TURN_IN` | `{ protocolVersion, questId, requestId }` | Reward opcode. `requestId` required. |
 | 8 | `RESYNC_REQUEST` | `{ protocolVersion }` | Replies with a fresh `FULL_STATE`. |
@@ -47,7 +47,7 @@ Match and RPC payloads for the slice are JSON objects.
 
 | Opcode | Name | Body |
 | --- | --- | --- |
-| 101 | `FULL_STATE` | `{ protocolVersion, contentHash, tick, zoneId, selfId, players, npcs, enemies, loot, quests, inventory }` |
+| 101 | `FULL_STATE` | `{ protocolVersion, contentHash, tick, zoneId, selfId, players, npcs, enemies, loot, quests, inventory, equipment, derived }` |
 | 102 | `SNAPSHOT` | `{ protocolVersion, contentHash, tick, zoneId, players, enemies, loot }` |
 | 103 | `ACTION_RESULT` | `{ protocolVersion, ok, code, requestId? }` |
 | 104 | `COMBAT_EVENT` | `{ protocolVersion, tick, events }` |
@@ -55,8 +55,9 @@ Match and RPC payloads for the slice are JSON objects.
 | 106 | `QUEST_STATE` | `{ protocolVersion, contentHash, requestId?, quests }` |
 | 107 | `INTERACTION_RESULT` | `{ protocolVersion, ok, code, requestId?, targetId? }` |
 | 108 | `SYSTEM_MESSAGE` | `{ protocolVersion, code, message }` |
+| 109 | `EQUIPMENT_STATE` | `{ protocolVersion, contentHash, requestId?, slots, derived }` |
 
-`FULL_STATE` is sent to the joining presence after character, quest, and inventory storage load, and again on `RESYNC_REQUEST`. Occupied matches broadcast `SNAPSHOT` every tick (10 Hz) with player poses, the shared slime, and ground loot. Each player record includes `x`, `y`, `health`, `maxHealth`, `alive`, and `lastProcessedSeq`. `quests` and `inventory` on `FULL_STATE` are the recipient's records only. `inventory` is `{ capacity, items: [{ instanceId, itemId, quantity, metadata }] }`. Public loot is `{ id, itemId, quantity, x, y, expiresAtTick }` and does not include item instance IDs. A client that receives no snapshot or full state for **2 seconds** freezes remote interpolation and shows a degraded-connection state (`snapshot_timeout`). Local prediction still reconciles when snapshots resume. Dialogue opens only after `INTERACTION_RESULT` `ok`. `COMBAT_EVENT.events` entries are `{ type, sourceId, sourceKind, targetId, targetKind, damage?, remainingHealth?, x?, y?, respawnDelaySec? }` with `type` `hit`, `death`, or `respawn`. Damage numbers are presentation only.
+`FULL_STATE` is sent to the joining presence after character, quest, inventory, and equipment storage load, and again on `RESYNC_REQUEST`. Occupied matches broadcast `SNAPSHOT` every tick (10 Hz) with player poses, the shared slime, and ground loot. Each player record includes `x`, `y`, `health`, `maxHealth`, `alive`, and `lastProcessedSeq`. `quests`, `inventory`, `equipment`, and `derived` on `FULL_STATE` are the recipient's records only. `inventory` is `{ capacity, items: [{ instanceId, itemId, quantity, metadata }] }`. `equipment` is `{ slots: { main_hand: instanceId | null } }`. `derived` is `{ attack }` computed as `player.base.attack` plus the equipped main-hand `attackBonus`. Public loot is `{ id, itemId, quantity, x, y, expiresAtTick }` and does not include item instance IDs. A client that receives no snapshot or full state for **2 seconds** freezes remote interpolation and shows a degraded-connection state (`snapshot_timeout`). Local prediction still reconciles when snapshots resume. Dialogue opens only after `INTERACTION_RESULT` `ok`. `COMBAT_EVENT.events` entries are `{ type, sourceId, sourceKind, targetId, targetKind, damage?, remainingHealth?, x?, y?, respawnDelaySec? }` with `type` `hit`, `death`, or `respawn`. Damage numbers are presentation only.
 
 ## Client sends intentions only
 
@@ -95,9 +96,9 @@ Any action that can grant loot, quest rewards, or currency **must** include a cl
 - Replays of the same `requestId` return the original result and must not mutate inventory or wallet again.
 - Missing or malformed `requestId` is rejected as `invalid_request_id`.
 
-`INTERACT` also requires `requestId` so the client can match `INTERACTION_RESULT` before opening dialogue. It is not a loot grant. `ATTACK` requires `requestId` so a replay of the same id cannot apply damage twice. Missing or malformed `requestId` is `invalid_request_id`.
+`INTERACT` also requires `requestId` so the client can match `INTERACTION_RESULT` before opening dialogue. It is not a loot grant. `ATTACK` requires `requestId` so a replay of the same id cannot apply damage twice. `EQUIP` requires `requestId` so a replay of a successful id cannot re-apply. Missing or malformed `requestId` is `invalid_request_id`.
 
-`PICKUP` is applied: first success removes the loot entity, stacks or inserts the item, persists inventory, and sends `INVENTORY_STATE`. A replay of the same successful `requestId` returns `ok` without granting again. Codes: `ok`, `out_of_range`, `invalid_target`, `inventory_full`, `invalid_id`, `player_dead`. Client-supplied `instanceId` or `items` are protocol rejections. `QUEST_TURN_IN` is defined but not applied in this phase (`not_implemented`). `QUEST_ACCEPT` is applied: first success stores accepted progress (`current` 0) and the `requestId`; a replay of the same `requestId` returns `accepted` without writing again; a later `requestId` for the same quest returns `already_accepted` and the current log. Client-supplied `status`, `questComplete`, or reward fields are rejected. `ATTACK` is applied: codes `ok`, `out_of_range`, `on_cooldown`, `invalid_target`, `target_dead`, `player_dead`.
+`PICKUP` is applied: first success removes the loot entity, stacks or inserts the item, persists inventory, and sends `INVENTORY_STATE`. A replay of the same successful `requestId` returns `ok` without granting again. Codes: `ok`, `out_of_range`, `invalid_target`, `inventory_full`, `invalid_id`, `player_dead`. Client-supplied `instanceId` or `items` are protocol rejections. `EQUIP` is applied: first success stores `main_hand` by item-instance ID, recalculates `derived.attack` as `player.base.attack` plus the item `attackBonus`, persists equipment, and sends `EQUIPMENT_STATE`. Omit `instanceId` to unequip. Duplicate successful `requestId` replays `ok` without mutating. Codes: `ok`, `invalid_id`, `unowned`, `not_equippable`, `invalid_slot`, `player_dead`. Client `attack` / `attackBonus` are protocol rejections. `QUEST_TURN_IN` is defined but not applied in this phase (`not_implemented`). `QUEST_ACCEPT` is applied: first success stores accepted progress (`current` 0) and the `requestId`; a replay of the same `requestId` returns `accepted` without writing again; a later `requestId` for the same quest returns `already_accepted` and the current log. Client-supplied `status`, `questComplete`, or reward fields are rejected. `ATTACK` is applied using the server's derived attack: codes `ok`, `out_of_range`, `on_cooldown`, `invalid_target`, `target_dead`, `player_dead`.
 
 ## Full-state resynchronization
 
@@ -118,7 +119,7 @@ The server rejects:
 - oversized payloads (2048 bytes for client→server match bodies)
 - wrong protocol version
 - wrong content hash
-- missing/malformed `requestId` on `INTERACT`, `ATTACK`, and reward opcodes
+- missing/malformed `requestId` on `INTERACT`, `ATTACK`, `EQUIP`, and reward opcodes
 
 Rejections are typed (`unknown_opcode`, `malformed_json`, `unknown_field`, `invalid_id`, `protocol_mismatch`, `content_mismatch`, `payload_too_large`, `unauthenticated`, `invalid_name`, `stat_injection`, `invalid_request_id`, `match_full`, `already_in_match`, `character_missing`, `empty_message`, `message_too_long`, `invalid_payload`, `invalid_channel`). They are logged without tokens or personal data. They are sent as `SYSTEM_MESSAGE` (or join reject) and never crash the match.
 
@@ -137,7 +138,7 @@ Authenticated HTTP/RPC only. Payload is empty or `{}`. Returns `{ matchId, zoneI
 - Tick rate: **10 Hz**
 - Maximum players: **8**
 - Empty-match shutdown: **30 seconds** (300 ticks) after the last presence leaves, or if nobody ever joins
-- Join loads the character, quest, and inventory storage once. The tick loop does not read storage. Quest acceptance writes `collection` `player`, key `quests`, `permissionWrite: 0`. Successful pickup writes `collection` `player`, key `inventory`, `permissionWrite: 0`. Ground loot is match-only and is not persisted.
+- Join loads the character, quest, inventory, and equipment storage once. The tick loop does not read storage. Quest acceptance writes `collection` `player`, key `quests`, `permissionWrite: 0`. Successful pickup writes `collection` `player`, key `inventory`, `permissionWrite: 0`. Successful equip or unequip writes `collection` `player`, key `equipment`, `permissionWrite: 0`. Ground loot is match-only and is not persisted.
 - Join metadata must include matching `protocolVersion` and `contentHash`
 - A second socket for an account already in the match is rejected with `already_in_match`. True reconnect of the same session is allowed. The same account cannot occupy two presences.
 - Players spawn at their saved position, or the zone default if that is what was stored

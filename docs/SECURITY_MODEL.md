@@ -20,7 +20,7 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Attack:** Client sends damage dealt or victim health.
 
-**Defense:** Attack intent carries target ID and `requestId` only. Damage and health exist only in match simulation. Duplicate `requestId` does not apply a second hit.
+**Defense:** Attack intent carries target ID and `requestId` only. Damage and health exist only in match simulation. Player damage is `player.base.attack` plus the equipped main-hand `attackBonus`. Duplicate `requestId` does not apply a second hit. Client `attack` / `attackBonus` fields are rejected.
 
 ### Cooldown bypassing
 
@@ -32,7 +32,13 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Attack:** Client writes storage objects or sends a grant list.
 
-**Defense:** Canonical inventory storage uses `permissionWrite: 0`. Grant opcodes from the client are rejected. Only server loot/quest pipelines create items.
+**Defense:** Canonical inventory storage uses `permissionWrite: 0`. Grant opcodes from the client are rejected. Only server loot/quest pipelines create items. Equipment stores instance IDs, not client-computed stats.
+
+### Equipment spoofing
+
+**Attack:** Client equips an unowned or unequippable instance, or sends a calculated attack value.
+
+**Defense:** `EQUIP` is `{ instanceId?, slot, requestId }`. The match checks the player is alive, owns the instance, the item definition is equippable into `main_hand`, and the `requestId` has not already succeeded. Derived attack is recalculated on the server after load, equip, unequip, and inventory repair. Client `attack` / `attackBonus` are `stat_injection`.
 
 ### Duplicate pickup
 

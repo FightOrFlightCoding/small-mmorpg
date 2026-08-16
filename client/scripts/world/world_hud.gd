@@ -13,8 +13,14 @@ signal logout_pressed
 @onready var _death: Label = $Root/Death
 @onready var _inventory_capacity: Label = $Root/Inventory/Margin/VBox/Capacity
 @onready var _inventory_host: Control = $Root/Inventory/Margin/VBox/ListHost
+@onready var _attack: Label = $Root/Inventory/Margin/VBox/Attack
+@onready var _main_hand: Label = $Root/Inventory/Margin/VBox/MainHand
+@onready var _slot_host: Control = $Root/Inventory/Margin/VBox/SlotHost
+@onready var _equip: Button = $Root/Inventory/Margin/VBox/EquipRow/EquipButton
+@onready var _unequip: Button = $Root/Inventory/Margin/VBox/EquipRow/UnequipButton
 
 var _inventory_list: Control
+var _slot_view: Control
 
 
 func _ready() -> void:
@@ -23,6 +29,15 @@ func _ready() -> void:
 	refresh_journal(QuestService.journal_view())
 	_bind_inventory()
 	refresh_inventory()
+	refresh_equipment()
+	if _equip != null:
+		_equip.pressed.connect(_on_equip_pressed)
+	if _unequip != null:
+		_unequip.pressed.connect(_on_unequip_pressed)
+	if not InventoryService.item_activated.is_connected(_on_item_activated):
+		InventoryService.item_activated.connect(_on_item_activated)
+	if not EquipmentService.equipment_changed.is_connected(refresh_equipment):
+		EquipmentService.equipment_changed.connect(refresh_equipment)
 
 
 func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool = false) -> void:
@@ -47,6 +62,7 @@ func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool =
 	_entities.text = "Present: %s" % ", ".join(names)
 	_refresh_health(state)
 	refresh_journal(QuestService.journal_view())
+	refresh_equipment()
 
 
 func refresh_journal(view: Dictionary) -> void:
@@ -71,17 +87,47 @@ func refresh_inventory() -> void:
 	_inventory_capacity.text = "%s / %s stacks" % [str(occupied), str(InventoryService.capacity)]
 
 
+func refresh_equipment() -> void:
+	if _attack != null:
+		_attack.text = "Attack: %s" % str(EquipmentService.attack)
+	if _main_hand != null:
+		_main_hand.text = "Main hand: %s" % EquipmentService.equipped_display_name()
+
+
+func _on_equip_pressed() -> void:
+	var instance_id := InventoryService.selected_instance_id
+	if instance_id.is_empty():
+		return
+	EquipmentService.request_equip(instance_id, EquipmentService.MAIN_HAND_SLOT)
+
+
+func _on_unequip_pressed() -> void:
+	EquipmentService.request_unequip(EquipmentService.MAIN_HAND_SLOT)
+
+
+func _on_item_activated(instance_id: String) -> void:
+	if instance_id.is_empty():
+		return
+	EquipmentService.request_equip(instance_id, EquipmentService.MAIN_HAND_SLOT)
+
+
 func _bind_inventory() -> void:
 	if _inventory_host == null or _inventory_list != null:
 		return
 	_inventory_list = InventoryService.attach_list(_inventory_host)
 	if not InventoryService.inventory_changed.is_connected(refresh_inventory):
 		InventoryService.inventory_changed.connect(refresh_inventory)
+	if _slot_host != null and _slot_view == null:
+		_slot_view = EquipmentService.attach_slot(_slot_host)
 
 
 func _exit_tree() -> void:
 	if InventoryService.inventory_changed.is_connected(refresh_inventory):
 		InventoryService.inventory_changed.disconnect(refresh_inventory)
+	if InventoryService.item_activated.is_connected(_on_item_activated):
+		InventoryService.item_activated.disconnect(_on_item_activated)
+	if EquipmentService.equipment_changed.is_connected(refresh_equipment):
+		EquipmentService.equipment_changed.disconnect(refresh_equipment)
 
 
 func _refresh_health(state: Dictionary) -> void:
@@ -110,7 +156,7 @@ func _refresh_health(state: Dictionary) -> void:
 			slime_hp += " (%s)" % String(enemy["state"])
 		break
 	if _health != null:
-		_health.text = "%s    %s    Attack: Space    Pickup: F" % [player_hp, slime_hp]
+		_health.text = "%s    %s    Atk %s    Attack: Space    Pickup: F" % [player_hp, slime_hp, str(EquipmentService.attack)]
 	if _death != null:
 		_death.visible = local_dead
 		if local_dead:

@@ -34,6 +34,7 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ServerOpcode.QUEST_STATE, 106);
   assert.equal(ServerOpcode.INTERACTION_RESULT, 107);
   assert.equal(ServerOpcode.SYSTEM_MESSAGE, 108);
+  assert.equal(ServerOpcode.EQUIPMENT_STATE, 109);
 });
 
 test("valid movement input parses direction and sequence only", () => {
@@ -152,6 +153,14 @@ test("reward and interact requests require a unique requestId", () => {
   if (isProtocolError(missingAttack)) {
     assert.equal(missingAttack.code, "invalid_request_id");
   }
+  const missingEquip = parse(
+    ClientOpcode.EQUIP,
+    JSON.stringify({ protocolVersion: PROTOCOL_VERSION, instanceId: "inst-1", slot: "main_hand" }),
+  );
+  assert.equal(isProtocolError(missingEquip), true);
+  if (isProtocolError(missingEquip)) {
+    assert.equal(missingEquip.code, "invalid_request_id");
+  }
 });
 
 test("stat injection keys are rejected", () => {
@@ -175,6 +184,65 @@ test("stat injection keys are rejected", () => {
   assert.equal(isProtocolError(instance), true);
   if (isProtocolError(instance)) {
     assert.equal(instance.code, "stat_injection:instanceId");
+  }
+  const bonus = parse(
+    ClientOpcode.EQUIP,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      instanceId: "inst-1",
+      slot: "main_hand",
+      requestId: "req-equip-bonus1",
+      attackBonus: 99,
+    }),
+  );
+  assert.equal(isProtocolError(bonus), true);
+  if (isProtocolError(bonus)) {
+    assert.equal(bonus.code, "stat_injection:attackBonus");
+  }
+  const attack = parse(
+    ClientOpcode.EQUIP,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      instanceId: "inst-1",
+      slot: "main_hand",
+      requestId: "req-equip-atk1",
+      attack: 99,
+    }),
+  );
+  assert.equal(isProtocolError(attack), true);
+  if (isProtocolError(attack)) {
+    assert.equal(attack.code, "stat_injection:attack");
+  }
+});
+
+test("equip intention accepts instance id and slot", () => {
+  const parsed = parse(
+    ClientOpcode.EQUIP,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      instanceId: "inst-sword-1",
+      slot: "main_hand",
+      requestId: "req-equip-ok1",
+    }),
+  );
+  assert.equal(isProtocolError(parsed), false);
+  if (!isProtocolError(parsed)) {
+    assert.equal(parsed.fields.instanceId, "inst-sword-1");
+    assert.equal(parsed.fields.slot, "main_hand");
+    assert.equal(parsed.requestId, "req-equip-ok1");
+  }
+  const unequip = parse(
+    ClientOpcode.EQUIP,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      slot: "main_hand",
+      requestId: "req-unequip-ok1",
+    }),
+  );
+  assert.equal(isProtocolError(unequip), false);
+  if (!isProtocolError(unequip)) {
+    assert.equal(unequip.fields.instanceId, undefined);
+    assert.equal(unequip.fields.slot, "main_hand");
   }
 });
 

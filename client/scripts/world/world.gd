@@ -25,6 +25,7 @@ var _buffer: SnapshotBuffer = SnapshotBuffer.new()
 var _sent_at: Dictionary = {}
 var _attack_requests: Dictionary = {}
 var _pickup_requests: Dictionary = {}
+var _equip_requests: Dictionary = {}
 var _ping_ms: int = 0
 var _ping_ema_ms: float = 0.0
 var _frame_ms: float = 0.0
@@ -312,6 +313,10 @@ func _connect_interaction_signals() -> void:
 		NetworkService.combat_event_received.connect(_on_combat_event)
 	if not InventoryService.inventory_changed.is_connected(_on_inventory_changed):
 		InventoryService.inventory_changed.connect(_on_inventory_changed)
+	if not EquipmentService.equipment_changed.is_connected(_on_equipment_changed):
+		EquipmentService.equipment_changed.connect(_on_equipment_changed)
+	if not EquipmentService.request_started.is_connected(_on_equip_request_started):
+		EquipmentService.request_started.connect(_on_equip_request_started)
 
 
 func _disconnect_interaction_signals() -> void:
@@ -325,6 +330,10 @@ func _disconnect_interaction_signals() -> void:
 		NetworkService.combat_event_received.disconnect(_on_combat_event)
 	if InventoryService.inventory_changed.is_connected(_on_inventory_changed):
 		InventoryService.inventory_changed.disconnect(_on_inventory_changed)
+	if EquipmentService.equipment_changed.is_connected(_on_equipment_changed):
+		EquipmentService.equipment_changed.disconnect(_on_equipment_changed)
+	if EquipmentService.request_started.is_connected(_on_equip_request_started):
+		EquipmentService.request_started.disconnect(_on_equip_request_started)
 
 
 func _on_interaction_result(payload: Dictionary) -> void:
@@ -348,6 +357,12 @@ func _on_action_result(payload: Dictionary) -> void:
 			return
 		AppState.report_recoverable(String(payload.get("code", "pickup_failed")), _pickup_message(String(payload.get("code", ""))))
 		return
+	if _equip_requests.has(request_id):
+		_equip_requests.erase(request_id)
+		if bool(payload.get("result_ok", false)):
+			return
+		AppState.report_recoverable(String(payload.get("code", "equip_failed")), _equip_message(String(payload.get("code", ""))))
+		return
 	if bool(payload.get("result_ok", false)):
 		return
 	var code := String(payload.get("code", "action_failed"))
@@ -364,6 +379,16 @@ func _on_quests_changed() -> void:
 func _on_inventory_changed() -> void:
 	if _hud != null:
 		_hud.refresh_inventory()
+
+
+func _on_equipment_changed() -> void:
+	if _hud != null:
+		_hud.refresh_equipment()
+
+
+func _on_equip_request_started(request_id: String) -> void:
+	if not request_id.is_empty():
+		_equip_requests[request_id] = true
 
 
 func _on_combat_event(payload: Dictionary) -> void:
@@ -404,6 +429,20 @@ func _pickup_message(code: String) -> String:
 	if code == "invalid_id":
 		return "That item is not valid."
 	return "The server rejected that pickup."
+
+
+func _equip_message(code: String) -> String:
+	if code == "not_equippable":
+		return "That item cannot be equipped."
+	if code == "unowned":
+		return "You do not own that item."
+	if code == "invalid_slot":
+		return "That item cannot go in that slot."
+	if code == "invalid_id":
+		return "That item is not valid."
+	if code == "player_dead":
+		return "You cannot change equipment while defeated."
+	return "The server rejected that equipment action."
 
 
 func _quest_message(code: String) -> String:

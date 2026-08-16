@@ -14,6 +14,7 @@ signal action_result_received(payload: Dictionary)
 signal quest_state_received(payload: Dictionary)
 signal combat_event_received(payload: Dictionary)
 signal inventory_state_received(payload: Dictionary)
+signal equipment_state_received(payload: Dictionary)
 signal logged_out
 
 const CHARACTER_BOOTSTRAP_RPC := "character_bootstrap"
@@ -173,6 +174,18 @@ func send_pickup(loot_id: String, request_id: String) -> Dictionary:
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_PICKUP,
 		MatchProtocol.client_envelope_json({"lootId": loot_id, "requestId": request_id})
+	)
+
+
+func send_equip(instance_id: String, slot: String, request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var extra: Dictionary = {"slot": slot, "requestId": request_id}
+	if not instance_id.is_empty():
+		extra["instanceId"] = instance_id
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_EQUIP,
+		MatchProtocol.client_envelope_json(extra)
 	)
 
 
@@ -447,6 +460,13 @@ func _on_match_state(opcode: int, payload: String) -> void:
 			AppState.report_recoverable(String(inventory.get("code", "inventory_state_failed")), String(inventory.get("message", "Inventory state was invalid.")))
 			return
 		inventory_state_received.emit(inventory)
+		return
+	if opcode == MatchProtocol.SERVER_EQUIPMENT_STATE:
+		var equipment: Dictionary = MatchProtocol.parse_equipment_state(payload)
+		if not bool(equipment.get("ok", false)):
+			AppState.report_recoverable(String(equipment.get("code", "equipment_state_failed")), String(equipment.get("message", "Equipment state was invalid.")))
+			return
+		equipment_state_received.emit(equipment)
 		return
 
 

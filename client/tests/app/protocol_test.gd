@@ -27,6 +27,7 @@ func test_opcodes_match_the_server_allocation() -> void:
 	assert_int(MatchProtocol.SERVER_QUEST_STATE).is_equal(106)
 	assert_int(MatchProtocol.SERVER_INTERACTION_RESULT).is_equal(107)
 	assert_int(MatchProtocol.SERVER_SYSTEM_MESSAGE).is_equal(108)
+	assert_int(MatchProtocol.SERVER_EQUIPMENT_STATE).is_equal(109)
 	assert_float(MatchProtocol.INPUT_SEND_HZ).is_equal(10.0)
 	assert_float(MatchProtocol.SNAPSHOT_RATE_HZ).is_equal(10.0)
 	assert_float(MatchProtocol.SNAPSHOT_TIMEOUT_SEC).is_equal(2.0)

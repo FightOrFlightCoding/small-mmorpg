@@ -2,11 +2,16 @@ import { content, contentHash } from "../generated/content";
 import { readCharacter } from "./character_store";
 import { readQuests, writeQuests } from "./quest_store";
 import { readInventory, writeInventory, writeInventoryOnce } from "./inventory_store";
+import { readEquipment, writeEquipment } from "./equipment_store";
 import { validateJoinAttempt } from "../domain/join_validation";
 import { applyMatchLoop, snapshotForOthers, type IncomingMatchData } from "../domain/match_loop";
 import { PLAYER_RESPAWN_DELAY_SEC } from "../domain/combat";
 import { questDefinitionsFromContent } from "../domain/quest";
 import { initializeInventory, itemDefinitionsFromContent } from "../domain/inventory";
+import {
+  derivedAttack,
+  loadEquipment,
+} from "../domain/equipment";
 import {
   MATCH_TICK_RATE,
   STARTER_ZONE_LABEL,
@@ -121,6 +126,12 @@ export function matchJoin(
       delete nextPresences[presence.userId];
       continue;
     }
+    const inventory = loadPlayerInventory(nk, presence.userId);
+    const loadedEquipment = loadEquipment(readEquipment(nk, presence.userId), inventory);
+    if (loadedEquipment.persist) {
+      writeEquipment(nk, presence.userId, loadedEquipment.equipment);
+      logger.info("starter_zone reconcile equipment user_id=%s", presence.userId);
+    }
     const player: MatchPlayer = {
       userId: presence.userId,
       sessionId: presence.sessionId,
@@ -135,7 +146,14 @@ export function matchJoin(
       axisX: 0,
       axisY: 0,
       questLog: readQuests(nk, presence.userId),
-      inventory: loadPlayerInventory(nk, presence.userId),
+      inventory: inventory,
+      equipment: loadedEquipment.equipment,
+      derivedAttack: derivedAttack(
+        content.player.attack,
+        loadedEquipment.equipment,
+        inventory,
+        zone.itemsById,
+      ),
     };
     zone = addPlayer(zone, player);
     joined.push(presence);
@@ -216,6 +234,11 @@ export function matchLoop(
     const persist = result.persistInventories[inv];
     writeInventory(nk, persist.userId, persist.inventory);
     logger.info("starter_zone persist inventory user_id=%s", persist.userId);
+  }
+  for (let eq = 0; eq < result.persistEquipment.length; eq++) {
+    const persist = result.persistEquipment[eq];
+    writeEquipment(nk, persist.userId, persist.equipment);
+    logger.info("starter_zone persist equipment user_id=%s", persist.userId);
   }
   for (let i = 0; i < result.outbound.length; i++) {
     const out = result.outbound[i];
