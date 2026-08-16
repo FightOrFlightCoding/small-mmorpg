@@ -217,4 +217,5 @@ func default_full_state_payload(tick: int = 1) -> String:
 			"health": 20,
 		}],
 		"loot": [],
+		"quests": [],
 	})

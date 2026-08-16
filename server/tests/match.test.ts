@@ -18,6 +18,7 @@ import {
   type StarterZoneState,
 } from "../src/domain/match_state";
 import { ClientOpcode, PROTOCOL_VERSION, ServerOpcode, isProtocolError, parseClientMessage } from "../src/domain/protocol";
+import { emptyQuestLog, questDefinitionsFromContent } from "../src/domain/quest";
 
 function enemiesById() {
   const map: { [id: string]: { id: string; maxHealth: number } } = {};
@@ -34,7 +35,8 @@ function emptyZone(): StarterZoneState {
     id: content.player.id,
     maxHealth: content.player.maxHealth,
     moveSpeed: content.player.moveSpeed,
-  });
+    interactionRange: content.player.interactionRange,
+  }, questDefinitionsFromContent(content.quests));
 }
 
 function player(userId: string, name: string): MatchPlayer {
@@ -51,6 +53,7 @@ function player(userId: string, name: string): MatchPlayer {
     lastProcessedSeq: 0,
     axisX: 0,
     axisY: 0,
+    questLog: emptyQuestLog(),
   };
 }
 
@@ -90,6 +93,7 @@ test("alice and bob appear in the same full state", () => {
   assert.equal(body.enemies.length, 1);
   assert.equal(body.enemies[0].enemyId, "enemy.green_slime");
   assert.deepEqual(body.loot, []);
+  assert.deepEqual(body.quests, []);
   assert.equal(playerCount(state), 2);
 });
 

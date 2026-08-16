@@ -107,6 +107,10 @@ export function isRewardOpcode(opcode: ClientOpcode): boolean {
   return REWARD_OPCODES.indexOf(opcode) !== -1;
 }
 
+function requiresRequestId(opcode: ClientOpcode): boolean {
+  return isRewardOpcode(opcode) || opcode === ClientOpcode.INTERACT;
+}
+
 export function parseClientMessage(
   opcode: number,
   raw: string,
@@ -175,9 +179,9 @@ export function parseClientMessage(
   }
 
   let requestId: string | undefined;
-  if (isRewardOpcode(opcode)) {
+  if (requiresRequestId(opcode)) {
     if (typeof data.requestId !== "string" || !REQUEST_ID_PATTERN.test(data.requestId)) {
-      return { code: "invalid_request_id", message: "Reward-producing requests require a unique requestId." };
+      return { code: "invalid_request_id", message: "This request requires a unique requestId." };
     }
     requestId = data.requestId;
   } else if (typeof data.requestId === "string") {
@@ -267,13 +271,44 @@ export function actionResult(
   };
 }
 
-export function interactionResult(code: string, ok: boolean): { opcode: number; body: string } {
+export function interactionResult(
+  code: string,
+  ok: boolean,
+  requestId?: string,
+  targetId?: string,
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    ok: ok,
+    code: code,
+  };
+  if (requestId !== undefined) {
+    payload.requestId = requestId;
+  }
+  if (targetId !== undefined) {
+    payload.targetId = targetId;
+  }
   return {
     opcode: ServerOpcode.INTERACTION_RESULT,
-    body: JSON.stringify({
-      protocolVersion: PROTOCOL_VERSION,
-      ok: ok,
-      code: code,
-    }),
+    body: JSON.stringify(payload),
+  };
+}
+
+export function questState(
+  contentHash: string,
+  quests: { [key: string]: unknown }[],
+  requestId?: string,
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    contentHash: contentHash,
+    quests: quests,
+  };
+  if (requestId !== undefined) {
+    payload.requestId = requestId;
+  }
+  return {
+    opcode: ServerOpcode.QUEST_STATE,
+    body: JSON.stringify(payload),
   };
 }

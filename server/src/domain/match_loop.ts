@@ -4,6 +4,7 @@ import {
   interactionResult,
   isProtocolError,
   parseClientMessage,
+  questState,
   systemMessage,
   type ParsedClientMessage,
 } from "./protocol";
@@ -19,6 +20,8 @@ import {
   snapshotOpcode,
 } from "./match_state";
 import { intendedDelta, resolveMove } from "./movement";
+import { resolveInteraction } from "./interaction";
+import { applyQuestAccept, cloneQuestLog, publicQuestPayloads, type QuestLog } from "./quest";
 
 export interface MatchOutbound {
   opcode: number;
@@ -27,10 +30,16 @@ export interface MatchOutbound {
   broadcastOthersFrom?: string;
 }
 
+export interface QuestPersist {
+  userId: string;
+  log: QuestLog;
+}
+
 export interface MatchLoopResult {
   state: StarterZoneState;
   terminate: boolean;
   outbound: MatchOutbound[];
+  persistQuests: QuestPersist[];
 }
 
 export interface IncomingMatchData {
@@ -47,6 +56,7 @@ export function applyMatchLoop(
 ): MatchLoopResult {
   const outbound: MatchOutbound[] = [];
   const next = cloneStarterZoneState(state);
+  const persistByUser: { [userId: string]: QuestLog } = {};
 
   for (let i = 0; i < messages.length; i++) {
     const incoming = messages[i];
@@ -56,7 +66,7 @@ export function applyMatchLoop(
       outbound.push({ opcode: sys.opcode, body: sys.body, toUserId: incoming.userId });
       continue;
     }
-    handleValidated(parsed, incoming.userId, next, tick, outbound);
+    handleValidated(parsed, incoming.userId, next, tick, outbound, persistByUser);
   }
 
   simulateMovement(next, 1 / MATCH_TICK_RATE);
@@ -71,10 +81,18 @@ export function applyMatchLoop(
     });
   }
 
+  const persistQuests: QuestPersist[] = [];
+  const persistIds = Object.keys(persistByUser);
+  for (let j = 0; j < persistIds.length; j++) {
+    const userId = persistIds[j];
+    persistQuests.push({ userId: userId, log: persistByUser[userId] });
+  }
+
   return {
     state: next,
     terminate: playerCount(next) === 0 && next.emptyTicks >= EMPTY_MATCH_TIMEOUT_TICKS,
     outbound: outbound,
+    persistQuests: persistQuests,
   };
 }
 
@@ -84,6 +102,7 @@ function handleValidated(
   state: StarterZoneState,
   tick: number,
   outbound: MatchOutbound[],
+  persistByUser: { [userId: string]: QuestLog },
 ): void {
   if (parsed.opcode === ClientOpcode.RESYNC_REQUEST) {
     outbound.push({
@@ -98,12 +117,80 @@ function handleValidated(
     return;
   }
   if (parsed.opcode === ClientOpcode.INTERACT) {
-    const result = interactionResult("not_implemented", false);
-    outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+    handleInteract(parsed, userId, state, outbound);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.QUEST_ACCEPT) {
+    handleQuestAccept(parsed, userId, state, outbound, persistByUser);
     return;
   }
   const result = actionResult("not_implemented", false, parsed.requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+}
+
+function handleInteract(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  outbound: MatchOutbound[],
+): void {
+  const targetId = parsed.fields.targetId;
+  const player = state.players[userId];
+  if (player === undefined) {
+    const missing = interactionResult("player_missing", false, parsed.requestId, targetId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  const decision = resolveInteraction({
+    playerHealth: player.health,
+    playerX: player.x,
+    playerY: player.y,
+    targetId: targetId,
+    npcs: state.npcs,
+    interactionRange: state.interactionRange,
+  });
+  const result = interactionResult(decision.code, decision.ok, parsed.requestId, targetId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+}
+
+function handleQuestAccept(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  outbound: MatchOutbound[],
+  persistByUser: { [userId: string]: QuestLog },
+): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  const outcome = applyQuestAccept({
+    playerHealth: player.health,
+    playerX: player.x,
+    playerY: player.y,
+    questLog: player.questLog,
+    questId: parsed.fields.questId,
+    requestId: parsed.requestId as string,
+    npcs: state.npcs,
+    interactionRange: state.interactionRange,
+    questsById: state.questsById,
+  });
+  player.questLog = outcome.log;
+  if (outcome.persist) {
+    persistByUser[userId] = cloneQuestLog(outcome.log);
+  }
+  const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  if (outcome.ok) {
+    const quests = questState(
+      state.contentHash,
+      publicQuestPayloads(player.questLog, state.questsById),
+      parsed.requestId,
+    );
+    outbound.push({ opcode: quests.opcode, body: quests.body, toUserId: userId });
+  }
 }
 
 function applyInput(state: StarterZoneState, userId: string, seq: number, axisX: number, axisY: number): void {

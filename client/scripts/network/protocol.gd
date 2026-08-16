@@ -99,6 +99,7 @@ static func parse_full_state(raw: String, expected_content_hash: String) -> Dict
 			"npcs": (parsed["npcs"] as Array).duplicate(true),
 			"enemies": (parsed["enemies"] as Array).duplicate(true),
 			"loot": loot.duplicate(true),
+			"quests": _optional_array(parsed, "quests"),
 		},
 	}
 
@@ -122,7 +123,7 @@ static func parse_snapshot(raw: String, expected_content_hash: String, previous:
 		view["zone_id"] = String(parsed["zoneId"])
 	view["players"] = (parsed["players"] as Array).duplicate(true)
 	view["ack_seq"] = _ack_seq(view["players"], String(view.get("self_id", "")))
-	for key in ["npcs", "enemies", "loot"]:
+	for key in ["npcs", "enemies", "loot", "quests"]:
 		if typeof(parsed.get(key, null)) == TYPE_ARRAY:
 			view[key] = (parsed[key] as Array).duplicate(true)
 	return {"ok": true, "view": view}
@@ -156,6 +157,52 @@ static func parse_find_or_create(raw: String, expected_content_hash: String) -> 
 	}
 
 
+static func parse_interaction_result(raw: String) -> Dictionary:
+	var parsed: Dictionary = _parse_object(raw)
+	if parsed.has("ok") and not bool(parsed["ok"]) and parsed.has("message"):
+		return parsed
+	if not _version_ok(parsed):
+		return _fail("protocol_mismatch", "The interaction result protocol version does not match this client.")
+	return {
+		"ok": true,
+		"result_ok": bool(parsed.get("ok", false)),
+		"code": String(parsed.get("code", "unknown")),
+		"request_id": String(parsed.get("requestId", "")),
+		"target_id": String(parsed.get("targetId", "")),
+	}
+
+
+static func parse_action_result(raw: String) -> Dictionary:
+	var parsed: Dictionary = _parse_object(raw)
+	if parsed.has("ok") and not bool(parsed["ok"]) and parsed.has("message"):
+		return parsed
+	if not _version_ok(parsed):
+		return _fail("protocol_mismatch", "The action result protocol version does not match this client.")
+	return {
+		"ok": true,
+		"result_ok": bool(parsed.get("ok", false)),
+		"code": String(parsed.get("code", "unknown")),
+		"request_id": String(parsed.get("requestId", "")),
+	}
+
+
+static func parse_quest_state(raw: String) -> Dictionary:
+	var parsed: Dictionary = _parse_object(raw)
+	if parsed.has("ok") and not bool(parsed["ok"]):
+		return parsed
+	if not _version_ok(parsed):
+		return _fail("protocol_mismatch", "The quest-state protocol version does not match this client.")
+	return {
+		"ok": true,
+		"request_id": String(parsed.get("requestId", "")),
+		"quests": _optional_array(parsed, "quests"),
+	}
+
+
+static func new_request_id() -> String:
+	return "r_%s_%s" % [str(Time.get_ticks_usec()), str(randi() % 1000000)]
+
+
 static func is_compatibility_code(code: String) -> bool:
 	return code == "protocol_mismatch" or code == "content_mismatch"
 
@@ -185,6 +232,14 @@ static func _hash_ok(data: Dictionary, expected_content_hash: String) -> bool:
 	if regex.search(hash) == null:
 		return false
 	return hash == expected_content_hash
+
+
+static func _optional_array(data: Dictionary, key: String) -> Array:
+	if not data.has(key):
+		return []
+	if typeof(data[key]) != TYPE_ARRAY:
+		return []
+	return (data[key] as Array).duplicate(true)
 
 
 static func _ack_seq(players: Array, self_id: String) -> int:

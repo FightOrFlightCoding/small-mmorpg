@@ -31,11 +31,11 @@ Match and RPC payloads for the slice are JSON objects.
 | Opcode | Name | Body | Notes |
 | --- | --- | --- | --- |
 | 1 | `INPUT` | `{ protocolVersion, seq, axisX, axisY }` | Direction and sequence only. `seq` is a finite integer. Axes are finite numbers. Position, speed, and dt are rejected. |
-| 2 | `INTERACT` | `{ protocolVersion, targetId }` | Returns `INTERACTION_RESULT` `not_implemented`. |
+| 2 | `INTERACT` | `{ protocolVersion, targetId, requestId }` | Correlation `requestId` required. Server checks NPC existence, server-side distance vs `player.base.interactionRange`, and live health. Returns `INTERACTION_RESULT`. |
 | 3 | `ATTACK` | `{ protocolVersion, targetId }` | Returns `ACTION_RESULT` `not_implemented`. |
 | 4 | `PICKUP` | `{ protocolVersion, lootId, requestId }` | Reward opcode. `requestId` required. |
 | 5 | `EQUIP` | `{ protocolVersion, itemId, slot? }` | Returns `ACTION_RESULT` `not_implemented`. |
-| 6 | `QUEST_ACCEPT` | `{ protocolVersion, questId, requestId }` | Reward opcode. `requestId` required. |
+| 6 | `QUEST_ACCEPT` | `{ protocolVersion, questId, requestId }` | Reward opcode. `requestId` required. Validates quest ID and elder range, creates accepted state once, persists, returns `ACTION_RESULT` plus `QUEST_STATE`. |
 | 7 | `QUEST_TURN_IN` | `{ protocolVersion, questId, requestId }` | Reward opcode. `requestId` required. |
 | 8 | `RESYNC_REQUEST` | `{ protocolVersion }` | Replies with a fresh `FULL_STATE`. |
 
@@ -47,16 +47,16 @@ Match and RPC payloads for the slice are JSON objects.
 
 | Opcode | Name | Body |
 | --- | --- | --- |
-| 101 | `FULL_STATE` | `{ protocolVersion, contentHash, tick, zoneId, selfId, players, npcs, enemies, loot }` |
+| 101 | `FULL_STATE` | `{ protocolVersion, contentHash, tick, zoneId, selfId, players, npcs, enemies, loot, quests }` |
 | 102 | `SNAPSHOT` | `{ protocolVersion, contentHash, tick, zoneId, players }` |
 | 103 | `ACTION_RESULT` | `{ protocolVersion, ok, code, requestId? }` |
 | 104 | `COMBAT_EVENT` | reserved; unused in this phase |
 | 105 | `INVENTORY_STATE` | reserved; unused in this phase |
-| 106 | `QUEST_STATE` | reserved; unused in this phase |
-| 107 | `INTERACTION_RESULT` | `{ protocolVersion, ok, code }` |
+| 106 | `QUEST_STATE` | `{ protocolVersion, contentHash, requestId?, quests }` |
+| 107 | `INTERACTION_RESULT` | `{ protocolVersion, ok, code, requestId?, targetId? }` |
 | 108 | `SYSTEM_MESSAGE` | `{ protocolVersion, code, message }` |
 
-`FULL_STATE` is sent to the joining presence after character load, and again on `RESYNC_REQUEST`. Occupied matches broadcast `SNAPSHOT` every tick (10 Hz). Each player record includes `x`, `y`, and `lastProcessedSeq` so the local client can ack input. A client that receives no snapshot or full state for **2 seconds** freezes remote interpolation and shows a degraded-connection state (`snapshot_timeout`). Local prediction still reconciles when snapshots resume. There is no combat.
+`FULL_STATE` is sent to the joining presence after character and quest storage load, and again on `RESYNC_REQUEST`. Occupied matches broadcast `SNAPSHOT` every tick (10 Hz). Each player record includes `x`, `y`, and `lastProcessedSeq` so the local client can ack input. `quests` on `FULL_STATE` is the recipient's quest log only. A client that receives no snapshot or full state for **2 seconds** freezes remote interpolation and shows a degraded-connection state (`snapshot_timeout`). Local prediction still reconciles when snapshots resume. There is no combat. Dialogue opens only after `INTERACTION_RESULT` `ok`.
 
 ## Client sends intentions only
 
@@ -95,7 +95,9 @@ Any action that can grant loot, quest rewards, or currency **must** include a cl
 - Replays of the same `requestId` return the original result and must not mutate inventory or wallet again.
 - Missing or malformed `requestId` is rejected as `invalid_request_id`.
 
-`PICKUP`, `QUEST_ACCEPT`, and `QUEST_TURN_IN` are defined but not applied in this phase (`not_implemented`).
+`INTERACT` also requires `requestId` so the client can match `INTERACTION_RESULT` before opening dialogue. It is not a loot grant.
+
+`PICKUP` and `QUEST_TURN_IN` are defined but not applied in this phase (`not_implemented`). `QUEST_ACCEPT` is applied: first success stores accepted progress (`current` 0) and the `requestId`; a replay of the same `requestId` returns `accepted` without writing again; a later `requestId` for the same quest returns `already_accepted` and the current log. Client-supplied `status`, `questComplete`, or reward fields are rejected.
 
 ## Full-state resynchronization
 
@@ -116,7 +118,7 @@ The server rejects:
 - oversized payloads (2048 bytes for client→server match bodies)
 - wrong protocol version
 - wrong content hash
-- missing/malformed `requestId` on reward opcodes
+- missing/malformed `requestId` on `INTERACT` and reward opcodes
 
 Rejections are typed (`unknown_opcode`, `malformed_json`, `unknown_field`, `invalid_id`, `protocol_mismatch`, `content_mismatch`, `payload_too_large`, `unauthenticated`, `invalid_name`, `stat_injection`, `invalid_request_id`, `match_full`, `already_in_match`, `character_missing`, `empty_message`, `message_too_long`, `invalid_payload`, `invalid_channel`). They are logged without tokens or personal data. They are sent as `SYSTEM_MESSAGE` (or join reject) and never crash the match.
 
@@ -135,7 +137,7 @@ Authenticated HTTP/RPC only. Payload is empty or `{}`. Returns `{ matchId, zoneI
 - Tick rate: **10 Hz**
 - Maximum players: **8**
 - Empty-match shutdown: **30 seconds** (300 ticks) after the last presence leaves, or if nobody ever joins
-- Join loads the character from storage once. The tick loop does not read storage
+- Join loads the character and quest storage once. The tick loop does not read storage. Quest acceptance writes `collection` `player`, key `quests`, `permissionWrite: 0`.
 - Join metadata must include matching `protocolVersion` and `contentHash`
 - A second socket for an account already in the match is rejected with `already_in_match`. True reconnect of the same session is allowed. The same account cannot occupy two presences.
 - Players spawn at their saved position, or the zone default if that is what was stored

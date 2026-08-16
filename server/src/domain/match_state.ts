@@ -1,5 +1,12 @@
 import { PROTOCOL_VERSION, ServerOpcode } from "./protocol";
 import { PLAYER_HALF_EXTENT, SNAPSHOT_RATE_HZ, type Aabb } from "./movement";
+import {
+  cloneQuestLog,
+  emptyQuestLog,
+  publicQuestPayloads,
+  type QuestDefinition,
+  type QuestLog,
+} from "./quest";
 
 export const STARTER_ZONE_ID = "zone.starter";
 export const STARTER_ZONE_LABEL = "zone.starter";
@@ -29,6 +36,7 @@ export interface MatchPlayer {
   lastProcessedSeq: number;
   axisX: number;
   axisY: number;
+  questLog: QuestLog;
 }
 
 export interface MatchNpc {
@@ -66,6 +74,8 @@ export interface StarterZoneState {
   collisions: Aabb[];
   moveSpeed: number;
   playerHalfExtent: number;
+  interactionRange: number;
+  questsById: { [id: string]: QuestDefinition };
 }
 
 export interface ZoneSpawnContent {
@@ -86,6 +96,7 @@ export interface PlayerContent {
   id: string;
   maxHealth: number;
   moveSpeed: number;
+  interactionRange: number;
 }
 
 export function createStarterZoneState(
@@ -93,6 +104,7 @@ export function createStarterZoneState(
   zone: ZoneSpawnContent,
   enemiesById: { [id: string]: EnemyContent },
   playerContent: PlayerContent,
+  questsById: { [id: string]: QuestDefinition },
 ): StarterZoneState {
   const npcs: MatchNpc[] = [];
   for (let i = 0; i < zone.npcs.length; i++) {
@@ -140,6 +152,8 @@ export function createStarterZoneState(
     collisions: collisions,
     moveSpeed: playerContent.moveSpeed,
     playerHalfExtent: PLAYER_HALF_EXTENT,
+    interactionRange: playerContent.interactionRange,
+    questsById: questsById,
   };
 }
 
@@ -177,6 +191,7 @@ export function buildFullState(state: StarterZoneState, tick: number, selfId: st
     npcs: state.npcs,
     enemies: state.enemies,
     loot: state.loot,
+    quests: questsFor(state, selfId),
   });
 }
 
@@ -242,6 +257,7 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
       lastProcessedSeq: p.lastProcessedSeq,
       axisX: p.axisX,
       axisY: p.axisY,
+      questLog: cloneQuestLog(p.questLog !== undefined ? p.questLog : emptyQuestLog()),
     };
   }
   return {
@@ -256,5 +272,15 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     collisions: state.collisions,
     moveSpeed: state.moveSpeed,
     playerHalfExtent: state.playerHalfExtent,
+    interactionRange: state.interactionRange,
+    questsById: state.questsById,
   };
+}
+
+function questsFor(state: StarterZoneState, selfId: string): { [key: string]: unknown }[] {
+  const player = state.players[selfId];
+  if (player === undefined) {
+    return [];
+  }
+  return publicQuestPayloads(player.questLog, state.questsById);
 }

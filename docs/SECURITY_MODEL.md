@@ -50,7 +50,13 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Attack:** Client sends `questComplete` or a later stage ID.
 
-**Defense:** Client may send an interact/turn-in intention. The server checks current stage, objectives, and target NPC ID.
+**Defense:** Client may send an interact or `QUEST_ACCEPT` intention. The server checks current stage, objectives, and target NPC ID using server positions. `status`, `questComplete`, and reward fields on the client payload are rejected. Dialogue Manager does not own quest state.
+
+### Fabricated NPC interaction
+
+**Attack:** Client opens dialogue locally, or sends `INTERACT` / `QUEST_ACCEPT` from across the map.
+
+**Defense:** The client may pick a nearby NPC for usability, but dialogue opens only after `INTERACTION_RESULT` `ok`. The match validates NPC existence, Euclidean distance from server poses against `player.base.interactionRange` (48), and rejects `health <= 0`. Out-of-range and unknown NPC IDs return `out_of_range` / `invalid_target` and do not open dialogue.
 
 ### Invalid target IDs
 

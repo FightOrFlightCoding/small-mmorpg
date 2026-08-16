@@ -1,7 +1,9 @@
 import { content, contentHash } from "../generated/content";
 import { readCharacter } from "./character_store";
+import { readQuests, writeQuests } from "./quest_store";
 import { validateJoinAttempt } from "../domain/join_validation";
 import { applyMatchLoop, snapshotForOthers, type IncomingMatchData } from "../domain/match_loop";
+import { questDefinitionsFromContent } from "../domain/quest";
 import {
   MATCH_TICK_RATE,
   STARTER_ZONE_LABEL,
@@ -31,11 +33,18 @@ export function matchInit(
     const id = enemyIds[i];
     enemiesById[id] = { id: id, maxHealth: content.enemies[id as keyof typeof content.enemies].maxHealth };
   }
-  const zone = createStarterZoneState(contentHash, content.zones["zone.starter"], enemiesById, {
-    id: content.player.id,
-    maxHealth: content.player.maxHealth,
-    moveSpeed: content.player.moveSpeed,
-  });
+  const zone = createStarterZoneState(
+    contentHash,
+    content.zones["zone.starter"],
+    enemiesById,
+    {
+      id: content.player.id,
+      maxHealth: content.player.maxHealth,
+      moveSpeed: content.player.moveSpeed,
+      interactionRange: content.player.interactionRange,
+    },
+    questDefinitionsFromContent(content.quests),
+  );
   logger.info("starter_zone init label=%s content_hash=%s", STARTER_ZONE_LABEL, contentHash);
   return {
     state: { zone: zone, presences: {} },
@@ -121,6 +130,7 @@ export function matchJoin(
       lastProcessedSeq: 0,
       axisX: 0,
       axisY: 0,
+      questLog: readQuests(nk, presence.userId),
     };
     zone = addPlayer(zone, player);
     joined.push(presence);
@@ -190,6 +200,11 @@ export function matchLoop(
     });
   }
   const result = applyMatchLoop(state.zone, tick, contentHash, incoming);
+  for (let p = 0; p < result.persistQuests.length; p++) {
+    const persist = result.persistQuests[p];
+    writeQuests(nk, persist.userId, persist.log);
+    logger.info("starter_zone persist quests user_id=%s", persist.userId);
+  }
   for (let i = 0; i < result.outbound.length; i++) {
     const out = result.outbound[i];
     const targets = resolveTargets(state.presences, out.toUserId, out.broadcastOthersFrom);

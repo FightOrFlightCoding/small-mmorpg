@@ -9,6 +9,9 @@ signal zone_join_finished(success: bool, message: String)
 signal chat_message_received(payload: Dictionary)
 signal chat_presence_received(payload: Dictionary)
 signal chat_error(code: String, message: String)
+signal interaction_result_received(payload: Dictionary)
+signal action_result_received(payload: Dictionary)
+signal quest_state_received(payload: Dictionary)
 signal logged_out
 
 const CHARACTER_BOOTSTRAP_RPC := "character_bootstrap"
@@ -129,6 +132,27 @@ func send_input(seq: int, axis_x: float, axis_y: float) -> Dictionary:
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_INPUT,
 		MoveIntent.payload_json(seq, Vector2(axis_x, axis_y))
+	)
+
+
+func send_interact(target_id: String, request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_INTERACT,
+		MatchProtocol.client_envelope_json({"targetId": target_id, "requestId": request_id})
+	)
+
+
+func send_quest_accept(quest_id: String, request_id: String = "") -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var rid := request_id
+	if rid.is_empty():
+		rid = MatchProtocol.new_request_id()
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_QUEST_ACCEPT,
+		MatchProtocol.client_envelope_json({"questId": quest_id, "requestId": rid})
 	)
 
 
@@ -366,6 +390,30 @@ func _on_match_state(opcode: int, payload: String) -> void:
 		var message := String(sys.get("message", "The server rejected the request."))
 		if MatchProtocol.is_compatibility_code(code):
 			_fail_zone({"code": code, "message": message})
+			return
+		AppState.report_recoverable(code, message)
+		return
+	if opcode == MatchProtocol.SERVER_INTERACTION_RESULT:
+		var interaction: Dictionary = MatchProtocol.parse_interaction_result(payload)
+		if not bool(interaction.get("ok", false)):
+			AppState.report_recoverable(String(interaction.get("code", "interaction_failed")), String(interaction.get("message", "Interaction failed.")))
+			return
+		interaction_result_received.emit(interaction)
+		return
+	if opcode == MatchProtocol.SERVER_ACTION_RESULT:
+		var action: Dictionary = MatchProtocol.parse_action_result(payload)
+		if not bool(action.get("ok", false)):
+			AppState.report_recoverable(String(action.get("code", "action_failed")), String(action.get("message", "The action failed.")))
+			return
+		action_result_received.emit(action)
+		return
+	if opcode == MatchProtocol.SERVER_QUEST_STATE:
+		var quests: Dictionary = MatchProtocol.parse_quest_state(payload)
+		if not bool(quests.get("ok", false)):
+			AppState.report_recoverable(String(quests.get("code", "quest_state_failed")), String(quests.get("message", "Quest state was invalid.")))
+			return
+		quest_state_received.emit(quests)
+		return
 
 
 func _wait_for_full_state(timeout_sec: float) -> bool:

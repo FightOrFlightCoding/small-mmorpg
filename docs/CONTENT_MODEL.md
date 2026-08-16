@@ -66,15 +66,17 @@ The Godot `ContentRegistry` loads `res://content/bundle.json` at boot and reject
 
 Canonical character data lives in Nakama storage, not in Godot `user://`.
 
-| Field | Value |
-| --- | --- |
-| Collection | `player` |
-| Key | `character` |
-| Owner | Authenticated Nakama user id |
-| `permissionRead` | `1` (owner) |
-| `permissionWrite` | `0` (server only) |
+| Field | Character | Quests |
+| --- | --- | --- |
+| Collection | `player` | `player` |
+| Key | `character` | `quests` |
+| Owner | Authenticated Nakama user id | Authenticated Nakama user id |
+| `permissionRead` | `1` (owner) | `1` (owner) |
+| `permissionWrite` | `0` (server only) | `0` (server only) |
 
-There is exactly one object per account. The storage key is `character`; the character id is a server-generated UUID stored in the value. The value stores `characterId`, `name`, `contentId`, `zoneId`, and `position`. It does not store client-supplied stats. RPC `character_bootstrap` is the only writer. Base stats in the RPC response always come from content `player.base`.
+There is exactly one character object per account. The storage key is `character`; the character id is a server-generated UUID stored in the value. The value stores `characterId`, `name`, `contentId`, `zoneId`, and `position`. It does not store client-supplied stats. RPC `character_bootstrap` is the only writer of that object. Base stats in the RPC response always come from content `player.base`.
+
+Quest progress is a second object (`key` `quests`), loaded when the player joins `zone.starter` and written when `QUEST_ACCEPT` first succeeds. The Godot client must not write either object.
 
 ## Reproduction
 

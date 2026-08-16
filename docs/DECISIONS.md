@@ -45,7 +45,7 @@ Image is `postgres:16.15-alpine`. Host port 5432 is not published; Nakama talks 
 
 ## 2026-08-15 — TypeScript runtime bundle
 
-Nakama 3.40.0 requires a global `function InitModule` and RPC handlers as named function declarations. The official path is Rollup + Babel `@babel/preset-env` to ES5, `output.format: "cjs"`, and `runtime.js_entrypoint: "build/index.js"`. `registerRpc` IDs are string literals. Bundled `server/src` must not use Node `fs`, `process`, `crypto`, or other Node APIs. TypeScript is pinned at 5.8.3. The Docker builder is `node:20.20.2-alpine`. Rollup `treeshake` is disabled so the generated content catalog is not stripped down to the few fields `InitModule` currently reads.
+Nakama 3.40.0 requires a global `function InitModule` and RPC handlers as named function declarations. The official path is Rollup + Babel `@babel/preset-env` to ES5, `output.format: "cjs"`, and `runtime.js_entrypoint: "build/index.js"`. `registerRpc` IDs are string literals. `registerRtBefore` / `registerRtAfter` must be called with string literals and top-level named function identifiers **inside `InitModule`**. Nakama parses that function's AST and cannot extract hook keys from a helper such as `registerChatHooks(initializer)`. A missing key crash-loops the container (`js realtime registerRtBefore hook function key could not be extracted: not found`). Bundled `server/src` must not use Node `fs`, `process`, `crypto`, or other Node APIs. TypeScript is pinned at 5.8.3. The Docker builder is `node:20.20.2-alpine`. Rollup `treeshake` is disabled so the generated content catalog is not stripped down to the few fields `InitModule` currently reads.
 
 ## 2026-08-15 — Local Nakama Console credentials
 
@@ -153,6 +153,17 @@ Nakama does not hot-reload `server/build/index.js`. A container started against 
 
 Zone chat uses Nakama room channels, not match opcodes. After a valid `FULL_STATE`, the client joins room `zone.starter` (`ChannelType.Room`, persistence false, hidden false) and leaves on logout. Join and send failures are recoverable and visible. Message and presence socket signals are connected once per backend.
 
-Chat content is `{ "message": string }`. A `ChannelMessageSend` realtime before hook rejects empty bodies, bodies longer than 200 characters, non-object JSON, and extra fields. A `ChannelJoin` before hook allows only room `zone.starter`. The TypeScript hook is stateless (no module-level maps). Client length checks are convenience only.
+Chat content is `{ "message": string }`. A `ChannelMessageSend` realtime before hook rejects empty bodies, bodies longer than 200 characters, non-object JSON, and extra fields. A `ChannelJoin` before hook allows only room `zone.starter`. The TypeScript hook is stateless (no module-level maps). Client length checks are convenience only. `InitModule` registers those hooks directly; wrapping `registerRtBefore` in another function makes Nakama fail to start.
 
 History is a bounded `Label` (50 lines). Sender names come from the channel username or the zone player list. Timestamps use the Nakama `create_time` hour and minute. Enter focuses the input when it is not focused; Escape releases it; focused input does not move the local avatar. User text is never parsed as BBCode. There are no parties, private messages, or moderation tools.
+
+## 2026-08-16 — NPC interaction and quest acceptance
+
+`INTERACT` requires `{ protocolVersion, targetId, requestId }`. The match looks up the NPC in live zone state, measures Euclidean distance from **server** player and NPC positions against `player.base.interactionRange` (48), and rejects `health <= 0`. Codes: `ok`, `out_of_range`, `invalid_target`, `player_dead`. The client may pick the nearest NPC for usability; `DialoguePresenter` opens the elder balloon only after a matching `INTERACTION_RESULT` `ok`.
+
+Elder lines live in `client/content/dialogue/npc.elder.dialogue` mapped by `client/content/dialogue_map.json` (`dialogue.npc.elder`). That map is client-only and is not part of the content hash. Accept/decline choices are local text. Accept runs `QuestService.request_accept("quest.slime_problem")`, which sends `QUEST_ACCEPT` and does not write the journal.
+
+Quest progress is stored at collection `player`, key `quests`, `permissionRead: 1`, `permissionWrite: 0`. The match loads it on join and writes it when acceptance first succeeds or when a new `requestId` is recorded for an already-accepted quest. Duplicate `requestId` replays `accepted` with no extra write. A second `requestId` returns `already_accepted` and the current log. Unknown quest IDs are `invalid_id`. Client `status` / `questComplete` fields are protocol rejections. Turn-in, loot apply, and combat are not in this phase.
+
+The journal is a `WorldHud` panel (title, state, objective, current/required, turn-in NPC) bound to `QuestService`. Dialogue Manager is not a quest authority. QuestSystem is not used.
+

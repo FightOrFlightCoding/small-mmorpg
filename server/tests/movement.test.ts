@@ -11,6 +11,7 @@ import {
 } from "../src/domain/match_state";
 import { intendedDelta, sanitizeAxes } from "../src/domain/movement";
 import { ClientOpcode, PROTOCOL_VERSION, ServerOpcode, isProtocolError, parseClientMessage } from "../src/domain/protocol";
+import { emptyQuestLog, questDefinitionsFromContent } from "../src/domain/quest";
 
 function enemiesById() {
   const map: { [id: string]: { id: string; maxHealth: number } } = {};
@@ -27,7 +28,8 @@ function emptyZone(): StarterZoneState {
     id: content.player.id,
     maxHealth: content.player.maxHealth,
     moveSpeed: content.player.moveSpeed,
-  });
+    interactionRange: content.player.interactionRange,
+  }, questDefinitionsFromContent(content.quests));
 }
 
 function playerAt(userId: string, name: string, x: number, y: number): MatchPlayer {
@@ -44,6 +46,7 @@ function playerAt(userId: string, name: string, x: number, y: number): MatchPlay
     lastProcessedSeq: 0,
     axisX: 0,
     axisY: 0,
+    questLog: emptyQuestLog(),
   };
 }
 

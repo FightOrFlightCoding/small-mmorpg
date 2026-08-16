@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Starter-zone room chat**.
+Last accepted phase: **NPC interaction, dialogue, and quest acceptance**.
 
 Current phase: none requested. Do not add combat until asked.
 
@@ -135,3 +135,26 @@ powershell -File ..\scripts\run-client-shell.ps1
 ```
 
 Local play: two clients with `-- --dev-user=alice` and `-- --dev-user=bob`. Each can send a zone chat line the other receives. Restart Nakama after this build so the chat before hooks load.
+
+## NPC interaction, dialogue, and quest acceptance (2026-08-16)
+
+Press **E** near `npc.elder`. The client picks the nearest NPC for usability, then sends `INTERACT` with `targetId` and `requestId`. The match validates NPC existence, Euclidean distance from **server** poses against `player.base.interactionRange` (48), and rejects dead players. Spawn is out of range of the elder; walking away and sending a fabricated interact is `out_of_range`. `DialoguePresenter` opens the elder balloon only after a matching `INTERACTION_RESULT` `ok`.
+
+Elder dialogue (greeting, explanation, accept/decline, in-progress, ready-to-turn-in, completed) is local `client/content/dialogue/npc.elder.dialogue`. Accept sends `QUEST_ACCEPT` through `QuestService.request_accept` and does not mutate the journal. QuestSystem is not used. The HUD journal shows title, state, objective, current/required counts, and turn-in NPC from server `QUEST_STATE` / `FULL_STATE`.
+
+The server validates `quest.slime_problem`, elder range, and creates accepted progress once (`current` 0 / `required` 1). Duplicate `requestId` is idempotent; a later accept returns `already_accepted`. Unknown quest IDs are `invalid_id`. Client `status` / `questComplete` fields are rejected. Progress persists at collection `player`, key `quests`, `permissionWrite: 0`, loaded on join so relog restores the accepted quest. Turn-in, loot, and combat are not in this phase.
+
+Server `npm test` 74/74, `npm run typecheck`, and `npm run build` succeeded. Godot 4.7.1 imported `client/`, printed `SHELL_LOGIN`, and GdUnit4 ran `res://tests` with 85/85 passed.
+
+Reproduction:
+
+```powershell
+Set-Location server
+npm test
+npm run build
+powershell -File ..\scripts\backend-up.ps1
+powershell -File ..\scripts\run-client-shell.ps1
+```
+
+Local play: start the stack, walk to the elder (spawn is too far), press E, accept **Slime Problem**. The journal should show the accepted quest. Relog should restore it. Restart Nakama after this build so the match module loads.
+

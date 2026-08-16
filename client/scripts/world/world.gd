@@ -10,6 +10,7 @@ extends Node2D
 @onready var _error_dialog: CanvasLayer = $ErrorDialog
 @onready var _loading_overlay: CanvasLayer = $LoadingOverlay
 @onready var _overlay: NetDebugOverlay = $NetDebugOverlay
+@onready var _dialogue: DialoguePresenter = $DialoguePresenter
 
 var _input_seq: int = 0
 var _input_accum: float = 0.0
@@ -42,6 +43,7 @@ func _ready() -> void:
 	if _chat != null:
 		_chat.send_requested.connect(_on_chat_send_requested)
 	_connect_chat_signals()
+	_connect_interaction_signals()
 	_entities.follow_camera = _camera
 	_sim = MovementSim.from_content()
 	_reconciler = MovementReconciler.new(_sim)
@@ -57,7 +59,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_frame_ms = delta * 1000.0
 	var axis := Vector2.ZERO
-	if _chat == null or not _chat.has_input_focus():
+	if not _input_blocked():
 		axis = MoveIntent.read_axes()
 	if not NetworkService.match_id.is_empty():
 		_entities.pose_local(_reconciler.advance(delta, axis))
@@ -85,6 +87,7 @@ func _exit_tree() -> void:
 	if AppState.zone_state_updated.is_connected(_on_zone_state_updated):
 		AppState.zone_state_updated.disconnect(_on_zone_state_updated)
 	_disconnect_chat_signals()
+	_disconnect_interaction_signals()
 
 
 func _render_zone_geometry() -> void:
@@ -118,6 +121,7 @@ func _apply_zone_state() -> void:
 		_buffer.push(int(state.get("tick", 0)), _remote_poses(state))
 	_last_tick = int(state.get("tick", _last_tick))
 	_hud.refresh(state, _entities.summaries(), false)
+	_hud.refresh_journal(QuestService.journal_view())
 
 
 func _reset_prediction(state: Dictionary) -> void:
@@ -224,6 +228,95 @@ func _refresh_overlay() -> void:
 	_overlay.protocol_version = MatchProtocol.VERSION
 	_overlay.content_hash_prefix = hash.substr(0, 8) if hash.length() >= 8 else hash
 	_overlay.refresh()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("interact"):
+		try_interact()
+		get_viewport().set_input_as_handled()
+
+
+func _input_blocked() -> bool:
+	if _chat != null and _chat.has_input_focus():
+		return true
+	if _dialogue != null and _dialogue.is_open():
+		return true
+	return false
+
+
+func try_interact() -> void:
+	if _input_blocked() or NetworkService.match_id.is_empty():
+		return
+	var npc_id := InteractIntent.nearest_npc_id(_reconciler.display, AppState.zone_view.get("npcs", []))
+	if npc_id.is_empty():
+		return
+	var request_id := MatchProtocol.new_request_id()
+	if _dialogue != null:
+		_dialogue.note_intent(npc_id, request_id)
+	NetworkService.send_interact(npc_id, request_id)
+
+
+func _connect_interaction_signals() -> void:
+	if not NetworkService.interaction_result_received.is_connected(_on_interaction_result):
+		NetworkService.interaction_result_received.connect(_on_interaction_result)
+	if not NetworkService.action_result_received.is_connected(_on_action_result):
+		NetworkService.action_result_received.connect(_on_action_result)
+	if not QuestService.quests_changed.is_connected(_on_quests_changed):
+		QuestService.quests_changed.connect(_on_quests_changed)
+
+
+func _disconnect_interaction_signals() -> void:
+	if NetworkService.interaction_result_received.is_connected(_on_interaction_result):
+		NetworkService.interaction_result_received.disconnect(_on_interaction_result)
+	if NetworkService.action_result_received.is_connected(_on_action_result):
+		NetworkService.action_result_received.disconnect(_on_action_result)
+	if QuestService.quests_changed.is_connected(_on_quests_changed):
+		QuestService.quests_changed.disconnect(_on_quests_changed)
+
+
+func _on_interaction_result(payload: Dictionary) -> void:
+	if not bool(payload.get("result_ok", false)):
+		AppState.report_recoverable(String(payload.get("code", "interaction_failed")), _interaction_message(payload))
+		if _dialogue != null:
+			_dialogue.handle_interaction_result(payload)
+		return
+	if _dialogue != null:
+		_dialogue.handle_interaction_result(payload)
+
+
+func _on_action_result(payload: Dictionary) -> void:
+	if bool(payload.get("result_ok", false)):
+		return
+	var code := String(payload.get("code", "action_failed"))
+	if code == "not_implemented":
+		return
+	AppState.report_recoverable(code, _quest_message(code))
+
+
+func _on_quests_changed() -> void:
+	if _hud != null:
+		_hud.refresh_journal(QuestService.journal_view())
+
+
+func _interaction_message(payload: Dictionary) -> String:
+	var code := String(payload.get("code", ""))
+	if code == "out_of_range":
+		return "Too far from that NPC."
+	if code == "invalid_target":
+		return "That NPC is not here."
+	if code == "player_dead":
+		return "You cannot talk while defeated."
+	return "The server rejected that interaction."
+
+
+func _quest_message(code: String) -> String:
+	if code == "out_of_range":
+		return "Too far from the elder to accept the quest."
+	if code == "invalid_id":
+		return "That quest is not available."
+	if code == "player_dead":
+		return "You cannot accept a quest while defeated."
+	return "The server rejected that quest action."
 
 
 func _connect_chat_signals() -> void:

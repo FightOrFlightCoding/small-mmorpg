@@ -49,3 +49,35 @@ text = "Resync"
 [node name="LogoutButton" type="Button" parent="Root/Margin/VBox/Buttons"]
 layout_mode = 2
 text = "Log out"
+
+[node name="Journal" type="PanelContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -320.0
+offset_top = 12.0
+offset_right = -16.0
+offset_bottom = 188.0
+grow_horizontal = 0
+
+[node name="Margin" type="MarginContainer" parent="Root/Journal"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="Root/Journal/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Heading" type="Label" parent="Root/Journal/Margin/VBox"]
+layout_mode = 2
+text = "Quest"
+
+[node name="Body" type="Label" parent="Root/Journal/Margin/VBox"]
+layout_mode = 2
+text = "No active quest."
+autowrap_mode = 3
+

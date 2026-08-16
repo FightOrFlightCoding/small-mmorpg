@@ -1,11 +1,6 @@
 import { filterChannelJoin, filterChannelMessageSend } from "../domain/chat";
 
-export function registerChatHooks(initializer: nkruntime.Initializer): void {
-  initializer.registerRtBefore("ChannelMessageSend", beforeChannelMessageSend);
-  initializer.registerRtBefore("ChannelJoin", beforeChannelJoin);
-}
-
-function beforeChannelMessageSend(
+export function beforeChannelMessageSend(
   ctx: nkruntime.Context,
   logger: nkruntime.Logger,
   _nk: nkruntime.Nakama,
@@ -20,7 +15,7 @@ function beforeChannelMessageSend(
   }
 }
 
-function beforeChannelJoin(
+export function beforeChannelJoin(
   ctx: nkruntime.Context,
   logger: nkruntime.Logger,
   _nk: nkruntime.Nakama,

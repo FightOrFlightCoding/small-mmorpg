@@ -118,14 +118,22 @@ test("content hash mismatch is rejected", () => {
   }
 });
 
-test("reward requests require a unique requestId", () => {
-  const missing = parse(
+test("reward and interact requests require a unique requestId", () => {
+  const missingPickup = parse(
     ClientOpcode.PICKUP,
     JSON.stringify({ protocolVersion: PROTOCOL_VERSION, lootId: "loot.1" }),
   );
-  assert.equal(isProtocolError(missing), true);
-  if (isProtocolError(missing)) {
-    assert.equal(missing.code, "invalid_request_id");
+  assert.equal(isProtocolError(missingPickup), true);
+  if (isProtocolError(missingPickup)) {
+    assert.equal(missingPickup.code, "invalid_request_id");
+  }
+  const missingInteract = parse(
+    ClientOpcode.INTERACT,
+    JSON.stringify({ protocolVersion: PROTOCOL_VERSION, targetId: "npc.elder" }),
+  );
+  assert.equal(isProtocolError(missingInteract), true);
+  if (isProtocolError(missingInteract)) {
+    assert.equal(missingInteract.code, "invalid_request_id");
   }
   const valid = parse(
     ClientOpcode.QUEST_ACCEPT,
@@ -150,10 +158,42 @@ test("stat injection keys are rejected", () => {
 });
 
 test("invalid target ids are rejected", () => {
-  const parsed = parse(ClientOpcode.INTERACT, JSON.stringify({ protocolVersion: PROTOCOL_VERSION, targetId: 12 }));
+  const parsed = parse(
+    ClientOpcode.INTERACT,
+    JSON.stringify({ protocolVersion: PROTOCOL_VERSION, targetId: 12, requestId: "req-interact-1" }),
+  );
   assert.equal(isProtocolError(parsed), true);
   if (isProtocolError(parsed)) {
     assert.equal(parsed.code, "invalid_id");
+  }
+});
+
+test("quest completion injection is rejected", () => {
+  const completed = parse(
+    ClientOpcode.QUEST_ACCEPT,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      questId: "quest.slime_problem",
+      requestId: "req-complete-1",
+      status: "completed",
+    }),
+  );
+  assert.equal(isProtocolError(completed), true);
+  if (isProtocolError(completed)) {
+    assert.equal(completed.code, "unknown_field:status");
+  }
+  const flag = parse(
+    ClientOpcode.QUEST_ACCEPT,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      questId: "quest.slime_problem",
+      requestId: "req-complete-2",
+      questComplete: true,
+    }),
+  );
+  assert.equal(isProtocolError(flag), true);
+  if (isProtocolError(flag)) {
+    assert.equal(flag.code, "stat_injection:questComplete");
   }
 });
 

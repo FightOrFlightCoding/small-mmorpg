@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/world.gd" id="1_world"]
 [ext_resource type="Script" path="res://scripts/world/zone_view.gd" id="2_zone"]
@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://scenes/shared/loading_overlay.tscn" id="6_loading"]
 [ext_resource type="PackedScene" path="res://scenes/world/net_debug_overlay.tscn" id="7_overlay"]
 [ext_resource type="PackedScene" path="res://scenes/world/chat_panel.tscn" id="8_chat"]
+[ext_resource type="Script" path="res://scripts/dialogue/dialogue_presenter.gd" id="9_dialogue"]
 
 [node name="World" type="Node2D"]
 script = ExtResource("1_world")
@@ -29,3 +30,6 @@ position = Vector2(640, 384)
 [node name="LoadingOverlay" parent="." instance=ExtResource("6_loading")]
 
 [node name="NetDebugOverlay" parent="." instance=ExtResource("7_overlay")]
+
+[node name="DialoguePresenter" type="Node" parent="."]
+script = ExtResource("9_dialogue")
