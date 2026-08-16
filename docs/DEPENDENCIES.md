@@ -255,3 +255,18 @@ Expected: content-build tests 9/9, generator prints `content_hash=` plus a 64-ch
 | Upgrade policy | Locked |
 
 Installed-tree SHA-256 values are SHA-256 of a sorted `hash length relative-path` listing of every file in the addon folder as extracted from the pinned archive, before Godot generated extra `.uid`/`.import` sidecars.
+
+## Reproduction commands (vertical slice gate)
+
+From the repo root, with Node `>=20.20.0`, Docker Desktop, and Godot 4.7.1:
+
+```powershell
+powershell -File scripts/test-all.ps1
+```
+
+```bash
+bash scripts/test-all.sh
+```
+
+Expected: content tests pass and hashes match (`3db1de356fc85fb6eb96489ddc04f47049b906ef915d2baa241cae38159a6e85` for the current source), server tests pass, client prints `SHELL_LOGIN` and GdUnit4 passes with 0 orphans, then `E2E_SLICE_OK`. Any failed step exits nonzero. The e2e driver starts Nakama if the health RPC is down.
+

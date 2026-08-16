@@ -81,8 +81,8 @@ Quest progress is a second object (`key` `quests`), loaded when the player joins
 ## Reproduction
 
 ```powershell
+powershell -File scripts/test-content.ps1
 powershell -File scripts/content-build.ps1
-powershell -File scripts/content-test.ps1
 ```
 
-Valid source must succeed. Invalid fixtures in `tools/content-build/tests` must fail for `duplicate_id`, `missing_reference`, `invalid_range`, `unknown_equipment_slot`, and `duplicate_quest_reward`.
+Valid source must succeed. Invalid fixtures in `tools/content-build/tests` must fail for `duplicate_id`, `missing_reference`, `invalid_range`, `unknown_equipment_slot`, and `duplicate_quest_reward`. `scripts/test-content` and `scripts/test-all` also assert `client/content/bundle.json` and `server/src/generated/content.ts` share the same 64-hex `contentHash`. Regenerating twice from unchanged source must stay byte-identical.

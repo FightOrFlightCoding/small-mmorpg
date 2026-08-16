@@ -121,6 +121,7 @@ func _apply_zone_state() -> void:
 	_snapshot_stale = false
 	var state: Dictionary = AppState.zone_view
 	if AppState.zone_view_is_full:
+		_adopt_ack_seq(int(state.get("ack_seq", 0)))
 		_entities.apply_full_state(state)
 		_reset_prediction(state)
 		_buffer.clear()
@@ -128,6 +129,7 @@ func _apply_zone_state() -> void:
 	else:
 		_entities.apply_snapshot(state)
 		var ack := int(state.get("ack_seq", 0))
+		_adopt_ack_seq(ack)
 		var result: Dictionary = _reconciler.reconcile(_local_server_pos(state), ack)
 		_entities.pose_local(result["display"])
 		_update_ping(ack)
@@ -136,6 +138,10 @@ func _apply_zone_state() -> void:
 	_hud.refresh(state, _entities.summaries(), false)
 	_hud.refresh_journal(QuestService.journal_view())
 	_hud.refresh_inventory()
+
+
+func _adopt_ack_seq(ack: int) -> void:
+	_input_seq = MatchProtocol.next_input_seq(_input_seq, ack)
 
 
 func _reset_prediction(state: Dictionary) -> void:

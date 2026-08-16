@@ -49,3 +49,6 @@ Godot `4.7.1.stable.official.a13da4feb` imported `client/` without parser errors
 | Folder | Package | Version | Official source | Archive SHA-256 | License | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | `client/assets/third_party/kenney_rpg_base/` | Kenney RPG Base | 1.0 | https://kenney.nl/assets/rpg-base | `49759ab087fdc28d8357010e0f2a17d1c9db61c8fe9b320da965acdfbc298ef5` | CC0 1.0 | Unpacked official zip. Gameplay uses visual IDs only. Reinstall steps are in that folder's `README.md`. |
+
+The end-to-end phase added no packages. Headless slice clients use the already-pinned Nakama Godot SDK.
+

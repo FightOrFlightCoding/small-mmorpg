@@ -84,9 +84,10 @@ Those keys are rejected as `stat_injection:<key>`.
 
 Prediction is client presentation only. `INPUT` still carries direction and sequence. The client applies the same speed, dt, and AABB rules as the match, stores unacked commands, and on each `SNAPSHOT` / `FULL_STATE`:
 
-1. Drops commands with `seq <= lastProcessedSeq`.
-2. Replays remaining commands from the server pose.
-3. Leaves the display pose if error ≤ 0.5 px, blends toward the replayed pose if error ≤ 24 px, and snaps if error is larger.
+1. Sets local `INPUT` seq to `max(current, lastProcessedSeq)` so a recreated world never sends sequence numbers the match will ignore.
+2. Drops commands with `seq <= lastProcessedSeq`.
+3. Replays remaining commands from the server pose.
+4. Leaves the display pose if error ≤ 0.5 px, blends toward the replayed pose if error ≤ 24 px, and snaps if error is larger.
 
 Remote entities are sampled from one snapshot buffer (max 8 frames) keyed `kind:id`. The render tick is an estimated server tick (`latest + time since that snapshot / 0.1`) minus one snapshot, clamped to the latest received tick so sampling stays between frames and never extrapolates. After 2 seconds without a snapshot the buffer freezes and the HUD reports a degraded connection. Enemy poses and health come from `SNAPSHOT`; the client does not run slime AI. There is no combat prediction.
 
@@ -143,7 +144,9 @@ Authenticated HTTP/RPC only. Payload is empty or `{}`. Returns `{ matchId, zoneI
 - Empty-match shutdown: **30 seconds** (300 ticks) after the last presence leaves, or if nobody ever joins
 - Join loads the character, quest, inventory, equipment, and wallet once. The tick loop does not read storage. Quest acceptance and objective progress write `collection` `player`, key `quests`, `permissionWrite: 0`. Successful pickup writes `collection` `player`, key `inventory`, `permissionWrite: 0`. Successful equip or unequip writes `collection` `player`, key `equipment`, `permissionWrite: 0`. Successful turn-in uses `nk.multiUpdate` for inventory, quests, and wallet gold together. Position checkpoints write `collection` `player`, key `character` every 5 seconds if the pose changed, on leave, and on match terminate. Ground loot is match-only and is not persisted. Health is not written.
 - Join metadata must include matching `protocolVersion` and `contentHash`
-- A second socket for an account already in the match is rejected with `already_in_match`. True reconnect of the same session is allowed. After leave, a new session may rejoin: within **5 seconds** the match restores live pose and health from grace memory; after that, or after a new match, it loads the checkpointed position and full health. If a live player record remains but the presence is already gone, join is treated as reconnect rather than `already_in_match`. The same account cannot occupy two visible presences. Snapshots omit disconnected players immediately.
+- A second socket for an account already in the match is rejected with `already_in_match`. True reconnect of the same session is allowed. After leave, a new session may rejoin: within **5 seconds** the match restores live pose and health from grace memory but resets `lastProcessedSeq` (a new Godot world starts sending seq 1). Same-session resume keeps `lastProcessedSeq`. After grace, or after a new match, join loads the checkpointed position and full health. If a live player record remains but the presence is already gone, join is treated as reconnect rather than `already_in_match`; a different sessionId on that live record also resets `lastProcessedSeq`. The same account cannot occupy two visible presences. Snapshots omit disconnected players immediately.
+- Logout waits for match leave, shows **Leaving…**, then returns to login. There is no extra multi-second logout delay; new-session sequence reset is what makes an immediate rejoin movable.
+- Debug builds may run `res://scenes/e2e/e2e_slice.tscn` with `--e2e-slice`. That driver opens two device-auth sessions and sends the documented opcodes only. Release builds refuse it. It does not grant items, complete quests, or move the player without match validation.
 - Abandoned pickup, equip, and quest `requestId` history is pruned after **10 minutes** (`6000` ticks) and is not scanned every tick.
 - Per-player action counters live in match state and enforce the documented 1-second windows. They are not TypeScript globals.
 - Players spawn at their saved position, or the zone default if that is what was stored

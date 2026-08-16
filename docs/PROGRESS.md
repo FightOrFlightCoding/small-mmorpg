@@ -1,8 +1,10 @@
 # Progress
 
-Last accepted phase: **Security and abuse test pass**.
+Last accepted phase: **End-to-end automation and final vertical-slice audit**.
 
 Current phase: none.
+
+The vertical slice in [VERTICAL_SLICE.md](VERTICAL_SLICE.md) is accepted. VS-T1–VS-T10 and VS-M1–VS-M5 pass. Do not add post-slice systems (extra zones, slots, guilds, parties, trading, auction, crafting, PvP, monetization, procedural generation, or open-world streaming).
 
 ## Phase 0 acceptance (2026-08-15)
 
@@ -236,7 +238,7 @@ Local play: start the stack, walk to the elder, accept **Slime Problem**, kill t
 
 Inventory, equipment, quest, and reward writes stay on those transactions (`permissionWrite: 0`, `nk.multiUpdate` for turn-in). Position checkpoints write `player` / `character` every **5 seconds** (50 ticks) only when the pose changed, plus immediately on `matchLeave` and `matchTerminate`. Occupied ticks do not persist. Health is not persisted: after grace expiry or a new match, join uses full `player.base.maxHealth`.
 
-A disconnected presence is removed from `SNAPSHOT` / `FULL_STATE` immediately (no ghost). For **5 seconds** the match keeps live pose, health, sequence, and in-memory request ids; a returning session restores them and overlays durable inventory, equipment, quests, and gold from storage. After grace, or after the empty match times out and a new match starts, join uses the checkpointed position and full health. Ground loot, slime AI, and cooldowns reset with the match. Abandoned `requestId` maps are pruned after **10 minutes**.
+A disconnected presence is removed from `SNAPSHOT` / `FULL_STATE` immediately (no ghost). For **5 seconds** the match keeps live pose, health, and in-memory request ids. Same-session resume keeps `lastProcessedSeq`. A new session during grace restores pose and health but resets `lastProcessedSeq` so a fresh client is not stuck until it catches up. After grace, or after the empty match times out and a new match starts, join uses the checkpointed position and full health. Ground loot, slime AI, and cooldowns reset with the match. Abandoned `requestId` maps are pruned after **10 minutes**.
 
 The client checks session validity, refreshes, then reauthenticates with the same device id. Socket close starts bounded exponential backoff (0.5s doubling to 8s, 8 attempts), rejoins `find_or_create_starter_zone`, and waits for a fresh `FULL_STATE`. Match, chat, and socket-closed handlers connect once. A `closed` event is ignored until the client has zone state, while a join is in progress, or if the current socket is still connected. Nested loading completion does not hide the reconnect overlay. The overlay shows **Reconnecting…** with **Cancel**, which logs out. Tokens stay in memory.
 
@@ -270,5 +272,60 @@ npm test
 npm run build
 powershell -File ..\scripts\run-client-shell.ps1
 ```
+
+## Quick logout rejoin (2026-08-16)
+
+Logout then login during reconnect grace no longer ignores early `INPUT` seqs. A new session resets `lastProcessedSeq`; the client adopts `ack_seq` from `FULL_STATE` / `SNAPSHOT` when the server is ahead. Logout shows **Leaving…** and waits for match leave. Same-session socket resume still keeps sequence.
+
+This is a bugfix on the persistence/reconnect path, not a new gameplay phase.
+
+Server `npm test` 165/165. Godot 4.7.1 imported `client/`, printed `SHELL_LOGIN`, and GdUnit4 ran `res://tests` with 120/120 passed (0 orphans).
+
+## End-to-end automation and final vertical-slice audit acceptance (2026-08-16)
+
+The slice is accepted. `docs/VERTICAL_SLICE.md` VS-T1–VS-T10 and VS-M1–VS-M5 are complete. No post-slice systems were added.
+
+Developer scripts exist as PowerShell and bash pairs: `setup`, `dev-up`, `dev-down`, `server-build`, `run-client`, `run-two-clients`, `test-client`, `test-server`, `test-content`, `test-e2e`, `test-all`. Nested PowerShell steps fail the parent when the child exit code is nonzero.
+
+The debug-only headless driver `res://scenes/e2e/e2e_slice.tscn` (`--e2e-slice`) authenticated Alice and Bob, joined `zone.starter`, proved mutual `FULL_STATE` visibility, moved Alice so Bob saw the new pose, interacted with `npc.elder`, accepted `quest.slime_problem`, killed `enemy.green_slime:0`, picked up `item.slime_gel`, turned in for one `item.iron_sword` and 25 gold, reconnected with that quest/sword/gold intact, and received `already_completed` with no extra reward on a duplicate turn-in. Release builds refuse the hook. The driver sends documented match opcodes only.
+
+### Gate results
+
+`powershell -File scripts/test-all.ps1` exited 0:
+
+| Suite | Result |
+| --- | --- |
+| Content | 9/9, client/server `contentHash` `3db1de356fc85fb6eb96489ddc04f47049b906ef915d2baa241cae38159a6e85` |
+| Server | 165/165 |
+| Client GdUnit | 122/122, 0 orphans, `SHELL_LOGIN` |
+| E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 |
+
+### Definition of done
+
+| ID | Evidence |
+| --- | --- |
+| VS-T1–VS-T9 | Existing protocol, movement, combat, inventory, quest, security, and client catalog tests still pass. |
+| VS-T10 | `scripts/test-e2e` printed every journey step and `E2E_SLICE_OK`. |
+| VS-M1 | E2E: both identities appear in `FULL_STATE`; Bob observes Alice’s +x move. Graphical entry is `scripts/run-two-clients.ps1` (Sign in as Alice / Bob). |
+| VS-M2 | E2E: one slime kill and one gel pickup. Duplicate `requestId` remains a no-op in server inventory tests. |
+| VS-M3 | E2E reconnect still has 25 gold; duplicate turn-in does not credit again. |
+| VS-M4 | `auth_flow_test` / `error_state_test` show `network_unreachable` in the dialog. Boot, login, reconnect, and logout overlays complete or fail. |
+| VS-M5 | E2E reconnect restores completed quest, iron sword, and gold from Nakama storage/wallet. Position checkpoints remain covered by persistence tests. |
+
+### Audit
+
+- No TODOs in `client/scripts` or `server/src` (addon TODOs only; `client/addons/` was not edited).
+- Project client scripts do not write canonical state to `user://`.
+- No new packages. Licenses remain in [THIRD_PARTY.md](THIRD_PARTY.md). Kenney RPG Base is CC0.
+- No production secrets committed. Local Compose still uses Nakama’s documented insecure defaults.
+- Generated content is deterministic; client and server hashes match.
+- README covers prerequisites, versions, setup, backend, opening `client/`, Alice/Bob, tests, volume reset, troubleshooting, licenses, and slice limits.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-all.ps1
+```
+
 
 

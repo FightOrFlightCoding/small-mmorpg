@@ -35,6 +35,7 @@ These must exist and pass before the slice is marked complete in [PROGRESS.md](P
 | VS-T7 | `nk.multiUpdate` (or an equivalent tested adapter fake) is used for inventory-plus-wallet grants. |
 | VS-T8 | GdUnit4 tests cover boot error copy and content-ID catalog mapping. |
 | VS-T9 | Protocol version mismatch is rejected with a typed error, not applied. |
+| VS-T10 | Headless two-client journey (`scripts/test-e2e`) authenticates Alice and Bob, joins the starter zone, proves peer visibility and movement, completes the quest loop, reconnects, and rejects a duplicate turn-in. |
 
 ## Required manual checks
 
@@ -52,4 +53,4 @@ If a change implements any of the following, it is out of scope even if it would
 
 ## Done
 
-The slice is done when VS-T1–VS-T9 and VS-M1–VS-M5 pass, `docs/PROGRESS.md` records the completing phase as accepted, and no client-authoritative outcome remains on the accepted path.
+The slice is done when VS-T1–VS-T10 and VS-M1–VS-M5 pass, `docs/PROGRESS.md` records the completing phase as accepted, `scripts/test-all` passes from a documented setup, and no client-authoritative outcome remains on the accepted path.

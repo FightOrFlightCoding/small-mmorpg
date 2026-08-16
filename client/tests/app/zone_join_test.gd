@@ -178,4 +178,7 @@ func test_logout_leaves_zone_chat() -> void:
 	assert_bool(await GameService.enter_starter_zone()).is_true()
 	await GameService.request_logout()
 	assert_int(fake.leave_chat_calls).is_equal(1)
+	assert_int(fake.leave_calls).is_equal(1)
 	assert_str(NetworkService.zone_chat_id).is_equal("")
+	assert_str(NetworkService.match_id).is_equal("")
+	assert_bool(AppState.is_loading).is_false()

@@ -19,10 +19,12 @@ import {
   REQUEST_ID_TTL_TICKS,
   RECONNECT_GRACE_TICKS,
   applyPlayerLeave,
+  bindJoiningSession,
   checkpointsForTerminate,
   collectPositionCheckpoints,
   expireDisconnected,
   joinHealth,
+  lastProcessedSeqForSession,
   pruneKeyedHistory,
   restoreGracePlayer,
   takeGracePlayer,
@@ -162,9 +164,72 @@ test("rejoin during grace restores live pose and health", () => {
   );
   assert.equal(restored.x, 640);
   assert.equal(restored.health, 55);
-  assert.equal(restored.lastProcessedSeq, 3);
+  assert.equal(restored.lastProcessedSeq, 0);
   assert.equal(restored.sessionId, "session-reconnect");
   assert.equal(joinHealth(content.player.maxHealth), content.player.maxHealth);
+});
+
+test("same-session grace rejoin keeps lastProcessedSeq", () => {
+  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", 640, 400, 55));
+  const parkedSession = state.players["user-alice"].sessionId;
+  const left = applyPlayerLeave(state, "user-alice", 8);
+  const parked = takeGracePlayer(left.state, "user-alice", 9);
+  assert.ok(parked !== null);
+  const restored = restoreGracePlayer(
+    parked,
+    parkedSession,
+    "alice",
+    parked.questLog,
+    parked.inventory !== undefined ? parked.inventory : emptyInventory(),
+    parked.equipment !== undefined ? parked.equipment : emptyEquipment(),
+    parked.derivedAttack !== undefined ? parked.derivedAttack : 4,
+    parked.gold !== undefined ? parked.gold : 0,
+  );
+  assert.equal(lastProcessedSeqForSession(parkedSession, parkedSession, 3), 3);
+  assert.equal(restored.lastProcessedSeq, 3);
+  assert.equal(restored.health, 55);
+});
+
+test("new session grace rejoin resets input sequence so the first INPUT applies", () => {
+  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", 400, 400));
+  state.players["user-alice"].lastProcessedSeq = 40;
+  const left = applyPlayerLeave(state, "user-alice", 5);
+  const parked = takeGracePlayer(left.state, "user-alice", 6);
+  assert.ok(parked !== null);
+  const restored = restoreGracePlayer(
+    parked,
+    "session-new-login",
+    "alice",
+    parked.questLog,
+    parked.inventory !== undefined ? parked.inventory : emptyInventory(),
+    parked.equipment !== undefined ? parked.equipment : emptyEquipment(),
+    parked.derivedAttack !== undefined ? parked.derivedAttack : 4,
+    parked.gold !== undefined ? parked.gold : 0,
+  );
+  assert.equal(restored.lastProcessedSeq, 0);
+  state = addPlayer(left.state, restored);
+  const result = applyMatchLoop(state, 7, contentHash, [
+    { opcode: ClientOpcode.INPUT, raw: envelope({ seq: 1, axisX: 1, axisY: 0 }), userId: "user-alice" },
+  ]);
+  assert.equal(result.state.players["user-alice"].lastProcessedSeq, 1);
+  assert.ok(result.state.players["user-alice"].x > 400);
+});
+
+test("live resume with a new session resets lastProcessedSeq", () => {
+  const player = playerAt("user-alice", "Alice", 512, 400);
+  player.lastProcessedSeq = 12;
+  player.axisX = 1;
+  bindJoiningSession(player, "session-new-login", "alice");
+  assert.equal(player.lastProcessedSeq, 0);
+  assert.equal(player.axisX, 0);
+  assert.equal(player.sessionId, "session-new-login");
+});
+
+test("live resume with the same session keeps lastProcessedSeq", () => {
+  const player = playerAt("user-alice", "Alice", 512, 400);
+  bindJoiningSession(player, "session-user-alice", "alice");
+  assert.equal(player.lastProcessedSeq, 3);
+  assert.equal(player.sessionId, "session-user-alice");
 });
 
 test("rejoin after grace loads checkpointed position and full health", () => {

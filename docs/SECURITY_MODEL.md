@@ -104,6 +104,8 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 The Godot client must not write canonical inventory, equipment, quest, currency, health, or position records to `user://` or other local files. `AppState` is in-memory presentation/session flags only. Persistence is Nakama storage and wallet, written by the server. Session tokens stay in memory; reconnect uses refresh then device reauthentication.
 
+Debug-only `--e2e-slice` opens two real sessions and sends ordinary intentions. It is compiled out of usefulness in release builds (`OS.is_debug_build()` plus an explicit flag). GdUnit `client/tests/app/e2e_hooks_test.gd` requires the flag. `scripts/test-e2e` drives the live journey. It must not call storage, wallet, or match APIs that a player client cannot call, and it must not skip match validation.
+
 ## Logging
 
 Structured logs may include opcode, rejection reason, user ID, match ID, and `requestId`. Match rejections use `match_action rejected user_id=… action=… reason=… tick=…`. They must not include session tokens, passwords, device identifiers beyond Nakama’s own account ID, or raw full untrusted payloads when oversized.

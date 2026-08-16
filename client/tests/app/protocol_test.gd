@@ -38,6 +38,13 @@ func test_opcodes_match_the_server_allocation() -> void:
 	assert_str(MatchProtocol.FIND_OR_CREATE_STARTER_ZONE_RPC).is_equal("find_or_create_starter_zone")
 
 
+func test_next_input_seq_adopts_a_higher_ack() -> void:
+	assert_int(MatchProtocol.next_input_seq(0, 40)).is_equal(40)
+	assert_int(MatchProtocol.next_input_seq(40, 38)).is_equal(40)
+	assert_int(MatchProtocol.next_input_seq(12, 12)).is_equal(12)
+	assert_int(MatchProtocol.next_input_seq(0, 0)).is_equal(0)
+
+
 func test_full_state_requires_self_and_catalog_hash() -> void:
 	assert_bool(GameService.start_boot()).is_true()
 	var hash := ContentRegistry.get_content_hash()

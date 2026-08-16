@@ -27,6 +27,7 @@ import {
 import { dict } from "../domain/maps";
 import {
   applyPlayerLeave,
+  bindJoiningSession,
   checkpointsForTerminate,
   joinHealth,
   restoreGracePlayer,
@@ -139,8 +140,7 @@ export function matchJoin(
     }
     const existingLive = zone.players[presence.userId];
     if (existingLive !== undefined) {
-      existingLive.sessionId = presence.sessionId;
-      existingLive.username = presence.username;
+      bindJoiningSession(existingLive, presence.sessionId, presence.username);
       joined.push(presence);
       logger.info("starter_zone session resume user_id=%s", presence.userId);
       continue;

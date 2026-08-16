@@ -84,6 +84,27 @@ export function takeGracePlayer(state: StarterZoneState, userId: string, tick: n
   return parked.player;
 }
 
+export function lastProcessedSeqForSession(
+  previousSessionId: string,
+  joiningSessionId: string,
+  lastProcessedSeq: number,
+): number {
+  if (joiningSessionId !== "" && joiningSessionId === previousSessionId) {
+    return lastProcessedSeq;
+  }
+  return 0;
+}
+
+export function bindJoiningSession(player: MatchPlayer, sessionId: string, username: string): void {
+  if (player.sessionId !== sessionId) {
+    player.lastProcessedSeq = 0;
+    player.axisX = 0;
+    player.axisY = 0;
+  }
+  player.sessionId = sessionId;
+  player.username = username;
+}
+
 export function restoreGracePlayer(
   parked: MatchPlayer,
   sessionId: string,
@@ -104,7 +125,7 @@ export function restoreGracePlayer(
     y: parked.y,
     maxHealth: parked.maxHealth,
     health: parked.health,
-    lastProcessedSeq: parked.lastProcessedSeq,
+    lastProcessedSeq: lastProcessedSeqForSession(parked.sessionId, sessionId, parked.lastProcessedSeq),
     axisX: 0,
     axisY: 0,
     questLog: cloneQuestLog(questLog),

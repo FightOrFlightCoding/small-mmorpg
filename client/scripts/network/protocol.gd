@@ -342,6 +342,12 @@ static func _optional_slots(data: Dictionary) -> Dictionary:
 	return (data["slots"] as Dictionary).duplicate(true)
 
 
+static func next_input_seq(current: int, ack_seq: int) -> int:
+	if ack_seq > current:
+		return ack_seq
+	return current
+
+
 static func _ack_seq(players: Array, self_id: String) -> int:
 	for entry in players:
 		if typeof(entry) == TYPE_DICTIONARY and String(entry.get("userId", "")) == self_id:

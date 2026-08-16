@@ -192,6 +192,9 @@ func test_reconnecting_hud_and_overlay_cancel() -> void:
 	overlay.connect("cancel_pressed", func() -> void: cancelled[0] = true)
 	(overlay.get_node("Panel/VBox/CancelButton") as Button).pressed.emit()
 	assert_bool(cancelled[0]).is_true()
+	overlay.call("show_loading", "logout")
+	assert_str(overlay.get_node("Panel/VBox/Message").text).contains("Leaving")
+	assert_bool(overlay.get_node("Panel/VBox/CancelButton").visible).is_false()
 
 
 func test_socket_closed_before_zone_does_not_start_reconnect() -> void:

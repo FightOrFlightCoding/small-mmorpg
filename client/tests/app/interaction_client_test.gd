@@ -89,6 +89,7 @@ func test_world_sends_interact_without_opening_dialogue() -> void:
 	var world: Node = auto_free(preload("res://scenes/world/world.tscn").instantiate())
 	add_child(world)
 	await get_tree().process_frame
+	world.set_process(false)
 	world.try_interact()
 	await get_tree().process_frame
 	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_INTERACT)

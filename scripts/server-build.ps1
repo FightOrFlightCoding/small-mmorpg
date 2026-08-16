@@ -2,3 +2,6 @@
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path (Split-Path -Parent $PSScriptRoot) "server")
 npm run build
+if ($LASTEXITCODE -ne 0) {
+	throw "server build failed: $LASTEXITCODE"
+}

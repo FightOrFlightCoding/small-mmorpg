@@ -215,7 +215,7 @@ The reward is one `nk.multiUpdate`: consume one `item.slime_gel`, insert one uni
 
 Inventory, equipment, quest, and wallet writes stay on those transactions (`permissionWrite: 0`, `nk.multiUpdate` for turn-in). Position checkpoints write the existing `player` / `character` object every **5 seconds** (50 ticks) only when the pose changed, plus immediately on `matchLeave` and `matchTerminate`. The tick loop does not read storage and does not write idle positions.
 
-Health is intentionally not persistent. A disconnected presence is removed from `SNAPSHOT` / `FULL_STATE` immediately so other clients do not see a ghost. For **5 seconds** the match keeps live pose, health, sequence, and in-memory combat request ids for that userId; a returning session restores them and overlays durable inventory, equipment, quests, and gold from storage. After grace, or after the empty match times out and a new match starts, join uses the checkpointed position and full `player.base.maxHealth`. Slime AI, ground loot, and cooldowns belong to the new match.
+Health is intentionally not persistent. A disconnected presence is removed from `SNAPSHOT` / `FULL_STATE` immediately so other clients do not see a ghost. For **5 seconds** the match keeps live pose, health, and in-memory combat request ids for that userId. Same-session resume also keeps `lastProcessedSeq`; a new session restores pose and health but resets sequence. After grace, or after the empty match times out and a new match starts, join uses the checkpointed position and full `player.base.maxHealth`. Slime AI, ground loot, and cooldowns belong to the new match.
 
 Pickup, equip, and quest `requestId` maps are stamped with the apply tick and pruned after **10 minutes**. Same-session Nakama reconnect keeps the live player. A second live session is still `already_in_match`. Rejoin is allowed when the account still has a live player record but no presence (leave still in flight).
 
@@ -230,4 +230,20 @@ Local Nakama `socket.max_message_size_bytes` is **32768** so `FULL_STATE` with i
 No gameplay was added. Per-player match-action counters live on `StarterZoneState.actionRates` (cloned with match state, never as TypeScript globals). A 10-tick window allows 20 `INPUT`, 8 attack/interact/pickup/equip/quest actions, and 2 resyncs. The match also parses at most 24 messages per player per tick. Excess is `rate_limited`. Honest 10 Hz movement is unchanged.
 
 Rejected match actions are logged as `match_action rejected user_id=… action=… reason=… tick=…` without tokens, device credentials, or raw payloads. `docs/SECURITY_MODEL.md` maps each documented attack to a validation rule, a test, and a safe response. Malformed-message fixtures live in `server/tests/fixtures/malformed_messages.ts`.
+
+## 2026-08-16 — Quick logout rejoin input sequence
+
+Logout creates a new Nakama session. Rejoin during the 5-second grace previously restored `lastProcessedSeq` from the parked player. A new world scene starts `_input_seq` at 0, so `INPUT` seq 1, 2, … was ignored until it passed the parked seq — the avatar looked stuck or rubber-banded for a few seconds (longer after a long session).
+
+Same-session socket resume still keeps `lastProcessedSeq`. A new session (logout then login, or live resume after leave with a different sessionId) resets `lastProcessedSeq` and movement axes to 0. Pose and health still restore from grace. The client also adopts `ack_seq` from `FULL_STATE` / `SNAPSHOT` when the server is ahead, so a recreated world does not send stale seqs after same-session reconnect.
+
+Logout shows **Leaving…** and waits for match leave before returning to login so the avatar is gone before the next sign-in. There is no extra multi-second logout delay; the sequence reset is what makes immediate rejoin movable.
+
+## 2026-08-16 — End-to-end automation and vertical-slice audit
+
+Developer entry points are `scripts/setup`, `dev-up`, `dev-down`, `server-build`, `run-client`, `run-two-clients`, `test-client`, `test-server`, `test-content`, `test-e2e`, and `test-all`, with PowerShell and bash variants. Commands exit nonzero when a step fails.
+
+The headless journey is `res://scenes/e2e/e2e_slice.tscn` with `--e2e-slice` in a debug Godot build. It creates two `NakamaNetworkBackend` sessions (unique device ids so it does not reuse the graphical Alice/Bob accounts), sends ordinary match opcodes, and asserts peer visibility, movement, elder interact, quest accept, slime kill, gel pickup, turn-in (iron sword + 25 gold), reconnect persistence, and `already_completed` on a second turn-in. Release builds refuse the hook. It does not write `user://` canonical state and does not bypass server validation.
+
+Nested PowerShell wrappers invoke child scripts through `Invoke-RepoScript` and fail when the child exit code is nonzero. Bash variants use `set -euo pipefail`.
 

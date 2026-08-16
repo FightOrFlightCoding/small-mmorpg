@@ -451,6 +451,9 @@ func ensure_session() -> bool:
 func logout() -> void:
 	_intentional_disconnect = true
 	_reconnect_cancelled = true
+	if AppState.is_reconnecting:
+		AppState.notify_reconnecting(false)
+	AppState.notify_loading_started("logout")
 	await leave_zone_chat()
 	if _backend().has_method("leave_match"):
 		await _backend().leave_match()
@@ -464,6 +467,7 @@ func logout() -> void:
 	_reconnect_in_progress = false
 	_join_in_progress = false
 	_pending_reconnect = false
+	AppState.notify_loading_completed("logout")
 	AppState.notify_logged_out()
 	logged_out.emit()
 

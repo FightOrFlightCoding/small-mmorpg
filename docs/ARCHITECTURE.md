@@ -12,11 +12,12 @@ It may:
 
 - Render the starter-zone floor, bounds, collision AABBs, spawn marker, and entities from server snapshots plus content IDs.
 - Capture local input and send **intentions** (move, attack, interact, loot, equip, dialogue choice).
-- Predict local movement presentation using the same speed, dt, and collision rules as the server, then reconcile to `lastProcessedSeq`. Prediction never grants rewards or changes canonical stats.
+- Predict local movement presentation using the same speed, dt, and collision rules as the server, then reconcile to `lastProcessedSeq`. After `FULL_STATE` or `SNAPSHOT`, the client adopts `lastProcessedSeq` when the server is ahead so a new world scene does not send stale `INPUT`. Prediction never grants rewards or changes canonical stats.
 - Display inventory, equipment, dialogue, quest, and currency **views** from server-owned state.
 - Join the starter-zone Nakama room channel after entering `zone.starter`, send chat text, and render received messages as plain text.
 - Map stable content IDs to scenes, sprites, and Dialogue Manager resources through a project-owned catalog.
 - Show visible connection, validation, reconnecting, and rejection errors. It must not spin on an indefinite loading state.
+- In **debug** builds only, a headless `--e2e-slice` driver may open two Nakama sessions and send the same intentions as a player. Release builds refuse that hook.
 
 It must not:
 
@@ -114,7 +115,8 @@ Third-party libraries are implementation details. Game code talks to project-own
 | `WalletService` | none | Client-side mirror of Nakama wallet gold from `FULL_STATE` / `WALLET_STATE`. Never sends gold or currency deltas. Not a gameplay authority. |
 | `PickupIntent` | none | Nearby loot pick for usability. Server range, capacity, and grants are authoritative. |
 | `DialoguePresenter` / `DialogueCatalog` | Dialogue Manager 3.10.5 | Opens elder dialogue only after a matching `INTERACTION_RESULT`. Local `.dialogue` text; quest mutations go through `QuestService`. |
-| Test runner scripts | GdUnit4 6.2.0 | Client unit/scene tests |
+| `Test runner scripts` | GdUnit4 6.2.0 | Client unit/scene tests |
+| `SliceJourney` / `SliceSession` | Nakama Godot SDK via `NakamaNetworkBackend` | Debug-only headless two-identity journey (`--e2e-slice`). Sends the same intentions as the graphical client. Unavailable in release builds. Not a gameplay authority. |
 
 Do not call addon APIs from feature scenes except through these adapters. Do not edit files under `client/addons/`. See [THIRD_PARTY.md](THIRD_PARTY.md).
 
@@ -150,3 +152,7 @@ Generated artifacts must preserve IDs. Network messages and storage records carr
 - Ground loot entities (slime gel drops expire after 30 seconds and are not stored)
 
 Transactions that grant items or currency persist immediately with `nk.multiUpdate` when storage and wallet must change together. Inventory, equipment, and quest writes happen on those transactions, not every tick. Positions persist every **5 seconds** if they changed, on graceful leave, and on match terminate. A disconnected presence is removed from snapshots immediately (no ghost). Live pose, health, and in-match request ids are kept for **5 seconds** of reconnect grace, then discarded. Abandoned `requestId` maps are pruned after **10 minutes**.
+
+## Developer scripts
+
+PowerShell and bash variants live in `scripts/`: `setup`, `dev-up`, `dev-down`, `server-build`, `run-client`, `run-two-clients`, `test-client`, `test-server`, `test-content`, `test-e2e`, and `test-all`. Each command must exit nonzero when a required step fails. `scripts/test-all` is the clean-setup gate (dependencies, matching content hashes, server tests, client GdUnit, then the debug-only two-identity journey). Graphical Alice/Bob windows are `scripts/run-two-clients`. Local Nakama data is kept across `dev-down`; wipe it only with `scripts/backend-volume-destroy`.

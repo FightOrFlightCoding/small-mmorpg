@@ -17,6 +17,8 @@ func show_loading(reason: String) -> void:
 	if _label != null:
 		if reason == "reconnect":
 			_label.text = "Reconnecting…"
+		elif reason == "logout":
+			_label.text = "Leaving…"
 		else:
 			_label.text = "Loading (%s)" % reason
 	if _cancel != null:
