@@ -26,6 +26,7 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ClientOpcode.QUEST_ACCEPT, 6);
   assert.equal(ClientOpcode.QUEST_TURN_IN, 7);
   assert.equal(ClientOpcode.RESYNC_REQUEST, 8);
+  assert.equal(ClientOpcode.ALLOCATE_ATTRIBUTES, 9);
   assert.equal(ServerOpcode.FULL_STATE, 101);
   assert.equal(ServerOpcode.SNAPSHOT, 102);
   assert.equal(ServerOpcode.ACTION_RESULT, 103);
@@ -36,6 +37,7 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ServerOpcode.SYSTEM_MESSAGE, 108);
   assert.equal(ServerOpcode.EQUIPMENT_STATE, 109);
   assert.equal(ServerOpcode.WALLET_STATE, 110);
+  assert.equal(ServerOpcode.PROGRESSION_STATE, 111);
 });
 
 test("valid movement input parses direction and sequence only", () => {

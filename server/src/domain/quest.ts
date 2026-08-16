@@ -24,7 +24,7 @@ export interface QuestDefinition {
   turnInNpcId: string;
   objectives: QuestObjectiveDef[];
   consume: QuestItemStack[];
-  rewards: { gold: number; items: QuestItemStack[] };
+  rewards: { gold: number; xp?: number; items: QuestItemStack[] };
   completeOnce: boolean;
 }
 
@@ -75,7 +75,7 @@ export interface QuestCatalogEntry {
   turnInNpcId: string;
   objectives: ReadonlyArray<QuestObjectiveDef>;
   consume?: ReadonlyArray<QuestItemStack>;
-  rewards?: { gold: number; items: ReadonlyArray<QuestItemStack> };
+  rewards?: { gold: number; xp?: number; items: ReadonlyArray<QuestItemStack> };
   completeOnce?: boolean;
 }
 
@@ -175,14 +175,22 @@ export function questDefinitionsFromContent(quests: { [id: string]: QuestCatalog
     }
     const rewardItems: QuestItemStack[] = [];
     let gold = 0;
+    let xp = 0;
     if (entry.rewards !== undefined) {
       gold = entry.rewards.gold;
+      if (entry.rewards.xp !== undefined) {
+        xp = entry.rewards.xp;
+      }
       for (let r = 0; r < entry.rewards.items.length; r++) {
         rewardItems.push({
           itemId: entry.rewards.items[r].itemId,
           quantity: entry.rewards.items[r].quantity,
         });
       }
+    }
+    const rewards: QuestDefinition["rewards"] = { gold: gold, items: rewardItems };
+    if (xp > 0) {
+      rewards.xp = xp;
     }
     map[id] = {
       id: entry.id,
@@ -191,7 +199,7 @@ export function questDefinitionsFromContent(quests: { [id: string]: QuestCatalog
       turnInNpcId: entry.turnInNpcId,
       objectives: objectives,
       consume: consume,
-      rewards: { gold: gold, items: rewardItems },
+      rewards: rewards,
       completeOnce: entry.completeOnce !== false,
     };
   }

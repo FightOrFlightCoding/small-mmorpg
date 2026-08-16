@@ -20,7 +20,7 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Attack:** Client sends damage dealt or victim health.
 
-**Defense:** Attack intent carries target ID and `requestId` only. Damage and health exist only in match simulation. Player damage is `player.base.attack` plus the equipped main-hand `attackBonus`. Duplicate `requestId` does not apply a second hit. Client `attack` / `attackBonus` fields are rejected.
+**Defense:** Attack intent carries target ID and `requestId` only. Damage and health exist only in match simulation. Player damage is the server's canonical derived attack. Duplicate `requestId` does not apply a second hit. Client `attack` / `attackBonus` / `xp` fields are rejected.
 
 ### Cooldown bypassing
 
@@ -38,7 +38,7 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Attack:** Client equips an unowned or unequippable instance, or sends a calculated attack value.
 
-**Defense:** `EQUIP` is `{ instanceId?, slot, requestId }`. The match checks the player is alive, owns the instance, the item definition is equippable into `main_hand`, and the `requestId` has not already succeeded. Derived attack is recalculated on the server after load, equip, unequip, and inventory repair. Client `attack` / `attackBonus` are `stat_injection`.
+**Defense:** `EQUIP` is `{ instanceId?, slot, requestId }`. The match checks the player is alive, owns the instance, the item definition is equippable into `main_hand`, and the `requestId` has not already succeeded. Derived attack is recalculated on the server after load, equip, unequip, inventory repair, XP/level changes, and attribute allocation. Client `attack` / `attackBonus` are `stat_injection`.
 
 ### Duplicate pickup
 
@@ -94,15 +94,21 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Defense:** Bootstrap treats those keys as `stat_injection`. Join metadata is only `protocolVersion`, `contentHash`, and `selectionTicket`. `characterId` in join metadata is `stat_injection`. Migrations run only on server-read storage. Future save versions reject join with a visible `save_incompatible` error; data is not reset.
 
+### XP injection
+
+**Attack:** Client sends an XP amount, level, or `currentXp` on a match opcode, or calls an XP RPC.
+
+**Defense:** There is no client XP opcode and no debug grant RPC. XP is granted only from trusted server events (kill credit, quest reward, administrator domain `grantXp`) with `reasonType`, `reasonId`, `eventId`, `characterId`, and `amount`. Duplicate `eventId` values do not grant twice. Outcome keys `xp`, `currentXp`, `lifetimeXp`, and `level` are `stat_injection`.
+
 ### Rate-limit abuse
 
-**Attack:** Flood `INPUT`, `ATTACK`, `INTERACT`, `PICKUP`, `EQUIP`, quest opcodes, or `RESYNC_REQUEST` faster than an honest client.
+**Attack:** Flood `INPUT`, `ATTACK`, `INTERACT`, `PICKUP`, `EQUIP`, quest opcodes, `ALLOCATE_ATTRIBUTES`, or `RESYNC_REQUEST` faster than an honest client.
 
 **Defense:** Match state stores per-user `actionRates` for a 10-tick window. Excess is `rate_limited`, logged, and not applied. Honest 10 Hz movement stays under the `INPUT` cap of 20/s.
 
 ## Client local storage
 
-The Godot client must not write canonical inventory, equipment, quest, currency, health, or position records to `user://` or other local files. `AppState` is in-memory presentation/session flags only. Persistence is Nakama storage and wallet, written by the server. Session tokens (never passwords) may be cached in `user://session_cache.json` for refresh. Email reauthentication cannot use a stored password: refresh, then a visible `session_expired` if the refresh token is dead. Device reauthentication remains available only for debug device-auth sessions.
+The Godot client must not write canonical inventory, equipment, quest, currency, progression, health, or position records to `user://` or other local files. `AppState` is in-memory presentation/session flags only. Persistence is Nakama storage and wallet, written by the server. Session tokens (never passwords) may be cached in `user://session_cache.json` for refresh. Email reauthentication cannot use a stored password: refresh, then a visible `session_expired` if the refresh token is dead. Device reauthentication remains available only for debug device-auth sessions.
 
 Debug Alice/Bob/machine device identities are gated by `OS.is_debug_build()` (tests may set `DevIdentity.force_release_config`). Release builds expose email registration and login only.
 
@@ -123,11 +129,13 @@ Every expected attack maps to a validation rule, an automated test, and a safe s
 | Position spoofing | `INPUT` is axes+seq only; `x`/`y` are `stat_injection` | `server/tests/security.test.ts`, `protocol.test.ts`, `movement.test.ts` | `SYSTEM_MESSAGE` `stat_injection:x`; pose unchanged |
 | Speed hacking | Server dt and `moveSpeed`; extra axis magnitude clamped | `movement.test.ts`, `security.test.ts` | Applied speed matches a unit vector |
 | Damage spoofing | `ATTACK` is `targetId`+`requestId`; `damage` rejected | `combat.test.ts`, `protocol.test.ts`, `security.test.ts` | `stat_injection:damage`; HP uses server attack |
+| XP injection | No client XP amount; `xp`/`level`/`currentXp` rejected | `progression.test.ts`, `protocol.test.ts` | `stat_injection:xp`; progression unchanged |
+| Attribute overspend / unknown / negative | Server validates catalog, class, unspent points | `progression.test.ts` | `insufficient_points` / `unknown_attribute` / `invalid_amount` |
 | Cooldown bypassing | Server `lastAttackTick` vs `attackCooldown` | `combat.test.ts`, `security.test.ts` | `ACTION_RESULT` `on_cooldown` |
 | Item injection | No grant opcode; `instanceId` on `PICKUP` rejected; storage `permissionWrite: 0` | `protocol.test.ts`, `inventory.test.ts`, `security.test.ts` | `unknown_opcode` / `stat_injection:instanceId` |
 | Equipment spoofing | Own instance, equippable `main_hand`, server derived attack | `equipment.test.ts`, `security.test.ts` | `unowned` / `not_equippable` / `stat_injection:attack` |
 | Duplicate pickup | First success despawns loot; same `requestId` replays | `inventory.test.ts`, `security.test.ts` | Second apply `ok` without a second grant |
-| Duplicate reward | `requestId` idempotency on pickup, equip, quest | `inventory.test.ts`, `quest.test.ts`, `quest_reward.test.ts`, `security.test.ts` | Replay `ok`/`accepted`; no second mutate |
+| Duplicate reward | `requestId` idempotency on pickup, equip, quest, allocate; XP `eventId` | `inventory.test.ts`, `quest.test.ts`, `quest_reward.test.ts`, `progression.test.ts`, `security.test.ts` | Replay `ok`/`accepted`; no second mutate |
 | Quest skipping | Turn-in requires accepted stage, NPC, range, items | `quest_reward.test.ts`, `security.test.ts` | `invalid_id` / `incomplete_objective`; gold unchanged |
 | Client quest progress | `status` / `questComplete` / `gold` rejected | `protocol.test.ts`, `security.test.ts` | `unknown_field` / `stat_injection:questComplete` |
 | Fabricated NPC interaction | Server range and live health | `interaction.test.ts` | `out_of_range` / `invalid_target` / `player_dead` |

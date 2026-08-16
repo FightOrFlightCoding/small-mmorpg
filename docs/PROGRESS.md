@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Real authentication, character slots, and class selection**.
+Last accepted phase: **Generic statistics, experience, levels, and point allocation**.
 
 Current phase: none.
 
@@ -382,6 +382,30 @@ Selecting a character issues a 300-second ticket. Match join metadata is `{ prot
 | Server | 191/191 |
 | Client GdUnit | 131/131, 0 orphans, `SHELL_LOGIN` |
 | E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect with a fresh selection ticket) |
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-content.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+powershell -File scripts/test-e2e.ps1
+```
+
+## Generic statistics, experience, levels, and point allocation acceptance (2026-08-16)
+
+Content defines attributes, resources, derived stats, a shared level curve, and per-class progression documents. Classes reference `progressionId`; runtime looks up stable IDs and roles rather than a fixed enum of the temporary `test.*` examples. The server grants XP only from trusted events (slime kill 10, quest 20, domain admin grant) with `reasonType`, `reasonId`, `eventId`, `characterId`, and `amount`. Duplicate event IDs do not grant twice. One grant can cross multiple levels. At max level leftover XP raises `lifetimeXp` only; no extra points are generated.
+
+`ALLOCATE_ATTRIBUTES` (opcode 9) spends unspent attribute points. Skill points persist and display; ability unlock remains later. The derived-stat pipeline is fixed-order structured components (no script strings). Combat uses those canonical finals when class and progression are present. The client never submits an XP amount; `ProgressionService` may preview an allocate and then replaces it from `FULL_STATE` / `PROGRESSION_STATE`. Prompt 18 characters without a progression blob join at level 1; default-class vanguard with the training sword still deals previous combat numbers.
+
+| Gate | Result |
+| --- | --- |
+| Content | 14/14, matching hash `92acd85d31c8e291790ef67e27cea10ada40932529885d744b15dc1af6f6c0cf` |
+| Audit | `FOUNDATION_AUDIT_OK` (10 storage records, 9 client opcodes, 11 server opcodes) |
+| Server | 208/208 |
+| Client GdUnit | 134/134, 0 orphans, `SHELL_LOGIN` |
+| E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect) |
 
 Reproduction:
 

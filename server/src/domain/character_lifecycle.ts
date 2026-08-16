@@ -65,6 +65,13 @@ const STAT_INJECTION_KEYS = [
   "lastPlayedAt",
   "ticketId",
   "expiresAt",
+  "xp",
+  "currentXp",
+  "lifetimeXp",
+  "level",
+  "unspentAttributePoints",
+  "unspentSkillPoints",
+  "allocatedAttributes",
 ];
 
 export interface CharacterCreateRequest {

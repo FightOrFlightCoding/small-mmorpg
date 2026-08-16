@@ -18,7 +18,14 @@ import {
 } from "./equipment";
 import { cloneLoot, publicLoot, type LootDrop, type MatchLoot } from "./loot";
 import { dict } from "./maps";
+import { cloneProgression, publicProgression, type CharacterProgression } from "./progression";
 import { cloneActionRates, emptyActionRates, type PlayerActionRate } from "./rate_limit";
+import {
+  emptyModifierMap,
+  equipmentModifiersFromGear,
+  evaluateStats,
+  type ProgressionCatalog,
+} from "./stats";
 import { publicWallet } from "./wallet";
 
 export type { MatchLoot };
@@ -44,6 +51,7 @@ export interface MatchPlayer {
   username: string;
   characterId: string;
   name: string;
+  classId?: string;
   x: number;
   y: number;
   maxHealth: number;
@@ -61,6 +69,7 @@ export interface MatchPlayer {
   equipment?: PlayerEquipment;
   derivedAttack?: number;
   gold?: number;
+  progression?: CharacterProgression;
   lastCheckpointTick?: number;
   lastCheckpointX?: number;
   lastCheckpointY?: number;
@@ -100,6 +109,8 @@ export interface MatchEnemy {
   attackCooldownSec: number;
   leashRadius: number;
   respawnDelaySec: number;
+  xpReward: number;
+  deathCount: number;
 }
 
 export interface StarterZoneState {
@@ -127,6 +138,7 @@ export interface StarterZoneState {
   itemsById: { [id: string]: ItemDefinition };
   enemyLootById: { [id: string]: LootDrop[] };
   actionRates: { [userId: string]: PlayerActionRate };
+  progressionCatalog?: ProgressionCatalog;
 }
 
 export interface ZoneSpawnContent {
@@ -149,6 +161,7 @@ export interface EnemyContent {
   leashRadius?: number;
   respawnDelay?: number;
   loot?: ReadonlyArray<LootDrop>;
+  xpReward?: number;
 }
 
 export interface PlayerContent {
@@ -182,6 +195,7 @@ export function enemyDefinitionsFromContent(enemies: {
       leashRadius: def.leashRadius,
       respawnDelay: def.respawnDelay,
       loot: def.loot !== undefined ? copyLootDrops(def.loot) : undefined,
+      xpReward: def.xpReward,
     };
   }
   return map;
@@ -231,6 +245,8 @@ export function createStarterZoneState(
       attackCooldownSec: numberOr(def !== undefined ? def.attackCooldown : undefined, 1.4),
       leashRadius: numberOr(def !== undefined ? def.leashRadius : undefined, 256),
       respawnDelaySec: numberOr(def !== undefined ? def.respawnDelay : undefined, 10),
+      xpReward: numberOr(def !== undefined ? def.xpReward : undefined, 0),
+      deathCount: 0,
     });
     if (def !== undefined && def.loot !== undefined && enemyLootById[spawn.enemyId] === undefined) {
       enemyLootById[spawn.enemyId] = copyLootDrops(def.loot);
@@ -313,6 +329,7 @@ export function buildFullState(state: StarterZoneState, tick: number, selfId: st
     equipment: equipmentFor(state, selfId),
     derived: derivedFor(state, selfId),
     wallet: walletFor(state, selfId),
+    progression: progressionFor(state, selfId),
   });
 }
 
@@ -404,6 +421,8 @@ function cloneEnemy(enemy: MatchEnemy): MatchEnemy {
     attackCooldownSec: enemy.attackCooldownSec,
     leashRadius: enemy.leashRadius,
     respawnDelaySec: enemy.respawnDelaySec,
+    xpReward: enemy.xpReward !== undefined ? enemy.xpReward : 0,
+    deathCount: enemy.deathCount !== undefined ? enemy.deathCount : 0,
   };
 }
 
@@ -451,6 +470,8 @@ function cloneMatchPlayer(p: MatchPlayer, state: StarterZoneState): MatchPlayer 
         ? p.derivedAttack
         : derivedAttack(state.playerAttack, equipment, inventory, dict(state.itemsById)),
     gold: p.gold != null ? p.gold : 0,
+    classId: p.classId,
+    progression: p.progression != null ? cloneProgression(p.progression) : undefined,
     lastCheckpointTick: p.lastCheckpointTick,
     lastCheckpointX: p.lastCheckpointX,
     lastCheckpointY: p.lastCheckpointY,
@@ -508,6 +529,7 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     itemsById: dict(state.itemsById),
     enemyLootById: dict(state.enemyLootById),
     actionRates: cloneActionRates(state.actionRates),
+    progressionCatalog: state.progressionCatalog,
   };
 }
 
@@ -543,6 +565,27 @@ function derivedFor(state: StarterZoneState, selfId: string): { [key: string]: u
       state.itemsById,
     ),
   );
+}
+
+function progressionFor(state: StarterZoneState, selfId: string): { [key: string]: unknown } {
+  const player = state.players[selfId];
+  if (player === undefined || player.progression === undefined || state.progressionCatalog === undefined) {
+    return {};
+  }
+  const classId = player.classId !== undefined ? player.classId : "";
+  if (classId.length === 0) {
+    return {};
+  }
+  const evaluated = evaluateStats(state.progressionCatalog, {
+    classId: classId,
+    level: player.progression.level,
+    allocatedAttributes: player.progression.allocatedAttributes,
+    equipmentModifiers: equipmentModifiersFromGear(player.equipment, player.inventory, state.itemsById),
+    effectModifiers: emptyModifierMap(),
+    percentModifiers: emptyModifierMap(),
+    multiplyModifiers: emptyModifierMap(),
+  });
+  return publicProgression(state.progressionCatalog, classId, player.progression, evaluated.values);
 }
 
 function walletFor(state: StarterZoneState, selfId: string): { [key: string]: unknown } {

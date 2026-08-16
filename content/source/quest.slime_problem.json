@@ -19,6 +19,7 @@
   ],
   "rewards": {
     "gold": 25,
+    "xp": 20,
     "items": [
       {
         "itemId": "item.iron_sword",

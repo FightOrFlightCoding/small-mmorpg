@@ -21,6 +21,11 @@ export function collectDefinitionIds(payload: ContentPayload): string[] {
   pushKeys(ids, payload.quests);
   pushKeys(ids, payload.zones);
   pushKeys(ids, payload.classes);
+  pushKeys(ids, payload.attributes);
+  pushKeys(ids, payload.resources);
+  pushKeys(ids, payload.derivedStats);
+  pushKeys(ids, payload.levelCurves);
+  pushKeys(ids, payload.classProgressions);
   ids.sort();
   return ids;
 }
@@ -46,6 +51,21 @@ export function definitionById(payload: ContentPayload, id: string): unknown | u
   }
   if (payload.classes[id]) {
     return payload.classes[id];
+  }
+  if (payload.attributes[id]) {
+    return payload.attributes[id];
+  }
+  if (payload.resources[id]) {
+    return payload.resources[id];
+  }
+  if (payload.derivedStats[id]) {
+    return payload.derivedStats[id];
+  }
+  if (payload.levelCurves[id]) {
+    return payload.levelCurves[id];
+  }
+  if (payload.classProgressions[id]) {
+    return payload.classProgressions[id];
   }
   return undefined;
 }

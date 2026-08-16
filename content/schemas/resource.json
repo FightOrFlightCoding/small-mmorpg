@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/resource.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "kind", "displayName", "role"],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "resource" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "role": { "type": "string", "enum": ["health", "mana", "generic"] },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+  }
+}

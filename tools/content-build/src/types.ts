@@ -68,6 +68,7 @@ export interface EnemyDef {
   leashRadius: number;
   respawnDelay: number;
   loot: LootEntry[];
+  xpReward?: number;
 }
 
 export interface QuestDef {
@@ -78,7 +79,7 @@ export interface QuestDef {
   turnInNpcId: string;
   objectives: Array<{ type: "acquire_item"; itemId: string; quantity: number }>;
   consume: ItemStack[];
-  rewards: { gold: number; items: ItemStack[] };
+  rewards: { gold: number; xp?: number; items: ItemStack[] };
   completeOnce: boolean;
 }
 
@@ -103,15 +104,72 @@ export interface ClassDef {
   displayName: string;
   visualAssetSetId: string;
   legacyMigrationDefault?: boolean;
+  progressionId: string;
+  startingEquipment: ItemStack[];
+  startingAbilities: string[];
+  allowedEquipmentTags: string[];
+}
+
+export interface AttributeDef {
+  id: string;
+  kind: "attribute";
+  displayName: string;
+}
+
+export interface ResourceDef {
+  id: string;
+  kind: "resource";
+  displayName: string;
+  role: "health" | "mana" | "generic";
+}
+
+export interface StatComponent {
+  layer: string;
+  source?: string;
+  id?: string;
+  channel?: string;
+  weight?: number;
+  value?: number;
+  min?: number;
+  max?: number;
+}
+
+export interface DerivedStatDef {
+  id: string;
+  kind: "derived_stat";
+  displayName: string;
+  role: "attack" | "max_health" | "max_mana" | "generic";
+  components: StatComponent[];
+}
+
+export interface LevelUnlock {
+  level: number;
+  abilityIds: string[];
+}
+
+export interface LevelCurveDef {
+  id: string;
+  kind: "level_curve";
+  maxLevel: number;
+  xpRequired: number[];
+  attributePointsPerLevel: number[];
+  skillPointsPerLevel: number[];
+  automaticUnlocks?: LevelUnlock[];
+}
+
+export interface ClassProgressionDef {
+  id: string;
+  kind: "class_progression";
+  classId: string;
+  levelCurveId: string;
   startingAttributes: Record<string, number>;
   attributeGrowth: Record<string, number>;
   startingResources: Record<string, number>;
-  startingEquipment: ItemStack[];
-  startingAbilities: string[];
-  levelCurve: { baseXp: number; growth: number };
-  attributePointRules: { pointsAtCreate: number; pointsPerLevel: number };
-  skillPointRules: { pointsAtCreate: number; pointsPerLevel: number };
-  allowedEquipmentTags: string[];
+  resourceGrowth?: Record<string, number>;
+  startingDerived: Record<string, number>;
+  allowedAttributeIds: string[];
+  attributePointRules: { pointsAtCreate: number };
+  skillPointRules: { pointsAtCreate: number };
 }
 
 export interface ContentPayload {
@@ -122,6 +180,11 @@ export interface ContentPayload {
   quests: Record<string, QuestDef>;
   zones: Record<string, ZoneDef>;
   classes: Record<string, ClassDef>;
+  attributes: Record<string, AttributeDef>;
+  resources: Record<string, ResourceDef>;
+  derivedStats: Record<string, DerivedStatDef>;
+  levelCurves: Record<string, LevelCurveDef>;
+  classProgressions: Record<string, ClassProgressionDef>;
 }
 
 export interface ContentBundle extends ContentPayload {

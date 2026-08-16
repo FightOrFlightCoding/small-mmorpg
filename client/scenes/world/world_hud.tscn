@@ -117,6 +117,56 @@ theme_override_colors/font_color = Color(0.95, 0.86, 0.42, 1)
 autowrap_mode = 3
 text = ""
 
+[node name="Progression" type="PanelContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -430.0
+offset_right = 360.0
+offset_bottom = -80.0
+grow_vertical = 0
+
+[node name="Margin" type="MarginContainer" parent="Root/Progression"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="Root/Progression/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Heading" type="Label" parent="Root/Progression/Margin/VBox"]
+layout_mode = 2
+text = "Progression"
+
+[node name="Summary" type="Label" parent="Root/Progression/Margin/VBox"]
+layout_mode = 2
+text = "Class --  Level 1"
+autowrap_mode = 3
+
+[node name="Xp" type="Label" parent="Root/Progression/Margin/VBox"]
+layout_mode = 2
+text = "XP: 0 / 0"
+autowrap_mode = 3
+
+[node name="Points" type="Label" parent="Root/Progression/Margin/VBox"]
+layout_mode = 2
+text = "Unspent: 0 attr  0 skill"
+autowrap_mode = 3
+
+[node name="Attributes" type="VBoxContainer" parent="Root/Progression/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Derived" type="Label" parent="Root/Progression/Margin/VBox"]
+layout_mode = 2
+text = "Derived:"
+autowrap_mode = 3
+
 [node name="Inventory" type="PanelContainer" parent="Root"]
 layout_mode = 1
 anchors_preset = 3

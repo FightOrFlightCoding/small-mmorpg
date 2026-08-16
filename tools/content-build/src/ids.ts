@@ -12,6 +12,11 @@ export const KIND_PREFIX: Record<string, string> = {
   quest: "quest",
   zone: "zone",
   class: "test.class",
+  attribute: "test.attribute",
+  resource: "test.resource",
+  derived_stat: "test.stat",
+  level_curve: "test.curve",
+  class_progression: "test.progression",
 };
 
 export function isContentId(value: string): boolean {

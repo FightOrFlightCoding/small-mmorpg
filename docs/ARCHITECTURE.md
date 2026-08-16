@@ -106,13 +106,14 @@ Third-party libraries are implementation details. Game code talks to project-own
 | `NetworkService` | Nakama Godot SDK 3.4.0 | Email/password and debug device auth, `user://` session token cache, refresh, reauth (device only), realtime socket, bounded reconnect backoff, logout/cancel, character list/create/select/delete/restore, `character_bootstrap` wrapper, `find_or_create_starter_zone`, match join with `selectionTicket`, leave/rejoin, match opcodes, starter-zone room chat. Socket match/chat/closed signals are connected once. |
 | `GameService` | the autoloads above | Boot, email register/login, debug device login, character lifecycle, starter-zone join. Not a gameplay authority. |
 | `SceneRouter` | Godot scene tree | Transitions among boot, login, character, and world |
-| `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE`/`SNAPSHOT`. Local movement is predicted and reconciled; all remote entities interpolate from one snapshot buffer keyed `kind:id`. The HUD journal mirrors `QuestService`. The HUD inventory list mirrors `InventoryService`. The HUD main-hand slot and attack label mirror `EquipmentService`. The HUD gold label mirrors `WalletService`. Health, death, and respawn copy server vitals. Not a gameplay authority. |
+| `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE`/`SNAPSHOT`. Local movement is predicted and reconciled; all remote entities interpolate from one snapshot buffer keyed `kind:id`. The HUD journal mirrors `QuestService`. The HUD inventory list mirrors `InventoryService`. The HUD main-hand slot and attack label mirror `EquipmentService`. The HUD gold label mirrors `WalletService`. The HUD progression panel mirrors `ProgressionService`. Health, death, and respawn copy server vitals. Not a gameplay authority. |
 | `ChatPanel` / `ZoneChat` | none | Presentation of the starter-zone room channel. History is a `Label` (no BBCode). Not a gameplay authority. |
 | `QuestService` | none | In-memory mirror of server quest records from `FULL_STATE` / `QUEST_STATE`. Accept sends `QUEST_ACCEPT` only. Turn-in sends `QUEST_TURN_IN` with `questId`, `npcId`, and `requestId`. Not a gameplay authority. Do not use QuestSystem. |
 | `AttackIntent` / `CombatFeedback` | none | Nearby enemy pick and floating damage numbers. Attack sends `targetId` + `requestId` only. Not a gameplay authority. |
 | `InventoryService` | GLoot 3.0.2 | Client-side mirror of canonical server inventory. Rebuilds from `FULL_STATE` / `INVENTORY_STATE`. UI mutations are disabled or reverted. Pickup sends `lootId` + `requestId` only. Not a gameplay authority. |
 | `EquipmentService` | GLoot 3.0.2 `ItemSlot` | Client-side mirror of canonical server equipment and derived attack. Rebuilds from `FULL_STATE` / `EQUIPMENT_STATE`. Equip sends `instanceId` + `slot` + `requestId` only. Unequip omits `instanceId`. Not a gameplay authority. |
 | `WalletService` | none | Client-side mirror of Nakama wallet gold from `FULL_STATE` / `WALLET_STATE`. Never sends gold or currency deltas. Not a gameplay authority. |
+| `ProgressionService` | none | Client-side mirror of server progression from `FULL_STATE` / `PROGRESSION_STATE`. Allocate sends `attributeId` + `amount` + `requestId` only. Never sends XP. Not a gameplay authority. |
 | `PickupIntent` | none | Nearby loot pick for usability. Server range, capacity, and grants are authoritative. |
 | `DialoguePresenter` / `DialogueCatalog` | Dialogue Manager 3.10.5 | Opens elder dialogue only after a matching `INTERACTION_RESULT`. Local `.dialogue` text; quest mutations go through `QuestService`. |
 | `Test runner scripts` | GdUnit4 6.2.0 | Client unit/scene tests |
@@ -139,6 +140,7 @@ Generated artifacts must preserve IDs. Network messages and storage records carr
 - Inventory and equipment (`schemaVersion` 1 after Prompt 20; Prompt 18 blobs migrate on load)
 - Quest progress
 - Currency/wallet (gold amount) plus `player`/`wallet_ref` pointer
+- Character progression (level, XP, allocated attributes, unspent points)
 - Position checkpoints
 
 **Transient** (match memory only):
@@ -151,7 +153,7 @@ Generated artifacts must preserve IDs. Network messages and storage records carr
 - Unacked movement intentions
 - Ground loot entities (slime gel drops expire after 30 seconds and are not stored)
 
-Transactions that grant items or currency persist immediately with `nk.multiUpdate` when storage and wallet must change together. Inventory, equipment, and quest writes happen on those transactions, not every tick. Positions persist every **5 seconds** if they changed, on graceful leave, and on match terminate. A disconnected presence is removed from snapshots immediately (no ghost). Live pose, health, and in-match request ids are kept for **5 seconds** of reconnect grace, then discarded. Abandoned `requestId` maps are pruned after **10 minutes**.
+Transactions that grant items or currency persist immediately with `nk.multiUpdate` when storage and wallet must change together. Inventory, equipment, quest, and progression writes happen on those transactions, not every tick. Positions persist every **5 seconds** if they changed, on graceful leave, and on match terminate. A disconnected presence is removed from snapshots immediately (no ghost). Live pose, health, and in-match request ids are kept for **5 seconds** of reconnect grace, then discarded. Abandoned `requestId` maps are pruned after **10 minutes**.
 
 ## Developer scripts
 

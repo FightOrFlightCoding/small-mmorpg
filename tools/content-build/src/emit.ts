@@ -43,6 +43,11 @@ export function buildPackage(payload: ContentPayload, options: BuildPackageOptio
     quests: canonicalPayload.quests,
     zones: canonicalPayload.zones,
     classes: canonicalPayload.classes,
+    attributes: canonicalPayload.attributes,
+    resources: canonicalPayload.resources,
+    derivedStats: canonicalPayload.derivedStats,
+    levelCurves: canonicalPayload.levelCurves,
+    classProgressions: canonicalPayload.classProgressions,
   };
 }
 
@@ -66,6 +71,11 @@ export function toContentBundle(pkg: ContentPackage): ContentBundle {
     quests: pkg.quests,
     zones: pkg.zones,
     classes: pkg.classes,
+    attributes: pkg.attributes,
+    resources: pkg.resources,
+    derivedStats: pkg.derivedStats,
+    levelCurves: pkg.levelCurves,
+    classProgressions: pkg.classProgressions,
   };
 }
 
@@ -82,6 +92,11 @@ export function emitServerModule(bundle: ContentBundle): string {
     quests: bundle.quests,
     zones: bundle.zones,
     classes: bundle.classes,
+    attributes: bundle.attributes,
+    resources: bundle.resources,
+    derivedStats: bundle.derivedStats,
+    levelCurves: bundle.levelCurves,
+    classProgressions: bundle.classProgressions,
   };
   const body = JSON.stringify(canonicalize(payload), null, 2);
   return [

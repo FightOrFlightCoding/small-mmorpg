@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/derived_stat.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "kind", "displayName", "role", "components"],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "derived_stat" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "role": { "type": "string", "enum": ["attack", "max_health", "max_mana", "generic"] },
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/statComponent" }
+    },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+  }
+}

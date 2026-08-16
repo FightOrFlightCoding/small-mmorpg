@@ -255,7 +255,7 @@ No gameplay was added and no dependency was upgraded. Foundation v1 scope is loc
 
 Content packages are described by `content/package.manifest.json`. Generated client/server catalogs add `packageId`, `packageVersion`, `minimumProtocolVersion`, and `developmentOnly` (excluded ids). The SHA-256 content hash remains the canonical gameplay payload only; `buildTimestamp` is CLI output, not hashed, and is omitted from generated artifacts so they stay byte-identical. Per-kind definition schema versions live in the manifest; source documents may set optional `schemaVersion` and `developmentOnly`. Production generate excludes development-only definitions.
 
-Canonical player storage (`character`, `inventory`, `equipment`, `quests`, `wallet_ref`) writes `schemaVersion` 1, `createdAt`, and `updatedAt`. Prompt 18 blobs without a version are v0 and migrate on server load; the result is persisted once. Nakama JSON round-trips can turn omitted optional objects into `null`; `cloneExtras` treats `null` as empty, and a `null` `schemaVersion` is missing v0 rather than corrupt. Future versions and corrupted required fields reject join/bootstrap with a visible reason. The client cannot send save versions (bootstrap `stat_injection`; join metadata is protocol, content hash, and `selectionTicket`). `player`/`wallet_ref` points at wallet gold without storing the balance; migration never grants gold, starter items, or quest rewards. Match `starter_zone` stays an unversioned locator. JSON keys stay camelCase. Commands: [MIGRATIONS.md](MIGRATIONS.md).
+Canonical player storage (`character`, `inventory`, `equipment`, `quests`, `wallet_ref`, `progression`) writes `schemaVersion` 1, `createdAt`, and `updatedAt`. Prompt 18 blobs without a version are v0 and migrate on server load; the result is persisted once. Nakama JSON round-trips can turn omitted optional objects into `null`; `cloneExtras` treats `null` as empty, and a `null` `schemaVersion` is missing v0 rather than corrupt. Future versions and corrupted required fields reject join/bootstrap with a visible reason. The client cannot send save versions (bootstrap `stat_injection`; join metadata is protocol, content hash, and `selectionTicket`). `player`/`wallet_ref` points at wallet gold without storing the balance; migration never grants gold, starter items, or quest rewards. Match `starter_zone` stays an unversioned locator. JSON keys stay camelCase. Commands: [MIGRATIONS.md](MIGRATIONS.md).
 
 ## 2026-08-16 — Real authentication, character slots, and class selection
 
@@ -269,5 +269,19 @@ Selecting a character issues a 300-second ticket. Match join metadata is `{ prot
 
 `character_bootstrap` remains a compatibility wrapper so Prompt 18 tests and local verify still work. Graphical play and e2e select a character and join with the ticket.
 
-Password-recovery email is out of Foundation v1. Operators assist through the Nakama console. The issued Prompt 21 work supersedes the earlier roadmap row that named “remove architectural ID hard-coding” as Prompt 21; that ID cleanup remains later. This phase does not implement XP, attribute allocation, or public-world sharding.
+Password-recovery email is out of Foundation v1. Operators assist through the Nakama console. The issued Prompt 21 work supersedes the earlier roadmap row that named “remove architectural ID hard-coding” as Prompt 21; that ID cleanup remains later.
+
+## 2026-08-16 — Generic statistics, experience, levels, and point allocation
+
+The issued Prompt 22 includes XP, the derived-stat pipeline, and attribute allocation. Skill points persist and display now; spending them to unlock abilities is Prompt 24. Temporary content IDs (`test.attribute.*`, `test.resource.*`, `test.stat.*`, `test.curve.standard`, `test.progression.*`) are examples only. Runtime iterates catalogs and looks up by stable ID or `role`.
+
+A class document points at `progressionId`. Numeric bases, growth, allowed attributes, and create-time points live on `class_progression`. The shared test curve has `maxLevel` 5, XP thresholds `[50, 75, 100, 150]`, and one attribute plus one skill point per level-up. One grant can cross multiple levels. At max level leftover XP increases `lifetimeXp` only; `currentXp` stays 0; no further points or automatic unlocks. Duplicate `eventId` values do not grant XP twice.
+
+XP is granted only from trusted server events: slime kill credit (`xpReward` 10, `kill:<enemyInstanceId>:<deathCount>`), quest reward (`rewards.xp` 20, `quest:<questId>:<requestId>`), and administrator domain `grantXp`. There is no client XP opcode and no debug grant RPC.
+
+The stat pipeline is fixed code order: class base, level growth, allocated attributes, equipment, temporary effects, percent, multipliers, clamps. Content lists structured components, not script strings. The server is canonical. `ProgressionService` may preview an allocate, then replaces local fields from `FULL_STATE.progression` / `PROGRESSION_STATE`.
+
+`ALLOCATE_ATTRIBUTES` is opcode 9 (`attributeId`, numeric `amount`, `requestId`). Validation: attribute exists, class allows it, amount is a positive integer ≤ 100 and ≤ unspent points. Replay of `requestId` is idempotent. Combat reads pipeline finals when `classId`, progression, and the catalog are present; tests without those fields keep the previous `player.base.attack` (+ bonus) fallback so Prompt 18 combat numbers stay 4 unequipped.
+
+Storage is `player`/`progression` (`permissionWrite: 0`). Prompt 18 characters without a blob join at level 1 with previous vanguard combat numbers when using the default class and training sword.
 

@@ -21,6 +21,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `InventoryService` | C | Inventory mirror; pickup intent | GLoot inventory clone | GLoot 3.0.2 | `NetworkService` | no | PICKUP | no grants |
 | `EquipmentService` | C | Equipment mirror; equip intents | GLoot ItemSlot clone | GLoot 3.0.2 | `NetworkService`, `InventoryService` | no | EQUIP | no |
 | `WalletService` | C | Gold label mirror | In-memory gold | none | none | no | no | no |
+| `ProgressionService` | C | Progression mirror; allocate intent; preview replaced by server | In-memory level/XP/attributes | none | `NetworkService` | no | ALLOCATE_ATTRIBUTES | no |
 | `DialogueCatalog` / `DialoguePresenter` | C | Map NPC id → `.dialogue`; open after INTERACTION_RESULT | pending request ids | Dialogue Manager 3.10.5 | `QuestService` from dialogue `do` lines | no | no | no |
 | `ZoneChat` / `ChatPanel` | C | Room join/leave, history Label | chat lines | none | `NetworkService` | no | chat channel, not match opcode | no |
 | `World` / `ZoneView` / `EntityRegistry` / avatars / `WorldHud` | C | Render zone and HUD | display poses | none | services above | no | INPUT via World | no |
@@ -34,6 +35,8 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `match_state.ts` / `match_loop.ts` | S | Zone simulation tick | live match state | none | domain combat, inventory, quests | no (tick) | emit snapshots | no (tick) |
 | `movement.ts` | S | Axes, collision, speed | none | none | none | no | no | no |
 | `combat.ts` / `enemy_ai.ts` | S | Hits, death, AI, respawn | enemy/player combat fields in match | none | `loot.ts` | no | COMBAT_EVENT | no |
+| `stats.ts` | S | Deterministic derived-stat pipeline | none | none | equipment modifiers | no | no | no |
+| `progression.ts` / `progression_store.ts` (domain) | S | XP, levels, allocation, serialize progression | none | none | stats.ts | serialize only | no | no |
 | `interaction.ts` | S | NPC range checks | none | none | none | no | INTERACTION_RESULT | no |
 | `loot.ts` | S | Ground loot TTL and pickup apply | match loot list | none | `inventory.ts` | no | via loop | grant in memory |
 | `inventory.ts` / `inventory_store.ts` (domain) | S | Stack rules, serialize inventory | none | none | none | serialize only | no | yes (pure) |
@@ -51,6 +54,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `inventory_store.ts` (nakama) | A | Read/write inventory | none | Nakama storage | domain inventory_store | yes | no | yes |
 | `quest_store.ts` (nakama) | A | Read/write quests | none | Nakama storage | domain quest_store | yes | no | no |
 | `equipment_store.ts` (nakama) | A | Read/write equipment | none | Nakama storage | domain equipment_store | yes | no | no |
+| `progression_store.ts` (nakama) | A | Read/write progression | none | Nakama storage | domain progression_store | yes | no | no |
 | `quest_reward_store.ts` | A | `nk.multiUpdate` turn-in | none | Nakama storage + wallet | domain quest_reward | yes | no | yes |
 | `starter_zone_registry.ts` (nakama) | A | Find/create match + singleton | none | Nakama match + storage | domain registry | yes (match id) | no | no |
 | `starter_zone_match.ts` | A | Match handler lifecycle | live zone + presences | Nakama match | all domain + stores | yes (join/txn/checkpoint) | yes | yes (via stores) |
@@ -73,7 +77,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 
 | Topic | Resolution |
 | --- | --- |
-| `quest_store.ts` / `inventory_store.ts` / `equipment_store.ts` exist under both `domain/` and `nakama/` | Domain files serialize values. Nakama files read/write storage. Callers in the match adapter must use the Nakama files. |
+| `quest_store.ts` / `inventory_store.ts` / `equipment_store.ts` / `progression_store.ts` exist under both `domain/` and `nakama/` | Domain files serialize values. Nakama files read/write storage. Callers in the match adapter must use the Nakama files. |
 | `starter_zone_registry.ts` in domain and nakama | Domain picks the canonical match id. Nakama file talks to `matchList` / `matchCreate` / storage. |
 | `STARTER_ZONE_ID` vs content `zones` map | Runtime still keys `content.zones["zone.starter"]` instead of iterating the catalog. Catalogued as architectural hard-coding. |
 | Dialogue `do QuestService.request_accept("quest.slime_problem")` | Presentation script owns the ID string; server still validates. Must move to content-driven choices later. |

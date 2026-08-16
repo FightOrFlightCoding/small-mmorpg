@@ -17,6 +17,7 @@ signal combat_event_received(payload: Dictionary)
 signal inventory_state_received(payload: Dictionary)
 signal equipment_state_received(payload: Dictionary)
 signal wallet_state_received(payload: Dictionary)
+signal progression_state_received(payload: Dictionary)
 signal system_notice_received(code: String, message: String)
 signal logged_out
 
@@ -404,6 +405,19 @@ func send_equip(instance_id: String, slot: String, request_id: String) -> Dictio
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_EQUIP,
 		MatchProtocol.client_envelope_json(extra)
+	)
+
+
+func send_allocate_attributes(attribute_id: String, amount: int, request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_ALLOCATE_ATTRIBUTES,
+		MatchProtocol.client_envelope_json({
+			"attributeId": attribute_id,
+			"amount": amount,
+			"requestId": request_id,
+		})
 	)
 
 
@@ -901,6 +915,13 @@ func _on_match_state(opcode: int, payload: String) -> void:
 			AppState.report_recoverable(String(wallet.get("code", "wallet_state_failed")), String(wallet.get("message", "Wallet state was invalid.")))
 			return
 		wallet_state_received.emit(wallet)
+		return
+	if opcode == MatchProtocol.SERVER_PROGRESSION_STATE:
+		var progression: Dictionary = MatchProtocol.parse_progression_state(payload)
+		if not bool(progression.get("ok", false)):
+			AppState.report_recoverable(String(progression.get("code", "progression_state_failed")), String(progression.get("message", "Progression state was invalid.")))
+			return
+		progression_state_received.emit(progression)
 		return
 
 

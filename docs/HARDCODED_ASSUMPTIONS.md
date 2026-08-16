@@ -83,7 +83,7 @@ Turn-in apply already uses quest definition rewards from content, not a second h
 | Player AABB 12 px | `PLAYER_HALF_EXTENT` | Temporary Prompt 18 assumption |
 | Dialogue example balloon path | `DialoguePresenter.BALLOON_SCENE` | Temporary Prompt 18 assumption |
 | Movement fallback bounds 16,16,1248×736 | `movement_sim.gd` defaults | Temporary Prompt 18 assumption |
-| No max level / attributes / abilities | Entire runtime | Architectural (feature absence); Foundation v1 must add data-defined ones |
+| Max level / XP / attributes are content-defined | `level_curve` / `class_progression` catalogs | Temporary test curve (`maxLevel` 5). Ability unlock still later |
 | Item categories = equippable vs not via `equipSlot` only | content schema | Temporary Prompt 18 assumption |
 | World dimensions from `zone.starter` JSON | Correct content for the slice; runtime still assumes that one zone | Architectural hard-coding requiring later removal |
 

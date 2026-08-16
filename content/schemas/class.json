@@ -8,14 +8,9 @@
     "kind",
     "displayName",
     "visualAssetSetId",
-    "startingAttributes",
-    "attributeGrowth",
-    "startingResources",
+    "progressionId",
     "startingEquipment",
     "startingAbilities",
-    "levelCurve",
-    "attributePointRules",
-    "skillPointRules",
     "allowedEquipmentTags"
   ],
   "properties": {
@@ -24,18 +19,7 @@
     "displayName": { "type": "string", "minLength": 1 },
     "visualAssetSetId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
     "legacyMigrationDefault": { "type": "boolean" },
-    "startingAttributes": {
-      "type": "object",
-      "additionalProperties": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" }
-    },
-    "attributeGrowth": {
-      "type": "object",
-      "additionalProperties": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" }
-    },
-    "startingResources": {
-      "type": "object",
-      "additionalProperties": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" }
-    },
+    "progressionId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
     "startingEquipment": {
       "type": "array",
       "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/itemStack" }
@@ -43,33 +27,6 @@
     "startingAbilities": {
       "type": "array",
       "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
-    },
-    "levelCurve": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["baseXp", "growth"],
-      "properties": {
-        "baseXp": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
-        "growth": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" }
-      }
-    },
-    "attributePointRules": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["pointsAtCreate", "pointsPerLevel"],
-      "properties": {
-        "pointsAtCreate": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
-        "pointsPerLevel": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" }
-      }
-    },
-    "skillPointRules": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["pointsAtCreate", "pointsPerLevel"],
-      "properties": {
-        "pointsAtCreate": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
-        "pointsPerLevel": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" }
-      }
     },
     "allowedEquipmentTags": {
       "type": "array",

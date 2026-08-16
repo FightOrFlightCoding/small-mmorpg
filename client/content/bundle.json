@@ -1,90 +1,271 @@
 {
+  "attributes": {
+    "test.attribute.focus": {
+      "displayName": "Focus",
+      "id": "test.attribute.focus",
+      "kind": "attribute"
+    },
+    "test.attribute.might": {
+      "displayName": "Might",
+      "id": "test.attribute.might",
+      "kind": "attribute"
+    },
+    "test.attribute.vitality": {
+      "displayName": "Vitality",
+      "id": "test.attribute.vitality",
+      "kind": "attribute"
+    }
+  },
+  "classProgressions": {
+    "test.progression.arcanist": {
+      "allowedAttributeIds": [
+        "test.attribute.might",
+        "test.attribute.vitality",
+        "test.attribute.focus"
+      ],
+      "attributeGrowth": {
+        "test.attribute.focus": 1,
+        "test.attribute.might": 0,
+        "test.attribute.vitality": 0
+      },
+      "attributePointRules": {
+        "pointsAtCreate": 0
+      },
+      "classId": "test.class.arcanist",
+      "id": "test.progression.arcanist",
+      "kind": "class_progression",
+      "levelCurveId": "test.curve.standard",
+      "resourceGrowth": {
+        "test.resource.health": 2,
+        "test.resource.mana": 6
+      },
+      "skillPointRules": {
+        "pointsAtCreate": 0
+      },
+      "startingAttributes": {
+        "test.attribute.focus": 7,
+        "test.attribute.might": 2,
+        "test.attribute.vitality": 4
+      },
+      "startingDerived": {
+        "test.stat.attack": 2
+      },
+      "startingResources": {
+        "test.resource.health": 80,
+        "test.resource.mana": 60
+      }
+    },
+    "test.progression.vanguard": {
+      "allowedAttributeIds": [
+        "test.attribute.might",
+        "test.attribute.vitality",
+        "test.attribute.focus"
+      ],
+      "attributeGrowth": {
+        "test.attribute.focus": 0,
+        "test.attribute.might": 1,
+        "test.attribute.vitality": 0
+      },
+      "attributePointRules": {
+        "pointsAtCreate": 0
+      },
+      "classId": "test.class.vanguard",
+      "id": "test.progression.vanguard",
+      "kind": "class_progression",
+      "levelCurveId": "test.curve.standard",
+      "resourceGrowth": {
+        "test.resource.health": 5,
+        "test.resource.mana": 0
+      },
+      "skillPointRules": {
+        "pointsAtCreate": 0
+      },
+      "startingAttributes": {
+        "test.attribute.focus": 2,
+        "test.attribute.might": 6,
+        "test.attribute.vitality": 6
+      },
+      "startingDerived": {
+        "test.stat.attack": 4
+      },
+      "startingResources": {
+        "test.resource.health": 100,
+        "test.resource.mana": 20
+      }
+    }
+  },
   "classes": {
     "test.class.arcanist": {
       "allowedEquipmentTags": [
         "main_hand"
       ],
-      "attributeGrowth": {
-        "focus": 1,
-        "might": 0,
-        "vitality": 1
-      },
-      "attributePointRules": {
-        "pointsAtCreate": 0,
-        "pointsPerLevel": 0
-      },
       "displayName": "Test Arcanist",
       "id": "test.class.arcanist",
       "kind": "class",
-      "levelCurve": {
-        "baseXp": 100,
-        "growth": 1.2
-      },
-      "skillPointRules": {
-        "pointsAtCreate": 0,
-        "pointsPerLevel": 0
-      },
+      "progressionId": "test.progression.arcanist",
       "startingAbilities": [],
-      "startingAttributes": {
-        "focus": 7,
-        "might": 2,
-        "vitality": 4
-      },
       "startingEquipment": [
         {
           "itemId": "item.training_sword",
           "quantity": 1
         }
       ],
-      "startingResources": {
-        "health": 100
-      },
       "visualAssetSetId": "visual.class_arcanist"
     },
     "test.class.vanguard": {
       "allowedEquipmentTags": [
         "main_hand"
       ],
-      "attributeGrowth": {
-        "focus": 0,
-        "might": 1,
-        "vitality": 1
-      },
-      "attributePointRules": {
-        "pointsAtCreate": 0,
-        "pointsPerLevel": 0
-      },
       "displayName": "Test Vanguard",
       "id": "test.class.vanguard",
       "kind": "class",
       "legacyMigrationDefault": true,
-      "levelCurve": {
-        "baseXp": 100,
-        "growth": 1.2
-      },
-      "skillPointRules": {
-        "pointsAtCreate": 0,
-        "pointsPerLevel": 0
-      },
+      "progressionId": "test.progression.vanguard",
       "startingAbilities": [],
-      "startingAttributes": {
-        "focus": 2,
-        "might": 6,
-        "vitality": 6
-      },
       "startingEquipment": [
         {
           "itemId": "item.training_sword",
           "quantity": 1
         }
       ],
-      "startingResources": {
-        "health": 100
-      },
       "visualAssetSetId": "visual.class_vanguard"
     }
   },
-  "contentHash": "e7e2625ff9e92d4905422efeba0c36554d45136578c27f8a6989f06e0ce94721",
+  "contentHash": "92acd85d31c8e291790ef67e27cea10ada40932529885d744b15dc1af6f6c0cf",
+  "derivedStats": {
+    "test.stat.attack": {
+      "components": [
+        {
+          "layer": "class_base",
+          "source": "starting_derived"
+        },
+        {
+          "id": "test.attribute.might",
+          "layer": "level_growth",
+          "source": "attribute_growth",
+          "weight": 1
+        },
+        {
+          "id": "test.attribute.might",
+          "layer": "allocated_attributes",
+          "weight": 1
+        },
+        {
+          "channel": "attack",
+          "layer": "equipment"
+        },
+        {
+          "channel": "attack",
+          "layer": "effects"
+        },
+        {
+          "channel": "attack",
+          "layer": "percent"
+        },
+        {
+          "channel": "attack",
+          "layer": "multiply"
+        },
+        {
+          "layer": "clamp",
+          "max": 999,
+          "min": 0
+        }
+      ],
+      "displayName": "Attack",
+      "id": "test.stat.attack",
+      "kind": "derived_stat",
+      "role": "attack"
+    },
+    "test.stat.max_health": {
+      "components": [
+        {
+          "id": "test.resource.health",
+          "layer": "class_base",
+          "source": "starting_resource"
+        },
+        {
+          "id": "test.resource.health",
+          "layer": "level_growth",
+          "source": "resource_growth"
+        },
+        {
+          "id": "test.attribute.vitality",
+          "layer": "allocated_attributes",
+          "weight": 5
+        },
+        {
+          "channel": "max_health",
+          "layer": "equipment"
+        },
+        {
+          "channel": "max_health",
+          "layer": "effects"
+        },
+        {
+          "channel": "max_health",
+          "layer": "percent"
+        },
+        {
+          "channel": "max_health",
+          "layer": "multiply"
+        },
+        {
+          "layer": "clamp",
+          "max": 9999,
+          "min": 1
+        }
+      ],
+      "displayName": "Max Health",
+      "id": "test.stat.max_health",
+      "kind": "derived_stat",
+      "role": "max_health"
+    },
+    "test.stat.max_mana": {
+      "components": [
+        {
+          "id": "test.resource.mana",
+          "layer": "class_base",
+          "source": "starting_resource"
+        },
+        {
+          "id": "test.resource.mana",
+          "layer": "level_growth",
+          "source": "resource_growth"
+        },
+        {
+          "id": "test.attribute.focus",
+          "layer": "allocated_attributes",
+          "weight": 8
+        },
+        {
+          "channel": "max_mana",
+          "layer": "equipment"
+        },
+        {
+          "channel": "max_mana",
+          "layer": "effects"
+        },
+        {
+          "channel": "max_mana",
+          "layer": "percent"
+        },
+        {
+          "channel": "max_mana",
+          "layer": "multiply"
+        },
+        {
+          "layer": "clamp",
+          "max": 9999,
+          "min": 0
+        }
+      ],
+      "displayName": "Max Mana",
+      "id": "test.stat.max_mana",
+      "kind": "derived_stat",
+      "role": "max_mana"
+    }
+  },
   "developmentOnly": [],
   "enemies": {
     "enemy.green_slime": {
@@ -106,7 +287,8 @@
       "maxHealth": 20,
       "moveSpeed": 45,
       "respawnDelay": 10,
-      "visualId": "visual.enemy_green_slime"
+      "visualId": "visual.enemy_green_slime",
+      "xpReward": 10
     }
   },
   "items": {
@@ -135,6 +317,32 @@
       "kind": "item",
       "maxStack": 1,
       "visualId": "visual.item_training_sword"
+    }
+  },
+  "levelCurves": {
+    "test.curve.standard": {
+      "attributePointsPerLevel": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "automaticUnlocks": [],
+      "id": "test.curve.standard",
+      "kind": "level_curve",
+      "maxLevel": 5,
+      "skillPointsPerLevel": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "xpRequired": [
+        50,
+        75,
+        100,
+        150
+      ]
     }
   },
   "minimumProtocolVersion": 1,
@@ -187,9 +395,24 @@
             "itemId": "item.iron_sword",
             "quantity": 1
           }
-        ]
+        ],
+        "xp": 20
       },
       "turnInNpcId": "npc.elder"
+    }
+  },
+  "resources": {
+    "test.resource.health": {
+      "displayName": "Health",
+      "id": "test.resource.health",
+      "kind": "resource",
+      "role": "health"
+    },
+    "test.resource.mana": {
+      "displayName": "Mana",
+      "id": "test.resource.mana",
+      "kind": "resource",
+      "role": "mana"
     }
   },
   "schemaVersion": 1,

@@ -142,6 +142,26 @@ Inventory, quests, and equipment for a selected character use `inventory_<compac
 
 Value: `{ schemaVersion, createdAt, updatedAt, currencies: ["gold"] }`.
 
+## `player` / `progression`
+
+| Field | Value |
+| --- | --- |
+| Purpose | Per-character level, XP, allocated attributes, unspent points, unlocked ability ids |
+| Owner | Server match (trusted XP grants and `ALLOCATE_ATTRIBUTES`) |
+| Scope | Account-scoped; key `progression_<compactCharacterId>` |
+| `permissionRead` | 1 |
+| `permissionWrite` | 0 |
+| Schema version | 1 (`schemaVersion` envelope plus `progressionSchemaVersion`) |
+| Creation | Join initializes level 1, 0 XP, class `pointsAtCreate`, class `startingAbilities` when the blob is missing |
+| Read | `matchJoin` |
+| Update | Kill credit, quest XP, admin domain grant, attribute allocation, request-id prune |
+| Concurrency | OCC `storageWriteRetry` |
+| Migration | Missing is not join-fatal: initialize and persist once. Present v0 → v1 on load |
+| Deletion | None (character soft-delete leaves the blob) |
+| Client access | Mirror via `FULL_STATE.progression` / `PROGRESSION_STATE`. Client never sends XP amounts. |
+
+Value: `{ schemaVersion, createdAt, updatedAt, level, currentXp, lifetimeXp, allocatedAttributes, unspentAttributePoints, unspentSkillPoints, unlockedAbilityIds, progressionSchemaVersion, xpByEventId, allocateByRequestId, xpEventTicks?, allocateRequestTicks? }`. Allocations are never negative.
+
 ## `match` / `starter_zone`
 
 | Field | Value |

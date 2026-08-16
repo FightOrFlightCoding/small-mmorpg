@@ -11,7 +11,7 @@ export const REASON_CORRUPTED_RECORD = "corrupted_record";
 export const REASON_CORRUPTED_REQUIRED_FIELDS = "corrupted_required_fields";
 export const REASON_CORRUPTED_SCHEMA_VERSION = "corrupted_schema_version";
 
-export type RecordKind = "character" | "inventory" | "equipment" | "quests" | "wallet_ref";
+export type RecordKind = "character" | "inventory" | "equipment" | "quests" | "wallet_ref" | "progression";
 
 export interface SaveEnvelope {
   schemaVersion: number;
@@ -64,6 +64,23 @@ export const QUEST_SAVE_KEYS = [
   "turnInRequestTicks",
 ];
 export const WALLET_REF_SAVE_KEYS = ["schemaVersion", "createdAt", "updatedAt", "currencies"];
+export const PROGRESSION_SAVE_KEYS = [
+  "schemaVersion",
+  "createdAt",
+  "updatedAt",
+  "level",
+  "currentXp",
+  "lifetimeXp",
+  "allocatedAttributes",
+  "unspentAttributePoints",
+  "unspentSkillPoints",
+  "unlockedAbilityIds",
+  "progressionSchemaVersion",
+  "xpByEventId",
+  "allocateByRequestId",
+  "xpEventTicks",
+  "allocateRequestTicks",
+];
 
 export interface VersionDetection {
   ok: boolean;

@@ -130,6 +130,7 @@ export function killEnemy(
   enemy.aiState = "dead";
   enemy.aggroTarget = "";
   enemy.deadUntilTick = tick + cooldownTicks(enemy.respawnDelaySec, tickRate);
+  enemy.deathCount = (enemy.deathCount !== undefined ? enemy.deathCount : 0) + 1;
   events.push({
     type: "death",
     sourceId: sourceId,

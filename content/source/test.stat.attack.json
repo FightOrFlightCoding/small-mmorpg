@@ -1,0 +1,16 @@
+{
+  "id": "test.stat.attack",
+  "kind": "derived_stat",
+  "displayName": "Attack",
+  "role": "attack",
+  "components": [
+    { "layer": "class_base", "source": "starting_derived" },
+    { "layer": "level_growth", "source": "attribute_growth", "id": "test.attribute.might", "weight": 1 },
+    { "layer": "allocated_attributes", "id": "test.attribute.might", "weight": 1 },
+    { "layer": "equipment", "channel": "attack" },
+    { "layer": "effects", "channel": "attack" },
+    { "layer": "percent", "channel": "attack" },
+    { "layer": "multiply", "channel": "attack" },
+    { "layer": "clamp", "min": 0, "max": 999 }
+  ]
+}

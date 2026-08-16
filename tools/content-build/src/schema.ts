@@ -12,6 +12,11 @@ const KIND_SCHEMA: Record<string, string> = {
   quest: "https://vibecode.local/content-schemas/quest.json",
   zone: "https://vibecode.local/content-schemas/zone.json",
   class: "https://vibecode.local/content-schemas/class.json",
+  attribute: "https://vibecode.local/content-schemas/attribute.json",
+  resource: "https://vibecode.local/content-schemas/resource.json",
+  derived_stat: "https://vibecode.local/content-schemas/derived_stat.json",
+  level_curve: "https://vibecode.local/content-schemas/level_curve.json",
+  class_progression: "https://vibecode.local/content-schemas/class_progression.json",
 };
 
 export function loadAjv(schemaDir: string, manifest: ContentPackageManifest = DEFAULT_MANIFEST): Ajv2020 {

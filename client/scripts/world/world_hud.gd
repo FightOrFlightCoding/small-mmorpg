@@ -20,9 +20,15 @@ signal logout_pressed
 @onready var _equip: Button = $Root/Inventory/Margin/VBox/EquipRow/EquipButton
 @onready var _unequip: Button = $Root/Inventory/Margin/VBox/EquipRow/UnequipButton
 @onready var _notice: Label = $Root/Notice
+@onready var _progression_summary: Label = $Root/Progression/Margin/VBox/Summary
+@onready var _progression_xp: Label = $Root/Progression/Margin/VBox/Xp
+@onready var _progression_points: Label = $Root/Progression/Margin/VBox/Points
+@onready var _progression_attributes: VBoxContainer = $Root/Progression/Margin/VBox/Attributes
+@onready var _progression_derived: Label = $Root/Progression/Margin/VBox/Derived
 
 var _inventory_list: Control
 var _slot_view: Control
+var _attribute_row_fingerprint: String = ""
 
 
 func _ready() -> void:
@@ -33,6 +39,7 @@ func _ready() -> void:
 	refresh_inventory()
 	refresh_equipment()
 	refresh_wallet()
+	refresh_progression()
 	if _equip != null:
 		_equip.pressed.connect(_on_equip_pressed)
 	if _unequip != null:
@@ -45,6 +52,8 @@ func _ready() -> void:
 		WalletService.wallet_changed.connect(refresh_wallet)
 	if not WalletService.notice_received.is_connected(_on_notice):
 		WalletService.notice_received.connect(_on_notice)
+	if not ProgressionService.progression_changed.is_connected(refresh_progression):
+		ProgressionService.progression_changed.connect(refresh_progression)
 
 
 func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool = false) -> void:
@@ -73,6 +82,7 @@ func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool =
 	refresh_journal(QuestService.journal_view())
 	refresh_equipment()
 	refresh_wallet()
+	refresh_progression()
 
 
 func refresh_journal(view: Dictionary) -> void:
@@ -107,6 +117,32 @@ func refresh_equipment() -> void:
 func refresh_wallet() -> void:
 	if _gold != null:
 		_gold.text = "Gold: %s" % str(WalletService.gold)
+
+
+func refresh_progression() -> void:
+	if _progression_summary != null:
+		_progression_summary.text = "%s  Level %s" % [
+			ProgressionService.class_display_name if not ProgressionService.class_display_name.is_empty() else "Class --",
+			str(ProgressionService.level),
+		]
+	if _progression_xp != null:
+		if ProgressionService.at_max_level:
+			_progression_xp.text = "XP: max level"
+		else:
+			_progression_xp.text = "XP: %s / %s" % [str(ProgressionService.current_xp), str(ProgressionService.xp_to_next)]
+	if _progression_points != null:
+		_progression_points.text = "Unspent: %s attr  %s skill" % [
+			str(ProgressionService.unspent_attribute_points),
+			str(ProgressionService.unspent_skill_points),
+		]
+	_rebuild_attribute_rows()
+	if _progression_derived != null:
+		var lines := PackedStringArray(["Derived:"])
+		for stat_id in ProgressionService.derived_ids():
+			var record: Dictionary = ContentRegistry.get_by_id(stat_id)
+			var label := String(record.get("displayName", stat_id))
+			lines.append("%s %s" % [label, str(int(ProgressionService.derived.get(stat_id, 0)))])
+		_progression_derived.text = "\n".join(lines)
 
 
 func show_notice(message: String) -> void:
@@ -158,6 +194,45 @@ func _exit_tree() -> void:
 		WalletService.wallet_changed.disconnect(refresh_wallet)
 	if WalletService.notice_received.is_connected(_on_notice):
 		WalletService.notice_received.disconnect(_on_notice)
+	if ProgressionService.progression_changed.is_connected(refresh_progression):
+		ProgressionService.progression_changed.disconnect(refresh_progression)
+
+
+func _rebuild_attribute_rows() -> void:
+	if _progression_attributes == null:
+		return
+	var fingerprint := "%s|%s|%s" % [
+		",".join(ProgressionService.attribute_ids()),
+		str(ProgressionService.allocated_attributes),
+		str(ProgressionService.unspent_attribute_points),
+	]
+	if fingerprint == _attribute_row_fingerprint:
+		return
+	_attribute_row_fingerprint = fingerprint
+	while _progression_attributes.get_child_count() > 0:
+		var child := _progression_attributes.get_child(0)
+		_progression_attributes.remove_child(child)
+		child.free()
+	for attribute_id in ProgressionService.attribute_ids():
+		var record: Dictionary = ContentRegistry.get_by_id(attribute_id)
+		var label_name := String(record.get("displayName", attribute_id))
+		var base_value := int(ProgressionService.base_attributes.get(attribute_id, 0))
+		var allocated := int(ProgressionService.allocated_attributes.get(attribute_id, 0))
+		var row := HBoxContainer.new()
+		var label := Label.new()
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.text = "%s  base %s  alloc %s" % [label_name, str(base_value), str(allocated)]
+		var button := Button.new()
+		button.text = "+"
+		button.disabled = ProgressionService.unspent_attribute_points < 1
+		button.pressed.connect(_on_allocate_pressed.bind(attribute_id))
+		row.add_child(label)
+		row.add_child(button)
+		_progression_attributes.add_child(row)
+
+
+func _on_allocate_pressed(attribute_id: String) -> void:
+	ProgressionService.request_allocate(attribute_id, 1)
 
 
 func _refresh_health(state: Dictionary) -> void:

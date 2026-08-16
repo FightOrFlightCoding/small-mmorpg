@@ -23,10 +23,10 @@ A later phase may implement a Required-for-Foundation-v1 row only when that phas
 | One public village-and-fields world | Required for Foundation v1 | Existing prototype is the single `zone.starter` match. Must become the public-world template; no public-world sharding in v1. |
 | Party-owned cave instances | Required for Foundation v1 | Absent. Private matches, one player or one party, shared instance for members entering together. |
 | Maximum party size of five | Required for Foundation v1 | Absent. Current match cap is 8 unrelated players in one public match. |
-| Data-defined character classes | Existing and accepted (Prompt 21) | Temporary test classes in content; selection is immutable. XP, attribute allocation, and abilities remain later prompts. |
-| Level and experience progression | Required for Foundation v1 | Absent. |
-| Optional attribute-point allocation | Required for Foundation v1 | Absent. |
-| Optional skill-point allocation | Required for Foundation v1 | Absent. |
+| Data-defined character classes | Existing and accepted (Prompt 21) | Temporary test classes in content; selection is immutable. XP and attribute allocation are Prompt 22. Ability unlock remains later. |
+| Level and experience progression | Existing and accepted (Prompt 22) | Content level curves; server XP from trusted events; client never submits amounts. |
+| Optional attribute-point allocation | Existing and accepted (Prompt 22) | `ALLOCATE_ATTRIBUTES`; class `allowedAttributeIds`; recalculated derived stats. |
+| Optional skill-point allocation | Required for Foundation v1 | Unspent skill points persist and display (Prompt 22). Ability unlock and spend remain later. |
 | Unlocked abilities and hotbar validity | Required for Foundation v1 | Absent. Combat is one auto-attack. |
 | Server-authoritative target-based PvE combat | Existing and accepted | Slice combat: `ATTACK` with `targetId` + `requestId`; server damage, cooldown, death, respawn. Foundation v1 must keep server authority while generalizing beyond one slime. |
 | Casts, resources, and status effects | Required for Foundation v1 | Absent. Health exists; no mana/resource pool or status pipeline. |

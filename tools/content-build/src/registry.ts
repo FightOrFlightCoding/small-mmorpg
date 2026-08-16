@@ -28,6 +28,11 @@ export const DEFAULT_MANIFEST: ContentPackageManifest = {
     quest: { schema: "quest.json", definitionSchemaVersion: 1, idPrefix: "quest" },
     zone: { schema: "zone.json", definitionSchemaVersion: 1, idPrefix: "zone" },
     class: { schema: "class.json", definitionSchemaVersion: 1, idPrefix: "test.class" },
+    attribute: { schema: "attribute.json", definitionSchemaVersion: 1, idPrefix: "test.attribute" },
+    resource: { schema: "resource.json", definitionSchemaVersion: 1, idPrefix: "test.resource" },
+    derived_stat: { schema: "derived_stat.json", definitionSchemaVersion: 1, idPrefix: "test.stat" },
+    level_curve: { schema: "level_curve.json", definitionSchemaVersion: 1, idPrefix: "test.curve" },
+    class_progression: { schema: "class_progression.json", definitionSchemaVersion: 1, idPrefix: "test.progression" },
   },
 };
 

@@ -1,0 +1,34 @@
+{
+  "id": "test.progression.vanguard",
+  "kind": "class_progression",
+  "classId": "test.class.vanguard",
+  "levelCurveId": "test.curve.standard",
+  "startingAttributes": {
+    "test.attribute.might": 6,
+    "test.attribute.vitality": 6,
+    "test.attribute.focus": 2
+  },
+  "attributeGrowth": {
+    "test.attribute.might": 1,
+    "test.attribute.vitality": 0,
+    "test.attribute.focus": 0
+  },
+  "startingResources": {
+    "test.resource.health": 100,
+    "test.resource.mana": 20
+  },
+  "resourceGrowth": {
+    "test.resource.health": 5,
+    "test.resource.mana": 0
+  },
+  "startingDerived": {
+    "test.stat.attack": 4
+  },
+  "allowedAttributeIds": [
+    "test.attribute.might",
+    "test.attribute.vitality",
+    "test.attribute.focus"
+  ],
+  "attributePointRules": { "pointsAtCreate": 0 },
+  "skillPointRules": { "pointsAtCreate": 0 }
+}

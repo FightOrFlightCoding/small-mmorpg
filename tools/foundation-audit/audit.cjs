@@ -230,6 +230,7 @@ function checkStorage() {
     "server/src/domain/quest_store.ts",
     "server/src/domain/equipment_store.ts",
     "server/src/domain/wallet_ref.ts",
+    "server/src/domain/progression_store.ts",
   ];
   for (const rel of writeFns) {
     const text = read(rel);

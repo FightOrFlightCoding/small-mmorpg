@@ -1,0 +1,16 @@
+{
+  "id": "test.stat.max_mana",
+  "kind": "derived_stat",
+  "displayName": "Max Mana",
+  "role": "max_mana",
+  "components": [
+    { "layer": "class_base", "source": "starting_resource", "id": "test.resource.mana" },
+    { "layer": "level_growth", "source": "resource_growth", "id": "test.resource.mana" },
+    { "layer": "allocated_attributes", "id": "test.attribute.focus", "weight": 8 },
+    { "layer": "equipment", "channel": "max_mana" },
+    { "layer": "effects", "channel": "max_mana" },
+    { "layer": "percent", "channel": "max_mana" },
+    { "layer": "multiply", "channel": "max_mana" },
+    { "layer": "clamp", "min": 0, "max": 9999 }
+  ]
+}

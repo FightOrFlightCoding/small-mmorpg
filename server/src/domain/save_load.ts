@@ -7,6 +7,8 @@ import { migrateRecord, type RecordMigrationResult } from "./migration";
 import { storedQuestFromValue } from "./quest_store";
 import type { QuestLog } from "./quest";
 import { readEnvelope } from "./save_schema";
+import { storedProgressionFromValue } from "./progression_store";
+import type { CharacterProgression } from "./progression";
 import { storedWalletRefFromValue, type WalletRef } from "./wallet_ref";
 
 export interface CanonicalLoad<T> {
@@ -100,6 +102,25 @@ export function loadCanonicalWalletRef(raw: unknown, present: boolean): Canonica
   if (parsed === null) {
     return { ok: false, reason: "corrupted_required_fields", missing: false, persist: false, value: null, raw: null };
   }
+  return { ok: true, reason: migrated.reason, missing: false, persist: migrated.changed, value: parsed, raw: migrated.value };
+}
+
+export function loadCanonicalProgression(raw: unknown, present: boolean): CanonicalLoad<CharacterProgression> {
+  const migrated = migrateRecord("progression", raw, present);
+  if (!migrated.ok) {
+    return fail(migrated);
+  }
+  if (migrated.missing || migrated.value === null) {
+    return missing();
+  }
+  const parsed = storedProgressionFromValue(migrated.value);
+  if (parsed === null) {
+    return { ok: false, reason: "corrupted_required_fields", missing: false, persist: false, value: null, raw: null };
+  }
+  const envelope = readEnvelope(migrated.value);
+  parsed.schemaVersion = envelope.schemaVersion;
+  parsed.createdAt = envelope.createdAt;
+  parsed.updatedAt = envelope.updatedAt;
   return { ok: true, reason: migrated.reason, missing: false, persist: migrated.changed, value: parsed, raw: migrated.value };
 }
 

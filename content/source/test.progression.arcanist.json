@@ -1,0 +1,34 @@
+{
+  "id": "test.progression.arcanist",
+  "kind": "class_progression",
+  "classId": "test.class.arcanist",
+  "levelCurveId": "test.curve.standard",
+  "startingAttributes": {
+    "test.attribute.might": 2,
+    "test.attribute.vitality": 4,
+    "test.attribute.focus": 7
+  },
+  "attributeGrowth": {
+    "test.attribute.might": 0,
+    "test.attribute.vitality": 0,
+    "test.attribute.focus": 1
+  },
+  "startingResources": {
+    "test.resource.health": 80,
+    "test.resource.mana": 60
+  },
+  "resourceGrowth": {
+    "test.resource.health": 2,
+    "test.resource.mana": 6
+  },
+  "startingDerived": {
+    "test.stat.attack": 2
+  },
+  "allowedAttributeIds": [
+    "test.attribute.might",
+    "test.attribute.vitality",
+    "test.attribute.focus"
+  ],
+  "attributePointRules": { "pointsAtCreate": 0 },
+  "skillPointRules": { "pointsAtCreate": 0 }
+}

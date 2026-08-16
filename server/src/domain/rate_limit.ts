@@ -10,6 +10,7 @@ export const ACTION_LIMITS = {
   pickup: 8,
   equip: 8,
   quest: 8,
+  allocate: 8,
   resync: 2,
   unknown: 8,
 } as const;
@@ -39,6 +40,9 @@ export function actionForOpcode(opcode: number): RateAction {
   }
   if (opcode === ClientOpcode.QUEST_ACCEPT || opcode === ClientOpcode.QUEST_TURN_IN) {
     return "quest";
+  }
+  if (opcode === ClientOpcode.ALLOCATE_ATTRIBUTES) {
+    return "allocate";
   }
   if (opcode === ClientOpcode.RESYNC_REQUEST) {
     return "resync";

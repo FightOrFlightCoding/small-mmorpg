@@ -14,11 +14,17 @@ test("generated server content is importable without filesystem access", () => {
   assert.ok(classDefs.length >= 2);
   let defaults = 0;
   for (let i = 0; i < classDefs.length; i++) {
-    const classDef = classDefs[i] as { legacyMigrationDefault?: boolean; startingEquipment: ReadonlyArray<unknown> };
+    const classDef = classDefs[i] as { legacyMigrationDefault?: boolean; startingEquipment: ReadonlyArray<unknown>; progressionId?: string };
     if (classDef.legacyMigrationDefault === true) {
       defaults += 1;
     }
     assert.ok(Array.isArray(classDef.startingEquipment));
+    assert.equal(typeof classDef.progressionId, "string");
   }
   assert.equal(defaults, 1);
+  assert.ok(Object.keys(content.attributes).length >= 1);
+  assert.ok(Object.keys(content.resources).length >= 1);
+  assert.ok(Object.keys(content.derivedStats).length >= 1);
+  assert.ok(Object.keys(content.levelCurves).length >= 1);
+  assert.ok(Object.keys(content.classProgressions).length >= 2);
 });

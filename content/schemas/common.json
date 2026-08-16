@@ -57,6 +57,36 @@
         "itemId": { "$ref": "#/$defs/contentId" },
         "quantity": { "$ref": "#/$defs/positiveInteger" }
       }
+    },
+    "statComponent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["layer"],
+      "properties": {
+        "layer": {
+          "type": "string",
+          "enum": [
+            "class_base",
+            "level_growth",
+            "allocated_attributes",
+            "equipment",
+            "effects",
+            "percent",
+            "multiply",
+            "clamp"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "enum": ["starting_derived", "starting_resource", "attribute_growth", "resource_growth", "constant"]
+        },
+        "id": { "$ref": "#/$defs/contentId" },
+        "channel": { "type": "string", "minLength": 1 },
+        "weight": { "type": "number" },
+        "value": { "type": "number" },
+        "min": { "type": "number" },
+        "max": { "type": "number" }
+      }
     }
   }
 }

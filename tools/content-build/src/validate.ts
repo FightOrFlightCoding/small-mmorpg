@@ -5,14 +5,19 @@ import { DEFAULT_MANIFEST, type ContentPackageManifest } from "./registry";
 import { loadAjv, mapAjvErrors, validatorForKind } from "./schema";
 import type {
   Aabb,
+  AttributeDef,
   ClassDef,
+  ClassProgressionDef,
   ContentPayload,
+  DerivedStatDef,
   EnemyDef,
   ItemDef,
   ItemStack,
+  LevelCurveDef,
   NpcDef,
   PlayerDef,
   QuestDef,
+  ResourceDef,
   SourceDocument,
   ZoneDef,
 } from "./types";
@@ -87,6 +92,11 @@ export function validateDocuments(
   const quests = asKindMap<QuestDef>(selected, "quest");
   const zones = asKindMap<ZoneDef>(selected, "zone");
   const classes = asKindMap<ClassDef>(selected, "class");
+  const attributes = asKindMap<AttributeDef>(selected, "attribute");
+  const resources = asKindMap<ResourceDef>(selected, "resource");
+  const derivedStats = asKindMap<DerivedStatDef>(selected, "derived_stat");
+  const levelCurves = asKindMap<LevelCurveDef>(selected, "level_curve");
+  const classProgressions = asKindMap<ClassProgressionDef>(selected, "class_progression");
 
   if (player) {
     checkVisual(player.visualId, issues);
@@ -112,7 +122,8 @@ export function validateDocuments(
   for (let i = 0; i < zoneIds.length; i++) {
     checkZone(zones[zoneIds[i]], npcs, enemies, issues);
   }
-  checkClasses(classes, items, issues);
+  checkClasses(classes, items, classProgressions, issues);
+  checkProgressionCatalog(attributes, resources, derivedStats, levelCurves, classProgressions, classes, issues);
 
   if (issues.length > 0) {
     throw new ContentValidationError(uniqueIssues(issues));
@@ -122,7 +133,20 @@ export function validateDocuments(
     throw new Error("missing_player");
   }
 
-  return { player, items, npcs, enemies, quests, zones, classes };
+  return {
+    player,
+    items,
+    npcs,
+    enemies,
+    quests,
+    zones,
+    classes,
+    attributes,
+    resources,
+    derivedStats,
+    levelCurves,
+    classProgressions,
+  };
 }
 
 function selectDocuments(byId: Map<string, SourceDocument>, includeDevelopment: boolean): Map<string, SourceDocument> {
@@ -288,7 +312,12 @@ function checkAabbInWorld(zone: ZoneDef, box: Aabb, label: string, issues: Conte
   }
 }
 
-function checkClasses(classes: Record<string, ClassDef>, items: Record<string, ItemDef>, issues: ContentIssue[]): void {
+function checkClasses(
+  classes: Record<string, ClassDef>,
+  items: Record<string, ItemDef>,
+  progressions: Record<string, ClassProgressionDef>,
+  issues: ContentIssue[],
+): void {
   const ids = Object.keys(classes);
   if (ids.length === 0) {
     issues.push(issue("missing_class_catalog"));
@@ -301,12 +330,113 @@ function checkClasses(classes: Record<string, ClassDef>, items: Record<string, I
     for (let e = 0; e < def.startingEquipment.length; e++) {
       requireItem(def.startingEquipment[e].itemId, items, issues);
     }
+    if (!progressions[def.progressionId]) {
+      issues.push(issue("missing_reference:" + def.progressionId));
+    }
     if (def.legacyMigrationDefault === true) {
       defaults += 1;
     }
   }
   if (defaults !== 1) {
     issues.push(issue("legacy_migration_default:" + String(defaults)));
+  }
+}
+
+function checkProgressionCatalog(
+  attributes: Record<string, AttributeDef>,
+  resources: Record<string, ResourceDef>,
+  derivedStats: Record<string, DerivedStatDef>,
+  levelCurves: Record<string, LevelCurveDef>,
+  progressions: Record<string, ClassProgressionDef>,
+  classes: Record<string, ClassDef>,
+  issues: ContentIssue[],
+): void {
+  if (Object.keys(attributes).length === 0) {
+    issues.push(issue("missing_attribute_catalog"));
+  }
+  if (Object.keys(resources).length === 0) {
+    issues.push(issue("missing_resource_catalog"));
+  }
+  const derivedIds = Object.keys(derivedStats);
+  if (derivedIds.length === 0) {
+    issues.push(issue("missing_derived_stat_catalog"));
+  }
+  let attackRoles = 0;
+  let healthRoles = 0;
+  for (let i = 0; i < derivedIds.length; i++) {
+    const stat = derivedStats[derivedIds[i]];
+    if (stat.role === "attack") {
+      attackRoles += 1;
+    }
+    if (stat.role === "max_health") {
+      healthRoles += 1;
+    }
+    for (let c = 0; c < stat.components.length; c++) {
+      const component = stat.components[c];
+      if (component.id !== undefined && !attributes[component.id] && !resources[component.id] && !derivedStats[component.id]) {
+        issues.push(issue("missing_reference:" + component.id));
+      }
+    }
+  }
+  if (attackRoles !== 1) {
+    issues.push(issue("derived_stat_role:attack:" + String(attackRoles)));
+  }
+  if (healthRoles !== 1) {
+    issues.push(issue("derived_stat_role:max_health:" + String(healthRoles)));
+  }
+  const curveIds = Object.keys(levelCurves);
+  if (curveIds.length === 0) {
+    issues.push(issue("missing_level_curve_catalog"));
+  }
+  for (let i = 0; i < curveIds.length; i++) {
+    const curve = levelCurves[curveIds[i]];
+    if (curve.maxLevel < 2 || curve.xpRequired.length !== curve.maxLevel - 1) {
+      issues.push(issue("invalid_range:xpRequired"));
+    }
+    if (curve.attributePointsPerLevel.length !== curve.maxLevel - 1) {
+      issues.push(issue("invalid_range:attributePointsPerLevel"));
+    }
+    if (curve.skillPointsPerLevel.length !== curve.maxLevel - 1) {
+      issues.push(issue("invalid_range:skillPointsPerLevel"));
+    }
+  }
+  const progressionIds = Object.keys(progressions);
+  if (progressionIds.length === 0) {
+    issues.push(issue("missing_class_progression_catalog"));
+  }
+  for (let i = 0; i < progressionIds.length; i++) {
+    const progression = progressions[progressionIds[i]];
+    if (!classes[progression.classId]) {
+      issues.push(issue("missing_reference:" + progression.classId));
+    }
+    if (!levelCurves[progression.levelCurveId]) {
+      issues.push(issue("missing_reference:" + progression.levelCurveId));
+    }
+    requireIdMap(progression.startingAttributes, attributes, issues);
+    requireIdMap(progression.attributeGrowth, attributes, issues);
+    requireIdMap(progression.startingResources, resources, issues);
+    if (progression.resourceGrowth !== undefined) {
+      requireIdMap(progression.resourceGrowth, resources, issues);
+    }
+    requireIdMap(progression.startingDerived, derivedStats, issues);
+    for (let a = 0; a < progression.allowedAttributeIds.length; a++) {
+      if (!attributes[progression.allowedAttributeIds[a]]) {
+        issues.push(issue("missing_reference:" + progression.allowedAttributeIds[a]));
+      }
+    }
+  }
+}
+
+function requireIdMap(
+  map: Record<string, number>,
+  catalog: Record<string, { id: string }>,
+  issues: ContentIssue[],
+): void {
+  const keys = Object.keys(map);
+  for (let i = 0; i < keys.length; i++) {
+    if (!catalog[keys[i]]) {
+      issues.push(issue("missing_reference:" + keys[i]));
+    }
   }
 }
 

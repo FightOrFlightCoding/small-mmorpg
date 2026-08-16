@@ -1,6 +1,7 @@
 import { storedCharacterFromValue, storedCharacterWriteValue } from "./character";
 import { storedEquipmentFromValue, storedEquipmentWriteValue } from "./equipment_store";
 import { storedInventoryFromValue, storedInventoryWriteValue } from "./inventory_store";
+import { storedProgressionFromValue, storedProgressionWriteValue } from "./progression_store";
 import { storedQuestFromValue, storedQuestWriteValue } from "./quest_store";
 import {
   REASON_ALREADY_CURRENT,
@@ -108,6 +109,12 @@ export const MIGRATION_WALLET_REF_V0_V1: Migration = {
   fromVersion: 0,
   toVersion: 1,
 };
+export const MIGRATION_PROGRESSION_V0_V1: Migration = {
+  id: "mig.progression.v0_to_v1",
+  kind: "progression",
+  fromVersion: 0,
+  toVersion: 1,
+};
 
 export const MIGRATION_REGISTRY: Migration[] = [
   MIGRATION_CHARACTER_V0_V1,
@@ -115,6 +122,7 @@ export const MIGRATION_REGISTRY: Migration[] = [
   MIGRATION_EQUIPMENT_V0_V1,
   MIGRATION_QUESTS_V0_V1,
   MIGRATION_WALLET_REF_V0_V1,
+  MIGRATION_PROGRESSION_V0_V1,
 ];
 
 export function migrationsFor(kind: RecordKind): Migration[] {
@@ -332,6 +340,13 @@ function applyMigration(migration: Migration, input: { [key: string]: unknown })
     const parsed = storedQuestFromValue(input);
     return okStep(migration, storedQuestWriteValue(stampEnvelope(parsed, envelope)));
   }
+  if (migration.kind === "progression") {
+    const parsed = storedProgressionFromValue(input);
+    if (parsed === null) {
+      return failStep(migration, REASON_CORRUPTED_REQUIRED_FIELDS);
+    }
+    return okStep(migration, storedProgressionWriteValue(stampEnvelope(parsed, envelope)));
+  }
   const parsed = storedWalletRefFromValue(input);
   if (parsed === null) {
     return failStep(migration, REASON_CORRUPTED_REQUIRED_FIELDS);
@@ -372,6 +387,13 @@ function normalizeCurrent(kind: RecordKind, value: { [key: string]: unknown }): 
     }
     const parsed = storedQuestFromValue(value);
     return { ok: true, reason: REASON_ALREADY_CURRENT, value: storedQuestWriteValue(stampEnvelope(parsed, envelope)) };
+  }
+  if (kind === "progression") {
+    const parsed = storedProgressionFromValue(value);
+    if (parsed === null) {
+      return { ok: false, reason: REASON_CORRUPTED_REQUIRED_FIELDS, value: null };
+    }
+    return { ok: true, reason: REASON_ALREADY_CURRENT, value: storedProgressionWriteValue(stampEnvelope(parsed, envelope)) };
   }
   const parsed = storedWalletRefFromValue(value);
   if (parsed === null) {

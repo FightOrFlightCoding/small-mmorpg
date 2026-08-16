@@ -1,0 +1,6 @@
+{
+  "id": "test.resource.mana",
+  "kind": "resource",
+  "displayName": "Mana",
+  "role": "mana"
+}

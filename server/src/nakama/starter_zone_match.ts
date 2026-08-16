@@ -41,6 +41,9 @@ import { invalidateTicket, validateJoinSelection } from "../domain/character_tic
 import { classDefinitionsFromContent, startingEquipmentForClass } from "../domain/class_catalog";
 import { characterLifecycleDeps } from "./character_lifecycle_deps";
 import { readSelection, writeSelection } from "./selection_store";
+import { catalogFromContent, syncCombatStatsFromPipeline } from "../domain/stats";
+import { initializeProgression } from "../domain/progression";
+import { readProgression, writeProgression, writeProgressionOnce } from "./progression_store";
 
 export interface StarterMatchRuntimeState {
   zone: StarterZoneState;
@@ -71,6 +74,7 @@ export function matchInit(
     questDefinitionsFromContent(content.quests),
     itemDefinitionsFromContent(content.items),
   );
+  zone.progressionCatalog = catalogFromContent(content);
   logger.info("starter_zone init label=%s content_hash=%s", STARTER_ZONE_LABEL, contentHash);
   return {
     state: { zone: zone, presences: {} },
@@ -134,6 +138,7 @@ export function matchJoinAttempt(
     readInventory(nk, presence.userId, character.characterId);
     readEquipment(nk, presence.userId, character.characterId);
     readQuests(nk, presence.userId, character.characterId);
+    readProgression(nk, presence.userId, character.characterId);
   } catch (error) {
     const reason = error instanceof Error ? error.message : "save_incompatible";
     logger.info("starter_zone join rejected user_id=%s reason=%s", presence.userId, reason);
@@ -199,11 +204,13 @@ export function matchJoin(
     let loadedEquipment!: ReturnType<typeof loadEquipment>;
     let gold!: number;
     let questLog!: ReturnType<typeof readQuests>;
+    let progression!: ReturnType<typeof loadPlayerProgression>;
     try {
       inventory = loadPlayerInventory(nk, presence.userId, character);
       loadedEquipment = loadEquipment(readEquipment(nk, presence.userId, character.characterId), inventory);
       gold = readGold(nk, presence.userId);
       questLog = readQuests(nk, presence.userId, character.characterId);
+      progression = loadPlayerProgression(nk, presence.userId, character);
     } catch (error) {
       logger.info(
         "starter_zone join rejected user_id=%s reason=%s",
@@ -218,6 +225,7 @@ export function matchJoin(
       writeEquipment(nk, presence.userId, loadedEquipment.equipment, character.characterId);
       logger.info("starter_zone reconcile equipment user_id=%s", presence.userId);
     }
+    const classId = character.classId !== undefined && character.classId.length > 0 ? character.classId : "";
     const derived = derivedAttack(
       content.player.attack,
       loadedEquipment.equipment,
@@ -237,6 +245,13 @@ export function matchJoin(
         derived,
         gold,
       );
+      if (player.progression === undefined) {
+        player.progression = progression.progression;
+      }
+      if (player.classId === undefined || player.classId.length === 0) {
+        player.classId = classId;
+      }
+      applyJoinDerived(zone, player);
       logger.info("starter_zone grace rejoin user_id=%s", presence.userId);
     } else {
       player = {
@@ -245,6 +260,7 @@ export function matchJoin(
         username: presence.username,
         characterId: character.characterId,
         name: character.name,
+        classId: classId,
         x: character.position.x,
         y: character.position.y,
         maxHealth: content.player.maxHealth,
@@ -257,10 +273,13 @@ export function matchJoin(
         equipment: loadedEquipment.equipment,
         derivedAttack: derived,
         gold: gold,
+        progression: progression.progression,
         lastCheckpointTick: tick,
         lastCheckpointX: character.position.x,
         lastCheckpointY: character.position.y,
       };
+      applyJoinDerived(zone, player);
+      player.health = joinHealth(player.maxHealth);
       logger.info("starter_zone join user_id=%s character_id=%s", presence.userId, character.characterId);
     }
     zone = addPlayer(zone, player);
@@ -355,6 +374,11 @@ export function matchLoop(
     const persist = result.persistEquipment[eq];
     writeEquipment(nk, persist.userId, persist.equipment, persist.characterId);
     logger.info("starter_zone persist equipment user_id=%s", persist.userId);
+  }
+  for (let pg = 0; pg < result.persistProgression.length; pg++) {
+    const persist = result.persistProgression[pg];
+    writeProgression(nk, persist.userId, persist.progression, persist.characterId);
+    logger.info("starter_zone persist progression user_id=%s", persist.userId);
   }
   writeCheckpoints(nk, logger, result.persistCheckpoints);
   for (let r = 0; r < result.rejections.length; r++) {
@@ -486,6 +510,36 @@ function loadPlayerInventory(nk: nkruntime.Nakama, userId: string, character: { 
     writeInventoryOnce(nk, userId, loaded.inventory, character.characterId);
   }
   return loaded.inventory;
+}
+
+function loadPlayerProgression(
+  nk: nkruntime.Nakama,
+  userId: string,
+  character: { characterId: string; classId?: string },
+) {
+  const existing = readProgression(nk, userId, character.characterId);
+  if (existing !== null) {
+    return { progression: existing, created: false };
+  }
+  const classId = character.classId !== undefined ? character.classId : "";
+  const catalog = catalogFromContent(content);
+  const progression = initializeProgression(catalog, classId);
+  const now = Date.now();
+  progression.schemaVersion = SAVE_SCHEMA_VERSION;
+  progression.createdAt = now;
+  progression.updatedAt = now;
+  writeProgressionOnce(nk, userId, progression, character.characterId);
+  return { progression: progression, created: true };
+}
+
+function applyJoinDerived(zone: StarterZoneState, player: MatchPlayer): void {
+  if (zone.progressionCatalog === undefined || player.classId === undefined || player.classId.length === 0) {
+    return;
+  }
+  if (player.progression === undefined) {
+    player.progression = initializeProgression(zone.progressionCatalog, player.classId);
+  }
+  syncCombatStatsFromPipeline(player, zone.progressionCatalog, zone.itemsById);
 }
 
 function allPresences(presences: { [userId: string]: nkruntime.Presence }): nkruntime.Presence[] {

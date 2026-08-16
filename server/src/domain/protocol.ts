@@ -12,6 +12,7 @@ export const ClientOpcode = {
   QUEST_ACCEPT: 6,
   QUEST_TURN_IN: 7,
   RESYNC_REQUEST: 8,
+  ALLOCATE_ATTRIBUTES: 9,
 } as const;
 
 export const ServerOpcode = {
@@ -25,6 +26,7 @@ export const ServerOpcode = {
   SYSTEM_MESSAGE: 108,
   EQUIPMENT_STATE: 109,
   WALLET_STATE: 110,
+  PROGRESSION_STATE: 111,
 } as const;
 
 export type ClientOpcode = (typeof ClientOpcode)[keyof typeof ClientOpcode];
@@ -39,6 +41,7 @@ const CLIENT_OPCODES: ClientOpcode[] = [
   ClientOpcode.QUEST_ACCEPT,
   ClientOpcode.QUEST_TURN_IN,
   ClientOpcode.RESYNC_REQUEST,
+  ClientOpcode.ALLOCATE_ATTRIBUTES,
 ];
 
 const REWARD_OPCODES: ClientOpcode[] = [
@@ -58,6 +61,7 @@ OPCODE_KEYS[ClientOpcode.EQUIP] = ["instanceId", "slot"];
 OPCODE_KEYS[ClientOpcode.QUEST_ACCEPT] = ["questId"];
 OPCODE_KEYS[ClientOpcode.QUEST_TURN_IN] = ["questId", "npcId"];
 OPCODE_KEYS[ClientOpcode.RESYNC_REQUEST] = [];
+OPCODE_KEYS[ClientOpcode.ALLOCATE_ATTRIBUTES] = ["attributeId", "amount"];
 
 const OUTCOME_KEYS = [
   "attack",
@@ -84,9 +88,17 @@ const OUTCOME_KEYS = [
   "questComplete",
   "stats",
   "attackBonus",
+  "xp",
+  "currentXp",
+  "lifetimeXp",
+  "level",
+  "unspentAttributePoints",
+  "unspentSkillPoints",
+  "allocatedAttributes",
 ];
 
 const INPUT_NUMBER_KEYS = ["seq", "axisX", "axisY"];
+const ALLOCATE_NUMBER_KEYS = ["amount"];
 
 export interface ProtocolError {
   code: string;
@@ -102,6 +114,7 @@ export interface ParsedClientMessage {
   seq?: number;
   axisX?: number;
   axisY?: number;
+  amount?: number;
 }
 
 export function isClientOpcode(opcode: number): opcode is ClientOpcode {
@@ -117,7 +130,8 @@ function requiresRequestId(opcode: ClientOpcode): boolean {
     isRewardOpcode(opcode) ||
     opcode === ClientOpcode.INTERACT ||
     opcode === ClientOpcode.ATTACK ||
-    opcode === ClientOpcode.EQUIP
+    opcode === ClientOpcode.EQUIP ||
+    opcode === ClientOpcode.ALLOCATE_ATTRIBUTES
   );
 }
 
@@ -210,6 +224,9 @@ export function parseClientMessage(
     if (INPUT_NUMBER_KEYS.indexOf(key) !== -1) {
       continue;
     }
+    if (ALLOCATE_NUMBER_KEYS.indexOf(key) !== -1) {
+      continue;
+    }
     if (key === "instanceId" && !Object.prototype.hasOwnProperty.call(data, key)) {
       continue;
     }
@@ -243,6 +260,13 @@ export function parseClientMessage(
     message.seq = seq;
     message.axisX = axisX;
     message.axisY = axisY;
+  }
+  if (opcode === ClientOpcode.ALLOCATE_ATTRIBUTES) {
+    const amount = data.amount;
+    if (typeof amount !== "number" || !isFinite(amount) || amount !== Math.floor(amount)) {
+      return { code: "invalid_amount", message: "ALLOCATE amount must be a finite integer." };
+    }
+    message.amount = amount;
   }
   return message;
 }
@@ -379,6 +403,25 @@ export function walletState(
   }
   return {
     opcode: ServerOpcode.WALLET_STATE,
+    body: JSON.stringify(payload),
+  };
+}
+
+export function progressionState(
+  contentHash: string,
+  progression: { [key: string]: unknown },
+  requestId?: string,
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    contentHash: contentHash,
+    progression: progression,
+  };
+  if (requestId !== undefined) {
+    payload.requestId = requestId;
+  }
+  return {
+    opcode: ServerOpcode.PROGRESSION_STATE,
     body: JSON.stringify(payload),
   };
 }

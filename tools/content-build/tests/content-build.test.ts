@@ -77,8 +77,16 @@ test("valid source documents compile to a payload", () => {
     }
     assert.ok(payload.classes[classIds[i]].startingEquipment.length >= 0);
     assert.ok(typeof payload.classes[classIds[i]].visualAssetSetId === "string");
+    assert.ok(typeof payload.classes[classIds[i]].progressionId === "string");
   }
   assert.equal(defaults, 1);
+  assert.ok(Object.keys(payload.attributes).length >= 1);
+  assert.ok(Object.keys(payload.resources).length >= 1);
+  assert.ok(Object.keys(payload.derivedStats).length >= 1);
+  assert.ok(Object.keys(payload.levelCurves).length >= 1);
+  assert.ok(Object.keys(payload.classProgressions).length >= 2);
+  assert.equal(typeof payload.enemies["enemy.green_slime"].xpReward, "number");
+  assert.equal(typeof payload.quests["quest.slime_problem"].rewards.xp, "number");
 });
 
 test("duplicate IDs are rejected", () => {

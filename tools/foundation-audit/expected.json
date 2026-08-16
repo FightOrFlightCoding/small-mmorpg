@@ -1,7 +1,7 @@
 {
   "protocolVersion": 1,
   "contentSchemaVersion": 1,
-  "contentHash": "e7e2625ff9e92d4905422efeba0c36554d45136578c27f8a6989f06e0ce94721",
+  "contentHash": "92acd85d31c8e291790ef67e27cea10ada40932529885d744b15dc1af6f6c0cf",
   "exactDependencies": {
     "server/package.json:typescript": "5.8.3",
     "server/package.json:nakama-runtime": "github:heroiclabs/nakama-common#v1.47.0",
@@ -48,7 +48,8 @@
     "EQUIP": 5,
     "QUEST_ACCEPT": 6,
     "QUEST_TURN_IN": 7,
-    "RESYNC_REQUEST": 8
+    "RESYNC_REQUEST": 8,
+    "ALLOCATE_ATTRIBUTES": 9
   },
   "serverOpcodes": {
     "FULL_STATE": 101,
@@ -60,7 +61,8 @@
     "INTERACTION_RESULT": 107,
     "SYSTEM_MESSAGE": 108,
     "EQUIPMENT_STATE": 109,
-    "WALLET_STATE": 110
+    "WALLET_STATE": 110,
+    "PROGRESSION_STATE": 111
   },
   "storageRecords": [
     { "collection": "player", "key": "character", "permissionWrite": 0, "schemaVersion": 1 },
@@ -70,6 +72,7 @@
     { "collection": "player", "key": "inventory", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "player", "key": "equipment", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "player", "key": "wallet_ref", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "player", "key": "progression", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "names", "key": "n", "permissionWrite": 0, "schemaVersion": "absent" },
     { "collection": "match", "key": "starter_zone", "permissionWrite": 0, "schemaVersion": "absent" }
   ],
@@ -82,8 +85,19 @@
     "npc.elder.json",
     "player.base.json",
     "quest.slime_problem.json",
+    "test.attribute.focus.json",
+    "test.attribute.might.json",
+    "test.attribute.vitality.json",
     "test.class.arcanist.json",
     "test.class.vanguard.json",
+    "test.curve.standard.json",
+    "test.progression.arcanist.json",
+    "test.progression.vanguard.json",
+    "test.resource.health.json",
+    "test.resource.mana.json",
+    "test.stat.attack.json",
+    "test.stat.max_health.json",
+    "test.stat.max_mana.json",
     "zone.starter.json"
   ],
   "hardcodedIds": {

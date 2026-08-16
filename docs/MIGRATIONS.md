@@ -58,3 +58,5 @@ Gold stays in the Nakama wallet. Migration never credits gold or grants starter 
 `character_bootstrap` and starter-zone join load storage through the same kernel, persist a successful v0→v1 result once (OCC), and reject visibly on future or corrupted required fields. Join metadata cannot carry a save version. Bootstrap `schemaVersion` / `createdAt` / `updatedAt` are `stat_injection`.
 
 Prompt 21 additionally moves a Prompt 18 `player`/`character` object into the account roster as slot 1, copies inventory/quests/equipment onto character-scoped keys **without** re-running starter grants, and fills `classId` from the content class with `legacyMigrationDefault: true`. `SAVE_SCHEMA_VERSION` stays **1**. Gold is not copied or credited.
+
+Prompt 22 adds `player`/`progression`. A missing blob is not join-fatal: the match initializes level 1, 0 XP, class `pointsAtCreate`, and class `startingAbilities`, then persists once. A present v0 blob migrates through `mig.progression.v0_to_v1`. Live combat for that character uses the stat pipeline (vanguard level 1 with the training sword still deals `player.base.attack` + `attackBonus`). Skill-tree unlocks remain later.

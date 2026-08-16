@@ -45,6 +45,7 @@
       "required": ["gold", "items"],
       "properties": {
         "gold": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
+        "xp": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
         "items": {
           "type": "array",
           "minItems": 1,

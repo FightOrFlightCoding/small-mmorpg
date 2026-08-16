@@ -44,6 +44,13 @@ const STAT_INJECTION_KEYS = [
   "x",
   "y",
   "zoneId",
+  "xp",
+  "currentXp",
+  "lifetimeXp",
+  "level",
+  "unspentAttributePoints",
+  "unspentSkillPoints",
+  "allocatedAttributes",
 ];
 
 export interface PlayerStatsSource {

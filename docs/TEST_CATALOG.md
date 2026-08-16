@@ -1,6 +1,6 @@
 # Test catalog
 
-Prompt 18 automated suites plus the Prompt 19 freeze audit and Prompt 21 account/character coverage. Do not weaken these tests. Live gate counts after Prompt 21: content 14/14, server 191/191, client 131/131 (0 orphans), `E2E_SLICE_OK`.
+Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, and Prompt 22 progression coverage. Do not weaken these tests. Live gate counts after Prompt 22: content 14/14, server 208/208, client 134/134 (0 orphans), `E2E_SLICE_OK`.
 
 Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDATION_BASELINE.md).
 
@@ -56,6 +56,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `migration.test.ts` | v0→v1, retry, future version, missing version, null schemaVersion, corrupt, completed quest, equipment, gold | |
 | `chat.test.ts` | RT hooks | |
 | `content.test.ts` | generated catalog shape | VS-T8 analog |
+| `progression.test.ts` | XP thresholds, multi-level, max level, duplicate event, allocate, derived-stat order, equipment/effect hooks, Prompt 18 migrate, reconnect FULL_STATE | |
 | `health.test.ts` | `vibecode_health` | |
 
 ## Client GdUnit (`client/tests`)
@@ -74,7 +75,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `entity_registry_test.gd` / `world_render_test.gd` | presentation | VS-M1 analog |
 | `interaction_client_test.gd` | INTERACT, dialogue after result | |
 | `quest_service_test.gd` | accept/turn-in intents | VS-T6 analog |
-| `inventory_service_test.gd` / `equipment_service_test.gd` / `wallet_service_test.gd` | mirrors | VS-T5, T8 |
+| `inventory_service_test.gd` / `equipment_service_test.gd` / `wallet_service_test.gd` / `progression_service_test.gd` | mirrors | VS-T5, T8 |
 | `combat_client_test.gd` | attack intent | VS-T3 analog |
 | `chat_client_test.gd` | Label, no BBCode | |
 | `reconnect_test.gd` | overlay, seq adopt | |

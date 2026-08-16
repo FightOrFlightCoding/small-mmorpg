@@ -23,6 +23,7 @@ func test_join_metadata_carries_selection_ticket_not_character_id() -> void:
 	assert_int(MatchProtocol.CLIENT_QUEST_ACCEPT).is_equal(6)
 	assert_int(MatchProtocol.CLIENT_QUEST_TURN_IN).is_equal(7)
 	assert_int(MatchProtocol.CLIENT_RESYNC_REQUEST).is_equal(8)
+	assert_int(MatchProtocol.CLIENT_ALLOCATE_ATTRIBUTES).is_equal(9)
 	assert_int(MatchProtocol.SERVER_FULL_STATE).is_equal(101)
 	assert_int(MatchProtocol.SERVER_SNAPSHOT).is_equal(102)
 	assert_int(MatchProtocol.SERVER_ACTION_RESULT).is_equal(103)
@@ -33,6 +34,7 @@ func test_join_metadata_carries_selection_ticket_not_character_id() -> void:
 	assert_int(MatchProtocol.SERVER_SYSTEM_MESSAGE).is_equal(108)
 	assert_int(MatchProtocol.SERVER_EQUIPMENT_STATE).is_equal(109)
 	assert_int(MatchProtocol.SERVER_WALLET_STATE).is_equal(110)
+	assert_int(MatchProtocol.SERVER_PROGRESSION_STATE).is_equal(111)
 	assert_float(MatchProtocol.INPUT_SEND_HZ).is_equal(10.0)
 	assert_float(MatchProtocol.SNAPSHOT_RATE_HZ).is_equal(10.0)
 	assert_float(MatchProtocol.SNAPSHOT_TIMEOUT_SEC).is_equal(2.0)
@@ -104,3 +106,15 @@ func test_full_state_rejects_content_mismatch() -> void:
 	)
 	assert_bool(bool(parsed["ok"])).is_false()
 	assert_str(parsed["code"]).is_equal("content_mismatch")
+
+
+func test_parse_progression_state() -> void:
+	var parsed: Dictionary = MatchProtocol.parse_progression_state(
+		JSON.stringify({
+			"protocolVersion": 1,
+			"progression": {"level": 2, "currentXp": 10, "unspentSkillPoints": 1},
+		})
+	)
+	assert_bool(bool(parsed["ok"])).is_true()
+	assert_int(int((parsed["progression"] as Dictionary).get("level", 0))).is_equal(2)
+	assert_int(int((parsed["progression"] as Dictionary).get("unspentSkillPoints", 0))).is_equal(1)

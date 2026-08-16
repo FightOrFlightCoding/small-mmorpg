@@ -11,6 +11,7 @@
   "attackCooldown": 1.4,
   "leashRadius": 256,
   "respawnDelay": 10,
+  "xpReward": 10,
   "loot": [
     {
       "itemId": "item.slime_gel",

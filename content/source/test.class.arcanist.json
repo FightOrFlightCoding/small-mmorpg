@@ -3,34 +3,10 @@
   "kind": "class",
   "displayName": "Test Arcanist",
   "visualAssetSetId": "visual.class_arcanist",
-  "startingAttributes": {
-    "might": 2,
-    "focus": 7,
-    "vitality": 4
-  },
-  "attributeGrowth": {
-    "might": 0,
-    "focus": 1,
-    "vitality": 1
-  },
-  "startingResources": {
-    "health": 100
-  },
+  "progressionId": "test.progression.arcanist",
   "startingEquipment": [
     { "itemId": "item.training_sword", "quantity": 1 }
   ],
   "startingAbilities": [],
-  "levelCurve": {
-    "baseXp": 100,
-    "growth": 1.2
-  },
-  "attributePointRules": {
-    "pointsAtCreate": 0,
-    "pointsPerLevel": 0
-  },
-  "skillPointRules": {
-    "pointsAtCreate": 0,
-    "pointsPerLevel": 0
-  },
   "allowedEquipmentTags": ["main_hand"]
 }

@@ -7,6 +7,7 @@ import {
   type MatchPlayer,
   type StarterZoneState,
 } from "./match_state";
+import { cloneProgression, type CharacterProgression } from "./progression";
 import { cloneQuestLog, type QuestLog } from "./quest";
 
 export const CHECKPOINT_INTERVAL_SEC = 5;
@@ -32,6 +33,7 @@ export interface RequestHistoryPrune {
   questsChanged: boolean;
   inventoryChanged: boolean;
   equipmentChanged: boolean;
+  progressionChanged: boolean;
 }
 
 export function joinHealth(maxHealth: number): number {
@@ -139,6 +141,8 @@ export function restoreGracePlayer(
     equipment: cloneEquipment(equipment),
     derivedAttack: derivedAttack,
     gold: gold,
+    classId: parked.classId,
+    progression: parked.progression !== undefined ? cloneProgression(parked.progression) : undefined,
     lastCheckpointTick: parked.lastCheckpointTick,
     lastCheckpointX: parked.lastCheckpointX,
     lastCheckpointY: parked.lastCheckpointY,
@@ -228,10 +232,12 @@ export function prunePlayerRequestHistory(player: MatchPlayer, tick: number): Re
   const questsChanged = pruneQuestHistory(player.questLog, tick);
   const inventoryChanged = player.inventory !== undefined ? pruneInventoryHistory(player.inventory, tick) : false;
   const equipmentChanged = player.equipment !== undefined ? pruneEquipmentHistory(player.equipment, tick) : false;
+  const progressionChanged = player.progression !== undefined ? pruneProgressionHistory(player.progression, tick) : false;
   return {
     questsChanged: questsChanged,
     inventoryChanged: inventoryChanged,
     equipmentChanged: equipmentChanged,
+    progressionChanged: progressionChanged,
   };
 }
 
@@ -305,5 +311,38 @@ function pruneEquipmentHistory(equipment: PlayerEquipment, tick: number): boolea
   }
   equipment.equipByRequestId = next;
   equipment.equipRequestTicks = pruned.ticks;
+  return true;
+}
+
+function pruneProgressionHistory(progression: CharacterProgression, tick: number): boolean {
+  progression.xpByEventId = dict(progression.xpByEventId);
+  progression.allocateByRequestId = dict(progression.allocateByRequestId);
+  const xpKeys = Object.keys(progression.xpByEventId);
+  const xp = pruneKeyedHistory(xpKeys, progression.xpEventTicks, tick);
+  const allocateKeys = Object.keys(progression.allocateByRequestId);
+  const allocate = pruneKeyedHistory(allocateKeys, progression.allocateRequestTicks, tick);
+  if (!xp.changed && !allocate.changed) {
+    progression.xpEventTicks = xp.ticks;
+    progression.allocateRequestTicks = allocate.ticks;
+    return false;
+  }
+  const nextXp: CharacterProgression["xpByEventId"] = {};
+  for (let i = 0; i < xpKeys.length; i++) {
+    const key = xpKeys[i];
+    if (xp.keep[key] === true) {
+      nextXp[key] = progression.xpByEventId[key];
+    }
+  }
+  const nextAllocate: CharacterProgression["allocateByRequestId"] = {};
+  for (let j = 0; j < allocateKeys.length; j++) {
+    const key = allocateKeys[j];
+    if (allocate.keep[key] === true) {
+      nextAllocate[key] = progression.allocateByRequestId[key];
+    }
+  }
+  progression.xpByEventId = nextXp;
+  progression.allocateByRequestId = nextAllocate;
+  progression.xpEventTicks = xp.ticks;
+  progression.allocateRequestTicks = allocate.ticks;
   return true;
 }

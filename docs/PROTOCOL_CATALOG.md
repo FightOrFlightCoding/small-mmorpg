@@ -98,7 +98,7 @@ Notifications: **none** registered.
 
 ## Client → server match opcodes
 
-Per-player windows (10 ticks): INPUT 20; ATTACK/INTERACT/PICKUP/EQUIP/quest 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
+Per-player windows (10 ticks): INPUT 20; ATTACK/INTERACT/PICKUP/EQUIP/quest/ALLOCATE_ATTRIBUTES 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
 
 ### 1 `INPUT`
 
@@ -129,7 +129,7 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/INTERACT/PICKUP/EQUIP/quest 8; R
 | Authority | Server derived attack, range, cooldown |
 | Idempotency | Same `requestId` does not hit twice |
 | Errors | `on_cooldown`, `out_of_range`, `invalid_target`, `target_dead`, `player_dead`, `stat_injection:damage` |
-| Tests | `combat.test.ts`, `security.test.ts`, `combat_client_test.gd` |
+| Tests | `combat.test.ts`, `security.test.ts`, `combat_client_test.gd`, `progression.test.ts` |
 
 ### 4 `PICKUP`
 
@@ -180,6 +180,17 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/INTERACT/PICKUP/EQUIP/quest 8; R
 | Rate limit | 2 / window |
 | Tests | `match.test.ts`, `reconnect_test.gd` |
 
+### 9 `ALLOCATE_ATTRIBUTES`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, attributeId, amount, requestId }` (`amount` is a JSON number) |
+| Authority | Server unspent points, class `allowedAttributeIds`, content attribute catalog |
+| Idempotency | Same `requestId` replays the stored result |
+| Errors | `invalid_amount`, `unknown_attribute`, `class_restricted`, `insufficient_points`, `invalid_request_id`, `stat_injection:xp` |
+| Rate limit | 8 / window |
+| Tests | `progression.test.ts`, `progression_service_test.gd` |
+
 No other client opcodes exist. Unknown opcode → `unknown_opcode`.
 
 ## Server → client match opcodes
@@ -188,7 +199,7 @@ No client rate limit. Occupied matches send **102** every tick.
 
 | Opcode | Name | Body (summary) | Tests |
 | --- | --- | --- | --- |
-| 101 | `FULL_STATE` | tick, zone, self, players, npcs, enemies, loot, quests, inventory, equipment, derived, wallet | `protocol.test.ts`, `zone_join_test.gd` |
+| 101 | `FULL_STATE` | tick, zone, self, players, npcs, enemies, loot, quests, inventory, equipment, derived, wallet, progression | `protocol.test.ts`, `zone_join_test.gd`, `progression.test.ts` |
 | 102 | `SNAPSHOT` | tick, players, enemies, loot | `movement.test.ts`, `entity_registry_test.gd` |
 | 103 | `ACTION_RESULT` | ok, code, requestId? | combat/inventory/quest tests |
 | 104 | `COMBAT_EVENT` | tick, events[] | `combat.test.ts`, `combat_client_test.gd` |
@@ -198,6 +209,7 @@ No client rate limit. Occupied matches send **102** every tick.
 | 108 | `SYSTEM_MESSAGE` | code, message | protocol/security/chat |
 | 109 | `EQUIPMENT_STATE` | slots, derived | `equipment.test.ts` |
 | 110 | `WALLET_STATE` | gold | `quest_reward.test.ts`, `wallet_service_test.gd` |
+| 111 | `PROGRESSION_STATE` | progression (class, level, XP, attributes, derived, unspent points) | `progression.test.ts`, `progression_service_test.gd` |
 
 Join metadata: `{ protocolVersion, contentHash }` strings. Mismatch → join reject / fatal client error.
 

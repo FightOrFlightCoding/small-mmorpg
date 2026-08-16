@@ -21,6 +21,7 @@ const CLIENT_EQUIP: int = 5
 const CLIENT_QUEST_ACCEPT: int = 6
 const CLIENT_QUEST_TURN_IN: int = 7
 const CLIENT_RESYNC_REQUEST: int = 8
+const CLIENT_ALLOCATE_ATTRIBUTES: int = 9
 
 const SERVER_FULL_STATE: int = 101
 const SERVER_SNAPSHOT: int = 102
@@ -32,6 +33,7 @@ const SERVER_INTERACTION_RESULT: int = 107
 const SERVER_SYSTEM_MESSAGE: int = 108
 const SERVER_EQUIPMENT_STATE: int = 109
 const SERVER_WALLET_STATE: int = 110
+const SERVER_PROGRESSION_STATE: int = 111
 
 const FIND_OR_CREATE_STARTER_ZONE_RPC: String = "find_or_create_starter_zone"
 
@@ -107,6 +109,7 @@ static func parse_full_state(raw: String, expected_content_hash: String) -> Dict
 			"equipment": _optional_equipment(parsed),
 			"derived": _optional_derived(parsed),
 			"wallet": _optional_wallet(parsed),
+			"progression": _optional_object(parsed, "progression"),
 		},
 	}
 
@@ -260,6 +263,19 @@ static func parse_wallet_state(raw: String) -> Dictionary:
 	}
 
 
+static func parse_progression_state(raw: String) -> Dictionary:
+	var parsed: Dictionary = _parse_object(raw)
+	if parsed.has("ok") and not bool(parsed["ok"]):
+		return parsed
+	if not _version_ok(parsed):
+		return _fail("protocol_mismatch", "The progression-state protocol version does not match this client.")
+	return {
+		"ok": true,
+		"request_id": String(parsed.get("requestId", "")),
+		"progression": _optional_object(parsed, "progression"),
+	}
+
+
 static func new_request_id() -> String:
 	return "r_%s_%s" % [str(Time.get_ticks_usec()), str(randi() % 1000000)]
 
@@ -328,11 +344,15 @@ static func _optional_derived(data: Dictionary) -> Dictionary:
 
 
 static func _optional_wallet(data: Dictionary) -> Dictionary:
-	if not data.has("wallet"):
+	return _optional_object(data, "wallet")
+
+
+static func _optional_object(data: Dictionary, key: String) -> Dictionary:
+	if not data.has(key):
 		return {}
-	if typeof(data["wallet"]) != TYPE_DICTIONARY:
+	if typeof(data[key]) != TYPE_DICTIONARY:
 		return {}
-	return (data["wallet"] as Dictionary).duplicate(true)
+	return (data[key] as Dictionary).duplicate(true)
 
 
 static func _optional_slots(data: Dictionary) -> Dictionary:

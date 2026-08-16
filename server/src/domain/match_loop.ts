@@ -8,6 +8,7 @@ import {
   inventoryState,
   isProtocolError,
   parseClientMessage,
+  progressionState,
   questState,
   systemMessage,
   walletState,
@@ -48,6 +49,13 @@ import {
 } from "./equipment";
 import { applyPickup, expireLoot, lootExpireTicks, spawnGuaranteedLoot } from "./loot";
 import {
+  allocateAttributes,
+  cloneProgression,
+  grantXp,
+  publicProgression,
+  type CharacterProgression,
+} from "./progression";
+import {
   collectPositionCheckpoints,
   expireDisconnected,
   prunePlayerRequestHistory,
@@ -60,6 +68,12 @@ import {
   type RateAction,
 } from "./rate_limit";
 import { type RejectedAction } from "./security_log";
+import {
+  emptyModifierMap,
+  equipmentModifiersFromGear,
+  evaluateStats,
+  syncCombatStatsFromPipeline,
+} from "./stats";
 
 export interface MatchOutbound {
   opcode: number;
@@ -86,6 +100,12 @@ export interface EquipmentPersist {
   equipment: PlayerEquipment;
 }
 
+export interface ProgressionPersist {
+  userId: string;
+  characterId?: string;
+  progression: CharacterProgression;
+}
+
 export interface RewardPersist {
   userId: string;
   request: QuestRewardWrite;
@@ -98,6 +118,7 @@ export interface MatchLoopResult {
   persistQuests: QuestPersist[];
   persistInventories: InventoryPersist[];
   persistEquipment: EquipmentPersist[];
+  persistProgression: ProgressionPersist[];
   persistRewards: RewardPersist[];
   persistCheckpoints: PositionCheckpoint[];
   rejections: RejectedAction[];
@@ -125,6 +146,7 @@ export function applyMatchLoop(
   const persistByUser: { [userId: string]: QuestLog } = {};
   const persistInventoryByUser: { [userId: string]: PlayerInventory } = {};
   const persistEquipmentByUser: { [userId: string]: PlayerEquipment } = {};
+  const persistProgressionByUser: { [userId: string]: CharacterProgression } = {};
   const persistRewardByUser: { [userId: string]: QuestRewardWrite } = {};
   const skipStorageUsers: { [userId: string]: boolean } = {};
   const combatEvents: CombatEvent[] = [];
@@ -161,6 +183,7 @@ export function applyMatchLoop(
       persistByUser,
       persistInventoryByUser,
       persistEquipmentByUser,
+      persistProgressionByUser,
       persistRewardByUser,
       skipStorageUsers,
       combatEvents,
@@ -177,7 +200,15 @@ export function applyMatchLoop(
   pushCombatEvents(outbound, tick, combatEvents);
   expireDisconnected(next, tick);
   const persistCheckpoints = collectPositionCheckpoints(next, tick);
-  pruneLiveRequestHistory(next, tick, persistByUser, persistInventoryByUser, persistEquipmentByUser, skipStorageUsers);
+  pruneLiveRequestHistory(
+    next,
+    tick,
+    persistByUser,
+    persistInventoryByUser,
+    persistEquipmentByUser,
+    persistProgressionByUser,
+    skipStorageUsers,
+  );
 
   if (playerCount(next) === 0) {
     next.emptyTicks = next.emptyTicks + 1;
@@ -225,6 +256,16 @@ export function applyMatchLoop(
       equipment: persistEquipmentByUser[userId],
     });
   }
+  const persistProgression: ProgressionPersist[] = [];
+  const progressionIds = Object.keys(persistProgressionByUser);
+  for (let p = 0; p < progressionIds.length; p++) {
+    const userId = progressionIds[p];
+    persistProgression.push({
+      userId: userId,
+      characterId: characterIdOf(next, userId),
+      progression: persistProgressionByUser[userId],
+    });
+  }
   const persistRewards: RewardPersist[] = [];
   const rewardIds = Object.keys(persistRewardByUser);
   for (let r = 0; r < rewardIds.length; r++) {
@@ -239,6 +280,7 @@ export function applyMatchLoop(
     persistQuests: persistQuests,
     persistInventories: persistInventories,
     persistEquipment: persistEquipment,
+    persistProgression: persistProgression,
     persistRewards: persistRewards,
     persistCheckpoints: persistCheckpoints,
     rejections: rejections,
@@ -305,6 +347,7 @@ function handleValidated(
   persistByUser: { [userId: string]: QuestLog },
   persistInventoryByUser: { [userId: string]: PlayerInventory },
   persistEquipmentByUser: { [userId: string]: PlayerEquipment },
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
   persistRewardByUser: { [userId: string]: QuestRewardWrite },
   skipStorageUsers: { [userId: string]: boolean },
   combatEvents: CombatEvent[],
@@ -343,11 +386,12 @@ function handleValidated(
       skipStorageUsers,
       makeId,
       commitReward,
+      persistProgressionByUser,
     );
     return;
   }
   if (parsed.opcode === ClientOpcode.ATTACK) {
-    handleAttack(parsed, userId, state, tick, outbound, combatEvents);
+    handleAttack(parsed, userId, state, tick, outbound, combatEvents, persistProgressionByUser);
     return;
   }
   if (parsed.opcode === ClientOpcode.PICKUP) {
@@ -356,6 +400,10 @@ function handleValidated(
   }
   if (parsed.opcode === ClientOpcode.EQUIP) {
     handleEquip(parsed, userId, state, tick, outbound, persistEquipmentByUser);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.ALLOCATE_ATTRIBUTES) {
+    handleAllocate(parsed, userId, state, tick, outbound, persistProgressionByUser);
     return;
   }
   const result = actionResult("not_implemented", false, parsed.requestId);
@@ -441,7 +489,8 @@ function handleQuestTurnIn(
   persistEquipmentByUser: { [userId: string]: PlayerEquipment },
   skipStorageUsers: { [userId: string]: boolean },
   makeId: () => string,
-  commitReward?: RewardCommitter,
+  commitReward: RewardCommitter | undefined,
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
 ): void {
   const player = state.players[userId];
   if (player === undefined) {
@@ -507,6 +556,7 @@ function handleQuestTurnIn(
     player.questLog = outcome.log;
     skipStorageUsers[userId] = true;
     refreshDerivedFromInventory(state, userId, persistEquipmentByUser);
+    grantQuestXp(state, userId, parsed.fields.questId, requestId, tick, persistProgressionByUser, outbound);
   }
   const gold = player.gold !== undefined ? player.gold : 0;
   const result = actionResult(outcome.code, true, requestId);
@@ -541,7 +591,9 @@ function handleAttack(
   tick: number,
   outbound: MatchOutbound[],
   combatEvents: CombatEvent[],
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
 ): void {
+  const eventStart = combatEvents.length;
   const decision = applyPlayerAttack(
     {
       player: state.players[userId],
@@ -558,6 +610,9 @@ function handleAttack(
   );
   const result = actionResult(decision.code, decision.ok, parsed.requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  if (decision.ok && !decision.replay) {
+    grantKillXpFromEvents(state, userId, combatEvents, eventStart, tick, persistProgressionByUser, outbound);
+  }
 }
 
 function handlePickup(
@@ -649,7 +704,7 @@ function handleEquip(
     tick: tick,
   });
   player.equipment = outcome.equipment;
-  player.derivedAttack = outcome.derivedAttack;
+  refreshPlayerDerived(state, userId);
   if (outcome.persist) {
     persistEquipmentByUser[userId] = cloneEquipment(outcome.equipment);
   }
@@ -659,7 +714,7 @@ function handleEquip(
     const equipment = equipmentState(
       state.contentHash,
       publicEquipment(player.equipment),
-      publicDerived(player.derivedAttack),
+      publicDerived(player.derivedAttack !== undefined ? player.derivedAttack : 0),
       parsed.requestId,
     );
     outbound.push({ opcode: equipment.opcode, body: equipment.body, toUserId: userId });
@@ -671,10 +726,35 @@ function playerAttack(state: StarterZoneState, userId: string): number {
   if (player === undefined) {
     return state.playerAttack;
   }
+  refreshPlayerDerived(state, userId);
   if (player.derivedAttack !== undefined) {
     return player.derivedAttack;
   }
   return derivedAttack(
+    state.playerAttack,
+    player.equipment !== undefined ? player.equipment : emptyEquipment(),
+    player.inventory,
+    state.itemsById,
+  );
+}
+
+function refreshPlayerDerived(state: StarterZoneState, userId: string): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    return;
+  }
+  if (
+    state.progressionCatalog !== undefined &&
+    player.classId !== undefined &&
+    player.classId.length > 0 &&
+    player.progression !== undefined
+  ) {
+    const synced = syncCombatStatsFromPipeline(player, state.progressionCatalog, state.itemsById);
+    if (synced !== null) {
+      return;
+    }
+  }
+  player.derivedAttack = derivedAttack(
     state.playerAttack,
     player.equipment !== undefined ? player.equipment : emptyEquipment(),
     player.inventory,
@@ -694,12 +774,7 @@ function refreshDerivedFromInventory(
   const current = player.equipment !== undefined ? player.equipment : emptyEquipment();
   const reconciled = reconcileEquipment(current, player.inventory);
   player.equipment = reconciled.equipment;
-  player.derivedAttack = derivedAttack(
-    state.playerAttack,
-    reconciled.equipment,
-    player.inventory,
-    state.itemsById,
-  );
+  refreshPlayerDerived(state, userId);
   if (reconciled.persist) {
     persistEquipmentByUser[userId] = cloneEquipment(reconciled.equipment);
   }
@@ -860,6 +935,7 @@ function pruneLiveRequestHistory(
   persistByUser: { [userId: string]: QuestLog },
   persistInventoryByUser: { [userId: string]: PlayerInventory },
   persistEquipmentByUser: { [userId: string]: PlayerEquipment },
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
   skipStorageUsers: { [userId: string]: boolean },
 ): void {
   const ids = Object.keys(state.players);
@@ -879,5 +955,179 @@ function pruneLiveRequestHistory(
     if (pruned.equipmentChanged && player.equipment !== undefined) {
       persistEquipmentByUser[userId] = cloneEquipment(player.equipment);
     }
+    if (pruned.progressionChanged && player.progression !== undefined) {
+      persistProgressionByUser[userId] = cloneProgression(player.progression);
+    }
   }
+}
+
+function handleAllocate(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  tick: number,
+  outbound: MatchOutbound[],
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
+): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  if (player.progression === undefined || state.progressionCatalog === undefined || player.classId === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  const outcome = allocateAttributes(player.progression, state.progressionCatalog, {
+    requestId: parsed.requestId as string,
+    attributeId: parsed.fields.attributeId,
+    amount: parsed.amount !== undefined ? parsed.amount : 0,
+    classId: player.classId,
+    tick: tick,
+  });
+  player.progression = outcome.progression;
+  if (outcome.changed) {
+    persistProgressionByUser[userId] = cloneProgression(player.progression);
+    refreshPlayerDerived(state, userId);
+  }
+  const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  if (outcome.ok) {
+    pushProgressionState(state, userId, outbound, parsed.requestId);
+  }
+}
+
+function grantKillXpFromEvents(
+  state: StarterZoneState,
+  userId: string,
+  events: CombatEvent[],
+  startIndex: number,
+  tick: number,
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
+  outbound: MatchOutbound[],
+): void {
+  for (let i = startIndex; i < events.length; i++) {
+    const event = events[i];
+    if (event.type !== "death" || event.targetKind !== "enemy" || event.sourceId !== userId) {
+      continue;
+    }
+    const enemy = findMatchEnemy(state, event.targetId);
+    if (enemy === null || enemy.xpReward <= 0) {
+      continue;
+    }
+    applyTrustedXp(
+      state,
+      userId,
+      {
+        characterId: characterIdOf(state, userId) !== undefined ? (characterIdOf(state, userId) as string) : "",
+        amount: enemy.xpReward,
+        reasonType: "kill",
+        reasonId: enemy.enemyId,
+        eventId: "kill:" + enemy.id + ":" + String(enemy.deathCount),
+      },
+      tick,
+      persistProgressionByUser,
+      outbound,
+    );
+  }
+}
+
+function grantQuestXp(
+  state: StarterZoneState,
+  userId: string,
+  questId: string,
+  requestId: string,
+  tick: number,
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
+  outbound: MatchOutbound[],
+): void {
+  const definition = state.questsById[questId];
+  const amount = definition !== undefined && definition.rewards.xp !== undefined ? definition.rewards.xp : 0;
+  if (amount <= 0) {
+    return;
+  }
+  applyTrustedXp(
+    state,
+    userId,
+    {
+      characterId: characterIdOf(state, userId) !== undefined ? (characterIdOf(state, userId) as string) : "",
+      amount: amount,
+      reasonType: "quest",
+      reasonId: questId,
+      eventId: "quest:" + questId + ":" + requestId,
+    },
+    tick,
+    persistProgressionByUser,
+    outbound,
+  );
+}
+
+function applyTrustedXp(
+  state: StarterZoneState,
+  userId: string,
+  grant: {
+    characterId: string;
+    amount: number;
+    reasonType: string;
+    reasonId: string;
+    eventId: string;
+  },
+  tick: number,
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
+  outbound: MatchOutbound[],
+): void {
+  const player = state.players[userId];
+  if (player === undefined || player.progression === undefined || state.progressionCatalog === undefined) {
+    return;
+  }
+  const classId = player.classId !== undefined ? player.classId : "";
+  if (classId.length === 0) {
+    return;
+  }
+  const outcome = grantXp(player.progression, state.progressionCatalog, classId, grant, tick);
+  player.progression = outcome.progression;
+  if (outcome.changed) {
+    persistProgressionByUser[userId] = cloneProgression(player.progression);
+    refreshPlayerDerived(state, userId);
+    pushProgressionState(state, userId, outbound);
+  }
+}
+
+function pushProgressionState(
+  state: StarterZoneState,
+  userId: string,
+  outbound: MatchOutbound[],
+  requestId?: string,
+): void {
+  const player = state.players[userId];
+  if (player === undefined || player.progression === undefined || state.progressionCatalog === undefined) {
+    return;
+  }
+  const classId = player.classId !== undefined ? player.classId : "";
+  if (classId.length === 0) {
+    return;
+  }
+  const evaluated = evaluateStats(state.progressionCatalog, {
+    classId: classId,
+    level: player.progression.level,
+    allocatedAttributes: player.progression.allocatedAttributes,
+    equipmentModifiers: equipmentModifiersFromGear(player.equipment, player.inventory, state.itemsById),
+    effectModifiers: emptyModifierMap(),
+    percentModifiers: emptyModifierMap(),
+    multiplyModifiers: emptyModifierMap(),
+  });
+  const payload = publicProgression(state.progressionCatalog, classId, player.progression, evaluated.values);
+  const message = progressionState(state.contentHash, payload, requestId);
+  outbound.push({ opcode: message.opcode, body: message.body, toUserId: userId });
+}
+
+function findMatchEnemy(state: StarterZoneState, targetId: string) {
+  for (let i = 0; i < state.enemies.length; i++) {
+    if (state.enemies[i].id === targetId || state.enemies[i].enemyId === targetId) {
+      return state.enemies[i];
+    }
+  }
+  return null;
 }

@@ -81,14 +81,48 @@ function outboundRefs(payload: ContentPayload, id: string): string[] {
   const classDef = payload.classes[id];
   if (classDef) {
     refs.push(classDef.visualAssetSetId);
+    refs.push(classDef.progressionId);
     for (let i = 0; i < classDef.startingEquipment.length; i++) {
       refs.push(classDef.startingEquipment[i].itemId);
     }
     for (let a = 0; a < classDef.startingAbilities.length; a++) {
       refs.push(classDef.startingAbilities[a]);
     }
+    return refs;
+  }
+  const progression = payload.classProgressions[id];
+  if (progression) {
+    refs.push(progression.classId);
+    refs.push(progression.levelCurveId);
+    pushMapKeys(refs, progression.startingAttributes);
+    pushMapKeys(refs, progression.attributeGrowth);
+    pushMapKeys(refs, progression.startingResources);
+    if (progression.resourceGrowth !== undefined) {
+      pushMapKeys(refs, progression.resourceGrowth);
+    }
+    pushMapKeys(refs, progression.startingDerived);
+    for (let a = 0; a < progression.allowedAttributeIds.length; a++) {
+      refs.push(progression.allowedAttributeIds[a]);
+    }
+    return refs;
+  }
+  const derived = payload.derivedStats[id];
+  if (derived) {
+    for (let c = 0; c < derived.components.length; c++) {
+      const componentId = derived.components[c].id;
+      if (componentId !== undefined) {
+        refs.push(componentId);
+      }
+    }
   }
   return refs;
+}
+
+function pushMapKeys(refs: string[], map: Record<string, number>): void {
+  const keys = Object.keys(map);
+  for (let i = 0; i < keys.length; i++) {
+    refs.push(keys[i]);
+  }
 }
 
 function unique(values: string[]): string[] {

@@ -33,6 +33,7 @@
     "respawnDelay": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
     "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
     "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" },
+    "xpReward": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
     "loot": {
       "type": "array",
       "minItems": 1,
