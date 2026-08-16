@@ -47,16 +47,16 @@ Match and RPC payloads for the slice are JSON objects.
 
 | Opcode | Name | Body |
 | --- | --- | --- |
-| 101 | `FULL_STATE` | `{ protocolVersion, contentHash, tick, zoneId, selfId, players, npcs, enemies, loot, quests }` |
-| 102 | `SNAPSHOT` | `{ protocolVersion, contentHash, tick, zoneId, players, enemies }` |
+| 101 | `FULL_STATE` | `{ protocolVersion, contentHash, tick, zoneId, selfId, players, npcs, enemies, loot, quests, inventory }` |
+| 102 | `SNAPSHOT` | `{ protocolVersion, contentHash, tick, zoneId, players, enemies, loot }` |
 | 103 | `ACTION_RESULT` | `{ protocolVersion, ok, code, requestId? }` |
 | 104 | `COMBAT_EVENT` | `{ protocolVersion, tick, events }` |
-| 105 | `INVENTORY_STATE` | reserved; unused in this phase |
+| 105 | `INVENTORY_STATE` | `{ protocolVersion, contentHash, requestId?, capacity, items }` |
 | 106 | `QUEST_STATE` | `{ protocolVersion, contentHash, requestId?, quests }` |
 | 107 | `INTERACTION_RESULT` | `{ protocolVersion, ok, code, requestId?, targetId? }` |
 | 108 | `SYSTEM_MESSAGE` | `{ protocolVersion, code, message }` |
 
-`FULL_STATE` is sent to the joining presence after character and quest storage load, and again on `RESYNC_REQUEST`. Occupied matches broadcast `SNAPSHOT` every tick (10 Hz) with player poses and the shared slime's pose, health, `alive`, and `state`. Each player record includes `x`, `y`, `health`, `maxHealth`, `alive`, and `lastProcessedSeq`. `quests` on `FULL_STATE` is the recipient's quest log only. A client that receives no snapshot or full state for **2 seconds** freezes remote interpolation and shows a degraded-connection state (`snapshot_timeout`). Local prediction still reconciles when snapshots resume. Dialogue opens only after `INTERACTION_RESULT` `ok`. `COMBAT_EVENT.events` entries are `{ type, sourceId, sourceKind, targetId, targetKind, damage?, remainingHealth?, x?, y?, respawnDelaySec? }` with `type` `hit`, `death`, or `respawn`. Damage numbers are presentation only.
+`FULL_STATE` is sent to the joining presence after character, quest, and inventory storage load, and again on `RESYNC_REQUEST`. Occupied matches broadcast `SNAPSHOT` every tick (10 Hz) with player poses, the shared slime, and ground loot. Each player record includes `x`, `y`, `health`, `maxHealth`, `alive`, and `lastProcessedSeq`. `quests` and `inventory` on `FULL_STATE` are the recipient's records only. `inventory` is `{ capacity, items: [{ instanceId, itemId, quantity, metadata }] }`. Public loot is `{ id, itemId, quantity, x, y, expiresAtTick }` and does not include item instance IDs. A client that receives no snapshot or full state for **2 seconds** freezes remote interpolation and shows a degraded-connection state (`snapshot_timeout`). Local prediction still reconciles when snapshots resume. Dialogue opens only after `INTERACTION_RESULT` `ok`. `COMBAT_EVENT.events` entries are `{ type, sourceId, sourceKind, targetId, targetKind, damage?, remainingHealth?, x?, y?, respawnDelaySec? }` with `type` `hit`, `death`, or `respawn`. Damage numbers are presentation only.
 
 ## Client sends intentions only
 
@@ -97,7 +97,7 @@ Any action that can grant loot, quest rewards, or currency **must** include a cl
 
 `INTERACT` also requires `requestId` so the client can match `INTERACTION_RESULT` before opening dialogue. It is not a loot grant. `ATTACK` requires `requestId` so a replay of the same id cannot apply damage twice. Missing or malformed `requestId` is `invalid_request_id`.
 
-`PICKUP` and `QUEST_TURN_IN` are defined but not applied in this phase (`not_implemented`). `QUEST_ACCEPT` is applied: first success stores accepted progress (`current` 0) and the `requestId`; a replay of the same `requestId` returns `accepted` without writing again; a later `requestId` for the same quest returns `already_accepted` and the current log. Client-supplied `status`, `questComplete`, or reward fields are rejected. `ATTACK` is applied: codes `ok`, `out_of_range`, `on_cooldown`, `invalid_target`, `target_dead`, `player_dead`.
+`PICKUP` is applied: first success removes the loot entity, stacks or inserts the item, persists inventory, and sends `INVENTORY_STATE`. A replay of the same successful `requestId` returns `ok` without granting again. Codes: `ok`, `out_of_range`, `invalid_target`, `inventory_full`, `invalid_id`, `player_dead`. Client-supplied `instanceId` or `items` are protocol rejections. `QUEST_TURN_IN` is defined but not applied in this phase (`not_implemented`). `QUEST_ACCEPT` is applied: first success stores accepted progress (`current` 0) and the `requestId`; a replay of the same `requestId` returns `accepted` without writing again; a later `requestId` for the same quest returns `already_accepted` and the current log. Client-supplied `status`, `questComplete`, or reward fields are rejected. `ATTACK` is applied: codes `ok`, `out_of_range`, `on_cooldown`, `invalid_target`, `target_dead`, `player_dead`.
 
 ## Full-state resynchronization
 
@@ -137,12 +137,12 @@ Authenticated HTTP/RPC only. Payload is empty or `{}`. Returns `{ matchId, zoneI
 - Tick rate: **10 Hz**
 - Maximum players: **8**
 - Empty-match shutdown: **30 seconds** (300 ticks) after the last presence leaves, or if nobody ever joins
-- Join loads the character and quest storage once. The tick loop does not read storage. Quest acceptance writes `collection` `player`, key `quests`, `permissionWrite: 0`.
+- Join loads the character, quest, and inventory storage once. The tick loop does not read storage. Quest acceptance writes `collection` `player`, key `quests`, `permissionWrite: 0`. Successful pickup writes `collection` `player`, key `inventory`, `permissionWrite: 0`. Ground loot is match-only and is not persisted.
 - Join metadata must include matching `protocolVersion` and `contentHash`
 - A second socket for an account already in the match is rejected with `already_in_match`. True reconnect of the same session is allowed. The same account cannot occupy two presences.
 - Players spawn at their saved position, or the zone default if that is what was stored
 - Movement uses content `moveSpeed`, server `dt`, zone `walkableBounds`, and zone `collisions`. Client position is never accepted
-- One shared `enemy.green_slime:0` is simulated in the match. Snapshots include its pose, health, and AI state. Player death restores health at `zone.starter.playerSpawn` after 3 seconds. Slime death restores it at its spawn after `respawnDelay` (10 seconds). There is no loot drop.
+- One shared `enemy.green_slime:0` is simulated in the match. Snapshots include its pose, health, and AI state. Player death restores health at `zone.starter.playerSpawn` after 3 seconds. Slime death restores it at its spawn after `respawnDelay` (10 seconds) and creates one transient `item.slime_gel` loot entity at the death pose. That loot expires after 30 seconds.
 
 ## Starter-zone room chat
 

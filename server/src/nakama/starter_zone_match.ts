@@ -1,16 +1,19 @@
 import { content, contentHash } from "../generated/content";
 import { readCharacter } from "./character_store";
 import { readQuests, writeQuests } from "./quest_store";
+import { readInventory, writeInventory, writeInventoryOnce } from "./inventory_store";
 import { validateJoinAttempt } from "../domain/join_validation";
 import { applyMatchLoop, snapshotForOthers, type IncomingMatchData } from "../domain/match_loop";
 import { PLAYER_RESPAWN_DELAY_SEC } from "../domain/combat";
 import { questDefinitionsFromContent } from "../domain/quest";
+import { initializeInventory, itemDefinitionsFromContent } from "../domain/inventory";
 import {
   MATCH_TICK_RATE,
   STARTER_ZONE_LABEL,
   addPlayer,
   buildFullState,
   createStarterZoneState,
+  enemyDefinitionsFromContent,
   fullStateOpcode,
   removePlayer,
   type MatchPlayer,
@@ -28,39 +31,10 @@ export function matchInit(
   _nk: nkruntime.Nakama,
   _params: { [key: string]: any },
 ): { state: StarterMatchRuntimeState; tickRate: number; label: string } {
-  const enemiesById: {
-    [id: string]: {
-      id: string;
-      maxHealth: number;
-      damage: number;
-      moveSpeed: number;
-      aggroRadius: number;
-      attackRange: number;
-      attackCooldown: number;
-      leashRadius: number;
-      respawnDelay: number;
-    };
-  } = {};
-  const enemyIds = Object.keys(content.enemies);
-  for (let i = 0; i < enemyIds.length; i++) {
-    const id = enemyIds[i];
-    const def = content.enemies[id as keyof typeof content.enemies];
-    enemiesById[id] = {
-      id: id,
-      maxHealth: def.maxHealth,
-      damage: def.damage,
-      moveSpeed: def.moveSpeed,
-      aggroRadius: def.aggroRadius,
-      attackRange: def.attackRange,
-      attackCooldown: def.attackCooldown,
-      leashRadius: def.leashRadius,
-      respawnDelay: def.respawnDelay,
-    };
-  }
   const zone = createStarterZoneState(
     contentHash,
     content.zones["zone.starter"],
-    enemiesById,
+    enemyDefinitionsFromContent(content.enemies),
     {
       id: content.player.id,
       maxHealth: content.player.maxHealth,
@@ -70,8 +44,10 @@ export function matchInit(
       attackRange: content.player.attackRange,
       attackCooldown: content.player.attackCooldown,
       respawnDelaySec: PLAYER_RESPAWN_DELAY_SEC,
+      pickupRange: content.player.pickupRange,
     },
     questDefinitionsFromContent(content.quests),
+    itemDefinitionsFromContent(content.items),
   );
   logger.info("starter_zone init label=%s content_hash=%s", STARTER_ZONE_LABEL, contentHash);
   return {
@@ -159,6 +135,7 @@ export function matchJoin(
       axisX: 0,
       axisY: 0,
       questLog: readQuests(nk, presence.userId),
+      inventory: loadPlayerInventory(nk, presence.userId),
     };
     zone = addPlayer(zone, player);
     joined.push(presence);
@@ -227,11 +204,18 @@ export function matchLoop(
       userId: message.sender.userId,
     });
   }
-  const result = applyMatchLoop(state.zone, tick, contentHash, incoming);
+  const result = applyMatchLoop(state.zone, tick, contentHash, incoming, function () {
+    return nk.uuidv4();
+  });
   for (let p = 0; p < result.persistQuests.length; p++) {
     const persist = result.persistQuests[p];
     writeQuests(nk, persist.userId, persist.log);
     logger.info("starter_zone persist quests user_id=%s", persist.userId);
+  }
+  for (let inv = 0; inv < result.persistInventories.length; inv++) {
+    const persist = result.persistInventories[inv];
+    writeInventory(nk, persist.userId, persist.inventory);
+    logger.info("starter_zone persist inventory user_id=%s", persist.userId);
   }
   for (let i = 0; i < result.outbound.length; i++) {
     const out = result.outbound[i];
@@ -309,6 +293,17 @@ function presencesNotIn(
     }
   }
   return list;
+}
+
+function loadPlayerInventory(nk: nkruntime.Nakama, userId: string) {
+  const existing = readInventory(nk, userId);
+  const loaded = initializeInventory(existing, function () {
+    return nk.uuidv4();
+  });
+  if (loaded.created) {
+    writeInventoryOnce(nk, userId, loaded.inventory);
+  }
+  return loaded.inventory;
 }
 
 function allPresences(presences: { [userId: string]: nkruntime.Presence }): nkruntime.Presence[] {

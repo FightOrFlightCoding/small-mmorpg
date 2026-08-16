@@ -1,8 +1,8 @@
 # Progress
 
-Last accepted phase: **Authoritative enemy AI and combat**.
+Last accepted phase: **Loot and server-owned inventory**.
 
-Current phase: none requested. Do not add loot until asked.
+Current phase: none requested. Do not add equipment apply, quest turn-in, or wallet grants until asked.
 
 ## Phase 0 acceptance (2026-08-15)
 
@@ -175,5 +175,24 @@ powershell -File ..\scripts\run-client-shell.ps1
 ```
 
 Local play: start the stack, walk east to the slime, press **Space** to attack. Both Alice and Bob should see the same slime health. Dying shows **Defeated. Respawning...** then return to spawn. Restart Nakama after this build so the combat runtime loads.
+
+## Loot and server-owned inventory (2026-08-16)
+
+Match init copies `content.enemies` through `enemyDefinitionsFromContent`, including `loot`. Slime death creates one unique ground loot entity with one `item.slime_gel` at the death pose. It is broadcast on `SNAPSHOT`, expires after 30 seconds, and is never persisted. Press **F** to send `PICKUP` `{ lootId, requestId }`. The match validates alive, existence, `pickupRange` 40, capacity, item definition, and that the `requestId` has not already succeeded. The first valid pickup wins, persists inventory (`player`/`inventory`, `permissionWrite: 0`), sends `INVENTORY_STATE`, and removes the loot. Duplicate successful `requestId`s do not grant again. Existing accounts without an inventory record receive one `item.training_sword` and capacity 20 once. `InventoryService` rebuilds GLoot from canonical server items; local GLoot mutations are reverted. `client/addons/` is unmodified.
+
+Server `npm test` 104/104, `npm run typecheck`, and `npm run build` succeeded. Godot 4.7.1 imported `client/`, printed `SHELL_LOGIN`, and GdUnit4 ran `res://tests` with 96/96 passed.
+
+Reproduction:
+
+```powershell
+Set-Location server
+npm test
+npm run build
+powershell -File ..\scripts\backend-up.ps1
+powershell -File ..\scripts\run-client-shell.ps1
+```
+
+Local play: start the stack, kill the slime, press **F** on the gel. The HUD inventory list should show the training sword plus slime gel. Relog should restore inventory. A second client cannot pick up the same drop. Restart Nakama after this build so the inventory runtime loads.
+
 
 

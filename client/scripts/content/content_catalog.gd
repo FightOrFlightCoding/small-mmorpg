@@ -85,6 +85,18 @@ func parse_text(text: String) -> bool:
 	return true
 
 
+func ids_of_kind(kind: String) -> PackedStringArray:
+	var result := PackedStringArray()
+	for id in _by_id.keys():
+		var record: Variant = _by_id[id]
+		if typeof(record) != TYPE_DICTIONARY:
+			continue
+		if String((record as Dictionary).get("kind", "")) == kind:
+			result.append(String(id))
+	result.sort()
+	return result
+
+
 func has_id(id: String) -> bool:
 	return _by_id.has(id)
 

@@ -73,7 +73,7 @@ There is exactly one gameplay match module for this slice: the starter zone.
 
 - Module name `starter_zone`, label `zone.starter`, 10 Hz, maximum 8 players.
 - Players join that match after authentication and character bootstrap (single character, no slots) via `find_or_create_starter_zone`.
-- The match owns live positions, collision, combatants, ground loot, in-memory cooldowns, and live quest logs loaded from storage. This phase simulates player movement, NPC interaction, quest acceptance, shared slime AI, and player/enemy combat. It does not drop loot.
+- The match owns live positions, collision, combatants, ground loot, in-memory cooldowns, live quest logs, and live inventories loaded from storage. This phase simulates player movement, NPC interaction, quest acceptance, shared slime AI, combat, slime-gel drops, pickup, and server-owned inventory. Equipment apply is not in this phase.
 - The client never hosts a second simulation of those values.
 - An empty match shuts down after 30 seconds. Reconnect re-enters the shared starter-zone match with loaded persistent state plus last checkpointed position.
 
@@ -100,14 +100,15 @@ Third-party libraries are implementation details. Game code talks to project-own
 | --- | --- | --- |
 | `AppState` | none | Non-authoritative client/session flags and shell signals. Never canonical game data. |
 | `ContentRegistry` | generated `client/content/bundle.json` plus `client/content/visual_map.json` | Schema version check, content hash, lookup by stable ID, visual ID → local texture/fallback |
-| `NetworkService` | Nakama Godot SDK 3.4.0 | Device auth, in-memory session cache, refresh, reauth, realtime socket, logout, `character_bootstrap`, `find_or_create_starter_zone`, match join/leave, `INPUT`, `INTERACT`, `ATTACK`, `QUEST_ACCEPT`, `RESYNC_REQUEST`, starter-zone room chat join/leave/send. |
+| `NetworkService` | Nakama Godot SDK 3.4.0 | Device auth, in-memory session cache, refresh, reauth, realtime socket, logout, `character_bootstrap`, `find_or_create_starter_zone`, match join/leave, `INPUT`, `INTERACT`, `ATTACK`, `PICKUP`, `QUEST_ACCEPT`, `RESYNC_REQUEST`, starter-zone room chat join/leave/send. |
 | `GameService` | the autoloads above | Boot, login, character bootstrap, starter-zone join. Not a gameplay authority. |
 | `SceneRouter` | Godot scene tree | Transitions among boot, login, character, and world |
-| `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE`/`SNAPSHOT`. Local movement is predicted and reconciled; all remote entities interpolate from one snapshot buffer keyed `kind:id`. The HUD journal mirrors `QuestService`. Health, death, and respawn copy server vitals. Not a gameplay authority. |
+| `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE`/`SNAPSHOT`. Local movement is predicted and reconciled; all remote entities interpolate from one snapshot buffer keyed `kind:id`. The HUD journal mirrors `QuestService`. The HUD inventory list mirrors `InventoryService`. Health, death, and respawn copy server vitals. Not a gameplay authority. |
 | `ChatPanel` / `ZoneChat` | none | Presentation of the starter-zone room channel. History is a `Label` (no BBCode). Not a gameplay authority. |
 | `QuestService` | none | In-memory mirror of server quest records from `FULL_STATE` / `QUEST_STATE`. Accept sends `QUEST_ACCEPT` only. Not a gameplay authority. Do not use QuestSystem. |
 | `AttackIntent` / `CombatFeedback` | none | Nearby enemy pick and floating damage numbers. Attack sends `targetId` + `requestId` only. Not a gameplay authority. |
-| Inventory presenter (later) | GLoot 3.0.2 | Display of server inventory/equipment |
+| `InventoryService` | GLoot 3.0.2 | Client-side mirror of canonical server inventory. Rebuilds from `FULL_STATE` / `INVENTORY_STATE`. UI mutations are disabled or reverted. Pickup sends `lootId` + `requestId` only. Not a gameplay authority. |
+| `PickupIntent` | none | Nearby loot pick for usability. Server range, capacity, and grants are authoritative. |
 | `DialoguePresenter` / `DialogueCatalog` | Dialogue Manager 3.10.5 | Opens elder dialogue only after a matching `INTERACTION_RESULT`. Local `.dialogue` text; quest mutations go through `QuestService`. |
 | Test runner scripts | GdUnit4 6.2.0 | Client unit/scene tests |
 
@@ -141,5 +142,6 @@ Generated artifacts must preserve IDs. Network messages and storage records carr
 - Enemy aggro unless a later accepted phase persists it (the slice does not)
 - Cooldown remaining time, reconstructed from server timestamps after resync
 - Unacked movement intentions
+- Ground loot entities (slime gel drops expire after 30 seconds and are not stored)
 
 Transactions that grant items or currency persist immediately with `nk.multiUpdate` when storage and wallet must change together. Positions persist on a checkpoint interval, not every tick.

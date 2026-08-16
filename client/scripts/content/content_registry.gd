@@ -50,6 +50,10 @@ func get_schema_version() -> int:
 	return catalog.schema_version
 
 
+func ids_of_kind(kind: String) -> PackedStringArray:
+	return catalog.ids_of_kind(kind)
+
+
 func has_id(id: String) -> bool:
 	return catalog.has_id(id)
 

@@ -77,6 +77,8 @@ const OUTCOME_KEYS = [
   "currency",
   "gold",
   "items",
+  "instanceId",
+  "itemInstanceId",
   "questComplete",
   "stats",
 ];
@@ -309,6 +311,26 @@ export function questState(
   }
   return {
     opcode: ServerOpcode.QUEST_STATE,
+    body: JSON.stringify(payload),
+  };
+}
+
+export function inventoryState(
+  contentHash: string,
+  inventory: { [key: string]: unknown },
+  requestId?: string,
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    contentHash: contentHash,
+    capacity: inventory.capacity,
+    items: inventory.items,
+  };
+  if (requestId !== undefined) {
+    payload.requestId = requestId;
+  }
+  return {
+    opcode: ServerOpcode.INVENTORY_STATE,
     body: JSON.stringify(payload),
   };
 }

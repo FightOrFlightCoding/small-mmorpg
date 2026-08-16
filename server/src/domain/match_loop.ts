@@ -3,6 +3,7 @@ import {
   actionResult,
   combatEvent,
   interactionResult,
+  inventoryState,
   isProtocolError,
   parseClientMessage,
   questState,
@@ -25,6 +26,8 @@ import { resolveInteraction } from "./interaction";
 import { applyQuestAccept, cloneQuestLog, publicQuestPayloads, type QuestLog } from "./quest";
 import { applyPlayerAttack, type CombatEvent } from "./combat";
 import { simulateCombatants } from "./enemy_ai";
+import { publicInventory, type PlayerInventory } from "./inventory";
+import { applyPickup, expireLoot, lootExpireTicks, spawnGuaranteedLoot } from "./loot";
 
 export interface MatchOutbound {
   opcode: number;
@@ -38,11 +41,17 @@ export interface QuestPersist {
   log: QuestLog;
 }
 
+export interface InventoryPersist {
+  userId: string;
+  inventory: PlayerInventory;
+}
+
 export interface MatchLoopResult {
   state: StarterZoneState;
   terminate: boolean;
   outbound: MatchOutbound[];
   persistQuests: QuestPersist[];
+  persistInventories: InventoryPersist[];
 }
 
 export interface IncomingMatchData {
@@ -56,11 +65,14 @@ export function applyMatchLoop(
   tick: number,
   expectedContentHash: string,
   messages: IncomingMatchData[],
+  newId?: () => string,
 ): MatchLoopResult {
   const outbound: MatchOutbound[] = [];
   const next = cloneStarterZoneState(state);
   const persistByUser: { [userId: string]: QuestLog } = {};
+  const persistInventoryByUser: { [userId: string]: PlayerInventory } = {};
   const combatEvents: CombatEvent[] = [];
+  const makeId = newId !== undefined ? newId : sequentialIdFactory(tick);
 
   for (let i = 0; i < messages.length; i++) {
     const incoming = messages[i];
@@ -70,11 +82,13 @@ export function applyMatchLoop(
       outbound.push({ opcode: sys.opcode, body: sys.body, toUserId: incoming.userId });
       continue;
     }
-    handleValidated(parsed, incoming.userId, next, tick, outbound, persistByUser, combatEvents);
+    handleValidated(parsed, incoming.userId, next, tick, outbound, persistByUser, persistInventoryByUser, combatEvents);
   }
 
   simulateMovement(next, 1 / MATCH_TICK_RATE);
   simulateCombatants(next, tick, 1 / MATCH_TICK_RATE, MATCH_TICK_RATE, combatEvents);
+  spawnLootFromDeaths(next, tick, combatEvents, makeId);
+  next.loot = expireLoot(next.loot, tick);
   pushCombatEvents(outbound, tick, combatEvents);
 
   if (playerCount(next) === 0) {
@@ -93,12 +107,19 @@ export function applyMatchLoop(
     const userId = persistIds[j];
     persistQuests.push({ userId: userId, log: persistByUser[userId] });
   }
+  const persistInventories: InventoryPersist[] = [];
+  const inventoryIds = Object.keys(persistInventoryByUser);
+  for (let k = 0; k < inventoryIds.length; k++) {
+    const userId = inventoryIds[k];
+    persistInventories.push({ userId: userId, inventory: persistInventoryByUser[userId] });
+  }
 
   return {
     state: next,
     terminate: playerCount(next) === 0 && next.emptyTicks >= EMPTY_MATCH_TIMEOUT_TICKS,
     outbound: outbound,
     persistQuests: persistQuests,
+    persistInventories: persistInventories,
   };
 }
 
@@ -109,6 +130,7 @@ function handleValidated(
   tick: number,
   outbound: MatchOutbound[],
   persistByUser: { [userId: string]: QuestLog },
+  persistInventoryByUser: { [userId: string]: PlayerInventory },
   combatEvents: CombatEvent[],
 ): void {
   if (parsed.opcode === ClientOpcode.RESYNC_REQUEST) {
@@ -133,6 +155,10 @@ function handleValidated(
   }
   if (parsed.opcode === ClientOpcode.ATTACK) {
     handleAttack(parsed, userId, state, tick, outbound, combatEvents);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.PICKUP) {
+    handlePickup(parsed, userId, state, outbound, persistInventoryByUser);
     return;
   }
   const result = actionResult("not_implemented", false, parsed.requestId);
@@ -228,6 +254,93 @@ function handleAttack(
   );
   const result = actionResult(decision.code, decision.ok, parsed.requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+}
+
+function handlePickup(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  outbound: MatchOutbound[],
+  persistInventoryByUser: { [userId: string]: PlayerInventory },
+): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  const outcome = applyPickup({
+    playerHealth: player.health,
+    playerX: player.x,
+    playerY: player.y,
+    inventory: player.inventory,
+    lootId: parsed.fields.lootId,
+    requestId: parsed.requestId as string,
+    loot: state.loot,
+    pickupRange: state.pickupRange,
+    itemsById: state.itemsById,
+  });
+  player.inventory = outcome.inventory;
+  state.loot = outcome.loot;
+  if (outcome.persist) {
+    persistInventoryByUser[userId] = outcome.inventory;
+  }
+  const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  if (outcome.ok) {
+    const inventory = inventoryState(
+      state.contentHash,
+      publicInventory(player.inventory),
+      parsed.requestId,
+    );
+    outbound.push({ opcode: inventory.opcode, body: inventory.body, toUserId: userId });
+  }
+}
+
+function spawnLootFromDeaths(
+  state: StarterZoneState,
+  tick: number,
+  events: CombatEvent[],
+  newId: () => string,
+): void {
+  const expireTicks = lootExpireTicks(MATCH_TICK_RATE);
+  for (let i = 0; i < events.length; i++) {
+    const event = events[i];
+    if (event.type !== "death" || event.targetKind !== "enemy") {
+      continue;
+    }
+    const enemy = findEnemyById(state, event.targetId);
+    if (enemy === null) {
+      continue;
+    }
+    const drops = state.enemyLootById[enemy.enemyId];
+    state.loot = spawnGuaranteedLoot(
+      state.loot,
+      drops,
+      event.x !== undefined ? event.x : enemy.x,
+      event.y !== undefined ? event.y : enemy.y,
+      tick,
+      expireTicks,
+      newId,
+    );
+  }
+}
+
+function findEnemyById(state: StarterZoneState, enemyId: string) {
+  for (let i = 0; i < state.enemies.length; i++) {
+    if (state.enemies[i].id === enemyId) {
+      return state.enemies[i];
+    }
+  }
+  return null;
+}
+
+function sequentialIdFactory(tick: number): () => string {
+  let n = 0;
+  return function () {
+    n += 1;
+    return "id-" + String(tick) + "-" + String(n);
+  };
 }
 
 function pushCombatEvents(outbound: MatchOutbound[], tick: number, events: CombatEvent[]): void {

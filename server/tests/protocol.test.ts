@@ -163,6 +163,19 @@ test("stat injection keys are rejected", () => {
   if (isProtocolError(parsed)) {
     assert.equal(parsed.code, "stat_injection:damage");
   }
+  const instance = parse(
+    ClientOpcode.PICKUP,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      lootId: "loot.1",
+      requestId: "req-pickup-id1",
+      instanceId: "client-id",
+    }),
+  );
+  assert.equal(isProtocolError(instance), true);
+  if (isProtocolError(instance)) {
+    assert.equal(instance.code, "stat_injection:instanceId");
+  }
 });
 
 test("invalid target ids are rejected", () => {

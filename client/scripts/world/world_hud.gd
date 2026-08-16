@@ -11,12 +11,18 @@ signal logout_pressed
 @onready var _logout: Button = $Root/Margin/VBox/Buttons/LogoutButton
 @onready var _journal_body: Label = $Root/Journal/Margin/VBox/Body
 @onready var _death: Label = $Root/Death
+@onready var _inventory_capacity: Label = $Root/Inventory/Margin/VBox/Capacity
+@onready var _inventory_host: Control = $Root/Inventory/Margin/VBox/ListHost
+
+var _inventory_list: Control
 
 
 func _ready() -> void:
 	_resync.pressed.connect(func() -> void: resync_pressed.emit())
 	_logout.pressed.connect(func() -> void: logout_pressed.emit())
 	refresh_journal(QuestService.journal_view())
+	_bind_inventory()
+	refresh_inventory()
 
 
 func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool = false) -> void:
@@ -58,6 +64,26 @@ func refresh_journal(view: Dictionary) -> void:
 	]))
 
 
+func refresh_inventory() -> void:
+	if _inventory_capacity == null:
+		return
+	var occupied := InventoryService.item_count()
+	_inventory_capacity.text = "%s / %s stacks" % [str(occupied), str(InventoryService.capacity)]
+
+
+func _bind_inventory() -> void:
+	if _inventory_host == null or _inventory_list != null:
+		return
+	_inventory_list = InventoryService.attach_list(_inventory_host)
+	if not InventoryService.inventory_changed.is_connected(refresh_inventory):
+		InventoryService.inventory_changed.connect(refresh_inventory)
+
+
+func _exit_tree() -> void:
+	if InventoryService.inventory_changed.is_connected(refresh_inventory):
+		InventoryService.inventory_changed.disconnect(refresh_inventory)
+
+
 func _refresh_health(state: Dictionary) -> void:
 	var self_id := String(state.get("self_id", ""))
 	var player_hp := "You: --"
@@ -84,7 +110,7 @@ func _refresh_health(state: Dictionary) -> void:
 			slime_hp += " (%s)" % String(enemy["state"])
 		break
 	if _health != null:
-		_health.text = "%s    %s    Attack: Space" % [player_hp, slime_hp]
+		_health.text = "%s    %s    Attack: Space    Pickup: F" % [player_hp, slime_hp]
 	if _death != null:
 		_death.visible = local_dead
 		if local_dead:

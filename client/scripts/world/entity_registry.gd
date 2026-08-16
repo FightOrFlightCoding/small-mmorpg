@@ -58,7 +58,7 @@ func apply_full_state(state: Dictionary) -> void:
 	_apply_kind(KIND_ENEMY, state.get("enemies", []), keep, false)
 	_apply_kind(KIND_LOOT, state.get("loot", []), keep, false)
 	for extra_key in state.keys():
-		if extra_key in ["players", "npcs", "enemies", "loot", "quests", "self_id", "selfId", "tick", "zone_id", "zoneId", "protocol_version", "protocolVersion", "content_hash", "contentHash", "ack_seq"]:
+		if extra_key in ["players", "npcs", "enemies", "loot", "quests", "inventory", "self_id", "selfId", "tick", "zone_id", "zoneId", "protocol_version", "protocolVersion", "content_hash", "contentHash", "ack_seq"]:
 			continue
 		if typeof(state[extra_key]) == TYPE_ARRAY and extra_key.ends_with("s"):
 			var kind_guess := String(extra_key)

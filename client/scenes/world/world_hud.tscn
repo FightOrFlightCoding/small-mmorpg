@@ -103,3 +103,42 @@ theme_override_font_sizes/font_size = 22
 text = "Defeated. Respawning..."
 horizontal_alignment = 1
 
+[node name="Inventory" type="PanelContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -320.0
+offset_top = -236.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 0
+grow_vertical = 0
+
+[node name="Margin" type="MarginContainer" parent="Root/Inventory"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="Root/Inventory/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Heading" type="Label" parent="Root/Inventory/Margin/VBox"]
+layout_mode = 2
+text = "Inventory"
+
+[node name="Capacity" type="Label" parent="Root/Inventory/Margin/VBox"]
+layout_mode = 2
+text = "0 / 20 stacks"
+
+[node name="ListHost" type="Control" parent="Root/Inventory/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 140)
+
+

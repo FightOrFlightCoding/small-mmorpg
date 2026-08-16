@@ -100,6 +100,7 @@ static func parse_full_state(raw: String, expected_content_hash: String) -> Dict
 			"enemies": (parsed["enemies"] as Array).duplicate(true),
 			"loot": loot.duplicate(true),
 			"quests": _optional_array(parsed, "quests"),
+			"inventory": _optional_inventory(parsed),
 		},
 	}
 
@@ -212,6 +213,20 @@ static func parse_combat_event(raw: String) -> Dictionary:
 	}
 
 
+static func parse_inventory_state(raw: String) -> Dictionary:
+	var parsed: Dictionary = _parse_object(raw)
+	if parsed.has("ok") and not bool(parsed["ok"]):
+		return parsed
+	if not _version_ok(parsed):
+		return _fail("protocol_mismatch", "The inventory-state protocol version does not match this client.")
+	return {
+		"ok": true,
+		"request_id": String(parsed.get("requestId", "")),
+		"capacity": int(parsed.get("capacity", 20)),
+		"items": _optional_array(parsed, "items"),
+	}
+
+
 static func new_request_id() -> String:
 	return "r_%s_%s" % [str(Time.get_ticks_usec()), str(randi() % 1000000)]
 
@@ -253,6 +268,14 @@ static func _optional_array(data: Dictionary, key: String) -> Array:
 	if typeof(data[key]) != TYPE_ARRAY:
 		return []
 	return (data[key] as Array).duplicate(true)
+
+
+static func _optional_inventory(data: Dictionary) -> Dictionary:
+	if not data.has("inventory"):
+		return {}
+	if typeof(data["inventory"]) != TYPE_DICTIONARY:
+		return {}
+	return (data["inventory"] as Dictionary).duplicate(true)
 
 
 static func _ack_seq(players: Array, self_id: String) -> int:

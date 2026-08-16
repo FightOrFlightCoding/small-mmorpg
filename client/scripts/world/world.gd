@@ -24,6 +24,7 @@ var _reconciler: MovementReconciler
 var _buffer: SnapshotBuffer = SnapshotBuffer.new()
 var _sent_at: Dictionary = {}
 var _attack_requests: Dictionary = {}
+var _pickup_requests: Dictionary = {}
 var _ping_ms: int = 0
 var _ping_ema_ms: float = 0.0
 var _frame_ms: float = 0.0
@@ -124,6 +125,7 @@ func _apply_zone_state() -> void:
 	_last_tick = int(state.get("tick", _last_tick))
 	_hud.refresh(state, _entities.summaries(), false)
 	_hud.refresh_journal(QuestService.journal_view())
+	_hud.refresh_inventory()
 
 
 func _reset_prediction(state: Dictionary) -> void:
@@ -239,6 +241,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("attack"):
 		try_attack()
 		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("pickup"):
+		try_pickup()
+		get_viewport().set_input_as_handled()
 
 
 func _input_blocked() -> bool:
@@ -285,6 +290,17 @@ func try_attack() -> void:
 	NetworkService.send_attack(enemy_id, request_id)
 
 
+func try_pickup() -> void:
+	if _input_blocked() or not _local_alive() or NetworkService.match_id.is_empty():
+		return
+	var loot_id := PickupIntent.nearest_loot_id(_reconciler.display, AppState.zone_view.get("loot", []))
+	if loot_id.is_empty():
+		return
+	var request_id := InventoryService.request_pickup(loot_id)
+	if not request_id.is_empty():
+		_pickup_requests[request_id] = true
+
+
 func _connect_interaction_signals() -> void:
 	if not NetworkService.interaction_result_received.is_connected(_on_interaction_result):
 		NetworkService.interaction_result_received.connect(_on_interaction_result)
@@ -294,6 +310,8 @@ func _connect_interaction_signals() -> void:
 		QuestService.quests_changed.connect(_on_quests_changed)
 	if not NetworkService.combat_event_received.is_connected(_on_combat_event):
 		NetworkService.combat_event_received.connect(_on_combat_event)
+	if not InventoryService.inventory_changed.is_connected(_on_inventory_changed):
+		InventoryService.inventory_changed.connect(_on_inventory_changed)
 
 
 func _disconnect_interaction_signals() -> void:
@@ -305,6 +323,8 @@ func _disconnect_interaction_signals() -> void:
 		QuestService.quests_changed.disconnect(_on_quests_changed)
 	if NetworkService.combat_event_received.is_connected(_on_combat_event):
 		NetworkService.combat_event_received.disconnect(_on_combat_event)
+	if InventoryService.inventory_changed.is_connected(_on_inventory_changed):
+		InventoryService.inventory_changed.disconnect(_on_inventory_changed)
 
 
 func _on_interaction_result(payload: Dictionary) -> void:
@@ -322,6 +342,12 @@ func _on_action_result(payload: Dictionary) -> void:
 	if _attack_requests.has(request_id):
 		_attack_requests.erase(request_id)
 		return
+	if _pickup_requests.has(request_id):
+		_pickup_requests.erase(request_id)
+		if bool(payload.get("result_ok", false)):
+			return
+		AppState.report_recoverable(String(payload.get("code", "pickup_failed")), _pickup_message(String(payload.get("code", ""))))
+		return
 	if bool(payload.get("result_ok", false)):
 		return
 	var code := String(payload.get("code", "action_failed"))
@@ -333,6 +359,11 @@ func _on_action_result(payload: Dictionary) -> void:
 func _on_quests_changed() -> void:
 	if _hud != null:
 		_hud.refresh_journal(QuestService.journal_view())
+
+
+func _on_inventory_changed() -> void:
+	if _hud != null:
+		_hud.refresh_inventory()
 
 
 func _on_combat_event(payload: Dictionary) -> void:
@@ -359,6 +390,20 @@ func _interaction_message(payload: Dictionary) -> String:
 	if code == "player_dead":
 		return "You cannot talk while defeated."
 	return "The server rejected that interaction."
+
+
+func _pickup_message(code: String) -> String:
+	if code == "out_of_range":
+		return "Too far from that item."
+	if code == "invalid_target":
+		return "That loot is gone."
+	if code == "inventory_full":
+		return "Your inventory is full."
+	if code == "player_dead":
+		return "You cannot loot while defeated."
+	if code == "invalid_id":
+		return "That item is not valid."
+	return "The server rejected that pickup."
 
 
 func _quest_message(code: String) -> String:

@@ -7,6 +7,10 @@ import {
   type QuestDefinition,
   type QuestLog,
 } from "./quest";
+import { cloneInventory, emptyInventory, publicInventory, type ItemDefinition, type PlayerInventory } from "./inventory";
+import { cloneLoot, publicLoot, type LootDrop, type MatchLoot } from "./loot";
+
+export type { MatchLoot };
 
 export const STARTER_ZONE_ID = "zone.starter";
 export const STARTER_ZONE_LABEL = "zone.starter";
@@ -42,6 +46,7 @@ export interface MatchPlayer {
   lastAttackRequestId?: string;
   lastAttackResultCode?: string;
   lastAttackResultOk?: boolean;
+  inventory?: PlayerInventory;
 }
 
 export interface MatchNpc {
@@ -75,13 +80,6 @@ export interface MatchEnemy {
   respawnDelaySec: number;
 }
 
-export interface MatchLoot {
-  id: string;
-  itemId: string;
-  x: number;
-  y: number;
-}
-
 export interface StarterZoneState {
   zoneId: string;
   contentHash: string;
@@ -101,7 +99,10 @@ export interface StarterZoneState {
   playerSpawnX: number;
   playerSpawnY: number;
   playerRespawnDelaySec: number;
+  pickupRange: number;
   questsById: { [id: string]: QuestDefinition };
+  itemsById: { [id: string]: ItemDefinition };
+  enemyLootById: { [id: string]: LootDrop[] };
 }
 
 export interface ZoneSpawnContent {
@@ -123,6 +124,7 @@ export interface EnemyContent {
   attackCooldown?: number;
   leashRadius?: number;
   respawnDelay?: number;
+  loot?: ReadonlyArray<LootDrop>;
 }
 
 export interface PlayerContent {
@@ -134,6 +136,31 @@ export interface PlayerContent {
   attackRange?: number;
   attackCooldown?: number;
   respawnDelaySec?: number;
+  pickupRange?: number;
+}
+
+export function enemyDefinitionsFromContent(enemies: {
+  [id: string]: EnemyContent;
+}): { [id: string]: EnemyContent } {
+  const map: { [id: string]: EnemyContent } = {};
+  const ids = Object.keys(enemies);
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
+    const def = enemies[id];
+    map[id] = {
+      id: def.id,
+      maxHealth: def.maxHealth,
+      damage: def.damage,
+      moveSpeed: def.moveSpeed,
+      aggroRadius: def.aggroRadius,
+      attackRange: def.attackRange,
+      attackCooldown: def.attackCooldown,
+      leashRadius: def.leashRadius,
+      respawnDelay: def.respawnDelay,
+      loot: def.loot !== undefined ? copyLootDrops(def.loot) : undefined,
+    };
+  }
+  return map;
 }
 
 export function createStarterZoneState(
@@ -142,6 +169,7 @@ export function createStarterZoneState(
   enemiesById: { [id: string]: EnemyContent },
   playerContent: PlayerContent,
   questsById: { [id: string]: QuestDefinition },
+  itemsById: { [id: string]: ItemDefinition } = {},
 ): StarterZoneState {
   const npcs: MatchNpc[] = [];
   for (let i = 0; i < zone.npcs.length; i++) {
@@ -153,6 +181,7 @@ export function createStarterZoneState(
       y: spawn.y,
     });
   }
+  const enemyLootById: { [id: string]: LootDrop[] } = {};
   const enemies: MatchEnemy[] = [];
   for (let i = 0; i < zone.enemies.length; i++) {
     const spawn = zone.enemies[i];
@@ -179,6 +208,9 @@ export function createStarterZoneState(
       leashRadius: numberOr(def !== undefined ? def.leashRadius : undefined, 256),
       respawnDelaySec: numberOr(def !== undefined ? def.respawnDelay : undefined, 10),
     });
+    if (def !== undefined && def.loot !== undefined && enemyLootById[spawn.enemyId] === undefined) {
+      enemyLootById[spawn.enemyId] = copyLootDrops(def.loot);
+    }
   }
   const collisions: Aabb[] = [];
   for (let i = 0; i < zone.collisions.length; i++) {
@@ -209,7 +241,10 @@ export function createStarterZoneState(
     playerSpawnX: zone.playerSpawn.x,
     playerSpawnY: zone.playerSpawn.y,
     playerRespawnDelaySec: numberOr(playerContent.respawnDelaySec, 3),
+    pickupRange: numberOr(playerContent.pickupRange, 40),
     questsById: questsById,
+    itemsById: itemsById,
+    enemyLootById: enemyLootById,
   };
 }
 
@@ -246,8 +281,9 @@ export function buildFullState(state: StarterZoneState, tick: number, selfId: st
     players: playersList(state),
     npcs: state.npcs,
     enemies: enemiesList(state),
-    loot: state.loot,
+    loot: publicLoot(state.loot),
     quests: questsFor(state, selfId),
+    inventory: inventoryFor(state, selfId),
   });
 }
 
@@ -259,6 +295,7 @@ export function buildSnapshot(state: StarterZoneState, tick: number): string {
     zoneId: state.zoneId,
     players: playersList(state),
     enemies: enemiesList(state),
+    loot: publicLoot(state.loot),
   });
 }
 
@@ -381,6 +418,7 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
       lastAttackRequestId: p.lastAttackRequestId !== undefined ? p.lastAttackRequestId : "",
       lastAttackResultCode: p.lastAttackResultCode !== undefined ? p.lastAttackResultCode : "",
       lastAttackResultOk: p.lastAttackResultOk === true,
+      inventory: cloneInventory(p.inventory !== undefined ? p.inventory : emptyInventory()),
     };
   }
   return {
@@ -390,7 +428,7 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     players: players,
     npcs: state.npcs,
     enemies: cloneEnemies(state.enemies),
-    loot: state.loot,
+    loot: cloneLoot(state.loot),
     walkableBounds: state.walkableBounds,
     collisions: state.collisions,
     moveSpeed: state.moveSpeed,
@@ -402,8 +440,32 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     playerSpawnX: state.playerSpawnX,
     playerSpawnY: state.playerSpawnY,
     playerRespawnDelaySec: state.playerRespawnDelaySec,
+    pickupRange: state.pickupRange,
     questsById: state.questsById,
+    itemsById: state.itemsById,
+    enemyLootById: state.enemyLootById,
   };
+}
+
+function inventoryFor(state: StarterZoneState, selfId: string): { [key: string]: unknown } {
+  const player = state.players[selfId];
+  if (player === undefined || player.inventory === undefined) {
+    return publicInventory(emptyInventory());
+  }
+  return publicInventory(player.inventory);
+}
+
+function copyLootDrops(drops: ReadonlyArray<LootDrop>): LootDrop[] {
+  const list: LootDrop[] = [];
+  for (let i = 0; i < drops.length; i++) {
+    const drop = drops[i];
+    list.push({
+      itemId: drop.itemId,
+      quantity: drop.quantity,
+      guaranteed: drop.guaranteed,
+    });
+  }
+  return list;
 }
 
 function questsFor(state: StarterZoneState, selfId: string): { [key: string]: unknown }[] {

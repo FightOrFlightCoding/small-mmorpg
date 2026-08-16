@@ -79,7 +79,7 @@ Generated client and server catalogs include `schemaVersion: 1` beside `contentH
 
 The client main scene is `res://scenes/boot/boot.tscn`. Boot loads the generated content bundle, then `SceneRouter` transitions to login. Character and world scenes exist as empty shells; they are not entered in this phase.
 
-Project-owned autoloads, in order: `AppState`, `ContentRegistry`, `NetworkService`, `GameService`, `SceneRouter`. Then the existing Nakama and Dialogue Manager autoloads. Game code must not call Nakama or Dialogue Manager APIs except through project-owned services.
+Project-owned autoloads, in order: `AppState`, `ContentRegistry`, `NetworkService`, `QuestService`, `InventoryService`, `GameService`, `SceneRouter`. Then the existing Nakama and Dialogue Manager autoloads. Game code must not call Nakama, GLoot, or Dialogue Manager APIs except through project-owned services.
 
 `NetworkService.authenticate_device` is an interface only. It does not construct `Nakama.create_client`, open a socket, or send HTTP. Sign-in on the login scene reports a recoverable `authentication_not_configured` error.
 
@@ -176,4 +176,18 @@ One shared `enemy.green_slime:0` lives in the starter-zone match. The server own
 Player death stops movement and attacks, broadcasts death, waits **3 seconds** (`PLAYER_RESPAWN_DELAY_SEC`), restores `player.base.maxHealth`, and teleports to `zone.starter.playerSpawn`. Slime death waits `respawnDelay` (10 seconds) then restores health at its spawn. Loot is not created.
 
 The client sends Space (`attack`) against the nearest living enemy for usability, draws health bars and floating numbers from server events, and does not predict combat.
+
+## 2026-08-16 — Loot and server-owned inventory
+
+Canonical inventory is Nakama storage collection `player`, key `inventory`, `permissionRead: 1`, `permissionWrite: 0`. The Godot client never writes that object. An existing account with no inventory record is initialized **once** on starter-zone join with capacity **20 stacks** and one server-generated instance of `item.training_sword`. Duplicate initialization returns the stored record unchanged. Each instance has a server `instanceId` (Nakama `uuidv4` in the adapter; tests inject an ID factory), content `itemId`, `quantity`, and `metadata`. Client `instanceId` / `items` fields are `stat_injection`.
+
+Capacity counts **item stacks**, not total quantity. `item.slime_gel` (`maxStack` 20) stacks into an existing gel instance. A new unstackable stack is rejected with `inventory_full` when 20 stacks are already occupied.
+
+Match init copies enemy loot tables through `enemyDefinitionsFromContent`. Combat stats alone are not enough: omitting `loot` leaves `enemyLootById` empty, so slime death never spawns gel and **F** has nothing to pick up.
+
+Slime death creates one transient ground loot entity containing one `item.slime_gel` at the authoritative death pose. Ground loot lives only in match state, expires after **30 seconds** (`expiresAtTick` = death tick + 300 at 10 Hz), and is never written to storage. `SNAPSHOT` includes public loot (`id`, `itemId`, `quantity`, `x`, `y`, `expiresAtTick`) without instance IDs so both clients see spawn and despawn.
+
+`PICKUP` is `{ protocolVersion, lootId, requestId }`. The match checks the player is alive, the loot exists, Euclidean distance against `player.base.pickupRange` (40), inventory capacity, and that the item definition exists. The first valid pickup removes the loot atomically, adds or stacks the item, persists inventory immediately, sends `INVENTORY_STATE` to the picker, and broadcasts the empty loot list on the next snapshot. A replay of a **successful** `requestId` returns `ok` without granting again. Two pickups of the same entity in one tick: message order, first success, second `invalid_target`.
+
+`InventoryService` is the only GLoot wrapper. GLoot 3.0.2 is a client-side mirror rebuilt from canonical server inventory. Prototypes use shared content IDs. Local GLoot add/remove is reverted. `client/addons/` is unmodified. Pickup input is **F**. Equip apply, quest turn-in, and wallet grants are not in this phase.
 
