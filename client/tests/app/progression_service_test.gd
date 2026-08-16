@@ -53,3 +53,35 @@ func test_canonical_progression_replaces_preview() -> void:
 	assert_int(ProgressionService.unspent_attribute_points).is_equal(0)
 	assert_int(ProgressionService.unspent_skill_points).is_equal(1)
 	assert_int(int(ProgressionService.allocated_attributes["attr.one"])).is_equal(1)
+
+
+func test_hud_allocate_buttons_are_enabled_and_skill_points_are_display_only() -> void:
+	ProgressionService.apply_canonical({
+		"classId": "class.one",
+		"classDisplayName": "Test Vanguard",
+		"level": 2,
+		"currentXp": 0,
+		"xpToNext": 75,
+		"atMaxLevel": false,
+		"baseAttributes": {"attr.one": 7},
+		"allocatedAttributes": {"attr.one": 0},
+		"derived": {"stat.one": 7},
+		"unspentAttributePoints": 1,
+		"unspentSkillPoints": 1,
+		"unlockedAbilityIds": [],
+	})
+	var hud: WorldHud = auto_free(preload("res://scenes/world/world_hud.tscn").instantiate())
+	add_child(hud)
+	await get_tree().process_frame
+	var points: Label = hud.get_node("Root/Progression/Margin/VBox/Points")
+	var skills: Label = hud.get_node("Root/Progression/Margin/VBox/Skills")
+	assert_str(points.text).is_equal("Attribute points: 1")
+	assert_str(skills.text).contains("Skill points: 1")
+	assert_str(skills.text).contains("unlock later")
+	var attributes: VBoxContainer = hud.get_node("Root/Progression/Margin/VBox/Attributes")
+	assert_int(attributes.get_child_count()).is_equal(1)
+	var button: Button = attributes.get_child(0).get_child(1)
+	assert_str(button.text).is_equal("+1")
+	assert_bool(button.disabled).is_false()
+	assert_float(button.custom_minimum_size.x).is_greater_equal(40.0)
+	assert_float(button.custom_minimum_size.y).is_greater_equal(28.0)

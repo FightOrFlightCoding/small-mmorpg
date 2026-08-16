@@ -55,3 +55,27 @@ func test_world_and_avatar_scenes_instantiate() -> void:
 		assert_object(scene).is_not_null()
 		var instance: Node = auto_free(scene.instantiate())
 		assert_object(instance).is_not_null()
+
+
+func test_world_hud_panels_do_not_cover_chat_or_allocate_buttons() -> void:
+	var viewport := get_viewport()
+	viewport.size = Vector2i(1280, 720)
+	var hud: WorldHud = auto_free(preload("res://scenes/world/world_hud.tscn").instantiate())
+	var chat: ChatPanel = auto_free(preload("res://scenes/world/chat_panel.tscn").instantiate())
+	var overlay: NetDebugOverlay = auto_free(preload("res://scenes/world/net_debug_overlay.tscn").instantiate())
+	add_child(hud)
+	add_child(chat)
+	add_child(overlay)
+	await get_tree().process_frame
+	assert_int(hud.layer).is_greater(chat.layer)
+	var progression: Control = hud.get_node("Root/Progression")
+	var inventory: Control = hud.get_node("Root/Inventory")
+	var journal: Control = hud.get_node("Root/Journal")
+	var chat_root: Control = chat.get_node("Root")
+	var debug_root: Control = overlay.get_node("Root")
+	assert_bool(progression.get_global_rect().intersects(chat_root.get_global_rect())).is_false()
+	assert_bool(inventory.get_global_rect().intersects(chat_root.get_global_rect())).is_false()
+	assert_bool(journal.get_global_rect().intersects(inventory.get_global_rect())).is_false()
+	assert_bool(debug_root.get_global_rect().intersects(progression.get_global_rect())).is_false()
+	assert_bool(debug_root.get_global_rect().intersects(chat_root.get_global_rect())).is_false()
+	assert_int(int(debug_root.mouse_filter)).is_equal(Control.MOUSE_FILTER_IGNORE)

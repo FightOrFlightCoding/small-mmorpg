@@ -23,6 +23,7 @@ signal logout_pressed
 @onready var _progression_summary: Label = $Root/Progression/Margin/VBox/Summary
 @onready var _progression_xp: Label = $Root/Progression/Margin/VBox/Xp
 @onready var _progression_points: Label = $Root/Progression/Margin/VBox/Points
+@onready var _progression_skills: Label = $Root/Progression/Margin/VBox/Skills
 @onready var _progression_attributes: VBoxContainer = $Root/Progression/Margin/VBox/Attributes
 @onready var _progression_derived: Label = $Root/Progression/Margin/VBox/Derived
 
@@ -131,10 +132,9 @@ func refresh_progression() -> void:
 		else:
 			_progression_xp.text = "XP: %s / %s" % [str(ProgressionService.current_xp), str(ProgressionService.xp_to_next)]
 	if _progression_points != null:
-		_progression_points.text = "Unspent: %s attr  %s skill" % [
-			str(ProgressionService.unspent_attribute_points),
-			str(ProgressionService.unspent_skill_points),
-		]
+		_progression_points.text = "Attribute points: %s" % str(ProgressionService.unspent_attribute_points)
+	if _progression_skills != null:
+		_progression_skills.text = "Skill points: %s (unlock later)" % str(ProgressionService.unspent_skill_points)
 	_rebuild_attribute_rows()
 	if _progression_derived != null:
 		var lines := PackedStringArray(["Derived:"])
@@ -219,11 +219,15 @@ func _rebuild_attribute_rows() -> void:
 		var base_value := int(ProgressionService.base_attributes.get(attribute_id, 0))
 		var allocated := int(ProgressionService.allocated_attributes.get(attribute_id, 0))
 		var row := HBoxContainer.new()
+		row.mouse_filter = Control.MOUSE_FILTER_STOP
 		var label := Label.new()
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		label.text = "%s  base %s  alloc %s" % [label_name, str(base_value), str(allocated)]
 		var button := Button.new()
-		button.text = "+"
+		button.text = "+1"
+		button.custom_minimum_size = Vector2(40, 28)
+		button.mouse_filter = Control.MOUSE_FILTER_STOP
 		button.disabled = ProgressionService.unspent_attribute_points < 1
 		button.pressed.connect(_on_allocate_pressed.bind(attribute_id))
 		row.add_child(label)
