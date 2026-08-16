@@ -12,6 +12,7 @@ signal user_authenticated(user_id: String)
 signal logged_out
 signal character_loaded(created: bool)
 signal zone_state_updated
+signal reconnecting_changed
 
 var current_scene_id: String = "boot"
 var is_loading: bool = false
@@ -28,6 +29,7 @@ var character_view: Dictionary = {}
 var has_zone_state: bool = false
 var zone_view: Dictionary = {}
 var zone_view_is_full: bool = true
+var is_reconnecting: bool = false
 
 
 func notify_loading_started(reason: String) -> void:
@@ -83,6 +85,7 @@ func notify_logged_out() -> void:
 	character_created = false
 	character_view = {}
 	clear_zone_state()
+	is_reconnecting = false
 	logged_out.emit()
 
 
@@ -91,6 +94,11 @@ func notify_character_loaded(view: Dictionary, created: bool) -> void:
 	character_created = created
 	character_view = view.duplicate(true)
 	character_loaded.emit(created)
+
+
+func notify_reconnecting(active: bool) -> void:
+	is_reconnecting = active
+	reconnecting_changed.emit()
 
 
 func notify_zone_state(view: Dictionary, is_full: bool = true) -> void:
@@ -122,3 +130,4 @@ func reset_for_tests() -> void:
 	has_zone_state = false
 	zone_view = {}
 	zone_view_is_full = true
+	is_reconnecting = false

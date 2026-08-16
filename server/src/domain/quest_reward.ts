@@ -33,6 +33,7 @@ export interface QuestTurnInInput {
   questsById: { [id: string]: QuestDefinition };
   itemsById: { [id: string]: ItemDefinition };
   newId: () => string;
+  tick?: number;
 }
 
 export interface QuestTurnInOutcome {
@@ -137,6 +138,17 @@ export function applyQuestTurnIn(input: QuestTurnInInput): QuestTurnInOutcome {
   }
   progress.status = QUEST_STATUS_COMPLETED;
   log.turnInByRequestId[input.requestId] = "ok";
+  if (input.tick !== undefined) {
+    const ticks: { [requestId: string]: number } = {};
+    if (log.turnInRequestTicks != null) {
+      const keys = Object.keys(log.turnInRequestTicks);
+      for (let t = 0; t < keys.length; t++) {
+        ticks[keys[t]] = log.turnInRequestTicks[keys[t]];
+      }
+    }
+    ticks[input.requestId] = input.tick;
+    log.turnInRequestTicks = ticks;
+  }
   const goldDelta = definition.rewards.gold > 0 ? definition.rewards.gold : 0;
   return {
     ok: true,

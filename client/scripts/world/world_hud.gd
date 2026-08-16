@@ -59,6 +59,8 @@ func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool =
 		return
 	if snapshot_stale:
 		_status.text = "Connection degraded. Remote movement is frozen."
+	elif AppState.is_reconnecting:
+		_status.text = "Reconnecting to the starter zone…"
 	else:
 		_status.text = "In %s as %s (you). Tick %s. Ack seq %s." % [
 			String(state.get("zone_id", "zone.starter")),

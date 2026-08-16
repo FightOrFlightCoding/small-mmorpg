@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Quest progress, turn-in, and atomic rewards**.
+Last accepted phase: **Persistence, disconnect, and reconnection**.
 
 Current phase: none.
 
@@ -231,5 +231,27 @@ powershell -File ..\scripts\run-client-shell.ps1
 ```
 
 Local play: start the stack, walk to the elder, accept **Slime Problem**, kill the slime, press **F** on the gel. The journal should show **1 / 1**. Talk to the elder and choose **Turn in the slime gel**. Inventory should lose the gel, gain **Iron Sword**, gold should be **25**, and the journal should show **Completed**. Relog should keep the completed quest, gold, and iron sword. Equip the iron sword; attack should become **9**. Duplicate turn-in should not grant again. Restart Nakama after this build so the reward runtime loads.
+
+## Persistence, disconnect, and reconnection (2026-08-16)
+
+Inventory, equipment, quest, and reward writes stay on those transactions (`permissionWrite: 0`, `nk.multiUpdate` for turn-in). Position checkpoints write `player` / `character` every **5 seconds** (50 ticks) only when the pose changed, plus immediately on `matchLeave` and `matchTerminate`. Occupied ticks do not persist. Health is not persisted: after grace expiry or a new match, join uses full `player.base.maxHealth`.
+
+A disconnected presence is removed from `SNAPSHOT` / `FULL_STATE` immediately (no ghost). For **5 seconds** the match keeps live pose, health, sequence, and in-memory request ids; a returning session restores them and overlays durable inventory, equipment, quests, and gold from storage. After grace, or after the empty match times out and a new match starts, join uses the checkpointed position and full health. Ground loot, slime AI, and cooldowns reset with the match. Abandoned `requestId` maps are pruned after **10 minutes**.
+
+The client checks session validity, refreshes, then reauthenticates with the same device id. Socket close starts bounded exponential backoff (0.5s doubling to 8s, 8 attempts), rejoins `find_or_create_starter_zone`, and waits for a fresh `FULL_STATE`. Match, chat, and socket-closed handlers connect once. A `closed` event is ignored until the client has zone state, while a join is in progress, or if the current socket is still connected. Nested loading completion does not hide the reconnect overlay. The overlay shows **Reconnecting…** with **Cancel**, which logs out. Tokens stay in memory.
+
+Server `npm test` 145/145, `npm run typecheck`, and `npm run build` succeeded. Godot 4.7.1 imported `client/`, printed `SHELL_LOGIN`, and GdUnit4 ran `res://tests` with 115/115 passed (0 orphans), including graceful/abrupt leave, grace rejoin, post-restart persistent character state, session refresh/reauth, socket reconnect, duplicate callback prevention, full-state resync, and reconnect UI cancel.
+
+Reproduction:
+
+```powershell
+Set-Location server
+npm test
+npm run build
+powershell -File ..\scripts\backend-up.ps1
+powershell -File ..\scripts\run-client-shell.ps1
+```
+
+Local play: start the stack, walk away from spawn, pick up loot, equip, accept or complete the quest. Close the client and reopen with the same `-- --dev-user=`. Position, inventory, equipment, quest, and gold should restore. A second client should stop seeing the disconnected avatar immediately. Kill the Godot process mid-session: the ghost should disappear and reconnect should not duplicate entities. Restart Nakama after this build so the persistence runtime loads; after restart, character data should survive while slime, loot, and cooldowns reset.
 
 

@@ -3,6 +3,7 @@ import {
   CHARACTER_KEY,
   CHARACTER_PERMISSION_READ,
   CHARACTER_PERMISSION_WRITE,
+  checkpointCharacterPosition,
   storedCharacterFromValue,
   storedCharacterWriteValue,
   type StoredCharacter,
@@ -11,8 +12,9 @@ import {
 export function buildCharacterWrite(
   userId: string,
   record: StoredCharacter,
+  version?: string,
 ): nkruntime.StorageWriteRequest {
-  return {
+  const write: nkruntime.StorageWriteRequest = {
     collection: CHARACTER_COLLECTION,
     key: CHARACTER_KEY,
     userId: userId,
@@ -20,6 +22,10 @@ export function buildCharacterWrite(
     permissionRead: CHARACTER_PERMISSION_READ,
     permissionWrite: CHARACTER_PERMISSION_WRITE,
   };
+  if (version !== undefined) {
+    write.version = version;
+  }
+  return write;
 }
 
 export function readCharacter(nk: nkruntime.Nakama, userId: string): StoredCharacter | null {
@@ -45,6 +51,26 @@ export function writeCharacter(nk: nkruntime.Nakama, userId: string, record: Sto
         return [];
       }
       return [write];
+    },
+    5,
+  );
+}
+
+export function writeCharacterCheckpoint(nk: nkruntime.Nakama, userId: string, x: number, y: number): void {
+  nk.storageWriteRetry(
+    [{ collection: CHARACTER_COLLECTION, key: CHARACTER_KEY, userId: userId }],
+    function (objects: nkruntime.StorageObject[]): nkruntime.StorageWriteRequest[] {
+      if (objects.length === 0) {
+        return [];
+      }
+      const current = storedCharacterFromValue(objects[0].value, objects[0].version);
+      if (current === null) {
+        return [];
+      }
+      if (current.position.x === x && current.position.y === y) {
+        return [];
+      }
+      return [buildCharacterWrite(userId, checkpointCharacterPosition(current, x, y), objects[0].version)];
     },
     5,
   );

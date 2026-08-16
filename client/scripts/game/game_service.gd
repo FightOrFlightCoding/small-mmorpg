@@ -83,6 +83,10 @@ func request_logout() -> void:
 	await NetworkService.logout()
 
 
+func cancel_reconnect() -> void:
+	await NetworkService.cancel_reconnect()
+
+
 func _on_authentication_finished(success: bool, _message: String) -> void:
 	if not success:
 		return

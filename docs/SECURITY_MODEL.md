@@ -96,7 +96,7 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 ## Client local storage
 
-The Godot client must not write canonical inventory, equipment, quest, currency, health, or position records to `user://` or other local files. `AppState` is in-memory presentation/session flags only. Persistence is Nakama storage and wallet, written by the server.
+The Godot client must not write canonical inventory, equipment, quest, currency, health, or position records to `user://` or other local files. `AppState` is in-memory presentation/session flags only. Persistence is Nakama storage and wallet, written by the server. Session tokens stay in memory; reconnect uses refresh then device reauthentication.
 
 ## Logging
 

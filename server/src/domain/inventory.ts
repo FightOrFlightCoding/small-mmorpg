@@ -1,3 +1,5 @@
+import { cloneTickMap, dict } from "./maps";
+
 export const INVENTORY_CAPACITY = 20;
 export const STARTER_ITEM_ID = "item.training_sword";
 
@@ -25,6 +27,7 @@ export interface PlayerInventory {
   capacity: number;
   items: ItemInstance[];
   pickupByRequestId: { [requestId: string]: PickupRecord };
+  pickupRequestTicks?: { [requestId: string]: number };
 }
 
 export interface InitializeInventoryResult {
@@ -41,15 +44,23 @@ export function emptyInventory(capacity: number = INVENTORY_CAPACITY): PlayerInv
 }
 
 export function cloneInventory(inventory: PlayerInventory): PlayerInventory {
+  if (inventory == null) {
+    return emptyInventory();
+  }
   const items: ItemInstance[] = [];
-  for (let i = 0; i < inventory.items.length; i++) {
-    items.push(cloneItem(inventory.items[i]));
+  const sourceItems = Array.isArray(inventory.items) ? inventory.items : [];
+  for (let i = 0; i < sourceItems.length; i++) {
+    items.push(cloneItem(sourceItems[i]));
   }
   const pickupByRequestId: { [requestId: string]: PickupRecord } = {};
-  const keys = Object.keys(inventory.pickupByRequestId);
+  const pickupSource = dict(inventory.pickupByRequestId);
+  const keys = Object.keys(pickupSource);
   for (let j = 0; j < keys.length; j++) {
     const key = keys[j];
-    const record = inventory.pickupByRequestId[key];
+    const record = pickupSource[key];
+    if (record == null) {
+      continue;
+    }
     pickupByRequestId[key] = {
       ok: record.ok,
       code: record.code,
@@ -60,6 +71,7 @@ export function cloneInventory(inventory: PlayerInventory): PlayerInventory {
     capacity: inventory.capacity,
     items: items,
     pickupByRequestId: pickupByRequestId,
+    pickupRequestTicks: cloneTickMap(inventory.pickupRequestTicks),
   };
 }
 
@@ -239,6 +251,7 @@ export function rememberPickup(
   inventory: PlayerInventory,
   requestId: string,
   record: PickupRecord,
+  tick?: number,
 ): PlayerInventory {
   const next = cloneInventory(inventory);
   next.pickupByRequestId[requestId] = {
@@ -246,6 +259,17 @@ export function rememberPickup(
     code: record.code,
     lootId: record.lootId,
   };
+  if (tick !== undefined) {
+    const ticks: { [requestId: string]: number } = {};
+    if (next.pickupRequestTicks != null) {
+      const keys = Object.keys(next.pickupRequestTicks);
+      for (let i = 0; i < keys.length; i++) {
+        ticks[keys[i]] = next.pickupRequestTicks[keys[i]];
+      }
+    }
+    ticks[requestId] = tick;
+    next.pickupRequestTicks = ticks;
+  }
   return next;
 }
 
@@ -277,9 +301,10 @@ function cloneItem(item: ItemInstance): ItemInstance {
 
 function cloneMetadata(metadata: { [key: string]: unknown }): { [key: string]: unknown } {
   const copy: { [key: string]: unknown } = {};
-  const keys = Object.keys(metadata);
+  const source = dict(metadata);
+  const keys = Object.keys(source);
   for (let i = 0; i < keys.length; i++) {
-    copy[keys[i]] = metadata[keys[i]];
+    copy[keys[i]] = source[keys[i]];
   }
   return copy;
 }

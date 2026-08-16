@@ -16,7 +16,7 @@ It may:
 - Display inventory, equipment, dialogue, quest, and currency **views** from server-owned state.
 - Join the starter-zone Nakama room channel after entering `zone.starter`, send chat text, and render received messages as plain text.
 - Map stable content IDs to scenes, sprites, and Dialogue Manager resources through a project-owned catalog.
-- Show visible connection, validation, and rejection errors. It must not spin on an indefinite loading state.
+- Show visible connection, validation, reconnecting, and rejection errors. It must not spin on an indefinite loading state.
 
 It must not:
 
@@ -40,6 +40,8 @@ It must:
 - Apply rewarded actions idempotently using a unique client `requestId`.
 - Broadcast snapshots and support full-state resynchronization.
 - Persist transactions immediately and position checkpoints periodically.
+- Persist position on graceful match leave and match terminate.
+- Keep a 5-second reconnect grace in match memory so a returning presence can restore live pose and health without appearing as a ghost.
 - Keep pure domain logic in modules that do not import Nakama APIs, with Nakama adapters in a separate layer.
 
 It must not:
@@ -73,9 +75,9 @@ There is exactly one gameplay match module for this slice: the starter zone.
 
 - Module name `starter_zone`, label `zone.starter`, 10 Hz, maximum 8 players.
 - Players join that match after authentication and character bootstrap (single character, no slots) via `find_or_create_starter_zone`.
-- The match owns live positions, collision, combatants, ground loot, in-memory cooldowns, live quest logs, live inventories, live equipment, and live wallet gold loaded from storage. This phase simulates player movement, NPC interaction, quest acceptance, shared slime AI, combat, slime-gel drops, pickup, server-owned inventory, main-hand equip, derived attack, quest objective progress, quest turn-in, and atomic wallet rewards.
+- The match owns live positions, collision, combatants, ground loot, in-memory cooldowns, live quest logs, live inventories, live equipment, and live wallet gold loaded from storage. This phase also checkpoints position, removes disconnected ghosts, restores persistent character state after rejoin or match restart, and reconnects the client with session refresh.
 - The client never hosts a second simulation of those values.
-- An empty match shuts down after 30 seconds. Reconnect re-enters the shared starter-zone match with loaded persistent state plus last checkpointed position.
+- An empty match shuts down after 30 seconds. Reconnect re-enters the shared starter-zone match with loaded persistent state plus last checkpointed position. Health is not persisted: after grace expiry or a new match, the player joins at full `player.base.maxHealth`. Ground loot, slime AI, and cooldowns reset with the match.
 
 ## Client/server trust boundaries
 
@@ -100,7 +102,7 @@ Third-party libraries are implementation details. Game code talks to project-own
 | --- | --- | --- |
 | `AppState` | none | Non-authoritative client/session flags and shell signals. Never canonical game data. |
 | `ContentRegistry` | generated `client/content/bundle.json` plus `client/content/visual_map.json` | Schema version check, content hash, lookup by stable ID, visual ID → local texture/fallback |
-| `NetworkService` | Nakama Godot SDK 3.4.0 | Device auth, in-memory session cache, refresh, reauth, realtime socket, logout, `character_bootstrap`, `find_or_create_starter_zone`, match join/leave, `INPUT`, `INTERACT`, `ATTACK`, `PICKUP`, `EQUIP`, `QUEST_ACCEPT`, `QUEST_TURN_IN`, `RESYNC_REQUEST`, starter-zone room chat join/leave/send. |
+| `NetworkService` | Nakama Godot SDK 3.4.0 | Device auth, in-memory session cache, refresh, reauth, realtime socket, bounded reconnect backoff, logout/cancel, `character_bootstrap`, `find_or_create_starter_zone`, match join/leave/rejoin, `INPUT`, `INTERACT`, `ATTACK`, `PICKUP`, `EQUIP`, `QUEST_ACCEPT`, `QUEST_TURN_IN`, `RESYNC_REQUEST`, starter-zone room chat join/leave/send. Socket match/chat/closed signals are connected once. |
 | `GameService` | the autoloads above | Boot, login, character bootstrap, starter-zone join. Not a gameplay authority. |
 | `SceneRouter` | Godot scene tree | Transitions among boot, login, character, and world |
 | `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE`/`SNAPSHOT`. Local movement is predicted and reconciled; all remote entities interpolate from one snapshot buffer keyed `kind:id`. The HUD journal mirrors `QuestService`. The HUD inventory list mirrors `InventoryService`. The HUD main-hand slot and attack label mirror `EquipmentService`. The HUD gold label mirrors `WalletService`. Health, death, and respawn copy server vitals. Not a gameplay authority. |
@@ -116,7 +118,7 @@ Third-party libraries are implementation details. Game code talks to project-own
 
 Do not call addon APIs from feature scenes except through these adapters. Do not edit files under `client/addons/`. See [THIRD_PARTY.md](THIRD_PARTY.md).
 
-Shell signals live on `AppState`: `loading_started`, `loading_completed`, `recoverable_error`, `fatal_compatibility_error`, `content_loaded`, `scene_changed`, `user_authenticated`, `logged_out`, `character_loaded`, `zone_state_updated`. After a fatal content or protocol error the client must not enter login, character, or world. Character requires a successful sign-in; world also requires a bootstrapped character and a valid `FULL_STATE`.
+Shell signals live on `AppState`: `loading_started`, `loading_completed`, `recoverable_error`, `fatal_compatibility_error`, `content_loaded`, `scene_changed`, `user_authenticated`, `logged_out`, `character_loaded`, `zone_state_updated`, `reconnecting_changed`. After a fatal content or protocol error the client must not enter login, character, or world. Character requires a successful sign-in; world also requires a bootstrapped character and a valid `FULL_STATE`. Reconnect shows a cancelable overlay and does not spin indefinitely.
 
 ## Shared content generation
 
@@ -141,9 +143,10 @@ Generated artifacts must preserve IDs. Network messages and storage records carr
 
 - Current interpolation/render pose on the client
 - In-flight projectile or swing presentation
+- Player health (full on join after grace expiry or a new match)
 - Enemy aggro unless a later accepted phase persists it (the slice does not)
 - Cooldown remaining time, reconstructed from server timestamps after resync
 - Unacked movement intentions
 - Ground loot entities (slime gel drops expire after 30 seconds and are not stored)
 
-Transactions that grant items or currency persist immediately with `nk.multiUpdate` when storage and wallet must change together. Positions persist on a checkpoint interval, not every tick.
+Transactions that grant items or currency persist immediately with `nk.multiUpdate` when storage and wallet must change together. Inventory, equipment, and quest writes happen on those transactions, not every tick. Positions persist every **5 seconds** if they changed, on graceful leave, and on match terminate. A disconnected presence is removed from snapshots immediately (no ghost). Live pose, health, and in-match request ids are kept for **5 seconds** of reconnect grace, then discarded. Abandoned `requestId` maps are pruned after **10 minutes**.

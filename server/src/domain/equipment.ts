@@ -1,4 +1,5 @@
 import { findItem, type ItemDefinition, type PlayerInventory } from "./inventory";
+import { cloneTickMap, dict } from "./maps";
 
 export const MAIN_HAND_SLOT = "main_hand";
 
@@ -12,6 +13,7 @@ export interface EquipRecord {
 export interface PlayerEquipment {
   slots: { main_hand: string };
   equipByRequestId: { [requestId: string]: EquipRecord };
+  equipRequestTicks?: { [requestId: string]: number };
 }
 
 export interface InventoryOwner {
@@ -31,6 +33,7 @@ export interface EquipInput {
   baseAttack: number;
   owners: ReadonlyArray<InventoryOwner>;
   unequip: boolean;
+  tick?: number;
 }
 
 export interface EquipDecision {
@@ -55,11 +58,18 @@ export function emptyEquipment(): PlayerEquipment {
 }
 
 export function cloneEquipment(equipment: PlayerEquipment): PlayerEquipment {
+  if (equipment == null) {
+    return emptyEquipment();
+  }
   const equipByRequestId: { [requestId: string]: EquipRecord } = {};
-  const keys = Object.keys(equipment.equipByRequestId);
+  const equipSource = dict(equipment.equipByRequestId);
+  const keys = Object.keys(equipSource);
   for (let i = 0; i < keys.length; i++) {
     const key = keys[i];
-    const record = equipment.equipByRequestId[key];
+    const record = equipSource[key];
+    if (record == null) {
+      continue;
+    }
     equipByRequestId[key] = {
       ok: record.ok,
       code: record.code,
@@ -67,9 +77,11 @@ export function cloneEquipment(equipment: PlayerEquipment): PlayerEquipment {
       instanceId: record.instanceId,
     };
   }
+  const slots = equipment.slots != null ? equipment.slots : { main_hand: "" };
   return {
-    slots: { main_hand: equipment.slots.main_hand },
+    slots: { main_hand: typeof slots.main_hand === "string" ? slots.main_hand : "" },
     equipByRequestId: equipByRequestId,
+    equipRequestTicks: cloneTickMap(equipment.equipRequestTicks),
   };
 }
 
@@ -201,7 +213,7 @@ function succeed(
     code: code,
     slot: input.slot,
     instanceId: instanceId,
-  });
+  }, input.tick);
   return {
     ok: true,
     code: code,
@@ -223,7 +235,7 @@ function fail(code: string, equipment: PlayerEquipment, input: EquipInput): Equi
   };
 }
 
-function rememberEquip(equipment: PlayerEquipment, requestId: string, record: EquipRecord): PlayerEquipment {
+function rememberEquip(equipment: PlayerEquipment, requestId: string, record: EquipRecord, tick?: number): PlayerEquipment {
   const next = cloneEquipment(equipment);
   next.equipByRequestId[requestId] = {
     ok: record.ok,
@@ -231,5 +243,17 @@ function rememberEquip(equipment: PlayerEquipment, requestId: string, record: Eq
     slot: record.slot,
     instanceId: record.instanceId,
   };
+  if (tick !== undefined) {
+    const ticks: { [requestId: string]: number } = {};
+    if (next.equipRequestTicks != null) {
+      const keys = Object.keys(next.equipRequestTicks);
+      for (let i = 0; i < keys.length; i++) {
+        ticks[keys[i]] = next.equipRequestTicks[keys[i]];
+      }
+    }
+    ticks[requestId] = tick;
+    next.equipRequestTicks = ticks;
+  }
   return next;
 }
+

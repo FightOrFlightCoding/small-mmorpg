@@ -1,5 +1,6 @@
 import { distance, findNpc, type InteractionNpc } from "./interaction";
 import { countItem, type PlayerInventory } from "./inventory";
+import { cloneTickMap, dict } from "./maps";
 
 export const QUEST_STATUS_ACCEPTED = "accepted";
 export const QUEST_STATUS_COMPLETED = "completed";
@@ -43,6 +44,8 @@ export interface QuestLog {
   quests: { [questId: string]: QuestProgress };
   acceptByRequestId: { [requestId: string]: string };
   turnInByRequestId: { [requestId: string]: string };
+  acceptRequestTicks?: { [requestId: string]: number };
+  turnInRequestTicks?: { [requestId: string]: number };
 }
 
 export interface PublicQuestObjective {
@@ -81,6 +84,7 @@ export interface QuestAcceptInput {
   npcs: ReadonlyArray<InteractionNpc>;
   interactionRange: number;
   questsById: { [id: string]: QuestDefinition };
+  tick?: number;
 }
 
 export interface QuestAcceptOutcome {
@@ -99,28 +103,40 @@ export function emptyQuestLog(): QuestLog {
 }
 
 export function cloneQuestLog(log: QuestLog): QuestLog {
+  if (log == null) {
+    return emptyQuestLog();
+  }
   const quests: { [questId: string]: QuestProgress } = {};
-  const questIds = Object.keys(log.quests);
+  const questSource = dict(log.quests);
+  const questIds = Object.keys(questSource);
   for (let i = 0; i < questIds.length; i++) {
     const id = questIds[i];
-    quests[id] = cloneQuestProgress(log.quests[id]);
+    const progress = questSource[id];
+    if (progress == null) {
+      continue;
+    }
+    quests[id] = cloneQuestProgress(progress);
   }
   const acceptByRequestId: { [requestId: string]: string } = {};
-  const requestIds = Object.keys(log.acceptByRequestId);
+  const acceptSource = dict(log.acceptByRequestId);
+  const requestIds = Object.keys(acceptSource);
   for (let j = 0; j < requestIds.length; j++) {
     const requestId = requestIds[j];
-    acceptByRequestId[requestId] = log.acceptByRequestId[requestId];
+    acceptByRequestId[requestId] = acceptSource[requestId];
   }
   const turnInByRequestId: { [requestId: string]: string } = {};
-  const turnInIds = Object.keys(log.turnInByRequestId);
+  const turnInSource = dict(log.turnInByRequestId);
+  const turnInIds = Object.keys(turnInSource);
   for (let k = 0; k < turnInIds.length; k++) {
     const requestId = turnInIds[k];
-    turnInByRequestId[requestId] = log.turnInByRequestId[requestId];
+    turnInByRequestId[requestId] = turnInSource[requestId];
   }
   return {
     quests: quests,
     acceptByRequestId: acceptByRequestId,
     turnInByRequestId: turnInByRequestId,
+    acceptRequestTicks: cloneTickMap(log.acceptRequestTicks),
+    turnInRequestTicks: cloneTickMap(log.turnInRequestTicks),
   };
 }
 
@@ -194,11 +210,28 @@ export function applyQuestAccept(input: QuestAcceptInput): QuestAcceptOutcome {
   }
   if (log.quests[input.questId] !== undefined) {
     log.acceptByRequestId[input.requestId] = "already_accepted";
+    stampAcceptTick(log, input.requestId, input.tick);
     return { ok: true, code: "already_accepted", persist: true, log: log };
   }
   log.quests[input.questId] = createAcceptedProgress(definition);
   log.acceptByRequestId[input.requestId] = "accepted";
+  stampAcceptTick(log, input.requestId, input.tick);
   return { ok: true, code: "accepted", persist: true, log: log };
+}
+
+function stampAcceptTick(log: QuestLog, requestId: string, tick: number | undefined): void {
+  if (tick === undefined) {
+    return;
+  }
+  const ticks: { [requestId: string]: number } = {};
+  if (log.acceptRequestTicks != null) {
+    const keys = Object.keys(log.acceptRequestTicks);
+    for (let i = 0; i < keys.length; i++) {
+      ticks[keys[i]] = log.acceptRequestTicks[keys[i]];
+    }
+  }
+  ticks[requestId] = tick;
+  log.acceptRequestTicks = ticks;
 }
 
 export function syncAcquireObjectives(

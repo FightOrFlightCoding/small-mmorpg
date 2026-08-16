@@ -276,3 +276,14 @@ export function storedCharacterWriteValue(record: StoredCharacter): { [key: stri
     position: { x: record.position.x, y: record.position.y },
   };
 }
+
+export function checkpointCharacterPosition(record: StoredCharacter, x: number, y: number): StoredCharacter {
+  return {
+    characterId: record.characterId,
+    name: record.name,
+    contentId: record.contentId,
+    zoneId: record.zoneId,
+    position: { x: x, y: y },
+    storageVersion: record.storageVersion,
+  };
+}

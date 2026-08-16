@@ -42,8 +42,13 @@ func _ready() -> void:
 		AppState.loading_completed.connect(_on_loading_completed)
 	if not AppState.zone_state_updated.is_connected(_on_zone_state_updated):
 		AppState.zone_state_updated.connect(_on_zone_state_updated)
+	if not AppState.reconnecting_changed.is_connected(_on_reconnecting_changed):
+		AppState.reconnecting_changed.connect(_on_reconnecting_changed)
 	_hud.resync_pressed.connect(_on_resync_pressed)
 	_hud.logout_pressed.connect(_on_logout_pressed)
+	if _loading_overlay != null and _loading_overlay.has_signal("cancel_pressed"):
+		if not _loading_overlay.cancel_pressed.is_connected(_on_reconnect_cancel):
+			_loading_overlay.cancel_pressed.connect(_on_reconnect_cancel)
 	if _chat != null:
 		_chat.send_requested.connect(_on_chat_send_requested)
 	_connect_chat_signals()
@@ -58,6 +63,8 @@ func _ready() -> void:
 	_last_state_msec = Time.get_ticks_msec()
 	if AppState.has_fatal_error:
 		_on_fatal_error(AppState.last_error_code, AppState.last_error_message)
+	elif AppState.is_reconnecting:
+		_show_reconnect_overlay()
 
 
 func _process(delta: float) -> void:
@@ -90,6 +97,8 @@ func _exit_tree() -> void:
 		AppState.loading_completed.disconnect(_on_loading_completed)
 	if AppState.zone_state_updated.is_connected(_on_zone_state_updated):
 		AppState.zone_state_updated.disconnect(_on_zone_state_updated)
+	if AppState.reconnecting_changed.is_connected(_on_reconnecting_changed):
+		AppState.reconnecting_changed.disconnect(_on_reconnecting_changed)
 	_disconnect_chat_signals()
 	_disconnect_interaction_signals()
 
@@ -204,7 +213,7 @@ func _update_ping(ack_seq: int) -> void:
 
 
 func _check_snapshot_timeout() -> void:
-	if not AppState.has_zone_state:
+	if not AppState.has_zone_state or AppState.is_reconnecting:
 		return
 	var elapsed := float(Time.get_ticks_msec() - _last_state_msec) / 1000.0
 	var stale := elapsed >= MatchProtocol.SNAPSHOT_TIMEOUT_SEC
@@ -248,6 +257,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _input_blocked() -> bool:
+	if AppState.is_reconnecting:
+		return true
 	if _chat != null and _chat.has_input_focus():
 		return true
 	if _dialogue != null and _dialogue.is_open():
@@ -537,22 +548,42 @@ func _on_resync_pressed() -> void:
 
 
 func _on_logout_pressed() -> void:
+	if AppState.is_reconnecting:
+		GameService.cancel_reconnect()
+		return
 	GameService.request_logout()
 
 
+func _on_reconnect_cancel() -> void:
+	GameService.cancel_reconnect()
+
+
+func _on_reconnecting_changed() -> void:
+	if _hud != null:
+		_hud.refresh(AppState.zone_view, _entities.summaries(), _snapshot_stale)
+	if AppState.is_reconnecting:
+		_show_reconnect_overlay()
+	elif not AppState.is_loading:
+		_hide_loading_overlay()
+
+
 func _on_recoverable_error(code: String, message: String) -> void:
+	if AppState.is_reconnecting and code == "snapshot_timeout":
+		return
 	if _error_dialog != null and _error_dialog.has_method("show_error"):
 		_error_dialog.call("show_error", "Something went wrong", "%s\n%s" % [code, message], false)
 
 
 func _on_fatal_error(code: String, message: String) -> void:
-	if _loading_overlay != null and _loading_overlay.has_method("hide_loading"):
-		_loading_overlay.call("hide_loading")
+	_hide_loading_overlay()
 	if _error_dialog != null and _error_dialog.has_method("show_error"):
 		_error_dialog.call("show_error", "Cannot start", "%s\n%s" % [code, message], true)
 
 
 func _on_loading_started(reason: String) -> void:
+	if AppState.is_reconnecting:
+		_show_reconnect_overlay()
+		return
 	if _loading_overlay != null and _loading_overlay.has_method("show_loading"):
 		_loading_overlay.call("show_loading", reason)
 
@@ -560,5 +591,17 @@ func _on_loading_started(reason: String) -> void:
 func _on_loading_completed(_reason: String) -> void:
 	if AppState.has_fatal_error:
 		return
+	if AppState.is_reconnecting:
+		_show_reconnect_overlay()
+		return
+	_hide_loading_overlay()
+
+
+func _show_reconnect_overlay() -> void:
+	if _loading_overlay != null and _loading_overlay.has_method("show_loading"):
+		_loading_overlay.call("show_loading", "reconnect")
+
+
+func _hide_loading_overlay() -> void:
 	if _loading_overlay != null and _loading_overlay.has_method("hide_loading"):
 		_loading_overlay.call("hide_loading")

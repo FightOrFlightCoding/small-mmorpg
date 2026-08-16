@@ -123,8 +123,10 @@ test("join rejects a second session for the same account", () => {
   const duplicate = validateJoinAttempt(state, contentHash, meta, true, "session-new", "session-user-alice");
   assert.equal(duplicate.accept, false);
   assert.equal(duplicate.rejectMessage, "already_in_match");
-  const sameSession = validateJoinAttempt(state, contentHash, meta, true, "session-user-alice", "session-user-alice");
-  assert.equal(sameSession.accept, true);
+	const sameSession = validateJoinAttempt(state, contentHash, meta, true, "session-user-alice", "session-user-alice");
+	assert.equal(sameSession.accept, true);
+	const reconnectWithoutPresence = validateJoinAttempt(state, contentHash, meta, true, "session-new", "");
+	assert.equal(reconnectWithoutPresence.accept, true);
 });
 
 test("join rejects when the match is full", () => {

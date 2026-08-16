@@ -211,3 +211,17 @@ The reward is one `nk.multiUpdate`: consume one `item.slime_gel`, insert one uni
 
 `WalletService` mirrors `FULL_STATE.wallet.gold` and `WALLET_STATE`. Elder ready dialogue sends turn-in; the HUD journal, inventory, gold, and a `quest_complete` notice update only after server confirmation.
 
+## 2026-08-16 — Persistence, disconnect, and reconnection
+
+Inventory, equipment, quest, and wallet writes stay on those transactions (`permissionWrite: 0`, `nk.multiUpdate` for turn-in). Position checkpoints write the existing `player` / `character` object every **5 seconds** (50 ticks) only when the pose changed, plus immediately on `matchLeave` and `matchTerminate`. The tick loop does not read storage and does not write idle positions.
+
+Health is intentionally not persistent. A disconnected presence is removed from `SNAPSHOT` / `FULL_STATE` immediately so other clients do not see a ghost. For **5 seconds** the match keeps live pose, health, sequence, and in-memory combat request ids for that userId; a returning session restores them and overlays durable inventory, equipment, quests, and gold from storage. After grace, or after the empty match times out and a new match starts, join uses the checkpointed position and full `player.base.maxHealth`. Slime AI, ground loot, and cooldowns belong to the new match.
+
+Pickup, equip, and quest `requestId` maps are stamped with the apply tick and pruned after **10 minutes**. Same-session Nakama reconnect keeps the live player. A second live session is still `already_in_match`. Rejoin is allowed when the account still has a live player record but no presence (leave still in flight).
+
+The client checks session validity, refreshes, then reauthenticates with the same device id. Socket close starts bounded exponential backoff (0.5s … 8s, 8 attempts), rejoins the starter zone, and waits for `FULL_STATE`. Match, chat, and socket-closed handlers connect once. A `closed` event is ignored while a join is in progress, before the client has zone state, or if the current socket is still connected (stale close from a replaced socket). Nested loading completion must not hide the reconnect overlay. The world overlay shows **Reconnecting…** with **Cancel**, which logs out. Tokens are not written to `user://`.
+
+Nakama JSON-roundtrips match state between handlers. Empty objects such as `disconnected: {}` and empty `requestId` maps can arrive as `null`. Clone and leave/loop paths treat `null` maps as `{}` so `Object.keys` cannot crash the match on tick 0.
+
+Local Nakama `socket.max_message_size_bytes` is **32768** so `FULL_STATE` with inventory, equipment, quests, and wallet cannot drop the websocket.
+

@@ -17,6 +17,7 @@ import {
   type PlayerEquipment,
 } from "./equipment";
 import { cloneLoot, publicLoot, type LootDrop, type MatchLoot } from "./loot";
+import { dict } from "./maps";
 import { publicWallet } from "./wallet";
 
 export type { MatchLoot };
@@ -59,6 +60,14 @@ export interface MatchPlayer {
   equipment?: PlayerEquipment;
   derivedAttack?: number;
   gold?: number;
+  lastCheckpointTick?: number;
+  lastCheckpointX?: number;
+  lastCheckpointY?: number;
+}
+
+export interface DisconnectedPlayer {
+  player: MatchPlayer;
+  expiresAtTick: number;
 }
 
 export interface MatchNpc {
@@ -97,6 +106,7 @@ export interface StarterZoneState {
   contentHash: string;
   emptyTicks: number;
   players: { [userId: string]: MatchPlayer };
+  disconnected: { [userId: string]: DisconnectedPlayer };
   npcs: MatchNpc[];
   enemies: MatchEnemy[];
   loot: MatchLoot[];
@@ -234,6 +244,7 @@ export function createStarterZoneState(
     contentHash: contentHash,
     emptyTicks: 0,
     players: {},
+    disconnected: {},
     npcs: npcs,
     enemies: enemies,
     loot: [],
@@ -261,7 +272,7 @@ export function createStarterZoneState(
 }
 
 export function playerCount(state: StarterZoneState): number {
-  return Object.keys(state.players).length;
+  return Object.keys(dict(state.players)).length;
 }
 
 export function addPlayer(
@@ -408,43 +419,65 @@ function numberOr(value: number | undefined, fallback: number): number {
   return value;
 }
 
+function cloneMatchPlayer(p: MatchPlayer, state: StarterZoneState): MatchPlayer {
+  const equipment = p.equipment != null ? p.equipment : emptyEquipment();
+  const inventory = p.inventory != null ? p.inventory : emptyInventory();
+  return {
+    userId: p.userId,
+    sessionId: p.sessionId,
+    username: p.username,
+    characterId: p.characterId,
+    name: p.name,
+    x: p.x,
+    y: p.y,
+    maxHealth: p.maxHealth,
+    health: p.health,
+    lastProcessedSeq: p.lastProcessedSeq,
+    axisX: p.axisX,
+    axisY: p.axisY,
+    questLog: cloneQuestLog(p.questLog != null ? p.questLog : emptyQuestLog()),
+    lastAttackTick: p.lastAttackTick != null ? p.lastAttackTick : -1,
+    deadUntilTick: p.deadUntilTick != null ? p.deadUntilTick : 0,
+    lastAttackRequestId: p.lastAttackRequestId != null ? p.lastAttackRequestId : "",
+    lastAttackResultCode: p.lastAttackResultCode != null ? p.lastAttackResultCode : "",
+    lastAttackResultOk: p.lastAttackResultOk === true,
+    inventory: cloneInventory(inventory),
+    equipment: cloneEquipment(equipment),
+    derivedAttack:
+      p.derivedAttack != null
+        ? p.derivedAttack
+        : derivedAttack(state.playerAttack, equipment, inventory, dict(state.itemsById)),
+    gold: p.gold != null ? p.gold : 0,
+    lastCheckpointTick: p.lastCheckpointTick,
+    lastCheckpointX: p.lastCheckpointX,
+    lastCheckpointY: p.lastCheckpointY,
+  };
+}
+
 export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState {
   const players: { [userId: string]: MatchPlayer } = {};
-  const ids = Object.keys(state.players);
+  const playerSource = dict(state.players);
+  const ids = Object.keys(playerSource);
   for (let i = 0; i < ids.length; i++) {
     const id = ids[i];
-    const p = state.players[id];
-    players[id] = {
-      userId: p.userId,
-      sessionId: p.sessionId,
-      username: p.username,
-      characterId: p.characterId,
-      name: p.name,
-      x: p.x,
-      y: p.y,
-      maxHealth: p.maxHealth,
-      health: p.health,
-      lastProcessedSeq: p.lastProcessedSeq,
-      axisX: p.axisX,
-      axisY: p.axisY,
-      questLog: cloneQuestLog(p.questLog !== undefined ? p.questLog : emptyQuestLog()),
-      lastAttackTick: p.lastAttackTick !== undefined ? p.lastAttackTick : -1,
-      deadUntilTick: p.deadUntilTick !== undefined ? p.deadUntilTick : 0,
-      lastAttackRequestId: p.lastAttackRequestId !== undefined ? p.lastAttackRequestId : "",
-      lastAttackResultCode: p.lastAttackResultCode !== undefined ? p.lastAttackResultCode : "",
-      lastAttackResultOk: p.lastAttackResultOk === true,
-      inventory: cloneInventory(p.inventory !== undefined ? p.inventory : emptyInventory()),
-      equipment: cloneEquipment(p.equipment !== undefined ? p.equipment : emptyEquipment()),
-      derivedAttack:
-        p.derivedAttack !== undefined
-          ? p.derivedAttack
-          : derivedAttack(
-              state.playerAttack,
-              p.equipment !== undefined ? p.equipment : emptyEquipment(),
-              p.inventory,
-              state.itemsById,
-            ),
-      gold: p.gold !== undefined ? p.gold : 0,
+    const p = playerSource[id];
+    if (p == null) {
+      continue;
+    }
+    players[id] = cloneMatchPlayer(p, state);
+  }
+  const disconnected: { [userId: string]: DisconnectedPlayer } = {};
+  const parkedSource = dict(state.disconnected);
+  const parkedIds = Object.keys(parkedSource);
+  for (let d = 0; d < parkedIds.length; d++) {
+    const parkedId = parkedIds[d];
+    const parked = parkedSource[parkedId];
+    if (parked == null || parked.player == null) {
+      continue;
+    }
+    disconnected[parkedId] = {
+      player: cloneMatchPlayer(parked.player, state),
+      expiresAtTick: parked.expiresAtTick,
     };
   }
   return {
@@ -452,11 +485,12 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     contentHash: state.contentHash,
     emptyTicks: state.emptyTicks,
     players: players,
-    npcs: state.npcs,
-    enemies: cloneEnemies(state.enemies),
-    loot: cloneLoot(state.loot),
+    disconnected: disconnected,
+    npcs: Array.isArray(state.npcs) ? state.npcs : [],
+    enemies: cloneEnemies(Array.isArray(state.enemies) ? state.enemies : []),
+    loot: cloneLoot(Array.isArray(state.loot) ? state.loot : []),
     walkableBounds: state.walkableBounds,
-    collisions: state.collisions,
+    collisions: Array.isArray(state.collisions) ? state.collisions : [],
     moveSpeed: state.moveSpeed,
     playerHalfExtent: state.playerHalfExtent,
     interactionRange: state.interactionRange,
@@ -467,9 +501,9 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     playerSpawnY: state.playerSpawnY,
     playerRespawnDelaySec: state.playerRespawnDelaySec,
     pickupRange: state.pickupRange,
-    questsById: state.questsById,
-    itemsById: state.itemsById,
-    enemyLootById: state.enemyLootById,
+    questsById: dict(state.questsById),
+    itemsById: dict(state.itemsById),
+    enemyLootById: dict(state.enemyLootById),
   };
 }
 

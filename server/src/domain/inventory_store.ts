@@ -42,6 +42,18 @@ export function storedInventoryFromValue(value: unknown): PlayerInventory | null
       }
     }
   }
+  if (data.pickupRequestTicks !== null && typeof data.pickupRequestTicks === "object" && !Array.isArray(data.pickupRequestTicks)) {
+    const map = data.pickupRequestTicks as { [key: string]: unknown };
+    const ticks: { [requestId: string]: number } = {};
+    const tickKeys = Object.keys(map);
+    for (let t = 0; t < tickKeys.length; t++) {
+      const key = tickKeys[t];
+      if (typeof map[key] === "number" && isFinite(map[key])) {
+        ticks[key] = map[key];
+      }
+    }
+    inventory.pickupRequestTicks = ticks;
+  }
   return cloneInventory(inventory);
 }
 
@@ -67,11 +79,15 @@ function publicStoredInventory(inventory: PlayerInventory): { [key: string]: unk
       lootId: record.lootId,
     };
   }
-  return {
+  const value: { [key: string]: unknown } = {
     capacity: inventory.capacity,
     items: items,
     pickupByRequestId: pickupByRequestId,
   };
+  if (inventory.pickupRequestTicks !== undefined) {
+    value.pickupRequestTicks = inventory.pickupRequestTicks;
+  }
+  return value;
 }
 
 function parseItem(value: unknown): ItemInstance | null {

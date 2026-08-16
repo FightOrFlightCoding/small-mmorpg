@@ -19,7 +19,7 @@ export function validateJoinAttempt(
     return { accept: false, rejectMessage: "content_mismatch" };
   }
   if (alreadyJoined) {
-    if (joiningSessionId !== "" && joiningSessionId === existingSessionId) {
+    if (existingSessionId === "" || joiningSessionId === existingSessionId) {
       return { accept: true };
     }
     return { accept: false, rejectMessage: "already_in_match" };

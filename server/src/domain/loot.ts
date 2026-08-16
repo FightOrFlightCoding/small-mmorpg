@@ -37,6 +37,7 @@ export interface PickupInput {
   loot: MatchLoot[];
   pickupRange: number;
   itemsById: { [id: string]: ItemDefinition };
+  tick?: number;
 }
 
 export interface PickupDecision {
@@ -156,7 +157,7 @@ export function applyPickup(input: PickupInput): PickupDecision {
     ok: true,
     code: "ok",
     lootId: entity.id,
-  });
+  }, input.tick);
   return {
     ok: true,
     code: "ok",

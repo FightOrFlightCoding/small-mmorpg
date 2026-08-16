@@ -8,6 +8,7 @@ import {
   CHARACTER_PERMISSION_WRITE,
   DEFAULT_CHARACTER_NAME,
   type StoredCharacter,
+  checkpointCharacterPosition,
   handleCharacterBootstrap,
   parseCharacterBootstrapRequest,
 } from "../src/domain/character";
@@ -166,4 +167,22 @@ test("character storage writes are server-only", () => {
   assert.equal(write.permissionWrite, 0);
   assert.equal(Object.prototype.hasOwnProperty.call(write.value, "maxHealth"), false);
   assert.equal(Object.prototype.hasOwnProperty.call(write.value, "attack"), false);
+});
+
+test("character checkpoints update stored position without client stats", () => {
+  const record: StoredCharacter = {
+    characterId: "char-1",
+    name: "Alice",
+    contentId: "player.base",
+    zoneId: "zone.starter",
+    position: { x: 240, y: 384 },
+    storageVersion: "v1",
+  };
+  const next = checkpointCharacterPosition(record, 640, 400);
+  assert.equal(next.position.x, 640);
+  assert.equal(next.position.y, 400);
+  assert.equal(next.characterId, "char-1");
+  const write = buildCharacterWrite("user-alice", next, "v1");
+  assert.equal(write.version, "v1");
+  assert.equal(write.permissionWrite, 0);
 });

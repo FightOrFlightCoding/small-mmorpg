@@ -1,5 +1,5 @@
 import { content, contentHash } from "../generated/content";
-import { readCharacter } from "./character_store";
+import { readCharacter, writeCharacterCheckpoint } from "./character_store";
 import { readQuests, writeQuests } from "./quest_store";
 import { readInventory, writeInventory, writeInventoryOnce } from "./inventory_store";
 import { readEquipment, writeEquipment } from "./equipment_store";
@@ -21,10 +21,18 @@ import {
   createStarterZoneState,
   enemyDefinitionsFromContent,
   fullStateOpcode,
-  removePlayer,
   type MatchPlayer,
   type StarterZoneState,
 } from "../domain/match_state";
+import { dict } from "../domain/maps";
+import {
+  applyPlayerLeave,
+  checkpointsForTerminate,
+  joinHealth,
+  restoreGracePlayer,
+  takeGracePlayer,
+  type PositionCheckpoint,
+} from "../domain/persistence";
 
 export interface StarterMatchRuntimeState {
   zone: StarterZoneState;
@@ -73,8 +81,9 @@ export function matchJoinAttempt(
   presence: nkruntime.Presence,
   metadata: { [key: string]: any },
 ): { state: StarterMatchRuntimeState; accept: boolean; rejectMessage?: string } {
+  state = hydrateRuntime(state);
   const meta: { [key: string]: string } = {};
-  const keys = Object.keys(metadata);
+  const keys = Object.keys(dict(metadata));
   for (let i = 0; i < keys.length; i++) {
     const key = keys[i];
     meta[key] = String(metadata[key]);
@@ -110,6 +119,7 @@ export function matchJoin(
   state: StarterMatchRuntimeState,
   presences: nkruntime.Presence[],
 ): { state: StarterMatchRuntimeState } {
+  state = hydrateRuntime(state);
   let zone = state.zone;
   const nextPresences: { [userId: string]: nkruntime.Presence } = {};
   const existing = Object.keys(state.presences);
@@ -127,39 +137,69 @@ export function matchJoin(
       delete nextPresences[presence.userId];
       continue;
     }
+    const existingLive = zone.players[presence.userId];
+    if (existingLive !== undefined) {
+      existingLive.sessionId = presence.sessionId;
+      existingLive.username = presence.username;
+      joined.push(presence);
+      logger.info("starter_zone session resume user_id=%s", presence.userId);
+      continue;
+    }
     const inventory = loadPlayerInventory(nk, presence.userId);
     const loadedEquipment = loadEquipment(readEquipment(nk, presence.userId), inventory);
     if (loadedEquipment.persist) {
       writeEquipment(nk, presence.userId, loadedEquipment.equipment);
       logger.info("starter_zone reconcile equipment user_id=%s", presence.userId);
     }
-    const player: MatchPlayer = {
-      userId: presence.userId,
-      sessionId: presence.sessionId,
-      username: presence.username,
-      characterId: character.characterId,
-      name: character.name,
-      x: character.position.x,
-      y: character.position.y,
-      maxHealth: content.player.maxHealth,
-      health: content.player.maxHealth,
-      lastProcessedSeq: 0,
-      axisX: 0,
-      axisY: 0,
-      questLog: readQuests(nk, presence.userId),
-      inventory: inventory,
-      equipment: loadedEquipment.equipment,
-      derivedAttack: derivedAttack(
-        content.player.attack,
-        loadedEquipment.equipment,
+    const derived = derivedAttack(
+      content.player.attack,
+      loadedEquipment.equipment,
+      inventory,
+      zone.itemsById,
+    );
+    const gold = readGold(nk, presence.userId);
+    const questLog = readQuests(nk, presence.userId);
+    const parked = takeGracePlayer(zone, presence.userId, tick);
+    let player: MatchPlayer;
+    if (parked !== null) {
+      player = restoreGracePlayer(
+        parked,
+        presence.sessionId,
+        presence.username,
+        questLog,
         inventory,
-        zone.itemsById,
-      ),
-      gold: readGold(nk, presence.userId),
-    };
+        loadedEquipment.equipment,
+        derived,
+        gold,
+      );
+      logger.info("starter_zone grace rejoin user_id=%s", presence.userId);
+    } else {
+      player = {
+        userId: presence.userId,
+        sessionId: presence.sessionId,
+        username: presence.username,
+        characterId: character.characterId,
+        name: character.name,
+        x: character.position.x,
+        y: character.position.y,
+        maxHealth: content.player.maxHealth,
+        health: joinHealth(content.player.maxHealth),
+        lastProcessedSeq: 0,
+        axisX: 0,
+        axisY: 0,
+        questLog: questLog,
+        inventory: inventory,
+        equipment: loadedEquipment.equipment,
+        derivedAttack: derived,
+        gold: gold,
+        lastCheckpointTick: tick,
+        lastCheckpointX: character.position.x,
+        lastCheckpointY: character.position.y,
+      };
+      logger.info("starter_zone join user_id=%s character_id=%s", presence.userId, character.characterId);
+    }
     zone = addPlayer(zone, player);
     joined.push(presence);
-    logger.info("starter_zone join user_id=%s character_id=%s", presence.userId, character.characterId);
   }
 
   for (let i = 0; i < joined.length; i++) {
@@ -180,12 +220,13 @@ export function matchJoin(
 export function matchLeave(
   _ctx: nkruntime.Context,
   logger: nkruntime.Logger,
-  _nk: nkruntime.Nakama,
+  nk: nkruntime.Nakama,
   dispatcher: nkruntime.MatchDispatcher,
   tick: number,
   state: StarterMatchRuntimeState,
   presences: nkruntime.Presence[],
 ): { state: StarterMatchRuntimeState } {
+  state = hydrateRuntime(state);
   let zone = state.zone;
   const nextPresences: { [userId: string]: nkruntime.Presence } = {};
   const existing = Object.keys(state.presences);
@@ -194,7 +235,12 @@ export function matchLeave(
   }
   for (let i = 0; i < presences.length; i++) {
     const presence = presences[i];
-    zone = removePlayer(zone, presence.userId);
+    const left = applyPlayerLeave(zone, presence.userId, tick);
+    zone = left.state;
+    if (left.checkpoint !== null) {
+      writeCharacterCheckpoint(nk, left.checkpoint.userId, left.checkpoint.x, left.checkpoint.y);
+      logger.info("starter_zone leave checkpoint user_id=%s", presence.userId);
+    }
     delete nextPresences[presence.userId];
     logger.info("starter_zone leave user_id=%s", presence.userId);
   }
@@ -215,6 +261,7 @@ export function matchLoop(
   state: StarterMatchRuntimeState,
   messages: nkruntime.MatchMessage[],
 ): { state: StarterMatchRuntimeState } | null {
+  state = hydrateRuntime(state);
   const incoming: IncomingMatchData[] = [];
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i];
@@ -244,6 +291,7 @@ export function matchLoop(
     writeEquipment(nk, persist.userId, persist.equipment);
     logger.info("starter_zone persist equipment user_id=%s", persist.userId);
   }
+  writeCheckpoints(nk, logger, result.persistCheckpoints);
   for (let i = 0; i < result.outbound.length; i++) {
     const out = result.outbound[i];
     const targets = resolveTargets(state.presences, out.toUserId, out.broadcastOthersFrom);
@@ -261,13 +309,15 @@ export function matchLoop(
 
 export function matchTerminate(
   _ctx: nkruntime.Context,
-  _logger: nkruntime.Logger,
-  _nk: nkruntime.Nakama,
+  logger: nkruntime.Logger,
+  nk: nkruntime.Nakama,
   _dispatcher: nkruntime.MatchDispatcher,
   _tick: number,
   state: StarterMatchRuntimeState,
   _graceSeconds: number,
 ): { state: StarterMatchRuntimeState } {
+  state = hydrateRuntime(state);
+  writeCheckpoints(nk, logger, checkpointsForTerminate(state.zone));
   return { state: state };
 }
 
@@ -280,6 +330,7 @@ export function matchSignal(
   state: StarterMatchRuntimeState,
   _data: string,
 ): { state: StarterMatchRuntimeState; data: string } {
+  state = hydrateRuntime(state);
   return {
     state: state,
     data: JSON.stringify({
@@ -288,6 +339,28 @@ export function matchSignal(
       playerCount: Object.keys(state.zone.players).length,
     }),
   };
+}
+
+function hydrateRuntime(state: StarterMatchRuntimeState): StarterMatchRuntimeState {
+  const zone = state.zone;
+  zone.players = dict(zone.players);
+  zone.disconnected = dict(zone.disconnected);
+  return {
+    zone: zone,
+    presences: dict(state.presences),
+  };
+}
+
+function writeCheckpoints(
+  nk: nkruntime.Nakama,
+  logger: nkruntime.Logger,
+  checkpoints: PositionCheckpoint[],
+): void {
+  for (let i = 0; i < checkpoints.length; i++) {
+    const checkpoint = checkpoints[i];
+    writeCharacterCheckpoint(nk, checkpoint.userId, checkpoint.x, checkpoint.y);
+    logger.info("starter_zone persist checkpoint user_id=%s", checkpoint.userId);
+  }
 }
 
 function presencesExcept(

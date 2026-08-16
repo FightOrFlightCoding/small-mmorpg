@@ -18,10 +18,14 @@ export function storedEquipmentWriteValue(equipment: PlayerEquipment): { [key: s
       instanceId: record.instanceId,
     };
   }
-  return {
+  const value: { [key: string]: unknown } = {
     slots: { main_hand: equipment.slots.main_hand },
     equipByRequestId: equipByRequestId,
   };
+  if (equipment.equipRequestTicks !== undefined) {
+    value.equipRequestTicks = equipment.equipRequestTicks;
+  }
+  return value;
 }
 
 export function storedEquipmentFromValue(value: unknown): PlayerEquipment | null {
@@ -46,6 +50,18 @@ export function storedEquipmentFromValue(value: unknown): PlayerEquipment | null
         equipment.equipByRequestId[key] = parsed;
       }
     }
+  }
+  if (data.equipRequestTicks !== null && typeof data.equipRequestTicks === "object" && !Array.isArray(data.equipRequestTicks)) {
+    const map = data.equipRequestTicks as { [key: string]: unknown };
+    const ticks: { [requestId: string]: number } = {};
+    const tickKeys = Object.keys(map);
+    for (let t = 0; t < tickKeys.length; t++) {
+      const key = tickKeys[t];
+      if (typeof map[key] === "number" && isFinite(map[key])) {
+        ticks[key] = map[key];
+      }
+    }
+    equipment.equipRequestTicks = ticks;
   }
   return cloneEquipment(equipment);
 }

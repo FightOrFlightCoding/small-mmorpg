@@ -6,6 +6,7 @@ extends RefCounted
 signal match_state_received(opcode: int, payload: String)
 signal channel_message_received(payload: Dictionary)
 signal channel_presence_received(payload: Dictionary)
+signal socket_closed
 
 var authenticate_ok: bool = true
 var authenticate_code: String = "network_unreachable"
@@ -27,6 +28,8 @@ var last_rpc_payload: String = ""
 var authenticate_calls: int = 0
 var refresh_calls: int = 0
 var socket_calls: int = 0
+var socket_closed_emits: int = 0
+var socket_is_connected: bool = false
 var logout_calls: int = 0
 var join_ok: bool = true
 var join_code: String = "join_failed"
@@ -64,6 +67,10 @@ func is_session_expired() -> bool:
 	return session_expired
 
 
+func is_socket_connected() -> bool:
+	return socket_is_connected
+
+
 func authenticate_device(device_id: String, p_username: String) -> Dictionary:
 	last_device_id = device_id
 	last_username = p_username
@@ -73,6 +80,7 @@ func authenticate_device(device_id: String, p_username: String) -> Dictionary:
 	if not authenticate_ok:
 		return {"ok": false, "code": authenticate_code, "message": authenticate_message}
 	session_expired = false
+	socket_is_connected = false
 	return {"ok": true, "user_id": user_id, "username": username}
 
 
@@ -87,8 +95,17 @@ func refresh_session() -> Dictionary:
 func connect_socket() -> Dictionary:
 	socket_calls += 1
 	if not socket_ok:
+		socket_is_connected = false
 		return {"ok": false, "code": "socket_failed", "message": "Could not open a realtime connection to Nakama."}
+	socket_is_connected = true
 	return {"ok": true}
+
+
+func emit_socket_closed(still_connected: bool = false) -> void:
+	socket_closed_emits += 1
+	if not still_connected:
+		socket_is_connected = false
+	socket_closed.emit()
 
 
 func rpc(id: String, payload: String) -> Dictionary:
@@ -176,6 +193,7 @@ func send_chat_message(channel_id: String, content: Dictionary) -> Dictionary:
 func logout() -> void:
 	logout_calls += 1
 	session_expired = true
+	socket_is_connected = false
 
 
 func default_find_payload() -> String:

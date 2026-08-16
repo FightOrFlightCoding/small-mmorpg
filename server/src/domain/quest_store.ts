@@ -43,6 +43,8 @@ export function storedQuestWriteValue(log: QuestLog): { [key: string]: unknown }
     quests: quests,
     acceptByRequestId: acceptByRequestId,
     turnInByRequestId: turnInByRequestId,
+    acceptRequestTicks: copyTickMap(log.acceptRequestTicks),
+    turnInRequestTicks: copyTickMap(log.turnInRequestTicks),
   };
 }
 
@@ -80,7 +82,39 @@ export function storedQuestFromValue(value: unknown): QuestLog {
       }
     }
   }
+  log.acceptRequestTicks = parseTickMap(data.acceptRequestTicks);
+  log.turnInRequestTicks = parseTickMap(data.turnInRequestTicks);
   return log;
+}
+
+function copyTickMap(ticks: { [requestId: string]: number } | undefined): { [requestId: string]: number } | undefined {
+  if (ticks === undefined) {
+    return undefined;
+  }
+  const copy: { [requestId: string]: number } = {};
+  const keys = Object.keys(ticks);
+  for (let i = 0; i < keys.length; i++) {
+    copy[keys[i]] = ticks[keys[i]];
+  }
+  return copy;
+}
+
+function parseTickMap(value: unknown): { [requestId: string]: number } | undefined {
+  if (value === null || value === undefined || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  const map = value as { [key: string]: unknown };
+  const ticks: { [requestId: string]: number } = {};
+  const keys = Object.keys(map);
+  let any = false;
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    if (typeof map[key] === "number" && isFinite(map[key])) {
+      ticks[key] = map[key];
+      any = true;
+    }
+  }
+  return any ? ticks : undefined;
 }
 
 function parseProgress(value: unknown): QuestProgress | null {

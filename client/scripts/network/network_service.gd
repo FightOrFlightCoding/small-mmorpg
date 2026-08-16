@@ -33,6 +33,13 @@ var _username: String = ""
 var _got_full_state: bool = false
 var _match_signals_connected: bool = false
 var _chat_signals_connected: bool = false
+var _socket_signals_connected: bool = false
+var _intentional_disconnect: bool = false
+var _reconnect_in_progress: bool = false
+var _reconnect_cancelled: bool = false
+var _join_in_progress: bool = false
+var _pending_reconnect: bool = false
+var reconnect_policy: ReconnectPolicy = ReconnectPolicy.new()
 
 
 func is_authentication_configured() -> bool:
@@ -54,8 +61,10 @@ func authenticate_device(device_id: String, username: String = "") -> void:
 		_fail_auth(socket)
 		return
 	socket_connected = true
+	_intentional_disconnect = false
 	_connect_match_signals()
 	_connect_chat_signals()
+	_connect_socket_signals()
 	AppState.notify_authenticated(String(auth.get("user_id", "")), String(auth.get("username", username)))
 	AppState.notify_loading_completed("auth")
 	authentication_finished.emit(true, "")
@@ -91,16 +100,21 @@ func bootstrap_character(proposed_name: String = "") -> void:
 
 func join_starter_zone() -> bool:
 	AppState.notify_loading_started("zone")
+	_join_in_progress = true
+	_pending_reconnect = false
 	var session_ok := await ensure_session()
 	if not session_ok:
+		_join_in_progress = false
 		AppState.notify_loading_completed("zone")
 		zone_join_finished.emit(false, AppState.last_error_message)
 		return false
 	_connect_match_signals()
 	_connect_chat_signals()
+	_connect_socket_signals()
 	_got_full_state = false
 	var rpc_result: Dictionary = await _backend().rpc(MatchProtocol.FIND_OR_CREATE_STARTER_ZONE_RPC, "{}")
 	if not bool(rpc_result.get("ok", false)):
+		_join_in_progress = false
 		_fail_zone(rpc_result)
 		return false
 	var found: Dictionary = MatchProtocol.parse_find_or_create(
@@ -108,6 +122,7 @@ func join_starter_zone() -> bool:
 		ContentRegistry.get_content_hash()
 	)
 	if not bool(found.get("ok", false)):
+		_join_in_progress = false
 		_fail_zone(found)
 		return false
 	var join_result: Dictionary = await _backend().join_match(
@@ -115,10 +130,12 @@ func join_starter_zone() -> bool:
 		MatchProtocol.join_metadata(ContentRegistry.get_content_hash())
 	)
 	if not bool(join_result.get("ok", false)):
+		_join_in_progress = false
 		_fail_zone(join_result)
 		return false
 	match_id = String(join_result.get("match_id", found["match_id"]))
 	var received := await _wait_for_full_state(FULL_STATE_TIMEOUT_SEC)
+	_join_in_progress = false
 	if not received:
 		if not AppState.has_fatal_error:
 			_fail_zone({"code": "full_state_timeout", "message": "The server did not send a valid full state."})
@@ -128,6 +145,9 @@ func join_starter_zone() -> bool:
 		return false
 	AppState.notify_loading_completed("zone")
 	zone_join_finished.emit(true, "")
+	if _pending_reconnect:
+		_pending_reconnect = false
+		await start_reconnect()
 	return true
 
 
@@ -272,16 +292,125 @@ func request_resync() -> bool:
 	return await _wait_for_full_state(FULL_STATE_TIMEOUT_SEC)
 
 
+func rejoin_starter_zone() -> bool:
+	var previous_match := match_id
+	match_id = ""
+	zone_chat_id = ""
+	_got_full_state = false
+	var session_ok := await ensure_session()
+	if not session_ok:
+		return false
+	_connect_match_signals()
+	_connect_chat_signals()
+	_connect_socket_signals()
+	var rpc_result: Dictionary = await _backend().rpc(MatchProtocol.FIND_OR_CREATE_STARTER_ZONE_RPC, "{}")
+	if not bool(rpc_result.get("ok", false)):
+		return false
+	var found: Dictionary = MatchProtocol.parse_find_or_create(
+		String(rpc_result.get("payload", "")),
+		ContentRegistry.get_content_hash()
+	)
+	if not bool(found.get("ok", false)):
+		if MatchProtocol.is_compatibility_code(String(found.get("code", ""))):
+			_fail_zone(found)
+		return false
+	var join_result: Dictionary = await _backend().join_match(
+		String(found["match_id"]),
+		MatchProtocol.join_metadata(ContentRegistry.get_content_hash())
+	)
+	if not bool(join_result.get("ok", false)):
+		var code := String(join_result.get("code", ""))
+		if MatchProtocol.is_compatibility_code(code):
+			_fail_zone(join_result)
+			return false
+		if code == "already_in_match":
+			match_id = String(found.get("match_id", previous_match))
+			if match_id.is_empty():
+				return false
+			_got_full_state = false
+			if await request_resync():
+				await join_zone_chat()
+				return true
+			return false
+		return false
+	match_id = String(join_result.get("match_id", found["match_id"]))
+	var received := await _wait_for_full_state(FULL_STATE_TIMEOUT_SEC)
+	if not received:
+		return false
+	await join_zone_chat()
+	return true
+
+
+func start_reconnect() -> void:
+	if _intentional_disconnect or _reconnect_in_progress:
+		return
+	if not AppState.is_authenticated:
+		return
+	_reconnect_in_progress = true
+	_reconnect_cancelled = false
+	socket_connected = false
+	match_id = ""
+	AppState.notify_reconnecting(true)
+	AppState.notify_loading_started("reconnect")
+	var attempt := 0
+	while reconnect_policy.can_retry(attempt) and not _reconnect_cancelled and not AppState.has_fatal_error:
+		var tree := get_tree()
+		if attempt == 0 and tree != null:
+			await tree.process_frame
+		elif attempt > 0:
+			var delay := reconnect_policy.delay_for_attempt(attempt - 1)
+			if delay > 0.0 and tree != null:
+				await tree.create_timer(delay).timeout
+		if _reconnect_cancelled or _intentional_disconnect:
+			break
+		if await _try_reconnect():
+			_finish_reconnect(true)
+			return
+		attempt += 1
+	_finish_reconnect(false)
+	if _reconnect_cancelled or _intentional_disconnect:
+		await logout()
+		return
+	if not AppState.has_fatal_error:
+		AppState.report_recoverable("reconnect_failed", "Could not reconnect to the starter zone. Log out or try again.")
+
+
+func cancel_reconnect() -> void:
+	_reconnect_cancelled = true
+	if not _reconnect_in_progress:
+		await logout()
+
+
+func _try_reconnect() -> bool:
+	var session_ok := await ensure_session()
+	if not session_ok:
+		return false
+	var socket: Dictionary = await _backend().connect_socket()
+	if not bool(socket.get("ok", false)):
+		socket_connected = false
+		return false
+	socket_connected = true
+	_connect_match_signals()
+	_connect_chat_signals()
+	_connect_socket_signals()
+	if not AppState.has_character:
+		return true
+	return await rejoin_starter_zone()
+
+
 func ensure_session() -> bool:
 	if not AppState.is_authenticated and _device_id.is_empty():
 		AppState.report_recoverable("unauthenticated", "Sign-in is required.")
 		return false
 	if not _backend().is_session_expired():
 		return true
-	AppState.notify_loading_started("session")
+	var show_loading := not AppState.is_reconnecting
+	if show_loading:
+		AppState.notify_loading_started("session")
 	var refreshed: Dictionary = await _backend().refresh_session()
 	if bool(refreshed.get("ok", false)):
-		AppState.notify_loading_completed("session")
+		if show_loading:
+			AppState.notify_loading_completed("session")
 		return true
 	var reauth: Dictionary = await _backend().authenticate_device(_device_id, _username)
 	if not bool(reauth.get("ok", false)):
@@ -293,7 +422,8 @@ func ensure_session() -> bool:
 			String(reauth.get("code", "session_expired")),
 			String(reauth.get("message", "The session expired and could not be renewed."))
 		)
-		AppState.notify_loading_completed("session")
+		if show_loading:
+			AppState.notify_loading_completed("session")
 		return false
 	var socket: Dictionary = await _backend().connect_socket()
 	if not bool(socket.get("ok", false)):
@@ -305,17 +435,22 @@ func ensure_session() -> bool:
 			String(socket.get("code", "socket_failed")),
 			String(socket.get("message", "The session expired and the realtime connection could not be restored."))
 		)
-		AppState.notify_loading_completed("session")
+		if show_loading:
+			AppState.notify_loading_completed("session")
 		return false
 	socket_connected = true
 	_connect_match_signals()
 	_connect_chat_signals()
+	_connect_socket_signals()
 	AppState.notify_authenticated(String(reauth.get("user_id", AppState.user_id)), String(reauth.get("username", _username)))
-	AppState.notify_loading_completed("session")
+	if show_loading:
+		AppState.notify_loading_completed("session")
 	return true
 
 
 func logout() -> void:
+	_intentional_disconnect = true
+	_reconnect_cancelled = true
 	await leave_zone_chat()
 	if _backend().has_method("leave_match"):
 		await _backend().leave_match()
@@ -326,6 +461,9 @@ func logout() -> void:
 	_got_full_state = false
 	_device_id = ""
 	_username = ""
+	_reconnect_in_progress = false
+	_join_in_progress = false
+	_pending_reconnect = false
 	AppState.notify_logged_out()
 	logged_out.emit()
 
@@ -333,6 +471,7 @@ func logout() -> void:
 func reset_for_tests() -> void:
 	_disconnect_match_signals()
 	_disconnect_chat_signals()
+	_disconnect_socket_signals()
 	backend = null
 	last_auth_attempted = false
 	socket_connected = false
@@ -341,6 +480,13 @@ func reset_for_tests() -> void:
 	_got_full_state = false
 	_match_signals_connected = false
 	_chat_signals_connected = false
+	_socket_signals_connected = false
+	_intentional_disconnect = false
+	_reconnect_in_progress = false
+	_reconnect_cancelled = false
+	_join_in_progress = false
+	_pending_reconnect = false
+	reconnect_policy = ReconnectPolicy.new()
 	_device_id = ""
 	_username = ""
 
@@ -360,6 +506,59 @@ func _connect_match_signals() -> void:
 		return
 	current.match_state_received.connect(_on_match_state)
 	_match_signals_connected = true
+
+
+func _connect_socket_signals() -> void:
+	var current: RefCounted = _backend()
+	if not current.has_signal("socket_closed"):
+		return
+	if current.socket_closed.is_connected(_on_socket_closed):
+		_socket_signals_connected = true
+		return
+	current.socket_closed.connect(_on_socket_closed)
+	_socket_signals_connected = true
+
+
+func _disconnect_socket_signals() -> void:
+	if backend == null or not backend.has_signal("socket_closed"):
+		_socket_signals_connected = false
+		return
+	if backend.socket_closed.is_connected(_on_socket_closed):
+		backend.socket_closed.disconnect(_on_socket_closed)
+	_socket_signals_connected = false
+
+
+func _on_socket_closed() -> void:
+	socket_connected = false
+	if _intentional_disconnect:
+		return
+	if _reconnect_in_progress:
+		return
+	if _backend_socket_connected():
+		socket_connected = true
+		return
+	if _join_in_progress:
+		_pending_reconnect = true
+		return
+	if not AppState.is_authenticated:
+		return
+	if not AppState.has_zone_state:
+		return
+	await start_reconnect()
+
+
+func _backend_socket_connected() -> bool:
+	if not _backend().has_method("is_socket_connected"):
+		return socket_connected
+	return bool(_backend().call("is_socket_connected"))
+
+
+func _finish_reconnect(success: bool) -> void:
+	_reconnect_in_progress = false
+	AppState.notify_reconnecting(false)
+	AppState.notify_loading_completed("reconnect")
+	if success:
+		socket_connected = true
 
 
 func _disconnect_match_signals() -> void:

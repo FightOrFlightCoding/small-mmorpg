@@ -46,6 +46,12 @@ import {
   type PlayerEquipment,
 } from "./equipment";
 import { applyPickup, expireLoot, lootExpireTicks, spawnGuaranteedLoot } from "./loot";
+import {
+  collectPositionCheckpoints,
+  expireDisconnected,
+  prunePlayerRequestHistory,
+  type PositionCheckpoint,
+} from "./persistence";
 
 export interface MatchOutbound {
   opcode: number;
@@ -82,6 +88,7 @@ export interface MatchLoopResult {
   persistInventories: InventoryPersist[];
   persistEquipment: EquipmentPersist[];
   persistRewards: RewardPersist[];
+  persistCheckpoints: PositionCheckpoint[];
 }
 
 export interface IncomingMatchData {
@@ -139,6 +146,9 @@ export function applyMatchLoop(
   spawnLootFromDeaths(next, tick, combatEvents, makeId);
   next.loot = expireLoot(next.loot, tick);
   pushCombatEvents(outbound, tick, combatEvents);
+  expireDisconnected(next, tick);
+  const persistCheckpoints = collectPositionCheckpoints(next, tick);
+  pruneLiveRequestHistory(next, tick, persistByUser, persistInventoryByUser, persistEquipmentByUser, skipStorageUsers);
 
   if (playerCount(next) === 0) {
     next.emptyTicks = next.emptyTicks + 1;
@@ -189,6 +199,7 @@ export function applyMatchLoop(
     persistInventories: persistInventories,
     persistEquipment: persistEquipment,
     persistRewards: persistRewards,
+    persistCheckpoints: persistCheckpoints,
   };
 }
 
@@ -224,7 +235,7 @@ function handleValidated(
     return;
   }
   if (parsed.opcode === ClientOpcode.QUEST_ACCEPT) {
-    handleQuestAccept(parsed, userId, state, outbound, persistByUser);
+    handleQuestAccept(parsed, userId, state, tick, outbound, persistByUser);
     return;
   }
   if (parsed.opcode === ClientOpcode.QUEST_TURN_IN) {
@@ -232,6 +243,7 @@ function handleValidated(
       parsed,
       userId,
       state,
+      tick,
       outbound,
       persistRewardByUser,
       persistEquipmentByUser,
@@ -246,11 +258,11 @@ function handleValidated(
     return;
   }
   if (parsed.opcode === ClientOpcode.PICKUP) {
-    handlePickup(parsed, userId, state, outbound, persistByUser, persistInventoryByUser, persistEquipmentByUser);
+    handlePickup(parsed, userId, state, tick, outbound, persistByUser, persistInventoryByUser, persistEquipmentByUser);
     return;
   }
   if (parsed.opcode === ClientOpcode.EQUIP) {
-    handleEquip(parsed, userId, state, outbound, persistEquipmentByUser);
+    handleEquip(parsed, userId, state, tick, outbound, persistEquipmentByUser);
     return;
   }
   const result = actionResult("not_implemented", false, parsed.requestId);
@@ -286,6 +298,7 @@ function handleQuestAccept(
   parsed: ParsedClientMessage,
   userId: string,
   state: StarterZoneState,
+  tick: number,
   outbound: MatchOutbound[],
   persistByUser: { [userId: string]: QuestLog },
 ): void {
@@ -305,6 +318,7 @@ function handleQuestAccept(
     npcs: state.npcs,
     interactionRange: state.interactionRange,
     questsById: state.questsById,
+    tick: tick,
   });
   player.questLog = outcome.log;
   const synced = syncAcquireObjectives(player.questLog, player.inventory);
@@ -328,6 +342,7 @@ function handleQuestTurnIn(
   parsed: ParsedClientMessage,
   userId: string,
   state: StarterZoneState,
+  tick: number,
   outbound: MatchOutbound[],
   persistRewardByUser: { [userId: string]: QuestRewardWrite },
   persistEquipmentByUser: { [userId: string]: PlayerEquipment },
@@ -357,6 +372,7 @@ function handleQuestTurnIn(
     questsById: state.questsById,
     itemsById: state.itemsById,
     newId: makeId,
+    tick: tick,
   });
   if (!outcome.ok) {
     const failed = actionResult(outcome.code, false, requestId);
@@ -453,6 +469,7 @@ function handlePickup(
   parsed: ParsedClientMessage,
   userId: string,
   state: StarterZoneState,
+  tick: number,
   outbound: MatchOutbound[],
   persistByUser: { [userId: string]: QuestLog },
   persistInventoryByUser: { [userId: string]: PlayerInventory },
@@ -474,6 +491,7 @@ function handlePickup(
     loot: state.loot,
     pickupRange: state.pickupRange,
     itemsById: state.itemsById,
+    tick: tick,
   });
   player.inventory = outcome.inventory;
   state.loot = outcome.loot;
@@ -510,6 +528,7 @@ function handleEquip(
   parsed: ParsedClientMessage,
   userId: string,
   state: StarterZoneState,
+  tick: number,
   outbound: MatchOutbound[],
   persistEquipmentByUser: { [userId: string]: PlayerEquipment },
 ): void {
@@ -532,6 +551,7 @@ function handleEquip(
     baseAttack: state.playerAttack,
     owners: inventoryOwners(state),
     unequip: unequip,
+    tick: tick,
   });
   player.equipment = outcome.equipment;
   player.derivedAttack = outcome.derivedAttack;
@@ -737,4 +757,32 @@ export function snapshotForOthers(state: StarterZoneState, tick: number, fromUse
     body: buildSnapshot(state, tick),
     broadcastOthersFrom: fromUserId,
   };
+}
+
+function pruneLiveRequestHistory(
+  state: StarterZoneState,
+  tick: number,
+  persistByUser: { [userId: string]: QuestLog },
+  persistInventoryByUser: { [userId: string]: PlayerInventory },
+  persistEquipmentByUser: { [userId: string]: PlayerEquipment },
+  skipStorageUsers: { [userId: string]: boolean },
+): void {
+  const ids = Object.keys(state.players);
+  for (let i = 0; i < ids.length; i++) {
+    const userId = ids[i];
+    const player = state.players[userId];
+    const pruned = prunePlayerRequestHistory(player, tick);
+    if (skipStorageUsers[userId] === true) {
+      continue;
+    }
+    if (pruned.questsChanged) {
+      persistByUser[userId] = cloneQuestLog(player.questLog);
+    }
+    if (pruned.inventoryChanged && player.inventory !== undefined) {
+      persistInventoryByUser[userId] = player.inventory;
+    }
+    if (pruned.equipmentChanged && player.equipment !== undefined) {
+      persistEquipmentByUser[userId] = cloneEquipment(player.equipment);
+    }
+  }
 }
