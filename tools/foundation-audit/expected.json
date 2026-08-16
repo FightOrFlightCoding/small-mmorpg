@@ -1,0 +1,123 @@
+{
+  "protocolVersion": 1,
+  "contentSchemaVersion": 1,
+  "contentHash": "3db1de356fc85fb6eb96489ddc04f47049b906ef915d2baa241cae38159a6e85",
+  "exactDependencies": {
+    "server/package.json:typescript": "5.8.3",
+    "server/package.json:nakama-runtime": "github:heroiclabs/nakama-common#v1.47.0",
+    "tools/content-build/package.json:typescript": "5.8.3",
+    "tools/content-build/package.json:ajv": "8.17.1"
+  },
+  "lockfileRangeDependencies": [
+    "server/package.json:@babel/core",
+    "server/package.json:@babel/preset-env",
+    "server/package.json:@rollup/plugin-babel",
+    "server/package.json:@rollup/plugin-commonjs",
+    "server/package.json:@rollup/plugin-json",
+    "server/package.json:@rollup/plugin-node-resolve",
+    "server/package.json:@rollup/plugin-typescript",
+    "server/package.json:@types/node",
+    "server/package.json:rollup",
+    "server/package.json:tslib",
+    "tools/content-build/package.json:@types/node"
+  ],
+  "dockerImages": {
+    "postgres": "postgres:16.15-alpine",
+    "nodeBuilder": "node:20.20.2-alpine",
+    "nakama": "heroiclabs/nakama:3.40.0"
+  },
+  "rpcs": [
+    "vibecode_health",
+    "character_bootstrap",
+    "find_or_create_starter_zone"
+  ],
+  "realtimeBeforeHooks": ["ChannelMessageSend", "ChannelJoin"],
+  "realtimeAfterHooks": [],
+  "authenticateHooks": [],
+  "notificationCodes": [],
+  "clientOpcodes": {
+    "INPUT": 1,
+    "INTERACT": 2,
+    "ATTACK": 3,
+    "PICKUP": 4,
+    "EQUIP": 5,
+    "QUEST_ACCEPT": 6,
+    "QUEST_TURN_IN": 7,
+    "RESYNC_REQUEST": 8
+  },
+  "serverOpcodes": {
+    "FULL_STATE": 101,
+    "SNAPSHOT": 102,
+    "ACTION_RESULT": 103,
+    "COMBAT_EVENT": 104,
+    "INVENTORY_STATE": 105,
+    "QUEST_STATE": 106,
+    "INTERACTION_RESULT": 107,
+    "SYSTEM_MESSAGE": 108,
+    "EQUIPMENT_STATE": 109,
+    "WALLET_STATE": 110
+  },
+  "storageRecords": [
+    { "collection": "player", "key": "character", "permissionWrite": 0, "schemaVersion": "absent" },
+    { "collection": "player", "key": "quests", "permissionWrite": 0, "schemaVersion": "absent" },
+    { "collection": "player", "key": "inventory", "permissionWrite": 0, "schemaVersion": "absent" },
+    { "collection": "player", "key": "equipment", "permissionWrite": 0, "schemaVersion": "absent" },
+    { "collection": "match", "key": "starter_zone", "permissionWrite": 0, "schemaVersion": "absent" }
+  ],
+  "walletCurrencies": ["gold"],
+  "productionContentFiles": [
+    "enemy.green_slime.json",
+    "item.iron_sword.json",
+    "item.slime_gel.json",
+    "item.training_sword.json",
+    "npc.elder.json",
+    "player.base.json",
+    "quest.slime_problem.json",
+    "zone.starter.json"
+  ],
+  "hardcodedIds": {
+    "zone.starter": [
+      "server/src/domain/match_state.ts",
+      "server/src/domain/chat.ts",
+      "server/src/main.ts",
+      "server/src/nakama/starter_zone_match.ts",
+      "server/src/rpcs/character_bootstrap.ts",
+      "client/scripts/content/content_catalog.gd",
+      "client/scripts/chat/zone_chat.gd",
+      "client/scripts/world/world_hud.gd",
+      "client/scripts/network/network_service.gd",
+      "client/scripts/network/protocol.gd",
+      "client/scripts/world/world.gd",
+      "client/scripts/world/movement_sim.gd"
+    ],
+    "npc.elder": [
+      "client/scripts/content/content_catalog.gd",
+      "client/scripts/e2e/slice_journey.gd",
+      "client/content/dialogue_map.json",
+      "client/content/dialogue/npc.elder.dialogue"
+    ],
+    "enemy.green_slime": [
+      "client/scripts/content/content_catalog.gd",
+      "client/scripts/e2e/slice_journey.gd",
+      "client/scripts/e2e/slice_session.gd"
+    ],
+    "item.training_sword": [
+      "server/src/domain/inventory.ts",
+      "client/scripts/content/content_catalog.gd"
+    ],
+    "item.slime_gel": [
+      "client/scripts/content/content_catalog.gd",
+      "client/scripts/e2e/slice_journey.gd",
+      "client/scripts/e2e/slice_session.gd"
+    ],
+    "item.iron_sword": [
+      "client/scripts/content/content_catalog.gd",
+      "client/scripts/e2e/slice_journey.gd"
+    ],
+    "quest.slime_problem": [
+      "client/scripts/content/content_catalog.gd",
+      "client/scripts/e2e/slice_journey.gd",
+      "client/content/dialogue/npc.elder.dialogue"
+    ]
+  }
+}

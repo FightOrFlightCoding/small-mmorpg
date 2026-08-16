@@ -11,6 +11,7 @@ The Godot 4.7.1 client authenticates locally by device, bootstraps one character
 3. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 4. [docs/VERTICAL_SLICE.md](docs/VERTICAL_SLICE.md)
 5. [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md)
+6. After the slice: [docs/FOUNDATION_SCOPE.md](docs/FOUNDATION_SCOPE.md)
 
 ## Prerequisites
 
@@ -116,11 +117,12 @@ powershell -File scripts/test-all.ps1
 bash scripts/test-all.sh
 ```
 
-`test-all` fails with a nonzero exit status if any step fails. It runs setup, content tests + hash check, server tests, client GdUnit, then the headless two-client journey (`scripts/test-e2e.ps1`). The e2e driver starts Nakama if needed.
+`test-all` fails with a nonzero exit status if any step fails. It runs setup, content tests + hash check, the Prompt 18 freeze audit (`scripts/test-audit.ps1`), server tests, client GdUnit, then the headless two-client journey (`scripts/test-e2e.ps1`). The e2e driver starts Nakama if needed.
 
 | Script | What it runs |
 | --- | --- |
 | `scripts/test-content` | `tools/content-build` unit tests and matching content hashes |
+| `scripts/test-audit` | Prompt 18 freeze: storage, opcodes, pins, vendor tree, hardcoded ID allowlist |
 | `scripts/test-server` | Nakama runtime domain tests |
 | `scripts/test-client` | Godot import, `SHELL_LOGIN`, GdUnit4 `res://tests` |
 | `scripts/test-e2e` | Debug-only headless Alice+Bob journey against live Nakama |

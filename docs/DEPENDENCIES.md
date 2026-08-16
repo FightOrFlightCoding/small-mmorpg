@@ -268,5 +268,5 @@ powershell -File scripts/test-all.ps1
 bash scripts/test-all.sh
 ```
 
-Expected: content tests pass and hashes match (`3db1de356fc85fb6eb96489ddc04f47049b906ef915d2baa241cae38159a6e85` for the current source), server tests pass, client prints `SHELL_LOGIN` and GdUnit4 passes with 0 orphans, then `E2E_SLICE_OK`. Any failed step exits nonzero. The e2e driver starts Nakama if the health RPC is down.
+Expected: content tests pass and hashes match (`3db1de356fc85fb6eb96489ddc04f47049b906ef915d2baa241cae38159a6e85` for the current source), `FOUNDATION_AUDIT_OK`, server tests pass, client prints `SHELL_LOGIN` and GdUnit4 passes with 0 orphans, then `E2E_SLICE_OK`. Any failed step exits nonzero. The e2e driver starts Nakama if the health RPC is down.
 

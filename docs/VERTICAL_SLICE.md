@@ -1,6 +1,6 @@
 # Vertical slice — definition of done
 
-This is the only gameplay scope that may be built. Criteria are testable. A phase may implement a subset; the slice is done only when every item below passes.
+This is the only **Prompt 18** gameplay scope. It is accepted and frozen. Foundation v1 features beyond this loop are classified in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md) and must not be implemented until a later phase names them.
 
 Related: [ARCHITECTURE.md](ARCHITECTURE.md), [NETWORK_PROTOCOL.md](NETWORK_PROTOCOL.md), [SECURITY_MODEL.md](SECURITY_MODEL.md).
 

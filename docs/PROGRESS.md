@@ -1,10 +1,10 @@
 # Progress
 
-Last accepted phase: **End-to-end automation and final vertical-slice audit**.
+Last accepted phase: **Freeze, scope, and audit the Prompt 18 baseline**.
 
 Current phase: none.
 
-The vertical slice in [VERTICAL_SLICE.md](VERTICAL_SLICE.md) is accepted. VS-T1–VS-T10 and VS-M1–VS-M5 pass. Do not add post-slice systems (extra zones, slots, guilds, parties, trading, auction, crafting, PvP, monetization, procedural generation, or open-world streaming).
+The Prompt 18 vertical slice remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement Foundation features until a later phase names them.
 
 ## Phase 0 acceptance (2026-08-15)
 
@@ -327,5 +327,20 @@ Reproduction:
 powershell -File scripts/test-all.ps1
 ```
 
+## Freeze, scope, and audit the Prompt 18 baseline acceptance (2026-08-16)
+
+No gameplay, protocol, storage schema, or dependency change. Catalogs: [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md), [FOUNDATION_BASELINE.md](FOUNDATION_BASELINE.md), [MODULE_OWNERSHIP.md](MODULE_OWNERSHIP.md), [STORAGE_CATALOG.md](STORAGE_CATALOG.md), [PROTOCOL_CATALOG.md](PROTOCOL_CATALOG.md), [HARDCODED_ASSUMPTIONS.md](HARDCODED_ASSUMPTIONS.md), [FOUNDATION_ROADMAP.md](FOUNDATION_ROADMAP.md), [TEST_CATALOG.md](TEST_CATALOG.md). `tools/foundation-audit/audit.cjs` plus `scripts/test-audit` fail if those catalogs drift.
+
+Prompt 18 gate unchanged: content 9/9, server 165/165, client 122/122 0 orphans, `E2E_SLICE_OK`, hash `3db1de356fc85fb6eb96489ddc04f47049b906ef915d2baa241cae38159a6e85`. `FOUNDATION_AUDIT_OK`. Canonical records remain `permissionWrite: 0` and still lack a gameplay `schemaVersion` (documented, not migrated).
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-content.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+powershell -File scripts/test-e2e.ps1
+```
 
 

@@ -7,10 +7,11 @@ Rules for every coding agent working on this repository. Recover project constra
 1. Read this file.
 2. Read `docs/PROGRESS.md` and identify the last accepted phase.
 3. Read `docs/ARCHITECTURE.md`, `docs/VERTICAL_SLICE.md`, `docs/SECURITY_MODEL.md`, and `docs/DECISIONS.md`.
-4. Read any `docs/` file relevant to the requested phase.
-5. Inspect the repository. Do not rebuild systems that already exist. Do not duplicate services, models, or protocols.
-6. Run the currently documented baseline tests, if any exist for the accepted phases.
-7. Implement only the requested phase. Do not continue into a later phase.
+4. After Prompt 18, also read `docs/FOUNDATION_SCOPE.md`, `docs/FOUNDATION_BASELINE.md`, and any catalog in `docs/` named by the current phase.
+5. Read any other `docs/` file relevant to the requested phase.
+6. Inspect the repository. Do not rebuild systems that already exist. Do not duplicate services, models, or protocols.
+7. Run the currently documented baseline tests, if any exist for the accepted phases.
+8. Implement only the requested phase. Do not continue into a later phase.
 
 ## Locked stack
 
@@ -28,7 +29,7 @@ Do not upgrade, replace, or add foundational packages unless the current phase e
 - GdUnit4 6.2.0
 - JSON Schema-based content definitions
 - Built-in Godot TileMap workflow
-- One server-authoritative Nakama match representing the starter zone
+- One server-authoritative Nakama match representing the starter zone (Prompt 18 freeze; Foundation v1 public world and caves are documented, not implemented, in `docs/FOUNDATION_SCOPE.md`)
 
 ## Architecture
 
@@ -54,22 +55,13 @@ Do not upgrade, replace, or add foundational packages unless the current phase e
 - Every player action that can produce a reward must be idempotent.
 - Do not leave TODOs, dummy success responses, or silently swallowed errors in the accepted vertical-slice path.
 
-## Scope exclusions
+## Scope
 
-Do not add:
+Prompt 18 is accepted and frozen. Do not change its player-visible behavior unless the current phase explicitly repairs a defect.
 
-- Multiple zones
-- Multiple character slots
-- Guilds
-- Parties
-- Trading
-- Auction houses
-- Crafting
-- PvP
-- Monetization
-- Procedural generation
-- Open-world streaming
-- Additional gameplay frameworks
+Foundation v1 product scope is [docs/FOUNDATION_SCOPE.md](docs/FOUNDATION_SCOPE.md). Implement a Foundation feature only when the current phase prompt names it. Prompt 19 is documentation and audit only.
+
+Always excluded: public-world sharding, extra overworlds, guilds, auction houses, crafting, PvP, monetization, procedural generation as a world system, open-world streaming, extra gameplay frameworks (QuestSystem, LimboAI, netfox, RPG database plugins).
 
 Record necessary assumptions in `docs/DECISIONS.md`.
 
@@ -96,5 +88,5 @@ Record necessary assumptions in `docs/DECISIONS.md`.
 | `content/source/` | ID-addressed source content documents. |
 | `infra/` | Docker Compose and Nakama configuration. |
 | `scripts/` | Repeatable developer and CI commands. |
-| `tools/` | Content generation (`tools/content-build`). |
-| `docs/` | Binding project contract. |
+| `tools/` | Content generation (`tools/content-build`) and Prompt 18 freeze audit (`tools/foundation-audit`). |
+| `docs/` | Binding project contract, including Foundation catalogs. |

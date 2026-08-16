@@ -247,3 +247,7 @@ The headless journey is `res://scenes/e2e/e2e_slice.tscn` with `--e2e-slice` in 
 
 Nested PowerShell wrappers invoke child scripts through `Invoke-RepoScript` and fail when the child exit code is nonzero. Bash variants use `set -euo pipefail`.
 
+## 2026-08-16 — Freeze, scope, and audit the Prompt 18 baseline
+
+No gameplay was added and no dependency was upgraded. Foundation v1 scope is locked in `docs/FOUNDATION_SCOPE.md`. Prompt 18 modules, storage, protocol, tests, and hardcoded IDs are catalogued. `tools/foundation-audit/audit.cjs` fails the gate if those catalogs drift. Canonical storage still lacks a gameplay `schemaVersion`; that gap is documented, not migrated in this phase. `AGENTS.md` now points at Foundation scope while keeping Prompt 18 player-visible behavior frozen.
+
