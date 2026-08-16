@@ -56,7 +56,7 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Attack:** Client sends `questComplete` or a later stage ID.
 
-**Defense:** Client may send an interact or `QUEST_ACCEPT` intention. The server checks current stage, objectives, and target NPC ID using server positions. `status`, `questComplete`, and reward fields on the client payload are rejected. Dialogue Manager does not own quest state.
+**Defense:** Client may send an interact, `QUEST_ACCEPT`, or `QUEST_TURN_IN` intention. The server checks current stage, objectives, required items, and target NPC ID using server positions. Objective counts and `status` / `questComplete` / reward fields on the client payload are rejected. Dialogue Manager does not own quest state. Turn-in uses `nk.multiUpdate` so inventory, quest completion, and gold cannot apply separately.
 
 ### Fabricated NPC interaction
 

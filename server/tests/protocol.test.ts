@@ -35,6 +35,7 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ServerOpcode.INTERACTION_RESULT, 107);
   assert.equal(ServerOpcode.SYSTEM_MESSAGE, 108);
   assert.equal(ServerOpcode.EQUIPMENT_STATE, 109);
+  assert.equal(ServerOpcode.WALLET_STATE, 110);
 });
 
 test("valid movement input parses direction and sequence only", () => {
@@ -283,6 +284,38 @@ test("quest completion injection is rejected", () => {
   assert.equal(isProtocolError(flag), true);
   if (isProtocolError(flag)) {
     assert.equal(flag.code, "stat_injection:questComplete");
+  }
+  const gold = parse(
+    ClientOpcode.QUEST_TURN_IN,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      questId: "quest.slime_problem",
+      npcId: "npc.elder",
+      requestId: "req-turnin-gold1",
+      gold: 25,
+    }),
+  );
+  assert.equal(isProtocolError(gold), true);
+  if (isProtocolError(gold)) {
+    assert.equal(gold.code, "stat_injection:gold");
+  }
+});
+
+test("quest turn-in intention accepts quest id and npc id", () => {
+  const parsed = parse(
+    ClientOpcode.QUEST_TURN_IN,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      questId: "quest.slime_problem",
+      npcId: "npc.elder",
+      requestId: "req-turnin-ok1",
+    }),
+  );
+  assert.equal(isProtocolError(parsed), false);
+  if (!isProtocolError(parsed)) {
+    assert.equal(parsed.fields.questId, "quest.slime_problem");
+    assert.equal(parsed.fields.npcId, "npc.elder");
+    assert.equal(parsed.requestId, "req-turnin-ok1");
   }
 });
 

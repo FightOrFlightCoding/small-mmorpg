@@ -12,12 +12,14 @@ signal logout_pressed
 @onready var _journal_body: Label = $Root/Journal/Margin/VBox/Body
 @onready var _death: Label = $Root/Death
 @onready var _inventory_capacity: Label = $Root/Inventory/Margin/VBox/Capacity
+@onready var _gold: Label = $Root/Inventory/Margin/VBox/Gold
 @onready var _inventory_host: Control = $Root/Inventory/Margin/VBox/ListHost
 @onready var _attack: Label = $Root/Inventory/Margin/VBox/Attack
 @onready var _main_hand: Label = $Root/Inventory/Margin/VBox/MainHand
 @onready var _slot_host: Control = $Root/Inventory/Margin/VBox/SlotHost
 @onready var _equip: Button = $Root/Inventory/Margin/VBox/EquipRow/EquipButton
 @onready var _unequip: Button = $Root/Inventory/Margin/VBox/EquipRow/UnequipButton
+@onready var _notice: Label = $Root/Notice
 
 var _inventory_list: Control
 var _slot_view: Control
@@ -30,6 +32,7 @@ func _ready() -> void:
 	_bind_inventory()
 	refresh_inventory()
 	refresh_equipment()
+	refresh_wallet()
 	if _equip != null:
 		_equip.pressed.connect(_on_equip_pressed)
 	if _unequip != null:
@@ -38,6 +41,10 @@ func _ready() -> void:
 		InventoryService.item_activated.connect(_on_item_activated)
 	if not EquipmentService.equipment_changed.is_connected(refresh_equipment):
 		EquipmentService.equipment_changed.connect(refresh_equipment)
+	if not WalletService.wallet_changed.is_connected(refresh_wallet):
+		WalletService.wallet_changed.connect(refresh_wallet)
+	if not WalletService.notice_received.is_connected(_on_notice):
+		WalletService.notice_received.connect(_on_notice)
 
 
 func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool = false) -> void:
@@ -63,6 +70,7 @@ func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool =
 	_refresh_health(state)
 	refresh_journal(QuestService.journal_view())
 	refresh_equipment()
+	refresh_wallet()
 
 
 func refresh_journal(view: Dictionary) -> void:
@@ -92,6 +100,22 @@ func refresh_equipment() -> void:
 		_attack.text = "Attack: %s" % str(EquipmentService.attack)
 	if _main_hand != null:
 		_main_hand.text = "Main hand: %s" % EquipmentService.equipped_display_name()
+
+
+func refresh_wallet() -> void:
+	if _gold != null:
+		_gold.text = "Gold: %s" % str(WalletService.gold)
+
+
+func show_notice(message: String) -> void:
+	if _notice == null:
+		return
+	_notice.text = message
+	_notice.visible = not message.is_empty()
+
+
+func _on_notice(_code: String, message: String) -> void:
+	show_notice(message)
 
 
 func _on_equip_pressed() -> void:
@@ -128,6 +152,10 @@ func _exit_tree() -> void:
 		InventoryService.item_activated.disconnect(_on_item_activated)
 	if EquipmentService.equipment_changed.is_connected(refresh_equipment):
 		EquipmentService.equipment_changed.disconnect(refresh_equipment)
+	if WalletService.wallet_changed.is_connected(refresh_wallet):
+		WalletService.wallet_changed.disconnect(refresh_wallet)
+	if WalletService.notice_received.is_connected(_on_notice):
+		WalletService.notice_received.disconnect(_on_notice)
 
 
 func _refresh_health(state: Dictionary) -> void:

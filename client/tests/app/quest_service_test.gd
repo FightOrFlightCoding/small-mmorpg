@@ -29,6 +29,24 @@ func test_request_accept_does_not_mutate_local_quest_state() -> void:
 	assert_bool(payload.has("completed")).is_false()
 
 
+func test_request_turn_in_sends_quest_id_npc_id_and_request_id_only() -> void:
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	assert_bool(QuestService.is_completed("quest.slime_problem")).is_false()
+	QuestService.request_turn_in("quest.slime_problem", "npc.elder")
+	await get_tree().process_frame
+	assert_bool(QuestService.is_completed("quest.slime_problem")).is_false()
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_QUEST_TURN_IN)
+	var payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_str(String(payload.get("questId", ""))).is_equal("quest.slime_problem")
+	assert_str(String(payload.get("npcId", ""))).is_equal("npc.elder")
+	assert_bool(payload.has("requestId")).is_true()
+	assert_bool(payload.has("gold")).is_false()
+	assert_bool(payload.has("questComplete")).is_false()
+	assert_bool(payload.has("status")).is_false()
+
+
 func test_journal_mirrors_server_quest_view() -> void:
 	QuestService.apply_quests([{
 		"questId": "quest.slime_problem",
@@ -119,3 +137,25 @@ func test_quest_state_opcode_updates_without_local_completion() -> void:
 	assert_bool(QuestService.is_completed("quest.slime_problem")).is_false()
 	assert_bool(QuestService.is_accepted("quest.slime_problem")).is_true()
 	assert_bool(QuestService.is_ready("quest.slime_problem")).is_false()
+
+
+func test_quest_state_completed_updates_journal() -> void:
+	QuestService.apply_quests([{
+		"questId": "quest.slime_problem",
+		"displayName": "Slime Problem",
+		"status": "completed",
+		"turnInNpcId": "npc.elder",
+		"objectives": [{
+			"type": "acquire_item",
+			"itemId": "item.slime_gel",
+			"current": 1,
+			"required": 1,
+		}],
+	}])
+	assert_bool(QuestService.is_completed("quest.slime_problem")).is_true()
+	assert_str(String(QuestService.journal_view().get("state", ""))).is_equal("Completed")
+	var hud: WorldHud = auto_free(preload("res://scenes/world/world_hud.tscn").instantiate())
+	add_child(hud)
+	await get_tree().process_frame
+	hud.refresh_journal(QuestService.journal_view())
+	assert_str(hud.get_node("Root/Journal/Margin/VBox/Body").text).contains("Completed")

@@ -79,7 +79,7 @@ Generated client and server catalogs include `schemaVersion: 1` beside `contentH
 
 The client main scene is `res://scenes/boot/boot.tscn`. Boot loads the generated content bundle, then `SceneRouter` transitions to login. Character and world scenes exist as empty shells; they are not entered in this phase.
 
-Project-owned autoloads, in order: `AppState`, `ContentRegistry`, `NetworkService`, `QuestService`, `InventoryService`, `EquipmentService`, `GameService`, `SceneRouter`. Then the existing Nakama and Dialogue Manager autoloads. Game code must not call Nakama, GLoot, or Dialogue Manager APIs except through project-owned services.
+Project-owned autoloads, in order: `AppState`, `ContentRegistry`, `NetworkService`, `QuestService`, `InventoryService`, `EquipmentService`, `WalletService`, `GameService`, `SceneRouter`. Then the existing Nakama and Dialogue Manager autoloads. Game code must not call Nakama, GLoot, or Dialogue Manager APIs except through project-owned services.
 
 `NetworkService.authenticate_device` is an interface only. It does not construct `Nakama.create_client`, open a socket, or send HTTP. Sign-in on the login scene reports a recoverable `authentication_not_configured` error.
 
@@ -199,5 +199,15 @@ Canonical equipment is Nakama storage collection `player`, key `equipment`, `per
 
 Derived attack is `player.base.attack` (4) plus the equipped main-hand `attackBonus` (training sword +2). Combat uses that server value. It is recalculated after character load, equip, unequip, and inventory changes that affect the equipped instance. `FULL_STATE` includes recipient `equipment` and `derived.attack`. Successful equip/unequip persist immediately and send `EQUIPMENT_STATE`.
 
-`EquipmentService` wraps a GLoot `ItemSlot` as a display-only mirror. The HUD shows the main-hand slot, Equip/Unequip, and the server attack. Double-click or Equip sends the selected instance ID. The client does not compute attack. Quest turn-in and wallet grants are not in this phase.
+`EquipmentService` wraps a GLoot `ItemSlot` as a display-only mirror. The HUD shows the main-hand slot, Equip/Unequip, and the server attack. Double-click or Equip sends the selected instance ID. The client does not compute attack.
+
+## 2026-08-16 — Quest progress, turn-in, and atomic rewards
+
+`quest.slime_problem` objective progress is server-owned. After a successful slime-gel pickup (and after accept if gel is already owned), the match recounts `acquire_item` stacks in inventory and sets `current` to `min(owned, required)`. Client objective counts are rejected. Progress persists at `player` / `quests` with `permissionWrite: 0` and is sent on `QUEST_STATE`.
+
+`QUEST_TURN_IN` is `{ protocolVersion, questId, npcId, requestId }`. The match checks the player is alive, the NPC exists and matches `turnInNpcId`, Euclidean distance against `player.base.interactionRange` (48), the quest is accepted and not completed, objectives are satisfied, and the consume list is present. Codes: `ok`, `out_of_range`, `invalid_target`, `invalid_id`, `incomplete_objective`, `missing_item`, `already_completed`, `inventory_full`, `player_dead`, `persist_failed`. Duplicate successful `requestId` replays `ok` without mutating. A later `requestId` after completion is `already_completed`. Client `gold` / `questComplete` are `stat_injection`.
+
+The reward is one `nk.multiUpdate`: consume one `item.slime_gel`, insert one unique `item.iron_sword` instance, mark the quest completed, credit **25** gold with ledger metadata (`source`, `questId`, `requestId`, consumed/granted item IDs), and write inventory plus quests at `permissionWrite: 0`. Persistence runs before live state is mutated. Failure leaves quest, inventory, and gold unchanged. The iron sword uses the existing `main_hand` equipment path (`attackBonus` 5).
+
+`WalletService` mirrors `FULL_STATE.wallet.gold` and `WALLET_STATE`. Elder ready dialogue sends turn-in; the HUD journal, inventory, gold, and a `quest_complete` notice update only after server confirmation.
 

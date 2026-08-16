@@ -1,8 +1,8 @@
 # Progress
 
-Last accepted phase: **Equipment and authoritative derived stats**.
+Last accepted phase: **Quest progress, turn-in, and atomic rewards**.
 
-Current phase: none. Do not add quest turn-in or wallet grants until asked.
+Current phase: none.
 
 ## Phase 0 acceptance (2026-08-15)
 
@@ -213,5 +213,23 @@ powershell -File ..\scripts\run-client-shell.ps1
 ```
 
 Local play: start the stack, select **Training Sword**, click **Equip** (or double-click). Attack should become **6**. **Unequip** restores **4**. Slime gel cannot be equipped. Relog should keep the sword in main hand. Combat uses the server derived attack. Restart Nakama after this build so the equipment runtime loads.
+
+## Quest progress, turn-in, and atomic rewards (2026-08-16)
+
+Picking up slime gel while `quest.slime_problem` is accepted recounts the `acquire_item` objective from inventory (`current` capped at required) and persists `player` / `quests`. The client cannot send objective counts. Elder ready dialogue sends `QUEST_TURN_IN` `{ questId, npcId, requestId }`. The match checks alive, NPC, range, accepted-not-completed, satisfied objective, and required gel. Success runs `nk.multiUpdate` before live apply: consume one gel, grant one unique iron sword, mark the quest completed, credit 25 gold with ledger metadata, and write inventory plus quests at `permissionWrite: 0`. Duplicate `requestId` replays without another grant. A later `requestId` is `already_completed`. Persistence failure leaves state unchanged. `FULL_STATE` includes `wallet.gold`. `WalletService` and the HUD gold label / quest-complete notice update only after server confirmation. The iron sword equips through the existing main-hand path.
+
+Server `npm test` 134/134, `npm run typecheck`, and `npm run build` succeeded. Godot 4.7.1 imported `client/`, printed `SHELL_LOGIN`, and GdUnit4 ran `res://tests` with 107/107 passed.
+
+Reproduction:
+
+```powershell
+Set-Location server
+npm test
+npm run build
+powershell -File ..\scripts\backend-up.ps1
+powershell -File ..\scripts\run-client-shell.ps1
+```
+
+Local play: start the stack, walk to the elder, accept **Slime Problem**, kill the slime, press **F** on the gel. The journal should show **1 / 1**. Talk to the elder and choose **Turn in the slime gel**. Inventory should lose the gel, gain **Iron Sword**, gold should be **25**, and the journal should show **Completed**. Relog should keep the completed quest, gold, and iron sword. Equip the iron sword; attack should become **9**. Duplicate turn-in should not grant again. Restart Nakama after this build so the reward runtime loads.
 
 

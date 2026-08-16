@@ -33,9 +33,16 @@ export function storedQuestWriteValue(log: QuestLog): { [key: string]: unknown }
     const requestId = requestIds[k];
     acceptByRequestId[requestId] = log.acceptByRequestId[requestId];
   }
+  const turnInByRequestId: { [requestId: string]: string } = {};
+  const turnInIds = Object.keys(log.turnInByRequestId);
+  for (let t = 0; t < turnInIds.length; t++) {
+    const requestId = turnInIds[t];
+    turnInByRequestId[requestId] = log.turnInByRequestId[requestId];
+  }
   return {
     quests: quests,
     acceptByRequestId: acceptByRequestId,
+    turnInByRequestId: turnInByRequestId,
   };
 }
 
@@ -60,6 +67,16 @@ export function storedQuestFromValue(value: unknown): QuestLog {
       const key = keys[j];
       if (typeof map[key] === "string") {
         log.acceptByRequestId[key] = map[key];
+      }
+    }
+  }
+  if (data.turnInByRequestId !== null && typeof data.turnInByRequestId === "object" && !Array.isArray(data.turnInByRequestId)) {
+    const map = data.turnInByRequestId as { [key: string]: unknown };
+    const keys = Object.keys(map);
+    for (let t = 0; t < keys.length; t++) {
+      const key = keys[t];
+      if (typeof map[key] === "string") {
+        log.turnInByRequestId[key] = map[key];
       }
     }
   }

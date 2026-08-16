@@ -29,10 +29,12 @@ test("quest storage writes are server-only", () => {
   const roundTrip = storedQuestFromValue(storedQuestWriteValue(log));
   assert.equal(roundTrip.quests["quest.slime_problem"].status, "accepted");
   assert.equal(roundTrip.acceptByRequestId["req-accept-1"], "accepted");
+  assert.deepEqual(roundTrip.turnInByRequestId, {});
 });
 
 test("malformed stored quests become an empty log", () => {
   const parsed = storedQuestFromValue({ quests: "nope" });
   assert.deepEqual(parsed.quests, {});
   assert.deepEqual(parsed.acceptByRequestId, {});
+  assert.deepEqual(parsed.turnInByRequestId, {});
 });

@@ -317,6 +317,8 @@ func _connect_interaction_signals() -> void:
 		EquipmentService.equipment_changed.connect(_on_equipment_changed)
 	if not EquipmentService.request_started.is_connected(_on_equip_request_started):
 		EquipmentService.request_started.connect(_on_equip_request_started)
+	if not WalletService.wallet_changed.is_connected(_on_wallet_changed):
+		WalletService.wallet_changed.connect(_on_wallet_changed)
 
 
 func _disconnect_interaction_signals() -> void:
@@ -334,6 +336,8 @@ func _disconnect_interaction_signals() -> void:
 		EquipmentService.equipment_changed.disconnect(_on_equipment_changed)
 	if EquipmentService.request_started.is_connected(_on_equip_request_started):
 		EquipmentService.request_started.disconnect(_on_equip_request_started)
+	if WalletService.wallet_changed.is_connected(_on_wallet_changed):
+		WalletService.wallet_changed.disconnect(_on_wallet_changed)
 
 
 func _on_interaction_result(payload: Dictionary) -> void:
@@ -384,6 +388,11 @@ func _on_inventory_changed() -> void:
 func _on_equipment_changed() -> void:
 	if _hud != null:
 		_hud.refresh_equipment()
+
+
+func _on_wallet_changed() -> void:
+	if _hud != null:
+		_hud.refresh_wallet()
 
 
 func _on_equip_request_started(request_id: String) -> void:
@@ -447,11 +456,21 @@ func _equip_message(code: String) -> String:
 
 func _quest_message(code: String) -> String:
 	if code == "out_of_range":
-		return "Too far from the elder to accept the quest."
+		return "Too far from the elder."
 	if code == "invalid_id":
 		return "That quest is not available."
+	if code == "incomplete_objective":
+		return "The quest is not ready to turn in."
+	if code == "missing_item":
+		return "You do not have the required item."
+	if code == "already_completed":
+		return "That quest is already complete."
+	if code == "persist_failed":
+		return "The reward could not be saved. Try again."
 	if code == "player_dead":
-		return "You cannot accept a quest while defeated."
+		return "You cannot do that while defeated."
+	if code == "inventory_full":
+		return "Your inventory is full."
 	return "The server rejected that quest action."
 
 

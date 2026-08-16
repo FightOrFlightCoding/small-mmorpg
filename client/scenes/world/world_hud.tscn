@@ -103,6 +103,20 @@ theme_override_font_sizes/font_size = 22
 text = "Defeated. Respawning..."
 horizontal_alignment = 1
 
+[node name="Notice" type="Label" parent="Root"]
+visible = false
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -72.0
+offset_right = 640.0
+offset_bottom = -16.0
+theme_override_colors/font_color = Color(0.95, 0.86, 0.42, 1)
+autowrap_mode = 3
+text = ""
+
 [node name="Inventory" type="PanelContainer" parent="Root"]
 layout_mode = 1
 anchors_preset = 3
@@ -135,6 +149,10 @@ text = "Inventory"
 [node name="Capacity" type="Label" parent="Root/Inventory/Margin/VBox"]
 layout_mode = 2
 text = "0 / 20 stacks"
+
+[node name="Gold" type="Label" parent="Root/Inventory/Margin/VBox"]
+layout_mode = 2
+text = "Gold: 0"
 
 [node name="Attack" type="Label" parent="Root/Inventory/Margin/VBox"]
 layout_mode = 2

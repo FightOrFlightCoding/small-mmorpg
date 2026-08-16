@@ -109,6 +109,47 @@ export function itemDefinitionsFromContent(items: {
   return map;
 }
 
+export function countItem(inventory: PlayerInventory | undefined, itemId: string): number {
+  if (inventory === undefined || itemId.length === 0) {
+    return 0;
+  }
+  let total = 0;
+  for (let i = 0; i < inventory.items.length; i++) {
+    if (inventory.items[i].itemId === itemId) {
+      total += inventory.items[i].quantity;
+    }
+  }
+  return total;
+}
+
+export function consumeItem(inventory: PlayerInventory, itemId: string, quantity: number): PlayerInventory | null {
+  if (quantity <= 0) {
+    return cloneInventory(inventory);
+  }
+  if (countItem(inventory, itemId) < quantity) {
+    return null;
+  }
+  const next = cloneInventory(inventory);
+  let remaining = quantity;
+  const kept: ItemInstance[] = [];
+  for (let i = 0; i < next.items.length; i++) {
+    const stack = next.items[i];
+    if (stack.itemId !== itemId || remaining <= 0) {
+      kept.push(stack);
+      continue;
+    }
+    if (stack.quantity > remaining) {
+      stack.quantity -= remaining;
+      remaining = 0;
+      kept.push(stack);
+      continue;
+    }
+    remaining -= stack.quantity;
+  }
+  next.items = kept;
+  return next;
+}
+
 export function findItem(inventory: PlayerInventory | undefined, instanceId: string): ItemInstance | null {
   if (inventory === undefined || instanceId.length === 0) {
     return null;

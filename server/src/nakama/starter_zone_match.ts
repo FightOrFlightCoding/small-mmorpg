@@ -3,6 +3,7 @@ import { readCharacter } from "./character_store";
 import { readQuests, writeQuests } from "./quest_store";
 import { readInventory, writeInventory, writeInventoryOnce } from "./inventory_store";
 import { readEquipment, writeEquipment } from "./equipment_store";
+import { commitQuestReward, readGold } from "./quest_reward_store";
 import { validateJoinAttempt } from "../domain/join_validation";
 import { applyMatchLoop, snapshotForOthers, type IncomingMatchData } from "../domain/match_loop";
 import { PLAYER_RESPAWN_DELAY_SEC } from "../domain/combat";
@@ -154,6 +155,7 @@ export function matchJoin(
         inventory,
         zone.itemsById,
       ),
+      gold: readGold(nk, presence.userId),
     };
     zone = addPlayer(zone, player);
     joined.push(presence);
@@ -224,6 +226,8 @@ export function matchLoop(
   }
   const result = applyMatchLoop(state.zone, tick, contentHash, incoming, function () {
     return nk.uuidv4();
+  }, function (request) {
+    return commitQuestReward(nk, request);
   });
   for (let p = 0; p < result.persistQuests.length; p++) {
     const persist = result.persistQuests[p];

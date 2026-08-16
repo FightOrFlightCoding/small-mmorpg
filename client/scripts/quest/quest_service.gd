@@ -44,6 +44,12 @@ func request_accept(quest_id: String) -> void:
 	NetworkService.send_quest_accept(quest_id)
 
 
+func request_turn_in(quest_id: String, npc_id: String) -> void:
+	if quest_id.is_empty() or npc_id.is_empty():
+		return
+	NetworkService.send_quest_turn_in(quest_id, npc_id)
+
+
 func is_accepted(quest_id: String) -> bool:
 	if not _quests.has(quest_id):
 		return false

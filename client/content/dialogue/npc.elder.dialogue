@@ -21,8 +21,14 @@ Elder: The slimes still trouble the pond. Bring me one slime gel.
 => END
 
 ~ ready
-Elder: You have the gel. Speak with me when you are ready to turn it in.
-=> END
+Elder: You have the gel. I can take it now and see you rewarded.
+- Turn in the slime gel.
+	do QuestService.request_turn_in("quest.slime_problem", "npc.elder")
+	Elder: The village owes you its thanks.
+	=> END
+- Not yet.
+	Elder: Return when you are ready.
+	=> END
 
 ~ completed
 Elder: The village is safer thanks to you. We will not forget this.

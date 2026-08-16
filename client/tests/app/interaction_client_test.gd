@@ -68,6 +68,7 @@ func test_elder_dialogue_compiles_with_required_titles() -> void:
 	assert_bool(resource.titles.has("ready")).is_true()
 	assert_bool(resource.titles.has("completed")).is_true()
 	assert_str(file.get_as_text()).contains("do QuestService.request_accept(\"quest.slime_problem\")")
+	assert_str(file.get_as_text()).contains("do QuestService.request_turn_in(\"quest.slime_problem\", \"npc.elder\")")
 
 
 func test_world_sends_interact_without_opening_dialogue() -> void:

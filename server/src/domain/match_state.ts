@@ -17,6 +17,7 @@ import {
   type PlayerEquipment,
 } from "./equipment";
 import { cloneLoot, publicLoot, type LootDrop, type MatchLoot } from "./loot";
+import { publicWallet } from "./wallet";
 
 export type { MatchLoot };
 
@@ -57,6 +58,7 @@ export interface MatchPlayer {
   inventory?: PlayerInventory;
   equipment?: PlayerEquipment;
   derivedAttack?: number;
+  gold?: number;
 }
 
 export interface MatchNpc {
@@ -296,6 +298,7 @@ export function buildFullState(state: StarterZoneState, tick: number, selfId: st
     inventory: inventoryFor(state, selfId),
     equipment: equipmentFor(state, selfId),
     derived: derivedFor(state, selfId),
+    wallet: walletFor(state, selfId),
   });
 }
 
@@ -441,6 +444,7 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
               p.inventory,
               state.itemsById,
             ),
+      gold: p.gold !== undefined ? p.gold : 0,
     };
   }
   return {
@@ -501,6 +505,14 @@ function derivedFor(state: StarterZoneState, selfId: string): { [key: string]: u
       state.itemsById,
     ),
   );
+}
+
+function walletFor(state: StarterZoneState, selfId: string): { [key: string]: unknown } {
+  const player = state.players[selfId];
+  if (player === undefined || player.gold === undefined) {
+    return publicWallet(0);
+  }
+  return publicWallet(player.gold);
 }
 
 function copyLootDrops(drops: ReadonlyArray<LootDrop>): LootDrop[] {

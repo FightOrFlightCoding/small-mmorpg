@@ -24,6 +24,7 @@ NetworkService="*res://scripts/network/network_service.gd"
 QuestService="*res://scripts/quest/quest_service.gd"
 InventoryService="*res://scripts/inventory/inventory_service.gd"
 EquipmentService="*res://scripts/equipment/equipment_service.gd"
+WalletService="*res://scripts/wallet/wallet_service.gd"
 GameService="*res://scripts/game/game_service.gd"
 SceneRouter="*res://scripts/routing/scene_router.gd"
 Nakama="*res://addons/com.heroiclabs.nakama/Nakama.gd"
@@ -90,6 +91,6 @@ locale/translations_pot_files=PackedStringArray("res://content/dialogue/npc.elde
 
 [rendering]
 
+textures/canvas_textures/default_texture_filter=0
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
-textures/canvas_textures/default_texture_filter=0

@@ -15,6 +15,8 @@ signal quest_state_received(payload: Dictionary)
 signal combat_event_received(payload: Dictionary)
 signal inventory_state_received(payload: Dictionary)
 signal equipment_state_received(payload: Dictionary)
+signal wallet_state_received(payload: Dictionary)
+signal system_notice_received(code: String, message: String)
 signal logged_out
 
 const CHARACTER_BOOTSTRAP_RPC := "character_bootstrap"
@@ -156,6 +158,18 @@ func send_quest_accept(quest_id: String, request_id: String = "") -> Dictionary:
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_QUEST_ACCEPT,
 		MatchProtocol.client_envelope_json({"questId": quest_id, "requestId": rid})
+	)
+
+
+func send_quest_turn_in(quest_id: String, npc_id: String, request_id: String = "") -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var rid := request_id
+	if rid.is_empty():
+		rid = MatchProtocol.new_request_id()
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_QUEST_TURN_IN,
+		MatchProtocol.client_envelope_json({"questId": quest_id, "npcId": npc_id, "requestId": rid})
 	)
 
 
@@ -424,6 +438,9 @@ func _on_match_state(opcode: int, payload: String) -> void:
 		if MatchProtocol.is_compatibility_code(code):
 			_fail_zone({"code": code, "message": message})
 			return
+		if code == "quest_complete":
+			system_notice_received.emit(code, message)
+			return
 		AppState.report_recoverable(code, message)
 		return
 	if opcode == MatchProtocol.SERVER_INTERACTION_RESULT:
@@ -467,6 +484,13 @@ func _on_match_state(opcode: int, payload: String) -> void:
 			AppState.report_recoverable(String(equipment.get("code", "equipment_state_failed")), String(equipment.get("message", "Equipment state was invalid.")))
 			return
 		equipment_state_received.emit(equipment)
+		return
+	if opcode == MatchProtocol.SERVER_WALLET_STATE:
+		var wallet: Dictionary = MatchProtocol.parse_wallet_state(payload)
+		if not bool(wallet.get("ok", false)):
+			AppState.report_recoverable(String(wallet.get("code", "wallet_state_failed")), String(wallet.get("message", "Wallet state was invalid.")))
+			return
+		wallet_state_received.emit(wallet)
 		return
 
 

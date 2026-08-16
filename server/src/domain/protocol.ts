@@ -24,6 +24,7 @@ export const ServerOpcode = {
   INTERACTION_RESULT: 107,
   SYSTEM_MESSAGE: 108,
   EQUIPMENT_STATE: 109,
+  WALLET_STATE: 110,
 } as const;
 
 export type ClientOpcode = (typeof ClientOpcode)[keyof typeof ClientOpcode];
@@ -55,7 +56,7 @@ OPCODE_KEYS[ClientOpcode.ATTACK] = ["targetId"];
 OPCODE_KEYS[ClientOpcode.PICKUP] = ["lootId"];
 OPCODE_KEYS[ClientOpcode.EQUIP] = ["instanceId", "slot"];
 OPCODE_KEYS[ClientOpcode.QUEST_ACCEPT] = ["questId"];
-OPCODE_KEYS[ClientOpcode.QUEST_TURN_IN] = ["questId"];
+OPCODE_KEYS[ClientOpcode.QUEST_TURN_IN] = ["questId", "npcId"];
 OPCODE_KEYS[ClientOpcode.RESYNC_REQUEST] = [];
 
 const OUTCOME_KEYS = [
@@ -359,6 +360,25 @@ export function inventoryState(
   }
   return {
     opcode: ServerOpcode.INVENTORY_STATE,
+    body: JSON.stringify(payload),
+  };
+}
+
+export function walletState(
+  contentHash: string,
+  gold: number,
+  requestId?: string,
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    contentHash: contentHash,
+    gold: gold,
+  };
+  if (requestId !== undefined) {
+    payload.requestId = requestId;
+  }
+  return {
+    opcode: ServerOpcode.WALLET_STATE,
     body: JSON.stringify(payload),
   };
 }

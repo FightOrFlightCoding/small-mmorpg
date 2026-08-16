@@ -9,6 +9,7 @@ import {
   parseClientMessage,
   questState,
   systemMessage,
+  walletState,
   type ParsedClientMessage,
 } from "./protocol";
 import {
@@ -24,7 +25,12 @@ import {
 } from "./match_state";
 import { intendedDelta, resolveMove } from "./movement";
 import { resolveInteraction } from "./interaction";
-import { applyQuestAccept, cloneQuestLog, publicQuestPayloads, type QuestLog } from "./quest";
+import { applyQuestAccept, cloneQuestLog, publicQuestPayloads, syncAcquireObjectives, type QuestLog } from "./quest";
+import {
+  applyQuestTurnIn,
+  type QuestRewardWrite,
+  type RewardCommitter,
+} from "./quest_reward";
 import { applyPlayerAttack, type CombatEvent } from "./combat";
 import { simulateCombatants } from "./enemy_ai";
 import { publicInventory, type PlayerInventory } from "./inventory";
@@ -63,6 +69,11 @@ export interface EquipmentPersist {
   equipment: PlayerEquipment;
 }
 
+export interface RewardPersist {
+  userId: string;
+  request: QuestRewardWrite;
+}
+
 export interface MatchLoopResult {
   state: StarterZoneState;
   terminate: boolean;
@@ -70,6 +81,7 @@ export interface MatchLoopResult {
   persistQuests: QuestPersist[];
   persistInventories: InventoryPersist[];
   persistEquipment: EquipmentPersist[];
+  persistRewards: RewardPersist[];
 }
 
 export interface IncomingMatchData {
@@ -84,12 +96,15 @@ export function applyMatchLoop(
   expectedContentHash: string,
   messages: IncomingMatchData[],
   newId?: () => string,
+  commitReward?: RewardCommitter,
 ): MatchLoopResult {
   const outbound: MatchOutbound[] = [];
   const next = cloneStarterZoneState(state);
   const persistByUser: { [userId: string]: QuestLog } = {};
   const persistInventoryByUser: { [userId: string]: PlayerInventory } = {};
   const persistEquipmentByUser: { [userId: string]: PlayerEquipment } = {};
+  const persistRewardByUser: { [userId: string]: QuestRewardWrite } = {};
+  const skipStorageUsers: { [userId: string]: boolean } = {};
   const combatEvents: CombatEvent[] = [];
   const makeId = newId !== undefined ? newId : sequentialIdFactory(tick);
   reconcileAllEquipment(next, persistEquipmentByUser);
@@ -111,7 +126,11 @@ export function applyMatchLoop(
       persistByUser,
       persistInventoryByUser,
       persistEquipmentByUser,
+      persistRewardByUser,
+      skipStorageUsers,
       combatEvents,
+      makeId,
+      commitReward,
     );
   }
 
@@ -135,12 +154,18 @@ export function applyMatchLoop(
   const persistIds = Object.keys(persistByUser);
   for (let j = 0; j < persistIds.length; j++) {
     const userId = persistIds[j];
+    if (skipStorageUsers[userId] === true) {
+      continue;
+    }
     persistQuests.push({ userId: userId, log: persistByUser[userId] });
   }
   const persistInventories: InventoryPersist[] = [];
   const inventoryIds = Object.keys(persistInventoryByUser);
   for (let k = 0; k < inventoryIds.length; k++) {
     const userId = inventoryIds[k];
+    if (skipStorageUsers[userId] === true) {
+      continue;
+    }
     persistInventories.push({ userId: userId, inventory: persistInventoryByUser[userId] });
   }
   const persistEquipment: EquipmentPersist[] = [];
@@ -148,6 +173,12 @@ export function applyMatchLoop(
   for (let e = 0; e < equipmentIds.length; e++) {
     const userId = equipmentIds[e];
     persistEquipment.push({ userId: userId, equipment: persistEquipmentByUser[userId] });
+  }
+  const persistRewards: RewardPersist[] = [];
+  const rewardIds = Object.keys(persistRewardByUser);
+  for (let r = 0; r < rewardIds.length; r++) {
+    const userId = rewardIds[r];
+    persistRewards.push({ userId: userId, request: persistRewardByUser[userId] });
   }
 
   return {
@@ -157,6 +188,7 @@ export function applyMatchLoop(
     persistQuests: persistQuests,
     persistInventories: persistInventories,
     persistEquipment: persistEquipment,
+    persistRewards: persistRewards,
   };
 }
 
@@ -169,7 +201,11 @@ function handleValidated(
   persistByUser: { [userId: string]: QuestLog },
   persistInventoryByUser: { [userId: string]: PlayerInventory },
   persistEquipmentByUser: { [userId: string]: PlayerEquipment },
+  persistRewardByUser: { [userId: string]: QuestRewardWrite },
+  skipStorageUsers: { [userId: string]: boolean },
   combatEvents: CombatEvent[],
+  makeId: () => string,
+  commitReward?: RewardCommitter,
 ): void {
   if (parsed.opcode === ClientOpcode.RESYNC_REQUEST) {
     outbound.push({
@@ -191,12 +227,26 @@ function handleValidated(
     handleQuestAccept(parsed, userId, state, outbound, persistByUser);
     return;
   }
+  if (parsed.opcode === ClientOpcode.QUEST_TURN_IN) {
+    handleQuestTurnIn(
+      parsed,
+      userId,
+      state,
+      outbound,
+      persistRewardByUser,
+      persistEquipmentByUser,
+      skipStorageUsers,
+      makeId,
+      commitReward,
+    );
+    return;
+  }
   if (parsed.opcode === ClientOpcode.ATTACK) {
     handleAttack(parsed, userId, state, tick, outbound, combatEvents);
     return;
   }
   if (parsed.opcode === ClientOpcode.PICKUP) {
-    handlePickup(parsed, userId, state, outbound, persistInventoryByUser, persistEquipmentByUser);
+    handlePickup(parsed, userId, state, outbound, persistByUser, persistInventoryByUser, persistEquipmentByUser);
     return;
   }
   if (parsed.opcode === ClientOpcode.EQUIP) {
@@ -257,8 +307,10 @@ function handleQuestAccept(
     questsById: state.questsById,
   });
   player.questLog = outcome.log;
-  if (outcome.persist) {
-    persistByUser[userId] = cloneQuestLog(outcome.log);
+  const synced = syncAcquireObjectives(player.questLog, player.inventory);
+  player.questLog = synced.log;
+  if (outcome.persist || synced.changed) {
+    persistByUser[userId] = cloneQuestLog(player.questLog);
   }
   const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
@@ -269,6 +321,105 @@ function handleQuestAccept(
       parsed.requestId,
     );
     outbound.push({ opcode: quests.opcode, body: quests.body, toUserId: userId });
+  }
+}
+
+function handleQuestTurnIn(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  outbound: MatchOutbound[],
+  persistRewardByUser: { [userId: string]: QuestRewardWrite },
+  persistEquipmentByUser: { [userId: string]: PlayerEquipment },
+  skipStorageUsers: { [userId: string]: boolean },
+  makeId: () => string,
+  commitReward?: RewardCommitter,
+): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  const requestId = parsed.requestId as string;
+  const outcome = applyQuestTurnIn({
+    playerHealth: player.health,
+    playerX: player.x,
+    playerY: player.y,
+    questLog: player.questLog,
+    inventory: player.inventory,
+    gold: player.gold !== undefined ? player.gold : 0,
+    questId: parsed.fields.questId,
+    npcId: parsed.fields.npcId,
+    requestId: requestId,
+    npcs: state.npcs,
+    interactionRange: state.interactionRange,
+    questsById: state.questsById,
+    itemsById: state.itemsById,
+    newId: makeId,
+  });
+  if (!outcome.ok) {
+    const failed = actionResult(outcome.code, false, requestId);
+    outbound.push({ opcode: failed.opcode, body: failed.body, toUserId: userId });
+    return;
+  }
+  if (!outcome.replay) {
+    if (commitReward !== undefined) {
+      const committed = commitReward({
+        userId: userId,
+        requestId: requestId,
+        questId: parsed.fields.questId,
+        inventory: outcome.inventory,
+        log: outcome.log,
+        goldDelta: outcome.goldDelta,
+        metadata: outcome.metadata,
+      });
+      if (!committed.ok) {
+        const persistFailed = actionResult(committed.code, false, requestId);
+        outbound.push({ opcode: persistFailed.opcode, body: persistFailed.body, toUserId: userId });
+        return;
+      }
+      player.gold = committed.gold;
+    } else {
+      player.gold = outcome.gold;
+      persistRewardByUser[userId] = {
+        userId: userId,
+        requestId: requestId,
+        questId: parsed.fields.questId,
+        inventory: outcome.inventory,
+        log: outcome.log,
+        goldDelta: outcome.goldDelta,
+        metadata: outcome.metadata,
+      };
+    }
+    player.inventory = outcome.inventory;
+    player.questLog = outcome.log;
+    skipStorageUsers[userId] = true;
+    refreshDerivedFromInventory(state, userId, persistEquipmentByUser);
+  }
+  const gold = player.gold !== undefined ? player.gold : 0;
+  const result = actionResult(outcome.code, true, requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  const quests = questState(
+    state.contentHash,
+    publicQuestPayloads(player.questLog, state.questsById),
+    requestId,
+  );
+  outbound.push({ opcode: quests.opcode, body: quests.body, toUserId: userId });
+  const inventory = inventoryState(
+    state.contentHash,
+    publicInventory(player.inventory !== undefined ? player.inventory : outcome.inventory),
+    requestId,
+  );
+  outbound.push({ opcode: inventory.opcode, body: inventory.body, toUserId: userId });
+  const wallet = walletState(state.contentHash, gold, requestId);
+  outbound.push({ opcode: wallet.opcode, body: wallet.body, toUserId: userId });
+  if (!outcome.replay) {
+    const notice = systemMessage(
+      "quest_complete",
+      "Quest complete. You received an Iron Sword and 25 gold.",
+    );
+    outbound.push({ opcode: notice.opcode, body: notice.body, toUserId: userId });
   }
 }
 
@@ -303,6 +454,7 @@ function handlePickup(
   userId: string,
   state: StarterZoneState,
   outbound: MatchOutbound[],
+  persistByUser: { [userId: string]: QuestLog },
   persistInventoryByUser: { [userId: string]: PlayerInventory },
   persistEquipmentByUser: { [userId: string]: PlayerEquipment },
 ): void {
@@ -327,6 +479,19 @@ function handlePickup(
   state.loot = outcome.loot;
   if (outcome.persist) {
     persistInventoryByUser[userId] = outcome.inventory;
+  }
+  if (outcome.ok && !outcome.replay) {
+    const synced = syncAcquireObjectives(player.questLog, player.inventory);
+    player.questLog = synced.log;
+    if (synced.changed) {
+      persistByUser[userId] = cloneQuestLog(synced.log);
+      const quests = questState(
+        state.contentHash,
+        publicQuestPayloads(player.questLog, state.questsById),
+        parsed.requestId,
+      );
+      outbound.push({ opcode: quests.opcode, body: quests.body, toUserId: userId });
+    }
   }
   refreshDerivedFromInventory(state, userId, persistEquipmentByUser);
   const result = actionResult(outcome.code, outcome.ok, parsed.requestId);

@@ -31,6 +31,7 @@ const SERVER_QUEST_STATE: int = 106
 const SERVER_INTERACTION_RESULT: int = 107
 const SERVER_SYSTEM_MESSAGE: int = 108
 const SERVER_EQUIPMENT_STATE: int = 109
+const SERVER_WALLET_STATE: int = 110
 
 const FIND_OR_CREATE_STARTER_ZONE_RPC: String = "find_or_create_starter_zone"
 
@@ -104,6 +105,7 @@ static func parse_full_state(raw: String, expected_content_hash: String) -> Dict
 			"inventory": _optional_inventory(parsed),
 			"equipment": _optional_equipment(parsed),
 			"derived": _optional_derived(parsed),
+			"wallet": _optional_wallet(parsed),
 		},
 	}
 
@@ -244,6 +246,19 @@ static func parse_equipment_state(raw: String) -> Dictionary:
 	}
 
 
+static func parse_wallet_state(raw: String) -> Dictionary:
+	var parsed: Dictionary = _parse_object(raw)
+	if parsed.has("ok") and not bool(parsed["ok"]):
+		return parsed
+	if not _version_ok(parsed):
+		return _fail("protocol_mismatch", "The wallet-state protocol version does not match this client.")
+	return {
+		"ok": true,
+		"request_id": String(parsed.get("requestId", "")),
+		"gold": int(parsed.get("gold", 0)),
+	}
+
+
 static func new_request_id() -> String:
 	return "r_%s_%s" % [str(Time.get_ticks_usec()), str(randi() % 1000000)]
 
@@ -309,6 +324,14 @@ static func _optional_derived(data: Dictionary) -> Dictionary:
 	if typeof(data["derived"]) != TYPE_DICTIONARY:
 		return {}
 	return (data["derived"] as Dictionary).duplicate(true)
+
+
+static func _optional_wallet(data: Dictionary) -> Dictionary:
+	if not data.has("wallet"):
+		return {}
+	if typeof(data["wallet"]) != TYPE_DICTIONARY:
+		return {}
+	return (data["wallet"] as Dictionary).duplicate(true)
 
 
 static func _optional_slots(data: Dictionary) -> Dictionary:
