@@ -312,3 +312,15 @@ Unlocked abilities, hotbar (8 slots, `""` empty), and optional ranks persist on 
 Certification abilities (`test.ability.basic_melee`, `ranged_bolt`, `small_heal`, `power_buff`, `damage_over_time`) are examples. Vanguard starts with basic melee; arcanist starts with melee and ranged bolt. Runtime looks up `basicAbilityId` and class `startingAbilities` from the catalog. Nakama JSON-roundtrips match state between ticks, so the adapter rebinds ability, item, quest, and progression catalogs from the generated module each tick instead of trusting the serialized copies. Goja can materialize omitted numeric fields as `null`; `isFinite(null)` is true, so magnitude scale/bonus must require `typeof value === "number"` or melee damage becomes 0.
 
 The client `AbilityService` mirrors server state. Hotbar keys 1–8, Escape cancels targeting or the active cast, and ground-target abilities show a preview circle. Space still sends `ATTACK` for the Prompt 18 control.
+
+## 2026-08-17 — Generic combat pipeline, targeting, death, respawn, and XP hooks
+
+The issued Prompt 25 generalizes Prompt 18 combat into one server pipeline used by player attacks, enemy attacks, abilities, and status ticks. It supersedes the earlier roadmap row that named “temporary parties” as Prompt 25. Parties remain later. Inn persistence remains Prompt 29; a live match bind is used when present, otherwise `zone.starter.playerSpawn`.
+
+Damage and healing share ordered steps: action accepted, actor validated, target validated, hit eligibility, base magnitude, source modifiers, target modifiers, mitigation, shields/absorption, final amount, health mutation, combat event, threat/credit, death handling, reward hooks. Formulas are structured fields (base, coefficients, flats, percents, defense, absorb, optional crit, min clamp). There is no eval. Temporary mitigation is `floor(raw * 100 / (100 + defense))`; defense 0 preserves Prompt 18 values (player hit 4, slime hit 2). Crit is off unless `critEnabled` and `critForced`. Duplicate `eventId` values replay without a second mutation.
+
+`SET_TARGET` (17) stores current hostile or friendly ids after validating the entity against match state. Hostile intent against another player is `pvp_disabled`. `RELEASE_RESPAWN` (18) respawns immediately while dead; the Prompt 18 3-second auto-respawn still runs. Dead characters cannot move, cast, interact, loot, equip, or transfer. Death interrupts casts and strips temporary combat effects. No XP loss, item loss, or durability. Ordinary combat flags (in-combat, last hostile/damage ticks, targets, death timer) are match-lived and are not written to storage; reconnect grace keeps them.
+
+XP grants still come only from trusted server events. Enemy kill and quest turn-in call `xp_hooks` into `grantXp`. This phase does not invent a new enemy XP formula; `enemy.xpReward` and `kill:<instanceId>:<deathCount>` stay. Clients cannot send XP amounts.
+
+The HUD target frame, combat-state label, death overlay, release button, and floating numbers are presentation of server snapshots and `COMBAT_EVENT` only.

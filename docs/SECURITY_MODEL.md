@@ -102,7 +102,7 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 ### Rate-limit abuse
 
-**Attack:** Flood `INPUT`, `ATTACK`, `USE_ABILITY`, `CANCEL_CAST`, `INTERACT`, `PICKUP`, `EQUIP`, `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, quest opcodes, `ALLOCATE_ATTRIBUTES`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, or `RESYNC_REQUEST` faster than an honest client.
+**Attack:** Flood `INPUT`, `ATTACK`, `USE_ABILITY`, `CANCEL_CAST`, `SET_TARGET`, `INTERACT`, `PICKUP`, `EQUIP`, `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, quest opcodes, `ALLOCATE_ATTRIBUTES`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, `RELEASE_RESPAWN`, or `RESYNC_REQUEST` faster than an honest client.
 
 **Defense:** Match state stores per-user `actionRates` for a 10-tick window. Excess is `rate_limited`, logged, and not applied. Honest 10 Hz movement stays under the `INPUT` cap of 20/s.
 
@@ -130,9 +130,10 @@ Every expected attack maps to a validation rule, an automated test, and a safe s
 | Speed hacking | Server dt and `moveSpeed`; extra axis magnitude clamped | `movement.test.ts`, `security.test.ts` | Applied speed matches a unit vector |
 | Damage spoofing | `ATTACK`/`USE_ABILITY` are intentions; outcome keys rejected | `combat.test.ts`, `ability.test.ts`, `protocol.test.ts`, `security.test.ts` | `stat_injection:damage`; HP uses server attack |
 | Ability injection / locked use | Server catalog + unlock list; hotbar is not ownership | `ability.test.ts`, `protocol.test.ts` | `ability_locked` / `stat_injection:*` |
-| Hostile player targeting | Other living players are friendly; PvP off | `ability.test.ts` | `pvp_disabled`; damaging effects no-op on other players |
+| Hostile player targeting | Other living players are friendly; PvP off | `ability.test.ts`, `combat_pipeline.test.ts` | `pvp_disabled`; damaging effects no-op on other players |
+| Duplicate combat apply | Pipeline `eventId` plus attack `requestId` | `combat.test.ts`, `combat_pipeline.test.ts` | Replay; HP unchanged |
 | Cooldown bypassing | Server individual + global cooldown clocks | `combat.test.ts`, `ability.test.ts`, `security.test.ts` | `ACTION_RESULT` `on_cooldown` / `on_global_cooldown` |
-| XP injection | No client XP amount; `xp`/`level`/`currentXp` rejected | `progression.test.ts`, `protocol.test.ts` | `stat_injection:xp`; progression unchanged |
+| XP injection | No client XP amount; `xp`/`level`/`currentXp` rejected | `progression.test.ts`, `protocol.test.ts`, `xp_hooks.test.ts` | `stat_injection:xp`; progression unchanged |
 | Attribute overspend / unknown / negative | Server validates catalog, class, unspent points | `progression.test.ts` | `insufficient_points` / `unknown_attribute` / `invalid_amount` |
 | Item injection | No grant opcode; `instanceId` on `PICKUP` rejected; storage `permissionWrite: 0` | `protocol.test.ts`, `inventory.test.ts`, `security.test.ts` | `unknown_opcode` / `stat_injection:instanceId` |
 | Equipment spoofing | Own instance, equippable `main_hand`, server derived attack | `equipment.test.ts`, `security.test.ts` | `unowned` / `not_equippable` / `stat_injection:attack` |
@@ -141,7 +142,7 @@ Every expected attack maps to a validation rule, an automated test, and a safe s
 | Quest skipping | Turn-in requires accepted stage, NPC, range, items | `quest_reward.test.ts`, `security.test.ts` | `invalid_id` / `incomplete_objective`; gold unchanged |
 | Client quest progress | `status` / `questComplete` / `gold` rejected | `protocol.test.ts`, `security.test.ts` | `unknown_field` / `stat_injection:questComplete` |
 | Fabricated NPC interaction | Server range and live health | `interaction.test.ts` | `out_of_range` / `invalid_target` / `player_dead` |
-| Invalid target IDs | Match entity + content indexes | `combat.test.ts`, `inventory.test.ts`, `interaction.test.ts`, `security.test.ts` | `invalid_target` / `invalid_id`; match continues |
+| Invalid target IDs | Match entity + content indexes | `combat.test.ts`, `combat_pipeline.test.ts`, `targeting.test.ts`, `inventory.test.ts`, `interaction.test.ts`, `security.test.ts` | `invalid_target` / `invalid_id`; match continues |
 | Oversized payloads | 2048-byte client match cap; 24 messages/tick | `protocol.test.ts`, `security.test.ts` | `payload_too_large` / `rate_limited` |
 | Chat injection | Before-hook JSON `{message}`; Label render, no BBCode | `chat.test.ts`, `chat_client_test.gd`, `security.test.ts` | `message_too_long` / `invalid_payload`; markup is plain text |
 | Protocol-version mismatch | Envelope version checked first | `protocol.test.ts`, `match.test.ts` | `protocol_mismatch`; no apply |
@@ -151,6 +152,6 @@ Every expected attack maps to a validation rule, an automated test, and a safe s
 | Forged save version | Server detects storage version; client fields rejected | `migration.test.ts`, `character.test.ts` | `stat_injection` / `unsupported_future_version`; no reset |
 | Stale movement sequence | `seq <= lastProcessedSeq` ignored | `movement.test.ts`, `security.test.ts` | Pose unchanged |
 | Excessive movement / resync | Per-player `actionRates` in match state | `security.test.ts` | `rate_limited`; extra seq/full states dropped |
-| Dead-player actions | Health checked before move/attack/interact/loot/equip | `combat.test.ts`, `interaction.test.ts`, `inventory.test.ts`, `equipment.test.ts`, `security.test.ts` | `player_dead`; no mutate |
+| Dead-player actions | Health checked before move/attack/interact/loot/equip/ability; `RELEASE_RESPAWN` is the exception | `combat.test.ts`, `combat_pipeline.test.ts`, `interaction.test.ts`, `inventory.test.ts`, `equipment.test.ts`, `security.test.ts` | `player_dead`; no mutate |
 | Malformed JSON / unknown opcode / unknown fields / NaN / missing fields | Strict `parseClientMessage` | `protocol.test.ts`, `match.test.ts`, `security.test.ts` fixtures | `SYSTEM_MESSAGE`; match does not crash |
 

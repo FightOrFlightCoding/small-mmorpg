@@ -36,7 +36,7 @@ import {
   type AbilityDefinition,
   type ActiveCast,
 } from "./ability";
-import { cloneActiveEffects, effectModifiersFrom, type ActiveEffect } from "./effects";
+import { cloneActiveEffects, effectModifiersFrom, hasControlTag, type ActiveEffect } from "./effects";
 
 export type { MatchLoot };
 
@@ -90,6 +90,19 @@ export interface MatchPlayer {
   globalCooldownUntilTick?: number;
   abilityUseByRequestId?: { [requestId: string]: { ok: boolean; code: string } };
   abilityUseTicks?: { [requestId: string]: number };
+  inCombat?: boolean;
+  lastHostileActionTick?: number;
+  lastDamageReceivedTick?: number;
+  hostileTargetId?: string;
+  friendlyTargetId?: string;
+  bindX?: number;
+  bindY?: number;
+  lastSetTargetRequestId?: string;
+  lastSetTargetResultCode?: string;
+  lastSetTargetResultOk?: boolean;
+  lastReleaseRequestId?: string;
+  lastReleaseResultCode?: string;
+  lastReleaseResultOk?: boolean;
 }
 
 export interface DisconnectedPlayer {
@@ -163,6 +176,25 @@ export interface StarterZoneState {
   abilitiesById?: { [id: string]: AbilityDefinition };
   basicAbilityId?: string;
   classTags?: { [classId: string]: string[] };
+  combatApplyByEventId?: { [eventId: string]: CombatApplyRecord };
+}
+
+export interface CombatApplyRecord {
+  ok: boolean;
+  code: string;
+  amount: number;
+  remainingHealth: number;
+  died: boolean;
+  tick: number;
+  steps: string[];
+  stages: {
+    base: number;
+    afterSource: number;
+    afterTarget: number;
+    afterMitigation: number;
+    afterShields: number;
+    finalAmount: number;
+  };
 }
 
 export interface ZoneSpawnContent {
@@ -333,6 +365,7 @@ export function createStarterZoneState(
     abilitiesById: extras.abilitiesById,
     basicAbilityId: extras.basicAbilityId !== undefined ? extras.basicAbilityId : playerContent.basicAbilityId,
     classTags: extras.classTags,
+    combatApplyByEventId: {},
   };
 }
 
@@ -416,6 +449,12 @@ function publicPlayer(player: MatchPlayer): { [key: string]: unknown } {
     resources: cloneResourceMap(player.resources),
     effects: publicEntityEffects(player.effects),
     activeCast: player.activeCast !== undefined ? cloneActiveCast(player.activeCast) : null,
+    inCombat: player.inCombat === true,
+    hostileTargetId: player.hostileTargetId !== undefined ? player.hostileTargetId : "",
+    friendlyTargetId: player.friendlyTargetId !== undefined ? player.friendlyTargetId : "",
+    deadUntilTick: player.deadUntilTick != null ? player.deadUntilTick : 0,
+    stunned: hasControlTag(player.effects, "stun"),
+    rooted: hasControlTag(player.effects, "root"),
   };
 }
 
@@ -534,6 +573,19 @@ function cloneMatchPlayer(p: MatchPlayer, state: StarterZoneState): MatchPlayer 
     globalCooldownUntilTick: p.globalCooldownUntilTick != null ? p.globalCooldownUntilTick : 0,
     abilityUseByRequestId: cloneAbilityUseMap(p.abilityUseByRequestId),
     abilityUseTicks: cloneCooldownMap(p.abilityUseTicks),
+    inCombat: p.inCombat === true,
+    lastHostileActionTick: p.lastHostileActionTick != null ? p.lastHostileActionTick : -1,
+    lastDamageReceivedTick: p.lastDamageReceivedTick != null ? p.lastDamageReceivedTick : -1,
+    hostileTargetId: p.hostileTargetId != null ? String(p.hostileTargetId) : "",
+    friendlyTargetId: p.friendlyTargetId != null ? String(p.friendlyTargetId) : "",
+    bindX: typeof p.bindX === "number" && isFinite(p.bindX) ? p.bindX : undefined,
+    bindY: typeof p.bindY === "number" && isFinite(p.bindY) ? p.bindY : undefined,
+    lastSetTargetRequestId: p.lastSetTargetRequestId != null ? String(p.lastSetTargetRequestId) : "",
+    lastSetTargetResultCode: p.lastSetTargetResultCode != null ? String(p.lastSetTargetResultCode) : "",
+    lastSetTargetResultOk: p.lastSetTargetResultOk === true,
+    lastReleaseRequestId: p.lastReleaseRequestId != null ? String(p.lastReleaseRequestId) : "",
+    lastReleaseResultCode: p.lastReleaseResultCode != null ? String(p.lastReleaseResultCode) : "",
+    lastReleaseResultOk: p.lastReleaseResultOk === true,
   };
 }
 
@@ -595,6 +647,7 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     abilitiesById: state.abilitiesById,
     basicAbilityId: state.basicAbilityId,
     classTags: state.classTags,
+    combatApplyByEventId: cloneCombatApplyMap(state.combatApplyByEventId),
   };
 }
 
@@ -697,6 +750,38 @@ function cloneAbilityUseMap(
       continue;
     }
     out[keys[i]] = { ok: row.ok === true, code: row.code };
+  }
+  return out;
+}
+
+function cloneCombatApplyMap(
+  map: { [eventId: string]: CombatApplyRecord } | undefined,
+): { [eventId: string]: CombatApplyRecord } {
+  const out: { [eventId: string]: CombatApplyRecord } = {};
+  const source = dict(map);
+  const keys = Object.keys(source);
+  for (let i = 0; i < keys.length; i++) {
+    const row = source[keys[i]];
+    if (row == null) {
+      continue;
+    }
+    out[keys[i]] = {
+      ok: row.ok === true,
+      code: String(row.code),
+      amount: typeof row.amount === "number" && isFinite(row.amount) ? row.amount : 0,
+      remainingHealth: typeof row.remainingHealth === "number" && isFinite(row.remainingHealth) ? row.remainingHealth : 0,
+      died: row.died === true,
+      tick: typeof row.tick === "number" && isFinite(row.tick) ? row.tick : 0,
+      steps: Array.isArray(row.steps) ? row.steps.slice() : [],
+      stages: {
+        base: numberOr(row.stages !== undefined ? row.stages.base : undefined, 0),
+        afterSource: numberOr(row.stages !== undefined ? row.stages.afterSource : undefined, 0),
+        afterTarget: numberOr(row.stages !== undefined ? row.stages.afterTarget : undefined, 0),
+        afterMitigation: numberOr(row.stages !== undefined ? row.stages.afterMitigation : undefined, 0),
+        afterShields: numberOr(row.stages !== undefined ? row.stages.afterShields : undefined, 0),
+        finalAmount: numberOr(row.stages !== undefined ? row.stages.finalAmount : undefined, 0),
+      },
+    };
   }
   return out;
 }

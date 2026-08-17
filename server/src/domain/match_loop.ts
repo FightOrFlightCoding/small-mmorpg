@@ -35,17 +35,10 @@ import {
   type RewardCommitter,
 } from "./quest_reward";
 import { type CombatEvent } from "./combat";
-import {
-  assignHotbar,
-  cancelCast,
-  interruptMovingCasters,
-  interruptOnDamage,
-  publicAbilityState,
-  tickCasts,
-  unlockAbility,
-  useAbility,
-  useLegacyAttackOrAbility,
-} from "./ability";
+import { assignHotbar, cancelCast, interruptMovingCasters, interruptOnDamage, publicAbilityState, tickCasts, unlockAbility, useAbility, useLegacyAttackOrAbility } from "./ability";
+import { applyReleaseRespawn, tickCombatFlags } from "./combat_pipeline";
+import { applySetTarget } from "./targeting";
+import { applyServerXpGrant, killXpGrantFromEnemy, questXpGrant, type TrustedXpGrant } from "./xp_hooks";
 import { effectModifiersFrom, hasControlTag, tickEffects } from "./effects";
 import { simulateCombatants } from "./enemy_ai";
 import { publicInventory, applyDestroyItem, applyMoveItem, applySplitStack, emptyInventory, type PlayerInventory } from "./inventory";
@@ -212,6 +205,7 @@ export function applyMatchLoop(
   interruptMovingCasters(next, previousPos, tick, combatEvents);
   tickCasts(next, tick, combatEvents);
   simulateCombatants(next, tick, 1 / MATCH_TICK_RATE, MATCH_TICK_RATE, combatEvents);
+  tickCombatFlags(next, tick);
   interruptDamagedCasters(next, combatEvents, tick);
   tickEffects(next, tick, combatEvents);
   grantKillXpFromEvents(next, combatEvents, tick, persistProgressionByUser, outbound);
@@ -429,6 +423,14 @@ function handleValidated(
   }
   if (parsed.opcode === ClientOpcode.UNLOCK_ABILITY) {
     handleUnlockAbility(parsed, userId, state, tick, outbound, persistProgressionByUser);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.SET_TARGET) {
+    handleSetTarget(parsed, userId, state, outbound);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.RELEASE_RESPAWN) {
+    handleReleaseRespawn(parsed, userId, state, tick, outbound, combatEvents);
     return;
   }
   if (parsed.opcode === ClientOpcode.PICKUP) {
@@ -697,6 +699,42 @@ function handleCancelCast(
   const result = actionResult(decision.code, decision.ok, parsed.requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
   pushAbilityState(state, userId, outbound, tick, parsed.requestId);
+}
+
+function handleSetTarget(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  outbound: MatchOutbound[],
+): void {
+  const decision = applySetTarget(
+    state,
+    state.players[userId],
+    parsed.fields.targetId !== undefined ? parsed.fields.targetId : "",
+    parsed.fields.intent !== undefined ? parsed.fields.intent : "",
+    parsed.requestId as string,
+  );
+  const result = actionResult(decision.code, decision.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+}
+
+function handleReleaseRespawn(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  tick: number,
+  outbound: MatchOutbound[],
+  combatEvents: CombatEvent[],
+): void {
+  const decision = applyReleaseRespawn(
+    state,
+    state.players[userId],
+    tick,
+    parsed.requestId as string,
+    combatEvents,
+  );
+  const result = actionResult(decision.code, decision.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
 }
 
 function handleAssignHotbar(
@@ -1327,23 +1365,11 @@ function grantKillXpFromEvents(
     }
     const userId = event.sourceId;
     const enemy = findMatchEnemy(state, event.targetId);
-    if (enemy === null || enemy.xpReward <= 0) {
+    if (enemy === null) {
       continue;
     }
-    applyTrustedXp(
-      state,
-      userId,
-      {
-        characterId: characterIdOf(state, userId) !== undefined ? (characterIdOf(state, userId) as string) : "",
-        amount: enemy.xpReward,
-        reasonType: "kill",
-        reasonId: enemy.enemyId,
-        eventId: "kill:" + enemy.id + ":" + String(enemy.deathCount),
-      },
-      tick,
-      persistProgressionByUser,
-      outbound,
-    );
+    const characterId = characterIdOf(state, userId) !== undefined ? (characterIdOf(state, userId) as string) : "";
+    applyServerXpGrant(matchXpSink(state, tick, persistProgressionByUser, outbound), userId, killXpGrantFromEnemy(enemy, characterId));
   }
 }
 
@@ -1361,43 +1387,42 @@ function grantQuestXp(
   if (amount <= 0) {
     return;
   }
-  applyTrustedXp(
-    state,
+  const characterId = characterIdOf(state, userId) !== undefined ? (characterIdOf(state, userId) as string) : "";
+  applyServerXpGrant(
+    matchXpSink(state, tick, persistProgressionByUser, outbound),
     userId,
-    {
-      characterId: characterIdOf(state, userId) !== undefined ? (characterIdOf(state, userId) as string) : "",
-      amount: amount,
-      reasonType: "quest",
-      reasonId: questId,
-      eventId: "quest:" + questId + ":" + requestId,
-    },
-    tick,
-    persistProgressionByUser,
-    outbound,
+    questXpGrant(questId, amount, requestId, characterId),
   );
+}
+
+function matchXpSink(
+  state: StarterZoneState,
+  tick: number,
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
+  outbound: MatchOutbound[],
+): { apply: (userId: string, grant: TrustedXpGrant) => { ok: boolean; replay: boolean; applied: boolean; code: string } } {
+  return {
+    apply: function (userId: string, grant: TrustedXpGrant) {
+      return applyTrustedXp(state, userId, grant, tick, persistProgressionByUser, outbound);
+    },
+  };
 }
 
 function applyTrustedXp(
   state: StarterZoneState,
   userId: string,
-  grant: {
-    characterId: string;
-    amount: number;
-    reasonType: string;
-    reasonId: string;
-    eventId: string;
-  },
+  grant: TrustedXpGrant,
   tick: number,
   persistProgressionByUser: { [userId: string]: CharacterProgression },
   outbound: MatchOutbound[],
-): void {
+): { ok: boolean; replay: boolean; applied: boolean; code: string } {
   const player = state.players[userId];
   if (player === undefined || player.progression === undefined || state.progressionCatalog === undefined) {
-    return;
+    return { ok: false, replay: false, applied: false, code: "player_missing" };
   }
   const classId = player.classId !== undefined ? player.classId : "";
   if (classId.length === 0) {
-    return;
+    return { ok: false, replay: false, applied: false, code: "player_missing" };
   }
   const outcome = grantXp(player.progression, state.progressionCatalog, classId, grant, tick);
   player.progression = outcome.progression;
@@ -1406,6 +1431,12 @@ function applyTrustedXp(
     refreshPlayerDerived(state, userId);
     pushProgressionState(state, userId, outbound);
   }
+  return {
+    ok: outcome.code === "ok",
+    replay: outcome.replay,
+    applied: outcome.changed,
+    code: outcome.code,
+  };
 }
 
 function pushProgressionState(

@@ -34,6 +34,8 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ClientOpcode.CANCEL_CAST, 14);
   assert.equal(ClientOpcode.ASSIGN_HOTBAR, 15);
   assert.equal(ClientOpcode.UNLOCK_ABILITY, 16);
+  assert.equal(ClientOpcode.SET_TARGET, 17);
+  assert.equal(ClientOpcode.RELEASE_RESPAWN, 18);
   assert.equal(ServerOpcode.FULL_STATE, 101);
   assert.equal(ServerOpcode.SNAPSHOT, 102);
   assert.equal(ServerOpcode.ACTION_RESULT, 103);

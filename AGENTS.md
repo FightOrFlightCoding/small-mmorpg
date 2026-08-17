@@ -33,7 +33,7 @@ Do not upgrade, replace, or add foundational packages unless the current phase e
 
 ## Architecture
 
-- The server is authoritative for position, collision, health, damage, cooldowns, enemy behavior, inventory, equipment, loot, quests, rewards, currency, experience, levels, attribute allocation, abilities, casts, resources, and derived statistics.
+- The server is authoritative for position, collision, health, damage, cooldowns, enemy behavior, inventory, equipment, loot, quests, rewards, currency, experience, levels, attribute allocation, abilities, casts, resources, derived statistics, targeting, death, and respawn.
 - The client sends intentions, never outcomes.
 - The client must never send an authoritative position, damage value, health value, item grant, quest completion, currency change, or XP amount.
 - Important player storage must use `permissionWrite: 0`.
@@ -59,7 +59,7 @@ Do not upgrade, replace, or add foundational packages unless the current phase e
 
 Prompt 18 is accepted and frozen. Do not change its player-visible behavior unless the current phase explicitly repairs a defect.
 
-Foundation v1 product scope is [docs/FOUNDATION_SCOPE.md](docs/FOUNDATION_SCOPE.md). Implement a Foundation feature only when the current phase prompt names it. Prompt 19 is documentation and audit only. Prompt 20 is accepted: versioned content packages and save-schema migrations without new player-facing gameplay. Prompt 21 is accepted: email accounts, slots, and class selection. Prompt 22 is accepted: server-authoritative XP, levels, derived stats, and attribute allocation. Prompt 23 is accepted: generic items, inventory, equipment, gold, and the transaction core (merchants and trading remain later). Prompt 24 is accepted: data-defined abilities, casting, cooldowns, resources, and the effect engine (PvP remains disabled; extra enemy AI remains later).
+Foundation v1 product scope is [docs/FOUNDATION_SCOPE.md](docs/FOUNDATION_SCOPE.md). Implement a Foundation feature only when the current phase prompt names it. Prompt 19 is documentation and audit only. Prompt 20 is accepted: versioned content packages and save-schema migrations without new player-facing gameplay. Prompt 21 is accepted: email accounts, slots, and class selection. Prompt 22 is accepted: server-authoritative XP, levels, derived stats, and attribute allocation. Prompt 23 is accepted: generic items, inventory, equipment, gold, and the transaction core (merchants and trading remain later). Prompt 24 is accepted: data-defined abilities, casting, cooldowns, resources, and the effect engine (PvP remains disabled; extra enemy AI remains later). Prompt 25 is accepted: one combat-resolution pipeline, targeting, PvE death/respawn, and XP hooks (PvP remains disabled; parties remain later).
 
 Always excluded: public-world sharding, extra overworlds, guilds, auction houses, crafting, PvP, monetization, procedural generation as a world system, open-world streaming, extra gameplay frameworks (QuestSystem, LimboAI, netfox, RPG database plugins).
 
@@ -82,7 +82,7 @@ Record necessary assumptions in `docs/DECISIONS.md`.
 
 | Path | Role |
 | --- | --- |
-| `client/` | Godot 4.7.1 application (boot → login → character list → content-driven starter zone after `FULL_STATE`). Email/password; debug device auth; joins `zone.starter` with a selection ticket. Progression panel and ability HUD (hotbar, cast bar, cooldowns) mirror server state. Visual IDs in `client/content/visual_map.json`. |
+| `client/` | Godot 4.7.1 application (boot → login → character list → content-driven starter zone after `FULL_STATE`). Email/password; debug device auth; joins `zone.starter` with a selection ticket. Progression panel and ability HUD (hotbar, cast bar, cooldowns, target frame, death overlay) mirror server state. Visual IDs in `client/content/visual_map.json`. |
 | `server/` | TypeScript Nakama runtime (health RPC, character lifecycle RPCs, `find_or_create_starter_zone`, starter-zone match; generated content catalog including classes, attributes, resources, derived stats, level curves, class progression, equipment slots, and item categories). |
 | `content/schemas/` | JSON Schemas for authored content. |
 | `content/source/` | ID-addressed source content documents. |

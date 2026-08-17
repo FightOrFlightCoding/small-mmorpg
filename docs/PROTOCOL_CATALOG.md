@@ -266,6 +266,28 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST 8; INTER
 | Rate limit | Shares ALLOCATE window (8) |
 | Tests | `ability.test.ts` |
 
+### 17 `SET_TARGET`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, targetId?, intent?, requestId }` |
+| Authority | Match entity ids; other players are friendly |
+| Idempotency | Same `requestId` replays the stored result |
+| Errors | `invalid_target`, `target_dead`, `pvp_disabled`, `invalid_relation`, `invalid_id` |
+| Rate limit | Shares ATTACK window (8) |
+| Tests | `combat_pipeline.test.ts`, `targeting.test.ts`, `combat_client_test.gd` |
+
+### 18 `RELEASE_RESPAWN`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, requestId }` |
+| Authority | Server death flag and respawn destination (live bind or `zone.starter.playerSpawn`) |
+| Idempotency | Same `requestId` replays the stored result |
+| Errors | `not_dead`, `player_missing` |
+| Rate limit | Shares ALLOCATE window (8) |
+| Tests | `combat_pipeline.test.ts`, `combat_client_test.gd` |
+
 No other client opcodes exist. Unknown opcode → `unknown_opcode`.
 
 ## Server → client match opcodes
@@ -277,7 +299,7 @@ No client rate limit. Occupied matches send **102** every tick.
 | 101 | `FULL_STATE` | tick, zone, self, players, npcs, enemies, loot, quests, inventory, equipment, derived, wallet, progression, abilities | `protocol.test.ts`, `zone_join_test.gd`, `progression.test.ts`, `ability.test.ts` |
 | 102 | `SNAPSHOT` | tick, players, enemies, loot | `movement.test.ts`, `entity_registry_test.gd` |
 | 103 | `ACTION_RESULT` | ok, code, requestId? | combat/inventory/quest tests |
-| 104 | `COMBAT_EVENT` | tick, events[] | `combat.test.ts`, `combat_client_test.gd` |
+| 104 | `COMBAT_EVENT` | tick, events[] | `combat.test.ts`, `combat_pipeline.test.ts`, `combat_client_test.gd` |
 | 105 | `INVENTORY_STATE` | capacity, items | `inventory.test.ts` |
 | 106 | `QUEST_STATE` | quests | `quest.test.ts` |
 | 107 | `INTERACTION_RESULT` | ok, code, requestId, targetId | `interaction.test.ts` |

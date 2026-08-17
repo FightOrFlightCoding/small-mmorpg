@@ -29,7 +29,7 @@ export function actionForOpcode(opcode: number): RateAction {
   if (opcode === ClientOpcode.INTERACT) {
     return "interact";
   }
-  if (opcode === ClientOpcode.ATTACK || opcode === ClientOpcode.USE_ABILITY || opcode === ClientOpcode.CANCEL_CAST) {
+  if (opcode === ClientOpcode.ATTACK || opcode === ClientOpcode.USE_ABILITY || opcode === ClientOpcode.CANCEL_CAST || opcode === ClientOpcode.SET_TARGET) {
     return "attack";
   }
   if (opcode === ClientOpcode.PICKUP) {
@@ -41,7 +41,7 @@ export function actionForOpcode(opcode: number): RateAction {
   if (opcode === ClientOpcode.QUEST_ACCEPT || opcode === ClientOpcode.QUEST_TURN_IN) {
     return "quest";
   }
-  if (opcode === ClientOpcode.ALLOCATE_ATTRIBUTES || opcode === ClientOpcode.ASSIGN_HOTBAR || opcode === ClientOpcode.UNLOCK_ABILITY) {
+  if (opcode === ClientOpcode.ALLOCATE_ATTRIBUTES || opcode === ClientOpcode.ASSIGN_HOTBAR || opcode === ClientOpcode.UNLOCK_ABILITY || opcode === ClientOpcode.RELEASE_RESPAWN) {
     return "allocate";
   }
   if (opcode === ClientOpcode.RESYNC_REQUEST) {

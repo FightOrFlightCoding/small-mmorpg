@@ -1,4 +1,5 @@
-import { applyDamageAmount, applyHealAmount, cooldownTicks, findEnemy, killEnemy, killPlayer, type CombatEvent } from "./combat";
+import { cooldownTicks, type CombatEvent } from "./combat";
+import { applyCombat } from "./combat_pipeline";
 import { SNAPSHOT_RATE_HZ } from "./movement";
 import type { MatchEnemy, MatchPlayer, StarterZoneState } from "./match_state";
 import { dict } from "./maps";
@@ -180,11 +181,11 @@ export function applyEffectDefinition(
     return;
   }
   if (type === "direct_heal") {
-    healTarget(target, magnitude, source, abilityId, events);
+    healTarget(state, source, target, magnitude, abilityId, tick, events);
     return;
   }
   if (type === "resource_change") {
-    changeResource(state, target, definition, magnitude, source, events);
+    changeResource(state, target, definition, magnitude, source, tick, events);
     return;
   }
   applyStatus(target, definition, abilityId, source, magnitude, tick, events);
@@ -325,7 +326,7 @@ function applyPeriodicTick(
     return;
   }
   if (effect.type === "periodic_heal") {
-    healTarget(target, amount, placeholderCaster(effect.sourceId), effect.abilityId, events);
+    healTarget(state, placeholderCaster(effect.sourceId), target, amount, effect.abilityId, tick, events);
   }
 }
 
@@ -433,64 +434,59 @@ function dealDamage(
   if (amount <= 0 || target.health <= 0) {
     return;
   }
-  if (target.kind === "player" && target.id !== source.userId) {
+  const result = applyCombat(
+    state,
+    {
+      action: "damage",
+      sourceId: source.userId,
+      sourceKind: "player",
+      targetId: target.id,
+      targetKind: target.kind,
+      formula: { base: amount },
+      tick: tick,
+      abilityId: abilityId,
+      respawnDelaySec: state.playerRespawnDelaySec,
+      tickRate: SNAPSHOT_RATE_HZ,
+    },
+    events,
+  );
+  if (!result.ok) {
     return;
   }
-  const remaining = applyDamageAmount(target.health, amount);
-  target.health = remaining;
-  events.push({
-    type: "hit",
-    sourceId: source.userId,
-    sourceKind: "player",
-    targetId: target.id,
-    targetKind: target.kind,
-    damage: amount,
-    remainingHealth: remaining,
-    abilityId: abilityId,
-    x: target.x,
-    y: target.y,
-  });
-  writeTarget(state, target);
-  if (remaining > 0) {
-    return;
-  }
-  if (target.kind === "enemy") {
-    const enemy = findEnemyById(state, target.id);
-    if (enemy !== null) {
-      killEnemy(enemy, tick, source.userId, SNAPSHOT_RATE_HZ, events);
-    }
-    return;
-  }
-  const player = state.players[target.id];
-  if (player !== undefined) {
-    killPlayer(player, tick, source.userId, state.playerRespawnDelaySec, SNAPSHOT_RATE_HZ, events);
-  }
+  target.health = result.remainingHealth;
 }
 
 function healTarget(
+  state: StarterZoneState,
+  source: MatchPlayer,
   target: EffectTarget,
   amount: number,
-  source: MatchPlayer,
   abilityId: string,
+  tick: number,
   events: CombatEvent[],
 ): void {
   if (amount <= 0 || target.health <= 0) {
     return;
   }
-  const remaining = applyHealAmount(target.health, target.maxHealth, amount);
-  target.health = remaining;
-  events.push({
-    type: "heal",
-    sourceId: source.userId,
-    sourceKind: "player",
-    targetId: target.id,
-    targetKind: target.kind,
-    healing: amount,
-    remainingHealth: remaining,
-    abilityId: abilityId,
-    x: target.x,
-    y: target.y,
-  });
+  const result = applyCombat(
+    state,
+    {
+      action: "heal",
+      sourceId: source.userId,
+      sourceKind: "player",
+      targetId: target.id,
+      targetKind: target.kind,
+      formula: { base: amount },
+      tick: tick,
+      abilityId: abilityId,
+      tickRate: SNAPSHOT_RATE_HZ,
+    },
+    events,
+  );
+  if (!result.ok) {
+    return;
+  }
+  target.health = result.remainingHealth;
 }
 
 function changeResource(
@@ -499,6 +495,7 @@ function changeResource(
   definition: EffectDefinition,
   magnitude: number,
   source: MatchPlayer,
+  tick: number,
   events: CombatEvent[],
 ): void {
   if (target.kind !== "player") {
@@ -511,7 +508,7 @@ function changeResource(
   const catalog = state.progressionCatalog;
   const role = definition.resourceRole !== undefined ? definition.resourceRole : "mana";
   if (role === "health") {
-    healTarget(target, magnitude, source, "", events);
+    healTarget(state, source, target, magnitude, "", tick, events);
     return;
   }
   const resourceId = catalog !== undefined ? resourceIdForRole(catalog, role) : "";
@@ -550,10 +547,6 @@ function rankScale(source: MatchPlayer, abilityId: string): number {
     return 1;
   }
   return rank;
-}
-
-function findEnemyById(state: StarterZoneState, id: string): MatchEnemy | null {
-  return findEnemy(state.enemies, id);
 }
 
 function placeholderCaster(sourceId: string): MatchPlayer {

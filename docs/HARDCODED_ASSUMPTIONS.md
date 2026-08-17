@@ -80,6 +80,8 @@ Turn-in apply already uses quest definition rewards from content, not a second h
 | Inventory capacity fallback 20 | `INVENTORY_CAPACITY`; live capacity is `player.base.inventoryCapacity` | Fallback remains architectural; content now owns the live value |
 | One public match module `starter_zone` | `InitModule`, registry singleton | Architectural hard-coding requiring later removal |
 | Player respawn delay 3 s default | `PLAYER_RESPAWN_DELAY_SEC` / match_state fallback | Temporary Prompt 18 assumption (content has no player respawn field in source) |
+| In-combat timeout 5 s (50 ticks) | `IN_COMBAT_TIMEOUT_TICKS` | Temporary Prompt 25 assumption |
+| Defense mitigation `floor(raw * 100 / (100 + defense))` | `evaluateCombatFormula` | Temporary Prompt 25 formula; defense 0 keeps Prompt 18 4/2 hits |
 | Player AABB 12 px | `PLAYER_HALF_EXTENT` | Temporary Prompt 18 assumption |
 | Dialogue example balloon path | `DialoguePresenter.BALLOON_SCENE` | Temporary Prompt 18 assumption |
 | Movement fallback bounds 16,16,1248×736 | `movement_sim.gd` defaults | Temporary Prompt 18 assumption |

@@ -2,9 +2,9 @@ import {
   NEVER_ATTACKED_TICK,
   cooldownTicks,
   isCooldownReady,
-  killPlayer,
   type CombatEvent,
 } from "./combat";
+import { applyCombat, tickPlayerRespawns } from "./combat_pipeline";
 import type { MatchEnemy, MatchPlayer, StarterZoneState } from "./match_state";
 import { distance, resolveMove } from "./movement";
 import { hasControlTag } from "./effects";
@@ -28,44 +28,8 @@ export function simulateCombatants(
   tickRate: number,
   events: CombatEvent[],
 ): void {
-  respawnPlayers(state, tick, tickRate, events);
+  tickPlayerRespawns(state, tick, events);
   simulateEnemies(state, tick, dt, tickRate, events);
-}
-
-function respawnPlayers(
-  state: StarterZoneState,
-  tick: number,
-  _tickRate: number,
-  events: CombatEvent[],
-): void {
-  const ids = Object.keys(state.players);
-  ids.sort();
-  for (let i = 0; i < ids.length; i++) {
-    const player = state.players[ids[i]];
-    if (player.health > 0) {
-      continue;
-    }
-    const until = player.deadUntilTick !== undefined ? player.deadUntilTick : 0;
-    if (until <= 0 || tick < until) {
-      continue;
-    }
-    player.health = player.maxHealth;
-    player.x = state.playerSpawnX;
-    player.y = state.playerSpawnY;
-    player.axisX = 0;
-    player.axisY = 0;
-    player.deadUntilTick = 0;
-    events.push({
-      type: "respawn",
-      sourceId: "",
-      sourceKind: "player",
-      targetId: player.userId,
-      targetKind: "player",
-      remainingHealth: player.health,
-      x: player.x,
-      y: player.y,
-    });
-  }
 }
 
 function simulateEnemies(
@@ -188,27 +152,25 @@ function tryEnemyAttack(
   if (!isCooldownReady(lastTick, tick, ticks)) {
     return;
   }
-  const damage = enemy.damage;
-  let remaining = target.health - damage;
-  if (remaining < 0) {
-    remaining = 0;
+  const result = applyCombat(
+    state,
+    {
+      action: "damage",
+      sourceId: enemy.id,
+      sourceKind: "enemy",
+      targetId: target.userId,
+      targetKind: "player",
+      formula: { base: enemy.damage },
+      tick: tick,
+      respawnDelaySec: state.playerRespawnDelaySec,
+      tickRate: tickRate,
+    },
+    events,
+  );
+  if (!result.ok) {
+    return;
   }
-  target.health = remaining;
   enemy.lastAttackTick = tick;
-  events.push({
-    type: "hit",
-    sourceId: enemy.id,
-    sourceKind: "enemy",
-    targetId: target.userId,
-    targetKind: "player",
-    damage: damage,
-    remainingHealth: remaining,
-    x: target.x,
-    y: target.y,
-  });
-  if (remaining <= 0) {
-    killPlayer(target, tick, enemy.id, state.playerRespawnDelaySec, tickRate, events);
-  }
 }
 
 function respawnEnemy(enemy: MatchEnemy, events: CombatEvent[]): void {

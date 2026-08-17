@@ -49,6 +49,8 @@ func _ready() -> void:
 		AppState.reconnecting_changed.connect(_on_reconnecting_changed)
 	_hud.resync_pressed.connect(_on_resync_pressed)
 	_hud.logout_pressed.connect(_on_logout_pressed)
+	if not _hud.respawn_pressed.is_connected(_on_respawn_pressed):
+		_hud.respawn_pressed.connect(_on_respawn_pressed)
 	if _loading_overlay != null and _loading_overlay.has_signal("cancel_pressed"):
 		if not _loading_overlay.cancel_pressed.is_connected(_on_reconnect_cancel):
 			_loading_overlay.cancel_pressed.connect(_on_reconnect_cancel)
@@ -365,6 +367,7 @@ func try_attack() -> void:
 		return
 	var request_id := MatchProtocol.new_request_id()
 	_attack_requests[request_id] = true
+	NetworkService.send_set_target(enemy_id, MatchProtocol.new_request_id(), "hostile")
 	NetworkService.send_attack(enemy_id, request_id)
 
 
@@ -439,6 +442,9 @@ func _on_action_result(payload: Dictionary) -> void:
 	var request_id := String(payload.get("request_id", ""))
 	if _attack_requests.has(request_id):
 		_attack_requests.erase(request_id)
+		if bool(payload.get("result_ok", false)):
+			return
+		AppState.report_recoverable(String(payload.get("code", "attack_failed")), _combat_message(String(payload.get("code", ""))))
 		return
 	if _pickup_requests.has(request_id):
 		_pickup_requests.erase(request_id)
@@ -465,6 +471,9 @@ func _on_action_result(payload: Dictionary) -> void:
 		return
 	var code := String(payload.get("code", "action_failed"))
 	if code == "not_implemented":
+		return
+	if code == "pvp_disabled" or code == "invalid_target" or code == "target_dead" or code == "player_dead" or code == "not_dead" or code == "invalid_relation":
+		AppState.report_recoverable(code, _combat_message(code))
 		return
 	AppState.report_recoverable(code, _quest_message(code))
 
@@ -513,10 +522,33 @@ func _on_combat_event(payload: Dictionary) -> void:
 		if event_type == "hit" and _combat != null:
 			var pos := Vector2(float(event.get("x", 0.0)), float(event.get("y", 0.0)))
 			_combat.show_hit(pos, int(event.get("damage", 0)), String(event.get("targetKind", "")) == "player")
+		if event_type == "heal" and _combat != null:
+			var heal_pos := Vector2(float(event.get("x", 0.0)), float(event.get("y", 0.0)))
+			_combat.show_heal(heal_pos, int(event.get("healing", 0)))
 		if event_type == "respawn" and String(event.get("targetKind", "")) == "player":
 			if String(event.get("targetId", "")) == String(AppState.zone_view.get("self_id", "")):
 				_reconciler.reset(Vector2(float(event.get("x", 0.0)), float(event.get("y", 0.0))))
 				_entities.pose_local(_reconciler.display)
+
+
+func _combat_message(code: String) -> String:
+	if code == "invalid_target":
+		return "That target is not here."
+	if code == "target_dead":
+		return "That target is already defeated."
+	if code == "out_of_range":
+		return "Too far from that target."
+	if code == "on_cooldown":
+		return "That attack is not ready."
+	if code == "player_dead":
+		return "You cannot act while defeated."
+	if code == "pvp_disabled":
+		return "You cannot attack other players."
+	if code == "not_dead":
+		return "You are already alive."
+	if code == "invalid_relation":
+		return "That target cannot be selected that way."
+	return "The server rejected that combat action."
 
 
 func _interaction_message(payload: Dictionary) -> String:
@@ -675,6 +707,12 @@ func _on_logout_pressed() -> void:
 		GameService.cancel_reconnect()
 		return
 	GameService.request_logout()
+
+
+func _on_respawn_pressed() -> void:
+	if NetworkService.match_id.is_empty():
+		return
+	NetworkService.send_release_respawn(MatchProtocol.new_request_id())
 
 
 func _on_reconnect_cancel() -> void:

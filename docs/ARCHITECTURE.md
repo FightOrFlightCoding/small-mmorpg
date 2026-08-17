@@ -106,7 +106,7 @@ Third-party libraries are implementation details. Game code talks to project-own
 | `NetworkService` | Nakama Godot SDK 3.4.0 | Email/password and debug device auth, `user://` session token cache, refresh, reauth (device only), realtime socket, bounded reconnect backoff, logout/cancel, character list/create/select/delete/restore, `character_bootstrap` wrapper, `find_or_create_starter_zone`, match join with `selectionTicket`, leave/rejoin, match opcodes, starter-zone room chat. Socket match/chat/closed signals are connected once. |
 | `GameService` | the autoloads above | Boot, email register/login, debug device login, character lifecycle, starter-zone join. Not a gameplay authority. |
 | `SceneRouter` | Godot scene tree | Transitions among boot, login, character, and world |
-| `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE`/`SNAPSHOT`. Local movement is predicted and reconciled; all remote entities interpolate from one snapshot buffer keyed `kind:id`. The HUD journal mirrors `QuestService`. The HUD inventory list mirrors `InventoryService`. The HUD equipment slots and attack label mirror `EquipmentService`. The HUD gold label mirrors `WalletService`. The HUD progression panel mirrors `ProgressionService`. The HUD hotbar, cast bar, resource hint, and status icons mirror `AbilityService`. Health, death, and respawn copy server vitals. Not a gameplay authority. |
+| `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE`/`SNAPSHOT`. Local movement is predicted and reconciled; all remote entities interpolate from one snapshot buffer keyed `kind:id`. The HUD journal mirrors `QuestService`. The HUD inventory list mirrors `InventoryService`. The HUD equipment slots and attack label mirror `EquipmentService`. The HUD gold label mirrors `WalletService`. The HUD progression panel mirrors `ProgressionService`. The HUD hotbar, cast bar, resource hint, and status icons mirror `AbilityService`. Target frame, combat-state label, health, death overlay, and respawn copy server vitals. Not a gameplay authority. |
 | `ChatPanel` / `ZoneChat` | none | Presentation of the starter-zone room channel. History is a `Label` (no BBCode). Not a gameplay authority. |
 | `QuestService` | none | In-memory mirror of server quest records from `FULL_STATE` / `QUEST_STATE`. Accept sends `QUEST_ACCEPT` only. Turn-in sends `QUEST_TURN_IN` with `questId`, `npcId`, and `requestId`. Not a gameplay authority. Do not use QuestSystem. |
 | `AttackIntent` / `CombatFeedback` | none | Nearby enemy pick and floating damage numbers. Attack sends `targetId` + `requestId` only. Not a gameplay authority. |
@@ -149,6 +149,7 @@ Generated artifacts must preserve IDs. Network messages and storage records carr
 - Current interpolation/render pose on the client
 - In-flight projectile or swing presentation
 - Player health (full on join after grace expiry or a new match)
+- In-combat flags, last hostile/damage ticks, current targets, death timer (reconnect grace keeps them; they are not stored)
 - Enemy aggro unless a later accepted phase persists it (the slice does not)
 - Cooldown remaining time, reconstructed from server timestamps after resync
 - Active casts (cleared on reconnect; not persisted)

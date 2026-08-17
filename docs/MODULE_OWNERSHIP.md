@@ -25,9 +25,9 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `AbilityService` | C | Ability/hotbar/cast/cooldown mirror; use/cancel/unlock/hotbar intents | In-memory unlocked ids, hotbar, resources, cooldowns, active cast, effects | none | `NetworkService`, `ContentRegistry`, `AttackIntent` | no | USE_ABILITY / CANCEL_CAST / ASSIGN_HOTBAR / UNLOCK_ABILITY | no |
 | `DialogueCatalog` / `DialoguePresenter` | C | Map NPC id → `.dialogue`; open after INTERACTION_RESULT | pending request ids | Dialogue Manager 3.10.5 | `QuestService` from dialogue `do` lines | no | no | no |
 | `ZoneChat` / `ChatPanel` | C | Room join/leave, history Label | chat lines | none | `NetworkService` | no | chat channel, not match opcode | no |
-| `World` / `ZoneView` / `EntityRegistry` / avatars / `WorldHud` | C | Render zone and HUD (hotbar, cast bar, ground-target preview, status icons) | display poses | none | services above | no | INPUT via World | no |
+| `World` / `ZoneView` / `EntityRegistry` / avatars / `WorldHud` | C | Render zone and HUD (hotbar, cast bar, ground-target preview, status icons, target frame, death overlay, combat indicator) | display poses | none | services above | no | INPUT via World | no |
 | `MoveIntent` / `MovementSim` / `MovementReconciler` / `SnapshotBuffer` | C | Prediction and interpolation | unacked cmds, buffer | none | `MatchProtocol` | no | INPUT | no |
-| `AttackIntent` / `CombatFeedback` / `InteractIntent` / `PickupIntent` | C | Usability targeting | none | none | `NetworkService` | no | ATTACK / INTERACT / PICKUP | no |
+| `AttackIntent` / `CombatFeedback` / `InteractIntent` / `PickupIntent` | C | Usability targeting and floating numbers | none | none | `NetworkService` | no | ATTACK / SET_TARGET / INTERACT / PICKUP | no |
 | `NetDebugOverlay` | C | Debug FPS / ping EMA | none | none | none | no | no | no |
 | `ErrorDialog` / `LoadingOverlay` / `ShellPage` | C | Visible errors and overlays | none | none | `AppState` | no | no | no |
 | `Boot` / `Login` / `Character` scenes | C | Shell UI | none | none | `GameService` | no | no | no |
@@ -35,11 +35,12 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `protocol.ts` | S | Opcode parse, injection rejection | none | none | none | no | yes (parse) | no |
 | `match_state.ts` / `match_loop.ts` | S | Zone simulation tick | live match state | none | domain combat, inventory, quests | no (tick) | emit snapshots | no (tick) |
 | `movement.ts` | S | Axes, collision, speed | none | none | none | no | no | no |
-| `combat.ts` / `enemy_ai.ts` | S | Hits, death, AI, respawn | enemy/player combat fields in match | none | `loot.ts` | no | COMBAT_EVENT | no |
-| `ability.ts` | S | Ability use, casts, cooldowns, unlock, hotbar, ATTACK wrapper | match casts/cooldowns; progression unlocks/hotbar | none | effects, combat, stats | serialize via progression | USE_ABILITY / CANCEL_CAST / ASSIGN_HOTBAR / UNLOCK_ABILITY | no |
-| `effects.ts` | S | Structured effect handlers (damage, heal, resource, modifier, periodic, stun, root) | match effect lists | none | combat, stats | no | COMBAT_EVENT | no |
+| `combat.ts` / `combat_pipeline.ts` / `targeting.ts` / `enemy_ai.ts` | S | Shared combat resolver, targeting, AI, death, respawn | enemy/player combat fields in match | none | `loot.ts`, `xp_hooks.ts` | no | COMBAT_EVENT / SET_TARGET / RELEASE_RESPAWN | no |
+| `ability.ts` | S | Ability use, casts, cooldowns, unlock, hotbar, ATTACK wrapper | match casts/cooldowns; progression unlocks/hotbar | none | effects, combat_pipeline, stats | serialize via progression | USE_ABILITY / CANCEL_CAST / ASSIGN_HOTBAR / UNLOCK_ABILITY | no |
+| `effects.ts` | S | Structured effect handlers (damage, heal, resource, modifier, periodic, stun, root) | match effect lists | none | combat_pipeline, stats | no | COMBAT_EVENT | no |
 | `stats.ts` | S | Deterministic derived-stat pipeline | none | none | equipment modifiers | no | no | no |
 | `progression.ts` / `progression_store.ts` (domain) | S | XP, levels, allocation, serialize progression | none | none | stats.ts | serialize only | no | no |
+| `xp_hooks.ts` | S | Trusted XP grant interface from kill/quest events | none | none | progression.ts via match loop | no | no | no |
 | `interaction.ts` | S | NPC range checks | none | none | none | no | INTERACTION_RESULT | no |
 | `loot.ts` | S | Ground loot TTL and pickup apply | match loot list | none | `inventory.ts` | no | via loop | grant in memory |
 | `inventory.ts` / `inventory_store.ts` (domain) | S | Stack rules, instance fields, locks, serialize inventory | none | none | none | serialize only | no | yes (pure) |

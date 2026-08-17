@@ -1,6 +1,6 @@
 # Test catalog
 
-Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, and Prompt 24 ability coverage. Do not weaken these tests. Live gate counts after Prompt 24: content 14/14, server 254/254, client 142/142 (0 orphans), `E2E_SLICE_OK`.
+Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, Prompt 24 ability coverage, and Prompt 25 combat-pipeline coverage. Do not weaken these tests. Live gate counts after Prompt 25: content 14/14, server 276/276, client 145/145 (0 orphans), `E2E_SLICE_OK`.
 
 Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDATION_BASELINE.md).
 
@@ -41,6 +41,9 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `fixtures/malformed_messages.ts` | malformed JSON corpus | VS-T1 |
 | `movement.test.ts` | teleport/overspeed, seq | VS-T2 |
 | `combat.test.ts` | server damage, cooldown, death, slime AI | VS-T3 |
+| `combat_pipeline.test.ts` | pipeline order, healing, defense, modifiers, periodic, death, dead restrictions, respawn, bind fallback, duplicate event, invalid target, PvP, cast interrupt, reconnect while dead | |
+| `targeting.test.ts` | self/hostile/friendly/ground/area queries; SET_TARGET | |
+| `xp_hooks.test.ts` | trusted grant interface, kill/quest event ids, idempotency | |
 | `inventory.test.ts` | pickup, stack merge/split/move, destroy, locks, capacity, Prompt 18 instance ids | VS-T4, T5 |
 | `equipment.test.ts` | weapons/armor slots, class/level/lock, derived attack | VS-T5 |
 | `transaction.test.ts` | gold add/remove/insufficient, idempotency, OCC, audit, in-memory committer | |
@@ -78,7 +81,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `interaction_client_test.gd` | INTERACT, dialogue after result | |
 | `quest_service_test.gd` | accept/turn-in intents | VS-T6 analog |
 | `inventory_service_test.gd` / `equipment_service_test.gd` / `wallet_service_test.gd` / `progression_service_test.gd` | mirrors | VS-T5, T8 |
-| `combat_client_test.gd` | attack intent | VS-T3 analog |
+| `combat_client_test.gd` | attack intent, target frame, death overlay, SET_TARGET / RELEASE | VS-T3 analog |
 | `ability_service_test.gd` | use/ground-target intentions, canonical hotbar/cooldown/cast bar | |
 | `chat_client_test.gd` | Label, no BBCode | |
 | `reconnect_test.gd` | overlay, seq adopt | |

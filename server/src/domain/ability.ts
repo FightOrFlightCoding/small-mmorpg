@@ -1,4 +1,5 @@
-import { applyPlayerAttack, cooldownTicks, findEnemy, NEVER_ATTACKED_TICK, type CombatEvent } from "./combat";
+import { cooldownTicks, findEnemy, NEVER_ATTACKED_TICK, type CombatEvent } from "./combat";
+import { applyPlayerAttack } from "./combat_pipeline";
 import {
   applyEffectDefinition,
   effectModifiersFrom,
@@ -577,6 +578,7 @@ export function useLegacyAttackOrAbility(
       attackRange: attackRange,
       attackCooldownSec: attackCooldownSec,
       tickRate: SNAPSHOT_RATE_HZ,
+      match: state,
     },
     events,
   );
@@ -660,7 +662,14 @@ function resolveTargets(
     }
     return { ok: true, code: "ok", primaryId: "", pointX: input.targetX, pointY: input.targetY };
   }
-  const targetId = input.targetId !== undefined ? input.targetId : "";
+  let targetId = input.targetId !== undefined ? input.targetId : "";
+  if (targetId.length === 0) {
+    if (definition.relationFilter === "hostile") {
+      targetId = player.hostileTargetId !== undefined ? player.hostileTargetId : "";
+    } else if (definition.relationFilter === "friendly") {
+      targetId = player.friendlyTargetId !== undefined ? player.friendlyTargetId : "";
+    }
+  }
   if (targetId.length === 0) {
     return { ok: false, code: "invalid_target", primaryId: "", pointX: 0, pointY: 0 };
   }

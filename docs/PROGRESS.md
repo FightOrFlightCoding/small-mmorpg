@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Generic ability, casting, cooldown, resource, and effect engine**.
+Last accepted phase: **Generic combat pipeline, targeting, death, respawn, and XP hooks**.
 
 Current phase: none.
 
@@ -449,6 +449,28 @@ The Prompt 18 basic attack is `test.ability.basic_melee` (`player.base.basicAbil
 | Audit | `FOUNDATION_AUDIT_OK` (10 storage records, 16 client opcodes, 12 server opcodes) |
 | Server | 254/254 |
 | Client GdUnit | 142/142, 0 orphans, `SHELL_LOGIN` |
+| E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect) |
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-content.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+powershell -File scripts/test-e2e.ps1
+```
+
+## Generic combat pipeline, targeting, death, respawn, and XP hooks acceptance (2026-08-17)
+
+Player attacks, enemy attacks, abilities, and periodic effects share one server combat pipeline with structured formulas (no eval). Targeting validates match entity IDs. Death and respawn are server-authoritative (3s auto-respawn or `RELEASE_RESPAWN`; bind if set, else `zone.starter.playerSpawn`). PvP remains impossible. XP grants go through trusted server hooks; clients cannot forge amounts. Prompt 18 combat numbers and the slime-kill e2e path remain. Parties, inns as a full system, extra enemy AI, merchants, and PvP were not added.
+
+| Gate | Result |
+| --- | --- |
+| Content | 14/14, matching hash `7a3006806260ec57ddf338c72dbf5d932786909143acab0abc7b5d9e2e6b024a` |
+| Audit | `FOUNDATION_AUDIT_OK` (10 storage records, 18 client opcodes, 12 server opcodes) |
+| Server | 276/276 |
+| Client GdUnit | 145/145, 0 orphans, `SHELL_LOGIN` |
 | E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect) |
 
 Reproduction:

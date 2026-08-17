@@ -56,7 +56,9 @@
     "USE_ABILITY": 13,
     "CANCEL_CAST": 14,
     "ASSIGN_HOTBAR": 15,
-    "UNLOCK_ABILITY": 16
+    "UNLOCK_ABILITY": 16,
+    "SET_TARGET": 17,
+    "RELEASE_RESPAWN": 18
   },
   "serverOpcodes": {
     "FULL_STATE": 101,

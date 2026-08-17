@@ -20,6 +20,8 @@ export const ClientOpcode = {
   CANCEL_CAST: 14,
   ASSIGN_HOTBAR: 15,
   UNLOCK_ABILITY: 16,
+  SET_TARGET: 17,
+  RELEASE_RESPAWN: 18,
 } as const;
 
 export const ServerOpcode = {
@@ -57,6 +59,8 @@ const CLIENT_OPCODES: ClientOpcode[] = [
   ClientOpcode.CANCEL_CAST,
   ClientOpcode.ASSIGN_HOTBAR,
   ClientOpcode.UNLOCK_ABILITY,
+  ClientOpcode.SET_TARGET,
+  ClientOpcode.RELEASE_RESPAWN,
 ];
 
 const REWARD_OPCODES: ClientOpcode[] = [
@@ -84,6 +88,8 @@ OPCODE_KEYS[ClientOpcode.USE_ABILITY] = ["abilityId", "targetId", "targetX", "ta
 OPCODE_KEYS[ClientOpcode.CANCEL_CAST] = [];
 OPCODE_KEYS[ClientOpcode.ASSIGN_HOTBAR] = ["slotIndex", "abilityId"];
 OPCODE_KEYS[ClientOpcode.UNLOCK_ABILITY] = ["abilityId"];
+OPCODE_KEYS[ClientOpcode.SET_TARGET] = ["targetId", "intent"];
+OPCODE_KEYS[ClientOpcode.RELEASE_RESPAWN] = [];
 
 const OUTCOME_KEYS = [
   "attack",
@@ -180,7 +186,9 @@ function requiresRequestId(opcode: ClientOpcode): boolean {
     opcode === ClientOpcode.USE_ABILITY ||
     opcode === ClientOpcode.CANCEL_CAST ||
     opcode === ClientOpcode.ASSIGN_HOTBAR ||
-    opcode === ClientOpcode.UNLOCK_ABILITY
+    opcode === ClientOpcode.UNLOCK_ABILITY ||
+    opcode === ClientOpcode.SET_TARGET ||
+    opcode === ClientOpcode.RELEASE_RESPAWN
   );
 }
 
@@ -286,6 +294,12 @@ export function parseClientMessage(
       continue;
     }
     if (key === "targetId" && opcode === ClientOpcode.USE_ABILITY && !Object.prototype.hasOwnProperty.call(data, key)) {
+      continue;
+    }
+    if (key === "targetId" && opcode === ClientOpcode.SET_TARGET && !Object.prototype.hasOwnProperty.call(data, key)) {
+      continue;
+    }
+    if (key === "intent" && opcode === ClientOpcode.SET_TARGET && !Object.prototype.hasOwnProperty.call(data, key)) {
       continue;
     }
     if (key === "abilityId" && opcode === ClientOpcode.ASSIGN_HOTBAR && !Object.prototype.hasOwnProperty.call(data, key)) {

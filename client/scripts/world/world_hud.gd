@@ -3,14 +3,20 @@ extends CanvasLayer
 
 signal resync_pressed
 signal logout_pressed
+signal respawn_pressed
 
 @onready var _status: Label = $Root/Margin/VBox/Status
 @onready var _entities: Label = $Root/Margin/VBox/Entities
 @onready var _health: Label = $Root/Margin/VBox/Health
+@onready var _combat_state: Label = $Root/Margin/VBox/CombatState
 @onready var _resync: Button = $Root/Margin/VBox/Buttons/ResyncButton
 @onready var _logout: Button = $Root/Margin/VBox/Buttons/LogoutButton
 @onready var _journal_body: Label = $Root/Journal/Margin/VBox/Body
 @onready var _death: Label = $Root/Death
+@onready var _respawn_button: Button = $Root/RespawnButton
+@onready var _target_frame: PanelContainer = $Root/TargetFrame
+@onready var _target_name: Label = $Root/TargetFrame/Margin/VBox/Name
+@onready var _target_vitals: Label = $Root/TargetFrame/Margin/VBox/Vitals
 @onready var _inventory_capacity: Label = $Root/Inventory/Margin/VBox/Capacity
 @onready var _gold: Label = $Root/Inventory/Margin/VBox/Gold
 @onready var _inventory_host: Control = $Root/Inventory/Margin/VBox/ListHost
@@ -43,6 +49,8 @@ var _attribute_row_fingerprint: String = ""
 func _ready() -> void:
 	_resync.pressed.connect(func() -> void: resync_pressed.emit())
 	_logout.pressed.connect(func() -> void: logout_pressed.emit())
+	if _respawn_button != null:
+		_respawn_button.pressed.connect(func() -> void: respawn_pressed.emit())
 	refresh_journal(QuestService.journal_view())
 	_bind_inventory()
 	refresh_inventory()
@@ -84,6 +92,12 @@ func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool =
 			_health.text = ""
 		if _death != null:
 			_death.visible = false
+		if _respawn_button != null:
+			_respawn_button.visible = false
+		if _target_frame != null:
+			_target_frame.visible = false
+		if _combat_state != null:
+			_combat_state.text = ""
 		refresh_journal(QuestService.journal_view())
 		return
 	if snapshot_stale:
@@ -99,6 +113,7 @@ func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool =
 		]
 	_entities.text = "Present: %s" % ", ".join(names)
 	_refresh_health(state)
+	_refresh_target_frame(state)
 	refresh_journal(QuestService.journal_view())
 	refresh_equipment()
 	refresh_wallet()
@@ -441,6 +456,8 @@ func _refresh_health(state: Dictionary) -> void:
 	var self_id := String(state.get("self_id", ""))
 	var player_hp := "You: --"
 	var local_dead := false
+	var in_combat := false
+	var dead_until := 0
 	for entry in state.get("players", []):
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
@@ -449,7 +466,12 @@ func _refresh_health(state: Dictionary) -> void:
 		var health := int(entry.get("health", 0))
 		var max_health := int(entry.get("maxHealth", health))
 		player_hp = "You: %s / %s" % [str(health), str(max_health)]
+		var resource_text := _resource_summary(entry)
+		if not resource_text.is_empty():
+			player_hp += "  %s" % resource_text
 		local_dead = health <= 0
+		in_combat = bool(entry.get("inCombat", false))
+		dead_until = int(entry.get("deadUntilTick", 0))
 		break
 	var slime_hp := "Slime: --"
 	for entry in state.get("enemies", []):
@@ -464,10 +486,98 @@ func _refresh_health(state: Dictionary) -> void:
 		break
 	if _health != null:
 		_health.text = "%s    %s    Atk %s    Attack: Space    Pickup: F" % [player_hp, slime_hp, str(EquipmentService.attack)]
+	if _combat_state != null:
+		if local_dead:
+			_combat_state.text = "Defeated"
+		elif in_combat:
+			_combat_state.text = "In combat"
+		else:
+			_combat_state.text = "Out of combat"
 	if _death != null:
 		_death.visible = local_dead
 		if local_dead:
-			_death.text = "Defeated. Respawning..."
+			var tick := int(state.get("tick", 0))
+			var remaining := maxi(dead_until - tick, 0)
+			var seconds := ceili(float(remaining) / 10.0)
+			if seconds > 0:
+				_death.text = "Defeated. Respawning in %ss..." % str(seconds)
+			else:
+				_death.text = "Defeated. Release to respawn."
+	if _respawn_button != null:
+		_respawn_button.visible = local_dead
+
+
+func _resource_summary(entry: Dictionary) -> String:
+	var resources: Variant = entry.get("resources", {})
+	if typeof(resources) != TYPE_DICTIONARY:
+		resources = AbilityService.resources
+	if typeof(resources) != TYPE_DICTIONARY:
+		return ""
+	var data: Dictionary = resources
+	if data.is_empty():
+		data = AbilityService.resources
+	if data.is_empty():
+		return ""
+	var parts: PackedStringArray = PackedStringArray()
+	for key in data.keys():
+		var label := String(key)
+		var bits := label.split(".")
+		if bits.size() > 0:
+			label = bits[bits.size() - 1]
+		parts.append("%s %s" % [label, str(int(data[key]))])
+	return "  ".join(parts)
+
+
+func _refresh_target_frame(state: Dictionary) -> void:
+	if _target_frame == null:
+		return
+	var self_id := String(state.get("self_id", ""))
+	var hostile_id := ""
+	var friendly_id := ""
+	for entry in state.get("players", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("userId", "")) != self_id:
+			continue
+		hostile_id = String(entry.get("hostileTargetId", ""))
+		friendly_id = String(entry.get("friendlyTargetId", ""))
+		break
+	var shown := _fill_target_from_enemies(state, hostile_id)
+	if not shown:
+		shown = _fill_target_from_players(state, friendly_id, self_id)
+	_target_frame.visible = shown
+
+
+func _fill_target_from_enemies(state: Dictionary, target_id: String) -> bool:
+	if target_id.is_empty():
+		return false
+	for entry in state.get("enemies", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("id", "")) != target_id:
+			continue
+		if _target_name != null:
+			_target_name.text = String(entry.get("enemyId", target_id))
+		if _target_vitals != null:
+			_target_vitals.text = "%s / %s" % [str(int(entry.get("health", 0))), str(int(entry.get("maxHealth", 0)))]
+		return true
+	return false
+
+
+func _fill_target_from_players(state: Dictionary, target_id: String, self_id: String) -> bool:
+	if target_id.is_empty() or target_id == self_id:
+		return false
+	for entry in state.get("players", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("userId", "")) != target_id:
+			continue
+		if _target_name != null:
+			_target_name.text = String(entry.get("name", target_id))
+		if _target_vitals != null:
+			_target_vitals.text = "%s / %s" % [str(int(entry.get("health", 0))), str(int(entry.get("maxHealth", 0)))]
+		return true
+	return false
 
 
 func _local_name(state: Dictionary) -> String:

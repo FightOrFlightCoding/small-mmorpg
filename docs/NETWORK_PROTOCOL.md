@@ -22,7 +22,7 @@ Match and RPC payloads for the slice are JSON objects.
 - Envelopes are UTF-8 JSON.
 - Strict client intentions reject unknown fields.
 - Client→server match payloads are rejected above **2048** bytes (`payload_too_large`).
-- Limits: `INPUT` **20**, `ATTACK`/`USE_ABILITY`/`CANCEL_CAST` **8**, `INTERACT` **8**, `PICKUP` **8**, `EQUIP`/`DESTROY_ITEM`/`SPLIT_STACK`/`MOVE_ITEM` **8**, `QUEST_ACCEPT`+`QUEST_TURN_IN` **8**, `ALLOCATE_ATTRIBUTES`/`ASSIGN_HOTBAR`/`UNLOCK_ABILITY` **8**, `RESYNC_REQUEST` **2**. Extra requests are `rate_limited` (`SYSTEM_MESSAGE`), are logged, and do not apply. At most **24** match messages are parsed per player per tick.
+- Limits: `INPUT` **20**, `ATTACK`/`USE_ABILITY`/`CANCEL_CAST`/`SET_TARGET` **8**, `INTERACT` **8**, `PICKUP` **8**, `EQUIP`/`DESTROY_ITEM`/`SPLIT_STACK`/`MOVE_ITEM` **8**, `QUEST_ACCEPT`+`QUEST_TURN_IN` **8**, `ALLOCATE_ATTRIBUTES`/`ASSIGN_HOTBAR`/`UNLOCK_ABILITY`/`RELEASE_RESPAWN` **8**, `RESYNC_REQUEST` **2**. Extra requests are `rate_limited` (`SYSTEM_MESSAGE`), are logged, and do not apply. At most **24** match messages are parsed per player per tick.
 - `FULL_STATE` / `SNAPSHOT` require the documented fields. `SNAPSHOT` is broadcast at **10 Hz** (the match tick rate) while the zone is occupied.
 
 ## Opcodes
@@ -47,6 +47,8 @@ Match and RPC payloads for the slice are JSON objects.
 | 14 | `CANCEL_CAST` | `{ protocolVersion, requestId }` | Cancels the caster's active cast. |
 | 15 | `ASSIGN_HOTBAR` | `{ protocolVersion, slotIndex, abilityId?, requestId }` | Server validates ownership. Empty `abilityId` clears the slot. |
 | 16 | `UNLOCK_ABILITY` | `{ protocolVersion, abilityId, requestId }` | Spends unspent skill points. |
+| 17 | `SET_TARGET` | `{ protocolVersion, targetId?, intent?, requestId }` | Selects current hostile or friendly target. Empty `targetId` clears. `intent` `hostile` against a player is `pvp_disabled`. |
+| 18 | `RELEASE_RESPAWN` | `{ protocolVersion, requestId }` | Explicit PvE release while dead. Auto-respawn after 3s still applies. |
 
 `contentHash` is optional on client messages. If present it must match the server catalog.
 
@@ -69,7 +71,7 @@ Match and RPC payloads for the slice are JSON objects.
 | 111 | `PROGRESSION_STATE` | `{ protocolVersion, contentHash, requestId?, progression }` |
 | 112 | `ABILITY_STATE` | `{ protocolVersion, contentHash, requestId?, abilities }` |
 
-`FULL_STATE` is sent to the joining presence after character, quest, inventory, equipment, wallet, and progression load, and again on `RESYNC_REQUEST`. Occupied matches broadcast `SNAPSHOT` every tick (10 Hz) with player poses, the shared slime, and ground loot. Each player record includes `x`, `y`, `health`, `maxHealth`, `alive`, `lastProcessedSeq`, `resources`, `effects`, and `activeCast`. `quests`, `inventory`, `equipment`, `derived`, `wallet`, `progression`, and `abilities` on `FULL_STATE` are the recipient's records only. `abilities` is `{ unlockedAbilityIds, hotbar, abilityRanks, resources, cooldowns, globalCooldownRemaining, activeCast, effects }`. Public loot is `{ id, itemId, quantity, x, y, expiresAtTick }` and does not include item instance IDs. A client that receives no snapshot or full state for **2 seconds** freezes remote interpolation and shows a degraded-connection state (`snapshot_timeout`). Local prediction still reconciles when snapshots resume. Dialogue opens only after `INTERACTION_RESULT` `ok`. `COMBAT_EVENT.events` entries are `{ type, sourceId, sourceKind, targetId, targetKind, damage?, healing?, remainingHealth?, x?, y?, respawnDelaySec?, interruptReason?, effectId?, abilityId? }` with `type` `hit`, `heal`, `death`, `respawn`, `interrupt`, `effect_applied`, `effect_tick`, or `resource`. Damage numbers are presentation only.
+`FULL_STATE` is sent to the joining presence after character, quest, inventory, equipment, wallet, and progression load, and again on `RESYNC_REQUEST`. Occupied matches broadcast `SNAPSHOT` every tick (10 Hz) with player poses, the shared slime, and ground loot. Each player record includes `x`, `y`, `health`, `maxHealth`, `alive`, `lastProcessedSeq`, `resources`, `effects`, `activeCast`, `inCombat`, `hostileTargetId`, `friendlyTargetId`, `deadUntilTick`, `stunned`, and `rooted`. `quests`, `inventory`, `equipment`, `derived`, `wallet`, `progression`, and `abilities` on `FULL_STATE` are the recipient's records only. `abilities` is `{ unlockedAbilityIds, hotbar, abilityRanks, resources, cooldowns, globalCooldownRemaining, activeCast, effects }`. Public loot is `{ id, itemId, quantity, x, y, expiresAtTick }` and does not include item instance IDs. A client that receives no snapshot or full state for **2 seconds** freezes remote interpolation and shows a degraded-connection state (`snapshot_timeout`). Local prediction still reconciles when snapshots resume. Dialogue opens only after `INTERACTION_RESULT` `ok`. `COMBAT_EVENT.events` entries are `{ type, sourceId, sourceKind, targetId, targetKind, damage?, healing?, remainingHealth?, x?, y?, respawnDelaySec?, interruptReason?, effectId?, abilityId? }` with `type` `hit`, `heal`, `death`, `respawn`, `interrupt`, `effect_applied`, `effect_tick`, `resource`, `threat`, or `credit`. Damage and healing numbers are presentation only.
 
 ## Client sends intentions only
 

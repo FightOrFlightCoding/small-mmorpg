@@ -155,6 +155,19 @@ export function restoreGracePlayer(
     globalCooldownUntilTick: parked.globalCooldownUntilTick,
     abilityUseByRequestId: parked.abilityUseByRequestId,
     abilityUseTicks: parked.abilityUseTicks,
+    inCombat: parked.inCombat === true,
+    lastHostileActionTick: parked.lastHostileActionTick,
+    lastDamageReceivedTick: parked.lastDamageReceivedTick,
+    hostileTargetId: parked.hostileTargetId,
+    friendlyTargetId: parked.friendlyTargetId,
+    bindX: parked.bindX,
+    bindY: parked.bindY,
+    lastSetTargetRequestId: parked.lastSetTargetRequestId,
+    lastSetTargetResultCode: parked.lastSetTargetResultCode,
+    lastSetTargetResultOk: parked.lastSetTargetResultOk,
+    lastReleaseRequestId: parked.lastReleaseRequestId,
+    lastReleaseResultCode: parked.lastReleaseResultCode,
+    lastReleaseResultOk: parked.lastReleaseResultOk,
   };
 }
 

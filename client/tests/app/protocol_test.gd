@@ -31,6 +31,8 @@ func test_join_metadata_carries_selection_ticket_not_character_id() -> void:
 	assert_int(MatchProtocol.CLIENT_CANCEL_CAST).is_equal(14)
 	assert_int(MatchProtocol.CLIENT_ASSIGN_HOTBAR).is_equal(15)
 	assert_int(MatchProtocol.CLIENT_UNLOCK_ABILITY).is_equal(16)
+	assert_int(MatchProtocol.CLIENT_SET_TARGET).is_equal(17)
+	assert_int(MatchProtocol.CLIENT_RELEASE_RESPAWN).is_equal(18)
 	assert_int(MatchProtocol.SERVER_FULL_STATE).is_equal(101)
 	assert_int(MatchProtocol.SERVER_SNAPSHOT).is_equal(102)
 	assert_int(MatchProtocol.SERVER_ACTION_RESULT).is_equal(103)

@@ -499,6 +499,29 @@ func send_unlock_ability(ability_id: String, request_id: String) -> Dictionary:
 	)
 
 
+func send_set_target(target_id: String, request_id: String, intent: String = "") -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var extra: Dictionary = {"requestId": request_id}
+	if not target_id.is_empty():
+		extra["targetId"] = target_id
+	if not intent.is_empty():
+		extra["intent"] = intent
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_SET_TARGET,
+		MatchProtocol.client_envelope_json(extra)
+	)
+
+
+func send_release_respawn(request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_RELEASE_RESPAWN,
+		MatchProtocol.client_envelope_json({"requestId": request_id})
+	)
+
+
 func join_zone_chat() -> bool:
 	_connect_chat_signals()
 	if not zone_chat_id.is_empty():
