@@ -324,3 +324,23 @@ Damage and healing share ordered steps: action accepted, actor validated, target
 XP grants still come only from trusted server events. Enemy kill and quest turn-in call `xp_hooks` into `grantXp`. This phase does not invent a new enemy XP formula; `enemy.xpReward` and `kill:<instanceId>:<deathCount>` stay. Clients cannot send XP amounts.
 
 The HUD target frame, combat-state label, death overlay, release button, and floating numbers are presentation of server snapshots and `COMBAT_EVENT` only.
+
+## 2026-08-17 — Generic enemies, spawn controllers, AI profiles, loot tables, and bosses
+
+The issued Prompt 26 generalizes the Prompt 18 slime into data-defined enemies, spawn controllers, server AI profiles, loot tables, and simple boss phases. It supersedes the earlier roadmap row that named “cave instances” as Prompt 26. Caves remain later. Parties remain later; this phase only adds a party-credit hook from threat. Final party loot is Prompt 28. PvP remains disabled. There is no client-side AI framework (no LimboAI).
+
+Enemy documents carry `enemy_id`, `display_name_key`, `level`, base combat stats (`maxHealth`, `damage`, `defense`), optional resource pools, movement/aggro/leash/attack range, `ability_loadout`, `ai_profile_id`, `xp_reward`, `loot_table_id`, `visual_asset_id`, `collision_profile_id`, and `tags`. The green slime is a normal enemy (`enemy.green_slime`) using `test.ai.melee`, `loot.green_slime`, instance id `enemy.green_slime:0`, 20 HP, damage 2, and a guaranteed gel. Test melee/ranged/caster/boss spawns in `zone.starter` use `activationPolicy: "manual"` so they do not aggro the Prompt 18 e2e path.
+
+Spawn documents carry `spawn_id`, `zone_id`, `enemy_id`, position (`x`/`y`), `spawn_count`, `respawn_delay`, `activation_policy` (`always` | `manual`), and `group_id`. The spawn controller creates entities, tracks living/dead slots, schedules in-place respawn via `deadUntilTick`, ignores duplicate slot respawns, and `resetSpawnGroup` exists for later cave resets. Match restart is a fresh `createStarterZoneState`.
+
+AI profiles (`melee`, `ranged`, `caster`, `boss`) are a deterministic server state machine: `idle`, `acquiring` (not persisted; nearest acquisition goes to `chasing`/`attacking` so Prompt 18 aggro tests stay valid), `chasing`, `positioning`, `casting`, `attacking`, `returning`, `stunned`, `dead`. The client only presents `state` from snapshots.
+
+Threat is simple and documented: `threat += floor(amount * weight)` for damage, and for healing only when `generateHealThreat` is true and the healed player is the current target or already on the table. Target switches when another valid player’s threat exceeds current × `threatSwitchRatio` (1.1 for ordinary profiles, 1.05 for the test boss). Otherwise nearest living player in aggro. Leash returns to spawn; ordinary melee does not restore HP (Prompt 18); boss/`resetHealthOnReturn` restores HP, loadout, phase, flags, and despawns phase adds.
+
+Loot tables support guaranteed entries, independent chance entries, weighted choice groups, and empty tables. Rolls use a match-local LCG seeded from `kill:<instanceId>:<deathCount>` (no Node `crypto`). Ground loot is still `ownershipPolicy: ground_free`; killer/party_split are catalog values for Prompt 28. Death processing is idempotent on that event id for loot, XP, and the party-credit hook.
+
+Boss phases are a fixed table: health percent, combat time, add deaths, and one-time flags. A phase may add/remove abilities, change move/aggro/attack range, apply one structured effect, trigger a spawn, and send a `COMBAT_EVENT` `message`. There is no boss scripting language. The test cave boss starts with smash, enrages at ≤50% HP (adds nova, speed 55, `spawn.starter.boss_add`, message `"The cave boss enrages."`), and resets on wipe or leash.
+
+A new ordinary enemy that reuses an existing AI profile is content-only.
+
+Nakama JSON-roundtrips match state between ticks. Optional arrays (`phases`, loot `entries`) may be omitted or null; domain code uses `Array.isArray` (or equivalent) before reading `.length`. In-place slime respawn restores `idle` on the ready tick and does not re-aggro until the following tick.

@@ -8,12 +8,26 @@ import { applyCombat, tickPlayerRespawns } from "./combat_pipeline";
 import type { MatchEnemy, MatchPlayer, StarterZoneState } from "./match_state";
 import { distance, resolveMove } from "./movement";
 import { hasControlTag } from "./effects";
+import { maybeResetBoss, tickBossPhases } from "./boss";
+import { interruptEnemyCast, tickEnemyCasts, tryEnemyAbility } from "./enemy_ability";
+import { despawnSpawn, resetEnemyToSpawn, respawnExistingIfDue, tickRespawns } from "./spawn_controller";
+import {
+  clearThreat,
+  profileForEnemy,
+  selectThreatTarget,
+  type AiProfileContent,
+} from "./threat";
+import { dict } from "./maps";
 
 export const EnemyAiState = {
   Idle: "idle",
+  Acquiring: "acquiring",
   Chasing: "chasing",
+  Positioning: "positioning",
+  Casting: "casting",
   Attacking: "attacking",
   Returning: "returning",
+  Stunned: "stunned",
   Dead: "dead",
 } as const;
 
@@ -29,6 +43,8 @@ export function simulateCombatants(
   events: CombatEvent[],
 ): void {
   tickPlayerRespawns(state, tick, events);
+  tickEnemyCasts(state, tick, tickRate, events);
+  tickRespawns(state, tick, events, dict(state.enemiesById));
   simulateEnemies(state, tick, dt, tickRate, events);
 }
 
@@ -52,50 +68,55 @@ function stepEnemy(
   tickRate: number,
   events: CombatEvent[],
 ): void {
+  if (respawnExistingIfDue(enemy, tick, events)) {
+    return;
+  }
   if (enemy.aiState === EnemyAiState.Dead || enemy.health <= 0) {
-    const until = enemy.deadUntilTick !== undefined ? enemy.deadUntilTick : 0;
-    if (until > 0 && tick >= until) {
-      respawnEnemy(enemy, events);
-    }
+    enemy.aiState = EnemyAiState.Dead;
     return;
   }
   if (hasControlTag(enemy.effects, "stun")) {
+    interruptEnemyCast(enemy, "stun", tick, events);
+    enemy.aiState = EnemyAiState.Stunned;
     return;
   }
+  const profile = profileForEnemy(state, enemy);
+  if (maybeResetBoss(state, enemy, events)) {
+    enemy.aiState = EnemyAiState.Idle;
+    return;
+  }
+  tickBossPhases(state, enemy, tick, tickRate, events);
 
   const fromSpawn = distance(enemy.x, enemy.y, enemy.spawnX, enemy.spawnY);
   if (enemy.aiState === EnemyAiState.Returning || fromSpawn > enemy.leashRadius) {
-    enemy.aiState = EnemyAiState.Returning;
-    enemy.aggroTarget = "";
-    if (hasControlTag(enemy.effects, "root")) {
-      return;
-    }
-    const arrived = moveToward(
-      enemy,
-      enemy.spawnX,
-      enemy.spawnY,
-      dt,
-      state,
-    );
-    if (arrived) {
-      enemy.x = enemy.spawnX;
-      enemy.y = enemy.spawnY;
-      enemy.aiState = EnemyAiState.Idle;
-    }
+    returnToSpawn(state, enemy, profile, dt, events);
     return;
   }
 
-  const targetId = acquireTarget(state, enemy);
+  if (enemy.activeCast !== undefined && enemy.activeCast.interruptReason === "") {
+    enemy.aiState = EnemyAiState.Casting;
+    return;
+  }
+
+  const targetId = selectThreatTarget(state, enemy, profile);
   enemy.aggroTarget = targetId;
   if (targetId === "") {
     enemy.aiState = EnemyAiState.Idle;
     return;
   }
+  if (enemy.combatEnteredTick === undefined || enemy.combatEnteredTick <= 0) {
+    enemy.combatEnteredTick = tick;
+  }
   const target = state.players[targetId];
   const range = distance(enemy.x, enemy.y, target.x, target.y);
+  const preferred = profile.preferredRange > 0 ? profile.preferredRange : enemy.attackRange;
+  if (profile.style === "ranged" || profile.style === "caster") {
+    stepRangedOrCaster(state, enemy, target, profile, range, preferred, tick, dt, tickRate, events);
+    return;
+  }
   if (range <= enemy.attackRange) {
     enemy.aiState = EnemyAiState.Attacking;
-    tryEnemyAttack(state, enemy, target, tick, tickRate, events);
+    tryAttack(state, enemy, target, tick, tickRate, events);
     return;
   }
   if (hasControlTag(enemy.effects, "root")) {
@@ -106,40 +127,57 @@ function stepEnemy(
   moveToward(enemy, target.x, target.y, dt, state);
 }
 
-function acquireTarget(state: StarterZoneState, enemy: MatchEnemy): string {
-  const current = enemy.aggroTarget;
-  if (current !== undefined && current !== "") {
-    const held = state.players[current];
-    if (held !== undefined && held.health > 0) {
-      return current;
+function stepRangedOrCaster(
+  state: StarterZoneState,
+  enemy: MatchEnemy,
+  target: MatchPlayer,
+  profile: AiProfileContent,
+  range: number,
+  preferred: number,
+  tick: number,
+  dt: number,
+  tickRate: number,
+  events: CombatEvent[],
+): void {
+  if (profile.kiteRange > 0 && range < profile.kiteRange) {
+    if (hasControlTag(enemy.effects, "root")) {
+      enemy.aiState = EnemyAiState.Idle;
+      return;
     }
+    enemy.aiState = EnemyAiState.Positioning;
+    const dx = enemy.x - target.x;
+    const dy = enemy.y - target.y;
+    moveToward(enemy, enemy.x + dx, enemy.y + dy, dt, state);
+    return;
   }
-  return nearestPlayerInAggro(state, enemy);
+  if (range <= preferred || range <= enemy.attackRange) {
+    enemy.aiState = EnemyAiState.Attacking;
+    tryAttack(state, enemy, target, tick, tickRate, events);
+    return;
+  }
+  if (hasControlTag(enemy.effects, "root")) {
+    enemy.aiState = EnemyAiState.Idle;
+    return;
+  }
+  enemy.aiState = EnemyAiState.Chasing;
+  moveToward(enemy, target.x, target.y, dt, state);
 }
 
-function nearestPlayerInAggro(state: StarterZoneState, enemy: MatchEnemy): string {
-  const ids = Object.keys(state.players);
-  ids.sort();
-  let bestId = "";
-  let bestDistance = 0;
-  for (let i = 0; i < ids.length; i++) {
-    const player = state.players[ids[i]];
-    if (player.health <= 0) {
-      continue;
-    }
-    const range = distance(enemy.x, enemy.y, player.x, player.y);
-    if (range > enemy.aggroRadius) {
-      continue;
-    }
-    if (bestId === "" || range < bestDistance || (range === bestDistance && ids[i] < bestId)) {
-      bestDistance = range;
-      bestId = ids[i];
-    }
+function tryAttack(
+  state: StarterZoneState,
+  enemy: MatchEnemy,
+  target: MatchPlayer,
+  tick: number,
+  tickRate: number,
+  events: CombatEvent[],
+): void {
+  if (tryEnemyAbility(state, enemy, target, tick, tickRate, events)) {
+    return;
   }
-  return bestId;
+  tryEnemyAutoAttack(state, enemy, target, tick, tickRate, events);
 }
 
-function tryEnemyAttack(
+function tryEnemyAutoAttack(
   state: StarterZoneState,
   enemy: MatchEnemy,
   target: MatchPlayer,
@@ -173,24 +211,41 @@ function tryEnemyAttack(
   enemy.lastAttackTick = tick;
 }
 
-function respawnEnemy(enemy: MatchEnemy, events: CombatEvent[]): void {
+function returnToSpawn(
+  state: StarterZoneState,
+  enemy: MatchEnemy,
+  profile: AiProfileContent,
+  dt: number,
+  events: CombatEvent[],
+): void {
+  enemy.aiState = EnemyAiState.Returning;
+  if (profile.resetThreatOnReturn) {
+    clearThreat(enemy);
+  } else {
+    enemy.aggroTarget = "";
+  }
+  interruptEnemyCast(enemy, "leash", 0, events);
+  if (hasControlTag(enemy.effects, "root")) {
+    return;
+  }
+  const arrived = moveToward(enemy, enemy.spawnX, enemy.spawnY, dt, state);
+  if (!arrived) {
+    return;
+  }
   enemy.x = enemy.spawnX;
   enemy.y = enemy.spawnY;
-  enemy.health = enemy.maxHealth;
+  if (profile.style === "boss" || profile.resetHealthOnReturn) {
+    const phases = Array.isArray(enemy.phases) ? enemy.phases : [];
+    for (let p = 0; p < phases.length; p++) {
+      const spawnId = phases[p].triggerSpawnId;
+      if (spawnId !== undefined && spawnId.length > 0) {
+        despawnSpawn(state, spawnId);
+      }
+    }
+    resetEnemyToSpawn(enemy, true);
+    return;
+  }
   enemy.aiState = EnemyAiState.Idle;
-  enemy.aggroTarget = "";
-  enemy.lastAttackTick = NEVER_ATTACKED_TICK;
-  enemy.deadUntilTick = 0;
-  events.push({
-    type: "respawn",
-    sourceId: "",
-    sourceKind: "enemy",
-    targetId: enemy.id,
-    targetKind: "enemy",
-    remainingHealth: enemy.health,
-    x: enemy.x,
-    y: enemy.y,
-  });
 }
 
 function moveToward(

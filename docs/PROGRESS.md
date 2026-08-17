@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Generic combat pipeline, targeting, death, respawn, and XP hooks**.
+Last accepted phase: **Generic enemies, spawn controllers, AI profiles, loot tables, and bosses**.
 
 Current phase: none.
 
@@ -471,6 +471,28 @@ Player attacks, enemy attacks, abilities, and periodic effects share one server 
 | Audit | `FOUNDATION_AUDIT_OK` (10 storage records, 18 client opcodes, 12 server opcodes) |
 | Server | 276/276 |
 | Client GdUnit | 145/145, 0 orphans, `SHELL_LOGIN` |
+| E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect) |
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-content.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+powershell -File scripts/test-e2e.ps1
+```
+
+## Generic enemies, spawn controllers, AI profiles, loot tables, and bosses acceptance (2026-08-17)
+
+The Prompt 18 slime is a normal enemy definition (`enemy.green_slime`, `test.ai.melee`, `loot.green_slime`, instance `enemy.green_slime:0`). Spawn controllers create, track, respawn in place, ignore duplicate slot respawns, and reset spawn groups. Melee, ranged, and caster AI profiles run as a server state machine; the client only presents `state`. Threat is nearest-plus-damage (heal when configured), with leash/return. Loot tables and XP process each enemy death event once. The two-phase test cave boss enrages, resets on wipe or leash, and is not auto-spawned in the live starter zone. A new ordinary enemy that reuses an existing AI profile is content-only. Caves, parties, merchants, and PvP were not added.
+
+| Gate | Result |
+| --- | --- |
+| Content | 14/14, matching hash `e25c7589697354405e85712f6b166bdfd202eeb38e08b26d10e26451957dc682` |
+| Audit | `FOUNDATION_AUDIT_OK` (10 storage records, 18 client opcodes, 12 server opcodes) |
+| Server | 301/301 |
+| Client GdUnit | 146/146, 0 orphans, `SHELL_LOGIN` |
 | E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect) |
 
 Reproduction:

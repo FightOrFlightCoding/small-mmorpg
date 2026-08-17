@@ -18,6 +18,8 @@ import {
 import { dict } from "./maps";
 import type { MatchPlayer, StarterZoneState } from "./match_state";
 import { distance } from "./movement";
+import { addDamageThreat, applyHealThreatToEnemies, profileForEnemy } from "./threat";
+import { noteAddDeath } from "./spawn_controller";
 
 export const IN_COMBAT_TIMEOUT_TICKS = 50;
 export const COMBAT_APPLY_TTL_TICKS = 6000;
@@ -206,6 +208,15 @@ export function applyCombat(state: StarterZoneState, input: CombatApplyInput, ev
       x: target.x,
       y: target.y,
     });
+    if (input.targetKind === "enemy" && input.sourceKind === "player") {
+      const enemy = findEnemy(state.enemies, input.targetId);
+      if (enemy !== null) {
+        addDamageThreat(enemy, input.sourceId, appliedAmount, profileForEnemy(state, enemy));
+      }
+    }
+  }
+  if (input.action === "heal" && input.sourceKind === "player" && input.targetKind === "player") {
+    applyHealThreatToEnemies(state, input.sourceId, input.targetId, appliedAmount);
   }
   steps.push("threat_credit");
 
@@ -217,6 +228,7 @@ export function applyCombat(state: StarterZoneState, input: CombatApplyInput, ev
       const enemy = findEnemy(state.enemies, input.targetId);
       if (enemy !== null) {
         killEnemy(enemy, input.tick, input.sourceId, tickRate, events);
+        noteAddDeath(state, enemy);
         events.push({
           type: "credit",
           sourceId: input.sourceId,

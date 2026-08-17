@@ -7,7 +7,9 @@
     "id",
     "kind",
     "displayName",
+    "displayNameKey",
     "visualId",
+    "level",
     "maxHealth",
     "damage",
     "moveSpeed",
@@ -16,27 +18,47 @@
     "attackCooldown",
     "leashRadius",
     "respawnDelay",
-    "loot"
+    "abilityLoadout",
+    "aiProfileId",
+    "xpReward",
+    "lootTableId",
+    "collisionProfileId",
+    "tags"
   ],
   "properties": {
     "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
     "kind": { "const": "enemy" },
     "displayName": { "type": "string", "minLength": 1 },
+    "displayNameKey": { "type": "string", "minLength": 1 },
     "visualId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "level": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
     "maxHealth": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
     "damage": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "defense": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
     "moveSpeed": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
     "aggroRadius": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
     "attackRange": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
     "attackCooldown": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
     "leashRadius": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
     "respawnDelay": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
-    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
-    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" },
+    "abilityLoadout": {
+      "type": "array",
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+    },
+    "aiProfileId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
     "xpReward": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
+    "lootTableId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "collisionProfileId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "resources": {
+      "type": "array",
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/enemyResource" }
+    },
     "loot": {
       "type": "array",
-      "minItems": 1,
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -47,6 +69,12 @@
           "guaranteed": { "type": "boolean" }
         }
       }
-    }
+    },
+    "phases": {
+      "type": "array",
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/bossPhase" }
+    },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
   }
 }

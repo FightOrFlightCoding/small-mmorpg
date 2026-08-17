@@ -24,6 +24,17 @@ export interface LootEntry extends ItemStack {
   guaranteed: boolean;
 }
 
+export interface LootTableEntry {
+  itemDefinitionId: string;
+  minimumQuantity: number;
+  maximumQuantity: number;
+  chance: number;
+  weight?: number;
+  groupId?: string;
+  guaranteed?: boolean;
+  ownershipPolicy?: "ground_free" | "killer" | "party_split";
+}
+
 export interface PlayerDef {
   id: string;
   kind: "player";
@@ -86,17 +97,81 @@ export interface EnemyDef {
   id: string;
   kind: "enemy";
   displayName: string;
+  displayNameKey: string;
   visualId: string;
+  level: number;
   maxHealth: number;
   damage: number;
+  defense?: number;
   moveSpeed: number;
   aggroRadius: number;
   attackRange: number;
   attackCooldown: number;
   leashRadius: number;
   respawnDelay: number;
-  loot: LootEntry[];
-  xpReward?: number;
+  abilityLoadout: string[];
+  aiProfileId: string;
+  xpReward: number;
+  lootTableId: string;
+  collisionProfileId: string;
+  tags: string[];
+  resources?: Array<{ resourceId: string; max: number }>;
+  loot?: LootEntry[];
+  phases?: BossPhaseDef[];
+}
+
+export interface BossPhaseDef {
+  id: string;
+  healthPercentAtOrBelow?: number;
+  combatTimeSecAtOrAbove?: number;
+  addDeathsAtOrAbove?: number;
+  requireFlag?: string;
+  setFlag?: string;
+  addAbilityIds?: string[];
+  removeAbilityIds?: string[];
+  moveSpeed?: number;
+  aggroRadius?: number;
+  attackRange?: number;
+  triggerSpawnId?: string;
+  combatMessage?: string;
+  applyEffect?: AbilityEffectDef;
+}
+
+export interface AiProfileDef {
+  id: string;
+  kind: "ai_profile";
+  displayName: string;
+  style: "melee" | "ranged" | "caster" | "boss";
+  acquireMode: "nearest";
+  damageThreatWeight: number;
+  healThreatWeight: number;
+  generateHealThreat: boolean;
+  threatSwitchRatio: number;
+  preferredRange: number;
+  kiteRange: number;
+  resetHealthOnReturn: boolean;
+  resetThreatOnReturn: boolean;
+}
+
+export interface LootTableDef {
+  id: string;
+  kind: "loot_table";
+  displayName: string;
+  ownershipPolicy: "ground_free" | "killer" | "party_split";
+  entries: LootTableEntry[];
+}
+
+export interface SpawnDef {
+  id: string;
+  kind: "spawn";
+  zoneId: string;
+  enemyId: string;
+  x: number;
+  y: number;
+  spawnCount: number;
+  respawnDelay: number;
+  activationPolicy: "always" | "manual";
+  groupId: string;
 }
 
 export interface QuestDef {
@@ -121,7 +196,16 @@ export interface ZoneDef {
   height: number;
   playerSpawn: Vec2;
   npcs: Array<{ npcId: string; x: number; y: number }>;
-  enemies: Array<{ enemyId: string; x: number; y: number }>;
+  enemies: Array<{
+    enemyId: string;
+    x: number;
+    y: number;
+    spawnId?: string;
+    spawnCount?: number;
+    respawnDelay?: number;
+    activationPolicy?: "always" | "manual";
+    groupId?: string;
+  }>;
   walkableBounds: Aabb;
   collisions: Aabb[];
 }
@@ -284,6 +368,9 @@ export interface ContentPayload {
   classProgressions: Record<string, ClassProgressionDef>;
   equipmentSlots: Record<string, EquipmentSlotDef>;
   abilities: Record<string, AbilityDef>;
+  aiProfiles: Record<string, AiProfileDef>;
+  lootTables: Record<string, LootTableDef>;
+  spawns: Record<string, SpawnDef>;
 }
 
 export interface ContentBundle extends ContentPayload {

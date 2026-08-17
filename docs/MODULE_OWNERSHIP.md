@@ -35,7 +35,9 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `protocol.ts` | S | Opcode parse, injection rejection | none | none | none | no | yes (parse) | no |
 | `match_state.ts` / `match_loop.ts` | S | Zone simulation tick | live match state | none | domain combat, inventory, quests | no (tick) | emit snapshots | no (tick) |
 | `movement.ts` | S | Axes, collision, speed | none | none | none | no | no | no |
-| `combat.ts` / `combat_pipeline.ts` / `targeting.ts` / `enemy_ai.ts` | S | Shared combat resolver, targeting, AI, death, respawn | enemy/player combat fields in match | none | `loot.ts`, `xp_hooks.ts` | no | COMBAT_EVENT / SET_TARGET / RELEASE_RESPAWN | no |
+| `combat.ts` / `combat_pipeline.ts` / `targeting.ts` / `enemy_ai.ts` / `enemy_ability.ts` / `threat.ts` / `boss.ts` | S | Shared combat resolver, targeting, AI profiles, threat, boss phases, death, respawn | enemy/player combat fields in match | none | `loot.ts`, `loot_table.ts`, `xp_hooks.ts`, `spawn_controller.ts` | no | COMBAT_EVENT / SET_TARGET / RELEASE_RESPAWN | no |
+| `spawn_controller.ts` | S | Create/track/respawn/despawn/reset spawn groups | match `spawns` + enemy slots | none | match_state types | no | COMBAT_EVENT respawn | no |
+| `loot_table.ts` / `party_credit.ts` | S | Deterministic loot rolls; party-credit hook from threat | `processedDeathEventIds` | none | `loot.ts` | no | via loop | grant in memory |
 | `ability.ts` | S | Ability use, casts, cooldowns, unlock, hotbar, ATTACK wrapper | match casts/cooldowns; progression unlocks/hotbar | none | effects, combat_pipeline, stats | serialize via progression | USE_ABILITY / CANCEL_CAST / ASSIGN_HOTBAR / UNLOCK_ABILITY | no |
 | `effects.ts` | S | Structured effect handlers (damage, heal, resource, modifier, periodic, stun, root) | match effect lists | none | combat_pipeline, stats | no | COMBAT_EVENT | no |
 | `stats.ts` | S | Deterministic derived-stat pipeline | none | none | equipment modifiers | no | no | no |

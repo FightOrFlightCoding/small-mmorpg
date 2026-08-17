@@ -50,6 +50,9 @@ export function buildPackage(payload: ContentPayload, options: BuildPackageOptio
     classProgressions: canonicalPayload.classProgressions,
     equipmentSlots: canonicalPayload.equipmentSlots,
     abilities: canonicalPayload.abilities,
+    aiProfiles: canonicalPayload.aiProfiles,
+    lootTables: canonicalPayload.lootTables,
+    spawns: canonicalPayload.spawns,
   };
 }
 
@@ -80,6 +83,9 @@ export function toContentBundle(pkg: ContentPackage): ContentBundle {
     classProgressions: pkg.classProgressions,
     equipmentSlots: pkg.equipmentSlots,
     abilities: pkg.abilities,
+    aiProfiles: pkg.aiProfiles,
+    lootTables: pkg.lootTables,
+    spawns: pkg.spawns,
   };
 }
 
@@ -103,6 +109,9 @@ export function emitServerModule(bundle: ContentBundle): string {
     classProgressions: bundle.classProgressions,
     equipmentSlots: bundle.equipmentSlots,
     abilities: bundle.abilities,
+    aiProfiles: bundle.aiProfiles,
+    lootTables: bundle.lootTables,
+    spawns: bundle.spawns,
   };
   const body = JSON.stringify(canonicalize(payload), null, 2);
   return [

@@ -1,0 +1,12 @@
+{
+  "id": "spawn.starter.test_ranged",
+  "kind": "spawn",
+  "zoneId": "zone.starter",
+  "enemyId": "test.enemy.ranged",
+  "x": 1200,
+  "y": 80,
+  "spawnCount": 1,
+  "respawnDelay": 8,
+  "activationPolicy": "manual",
+  "groupId": "group.test_ai"
+}

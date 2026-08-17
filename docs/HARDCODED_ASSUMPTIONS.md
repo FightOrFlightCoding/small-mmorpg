@@ -82,6 +82,8 @@ Turn-in apply already uses quest definition rewards from content, not a second h
 | Player respawn delay 3 s default | `PLAYER_RESPAWN_DELAY_SEC` / match_state fallback | Temporary Prompt 18 assumption (content has no player respawn field in source) |
 | In-combat timeout 5 s (50 ticks) | `IN_COMBAT_TIMEOUT_TICKS` | Temporary Prompt 25 assumption |
 | Defense mitigation `floor(raw * 100 / (100 + defense))` | `evaluateCombatFormula` | Temporary Prompt 25 formula; defense 0 keeps Prompt 18 4/2 hits |
+| Threat `floor(amount * weight)`; switch if other > current × `threatSwitchRatio` | `threat.ts` | Temporary Prompt 26 formula. Heal threat only when the profile sets `generateHealThreat`. |
+| Loot LCG seeded by `kill:<instanceId>:<deathCount>` | `loot_table.ts` `hashSeed` / `lcgRng` | Temporary Prompt 26; no Node `crypto` in the Nakama runtime |
 | Player AABB 12 px | `PLAYER_HALF_EXTENT` | Temporary Prompt 18 assumption |
 | Dialogue example balloon path | `DialoguePresenter.BALLOON_SCENE` | Temporary Prompt 18 assumption |
 | Movement fallback bounds 16,16,1248×736 | `movement_sim.gd` defaults | Temporary Prompt 18 assumption |

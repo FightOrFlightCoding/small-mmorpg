@@ -299,7 +299,7 @@ No client rate limit. Occupied matches send **102** every tick.
 | 101 | `FULL_STATE` | tick, zone, self, players, npcs, enemies, loot, quests, inventory, equipment, derived, wallet, progression, abilities | `protocol.test.ts`, `zone_join_test.gd`, `progression.test.ts`, `ability.test.ts` |
 | 102 | `SNAPSHOT` | tick, players, enemies, loot | `movement.test.ts`, `entity_registry_test.gd` |
 | 103 | `ACTION_RESULT` | ok, code, requestId? | combat/inventory/quest tests |
-| 104 | `COMBAT_EVENT` | tick, events[] | `combat.test.ts`, `combat_pipeline.test.ts`, `combat_client_test.gd` |
+| 104 | `COMBAT_EVENT` | tick, events[] (`hit`, `heal`, `death`, `respawn`, `interrupt`, `effect_*`, `resource`, `threat`, `credit`, `message`) | `combat.test.ts`, `combat_pipeline.test.ts`, `boss.test.ts`, `combat_client_test.gd` |
 | 105 | `INVENTORY_STATE` | capacity, items | `inventory.test.ts` |
 | 106 | `QUEST_STATE` | quests | `quest.test.ts` |
 | 107 | `INTERACTION_RESULT` | ok, code, requestId, targetId | `interaction.test.ts` |

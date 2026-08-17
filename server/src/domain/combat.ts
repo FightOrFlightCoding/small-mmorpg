@@ -6,7 +6,7 @@ export const PLAYER_RESPAWN_DELAY_SEC = 3;
 export const NEVER_ATTACKED_TICK = -1;
 
 export interface CombatEvent {
-  type: "hit" | "heal" | "death" | "respawn" | "interrupt" | "effect_applied" | "effect_tick" | "resource" | "threat" | "credit";
+  type: "hit" | "heal" | "death" | "respawn" | "interrupt" | "effect_applied" | "effect_tick" | "resource" | "threat" | "credit" | "message";
   sourceId: string;
   sourceKind: "player" | "enemy";
   targetId: string;
@@ -22,6 +22,7 @@ export interface CombatEvent {
   abilityId?: string;
   resourceId?: string;
   resourceDelta?: number;
+  message?: string;
 }
 
 export function applyDamageAmount(health: number, amount: number): number {
@@ -88,6 +89,9 @@ export function killEnemy(
   tickRate: number,
   events: CombatEvent[],
 ): void {
+  if (enemy.aiState === "dead" && enemy.health <= 0) {
+    return;
+  }
   enemy.health = 0;
   enemy.aiState = "dead";
   enemy.aggroTarget = "";

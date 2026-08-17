@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/ai_profile.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "displayName",
+    "style",
+    "acquireMode",
+    "damageThreatWeight",
+    "healThreatWeight",
+    "generateHealThreat",
+    "threatSwitchRatio",
+    "preferredRange",
+    "kiteRange",
+    "resetHealthOnReturn",
+    "resetThreatOnReturn"
+  ],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "ai_profile" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "style": {
+      "type": "string",
+      "enum": ["melee", "ranged", "caster", "boss"]
+    },
+    "acquireMode": {
+      "type": "string",
+      "enum": ["nearest"]
+    },
+    "damageThreatWeight": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "healThreatWeight": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "generateHealThreat": { "type": "boolean" },
+    "threatSwitchRatio": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+    "preferredRange": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "kiteRange": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "resetHealthOnReturn": { "type": "boolean" },
+    "resetThreatOnReturn": { "type": "boolean" },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+  }
+}

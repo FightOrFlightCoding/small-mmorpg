@@ -50,8 +50,28 @@ function outboundRefs(payload: ContentPayload, id: string): string[] {
   const enemy = payload.enemies[id];
   if (enemy) {
     refs.push(enemy.visualId);
-    for (let i = 0; i < enemy.loot.length; i++) {
-      refs.push(enemy.loot[i].itemId);
+    refs.push(enemy.aiProfileId);
+    refs.push(enemy.lootTableId);
+    const loadout = enemy.abilityLoadout !== undefined ? enemy.abilityLoadout : [];
+    for (let a = 0; a < loadout.length; a++) {
+      refs.push(loadout[a]);
+    }
+    const drops = enemy.loot !== undefined ? enemy.loot : [];
+    for (let i = 0; i < drops.length; i++) {
+      refs.push(drops[i].itemId);
+    }
+    const phases = enemy.phases !== undefined ? enemy.phases : [];
+    for (let p = 0; p < phases.length; p++) {
+      const added = phases[p].addAbilityIds;
+      if (added !== undefined) {
+        for (let i = 0; i < added.length; i++) {
+          refs.push(added[i]);
+        }
+      }
+      const trigger = phases[p].triggerSpawnId;
+      if (trigger !== undefined) {
+        refs.push(trigger);
+      }
     }
     return refs;
   }
@@ -78,6 +98,10 @@ function outboundRefs(payload: ContentPayload, id: string): string[] {
     }
     for (let e = 0; e < zone.enemies.length; e++) {
       refs.push(zone.enemies[e].enemyId);
+      const spawnId = zone.enemies[e].spawnId;
+      if (spawnId !== undefined) {
+        refs.push(spawnId);
+      }
     }
     return refs;
   }
@@ -110,6 +134,19 @@ function outboundRefs(payload: ContentPayload, id: string): string[] {
         refs.push(statId);
       }
     }
+    return refs;
+  }
+  const table = payload.lootTables[id];
+  if (table) {
+    for (let i = 0; i < table.entries.length; i++) {
+      refs.push(table.entries[i].itemDefinitionId);
+    }
+    return refs;
+  }
+  const spawn = payload.spawns[id];
+  if (spawn) {
+    refs.push(spawn.zoneId);
+    refs.push(spawn.enemyId);
     return refs;
   }
   const progression = payload.classProgressions[id];

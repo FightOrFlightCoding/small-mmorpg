@@ -35,6 +35,9 @@ export const DEFAULT_MANIFEST: ContentPackageManifest = {
     class_progression: { schema: "class_progression.json", definitionSchemaVersion: 1, idPrefix: "test.progression" },
     equipment_slot: { schema: "equipment_slot.json", definitionSchemaVersion: 1, idPrefix: "slot" },
     ability: { schema: "ability.json", definitionSchemaVersion: 1, idPrefix: "test.ability" },
+    ai_profile: { schema: "ai_profile.json", definitionSchemaVersion: 1, idPrefix: "test.ai" },
+    loot_table: { schema: "loot_table.json", definitionSchemaVersion: 1, idPrefix: "loot" },
+    spawn: { schema: "spawn.json", definitionSchemaVersion: 1, idPrefix: "spawn" },
   },
 };
 

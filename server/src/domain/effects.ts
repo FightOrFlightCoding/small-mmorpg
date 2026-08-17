@@ -3,7 +3,6 @@ import { applyCombat } from "./combat_pipeline";
 import { SNAPSHOT_RATE_HZ } from "./movement";
 import type { MatchEnemy, MatchPlayer, StarterZoneState } from "./match_state";
 import { dict } from "./maps";
-import { emptyQuestLog } from "./quest";
 import { resourceIdForRole, type EvaluatedStats } from "./stats";
 
 export type EffectType =
@@ -136,7 +135,7 @@ export function cloneActiveEffect(effect: ActiveEffect): ActiveEffect {
 }
 
 export function hasControlTag(effects: ActiveEffect[] | undefined, tag: "stun" | "root"): boolean {
-  if (effects === undefined) {
+  if (effects == null || !Array.isArray(effects)) {
     return false;
   }
   for (let i = 0; i < effects.length; i++) {
@@ -163,32 +162,50 @@ export function effectModifiersFrom(effects: ActiveEffect[] | undefined): { [cha
   return modifiers;
 }
 
+export interface EffectSource {
+  id: string;
+  kind: "player" | "enemy";
+}
+
 export function applyEffectDefinition(
   state: StarterZoneState,
   definition: EffectDefinition,
   abilityId: string,
-  source: MatchPlayer,
+  source: MatchPlayer | EffectSource,
   target: EffectTarget,
   stats: EvaluatedStats | null,
   fallbackAttack: number,
   tick: number,
   events: CombatEvent[],
 ): void {
-  const magnitude = resolveMagnitude(definition.magnitude, stats, fallbackAttack) * rankScale(source, abilityId);
+  const actor = toEffectSource(source);
+  const rank = isMatchPlayer(source) ? rankScale(source, abilityId) : 1;
+  const magnitude = resolveMagnitude(definition.magnitude, stats, fallbackAttack) * rank;
   const type = String(definition.type);
   if (type === "direct_damage") {
-    dealDamage(state, source, target, magnitude, abilityId, tick, events);
+    dealDamage(state, actor, target, magnitude, abilityId, tick, events);
     return;
   }
   if (type === "direct_heal") {
-    healTarget(state, source, target, magnitude, abilityId, tick, events);
+    healTarget(state, actor, target, magnitude, abilityId, tick, events);
     return;
   }
   if (type === "resource_change") {
-    changeResource(state, target, definition, magnitude, source, tick, events);
+    changeResource(state, target, definition, magnitude, actor, tick, events);
     return;
   }
-  applyStatus(target, definition, abilityId, source, magnitude, tick, events);
+  applyStatus(target, definition, abilityId, actor, magnitude, tick, events);
+}
+
+export function toEffectSource(source: MatchPlayer | EffectSource): EffectSource {
+  if (isMatchPlayer(source)) {
+    return { id: source.userId, kind: "player" };
+  }
+  return source;
+}
+
+function isMatchPlayer(source: MatchPlayer | EffectSource): source is MatchPlayer {
+  return typeof (source as MatchPlayer).userId === "string" && typeof (source as MatchPlayer).sessionId === "string";
 }
 
 export interface EffectTarget {
@@ -308,8 +325,9 @@ function applyPeriodicTick(
     if (source === undefined && effect.sourceKind === "player") {
       return;
     }
-    const caster = source !== undefined ? source : placeholderCaster(effect.sourceId);
-    dealDamage(state, caster, target, amount, effect.abilityId, tick, events);
+    const actor: EffectSource =
+      source !== undefined ? { id: source.userId, kind: "player" } : { id: effect.sourceId, kind: effect.sourceKind };
+    dealDamage(state, actor, target, amount, effect.abilityId, tick, events);
     events.push({
       type: "effect_tick",
       sourceId: effect.sourceId,
@@ -326,7 +344,7 @@ function applyPeriodicTick(
     return;
   }
   if (effect.type === "periodic_heal") {
-    healTarget(state, placeholderCaster(effect.sourceId), target, amount, effect.abilityId, tick, events);
+    healTarget(state, { id: effect.sourceId, kind: effect.sourceKind }, target, amount, effect.abilityId, tick, events);
   }
 }
 
@@ -334,7 +352,7 @@ function applyStatus(
   target: EffectTarget,
   definition: EffectDefinition,
   abilityId: string,
-  source: MatchPlayer,
+  source: EffectSource,
   magnitude: number,
   tick: number,
   events: CombatEvent[],
@@ -347,8 +365,8 @@ function applyStatus(
   const incoming: ActiveEffect = {
     effectId: definition.id,
     abilityId: abilityId,
-    sourceId: source.userId,
-    sourceKind: "player",
+    sourceId: source.id,
+    sourceKind: source.kind,
     type: definition.type,
     stacks: 1,
     magnitude: magnitude,
@@ -367,8 +385,8 @@ function applyStatus(
     target.effects.push(incoming);
     events.push({
       type: "effect_applied",
-      sourceId: source.userId,
-      sourceKind: "player",
+      sourceId: source.id,
+      sourceKind: source.kind,
       targetId: target.id,
       targetKind: target.kind,
       effectId: incoming.effectId,
@@ -424,7 +442,7 @@ function findEffectIndex(effects: ActiveEffect[], effectId: string, sourceId: st
 
 function dealDamage(
   state: StarterZoneState,
-  source: MatchPlayer,
+  source: EffectSource,
   target: EffectTarget,
   amount: number,
   abilityId: string,
@@ -438,8 +456,8 @@ function dealDamage(
     state,
     {
       action: "damage",
-      sourceId: source.userId,
-      sourceKind: "player",
+      sourceId: source.id,
+      sourceKind: source.kind,
       targetId: target.id,
       targetKind: target.kind,
       formula: { base: amount },
@@ -458,7 +476,7 @@ function dealDamage(
 
 function healTarget(
   state: StarterZoneState,
-  source: MatchPlayer,
+  source: EffectSource,
   target: EffectTarget,
   amount: number,
   abilityId: string,
@@ -472,8 +490,8 @@ function healTarget(
     state,
     {
       action: "heal",
-      sourceId: source.userId,
-      sourceKind: "player",
+      sourceId: source.id,
+      sourceKind: source.kind,
       targetId: target.id,
       targetKind: target.kind,
       formula: { base: amount },
@@ -494,7 +512,7 @@ function changeResource(
   target: EffectTarget,
   definition: EffectDefinition,
   magnitude: number,
-  source: MatchPlayer,
+  source: EffectSource,
   tick: number,
   events: CombatEvent[],
 ): void {
@@ -526,8 +544,8 @@ function changeResource(
   target.resources = resources;
   events.push({
     type: "resource",
-    sourceId: source.userId,
-    sourceKind: "player",
+    sourceId: source.id,
+    sourceKind: source.kind,
     targetId: target.id,
     targetKind: "player",
     resourceId: resourceId,
@@ -547,24 +565,6 @@ function rankScale(source: MatchPlayer, abilityId: string): number {
     return 1;
   }
   return rank;
-}
-
-function placeholderCaster(sourceId: string): MatchPlayer {
-  return {
-    userId: sourceId,
-    sessionId: "",
-    username: "",
-    characterId: "",
-    name: "",
-    x: 0,
-    y: 0,
-    maxHealth: 1,
-    health: 1,
-    lastProcessedSeq: 0,
-    axisX: 0,
-    axisY: 0,
-    questLog: emptyQuestLog(),
-  };
 }
 
 function copyTags(tags: ReadonlyArray<string>): string[] {

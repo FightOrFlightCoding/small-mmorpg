@@ -28,6 +28,9 @@ export function collectDefinitionIds(payload: ContentPayload): string[] {
   pushKeys(ids, payload.classProgressions);
   pushKeys(ids, payload.equipmentSlots);
   pushKeys(ids, payload.abilities);
+  pushKeys(ids, payload.aiProfiles);
+  pushKeys(ids, payload.lootTables);
+  pushKeys(ids, payload.spawns);
   ids.sort();
   return ids;
 }
@@ -74,6 +77,15 @@ export function definitionById(payload: ContentPayload, id: string): unknown | u
   }
   if (payload.abilities[id]) {
     return payload.abilities[id];
+  }
+  if (payload.aiProfiles[id]) {
+    return payload.aiProfiles[id];
+  }
+  if (payload.lootTables[id]) {
+    return payload.lootTables[id];
+  }
+  if (payload.spawns[id]) {
+    return payload.spawns[id];
   }
   return undefined;
 }

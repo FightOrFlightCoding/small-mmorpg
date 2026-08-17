@@ -50,6 +50,18 @@
   "visual.item_pebble": {
     "fallback_color": "#7F8C8D"
   },
+  "visual.enemy_test_melee": {
+    "fallback_color": "#C0392B"
+  },
+  "visual.enemy_test_ranged": {
+    "fallback_color": "#2980B9"
+  },
+  "visual.enemy_test_caster": {
+    "fallback_color": "#8E44AD"
+  },
+  "visual.enemy_cave_boss": {
+    "fallback_color": "#7B241C"
+  },
   "visual.ability_melee": { "fallback_color": "#8D99AE" },
   "visual.ability_melee_icon": { "fallback_color": "#8D99AE" },
   "visual.ability_melee_sound": { "fallback_color": "#8D99AE" },

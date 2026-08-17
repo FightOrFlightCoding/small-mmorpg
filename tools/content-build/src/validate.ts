@@ -5,7 +5,10 @@ import { DEFAULT_MANIFEST, type ContentPackageManifest } from "./registry";
 import { loadAjv, mapAjvErrors, validatorForKind } from "./schema";
 import type {
   Aabb,
+  AbilityDef,
+  AiProfileDef,
   AttributeDef,
+  BossPhaseDef,
   ClassDef,
   ClassProgressionDef,
   ContentPayload,
@@ -15,13 +18,14 @@ import type {
   ItemDef,
   ItemStack,
   LevelCurveDef,
+  LootTableDef,
   NpcDef,
   PlayerDef,
   QuestDef,
   ResourceDef,
   SourceDocument,
+  SpawnDef,
   ZoneDef,
-  AbilityDef,
 } from "./types";
 
 export interface ValidateOptions {
@@ -63,7 +67,7 @@ export function validateDocuments(
       continue;
     }
     const prefix = manifest.kinds[kind].idPrefix || KIND_PREFIX[kind];
-    if (!prefix || id.indexOf(prefix + ".") !== 0) {
+    if (!prefixMatches(kind, id, prefix)) {
       issues.push(issue("kind_prefix_mismatch:" + id));
     }
     const expectedDefVersion = manifest.kinds[kind].definitionSchemaVersion;
@@ -101,6 +105,9 @@ export function validateDocuments(
   const classProgressions = asKindMap<ClassProgressionDef>(selected, "class_progression");
   const equipmentSlots = asKindMap<EquipmentSlotDef>(selected, "equipment_slot");
   const abilities = asKindMap<AbilityDef>(selected, "ability");
+  const aiProfiles = asKindMap<AiProfileDef>(selected, "ai_profile");
+  const lootTables = asKindMap<LootTableDef>(selected, "loot_table");
+  const spawns = asKindMap<SpawnDef>(selected, "spawn");
 
   if (player) {
     checkVisual(player.visualId, issues);
@@ -120,7 +127,15 @@ export function validateDocuments(
   }
   const enemyIds = Object.keys(enemies);
   for (let i = 0; i < enemyIds.length; i++) {
-    checkEnemy(enemies[enemyIds[i]], items, issues);
+    checkEnemy(enemies[enemyIds[i]], items, abilities, aiProfiles, lootTables, resources, spawns, issues);
+  }
+  const lootTableIds = Object.keys(lootTables);
+  for (let i = 0; i < lootTableIds.length; i++) {
+    checkLootTable(lootTables[lootTableIds[i]], items, issues);
+  }
+  const spawnIds = Object.keys(spawns);
+  for (let i = 0; i < spawnIds.length; i++) {
+    checkSpawn(spawns[spawnIds[i]], zones, enemies, issues);
   }
   const questIds = Object.keys(quests);
   for (let i = 0; i < questIds.length; i++) {
@@ -128,7 +143,7 @@ export function validateDocuments(
   }
   const zoneIds = Object.keys(zones);
   for (let i = 0; i < zoneIds.length; i++) {
-    checkZone(zones[zoneIds[i]], npcs, enemies, issues);
+    checkZone(zones[zoneIds[i]], npcs, enemies, spawns, issues);
   }
   checkClasses(classes, items, classProgressions, slotTags, abilities, issues);
   checkProgressionCatalog(attributes, resources, derivedStats, levelCurves, classProgressions, classes, issues);
@@ -157,6 +172,9 @@ export function validateDocuments(
     classProgressions,
     equipmentSlots,
     abilities,
+    aiProfiles,
+    lootTables,
+    spawns,
   };
 }
 
@@ -173,6 +191,16 @@ function selectDocuments(byId: Map<string, SourceDocument>, includeDevelopment: 
     selected.set(docs[i].data["id"] as string, docs[i]);
   }
   return selected;
+}
+
+function prefixMatches(kind: string, id: string, prefix: string | undefined): boolean {
+  if (!prefix) {
+    return false;
+  }
+  if (id.indexOf(prefix + ".") === 0) {
+    return true;
+  }
+  return kind === "enemy" && id.indexOf("test.enemy.") === 0;
 }
 
 function asKind<T>(byId: Map<string, SourceDocument>, kind: string, issues: ContentIssue[]): T | null {
@@ -280,25 +308,112 @@ function checkItem(
   }
 }
 
-function checkEnemy(enemy: EnemyDef, items: Record<string, ItemDef>, issues: ContentIssue[]): void {
+function checkEnemy(
+  enemy: EnemyDef,
+  items: Record<string, ItemDef>,
+  abilities: Record<string, AbilityDef>,
+  aiProfiles: Record<string, AiProfileDef>,
+  lootTables: Record<string, LootTableDef>,
+  resources: Record<string, ResourceDef>,
+  spawns: Record<string, SpawnDef>,
+  issues: ContentIssue[],
+): void {
   checkVisual(enemy.visualId, issues);
   if (enemy.leashRadius < enemy.aggroRadius) {
     issues.push(issue("invalid_range:leashRadius"));
   }
-  let guaranteed = 0;
-  for (let i = 0; i < enemy.loot.length; i++) {
-    const drop = enemy.loot[i];
+  if (!aiProfiles[enemy.aiProfileId]) {
+    issues.push(issue("missing_reference:" + enemy.aiProfileId));
+  }
+  if (!lootTables[enemy.lootTableId]) {
+    issues.push(issue("missing_reference:" + enemy.lootTableId));
+  }
+  if (!isContentId(enemy.collisionProfileId) || enemy.collisionProfileId.indexOf("collision.") !== 0) {
+    issues.push(issue("missing_reference:" + enemy.collisionProfileId));
+  }
+  for (let a = 0; a < enemy.abilityLoadout.length; a++) {
+    if (!abilities[enemy.abilityLoadout[a]]) {
+      issues.push(issue("missing_reference:" + enemy.abilityLoadout[a]));
+    }
+  }
+  const enemyResources = enemy.resources !== undefined ? enemy.resources : [];
+  for (let r = 0; r < enemyResources.length; r++) {
+    if (!resources[enemyResources[r].resourceId]) {
+      issues.push(issue("missing_reference:" + enemyResources[r].resourceId));
+    }
+  }
+  const drops = enemy.loot !== undefined ? enemy.loot : [];
+  for (let i = 0; i < drops.length; i++) {
+    const drop = drops[i];
     requireItem(drop.itemId, items, issues);
     if (drop.quantity < 1) {
       issues.push(issue("invalid_stack_size:" + drop.itemId));
     }
-    if (drop.guaranteed) {
-      guaranteed += 1;
+  }
+  const phases = enemy.phases !== undefined ? enemy.phases : [];
+  for (let p = 0; p < phases.length; p++) {
+    checkBossPhase(phases[p], abilities, spawns, issues);
+  }
+}
+
+function checkBossPhase(
+  phase: BossPhaseDef,
+  abilities: Record<string, AbilityDef>,
+  spawns: Record<string, SpawnDef>,
+  issues: ContentIssue[],
+): void {
+  const added = phase.addAbilityIds !== undefined ? phase.addAbilityIds : [];
+  for (let i = 0; i < added.length; i++) {
+    if (!abilities[added[i]]) {
+      issues.push(issue("missing_reference:" + added[i]));
     }
   }
-  if (guaranteed < 1) {
-    issues.push(issue("missing_guaranteed_loot:" + enemy.id));
+  const removed = phase.removeAbilityIds !== undefined ? phase.removeAbilityIds : [];
+  for (let i = 0; i < removed.length; i++) {
+    if (!abilities[removed[i]]) {
+      issues.push(issue("missing_reference:" + removed[i]));
+    }
   }
+  if (phase.triggerSpawnId !== undefined && !spawns[phase.triggerSpawnId]) {
+    issues.push(issue("missing_reference:" + phase.triggerSpawnId));
+  }
+}
+
+function checkLootTable(table: LootTableDef, items: Record<string, ItemDef>, issues: ContentIssue[]): void {
+  const groupWeight: { [groupId: string]: number } = {};
+  for (let i = 0; i < table.entries.length; i++) {
+    const entry = table.entries[i];
+    requireItem(entry.itemDefinitionId, items, issues);
+    if (entry.minimumQuantity > entry.maximumQuantity) {
+      issues.push(issue("invalid_range:maximumQuantity"));
+    }
+    if (entry.groupId !== undefined && entry.groupId.length > 0) {
+      const weight = entry.weight !== undefined ? entry.weight : 0;
+      const current = groupWeight[entry.groupId] !== undefined ? groupWeight[entry.groupId] : 0;
+      groupWeight[entry.groupId] = current + weight;
+    }
+  }
+  const groups = Object.keys(groupWeight);
+  for (let g = 0; g < groups.length; g++) {
+    if (groupWeight[groups[g]] <= 0) {
+      issues.push(issue("invalid_range:weight"));
+    }
+  }
+}
+
+function checkSpawn(
+  spawn: SpawnDef,
+  zones: Record<string, ZoneDef>,
+  enemies: Record<string, EnemyDef>,
+  issues: ContentIssue[],
+): void {
+  const zone = zones[spawn.zoneId];
+  if (!zone) {
+    issues.push(issue("missing_reference:" + spawn.zoneId));
+    return;
+  }
+  requireEnemy(spawn.enemyId, enemies, issues);
+  checkPointInWorld(zone, spawn.x, spawn.y, "spawn:" + spawn.id, issues);
 }
 
 function checkQuest(
@@ -333,6 +448,7 @@ function checkZone(
   zone: ZoneDef,
   npcs: Record<string, NpcDef>,
   enemies: Record<string, EnemyDef>,
+  spawns: Record<string, SpawnDef>,
   issues: ContentIssue[],
 ): void {
   checkVisual(zone.visualId, issues);
@@ -347,6 +463,14 @@ function checkZone(
     const placed = zone.enemies[i];
     requireEnemy(placed.enemyId, enemies, issues);
     checkPointInWorld(zone, placed.x, placed.y, "enemy:" + placed.enemyId, issues);
+    if (placed.spawnId !== undefined) {
+      const spawn = spawns[placed.spawnId];
+      if (!spawn) {
+        issues.push(issue("missing_reference:" + placed.spawnId));
+      } else if (spawn.enemyId !== placed.enemyId || spawn.zoneId !== zone.id) {
+        issues.push(issue("missing_reference:" + placed.spawnId));
+      }
+    }
   }
   for (let i = 0; i < zone.collisions.length; i++) {
     checkAabbInWorld(zone, zone.collisions[i], "collision:" + String(i), issues);

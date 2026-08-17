@@ -50,7 +50,7 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Attack:** Replay loot or quest-complete with the same or mutated payload.
 
-**Defense:** Rewarded actions require `requestId` and are idempotent. Quest stage advances only forward through legal transitions.
+**Defense:** Rewarded actions require `requestId` and are idempotent. Quest stage advances only forward through legal transitions. Enemy-death loot and XP use `kill:<instanceId>:<deathCount>` so a duplicate death event cannot grant twice.
 
 ### Quest skipping
 

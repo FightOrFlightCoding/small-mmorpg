@@ -62,15 +62,32 @@ export function spawnGuaranteedLoot(
   expireTicks: number,
   newId: () => string,
 ): MatchLoot[] {
+  const guaranteed: LootDrop[] = [];
+  if (drops !== undefined) {
+    for (let i = 0; i < drops.length; i++) {
+      if (drops[i].guaranteed === true) {
+        guaranteed.push(drops[i]);
+      }
+    }
+  }
+  return spawnRolledLoot(loot, guaranteed, x, y, tick, expireTicks, newId);
+}
+
+export function spawnRolledLoot(
+  loot: MatchLoot[],
+  drops: ReadonlyArray<LootDrop> | undefined,
+  x: number,
+  y: number,
+  tick: number,
+  expireTicks: number,
+  newId: () => string,
+): MatchLoot[] {
   const next = cloneLoot(loot);
   if (drops === undefined) {
     return next;
   }
   for (let i = 0; i < drops.length; i++) {
     const drop = drops[i];
-    if (drop.guaranteed !== true) {
-      continue;
-    }
     if (typeof drop.itemId !== "string" || drop.itemId.length === 0) {
       continue;
     }

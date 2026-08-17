@@ -21,6 +21,9 @@ const REQUIRED_KEYS := [
 	"classProgressions",
 	"equipmentSlots",
 	"abilities",
+	"aiProfiles",
+	"lootTables",
+	"spawns",
 ]
 const REQUIRED_IDS := [
 	"player.base",
@@ -100,6 +103,12 @@ func parse_text(text: String) -> bool:
 	if not _index_catalog(data["equipmentSlots"], "equipment_slot"):
 		return false
 	if not _index_catalog(data["abilities"], "ability"):
+		return false
+	if not _index_catalog(data["aiProfiles"], "ai_profile"):
+		return false
+	if not _index_catalog(data["lootTables"], "loot_table"):
+		return false
+	if not _index_catalog(data["spawns"], "spawn"):
 		return false
 	if ids_of_kind("class").size() == 0:
 		return _fail("content_incompatible", "The content bundle has no class definitions.")

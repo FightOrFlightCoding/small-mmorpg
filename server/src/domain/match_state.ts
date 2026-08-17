@@ -36,7 +36,10 @@ import {
   type AbilityDefinition,
   type ActiveCast,
 } from "./ability";
-import { cloneActiveEffects, effectModifiersFrom, hasControlTag, type ActiveEffect } from "./effects";
+import { cloneActiveEffects, effectModifiersFrom, hasControlTag, type ActiveEffect, type EffectDefinition } from "./effects";
+import { buildInitialCombatants, cloneEnemyCombatFields, cloneSpawns } from "./spawn_controller";
+import type { AiProfileContent } from "./threat";
+import type { LootTableDefinition } from "./loot_table";
 
 export type { MatchLoot };
 
@@ -117,7 +120,60 @@ export interface MatchNpc {
   y: number;
 }
 
-export type EnemyAiState = "idle" | "chasing" | "attacking" | "returning" | "dead";
+export type EnemyAiState =
+  | "idle"
+  | "acquiring"
+  | "chasing"
+  | "positioning"
+  | "casting"
+  | "attacking"
+  | "returning"
+  | "stunned"
+  | "dead";
+
+export interface BossPhaseContent {
+  id: string;
+  healthPercentAtOrBelow?: number;
+  combatTimeSecAtOrAbove?: number;
+  addDeathsAtOrAbove?: number;
+  requireFlag?: string;
+  setFlag?: string;
+  addAbilityIds?: ReadonlyArray<string>;
+  removeAbilityIds?: ReadonlyArray<string>;
+  moveSpeed?: number;
+  aggroRadius?: number;
+  attackRange?: number;
+  triggerSpawnId?: string;
+  combatMessage?: string;
+  applyEffect?: EffectDefinition;
+}
+
+export interface MatchSpawn {
+  spawnId: string;
+  enemyId: string;
+  x: number;
+  y: number;
+  spawnCount: number;
+  respawnDelaySec: number;
+  activationPolicy: "always" | "manual";
+  groupId: string;
+  active: boolean;
+  pendingRespawns: Array<{ slot: number; readyTick: number }>;
+  deaths: number;
+  aliveSlots: number;
+}
+
+export interface SpawnContent {
+  id: string;
+  zoneId: string;
+  enemyId: string;
+  x: number;
+  y: number;
+  spawnCount: number;
+  respawnDelay: number;
+  activationPolicy: "always" | "manual";
+  groupId: string;
+}
 
 export interface MatchEnemy {
   id: string;
@@ -142,6 +198,26 @@ export interface MatchEnemy {
   xpReward: number;
   deathCount: number;
   effects?: ActiveEffect[];
+  spawnId?: string;
+  slotIndex?: number;
+  aiProfileId?: string;
+  abilityLoadout?: string[];
+  baseAbilityLoadout?: string[];
+  threatByPlayerId?: { [userId: string]: number };
+  combatEnteredTick?: number;
+  phaseId?: string;
+  phaseFlags?: { [flag: string]: boolean };
+  addDeaths?: number;
+  lootTableId?: string;
+  tags?: string[];
+  resources?: { [id: string]: number };
+  abilityCooldowns?: { [abilityId: string]: number };
+  globalCooldownUntilTick?: number;
+  activeCast?: ActiveCast;
+  phases?: ReadonlyArray<BossPhaseContent>;
+  baseMoveSpeed?: number;
+  baseAggroRadius?: number;
+  baseAttackRange?: number;
 }
 
 export interface StarterZoneState {
@@ -152,6 +228,7 @@ export interface StarterZoneState {
   disconnected: { [userId: string]: DisconnectedPlayer };
   npcs: MatchNpc[];
   enemies: MatchEnemy[];
+  spawns: MatchSpawn[];
   loot: MatchLoot[];
   walkableBounds: Aabb;
   collisions: Aabb[];
@@ -168,6 +245,10 @@ export interface StarterZoneState {
   questsById: { [id: string]: QuestDefinition };
   itemsById: { [id: string]: ItemDefinition };
   enemyLootById: { [id: string]: LootDrop[] };
+  enemiesById?: { [id: string]: EnemyContent };
+  aiProfilesById?: { [id: string]: AiProfileContent };
+  lootTablesById?: { [id: string]: LootTableDefinition };
+  processedDeathEventIds?: { [eventId: string]: boolean };
   actionRates: { [userId: string]: PlayerActionRate };
   progressionCatalog?: ProgressionCatalog;
   equipmentSlotsByTag?: { [tag: string]: EquipmentSlotContent };
@@ -201,7 +282,16 @@ export interface ZoneSpawnContent {
   id: string;
   playerSpawn: Vec2;
   npcs: ReadonlyArray<{ npcId: string; x: number; y: number }>;
-  enemies: ReadonlyArray<{ enemyId: string; x: number; y: number }>;
+  enemies: ReadonlyArray<{
+    enemyId: string;
+    x: number;
+    y: number;
+    spawnId?: string;
+    spawnCount?: number;
+    respawnDelay?: number;
+    activationPolicy?: "always" | "manual";
+    groupId?: string;
+  }>;
   walkableBounds: Aabb;
   collisions: ReadonlyArray<Aabb>;
 }
@@ -218,6 +308,16 @@ export interface EnemyContent {
   respawnDelay?: number;
   loot?: ReadonlyArray<LootDrop>;
   xpReward?: number;
+  displayNameKey?: string;
+  level?: number;
+  defense?: number;
+  abilityLoadout?: ReadonlyArray<string>;
+  aiProfileId?: string;
+  lootTableId?: string;
+  collisionProfileId?: string;
+  tags?: ReadonlyArray<string>;
+  resources?: ReadonlyArray<{ resourceId: string; max: number }>;
+  phases?: ReadonlyArray<BossPhaseContent>;
 }
 
 export interface PlayerContent {
@@ -241,6 +341,9 @@ export interface StarterZoneCatalogExtras {
   abilitiesById?: { [id: string]: AbilityDefinition };
   basicAbilityId?: string;
   classTags?: { [classId: string]: string[] };
+  spawnsById?: { [id: string]: SpawnContent };
+  aiProfilesById?: { [id: string]: AiProfileContent };
+  lootTablesById?: { [id: string]: LootTableDefinition };
 }
 
 export function enemyDefinitionsFromContent(enemies: {
@@ -263,6 +366,16 @@ export function enemyDefinitionsFromContent(enemies: {
       respawnDelay: def.respawnDelay,
       loot: def.loot !== undefined ? copyLootDrops(def.loot) : undefined,
       xpReward: def.xpReward,
+      abilityLoadout: def.abilityLoadout !== undefined ? def.abilityLoadout.slice() : undefined,
+      aiProfileId: def.aiProfileId,
+      lootTableId: def.lootTableId,
+      collisionProfileId: def.collisionProfileId,
+      tags: def.tags !== undefined ? def.tags.slice() : undefined,
+      resources: def.resources !== undefined ? def.resources.slice() : undefined,
+      phases: def.phases,
+      level: def.level,
+      defense: def.defense,
+      displayNameKey: def.displayNameKey,
     };
   }
   return map;
@@ -288,37 +401,14 @@ export function createStarterZoneState(
     });
   }
   const enemyLootById: { [id: string]: LootDrop[] } = {};
-  const enemies: MatchEnemy[] = [];
-  for (let i = 0; i < zone.enemies.length; i++) {
-    const spawn = zone.enemies[i];
-    const def = enemiesById[spawn.enemyId];
-    const maxHealth = def !== undefined ? def.maxHealth : 1;
-    enemies.push({
-      id: spawn.enemyId + ":" + String(i),
-      enemyId: spawn.enemyId,
-      spawnX: spawn.x,
-      spawnY: spawn.y,
-      x: spawn.x,
-      y: spawn.y,
-      maxHealth: maxHealth,
-      health: maxHealth,
-      aiState: "idle",
-      aggroTarget: "",
-      lastAttackTick: -1,
-      deadUntilTick: 0,
-      damage: numberOr(def !== undefined ? def.damage : undefined, 2),
-      moveSpeed: numberOr(def !== undefined ? def.moveSpeed : undefined, 45),
-      aggroRadius: numberOr(def !== undefined ? def.aggroRadius : undefined, 128),
-      attackRange: numberOr(def !== undefined ? def.attackRange : undefined, 28),
-      attackCooldownSec: numberOr(def !== undefined ? def.attackCooldown : undefined, 1.4),
-      leashRadius: numberOr(def !== undefined ? def.leashRadius : undefined, 256),
-      respawnDelaySec: numberOr(def !== undefined ? def.respawnDelay : undefined, 10),
-    xpReward: numberOr(def !== undefined ? def.xpReward : undefined, 0),
-    deathCount: 0,
-    effects: [],
-  });
-    if (def !== undefined && def.loot !== undefined && enemyLootById[spawn.enemyId] === undefined) {
-      enemyLootById[spawn.enemyId] = copyLootDrops(def.loot);
+  const built = buildInitialCombatants(zone, enemiesById, extras.spawnsById);
+  const enemies = built.enemies;
+  const spawns = built.spawns;
+  const enemyIds = Object.keys(enemiesById);
+  for (let i = 0; i < enemyIds.length; i++) {
+    const def = enemiesById[enemyIds[i]];
+    if (def !== undefined && def.loot !== undefined && enemyLootById[def.id] === undefined) {
+      enemyLootById[def.id] = copyLootDrops(def.loot);
     }
   }
   const collisions: Aabb[] = [];
@@ -334,6 +424,7 @@ export function createStarterZoneState(
     disconnected: {},
     npcs: npcs,
     enemies: enemies,
+    spawns: spawns,
     loot: [],
     walkableBounds: {
       x: zone.walkableBounds.x,
@@ -355,6 +446,10 @@ export function createStarterZoneState(
     questsById: questsById,
     itemsById: itemsById,
     enemyLootById: enemyLootById,
+    enemiesById: enemiesById,
+    aiProfilesById: extras.aiProfilesById,
+    lootTablesById: extras.lootTablesById,
+    processedDeathEventIds: {},
     actionRates: emptyActionRates(),
     equipmentSlotsByTag: extras.equipmentSlotsByTag,
     classEquipmentTags: extras.classEquipmentTags,
@@ -468,6 +563,8 @@ function publicEnemy(enemy: MatchEnemy): { [key: string]: unknown } {
     health: enemy.health,
     alive: enemy.health > 0 && enemy.aiState !== "dead",
     state: enemy.aiState,
+    phaseId: enemy.phaseId !== undefined ? enemy.phaseId : "",
+    aiProfileId: enemy.aiProfileId !== undefined ? enemy.aiProfileId : "",
     effects: publicEntityEffects(enemy.effects),
   };
 }
@@ -491,6 +588,7 @@ function enemiesList(state: StarterZoneState): { [key: string]: unknown }[] {
 }
 
 function cloneEnemy(enemy: MatchEnemy): MatchEnemy {
+  const extra = cloneEnemyCombatFields(enemy);
   return {
     id: enemy.id,
     enemyId: enemy.enemyId,
@@ -514,6 +612,26 @@ function cloneEnemy(enemy: MatchEnemy): MatchEnemy {
     xpReward: enemy.xpReward !== undefined ? enemy.xpReward : 0,
     deathCount: enemy.deathCount !== undefined ? enemy.deathCount : 0,
     effects: cloneActiveEffects(enemy.effects),
+    spawnId: extra.spawnId,
+    slotIndex: extra.slotIndex,
+    aiProfileId: extra.aiProfileId,
+    abilityLoadout: extra.abilityLoadout,
+    baseAbilityLoadout: extra.baseAbilityLoadout,
+    threatByPlayerId: extra.threatByPlayerId,
+    combatEnteredTick: extra.combatEnteredTick,
+    phaseId: extra.phaseId,
+    phaseFlags: extra.phaseFlags,
+    addDeaths: extra.addDeaths,
+    lootTableId: extra.lootTableId,
+    tags: extra.tags,
+    resources: extra.resources,
+    abilityCooldowns: extra.abilityCooldowns,
+    globalCooldownUntilTick: extra.globalCooldownUntilTick,
+    activeCast: extra.activeCast,
+    phases: extra.phases,
+    baseMoveSpeed: extra.baseMoveSpeed,
+    baseAggroRadius: extra.baseAggroRadius,
+    baseAttackRange: extra.baseAttackRange,
   };
 }
 
@@ -623,6 +741,7 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     disconnected: disconnected,
     npcs: Array.isArray(state.npcs) ? state.npcs : [],
     enemies: cloneEnemies(Array.isArray(state.enemies) ? state.enemies : []),
+    spawns: cloneSpawns(state.spawns),
     loot: cloneLoot(Array.isArray(state.loot) ? state.loot : []),
     walkableBounds: state.walkableBounds,
     collisions: Array.isArray(state.collisions) ? state.collisions : [],
@@ -639,6 +758,10 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     questsById: dict(state.questsById),
     itemsById: dict(state.itemsById),
     enemyLootById: dict(state.enemyLootById),
+    enemiesById: state.enemiesById,
+    aiProfilesById: state.aiProfilesById,
+    lootTablesById: state.lootTablesById,
+    processedDeathEventIds: dict(state.processedDeathEventIds),
     actionRates: cloneActionRates(state.actionRates),
     progressionCatalog: state.progressionCatalog,
     equipmentSlotsByTag: state.equipmentSlotsByTag,

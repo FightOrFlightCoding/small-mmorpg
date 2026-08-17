@@ -1,0 +1,22 @@
+{
+  "id": "test.enemy.melee",
+  "kind": "enemy",
+  "displayName": "Test Melee",
+  "displayNameKey": "enemy.test_melee.name",
+  "visualId": "visual.enemy_test_melee",
+  "level": 1,
+  "maxHealth": 24,
+  "damage": 3,
+  "moveSpeed": 50,
+  "aggroRadius": 140,
+  "attackRange": 30,
+  "attackCooldown": 1.4,
+  "leashRadius": 280,
+  "respawnDelay": 8,
+  "abilityLoadout": ["test.ability.enemy_melee"],
+  "aiProfileId": "test.ai.melee",
+  "xpReward": 8,
+  "lootTableId": "loot.test_melee",
+  "collisionProfileId": "collision.enemy_default",
+  "tags": ["test", "melee"]
+}

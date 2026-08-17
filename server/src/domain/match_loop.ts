@@ -54,7 +54,8 @@ import {
   type InventoryOwner,
   type PlayerEquipment,
 } from "./equipment";
-import { applyPickup, expireLoot, lootExpireTicks, spawnGuaranteedLoot } from "./loot";
+import { applyPickup, expireLoot } from "./loot";
+import { applyEnemyDeathSideEffects } from "./loot_table";
 import {
   allocateAttributes,
   cloneProgression,
@@ -1137,36 +1138,7 @@ function spawnLootFromDeaths(
   events: CombatEvent[],
   newId: () => string,
 ): void {
-  const expireTicks = lootExpireTicks(MATCH_TICK_RATE);
-  for (let i = 0; i < events.length; i++) {
-    const event = events[i];
-    if (event.type !== "death" || event.targetKind !== "enemy") {
-      continue;
-    }
-    const enemy = findEnemyById(state, event.targetId);
-    if (enemy === null) {
-      continue;
-    }
-    const drops = state.enemyLootById[enemy.enemyId];
-    state.loot = spawnGuaranteedLoot(
-      state.loot,
-      drops,
-      event.x !== undefined ? event.x : enemy.x,
-      event.y !== undefined ? event.y : enemy.y,
-      tick,
-      expireTicks,
-      newId,
-    );
-  }
-}
-
-function findEnemyById(state: StarterZoneState, enemyId: string) {
-  for (let i = 0; i < state.enemies.length; i++) {
-    if (state.enemies[i].id === enemyId) {
-      return state.enemies[i];
-    }
-  }
-  return null;
+  applyEnemyDeathSideEffects(state, events, tick, MATCH_TICK_RATE, newId);
 }
 
 function sequentialIdFactory(tick: number): () => string {
@@ -1223,6 +1195,9 @@ function pushCombatEvents(outbound: MatchOutbound[], tick: number, events: Comba
     }
     if (event.resourceDelta !== undefined) {
       row.resourceDelta = event.resourceDelta;
+    }
+    if (event.message !== undefined && event.message.length > 0) {
+      row.message = event.message;
     }
     payload.push(row);
   }

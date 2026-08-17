@@ -559,7 +559,15 @@ func _fill_target_from_enemies(state: Dictionary, target_id: String) -> bool:
 		if _target_name != null:
 			_target_name.text = String(entry.get("enemyId", target_id))
 		if _target_vitals != null:
-			_target_vitals.text = "%s / %s" % [str(int(entry.get("health", 0))), str(int(entry.get("maxHealth", 0)))]
+			var ai_state := String(entry.get("state", ""))
+			if ai_state.is_empty():
+				_target_vitals.text = "%s / %s" % [str(int(entry.get("health", 0))), str(int(entry.get("maxHealth", 0)))]
+			else:
+				_target_vitals.text = "%s / %s (%s)" % [
+					str(int(entry.get("health", 0))),
+					str(int(entry.get("maxHealth", 0))),
+					ai_state,
+				]
 		return true
 	return false
 

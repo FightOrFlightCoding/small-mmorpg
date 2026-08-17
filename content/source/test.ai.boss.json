@@ -1,0 +1,15 @@
+{
+  "id": "test.ai.boss",
+  "kind": "ai_profile",
+  "displayName": "Boss",
+  "style": "boss",
+  "acquireMode": "nearest",
+  "damageThreatWeight": 1,
+  "healThreatWeight": 0.75,
+  "generateHealThreat": true,
+  "threatSwitchRatio": 1.05,
+  "preferredRange": 36,
+  "kiteRange": 0,
+  "resetHealthOnReturn": true,
+  "resetThreatOnReturn": true
+}

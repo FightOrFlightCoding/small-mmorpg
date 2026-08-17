@@ -21,7 +21,8 @@
     {
       "enemyId": "enemy.green_slime",
       "x": 960,
-      "y": 400
+      "y": 400,
+      "spawnId": "spawn.starter.green_slime"
     }
   ],
   "walkableBounds": {

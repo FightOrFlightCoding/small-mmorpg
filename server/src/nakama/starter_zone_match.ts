@@ -46,6 +46,9 @@ import { readSelection, writeSelection } from "./selection_store";
 import { catalogFromContent, syncCombatStatsFromPipeline } from "../domain/stats";
 import { initializeProgression } from "../domain/progression";
 import { abilityDefinitionsFromContent, prepareJoinedPlayerAbilities } from "../domain/ability";
+import { spawnDefinitionsFromContent } from "../domain/spawn_controller";
+import { aiProfilesFromContent } from "../domain/threat";
+import { lootTablesFromContent } from "../domain/loot_table";
 import { readProgression, writeProgression, writeProgressionOnce } from "./progression_store";
 
 export interface StarterMatchRuntimeState {
@@ -85,6 +88,9 @@ export function matchInit(
       abilitiesById: abilityDefinitionsFromContent(content.abilities),
       basicAbilityId: content.player.basicAbilityId,
       classTags: classTagsFromContent(content.classes),
+      spawnsById: spawnDefinitionsFromContent(content.spawns),
+      aiProfilesById: aiProfilesFromContent(content.aiProfiles),
+      lootTablesById: lootTablesFromContent(content.lootTables),
     },
   );
   zone.progressionCatalog = catalogFromContent(content);
@@ -456,6 +462,10 @@ function hydrateRuntime(state: StarterMatchRuntimeState): StarterMatchRuntimeSta
   zone.players = dict(zone.players);
   zone.disconnected = dict(zone.disconnected);
   zone.actionRates = dict(zone.actionRates);
+  if (!Array.isArray(zone.spawns)) {
+    zone.spawns = [];
+  }
+  zone.processedDeathEventIds = dict(zone.processedDeathEventIds);
   bindContentCatalogs(zone);
   return {
     zone: zone,
@@ -478,6 +488,9 @@ function bindContentCatalogs(zone: StarterZoneState): void {
   zone.equipmentSlotsByTag = equipmentSlotsFromContent(content.equipmentSlots);
   zone.classEquipmentTags = classEquipmentTagsFromContent(content.classes);
   zone.enemyLootById = enemyLootFromContent();
+  zone.enemiesById = enemyDefinitionsFromContent(content.enemies);
+  zone.aiProfilesById = aiProfilesFromContent(content.aiProfiles);
+  zone.lootTablesById = lootTablesFromContent(content.lootTables);
   zone.playerAttack = content.player.attack;
   zone.playerAttackRange = content.player.attackRange;
   zone.playerAttackCooldownSec = content.player.attackCooldown;
@@ -497,6 +510,9 @@ function stripContentCatalogs(zone: StarterZoneState): void {
   zone.itemsById = {};
   zone.questsById = {};
   zone.enemyLootById = {};
+  zone.enemiesById = undefined;
+  zone.aiProfilesById = undefined;
+  zone.lootTablesById = undefined;
 }
 
 function enemyLootFromContent(): { [id: string]: { itemId: string; quantity: number; guaranteed?: boolean }[] } {

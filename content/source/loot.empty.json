@@ -1,0 +1,7 @@
+{
+  "id": "loot.empty",
+  "kind": "loot_table",
+  "displayName": "Empty",
+  "ownershipPolicy": "ground_free",
+  "entries": []
+}

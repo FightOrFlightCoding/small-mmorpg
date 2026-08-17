@@ -19,6 +19,9 @@ const KIND_SCHEMA: Record<string, string> = {
   class_progression: "https://vibecode.local/content-schemas/class_progression.json",
   equipment_slot: "https://vibecode.local/content-schemas/equipment_slot.json",
   ability: "https://vibecode.local/content-schemas/ability.json",
+  ai_profile: "https://vibecode.local/content-schemas/ai_profile.json",
+  loot_table: "https://vibecode.local/content-schemas/loot_table.json",
+  spawn: "https://vibecode.local/content-schemas/spawn.json",
 };
 
 export function loadAjv(schemaDir: string, manifest: ContentPackageManifest = DEFAULT_MANIFEST): Ajv2020 {

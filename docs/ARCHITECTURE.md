@@ -155,7 +155,7 @@ Generated artifacts must preserve IDs. Network messages and storage records carr
 - Active casts (cleared on reconnect; not persisted)
 - Status effects (match-lived unless a later phase persists them)
 - Unacked movement intentions
-- Ground loot entities (slime gel drops expire after 30 seconds and are not stored)
+- Ground loot entities (slime gel and other table rolls expire after 30 seconds and are not stored)
 
 Transactions that grant items or currency persist immediately with `nk.multiUpdate` when storage and wallet must change together. Inventory, equipment, quest, and progression writes happen on those transactions, not every tick. Positions persist every **5 seconds** if they changed, on graceful leave, and on match terminate. A disconnected presence is removed from snapshots immediately (no ghost). Live pose, health, and in-match request ids are kept for **5 seconds** of reconnect grace, then discarded. Abandoned `requestId` maps are pruned after **10 minutes**.
 

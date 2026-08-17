@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "7a3006806260ec57ddf338c72dbf5d932786909143acab0abc7b5d9e2e6b024a";
+export const contentHash = "e25c7589697354405e85712f6b166bdfd202eeb38e08b26d10e26451957dc682";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = [] as const;
 export const content = {
@@ -48,6 +48,104 @@ export const content = {
       "movementInterruptsCast": false,
       "prerequisites": [],
       "range": 40,
+      "relationFilter": "hostile",
+      "requiredClassTags": [],
+      "requiredLevel": 1,
+      "resourceCosts": [],
+      "skillPointCost": 0,
+      "soundAssetId": "visual.ability_melee_sound",
+      "targetMode": "entity"
+    },
+    "test.ability.boss_nova": {
+      "animationAssetId": "visual.ability_dot",
+      "areaRadius": 0,
+      "areaShape": "none",
+      "castTime": 0.5,
+      "channelTime": 0,
+      "damageInterruptsCast": false,
+      "descriptionKey": "ability.boss_nova.desc",
+      "displayName": "Boss Nova",
+      "displayNameKey": "ability.boss_nova.name",
+      "effects": [
+        {
+          "duration": 0,
+          "id": "nova",
+          "magnitude": {
+            "kind": "constant",
+            "value": 8
+          },
+          "maxStacks": 1,
+          "refreshPolicy": "refresh",
+          "removalReason": "expired",
+          "source": "caster",
+          "stackPolicy": "replace",
+          "tags": [
+            "arcane"
+          ],
+          "target": "primary",
+          "tickInterval": 0,
+          "type": "direct_damage"
+        }
+      ],
+      "globalCooldown": 3,
+      "iconAssetId": "visual.ability_dot_icon",
+      "id": "test.ability.boss_nova",
+      "individualCooldown": 3,
+      "kind": "ability",
+      "maxRank": 1,
+      "minimumRange": 0,
+      "movementInterruptsCast": true,
+      "prerequisites": [],
+      "range": 80,
+      "relationFilter": "hostile",
+      "requiredClassTags": [],
+      "requiredLevel": 1,
+      "resourceCosts": [],
+      "skillPointCost": 0,
+      "soundAssetId": "visual.ability_dot_sound",
+      "targetMode": "entity"
+    },
+    "test.ability.boss_smash": {
+      "animationAssetId": "visual.ability_melee",
+      "areaRadius": 0,
+      "areaShape": "none",
+      "castTime": 0,
+      "channelTime": 0,
+      "damageInterruptsCast": false,
+      "descriptionKey": "ability.boss_smash.desc",
+      "displayName": "Boss Smash",
+      "displayNameKey": "ability.boss_smash.name",
+      "effects": [
+        {
+          "duration": 0,
+          "id": "smash",
+          "magnitude": {
+            "kind": "constant",
+            "value": 4
+          },
+          "maxStacks": 1,
+          "refreshPolicy": "refresh",
+          "removalReason": "expired",
+          "source": "caster",
+          "stackPolicy": "replace",
+          "tags": [
+            "physical"
+          ],
+          "target": "primary",
+          "tickInterval": 0,
+          "type": "direct_damage"
+        }
+      ],
+      "globalCooldown": 1.5,
+      "iconAssetId": "visual.ability_melee_icon",
+      "id": "test.ability.boss_smash",
+      "individualCooldown": 1.5,
+      "kind": "ability",
+      "maxRank": 1,
+      "minimumRange": 0,
+      "movementInterruptsCast": false,
+      "prerequisites": [],
+      "range": 36,
       "relationFilter": "hostile",
       "requiredClassTags": [],
       "requiredLevel": 1,
@@ -109,6 +207,153 @@ export const content = {
       "skillPointCost": 1,
       "soundAssetId": "visual.ability_dot_sound",
       "targetMode": "ground_point"
+    },
+    "test.ability.enemy_bolt": {
+      "animationAssetId": "visual.ability_bolt",
+      "areaRadius": 0,
+      "areaShape": "none",
+      "castTime": 0,
+      "channelTime": 0,
+      "damageInterruptsCast": false,
+      "descriptionKey": "ability.enemy_bolt.desc",
+      "displayName": "Enemy Bolt",
+      "displayNameKey": "ability.enemy_bolt.name",
+      "effects": [
+        {
+          "duration": 0,
+          "id": "bolt",
+          "magnitude": {
+            "kind": "constant",
+            "value": 5
+          },
+          "maxStacks": 1,
+          "refreshPolicy": "refresh",
+          "removalReason": "expired",
+          "source": "caster",
+          "stackPolicy": "replace",
+          "tags": [
+            "arcane"
+          ],
+          "target": "primary",
+          "tickInterval": 0,
+          "type": "direct_damage"
+        }
+      ],
+      "globalCooldown": 1.6,
+      "iconAssetId": "visual.ability_bolt_icon",
+      "id": "test.ability.enemy_bolt",
+      "individualCooldown": 1.6,
+      "kind": "ability",
+      "maxRank": 1,
+      "minimumRange": 0,
+      "movementInterruptsCast": false,
+      "prerequisites": [],
+      "range": 180,
+      "relationFilter": "hostile",
+      "requiredClassTags": [],
+      "requiredLevel": 1,
+      "resourceCosts": [],
+      "skillPointCost": 0,
+      "soundAssetId": "visual.ability_bolt_sound",
+      "targetMode": "entity"
+    },
+    "test.ability.enemy_cast": {
+      "animationAssetId": "visual.ability_bolt",
+      "areaRadius": 0,
+      "areaShape": "none",
+      "castTime": 0.8,
+      "channelTime": 0,
+      "damageInterruptsCast": false,
+      "descriptionKey": "ability.enemy_cast.desc",
+      "displayName": "Enemy Cast",
+      "displayNameKey": "ability.enemy_cast.name",
+      "effects": [
+        {
+          "duration": 0,
+          "id": "burst",
+          "magnitude": {
+            "kind": "constant",
+            "value": 7
+          },
+          "maxStacks": 1,
+          "refreshPolicy": "refresh",
+          "removalReason": "expired",
+          "source": "caster",
+          "stackPolicy": "replace",
+          "tags": [
+            "arcane"
+          ],
+          "target": "primary",
+          "tickInterval": 0,
+          "type": "direct_damage"
+        }
+      ],
+      "globalCooldown": 2,
+      "iconAssetId": "visual.ability_bolt_icon",
+      "id": "test.ability.enemy_cast",
+      "individualCooldown": 2,
+      "kind": "ability",
+      "maxRank": 1,
+      "minimumRange": 0,
+      "movementInterruptsCast": true,
+      "prerequisites": [],
+      "range": 160,
+      "relationFilter": "hostile",
+      "requiredClassTags": [],
+      "requiredLevel": 1,
+      "resourceCosts": [],
+      "skillPointCost": 0,
+      "soundAssetId": "visual.ability_bolt_sound",
+      "targetMode": "entity"
+    },
+    "test.ability.enemy_melee": {
+      "animationAssetId": "visual.ability_melee",
+      "areaRadius": 0,
+      "areaShape": "none",
+      "castTime": 0,
+      "channelTime": 0,
+      "damageInterruptsCast": false,
+      "descriptionKey": "ability.enemy_melee.desc",
+      "displayName": "Enemy Melee",
+      "displayNameKey": "ability.enemy_melee.name",
+      "effects": [
+        {
+          "duration": 0,
+          "id": "hit",
+          "magnitude": {
+            "kind": "constant",
+            "value": 3
+          },
+          "maxStacks": 1,
+          "refreshPolicy": "refresh",
+          "removalReason": "expired",
+          "source": "caster",
+          "stackPolicy": "replace",
+          "tags": [
+            "physical"
+          ],
+          "target": "primary",
+          "tickInterval": 0,
+          "type": "direct_damage"
+        }
+      ],
+      "globalCooldown": 1.4,
+      "iconAssetId": "visual.ability_melee_icon",
+      "id": "test.ability.enemy_melee",
+      "individualCooldown": 1.4,
+      "kind": "ability",
+      "maxRank": 1,
+      "minimumRange": 0,
+      "movementInterruptsCast": false,
+      "prerequisites": [],
+      "range": 32,
+      "relationFilter": "hostile",
+      "requiredClassTags": [],
+      "requiredLevel": 1,
+      "resourceCosts": [],
+      "skillPointCost": 0,
+      "soundAssetId": "visual.ability_melee_sound",
+      "targetMode": "entity"
     },
     "test.ability.power_buff": {
       "animationAssetId": "visual.ability_buff",
@@ -272,6 +517,68 @@ export const content = {
       "skillPointCost": 1,
       "soundAssetId": "visual.ability_heal_sound",
       "targetMode": "self"
+    }
+  },
+  "aiProfiles": {
+    "test.ai.boss": {
+      "acquireMode": "nearest",
+      "damageThreatWeight": 1,
+      "displayName": "Boss",
+      "generateHealThreat": true,
+      "healThreatWeight": 0.75,
+      "id": "test.ai.boss",
+      "kind": "ai_profile",
+      "kiteRange": 0,
+      "preferredRange": 36,
+      "resetHealthOnReturn": true,
+      "resetThreatOnReturn": true,
+      "style": "boss",
+      "threatSwitchRatio": 1.05
+    },
+    "test.ai.caster": {
+      "acquireMode": "nearest",
+      "damageThreatWeight": 1,
+      "displayName": "Caster",
+      "generateHealThreat": true,
+      "healThreatWeight": 0.5,
+      "id": "test.ai.caster",
+      "kind": "ai_profile",
+      "kiteRange": 90,
+      "preferredRange": 150,
+      "resetHealthOnReturn": false,
+      "resetThreatOnReturn": true,
+      "style": "caster",
+      "threatSwitchRatio": 1.1
+    },
+    "test.ai.melee": {
+      "acquireMode": "nearest",
+      "damageThreatWeight": 1,
+      "displayName": "Melee",
+      "generateHealThreat": false,
+      "healThreatWeight": 0,
+      "id": "test.ai.melee",
+      "kind": "ai_profile",
+      "kiteRange": 0,
+      "preferredRange": 0,
+      "resetHealthOnReturn": false,
+      "resetThreatOnReturn": true,
+      "style": "melee",
+      "threatSwitchRatio": 1.1
+    },
+    "test.ai.ranged": {
+      "acquireMode": "nearest",
+      "damageThreatWeight": 1,
+      "displayName": "Ranged",
+      "generateHealThreat": true,
+      "healThreatWeight": 0.5,
+      "id": "test.ai.ranged",
+      "kind": "ai_profile",
+      "kiteRange": 80,
+      "preferredRange": 140,
+      "resetHealthOnReturn": false,
+      "resetThreatOnReturn": true,
+      "style": "ranged",
+      "threatSwitchRatio": 1.1
     }
   },
   "attributes": {
@@ -564,14 +871,20 @@ export const content = {
   },
   "enemies": {
     "enemy.green_slime": {
+      "abilityLoadout": [],
       "aggroRadius": 128,
+      "aiProfileId": "test.ai.melee",
       "attackCooldown": 1.4,
       "attackRange": 28,
+      "collisionProfileId": "collision.enemy_default",
       "damage": 2,
+      "defense": 0,
       "displayName": "Green Slime",
+      "displayNameKey": "enemy.green_slime.name",
       "id": "enemy.green_slime",
       "kind": "enemy",
       "leashRadius": 256,
+      "level": 1,
       "loot": [
         {
           "guaranteed": true,
@@ -579,11 +892,140 @@ export const content = {
           "quantity": 1
         }
       ],
+      "lootTableId": "loot.green_slime",
       "maxHealth": 20,
       "moveSpeed": 45,
       "respawnDelay": 10,
+      "tags": [
+        "slime",
+        "wildlife"
+      ],
       "visualId": "visual.enemy_green_slime",
       "xpReward": 10
+    },
+    "test.enemy.caster": {
+      "abilityLoadout": [
+        "test.ability.enemy_cast"
+      ],
+      "aggroRadius": 200,
+      "aiProfileId": "test.ai.caster",
+      "attackCooldown": 2,
+      "attackRange": 160,
+      "collisionProfileId": "collision.enemy_default",
+      "damage": 7,
+      "displayName": "Test Caster",
+      "displayNameKey": "enemy.test_caster.name",
+      "id": "test.enemy.caster",
+      "kind": "enemy",
+      "leashRadius": 320,
+      "level": 2,
+      "lootTableId": "loot.empty",
+      "maxHealth": 16,
+      "moveSpeed": 36,
+      "respawnDelay": 8,
+      "tags": [
+        "test",
+        "caster"
+      ],
+      "visualId": "visual.enemy_test_caster",
+      "xpReward": 12
+    },
+    "test.enemy.cave_boss": {
+      "abilityLoadout": [
+        "test.ability.boss_smash"
+      ],
+      "aggroRadius": 180,
+      "aiProfileId": "test.ai.boss",
+      "attackCooldown": 1.5,
+      "attackRange": 36,
+      "collisionProfileId": "collision.enemy_default",
+      "damage": 4,
+      "displayName": "Cave Boss",
+      "displayNameKey": "enemy.cave_boss.name",
+      "id": "test.enemy.cave_boss",
+      "kind": "enemy",
+      "leashRadius": 360,
+      "level": 3,
+      "lootTableId": "loot.test_boss",
+      "maxHealth": 80,
+      "moveSpeed": 40,
+      "phases": [
+        {
+          "id": "normal"
+        },
+        {
+          "addAbilityIds": [
+            "test.ability.boss_nova"
+          ],
+          "combatMessage": "The cave boss enrages.",
+          "healthPercentAtOrBelow": 50,
+          "id": "enraged",
+          "moveSpeed": 55,
+          "setFlag": "enraged",
+          "triggerSpawnId": "spawn.starter.boss_add"
+        }
+      ],
+      "respawnDelay": 20,
+      "tags": [
+        "test",
+        "boss"
+      ],
+      "visualId": "visual.enemy_cave_boss",
+      "xpReward": 40
+    },
+    "test.enemy.melee": {
+      "abilityLoadout": [
+        "test.ability.enemy_melee"
+      ],
+      "aggroRadius": 140,
+      "aiProfileId": "test.ai.melee",
+      "attackCooldown": 1.4,
+      "attackRange": 30,
+      "collisionProfileId": "collision.enemy_default",
+      "damage": 3,
+      "displayName": "Test Melee",
+      "displayNameKey": "enemy.test_melee.name",
+      "id": "test.enemy.melee",
+      "kind": "enemy",
+      "leashRadius": 280,
+      "level": 1,
+      "lootTableId": "loot.test_melee",
+      "maxHealth": 24,
+      "moveSpeed": 50,
+      "respawnDelay": 8,
+      "tags": [
+        "test",
+        "melee"
+      ],
+      "visualId": "visual.enemy_test_melee",
+      "xpReward": 8
+    },
+    "test.enemy.ranged": {
+      "abilityLoadout": [
+        "test.ability.enemy_bolt"
+      ],
+      "aggroRadius": 200,
+      "aiProfileId": "test.ai.ranged",
+      "attackCooldown": 1.6,
+      "attackRange": 180,
+      "collisionProfileId": "collision.enemy_default",
+      "damage": 5,
+      "displayName": "Test Ranged",
+      "displayNameKey": "enemy.test_ranged.name",
+      "id": "test.enemy.ranged",
+      "kind": "enemy",
+      "leashRadius": 320,
+      "level": 1,
+      "lootTableId": "loot.test_ranged",
+      "maxHealth": 18,
+      "moveSpeed": 40,
+      "respawnDelay": 8,
+      "tags": [
+        "test",
+        "ranged"
+      ],
+      "visualId": "visual.enemy_test_ranged",
+      "xpReward": 8
     }
   },
   "equipmentSlots": {
@@ -898,6 +1340,104 @@ export const content = {
       ]
     }
   },
+  "lootTables": {
+    "loot.empty": {
+      "displayName": "Empty",
+      "entries": [],
+      "id": "loot.empty",
+      "kind": "loot_table",
+      "ownershipPolicy": "ground_free"
+    },
+    "loot.green_slime": {
+      "displayName": "Green Slime",
+      "entries": [
+        {
+          "chance": 1,
+          "guaranteed": true,
+          "itemDefinitionId": "item.slime_gel",
+          "maximumQuantity": 1,
+          "minimumQuantity": 1
+        }
+      ],
+      "id": "loot.green_slime",
+      "kind": "loot_table",
+      "ownershipPolicy": "ground_free"
+    },
+    "loot.test_boss": {
+      "displayName": "Cave Boss",
+      "entries": [
+        {
+          "chance": 1,
+          "guaranteed": true,
+          "itemDefinitionId": "item.test_relic_blade",
+          "maximumQuantity": 1,
+          "minimumQuantity": 1
+        },
+        {
+          "chance": 0.4,
+          "itemDefinitionId": "item.test_potion",
+          "maximumQuantity": 2,
+          "minimumQuantity": 1
+        }
+      ],
+      "id": "loot.test_boss",
+      "kind": "loot_table",
+      "ownershipPolicy": "ground_free"
+    },
+    "loot.test_melee": {
+      "displayName": "Test Melee",
+      "entries": [
+        {
+          "chance": 1,
+          "guaranteed": true,
+          "itemDefinitionId": "item.test_cloth",
+          "maximumQuantity": 1,
+          "minimumQuantity": 1
+        }
+      ],
+      "id": "loot.test_melee",
+      "kind": "loot_table",
+      "ownershipPolicy": "ground_free"
+    },
+    "loot.test_ranged": {
+      "displayName": "Test Ranged",
+      "entries": [
+        {
+          "chance": 0.5,
+          "itemDefinitionId": "item.test_pebble",
+          "maximumQuantity": 2,
+          "minimumQuantity": 1
+        }
+      ],
+      "id": "loot.test_ranged",
+      "kind": "loot_table",
+      "ownershipPolicy": "ground_free"
+    },
+    "loot.test_weighted": {
+      "displayName": "Test Weighted",
+      "entries": [
+        {
+          "chance": 0,
+          "groupId": "pack",
+          "itemDefinitionId": "item.test_cloth",
+          "maximumQuantity": 1,
+          "minimumQuantity": 1,
+          "weight": 1
+        },
+        {
+          "chance": 0,
+          "groupId": "pack",
+          "itemDefinitionId": "item.test_pebble",
+          "maximumQuantity": 1,
+          "minimumQuantity": 1,
+          "weight": 3
+        }
+      ],
+      "id": "loot.test_weighted",
+      "kind": "loot_table",
+      "ownershipPolicy": "ground_free"
+    }
+  },
   "npcs": {
     "npc.elder": {
       "displayName": "Elder",
@@ -967,6 +1507,80 @@ export const content = {
       "role": "mana"
     }
   },
+  "spawns": {
+    "spawn.starter.boss_add": {
+      "activationPolicy": "manual",
+      "enemyId": "test.enemy.melee",
+      "groupId": "group.test_boss",
+      "id": "spawn.starter.boss_add",
+      "kind": "spawn",
+      "respawnDelay": 0,
+      "spawnCount": 1,
+      "x": 1080,
+      "y": 640,
+      "zoneId": "zone.starter"
+    },
+    "spawn.starter.cave_boss": {
+      "activationPolicy": "manual",
+      "enemyId": "test.enemy.cave_boss",
+      "groupId": "group.test_boss",
+      "id": "spawn.starter.cave_boss",
+      "kind": "spawn",
+      "respawnDelay": 20,
+      "spawnCount": 1,
+      "x": 1100,
+      "y": 640,
+      "zoneId": "zone.starter"
+    },
+    "spawn.starter.green_slime": {
+      "activationPolicy": "always",
+      "enemyId": "enemy.green_slime",
+      "groupId": "group.starter_wildlife",
+      "id": "spawn.starter.green_slime",
+      "kind": "spawn",
+      "respawnDelay": 10,
+      "spawnCount": 1,
+      "x": 960,
+      "y": 400,
+      "zoneId": "zone.starter"
+    },
+    "spawn.starter.test_caster": {
+      "activationPolicy": "manual",
+      "enemyId": "test.enemy.caster",
+      "groupId": "group.test_ai",
+      "id": "spawn.starter.test_caster",
+      "kind": "spawn",
+      "respawnDelay": 8,
+      "spawnCount": 1,
+      "x": 80,
+      "y": 680,
+      "zoneId": "zone.starter"
+    },
+    "spawn.starter.test_melee": {
+      "activationPolicy": "manual",
+      "enemyId": "test.enemy.melee",
+      "groupId": "group.test_ai",
+      "id": "spawn.starter.test_melee",
+      "kind": "spawn",
+      "respawnDelay": 8,
+      "spawnCount": 1,
+      "x": 80,
+      "y": 80,
+      "zoneId": "zone.starter"
+    },
+    "spawn.starter.test_ranged": {
+      "activationPolicy": "manual",
+      "enemyId": "test.enemy.ranged",
+      "groupId": "group.test_ai",
+      "id": "spawn.starter.test_ranged",
+      "kind": "spawn",
+      "respawnDelay": 8,
+      "spawnCount": 1,
+      "x": 1200,
+      "y": 80,
+      "zoneId": "zone.starter"
+    }
+  },
   "zones": {
     "zone.starter": {
       "collisions": [
@@ -1011,6 +1625,7 @@ export const content = {
       "enemies": [
         {
           "enemyId": "enemy.green_slime",
+          "spawnId": "spawn.starter.green_slime",
           "x": 960,
           "y": 400
         }

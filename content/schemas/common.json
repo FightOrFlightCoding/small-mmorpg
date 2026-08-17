@@ -161,6 +161,60 @@
         }
       }
     },
+    "lootTableEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["itemDefinitionId", "minimumQuantity", "maximumQuantity", "chance"],
+      "properties": {
+        "itemDefinitionId": { "$ref": "#/$defs/contentId" },
+        "minimumQuantity": { "$ref": "#/$defs/positiveInteger" },
+        "maximumQuantity": { "$ref": "#/$defs/positiveInteger" },
+        "chance": { "type": "number", "minimum": 0, "maximum": 1 },
+        "weight": { "$ref": "#/$defs/nonNegativeNumber" },
+        "groupId": { "type": "string", "minLength": 1 },
+        "guaranteed": { "type": "boolean" },
+        "ownershipPolicy": {
+          "type": "string",
+          "enum": ["ground_free", "killer", "party_split"]
+        }
+      }
+    },
+    "enemyResource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resourceId", "max"],
+      "properties": {
+        "resourceId": { "$ref": "#/$defs/contentId" },
+        "max": { "$ref": "#/$defs/positiveNumber" }
+      }
+    },
+    "bossPhase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "healthPercentAtOrBelow": { "type": "number", "minimum": 0, "maximum": 100 },
+        "combatTimeSecAtOrAbove": { "$ref": "#/$defs/nonNegativeNumber" },
+        "addDeathsAtOrAbove": { "$ref": "#/$defs/nonNegativeInteger" },
+        "requireFlag": { "type": "string", "minLength": 1 },
+        "setFlag": { "type": "string", "minLength": 1 },
+        "addAbilityIds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/contentId" }
+        },
+        "removeAbilityIds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/contentId" }
+        },
+        "moveSpeed": { "$ref": "#/$defs/positiveNumber" },
+        "aggroRadius": { "$ref": "#/$defs/positiveNumber" },
+        "attackRange": { "$ref": "#/$defs/positiveNumber" },
+        "triggerSpawnId": { "$ref": "#/$defs/contentId" },
+        "combatMessage": { "type": "string", "minLength": 1 },
+        "applyEffect": { "$ref": "#/$defs/abilityEffect" }
+      }
+    },
     "statComponent": {
       "type": "object",
       "additionalProperties": false,

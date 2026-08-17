@@ -30,7 +30,10 @@ IDs match `^[a-z]+(\.[a-z0-9_]+)+$` (two or more segments). The source filename 
 | --- | --- | --- |
 | `player` | `player.base.json` | Base max health, attack, movement speed, attack range, attack cooldown, interaction range, pickup range, `inventoryCapacity`, optional `basicAbilityId` |
 | `npc` | `npc.elder.json` | Slice NPC definition |
-| `enemy` | `enemy.green_slime.json` | Combat stats, aggro/leash, respawn, `xpReward` 10, guaranteed `item.slime_gel` drop |
+| `enemy` | `enemy.green_slime.json`, `test.enemy.melee.json`, `test.enemy.ranged.json`, `test.enemy.caster.json`, `test.enemy.cave_boss.json` | Combat stats, loadout, `aiProfileId`, `lootTableId`, visual/collision ids, tags; slime remains the Prompt 18 wildlife enemy |
+| `ai_profile` | `test.ai.melee.json`, `test.ai.ranged.json`, `test.ai.caster.json`, `test.ai.boss.json` | Server state-machine style, threat weights, preferred/kite range, leash reset flags |
+| `loot_table` | `loot.green_slime.json`, `loot.empty.json`, plus test tables | Guaranteed, independent chance, and weighted-group entries; empty tables allowed |
+| `spawn` | `spawn.starter.green_slime.json` plus manual test/boss spawns | Zone placement, count, respawn delay, `always`/`manual` activation, group id |
 | `item` | `item.training_sword.json`, `item.slime_gel.json`, `item.iron_sword.json`, plus ordinary test items | Categories `weapon`/`armor`/`consumable`/`quest`/`material`/`miscellaneous`; stack, trade/destroy, unique policy, slot tags, class/level, stat modifiers, sell value, icon/world asset ids |
 | `equipment_slot` | `slot.main_hand.json` and the other temporary tags | Content-defined equipment tags (`main_hand`, `off_hand`, `head`, `chest`, `legs`, `feet`). Classes list allowed tags; not every class uses every slot. |
 | `quest` | `quest.slime_problem.json` | Accept/turn-in at `npc.elder`, acquire and consume one gel, reward iron sword + 25 gold + 20 XP, once only |

@@ -529,6 +529,10 @@ func _on_combat_event(payload: Dictionary) -> void:
 			if String(event.get("targetId", "")) == String(AppState.zone_view.get("self_id", "")):
 				_reconciler.reset(Vector2(float(event.get("x", 0.0)), float(event.get("y", 0.0))))
 				_entities.pose_local(_reconciler.display)
+		if event_type == "message":
+			var notice := String(event.get("message", ""))
+			if not notice.is_empty() and _hud != null:
+				_hud.show_notice(notice)
 
 
 func _combat_message(code: String) -> String:

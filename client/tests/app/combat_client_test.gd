@@ -122,7 +122,7 @@ func test_hud_shows_target_frame_and_combat_indicator() -> void:
 	assert_str(combat_state.text).is_equal("In combat")
 	var frame: PanelContainer = hud.get_node("Root/TargetFrame")
 	assert_bool(frame.visible).is_true()
-	assert_str(hud.get_node("Root/TargetFrame/Margin/VBox/Vitals").text).contains("12 / 20")
+	assert_str(hud.get_node("Root/TargetFrame/Margin/VBox/Vitals").text).contains("12 / 20 (idle)")
 
 
 func test_set_target_payload_sends_id_without_damage() -> void:
@@ -135,6 +135,24 @@ func test_set_target_payload_sends_id_without_damage() -> void:
 	assert_str(String(body["targetId"])).is_equal("enemy.green_slime:0")
 	assert_str(String(body["intent"])).is_equal("hostile")
 	assert_bool(body.has("damage")).is_false()
+
+
+func test_combat_message_event_is_parsed() -> void:
+	var parsed: Dictionary = MatchProtocol.parse_combat_event(JSON.stringify({
+		"protocolVersion": 1,
+		"tick": 20,
+		"events": [{
+			"type": "message",
+			"sourceId": "test.enemy.cave_boss:0",
+			"sourceKind": "enemy",
+			"targetId": "test.enemy.cave_boss:0",
+			"targetKind": "enemy",
+			"message": "The cave boss enrages.",
+		}],
+	}))
+	assert_bool(bool(parsed["ok"])).is_true()
+	var events: Array = parsed["events"]
+	assert_str(String(events[0]["message"])).is_equal("The cave boss enrages.")
 
 
 func test_release_respawn_sends_request_id_only() -> void:
