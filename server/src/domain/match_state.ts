@@ -18,6 +18,8 @@ import {
   type PlayerEquipment,
 } from "./equipment";
 import { cloneLoot, publicLoot, type LootDrop, type MatchLoot } from "./loot";
+import type { NpcDefinition } from "./npc";
+import type { VendorDefinition } from "./vendor";
 import { dict } from "./maps";
 import { cloneProgression, publicProgression, type CharacterProgression } from "./progression";
 import { cloneActionRates, emptyActionRates, type PlayerActionRate } from "./rate_limit";
@@ -100,6 +102,8 @@ export interface MatchPlayer {
   friendlyTargetId?: string;
   bindX?: number;
   bindY?: number;
+  bindZoneId?: string;
+  innByRequestId?: { [requestId: string]: string };
   lastSetTargetRequestId?: string;
   lastSetTargetResultCode?: string;
   lastSetTargetResultOk?: boolean;
@@ -118,6 +122,9 @@ export interface MatchNpc {
   npcId: string;
   x: number;
   y: number;
+  zoneId?: string;
+  interactionRange?: number;
+  dialogueId?: string;
 }
 
 export type EnemyAiState =
@@ -248,6 +255,8 @@ export interface StarterZoneState {
   enemiesById?: { [id: string]: EnemyContent };
   aiProfilesById?: { [id: string]: AiProfileContent };
   lootTablesById?: { [id: string]: LootTableDefinition };
+  npcsById?: { [id: string]: NpcDefinition };
+  vendorsById?: { [id: string]: VendorDefinition };
   processedDeathEventIds?: { [eventId: string]: boolean };
   actionRates: { [userId: string]: PlayerActionRate };
   progressionCatalog?: ProgressionCatalog;
@@ -344,6 +353,8 @@ export interface StarterZoneCatalogExtras {
   spawnsById?: { [id: string]: SpawnContent };
   aiProfilesById?: { [id: string]: AiProfileContent };
   lootTablesById?: { [id: string]: LootTableDefinition };
+  npcsById?: { [id: string]: NpcDefinition };
+  vendorsById?: { [id: string]: VendorDefinition };
 }
 
 export function enemyDefinitionsFromContent(enemies: {
@@ -398,6 +409,15 @@ export function createStarterZoneState(
       npcId: spawn.npcId,
       x: spawn.x,
       y: spawn.y,
+      zoneId: zone.id,
+      interactionRange:
+        extras.npcsById !== undefined && extras.npcsById[spawn.npcId] !== undefined
+          ? extras.npcsById[spawn.npcId].interactionRange
+          : playerContent.interactionRange,
+      dialogueId:
+        extras.npcsById !== undefined && extras.npcsById[spawn.npcId] !== undefined
+          ? extras.npcsById[spawn.npcId].dialogueId
+          : "",
     });
   }
   const enemyLootById: { [id: string]: LootDrop[] } = {};
@@ -449,6 +469,8 @@ export function createStarterZoneState(
     enemiesById: enemiesById,
     aiProfilesById: extras.aiProfilesById,
     lootTablesById: extras.lootTablesById,
+    npcsById: extras.npcsById,
+    vendorsById: extras.vendorsById,
     processedDeathEventIds: {},
     actionRates: emptyActionRates(),
     equipmentSlotsByTag: extras.equipmentSlotsByTag,
@@ -698,6 +720,8 @@ function cloneMatchPlayer(p: MatchPlayer, state: StarterZoneState): MatchPlayer 
     friendlyTargetId: p.friendlyTargetId != null ? String(p.friendlyTargetId) : "",
     bindX: typeof p.bindX === "number" && isFinite(p.bindX) ? p.bindX : undefined,
     bindY: typeof p.bindY === "number" && isFinite(p.bindY) ? p.bindY : undefined,
+    bindZoneId: p.bindZoneId != null ? String(p.bindZoneId) : undefined,
+    innByRequestId: dict(p.innByRequestId),
     lastSetTargetRequestId: p.lastSetTargetRequestId != null ? String(p.lastSetTargetRequestId) : "",
     lastSetTargetResultCode: p.lastSetTargetResultCode != null ? String(p.lastSetTargetResultCode) : "",
     lastSetTargetResultOk: p.lastSetTargetResultOk === true,
@@ -761,6 +785,8 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     enemiesById: state.enemiesById,
     aiProfilesById: state.aiProfilesById,
     lootTablesById: state.lootTablesById,
+    npcsById: state.npcsById,
+    vendorsById: state.vendorsById,
     processedDeathEventIds: dict(state.processedDeathEventIds),
     actionRates: cloneActionRates(state.actionRates),
     progressionCatalog: state.progressionCatalog,

@@ -22,6 +22,7 @@ export const KIND_PREFIX: Record<string, string> = {
   ai_profile: "test.ai",
   loot_table: "loot",
   spawn: "spawn",
+  vendor: "vendor",
 };
 
 export function isContentId(value: string): boolean {

@@ -30,11 +30,11 @@ A later phase may implement a Required-for-Foundation-v1 row only when that phas
 | Unlocked abilities and hotbar validity | Required for Foundation v1 | Absent. Combat is one auto-attack. |
 | Server-authoritative target-based PvE combat | Existing and accepted | Slice combat: `ATTACK` with `targetId` + `requestId`; server damage, cooldown, death, respawn. Foundation v1 must keep server authority while generalizing beyond one slime. |
 | Casts, resources, and status effects | Required for Foundation v1 | Absent. Health exists; no mana/resource pool or status pipeline. |
-| NPC dialogue | Existing and accepted | Elder dialogue after `INTERACTION_RESULT`. |
-| NPC services (beyond dialogue) | Required for Foundation v1 | Absent. |
-| Quests | Existing and accepted | One quest, server-owned, idempotent turn-in. |
-| Merchants | Required for Foundation v1 | Absent. |
-| Inn and respawn binding | Required for Foundation v1 | Absent. Death teleports to `zone.starter.playerSpawn`. |
+| NPC dialogue | Existing and accepted (Prompt 27) | Dialogue after server `INTERACTION_RESULT`. Conditions read server-approved quest/class/level state. Scripts do not mutate canonical state. |
+| NPC services (beyond dialogue) | Existing and accepted (Prompt 27) | Content services: dialogue, quest_offer, quest_turn_in, vendor, inn, healer, cave_entrance. One NPC type; no elder/merchant/innkeeper classes. |
+| Quests | Existing and accepted (Prompt 27) | Generic engine: categories, stages, reusable objectives, prerequisites, non-repeatable unless test-configured. Prompt 18 slime quest is content on that engine. |
+| Merchants | Existing and accepted (Prompt 27) | Content vendors; server prices; buy/sell through the transaction service. Infinite static stock. |
+| Inn and respawn binding | Existing and accepted (Prompt 27) | Inn/healer services heal, restore class resources, optionally charge gold, and persist bind on the character record. Cave entry returns `cave_unavailable` until cave instances. |
 | Inventory | Existing and accepted (Prompt 23) | Server-owned, content `inventoryCapacity`, stack merge/split/move, destroy, locks, `permissionWrite: 0`. |
 | Equipment | Existing and accepted (Prompt 23) | Content-defined slots (temporary six tags), server-enforced requirements, canonical stat recalc. |
 | Primary currency gold | Existing and accepted (Prompt 23) | Nakama wallet `gold`; every mutation goes through the currency/transaction service. |

@@ -137,6 +137,30 @@ export function cloneProgression(progression: CharacterProgression | undefined):
   };
 }
 
+export function applyQuestRewardProgression(
+  progression: CharacterProgression,
+  rewards: {
+    attributePoints?: number;
+    skillPoints?: number;
+    abilityUnlockIds?: ReadonlyArray<string>;
+  },
+): CharacterProgression {
+  const next = cloneProgression(progression);
+  if (rewards.attributePoints !== undefined && rewards.attributePoints > 0) {
+    next.unspentAttributePoints += rewards.attributePoints;
+  }
+  if (rewards.skillPoints !== undefined && rewards.skillPoints > 0) {
+    next.unspentSkillPoints += rewards.skillPoints;
+  }
+  const unlocks = rewards.abilityUnlockIds !== undefined ? rewards.abilityUnlockIds : [];
+  for (let i = 0; i < unlocks.length; i++) {
+    if (next.unlockedAbilityIds.indexOf(unlocks[i]) === -1) {
+      next.unlockedAbilityIds.push(unlocks[i]);
+    }
+  }
+  return next;
+}
+
 export function initializeProgression(catalog: ProgressionCatalog, classId: string): CharacterProgression {
   const classDef = catalog.classes[classId];
   const progressionDef = classProgressionFor(catalog, classId);

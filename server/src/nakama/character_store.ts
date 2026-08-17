@@ -99,6 +99,7 @@ export function writeCharacterCheckpoint(
   x: number,
   y: number,
   characterId?: string,
+  bind?: { bindX: number; bindY: number; bindZoneId: string; innByRequestId?: { [requestId: string]: string } },
 ): void {
   nk.storageWriteRetry(
     [{ collection: CHARACTER_COLLECTION, key: storageKey(CHARACTER_KEY, characterId), userId: userId }],
@@ -120,10 +121,10 @@ export function writeCharacterCheckpoint(
       if (characterId !== undefined && characterId.length > 0 && current.characterId !== characterId) {
         return [];
       }
-      if (current.position.x === x && current.position.y === y && !loaded.persist) {
+      if (current.position.x === x && current.position.y === y && bind === undefined && !loaded.persist) {
         return [];
       }
-      const next = checkpointCharacterPosition(current, x, y, Date.now());
+      const next = checkpointCharacterPosition(current, x, y, Date.now(), bind);
       const sourceKey = currentObjects[0].key;
       let writeId: string | undefined;
       if (sourceKey === CHARACTER_KEY) {

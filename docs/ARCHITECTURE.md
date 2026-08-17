@@ -116,7 +116,8 @@ Third-party libraries are implementation details. Game code talks to project-own
 | `ProgressionService` | none | Client-side mirror of server progression from `FULL_STATE` / `PROGRESSION_STATE`. Allocate sends `attributeId` + `amount` + `requestId` only. Never sends XP. Not a gameplay authority. |
 | `AbilityService` | none | Client-side mirror of server abilities from `FULL_STATE` / `ABILITY_STATE` / snapshots. Use sends `abilityId` + target + `requestId` only. Never sends damage, healing, range, cooldown, cast time, cost, or duration. Not a gameplay authority. |
 | `PickupIntent` | none | Nearby loot pick for usability. Server range, capacity, and grants are authoritative. |
-| `DialoguePresenter` / `DialogueCatalog` | Dialogue Manager 3.10.5 | Opens elder dialogue only after a matching `INTERACTION_RESULT`. Local `.dialogue` text; quest mutations go through `QuestService`. |
+| `DialoguePresenter` / `DialogueCatalog` | Dialogue Manager 3.10.5 | Opens dialogue only after a matching `INTERACTION_RESULT`. Prefers server `dialogueId`. Local `.dialogue` text; quest/vendor/inn/cave mutations go through project services. |
+| `VendorService` / `InnService` / `CaveService` | none | Buy/sell/rest/cave-enter intentions after server-approved services. Never send prices, gold, health, or bind. |
 | `Test runner scripts` | GdUnit4 6.2.0 | Client unit/scene tests |
 | `SliceJourney` / `SliceSession` | Nakama Godot SDK via `NakamaNetworkBackend` | Debug-only headless two-identity journey (`--e2e-slice`). Sends the same intentions as the graphical client. Unavailable in release builds. Not a gameplay authority. |
 

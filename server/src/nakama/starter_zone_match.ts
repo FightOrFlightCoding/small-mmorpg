@@ -49,6 +49,8 @@ import { abilityDefinitionsFromContent, prepareJoinedPlayerAbilities } from "../
 import { spawnDefinitionsFromContent } from "../domain/spawn_controller";
 import { aiProfilesFromContent } from "../domain/threat";
 import { lootTablesFromContent } from "../domain/loot_table";
+import { npcDefinitionsFromContent } from "../domain/npc";
+import { vendorDefinitionsFromContent } from "../domain/vendor";
 import { readProgression, writeProgression, writeProgressionOnce } from "./progression_store";
 
 export interface StarterMatchRuntimeState {
@@ -91,6 +93,8 @@ export function matchInit(
       spawnsById: spawnDefinitionsFromContent(content.spawns),
       aiProfilesById: aiProfilesFromContent(content.aiProfiles),
       lootTablesById: lootTablesFromContent(content.lootTables),
+      npcsById: npcDefinitionsFromContent(content.npcs),
+      vendorsById: vendorDefinitionsFromContent(content.vendors),
     },
   );
   zone.progressionCatalog = catalogFromContent(content);
@@ -295,6 +299,10 @@ export function matchJoin(
         lastCheckpointTick: tick,
         lastCheckpointX: character.position.x,
         lastCheckpointY: character.position.y,
+        bindX: character.bindX,
+        bindY: character.bindY,
+        bindZoneId: character.bindZoneId,
+        innByRequestId: character.innByRequestId,
       };
       applyJoinDerived(zone, player);
       player.health = joinHealth(player.maxHealth);
@@ -385,6 +393,8 @@ export function matchLoop(
     return nk.uuidv4();
   }, function (request) {
     return commitQuestReward(nk, request);
+  }, function (request) {
+    return commitTransaction(nk, request);
   });
   for (let p = 0; p < result.persistQuests.length; p++) {
     const persist = result.persistQuests[p];
@@ -491,6 +501,8 @@ function bindContentCatalogs(zone: StarterZoneState): void {
   zone.enemiesById = enemyDefinitionsFromContent(content.enemies);
   zone.aiProfilesById = aiProfilesFromContent(content.aiProfiles);
   zone.lootTablesById = lootTablesFromContent(content.lootTables);
+  zone.npcsById = npcDefinitionsFromContent(content.npcs);
+  zone.vendorsById = vendorDefinitionsFromContent(content.vendors);
   zone.playerAttack = content.player.attack;
   zone.playerAttackRange = content.player.attackRange;
   zone.playerAttackCooldownSec = content.player.attackCooldown;
@@ -513,6 +525,8 @@ function stripContentCatalogs(zone: StarterZoneState): void {
   zone.enemiesById = undefined;
   zone.aiProfilesById = undefined;
   zone.lootTablesById = undefined;
+  zone.npcsById = undefined;
+  zone.vendorsById = undefined;
 }
 
 function enemyLootFromContent(): { [id: string]: { itemId: string; quantity: number; guaranteed?: boolean }[] } {
@@ -601,7 +615,21 @@ function writeCheckpoints(
 ): void {
   for (let i = 0; i < checkpoints.length; i++) {
     const checkpoint = checkpoints[i];
-    writeCharacterCheckpoint(nk, checkpoint.userId, checkpoint.x, checkpoint.y, checkpoint.characterId);
+    writeCharacterCheckpoint(
+      nk,
+      checkpoint.userId,
+      checkpoint.x,
+      checkpoint.y,
+      checkpoint.characterId,
+      checkpoint.bindX !== undefined && checkpoint.bindY !== undefined
+        ? {
+            bindX: checkpoint.bindX,
+            bindY: checkpoint.bindY,
+            bindZoneId: checkpoint.bindZoneId !== undefined ? checkpoint.bindZoneId : "",
+            innByRequestId: checkpoint.innByRequestId,
+          }
+        : undefined,
+    );
     logger.info("starter_zone persist checkpoint user_id=%s", checkpoint.userId);
   }
 }

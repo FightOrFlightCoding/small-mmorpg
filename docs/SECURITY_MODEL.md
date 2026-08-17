@@ -100,9 +100,15 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Defense:** There is no client XP opcode and no debug grant RPC. XP is granted only from trusted server events (kill credit, quest reward, administrator domain `grantXp`) with `reasonType`, `reasonId`, `eventId`, `characterId`, and `amount`. Duplicate `eventId` values do not grant twice. Outcome keys `xp`, `currentXp`, `lifetimeXp`, and `level` are `stat_injection`.
 
+### Vendor price spoof, inn bind, cave transfer
+
+**Attack:** Client sends a buy/sell price or gold delta; forges inn health/bind; or treats `CAVE_ENTER` as a zone transfer.
+
+**Defense:** `VENDOR_BUY`/`VENDOR_SELL` accept `npcId`, item or instance id, optional quantity, and `requestId` only. `price` is `unknown_field`; `gold` is `stat_injection`. Server catalog prices and the transaction service own gold. `INN_REST` heals and optionally binds from content; bind persists on the character record (`permissionWrite: 0`). `CAVE_ENTER` always returns `cave_unavailable` and never creates or joins another match.
+
 ### Rate-limit abuse
 
-**Attack:** Flood `INPUT`, `ATTACK`, `USE_ABILITY`, `CANCEL_CAST`, `SET_TARGET`, `INTERACT`, `PICKUP`, `EQUIP`, `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, quest opcodes, `ALLOCATE_ATTRIBUTES`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, `RELEASE_RESPAWN`, or `RESYNC_REQUEST` faster than an honest client.
+**Attack:** Flood `INPUT`, `ATTACK`, `USE_ABILITY`, `CANCEL_CAST`, `SET_TARGET`, `INTERACT`, `PICKUP`, `EQUIP`, `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, quest opcodes, `VENDOR_BUY`, `VENDOR_SELL`, `INN_REST`, `CAVE_ENTER`, `ALLOCATE_ATTRIBUTES`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, `RELEASE_RESPAWN`, or `RESYNC_REQUEST` faster than an honest client.
 
 **Defense:** Match state stores per-user `actionRates` for a 10-tick window. Excess is `rate_limited`, logged, and not applied. Honest 10 Hz movement stays under the `INPUT` cap of 20/s.
 
@@ -138,9 +144,12 @@ Every expected attack maps to a validation rule, an automated test, and a safe s
 | Item injection | No grant opcode; `instanceId` on `PICKUP` rejected; storage `permissionWrite: 0` | `protocol.test.ts`, `inventory.test.ts`, `security.test.ts` | `unknown_opcode` / `stat_injection:instanceId` |
 | Equipment spoofing | Own instance, equippable `main_hand`, server derived attack | `equipment.test.ts`, `security.test.ts` | `unowned` / `not_equippable` / `stat_injection:attack` |
 | Duplicate pickup | First success despawns loot; same `requestId` replays | `inventory.test.ts`, `security.test.ts` | Second apply `ok` without a second grant |
-| Duplicate reward | `requestId` idempotency on pickup, equip, quest, allocate; XP `eventId` | `inventory.test.ts`, `quest.test.ts`, `quest_reward.test.ts`, `progression.test.ts`, `security.test.ts` | Replay `ok`/`accepted`; no second mutate |
+| Duplicate reward | `requestId` idempotency on pickup, equip, quest, vendor, inn, allocate; XP `eventId` | `inventory.test.ts`, `quest.test.ts`, `quest_reward.test.ts`, `vendor.test.ts`, `inn.test.ts`, `progression.test.ts`, `security.test.ts` | Replay `ok`/`accepted`; no second mutate |
 | Quest skipping | Turn-in requires accepted stage, NPC, range, items | `quest_reward.test.ts`, `security.test.ts` | `invalid_id` / `incomplete_objective`; gold unchanged |
 | Client quest progress | `status` / `questComplete` / `gold` rejected | `protocol.test.ts`, `security.test.ts` | `unknown_field` / `stat_injection:questComplete` |
+| Vendor price spoof | Client `price` / `gold` rejected; server catalog prices | `vendor.test.ts`, `protocol.test.ts` | `unknown_field:price` / `stat_injection:gold`; gold unchanged |
+| Inn health/gold spoof | Client health/gold rejected; server heal and bind | `inn.test.ts`, `protocol.test.ts` | `stat_injection:gold`; bind unchanged on reject |
+| Fake cave transfer | `CAVE_ENTER` never changes match | `inn.test.ts`, `protocol.test.ts` | `cave_unavailable`; still in `zone.starter` |
 | Fabricated NPC interaction | Server range and live health | `interaction.test.ts` | `out_of_range` / `invalid_target` / `player_dead` |
 | Invalid target IDs | Match entity + content indexes | `combat.test.ts`, `combat_pipeline.test.ts`, `targeting.test.ts`, `inventory.test.ts`, `interaction.test.ts`, `security.test.ts` | `invalid_target` / `invalid_id`; match continues |
 | Oversized payloads | 2048-byte client match cap; 24 messages/tick | `protocol.test.ts`, `security.test.ts` | `payload_too_large` / `rate_limited` |

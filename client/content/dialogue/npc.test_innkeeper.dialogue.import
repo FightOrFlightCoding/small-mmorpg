@@ -1,0 +1,16 @@
+[remap]
+
+importer="dialogue_manager"
+importer_version=15
+type="Resource"
+uid="uid://dh2lq40k2k1j6"
+path="res://.godot/imported/npc.test_innkeeper.dialogue-40b26ea071f754c8a676932b01385cee.tres"
+
+[deps]
+
+source_file="res://content/dialogue/npc.test_innkeeper.dialogue"
+dest_files=["res://.godot/imported/npc.test_innkeeper.dialogue-40b26ea071f754c8a676932b01385cee.tres"]
+
+[params]
+
+defaults=true

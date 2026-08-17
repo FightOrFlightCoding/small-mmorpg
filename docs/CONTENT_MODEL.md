@@ -29,14 +29,15 @@ IDs match `^[a-z]+(\.[a-z0-9_]+)+$` (two or more segments). The source filename 
 | Kind | Source file | Role |
 | --- | --- | --- |
 | `player` | `player.base.json` | Base max health, attack, movement speed, attack range, attack cooldown, interaction range, pickup range, `inventoryCapacity`, optional `basicAbilityId` |
-| `npc` | `npc.elder.json` | Slice NPC definition |
+| `npc` | `npc.elder.json` plus test vendor/inn/herald/cave NPCs | One NPC type. Services: `dialogue`, `quest_offer`, `quest_turn_in`, `vendor`, `inn`, `healer`, `cave_entrance`. Per-NPC pose, `interactionRange`, `dialogueId`. No elder/merchant/innkeeper classes. |
 | `enemy` | `enemy.green_slime.json`, `test.enemy.melee.json`, `test.enemy.ranged.json`, `test.enemy.caster.json`, `test.enemy.cave_boss.json` | Combat stats, loadout, `aiProfileId`, `lootTableId`, visual/collision ids, tags; slime remains the Prompt 18 wildlife enemy |
 | `ai_profile` | `test.ai.melee.json`, `test.ai.ranged.json`, `test.ai.caster.json`, `test.ai.boss.json` | Server state-machine style, threat weights, preferred/kite range, leash reset flags |
 | `loot_table` | `loot.green_slime.json`, `loot.empty.json`, plus test tables | Guaranteed, independent chance, and weighted-group entries; empty tables allowed |
 | `spawn` | `spawn.starter.green_slime.json` plus manual test/boss spawns | Zone placement, count, respawn delay, `always`/`manual` activation, group id |
 | `item` | `item.training_sword.json`, `item.slime_gel.json`, `item.iron_sword.json`, plus ordinary test items | Categories `weapon`/`armor`/`consumable`/`quest`/`material`/`miscellaneous`; stack, trade/destroy, unique policy, slot tags, class/level, stat modifiers, sell value, icon/world asset ids |
 | `equipment_slot` | `slot.main_hand.json` and the other temporary tags | Content-defined equipment tags (`main_hand`, `off_hand`, `head`, `chest`, `legs`, `feet`). Classes list allowed tags; not every class uses every slot. |
-| `quest` | `quest.slime_problem.json` | Accept/turn-in at `npc.elder`, acquire and consume one gel, reward iron sword + 25 gold + 20 XP, once only |
+| `quest` | `quest.slime_problem.json` plus `quest.test.*` examples | Generic engine: categories, optional stages, prerequisites, reusable objectives (`talk_to_npc`, `kill_enemy`, `collect_item`/`acquire_item`, `enter_location`, `defeat_boss`, `return_to_npc`). Slime quest remains the Prompt 18 public quest. Test quests are not final story. |
+| `vendor` | `vendor.test_general.json` | Static stock, server prices, sell multiplier. Infinite quantity. |
 | `zone` | `zone.starter.json` | World size, tile size, spawn points, walkable bounds, collision AABBs, visual ID |
 | `class` | `test.class.vanguard.json`, `test.class.arcanist.json` | Temporary Foundation test classes: `progressionId`, starting equipment/abilities, allowed equipment tags, class tags, visual asset set. Exactly one class may set `legacyMigrationDefault`. Class id is immutable after character create. Numeric bases live on `class_progression`, not on the class document. |
 | `ability` | `test.ability.basic_melee.json`, `test.ability.ranged_bolt.json`, `test.ability.small_heal.json`, `test.ability.power_buff.json`, `test.ability.damage_over_time.json` | Content-defined abilities: target mode, relation filter, range, cast/channel/cooldowns, resource costs, interrupt flags, structured effects. Certification examples, not final skills. Adding another ordinary ability that uses existing effect handlers is content-only. |
@@ -48,7 +49,7 @@ IDs match `^[a-z]+(\.[a-z0-9_]+)+$` (two or more segments). The source filename 
 
 Equipment slots are content-defined (`kind` `equipment_slot`). Equippable items list `equipmentSlotTags` (and may keep `equipSlot` as an alias). Unequippable items omit slot tags. A new ordinary item is introduced through content without protocol changes.
 
-No RPG database plugin is used. Dialogue source is not part of this phase.
+No RPG database plugin is used. Client `.dialogue` files are presentation keyed by server `dialogueId`; they are not hashed into `contentHash`.
 
 ## Generation
 

@@ -31,6 +31,10 @@ const CLIENT_ASSIGN_HOTBAR: int = 15
 const CLIENT_UNLOCK_ABILITY: int = 16
 const CLIENT_SET_TARGET: int = 17
 const CLIENT_RELEASE_RESPAWN: int = 18
+const CLIENT_VENDOR_BUY: int = 19
+const CLIENT_VENDOR_SELL: int = 20
+const CLIENT_INN_REST: int = 21
+const CLIENT_CAVE_ENTER: int = 22
 
 const SERVER_FULL_STATE: int = 101
 const SERVER_SNAPSHOT: int = 102
@@ -190,6 +194,9 @@ static func parse_interaction_result(raw: String) -> Dictionary:
 		"code": String(parsed.get("code", "unknown")),
 		"request_id": String(parsed.get("requestId", "")),
 		"target_id": String(parsed.get("targetId", "")),
+		"dialogue_id": String(parsed.get("dialogueId", "")),
+		"services": _optional_array(parsed, "services"),
+		"context": _optional_object(parsed, "context"),
 	}
 
 

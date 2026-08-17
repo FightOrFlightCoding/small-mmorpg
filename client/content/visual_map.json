@@ -18,6 +18,18 @@
     "texture": "res://assets/third_party/kenney_rpg_base/PNG/rpgTile165.png",
     "fallback_color": "#D4A017"
   },
+  "visual.npc_vendor": {
+    "fallback_color": "#C9783A"
+  },
+  "visual.npc_innkeeper": {
+    "fallback_color": "#6B8E6B"
+  },
+  "visual.npc_herald": {
+    "fallback_color": "#5B7C99"
+  },
+  "visual.npc_cave_portal": {
+    "fallback_color": "#4A3A5C"
+  },
   "visual.enemy_green_slime": {
     "texture": "res://assets/third_party/kenney_rpg_base/PNG/rpgTile160.png",
     "fallback_color": "#4CAF50"

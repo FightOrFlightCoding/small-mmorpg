@@ -25,6 +25,7 @@ import type {
   ResourceDef,
   SourceDocument,
   SpawnDef,
+  VendorDef,
   ZoneDef,
 } from "./types";
 
@@ -108,6 +109,7 @@ export function validateDocuments(
   const aiProfiles = asKindMap<AiProfileDef>(selected, "ai_profile");
   const lootTables = asKindMap<LootTableDef>(selected, "loot_table");
   const spawns = asKindMap<SpawnDef>(selected, "spawn");
+  const vendors = asKindMap<VendorDef>(selected, "vendor");
 
   if (player) {
     checkVisual(player.visualId, issues);
@@ -123,7 +125,11 @@ export function validateDocuments(
   }
   const npcIds = Object.keys(npcs);
   for (let i = 0; i < npcIds.length; i++) {
-    checkVisual(npcs[npcIds[i]].visualId, issues);
+    checkNpc(npcs[npcIds[i]], zones, vendors, quests, classes, issues);
+  }
+  const vendorIds = Object.keys(vendors);
+  for (let i = 0; i < vendorIds.length; i++) {
+    checkVendor(vendors[vendorIds[i]], items, classes, issues);
   }
   const enemyIds = Object.keys(enemies);
   for (let i = 0; i < enemyIds.length; i++) {
@@ -139,7 +145,7 @@ export function validateDocuments(
   }
   const questIds = Object.keys(quests);
   for (let i = 0; i < questIds.length; i++) {
-    checkQuest(quests[questIds[i]], npcs, items, issues);
+    checkQuest(quests[questIds[i]], npcs, items, enemies, abilities, classes, quests, issues);
   }
   const zoneIds = Object.keys(zones);
   for (let i = 0; i < zoneIds.length; i++) {
@@ -175,6 +181,7 @@ export function validateDocuments(
     aiProfiles,
     lootTables,
     spawns,
+    vendors,
   };
 }
 
@@ -416,23 +423,96 @@ function checkSpawn(
   checkPointInWorld(zone, spawn.x, spawn.y, "spawn:" + spawn.id, issues);
 }
 
+function checkNpc(
+  npc: NpcDef,
+  zones: Record<string, ZoneDef>,
+  vendors: Record<string, VendorDef>,
+  quests: Record<string, QuestDef>,
+  classes: Record<string, ClassDef>,
+  issues: ContentIssue[],
+): void {
+  checkVisual(npc.visualId, issues);
+  if (!zones[npc.zoneId]) {
+    issues.push(issue("missing_reference:" + npc.zoneId));
+  }
+  for (let i = 0; i < npc.services.length; i++) {
+    const service = npc.services[i];
+    if (service.type === "vendor") {
+      if (service.vendorId === undefined || !vendors[service.vendorId]) {
+        issues.push(issue("missing_reference:" + (service.vendorId !== undefined ? service.vendorId : npc.id)));
+      }
+    }
+    const questIds = service.questIds !== undefined ? service.questIds : [];
+    for (let q = 0; q < questIds.length; q++) {
+      if (!quests[questIds[q]]) {
+        issues.push(issue("missing_reference:" + questIds[q]));
+      }
+    }
+    const classReqs = service.classRequirements !== undefined ? service.classRequirements : [];
+    for (let c = 0; c < classReqs.length; c++) {
+      if (!classes[classReqs[c]]) {
+        issues.push(issue("missing_reference:" + classReqs[c]));
+      }
+    }
+    if (service.requiredQuestId !== undefined && !quests[service.requiredQuestId]) {
+      issues.push(issue("missing_reference:" + service.requiredQuestId));
+    }
+  }
+}
+
+function checkVendor(
+  vendor: VendorDef,
+  items: Record<string, ItemDef>,
+  classes: Record<string, ClassDef>,
+  issues: ContentIssue[],
+): void {
+  const seen: { [itemId: string]: boolean } = {};
+  for (let i = 0; i < vendor.stock.length; i++) {
+    const stock = vendor.stock[i];
+    requireItem(stock.itemId, items, issues);
+    if (seen[stock.itemId] === true) {
+      issues.push(issue("duplicate_vendor_stock:" + stock.itemId));
+    }
+    seen[stock.itemId] = true;
+    const classReqs = stock.classRequirements !== undefined ? stock.classRequirements : [];
+    for (let c = 0; c < classReqs.length; c++) {
+      if (!classes[classReqs[c]]) {
+        issues.push(issue("missing_reference:" + classReqs[c]));
+      }
+    }
+  }
+}
+
 function checkQuest(
   quest: QuestDef,
   npcs: Record<string, NpcDef>,
   items: Record<string, ItemDef>,
+  enemies: Record<string, EnemyDef>,
+  abilities: Record<string, AbilityDef>,
+  classes: Record<string, ClassDef>,
+  questsById: Record<string, QuestDef>,
   issues: ContentIssue[],
 ): void {
   requireNpc(quest.acceptNpcId, npcs, issues);
   requireNpc(quest.turnInNpcId, npcs, issues);
-  for (let i = 0; i < quest.objectives.length; i++) {
-    requireItem(quest.objectives[i].itemId, items, issues);
+  if (quest.startNpcId !== undefined) {
+    requireNpc(quest.startNpcId, npcs, issues);
   }
-  for (let i = 0; i < quest.consume.length; i++) {
-    requireItem(quest.consume[i].itemId, items, issues);
+  const objectives = flattenedQuestObjectives(quest);
+  if (objectives.length === 0) {
+    issues.push(issue("missing_field:objectives"));
+  }
+  for (let i = 0; i < objectives.length; i++) {
+    checkQuestObjective(objectives[i], npcs, items, enemies, issues);
+  }
+  const consume = quest.consume !== undefined ? quest.consume : [];
+  for (let i = 0; i < consume.length; i++) {
+    requireItem(consume[i].itemId, items, issues);
   }
   const seen = new Map<string, boolean>();
-  for (let i = 0; i < quest.rewards.items.length; i++) {
-    const reward: ItemStack = quest.rewards.items[i];
+  const rewardItems = quest.rewards.items !== undefined ? quest.rewards.items : [];
+  for (let i = 0; i < rewardItems.length; i++) {
+    const reward: ItemStack = rewardItems[i];
     requireItem(reward.itemId, items, issues);
     if (seen.has(reward.itemId)) {
       issues.push(issue("duplicate_quest_reward:" + reward.itemId));
@@ -441,6 +521,78 @@ function checkQuest(
   }
   if (quest.rewards.gold < 0) {
     issues.push(issue("invalid_range:gold"));
+  }
+  const unlocks = quest.rewards.abilityUnlockIds !== undefined ? quest.rewards.abilityUnlockIds : [];
+  for (let u = 0; u < unlocks.length; u++) {
+    if (!abilities[unlocks[u]]) {
+      issues.push(issue("missing_reference:" + unlocks[u]));
+    }
+  }
+  const prereqQuests = quest.prerequisites !== undefined && quest.prerequisites.questIds !== undefined
+    ? quest.prerequisites.questIds
+    : [];
+  for (let p = 0; p < prereqQuests.length; p++) {
+    if (!questsById[prereqQuests[p]] && prereqQuests[p] !== quest.id) {
+      issues.push(issue("missing_reference:" + prereqQuests[p]));
+    }
+  }
+  const classIds = quest.prerequisites !== undefined && quest.prerequisites.classIds !== undefined
+    ? quest.prerequisites.classIds
+    : [];
+  for (let c = 0; c < classIds.length; c++) {
+    if (!classes[classIds[c]]) {
+      issues.push(issue("missing_reference:" + classIds[c]));
+    }
+  }
+}
+
+function flattenedQuestObjectives(quest: QuestDef): NonNullable<QuestDef["objectives"]> {
+  const fromStages: NonNullable<QuestDef["objectives"]> = [];
+  if (quest.stages !== undefined) {
+    for (let s = 0; s < quest.stages.length; s++) {
+      const stage = quest.stages[s];
+      for (let o = 0; o < stage.objectives.length; o++) {
+        fromStages.push(stage.objectives[o]);
+      }
+    }
+  }
+  if (fromStages.length > 0) {
+    return fromStages;
+  }
+  if (quest.objectives !== undefined) {
+    return quest.objectives;
+  }
+  return [];
+}
+
+function checkQuestObjective(
+  objective: NonNullable<QuestDef["objectives"]>[number],
+  npcs: Record<string, NpcDef>,
+  items: Record<string, ItemDef>,
+  enemies: Record<string, EnemyDef>,
+  issues: ContentIssue[],
+): void {
+  if (objective.type === "acquire_item" || objective.type === "collect_item") {
+    if (objective.itemId === undefined) {
+      issues.push(issue("missing_field:itemId"));
+    } else {
+      requireItem(objective.itemId, items, issues);
+    }
+  }
+  if (objective.type === "talk_to_npc" || objective.type === "return_to_npc") {
+    if (objective.npcId === undefined) {
+      issues.push(issue("missing_field:npcId"));
+    } else {
+      requireNpc(objective.npcId, npcs, issues);
+    }
+  }
+  if (objective.type === "kill_enemy" || objective.type === "defeat_boss") {
+    if (objective.enemyId !== undefined && !enemies[objective.enemyId]) {
+      issues.push(issue("missing_reference:" + objective.enemyId));
+    }
+  }
+  if (objective.type === "enter_location" && objective.location === undefined) {
+    issues.push(issue("missing_field:location"));
   }
 }
 
@@ -458,6 +610,12 @@ function checkZone(
     const placed = zone.npcs[i];
     requireNpc(placed.npcId, npcs, issues);
     checkPointInWorld(zone, placed.x, placed.y, "npc:" + placed.npcId, issues);
+    const catalog = npcs[placed.npcId];
+    if (catalog !== undefined) {
+      if (catalog.zoneId !== zone.id || catalog.position.x !== placed.x || catalog.position.y !== placed.y) {
+        issues.push(issue("invalid_range:npc:" + placed.npcId));
+      }
+    }
   }
   for (let i = 0; i < zone.enemies.length; i++) {
     const placed = zone.enemies[i];

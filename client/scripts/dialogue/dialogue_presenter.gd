@@ -48,11 +48,12 @@ func handle_interaction_result(result: Dictionary) -> bool:
 		npc_id = target_id
 	pending_request_id = ""
 	pending_npc_id = ""
-	return open_for_npc(npc_id)
+	var dialogue_id := String(result.get("dialogue_id", ""))
+	return open_for_npc(npc_id, dialogue_id)
 
 
-func open_for_npc(npc_id: String) -> bool:
-	var resource := DialogueCatalog.load_resource(npc_id)
+func open_for_npc(npc_id: String, dialogue_id: String = "") -> bool:
+	var resource := DialogueCatalog.load_resource(npc_id, dialogue_id)
 	if resource == null:
 		AppState.report_recoverable("dialogue_missing", "No dialogue is mapped for %s." % npc_id)
 		return false
@@ -61,7 +62,12 @@ func open_for_npc(npc_id: String) -> bool:
 		_balloon = null
 	last_opened_npc_id = npc_id
 	open_count += 1
-	_balloon = DialogueManager.show_dialogue_balloon_scene(BALLOON_SCENE, resource, "start")
+	_balloon = DialogueManager.show_dialogue_balloon_scene(
+		BALLOON_SCENE,
+		resource,
+		"start",
+		[QuestService, ProgressionService, VendorService, InnService, CaveService]
+	)
 	dialogue_opened.emit(npc_id)
 	return true
 

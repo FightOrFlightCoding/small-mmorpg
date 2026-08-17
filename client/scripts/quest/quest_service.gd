@@ -87,6 +87,13 @@ func get_quest(quest_id: String) -> Dictionary:
 	return (_quests[quest_id] as Dictionary).duplicate(true)
 
 
+func is_not_started(quest_id: String) -> bool:
+	if not _quests.has(quest_id):
+		return true
+	var status := String((_quests[quest_id] as Dictionary).get("status", ""))
+	return status.is_empty() or status == "not_started"
+
+
 func journal_view() -> Dictionary:
 	if _quests.is_empty():
 		return {"empty": true}
@@ -99,15 +106,8 @@ func journal_view() -> Dictionary:
 	if title.is_empty():
 		title = String(content_quest.get("displayName", quest_id))
 	var objectives: Array = quest.get("objectives", [])
-	var objective: Dictionary = {}
-	if not objectives.is_empty() and typeof(objectives[0]) == TYPE_DICTIONARY:
-		objective = objectives[0]
-	var item_id := String(objective.get("itemId", ""))
-	var item: Dictionary = ContentRegistry.get_by_id(item_id)
-	var item_name := String(item.get("displayName", item_id))
-	var objective_text := "Unknown objective"
-	if not item_name.is_empty():
-		objective_text = "Acquire %s" % item_name
+	var objective: Dictionary = _current_objective(objectives)
+	var objective_text := _objective_text(objective)
 	var turn_in_id := String(quest.get("turnInNpcId", ""))
 	var npc: Dictionary = ContentRegistry.get_by_id(turn_in_id)
 	var turn_in_name := String(npc.get("displayName", turn_in_id))
@@ -120,6 +120,42 @@ func journal_view() -> Dictionary:
 		"required": int(objective.get("required", 0)),
 		"turn_in_npc": turn_in_name,
 	}
+
+
+func _current_objective(objectives: Array) -> Dictionary:
+	for entry in objectives:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if int(entry.get("current", 0)) < int(entry.get("required", 1)):
+			return entry
+	if not objectives.is_empty() and typeof(objectives[0]) == TYPE_DICTIONARY:
+		return objectives[0]
+	return {}
+
+
+func _objective_text(objective: Dictionary) -> String:
+	var kind := String(objective.get("type", ""))
+	if kind == "acquire_item" or kind == "collect_item":
+		var item_id := String(objective.get("itemId", ""))
+		var item: Dictionary = ContentRegistry.get_by_id(item_id)
+		var item_name := String(item.get("displayName", item_id))
+		if item_name.is_empty():
+			return "Collect item"
+		return "Acquire %s" % item_name
+	if kind == "talk_to_npc" or kind == "return_to_npc":
+		var npc_id := String(objective.get("npcId", ""))
+		var npc: Dictionary = ContentRegistry.get_by_id(npc_id)
+		var npc_name := String(npc.get("displayName", npc_id))
+		if npc_name.is_empty():
+			return "Talk to NPC"
+		return "Talk to %s" % npc_name
+	if kind == "kill_enemy":
+		return "Defeat enemies"
+	if kind == "defeat_boss":
+		return "Defeat the boss"
+	if kind == "enter_location":
+		return "Enter the marked location"
+	return "Unknown objective"
 
 
 func _journal_state(quest_id: String) -> String:

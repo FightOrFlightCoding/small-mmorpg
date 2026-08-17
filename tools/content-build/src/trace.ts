@@ -1,4 +1,4 @@
-import type { ContentPayload } from "./types";
+import type { ContentPayload, QuestDef } from "./types";
 import { collectDefinitionIds, definitionById } from "./diff";
 
 export interface ReferenceTrace {
@@ -45,6 +45,18 @@ function outboundRefs(payload: ContentPayload, id: string): string[] {
   const npc = payload.npcs[id];
   if (npc) {
     refs.push(npc.visualId);
+    refs.push(npc.zoneId);
+    refs.push(npc.dialogueId);
+    for (let s = 0; s < npc.services.length; s++) {
+      const service = npc.services[s];
+      if (service.vendorId !== undefined) {
+        refs.push(service.vendorId);
+      }
+      const questIds = service.questIds !== undefined ? service.questIds : [];
+      for (let q = 0; q < questIds.length; q++) {
+        refs.push(questIds[q]);
+      }
+    }
     return refs;
   }
   const enemy = payload.enemies[id];
@@ -79,14 +91,36 @@ function outboundRefs(payload: ContentPayload, id: string): string[] {
   if (quest) {
     refs.push(quest.acceptNpcId);
     refs.push(quest.turnInNpcId);
-    for (let o = 0; o < quest.objectives.length; o++) {
-      refs.push(quest.objectives[o].itemId);
+    if (quest.startNpcId !== undefined) {
+      refs.push(quest.startNpcId);
     }
-    for (let c = 0; c < quest.consume.length; c++) {
-      refs.push(quest.consume[c].itemId);
+    const objectives = questObjectivesForTrace(quest);
+    for (let o = 0; o < objectives.length; o++) {
+      const objective = objectives[o];
+      if (objective.itemId !== undefined) {
+        refs.push(objective.itemId);
+      }
+      if (objective.npcId !== undefined) {
+        refs.push(objective.npcId);
+      }
+      if (objective.enemyId !== undefined) {
+        refs.push(objective.enemyId);
+      }
+      if (objective.zoneId !== undefined) {
+        refs.push(objective.zoneId);
+      }
     }
-    for (let r = 0; r < quest.rewards.items.length; r++) {
-      refs.push(quest.rewards.items[r].itemId);
+    const consume = quest.consume !== undefined ? quest.consume : [];
+    for (let c = 0; c < consume.length; c++) {
+      refs.push(consume[c].itemId);
+    }
+    const rewardItems = quest.rewards.items !== undefined ? quest.rewards.items : [];
+    for (let r = 0; r < rewardItems.length; r++) {
+      refs.push(rewardItems[r].itemId);
+    }
+    const unlocks = quest.rewards.abilityUnlockIds !== undefined ? quest.rewards.abilityUnlockIds : [];
+    for (let u = 0; u < unlocks.length; u++) {
+      refs.push(unlocks[u]);
     }
     return refs;
   }
@@ -149,6 +183,13 @@ function outboundRefs(payload: ContentPayload, id: string): string[] {
     refs.push(spawn.enemyId);
     return refs;
   }
+  const vendor = payload.vendors[id];
+  if (vendor) {
+    for (let i = 0; i < vendor.stock.length; i++) {
+      refs.push(vendor.stock[i].itemId);
+    }
+    return refs;
+  }
   const progression = payload.classProgressions[id];
   if (progression) {
     refs.push(progression.classId);
@@ -175,6 +216,22 @@ function outboundRefs(payload: ContentPayload, id: string): string[] {
     }
   }
   return refs;
+}
+
+function questObjectivesForTrace(quest: QuestDef): NonNullable<QuestDef["objectives"]> {
+  const fromStages: NonNullable<QuestDef["objectives"]> = [];
+  if (quest.stages !== undefined) {
+    for (let s = 0; s < quest.stages.length; s++) {
+      const stage = quest.stages[s];
+      for (let o = 0; o < stage.objectives.length; o++) {
+        fromStages.push(stage.objectives[o]);
+      }
+    }
+  }
+  if (fromStages.length > 0) {
+    return fromStages;
+  }
+  return quest.objectives !== undefined ? quest.objectives : [];
 }
 
 function pushMapKeys(refs: string[], map: Record<string, number>): void {

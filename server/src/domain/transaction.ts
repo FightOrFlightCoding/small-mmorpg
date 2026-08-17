@@ -11,6 +11,7 @@ export const TX_REASON_ITEM_SPLIT = "item_split";
 export const TX_REASON_ITEM_MOVE = "item_move";
 export const TX_REASON_ADMIN_GRANT = "admin_grant";
 export const TX_REASON_VENDOR = "vendor";
+export const TX_REASON_INN = "inn";
 export const TX_REASON_TRADE = "trade";
 
 export interface TransactionAuditEvent {

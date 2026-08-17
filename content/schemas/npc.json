@@ -3,13 +3,71 @@
   "$id": "https://vibecode.local/content-schemas/npc.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "kind", "displayName", "visualId"],
+  "required": [
+    "id",
+    "kind",
+    "displayName",
+    "visualId",
+    "zoneId",
+    "position",
+    "interactionRange",
+    "dialogueId",
+    "services"
+  ],
   "properties": {
     "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
     "kind": { "const": "npc" },
     "displayName": { "type": "string", "minLength": 1 },
+    "displayNameKey": { "type": "string", "minLength": 1 },
     "visualId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "zoneId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "position": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/vec2" },
+    "interactionRange": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+    "dialogueId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "services": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/npcService" }
+    },
     "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
     "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+  },
+  "$defs": {
+    "npcService": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "dialogue",
+            "quest_offer",
+            "quest_turn_in",
+            "vendor",
+            "inn",
+            "healer",
+            "cave_entrance"
+          ]
+        },
+        "questIds": {
+          "type": "array",
+          "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+        },
+        "vendorId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+        "goldCost": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
+        "healToFull": { "type": "boolean" },
+        "restoreResources": { "type": "boolean" },
+        "bindRespawn": { "type": "boolean" },
+        "minLevel": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
+        "classRequirements": {
+          "type": "array",
+          "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+        },
+        "requireParty": { "type": "boolean" },
+        "requiredQuestId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+        "requiredQuestStatus": { "type": "string", "minLength": 1 }
+      }
+    }
   }
 }

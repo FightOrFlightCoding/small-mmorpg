@@ -36,6 +36,10 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ClientOpcode.UNLOCK_ABILITY, 16);
   assert.equal(ClientOpcode.SET_TARGET, 17);
   assert.equal(ClientOpcode.RELEASE_RESPAWN, 18);
+  assert.equal(ClientOpcode.VENDOR_BUY, 19);
+  assert.equal(ClientOpcode.VENDOR_SELL, 20);
+  assert.equal(ClientOpcode.INN_REST, 21);
+  assert.equal(ClientOpcode.CAVE_ENTER, 22);
   assert.equal(ServerOpcode.FULL_STATE, 101);
   assert.equal(ServerOpcode.SNAPSHOT, 102);
   assert.equal(ServerOpcode.ACTION_RESULT, 103);
@@ -485,5 +489,77 @@ test("oversized payloads are rejected", () => {
   assert.equal(isProtocolError(parsed), true);
   if (isProtocolError(parsed)) {
     assert.equal(parsed.code, "payload_too_large");
+  }
+});
+
+test("vendor and inn opcodes parse without client prices", () => {
+  const buy = parse(
+    ClientOpcode.VENDOR_BUY,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      npcId: "npc.test_vendor",
+      itemId: "item.test_potion",
+      requestId: "req-vendor-buy01",
+    }),
+  );
+  assert.equal(isProtocolError(buy), false);
+  const sell = parse(
+    ClientOpcode.VENDOR_SELL,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      npcId: "npc.test_vendor",
+      instanceId: "inst-1",
+      requestId: "req-vendor-sell1",
+    }),
+  );
+  assert.equal(isProtocolError(sell), false);
+  const rest = parse(
+    ClientOpcode.INN_REST,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      npcId: "npc.test_innkeeper",
+      requestId: "req-inn-rest0001",
+    }),
+  );
+  assert.equal(isProtocolError(rest), false);
+  const cave = parse(
+    ClientOpcode.CAVE_ENTER,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      npcId: "npc.test_cave_portal",
+      requestId: "req-cave-enter01",
+    }),
+  );
+  assert.equal(isProtocolError(cave), false);
+});
+
+test("vendor price spoofing is rejected", () => {
+  const priced = parse(
+    ClientOpcode.VENDOR_BUY,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      npcId: "npc.test_vendor",
+      itemId: "item.test_potion",
+      price: 1,
+      requestId: "req-vendor-price1",
+    }),
+  );
+  assert.equal(isProtocolError(priced), true);
+  if (isProtocolError(priced)) {
+    assert.equal(priced.code, "unknown_field:price");
+  }
+  const gold = parse(
+    ClientOpcode.VENDOR_SELL,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      npcId: "npc.test_vendor",
+      instanceId: "inst-1",
+      gold: 999,
+      requestId: "req-vendor-gold01",
+    }),
+  );
+  assert.equal(isProtocolError(gold), true);
+  if (isProtocolError(gold)) {
+    assert.equal(gold.code, "stat_injection:gold");
   }
 });

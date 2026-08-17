@@ -68,6 +68,9 @@ test("valid source documents compile to a payload", () => {
   assert.ok(payload.aiProfiles["test.ai.melee"]);
   assert.ok(payload.lootTables["loot.green_slime"]);
   assert.ok(payload.spawns["spawn.starter.green_slime"]);
+  assert.ok(payload.vendors["vendor.test_general"]);
+  assert.ok(payload.npcs["npc.test_vendor"]);
+  assert.ok(payload.quests["quest.test.talk"]);
   assert.ok(payload.enemies["test.enemy.melee"]);
   assert.ok(payload.enemies["test.enemy.ranged"]);
   assert.ok(payload.enemies["test.enemy.caster"]);

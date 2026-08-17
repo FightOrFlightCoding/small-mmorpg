@@ -1,0 +1,22 @@
+{
+  "id": "quest.test.talk",
+  "kind": "quest",
+  "displayName": "Test Talk",
+  "category": "side",
+  "acceptNpcId": "npc.test_herald",
+  "turnInNpcId": "npc.test_herald",
+  "objectives": [
+    {
+      "type": "talk_to_npc",
+      "npcId": "npc.test_herald",
+      "quantity": 1
+    }
+  ],
+  "consume": [],
+  "rewards": {
+    "gold": 1,
+    "xp": 1,
+    "items": []
+  },
+  "completeOnce": true
+}

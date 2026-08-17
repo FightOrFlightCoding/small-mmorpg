@@ -1,0 +1,24 @@
+{
+  "id": "quest.test.boss",
+  "kind": "quest",
+  "displayName": "Test Boss",
+  "category": "side",
+  "acceptNpcId": "npc.test_herald",
+  "turnInNpcId": "npc.test_herald",
+  "objectives": [
+    {
+      "type": "defeat_boss",
+      "enemyId": "test.enemy.cave_boss",
+      "enemyTags": ["boss"],
+      "quantity": 1,
+      "partyCreditPolicy": "solo"
+    }
+  ],
+  "consume": [],
+  "rewards": {
+    "gold": 10,
+    "xp": 15,
+    "items": []
+  },
+  "completeOnce": true
+}

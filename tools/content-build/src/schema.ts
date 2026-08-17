@@ -22,6 +22,7 @@ const KIND_SCHEMA: Record<string, string> = {
   ai_profile: "https://vibecode.local/content-schemas/ai_profile.json",
   loot_table: "https://vibecode.local/content-schemas/loot_table.json",
   spawn: "https://vibecode.local/content-schemas/spawn.json",
+  vendor: "https://vibecode.local/content-schemas/vendor.json",
 };
 
 export function loadAjv(schemaDir: string, manifest: ContentPackageManifest = DEFAULT_MANIFEST): Ajv2020 {

@@ -9,6 +9,7 @@ import {
   type StarterZoneState,
 } from "../src/domain/match_state";
 import { emptyQuestLog, questDefinitionsFromContent } from "../src/domain/quest";
+import { npcDefinitionsFromContent } from "../src/domain/npc";
 import { ClientOpcode, PROTOCOL_VERSION, ServerOpcode } from "../src/domain/protocol";
 
 function enemiesById() {
@@ -66,7 +67,14 @@ function envelope(extra: { [key: string]: unknown } = {}): string {
 function interactionBody(result: ReturnType<typeof applyMatchLoop>) {
   const messages = result.outbound.filter((item) => item.opcode === ServerOpcode.INTERACTION_RESULT);
   assert.equal(messages.length, 1);
-  return JSON.parse(messages[0].body) as { ok: boolean; code: string; requestId: string; targetId: string };
+  return JSON.parse(messages[0].body) as {
+    ok: boolean;
+    code: string;
+    requestId: string;
+    targetId: string;
+    dialogueId?: string;
+    services?: string[];
+  };
 }
 
 test("interaction in range is approved", () => {
@@ -131,4 +139,34 @@ test("dead player interaction is rejected", () => {
   const body = interactionBody(result);
   assert.equal(body.ok, false);
   assert.equal(body.code, "player_dead");
+});
+
+test("approved interaction includes npc services and dialogue id", () => {
+  const elder = content.zones["zone.starter"].npcs[0];
+  const zone = createStarterZoneState(
+    contentHash,
+    content.zones["zone.starter"],
+    enemiesById(),
+    {
+      id: content.player.id,
+      maxHealth: content.player.maxHealth,
+      moveSpeed: content.player.moveSpeed,
+      interactionRange: content.player.interactionRange,
+    },
+    questDefinitionsFromContent(content.quests),
+    {},
+    { npcsById: npcDefinitionsFromContent(content.npcs) },
+  );
+  const state = addPlayer(zone, playerAt("user-alice", "Alice", elder.x, elder.y));
+  const result = applyMatchLoop(state, 1, contentHash, [
+    {
+      opcode: ClientOpcode.INTERACT,
+      raw: envelope({ targetId: "npc.elder", requestId: "req-interact-svc01" }),
+      userId: "user-alice",
+    },
+  ]);
+  const body = interactionBody(result);
+  assert.equal(body.ok, true);
+  assert.equal(body.dialogueId, "dialogue.npc.elder");
+  assert.equal(Array.isArray(body.services) && body.services.indexOf("quest_offer") !== -1, true);
 });

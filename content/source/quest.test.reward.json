@@ -1,0 +1,30 @@
+{
+  "id": "quest.test.reward",
+  "kind": "quest",
+  "displayName": "Test Reward Pack",
+  "category": "side",
+  "acceptNpcId": "npc.test_herald",
+  "turnInNpcId": "npc.test_herald",
+  "objectives": [
+    {
+      "type": "talk_to_npc",
+      "npcId": "npc.test_herald",
+      "quantity": 1
+    }
+  ],
+  "consume": [],
+  "rewards": {
+    "gold": 3,
+    "xp": 4,
+    "items": [
+      {
+        "itemId": "item.test_pebble",
+        "quantity": 1
+      }
+    ],
+    "abilityUnlockIds": ["test.ability.small_heal"],
+    "attributePoints": 1,
+    "skillPoints": 1
+  },
+  "completeOnce": true
+}

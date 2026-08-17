@@ -3,41 +3,99 @@
   "$id": "https://vibecode.local/content-schemas/quest.json",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "id",
-    "kind",
-    "displayName",
-    "acceptNpcId",
-    "turnInNpcId",
-    "objectives",
-    "consume",
-    "rewards",
-    "completeOnce"
-  ],
+  "required": ["id", "kind", "displayName", "acceptNpcId", "turnInNpcId", "rewards", "completeOnce"],
   "properties": {
     "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
     "kind": { "const": "quest" },
     "displayName": { "type": "string", "minLength": 1 },
+    "category": { "type": "string", "enum": ["main", "side"] },
     "acceptNpcId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
     "turnInNpcId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "startNpcId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "prerequisites": { "$ref": "#/$defs/prerequisites" },
+    "repeatable": { "type": "boolean" },
     "objectives": {
       "type": "array",
       "minItems": 1,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["type", "itemId", "quantity"],
-        "properties": {
-          "type": { "const": "acquire_item" },
-          "itemId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
-          "quantity": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" }
-        }
-      }
+      "items": { "$ref": "#/$defs/objective" }
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/stage" }
     },
     "consume": {
       "type": "array",
-      "minItems": 1,
       "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/itemStack" }
+    },
+    "rewards": { "$ref": "#/$defs/rewards" },
+    "completeOnce": { "type": "boolean" },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+  },
+  "$defs": {
+    "prerequisites": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "questIds": {
+          "type": "array",
+          "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+        },
+        "minLevel": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
+        "classIds": {
+          "type": "array",
+          "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+        }
+      }
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "objectives"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "objectives": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/objective" }
+        }
+      }
+    },
+    "objective": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "acquire_item",
+            "talk_to_npc",
+            "kill_enemy",
+            "collect_item",
+            "enter_location",
+            "defeat_boss",
+            "return_to_npc"
+          ]
+        },
+        "itemId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+        "npcId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+        "enemyId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+        "quantity": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+        "enemyTags": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "itemTags": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "zoneId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+        "instanceId": { "type": "string", "minLength": 1 },
+        "location": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/aabb" },
+        "partyCreditPolicy": { "type": "string", "enum": ["solo", "party"] }
+      }
     },
     "rewards": {
       "type": "object",
@@ -48,13 +106,15 @@
         "xp": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
         "items": {
           "type": "array",
-          "minItems": 1,
           "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/itemStack" }
-        }
+        },
+        "abilityUnlockIds": {
+          "type": "array",
+          "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+        },
+        "attributePoints": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
+        "skillPoints": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" }
       }
-    },
-    "completeOnce": { "type": "boolean" },
-    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
-    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+    }
   }
 }

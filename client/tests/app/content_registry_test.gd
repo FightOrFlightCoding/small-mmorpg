@@ -33,7 +33,7 @@ func test_content_hash_is_exposed() -> void:
 	assert_bool(ContentRegistry.load_bundle()).is_true()
 	var hash := ContentRegistry.get_content_hash()
 	assert_int(hash.length()).is_equal(64)
-	assert_str(hash).is_equal("e25c7589697354405e85712f6b166bdfd202eeb38e08b26d10e26451957dc682")
+	assert_str(hash).is_equal("5b41c0cdfdf7e6130c4198b098cc88c1e7be512074589b577991f37f34ee3a0d")
 	assert_int(ContentRegistry.get_schema_version()).is_equal(1)
 	assert_int(ContentRegistry.ids_of_kind("class").size()).is_greater_equal(2)
 	assert_int(ContentRegistry.ids_of_kind("attribute").size()).is_greater_equal(1)
@@ -43,3 +43,4 @@ func test_content_hash_is_exposed() -> void:
 	assert_int(ContentRegistry.ids_of_kind("ai_profile").size()).is_greater_equal(4)
 	assert_int(ContentRegistry.ids_of_kind("loot_table").size()).is_greater_equal(1)
 	assert_int(ContentRegistry.ids_of_kind("spawn").size()).is_greater_equal(1)
+	assert_int(ContentRegistry.ids_of_kind("vendor").size()).is_greater_equal(1)

@@ -315,7 +315,7 @@ The client `AbilityService` mirrors server state. Hotbar keys 1–8, Escape canc
 
 ## 2026-08-17 — Generic combat pipeline, targeting, death, respawn, and XP hooks
 
-The issued Prompt 25 generalizes Prompt 18 combat into one server pipeline used by player attacks, enemy attacks, abilities, and status ticks. It supersedes the earlier roadmap row that named “temporary parties” as Prompt 25. Parties remain later. Inn persistence remains Prompt 29; a live match bind is used when present, otherwise `zone.starter.playerSpawn`.
+The issued Prompt 25 generalizes Prompt 18 combat into one server pipeline used by player attacks, enemy attacks, abilities, and status ticks. It supersedes the earlier roadmap row that named “temporary parties” as Prompt 25. Parties remain later. A live match bind is used when present, otherwise `zone.starter.playerSpawn`. Inn bind persistence is Prompt 27.
 
 Damage and healing share ordered steps: action accepted, actor validated, target validated, hit eligibility, base magnitude, source modifiers, target modifiers, mitigation, shields/absorption, final amount, health mutation, combat event, threat/credit, death handling, reward hooks. Formulas are structured fields (base, coefficients, flats, percents, defense, absorb, optional crit, min clamp). There is no eval. Temporary mitigation is `floor(raw * 100 / (100 + defense))`; defense 0 preserves Prompt 18 values (player hit 4, slime hit 2). Crit is off unless `critEnabled` and `critForced`. Duplicate `eventId` values replay without a second mutation.
 
@@ -327,7 +327,7 @@ The HUD target frame, combat-state label, death overlay, release button, and flo
 
 ## 2026-08-17 — Generic enemies, spawn controllers, AI profiles, loot tables, and bosses
 
-The issued Prompt 26 generalizes the Prompt 18 slime into data-defined enemies, spawn controllers, server AI profiles, loot tables, and simple boss phases. It supersedes the earlier roadmap row that named “cave instances” as Prompt 26. Caves remain later. Parties remain later; this phase only adds a party-credit hook from threat. Final party loot is Prompt 28. PvP remains disabled. There is no client-side AI framework (no LimboAI).
+The issued Prompt 26 generalizes the Prompt 18 slime into data-defined enemies, spawn controllers, server AI profiles, loot tables, and simple boss phases. It supersedes the earlier roadmap row that named “cave instances” as Prompt 26. Caves remain later. Parties remain later; this phase only adds a party-credit hook from threat. Final party loot remains later. PvP remains disabled. There is no client-side AI framework (no LimboAI). Merchants and inn are Prompt 27, not this phase.
 
 Enemy documents carry `enemy_id`, `display_name_key`, `level`, base combat stats (`maxHealth`, `damage`, `defense`), optional resource pools, movement/aggro/leash/attack range, `ability_loadout`, `ai_profile_id`, `xp_reward`, `loot_table_id`, `visual_asset_id`, `collision_profile_id`, and `tags`. The green slime is a normal enemy (`enemy.green_slime`) using `test.ai.melee`, `loot.green_slime`, instance id `enemy.green_slime:0`, 20 HP, damage 2, and a guaranteed gel. Test melee/ranged/caster/boss spawns in `zone.starter` use `activationPolicy: "manual"` so they do not aggro the Prompt 18 e2e path.
 
@@ -344,3 +344,19 @@ Boss phases are a fixed table: health percent, combat time, add deaths, and one-
 A new ordinary enemy that reuses an existing AI profile is content-only.
 
 Nakama JSON-roundtrips match state between ticks. Optional arrays (`phases`, loot `entries`) may be omitted or null; domain code uses `Array.isArray` (or equivalent) before reading `.length`. In-place slime respawn restores `idle` on the ready tick and does not re-aggro until the following tick.
+
+## 2026-08-17 — Generic NPC services, dialogue, quests, merchants, and inn
+
+The issued Prompt 27 generalizes the Prompt 18 elder and slime quest into reusable NPC services and a generic quest engine, and it implements merchants and inn in this same prompt. It supersedes the earlier roadmap rows that named merchants as Prompt 28 and inn as Prompt 29. Cave instances, parties, and player trading remain later. There are no elder, merchant, or innkeeper classes; every NPC is one type with a content service list.
+
+NPC services are `dialogue`, `quest_offer`, `quest_turn_in`, `vendor`, `inn`, `healer`, and `cave_entrance`. `INTERACTION_RESULT` may include server-approved `dialogueId`, `services`, and `context`. Dialogue scripts read that state and must not mutate canonical quest, inventory, gold, or bind records. `QUEST_ACCEPT` / `QUEST_TURN_IN` remain the quest mutations.
+
+Quest documents may use categories, optional ordered stages, prerequisites, and reusable objectives: `talk_to_npc`, `kill_enemy`, `collect_item` / `acquire_item` (alias; Prompt 18 `QUEST_STATE` still carries `itemId`), `enter_location`, `defeat_boss`, and `return_to_npc`. Foundation quests are non-repeatable unless a test document sets `repeatable: true`. Clients never send counts. `INTERACT` while a talk/return objective is accepted advances it; `QUEST_ACCEPT` does not count as speaking. Pickup and kill still advance collect/kill/boss objectives from trusted server events. Adding another ordinary quest that uses those objective types is content-only.
+
+`VENDOR_BUY` (19) and `VENDOR_SELL` (20) send `npcId`, item or instance id, optional quantity, and `requestId`. Client `price` / `gold` are `unknown_field` / `stat_injection`. Server stock, prices, class/level locks, and the transaction service own the gold mutation (`TX_REASON_VENDOR`). Equipped items are `item_locked`. `item.slime_gel` and items with sell value flooring to 0 are unsellable. Stock is infinite and static.
+
+`INN_REST` (21) sends `npcId`, optional `mode` (`inn` / `healer`), and `requestId`. Inn gold cost, full heal, class-resource restore, and respawn bind come from content. Bind (`bindX`, `bindY`, `bindZoneId`, `innByRequestId`) persists on the character record. Healer mode may heal without charging or rebinding. Prompt 25 already respawns to a live bind when set.
+
+`CAVE_ENTER` (22) requires `requestId` and always returns `ACTION_RESULT` `ok:false` `cave_unavailable`. It must not fake a match transfer or emit a second system message for the same rejection.
+
+Vendor, inn, and cave opcodes share the quest rate-limit bucket (8/10 ticks). Buy, sell, and inn rest are reward opcodes. Test vendor/inn/herald/cave NPCs sit at y=640 so the Prompt 18 e2e path (elder at 160,320; slime at 960,400) is unchanged. The Prompt 18 turn-in notice “Iron Sword and 25 gold” remains hardcoded for `quest.slime_problem` only; other quests use “Quest complete.” `SAVE_SCHEMA_VERSION` stays 1. Goja can store explicit `undefined` as `null`; quest `prerequisites` must be omitted when absent and treated as missing when null so Prompt 18 accept does not crash the match.

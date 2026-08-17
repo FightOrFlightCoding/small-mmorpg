@@ -1,6 +1,6 @@
 # Foundation roadmap
 
-Prompt 19 (catalogs/audit), Prompt 20 (versioned content and save schemas), Prompt 21 (authentication, slots, and class selection), Prompt 22 (XP, derived stats, and attribute allocation), Prompt 23 (generic items, inventory, equipment, currency, and the transaction core), Prompt 24 (generic ability, casting, cooldown, resource, and effect engine), Prompt 25 (generic combat pipeline, targeting, death, respawn, and XP hooks), and Prompt 26 (generic enemies, spawn controllers, AI profiles, loot tables, and bosses) are accepted. Public-world, caves, and parties remain later.
+Prompt 19 (catalogs/audit), Prompt 20 (versioned content and save schemas), Prompt 21 (authentication, slots, and class selection), Prompt 22 (XP, derived stats, and attribute allocation), Prompt 23 (generic items, inventory, equipment, currency, and the transaction core), Prompt 24 (generic ability, casting, cooldown, resource, and effect engine), Prompt 25 (generic combat pipeline, targeting, death, respawn, and XP hooks), Prompt 26 (generic enemies, spawn controllers, AI profiles, loot tables, and bosses), and Prompt 27 (generic NPC services, dialogue, quests, merchants, and inn) are accepted. Public-world, cave instances, parties, and trading remain later.
 
 | Order | Theme | Outcome | Depends on |
 | --- | --- | --- | --- |
@@ -12,11 +12,9 @@ Prompt 19 (catalogs/audit), Prompt 20 (versioned content and save schemas), Prom
 | 24 | Generic ability, casting, cooldown, resource, and effect engine | Data-defined abilities, one intention path, server timing/effects, skill-point unlock, hotbar. PvP off. No extra enemy AI. | 22–23 |
 | 25 | Generic combat pipeline, targeting, death, respawn, XP hooks | One resolver for players, enemies, abilities, and effects; PvE death/respawn; structured formulas; targeting modes; XP via server events. PvP off. | 24 |
 | 26 | Generic enemies, spawn controllers, AI profiles, loot tables, bosses | Data-defined enemies; spawn create/track/respawn/reset; melee/ranged/caster/boss AI; loot tables; simple boss phases. PvP off. Caves later. | 24–25 |
-| 27 | Generalized target PvE | Implemented as issued Prompt 26. | 24–25 |
-| 28 | Merchants | Server prices and stock; gold `multiUpdate`; audit ids. | 20, 23, 24 |
-| 29 | Inn and respawn binding | Persist bind point; death uses stored inn bind. Match already falls back from a live bind to `zone.starter.playerSpawn`. | 24, later caves |
-| 30 | Secure direct trade | Server trade state machine; no client-complete; idempotent. | later parties, 28 |
-| Later | Cave instances and transfer tickets | Private matches; party-shared instance; one-time server tickets; reconnect restores the correct match; empty-cave grace. Previously numbered as Prompt 26. | later parties |
+| 27 | Generic NPC services, dialogue, quests, merchants, inn | One NPC type with content services; generic quest engine; vendors; inn bind/heal. Cave entrance returns unavailable. Issued as this prompt (supersedes old roadmap 28/29). | 23–26 |
+| Later | Secure direct trade | Server trade state machine; no client-complete; idempotent. Previously numbered as Prompt 30. | later parties, 27 |
+| Later | Cave instances and transfer tickets | Private matches; party-shared instance; one-time server tickets; reconnect restores the correct match; empty-cave grace. Previously numbered as Prompt 26/29. | later parties |
 | Later | Temporary parties (max 5) and party chat | Server membership; group credit hooks; party channel. Zone chat remains. Previously numbered as Prompt 25. | public world (later) |
 | Later | Public village-and-fields world | One public-world template (may still be one match). No sharding. Previously numbered as Prompt 24. | 21 |
 | Later | Abilities and hotbar | Implemented as issued Prompt 24. | 22 |

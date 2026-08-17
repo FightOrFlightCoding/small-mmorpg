@@ -1,0 +1,16 @@
+[remap]
+
+importer="dialogue_manager"
+importer_version=15
+type="Resource"
+uid="uid://dl1whkcv2nk7n"
+path="res://.godot/imported/npc.test_herald.dialogue-a89757e543d249e92aaf07319e9e48ec.tres"
+
+[deps]
+
+source_file="res://content/dialogue/npc.test_herald.dialogue"
+dest_files=["res://.godot/imported/npc.test_herald.dialogue-a89757e543d249e92aaf07319e9e48ec.tres"]
+
+[params]
+
+defaults=true

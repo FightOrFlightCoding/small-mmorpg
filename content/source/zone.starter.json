@@ -15,6 +15,26 @@
       "npcId": "npc.elder",
       "x": 160,
       "y": 320
+    },
+    {
+      "npcId": "npc.test_vendor",
+      "x": 80,
+      "y": 640
+    },
+    {
+      "npcId": "npc.test_innkeeper",
+      "x": 200,
+      "y": 640
+    },
+    {
+      "npcId": "npc.test_herald",
+      "x": 320,
+      "y": 640
+    },
+    {
+      "npcId": "npc.test_cave_portal",
+      "x": 440,
+      "y": 640
     }
   ],
   "enemies": [

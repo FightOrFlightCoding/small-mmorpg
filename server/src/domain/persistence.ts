@@ -24,6 +24,20 @@ export interface PositionCheckpoint {
   characterId: string;
   x: number;
   y: number;
+  bindX?: number;
+  bindY?: number;
+  bindZoneId?: string;
+  innByRequestId?: { [requestId: string]: string };
+}
+
+function withBind(checkpoint: PositionCheckpoint, player: MatchPlayer): PositionCheckpoint {
+  if (typeof player.bindX === "number" && isFinite(player.bindX) && typeof player.bindY === "number" && isFinite(player.bindY)) {
+    checkpoint.bindX = player.bindX;
+    checkpoint.bindY = player.bindY;
+    checkpoint.bindZoneId = player.bindZoneId !== undefined ? player.bindZoneId : "";
+    checkpoint.innByRequestId = player.innByRequestId;
+  }
+  return checkpoint;
 }
 
 export interface PlayerLeaveResult {
@@ -59,7 +73,10 @@ export function applyPlayerLeave(state: StarterZoneState, userId: string, tick: 
   }
   return {
     state: next,
-    checkpoint: { userId: userId, characterId: parked.characterId, x: parked.x, y: parked.y },
+    checkpoint: withBind(
+      { userId: userId, characterId: parked.characterId, x: parked.x, y: parked.y },
+      parked,
+    ),
   };
 }
 
@@ -162,6 +179,8 @@ export function restoreGracePlayer(
     friendlyTargetId: parked.friendlyTargetId,
     bindX: parked.bindX,
     bindY: parked.bindY,
+    bindZoneId: parked.bindZoneId,
+    innByRequestId: parked.innByRequestId,
     lastSetTargetRequestId: parked.lastSetTargetRequestId,
     lastSetTargetResultCode: parked.lastSetTargetResultCode,
     lastSetTargetResultOk: parked.lastSetTargetResultOk,
@@ -193,7 +212,9 @@ export function collectPositionCheckpoints(state: StarterZoneState, tick: number
     player.lastCheckpointTick = tick;
     player.lastCheckpointX = player.x;
     player.lastCheckpointY = player.y;
-    checkpoints.push({ userId: userId, characterId: player.characterId, x: player.x, y: player.y });
+    checkpoints.push(
+      withBind({ userId: userId, characterId: player.characterId, x: player.x, y: player.y }, player),
+    );
   }
   return checkpoints;
 }
@@ -204,14 +225,18 @@ export function checkpointsForTerminate(state: StarterZoneState): PositionCheckp
   for (let i = 0; i < liveIds.length; i++) {
     const userId = liveIds[i];
     const player = state.players[userId];
-    checkpoints.push({ userId: userId, characterId: player.characterId, x: player.x, y: player.y });
+    checkpoints.push(
+      withBind({ userId: userId, characterId: player.characterId, x: player.x, y: player.y }, player),
+    );
   }
   state.disconnected = dict(state.disconnected);
   const parkedIds = Object.keys(state.disconnected);
   for (let j = 0; j < parkedIds.length; j++) {
     const userId = parkedIds[j];
     const parked = state.disconnected[userId].player;
-    checkpoints.push({ userId: userId, characterId: parked.characterId, x: parked.x, y: parked.y });
+    checkpoints.push(
+      withBind({ userId: userId, characterId: parked.characterId, x: parked.x, y: parked.y }, parked),
+    );
   }
   return checkpoints;
 }

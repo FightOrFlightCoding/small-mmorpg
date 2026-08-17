@@ -1,0 +1,27 @@
+{
+  "id": "quest.test.collect",
+  "kind": "quest",
+  "displayName": "Test Collect",
+  "category": "side",
+  "acceptNpcId": "npc.test_herald",
+  "turnInNpcId": "npc.test_herald",
+  "objectives": [
+    {
+      "type": "collect_item",
+      "itemId": "item.test_pebble",
+      "quantity": 1
+    }
+  ],
+  "consume": [
+    {
+      "itemId": "item.test_pebble",
+      "quantity": 1
+    }
+  ],
+  "rewards": {
+    "gold": 2,
+    "xp": 2,
+    "items": []
+  },
+  "completeOnce": true
+}

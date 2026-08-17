@@ -1,0 +1,7 @@
+~ start
+Portal: The cave system is not open. Do not expect a transfer.
+- Request entry.
+	do CaveService.request_enter()
+	=> END
+- Leave it.
+	=> END

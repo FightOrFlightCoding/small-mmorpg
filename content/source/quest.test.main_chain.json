@@ -1,0 +1,52 @@
+{
+  "id": "quest.test.main_chain",
+  "kind": "quest",
+  "displayName": "Test Main Chain",
+  "category": "main",
+  "acceptNpcId": "npc.test_herald",
+  "turnInNpcId": "npc.test_herald",
+  "stages": [
+    {
+      "id": "talk",
+      "objectives": [
+        {
+          "type": "talk_to_npc",
+          "npcId": "npc.test_herald",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "id": "collect",
+      "objectives": [
+        {
+          "type": "collect_item",
+          "itemId": "item.test_pebble",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "id": "return",
+      "objectives": [
+        {
+          "type": "return_to_npc",
+          "npcId": "npc.test_herald",
+          "quantity": 1
+        }
+      ]
+    }
+  ],
+  "consume": [
+    {
+      "itemId": "item.test_pebble",
+      "quantity": 1
+    }
+  ],
+  "rewards": {
+    "gold": 5,
+    "xp": 8,
+    "items": []
+  },
+  "completeOnce": true
+}

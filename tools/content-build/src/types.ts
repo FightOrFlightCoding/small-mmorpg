@@ -86,11 +86,47 @@ export interface EquipmentSlotDef {
   allowedCategories: Array<"weapon" | "armor" | "consumable" | "quest" | "material" | "miscellaneous">;
 }
 
+export interface NpcServiceDef {
+  type: "dialogue" | "quest_offer" | "quest_turn_in" | "vendor" | "inn" | "healer" | "cave_entrance";
+  questIds?: string[];
+  vendorId?: string;
+  goldCost?: number;
+  healToFull?: boolean;
+  restoreResources?: boolean;
+  bindRespawn?: boolean;
+  minLevel?: number;
+  classRequirements?: string[];
+  requireParty?: boolean;
+  requiredQuestId?: string;
+  requiredQuestStatus?: string;
+}
+
 export interface NpcDef {
   id: string;
   kind: "npc";
   displayName: string;
+  displayNameKey?: string;
   visualId: string;
+  zoneId: string;
+  position: Vec2;
+  interactionRange: number;
+  dialogueId: string;
+  services: NpcServiceDef[];
+}
+
+export interface VendorStockDef {
+  itemId: string;
+  buyPrice: number;
+  classRequirements?: string[];
+  levelRequirement?: number;
+}
+
+export interface VendorDef {
+  id: string;
+  kind: "vendor";
+  displayName: string;
+  stock: VendorStockDef[];
+  sellMultiplier: number;
 }
 
 export interface EnemyDef {
@@ -174,15 +210,53 @@ export interface SpawnDef {
   groupId: string;
 }
 
+export interface QuestObjectiveDef {
+  type:
+    | "acquire_item"
+    | "talk_to_npc"
+    | "kill_enemy"
+    | "collect_item"
+    | "enter_location"
+    | "defeat_boss"
+    | "return_to_npc";
+  itemId?: string;
+  npcId?: string;
+  enemyId?: string;
+  quantity?: number;
+  enemyTags?: string[];
+  itemTags?: string[];
+  zoneId?: string;
+  instanceId?: string;
+  location?: Aabb;
+  partyCreditPolicy?: "solo" | "party";
+}
+
+export interface QuestStageDef {
+  id: string;
+  objectives: QuestObjectiveDef[];
+}
+
 export interface QuestDef {
   id: string;
   kind: "quest";
   displayName: string;
+  category?: "main" | "side";
   acceptNpcId: string;
   turnInNpcId: string;
-  objectives: Array<{ type: "acquire_item"; itemId: string; quantity: number }>;
-  consume: ItemStack[];
-  rewards: { gold: number; xp?: number; items: ItemStack[] };
+  startNpcId?: string;
+  prerequisites?: { questIds?: string[]; minLevel?: number; classIds?: string[] };
+  repeatable?: boolean;
+  objectives?: QuestObjectiveDef[];
+  stages?: QuestStageDef[];
+  consume?: ItemStack[];
+  rewards: {
+    gold: number;
+    xp?: number;
+    items: ItemStack[];
+    abilityUnlockIds?: string[];
+    attributePoints?: number;
+    skillPoints?: number;
+  };
   completeOnce: boolean;
 }
 
@@ -371,6 +445,7 @@ export interface ContentPayload {
   aiProfiles: Record<string, AiProfileDef>;
   lootTables: Record<string, LootTableDef>;
   spawns: Record<string, SpawnDef>;
+  vendors: Record<string, VendorDef>;
 }
 
 export interface ContentBundle extends ContentPayload {

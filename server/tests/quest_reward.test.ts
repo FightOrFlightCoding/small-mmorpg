@@ -7,6 +7,7 @@ import {
   countItem,
   initializeInventory,
   itemDefinitionsFromContent,
+  emptyInventory,
   type PlayerInventory,
 } from "../src/domain/inventory";
 import {
@@ -440,4 +441,41 @@ test("commitQuestReward does not grant when multiUpdate fails", () => {
   const committed = commitQuestReward(nk, request);
   assert.equal(committed.ok, false);
   assert.equal(committed.code, "persist_failed");
+});
+
+test("turn-in that cannot grant the item leaves quest gold and inventory unchanged", () => {
+  const herald = content.zones["zone.starter"].npcs.find((npc) => npc.npcId === "npc.test_herald") as { x: number; y: number };
+  const inventory = addOrStackItem(emptyInventory(1), "item.training_sword", 1, "sword-full", itemsById()["item.training_sword"]);
+  const actor = playerAt("user-alice", "Alice", herald.x, herald.y, inventory);
+  let state = addPlayer(emptyZone(), actor);
+  state = applyMatchLoop(state, 2, contentHash, [
+    {
+      opcode: ClientOpcode.QUEST_ACCEPT,
+      raw: envelope({ questId: "quest.test.reward", requestId: "req-accept-full01" }),
+      userId: "user-alice",
+    },
+  ]).state;
+  state = applyMatchLoop(state, 3, contentHash, [
+    {
+      opcode: ClientOpcode.INTERACT,
+      raw: envelope({ targetId: "npc.test_herald", requestId: "req-int-full0001" }),
+      userId: "user-alice",
+    },
+  ]).state;
+  const result = applyMatchLoop(state, 5, contentHash, [
+    {
+      opcode: ClientOpcode.QUEST_TURN_IN,
+      raw: envelope({
+        questId: "quest.test.reward",
+        npcId: "npc.test_herald",
+        requestId: "req-turnin-full1",
+      }),
+      userId: "user-alice",
+    },
+  ]);
+  assert.equal(actionCodes(result)[0].ok, false);
+  assert.equal(actionCodes(result)[0].code, "inventory_full");
+  assert.equal(result.state.players["user-alice"].questLog.quests["quest.test.reward"].status, "accepted");
+  assert.equal(result.state.players["user-alice"].gold, 0);
+  assert.equal(itemCountOf(result.state, "user-alice", "item.test_pebble"), 0);
 });

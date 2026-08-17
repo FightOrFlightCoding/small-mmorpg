@@ -44,6 +44,9 @@ signal respawn_pressed
 var _inventory_list: Control
 var _slot_view: Control
 var _attribute_row_fingerprint: String = ""
+var _vendor_panel: PanelContainer
+var _vendor_list: ItemList
+var _vendor_stock: Array = []
 
 
 func _ready() -> void:
@@ -82,6 +85,11 @@ func _ready() -> void:
 		AbilityService.abilities_changed.connect(refresh_abilities)
 	_bind_hotbar()
 	refresh_abilities()
+	_build_vendor_panel()
+	if not VendorService.vendor_opened.is_connected(_on_vendor_opened):
+		VendorService.vendor_opened.connect(_on_vendor_opened)
+	if not VendorService.vendor_closed.is_connected(_hide_vendor):
+		VendorService.vendor_closed.connect(_hide_vendor)
 
 
 func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool = false) -> void:
@@ -603,3 +611,83 @@ func _local_name(state: Dictionary) -> String:
 		if not from_character.is_empty():
 			return from_character
 	return self_id if not self_id.is_empty() else "unknown"
+
+
+func _build_vendor_panel() -> void:
+	_vendor_panel = PanelContainer.new()
+	_vendor_panel.name = "VendorPanel"
+	_vendor_panel.visible = false
+	_vendor_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_vendor_panel.offset_left = -280.0
+	_vendor_panel.offset_top = -260.0
+	_vendor_panel.offset_right = -16.0
+	_vendor_panel.offset_bottom = -16.0
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	_vendor_panel.add_child(margin)
+	var vbox := VBoxContainer.new()
+	margin.add_child(vbox)
+	var title := Label.new()
+	title.text = "Vendor"
+	vbox.add_child(title)
+	_vendor_list = ItemList.new()
+	_vendor_list.custom_minimum_size = Vector2(240, 140)
+	vbox.add_child(_vendor_list)
+	var buttons := HBoxContainer.new()
+	vbox.add_child(buttons)
+	var buy := Button.new()
+	buy.text = "Buy"
+	buy.pressed.connect(_on_vendor_buy)
+	buttons.add_child(buy)
+	var sell := Button.new()
+	sell.text = "Sell selected"
+	sell.pressed.connect(_on_vendor_sell)
+	buttons.add_child(sell)
+	var close := Button.new()
+	close.text = "Close"
+	close.pressed.connect(_hide_vendor)
+	buttons.add_child(close)
+	add_child(_vendor_panel)
+
+
+func _on_vendor_opened(_npc_id: String, vendor_id: String) -> void:
+	_vendor_stock = VendorService.stock_entries(vendor_id)
+	if _vendor_list != null:
+		_vendor_list.clear()
+		for entry in _vendor_stock:
+			if typeof(entry) != TYPE_DICTIONARY:
+				continue
+			var item_id := String(entry.get("itemId", ""))
+			var item: Dictionary = ContentRegistry.get_by_id(item_id)
+			var label := String(item.get("displayName", item_id))
+			_vendor_list.add_item("%s — %sg" % [label, str(int(entry.get("buyPrice", 0)))])
+	if _vendor_panel != null:
+		_vendor_panel.visible = true
+
+
+func _hide_vendor() -> void:
+	if _vendor_panel != null:
+		_vendor_panel.visible = false
+
+
+func _on_vendor_buy() -> void:
+	if _vendor_list == null or _vendor_list.get_selected_items().is_empty():
+		return
+	var index := int(_vendor_list.get_selected_items()[0])
+	if index < 0 or index >= _vendor_stock.size():
+		return
+	var entry: Variant = _vendor_stock[index]
+	if typeof(entry) != TYPE_DICTIONARY:
+		return
+	VendorService.request_buy(String(entry.get("itemId", "")), 1)
+
+
+func _on_vendor_sell() -> void:
+	var instance_id := InventoryService.selected_instance_id
+	if instance_id.is_empty():
+		return
+	VendorService.request_sell(instance_id)
+

@@ -22,6 +22,10 @@ export const ClientOpcode = {
   UNLOCK_ABILITY: 16,
   SET_TARGET: 17,
   RELEASE_RESPAWN: 18,
+  VENDOR_BUY: 19,
+  VENDOR_SELL: 20,
+  INN_REST: 21,
+  CAVE_ENTER: 22,
 } as const;
 
 export const ServerOpcode = {
@@ -61,12 +65,19 @@ const CLIENT_OPCODES: ClientOpcode[] = [
   ClientOpcode.UNLOCK_ABILITY,
   ClientOpcode.SET_TARGET,
   ClientOpcode.RELEASE_RESPAWN,
+  ClientOpcode.VENDOR_BUY,
+  ClientOpcode.VENDOR_SELL,
+  ClientOpcode.INN_REST,
+  ClientOpcode.CAVE_ENTER,
 ];
 
 const REWARD_OPCODES: ClientOpcode[] = [
   ClientOpcode.PICKUP,
   ClientOpcode.QUEST_ACCEPT,
   ClientOpcode.QUEST_TURN_IN,
+  ClientOpcode.VENDOR_BUY,
+  ClientOpcode.VENDOR_SELL,
+  ClientOpcode.INN_REST,
 ];
 
 const COMMON_KEYS = ["protocolVersion", "contentHash", "requestId"];
@@ -90,6 +101,10 @@ OPCODE_KEYS[ClientOpcode.ASSIGN_HOTBAR] = ["slotIndex", "abilityId"];
 OPCODE_KEYS[ClientOpcode.UNLOCK_ABILITY] = ["abilityId"];
 OPCODE_KEYS[ClientOpcode.SET_TARGET] = ["targetId", "intent"];
 OPCODE_KEYS[ClientOpcode.RELEASE_RESPAWN] = [];
+OPCODE_KEYS[ClientOpcode.VENDOR_BUY] = ["npcId", "itemId", "quantity"];
+OPCODE_KEYS[ClientOpcode.VENDOR_SELL] = ["npcId", "instanceId", "quantity"];
+OPCODE_KEYS[ClientOpcode.INN_REST] = ["npcId", "mode"];
+OPCODE_KEYS[ClientOpcode.CAVE_ENTER] = ["npcId"];
 
 const OUTCOME_KEYS = [
   "attack",
@@ -188,7 +203,8 @@ function requiresRequestId(opcode: ClientOpcode): boolean {
     opcode === ClientOpcode.ASSIGN_HOTBAR ||
     opcode === ClientOpcode.UNLOCK_ABILITY ||
     opcode === ClientOpcode.SET_TARGET ||
-    opcode === ClientOpcode.RELEASE_RESPAWN
+    opcode === ClientOpcode.RELEASE_RESPAWN ||
+    opcode === ClientOpcode.CAVE_ENTER
   );
 }
 
@@ -305,6 +321,9 @@ export function parseClientMessage(
     if (key === "abilityId" && opcode === ClientOpcode.ASSIGN_HOTBAR && !Object.prototype.hasOwnProperty.call(data, key)) {
       continue;
     }
+    if (key === "mode" && opcode === ClientOpcode.INN_REST && !Object.prototype.hasOwnProperty.call(data, key)) {
+      continue;
+    }
     if (typeof data[key] !== "string") {
       return { code: "invalid_id", message: "Field " + key + " must be a string id." };
     }
@@ -347,6 +366,16 @@ export function parseClientMessage(
     const quantity = data.quantity;
     if (typeof quantity !== "number" || !isFinite(quantity) || quantity !== Math.floor(quantity)) {
       return { code: "invalid_amount", message: "DESTROY quantity must be a finite integer." };
+    }
+    message.quantity = quantity;
+  }
+  if (
+    (opcode === ClientOpcode.VENDOR_BUY || opcode === ClientOpcode.VENDOR_SELL) &&
+    Object.prototype.hasOwnProperty.call(data, "quantity")
+  ) {
+    const quantity = data.quantity;
+    if (typeof quantity !== "number" || !isFinite(quantity) || quantity !== Math.floor(quantity)) {
+      return { code: "invalid_amount", message: "Vendor quantity must be a finite integer." };
     }
     message.quantity = quantity;
   }
@@ -429,6 +458,7 @@ export function interactionResult(
   ok: boolean,
   requestId?: string,
   targetId?: string,
+  extra?: { [key: string]: unknown },
 ): { opcode: number; body: string } {
   const payload: { [key: string]: unknown } = {
     protocolVersion: PROTOCOL_VERSION,
@@ -440,6 +470,12 @@ export function interactionResult(
   }
   if (targetId !== undefined) {
     payload.targetId = targetId;
+  }
+  if (extra !== undefined) {
+    const keys = Object.keys(extra);
+    for (let i = 0; i < keys.length; i++) {
+      payload[keys[i]] = extra[keys[i]];
+    }
   }
   return {
     opcode: ServerOpcode.INTERACTION_RESULT,

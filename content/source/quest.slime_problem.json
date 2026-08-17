@@ -2,6 +2,7 @@
   "id": "quest.slime_problem",
   "kind": "quest",
   "displayName": "Slime Problem",
+  "category": "main",
   "acceptNpcId": "npc.elder",
   "turnInNpcId": "npc.elder",
   "objectives": [

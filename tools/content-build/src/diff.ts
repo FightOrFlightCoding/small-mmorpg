@@ -31,6 +31,7 @@ export function collectDefinitionIds(payload: ContentPayload): string[] {
   pushKeys(ids, payload.aiProfiles);
   pushKeys(ids, payload.lootTables);
   pushKeys(ids, payload.spawns);
+  pushKeys(ids, payload.vendors);
   ids.sort();
   return ids;
 }
@@ -86,6 +87,9 @@ export function definitionById(payload: ContentPayload, id: string): unknown | u
   }
   if (payload.spawns[id]) {
     return payload.spawns[id];
+  }
+  if (payload.vendors[id]) {
+    return payload.vendors[id];
   }
   return undefined;
 }

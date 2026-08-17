@@ -1,7 +1,7 @@
 {
   "protocolVersion": 1,
   "contentSchemaVersion": 1,
-  "contentHash": "e25c7589697354405e85712f6b166bdfd202eeb38e08b26d10e26451957dc682",
+  "contentHash": "5b41c0cdfdf7e6130c4198b098cc88c1e7be512074589b577991f37f34ee3a0d",
   "exactDependencies": {
     "server/package.json:typescript": "5.8.3",
     "server/package.json:nakama-runtime": "github:heroiclabs/nakama-common#v1.47.0",
@@ -58,7 +58,11 @@
     "ASSIGN_HOTBAR": 15,
     "UNLOCK_ABILITY": 16,
     "SET_TARGET": 17,
-    "RELEASE_RESPAWN": 18
+    "RELEASE_RESPAWN": 18,
+    "VENDOR_BUY": 19,
+    "VENDOR_SELL": 20,
+    "INN_REST": 21,
+    "CAVE_ENTER": 22
   },
   "serverOpcodes": {
     "FULL_STATE": 101,
@@ -105,8 +109,20 @@
     "loot.test_ranged.json",
     "loot.test_weighted.json",
     "npc.elder.json",
+    "npc.test_cave_portal.json",
+    "npc.test_herald.json",
+    "npc.test_innkeeper.json",
+    "npc.test_vendor.json",
     "player.base.json",
     "quest.slime_problem.json",
+    "quest.test.boss.json",
+    "quest.test.collect.json",
+    "quest.test.enter.json",
+    "quest.test.gated.json",
+    "quest.test.kill.json",
+    "quest.test.main_chain.json",
+    "quest.test.reward.json",
+    "quest.test.talk.json",
     "slot.chest.json",
     "slot.feet.json",
     "slot.head.json",
@@ -150,6 +166,7 @@
     "test.stat.attack.json",
     "test.stat.max_health.json",
     "test.stat.max_mana.json",
+    "vendor.test_general.json",
     "zone.starter.json"
   ],
   "hardcodedIds": {
@@ -194,7 +211,8 @@
     "quest.slime_problem": [
       "client/scripts/content/content_catalog.gd",
       "client/scripts/e2e/slice_journey.gd",
-      "client/content/dialogue/npc.elder.dialogue"
+      "client/content/dialogue/npc.elder.dialogue",
+      "server/src/domain/match_loop.ts"
     ]
   }
 }

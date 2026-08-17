@@ -23,9 +23,12 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `WalletService` | C | Gold label mirror | In-memory gold | none | none | no | no | no |
 | `ProgressionService` | C | Progression mirror; allocate intent; preview replaced by server | In-memory level/XP/attributes | none | `NetworkService` | no | ALLOCATE_ATTRIBUTES | no |
 | `AbilityService` | C | Ability/hotbar/cast/cooldown mirror; use/cancel/unlock/hotbar intents | In-memory unlocked ids, hotbar, resources, cooldowns, active cast, effects | none | `NetworkService`, `ContentRegistry`, `AttackIntent` | no | USE_ABILITY / CANCEL_CAST / ASSIGN_HOTBAR / UNLOCK_ABILITY | no |
-| `DialogueCatalog` / `DialoguePresenter` | C | Map NPC id → `.dialogue`; open after INTERACTION_RESULT | pending request ids | Dialogue Manager 3.10.5 | `QuestService` from dialogue `do` lines | no | no | no |
+| `DialogueCatalog` / `DialoguePresenter` | C | Map server `dialogueId` (fallback NPC id) → `.dialogue`; open after INTERACTION_RESULT | pending request ids | Dialogue Manager 3.10.5 | `QuestService` / `VendorService` / `InnService` / `CaveService` from dialogue `do` lines | no | no | no |
+| `VendorService` | C | Vendor panel mirror; buy/sell intents | Last approved vendor NPC; selected stock/instance | none | `NetworkService` | no | VENDOR_BUY / VENDOR_SELL | no prices |
+| `InnService` | C | Inn/healer rest intent | Last approved inn/healer NPC | none | `NetworkService` | no | INN_REST | no gold/health |
+| `CaveService` | C | Cave-enter intent; shows server `cave_unavailable` | Last approved cave NPC | none | `NetworkService` | no | CAVE_ENTER | no |
 | `ZoneChat` / `ChatPanel` | C | Room join/leave, history Label | chat lines | none | `NetworkService` | no | chat channel, not match opcode | no |
-| `World` / `ZoneView` / `EntityRegistry` / avatars / `WorldHud` | C | Render zone and HUD (hotbar, cast bar, ground-target preview, status icons, target frame, death overlay, combat indicator) | display poses | none | services above | no | INPUT via World | no |
+| `World` / `ZoneView` / `EntityRegistry` / avatars / `WorldHud` | C | Render zone and HUD (hotbar, cast bar, ground-target preview, status icons, target frame, death overlay, combat indicator, vendor panel) | display poses | none | services above | no | INPUT via World | no |
 | `MoveIntent` / `MovementSim` / `MovementReconciler` / `SnapshotBuffer` | C | Prediction and interpolation | unacked cmds, buffer | none | `MatchProtocol` | no | INPUT | no |
 | `AttackIntent` / `CombatFeedback` / `InteractIntent` / `PickupIntent` | C | Usability targeting and floating numbers | none | none | `NetworkService` | no | ATTACK / SET_TARGET / INTERACT / PICKUP | no |
 | `NetDebugOverlay` | C | Debug FPS / ping EMA | none | none | none | no | no | no |
@@ -43,13 +46,17 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `stats.ts` | S | Deterministic derived-stat pipeline | none | none | equipment modifiers | no | no | no |
 | `progression.ts` / `progression_store.ts` (domain) | S | XP, levels, allocation, serialize progression | none | none | stats.ts | serialize only | no | no |
 | `xp_hooks.ts` | S | Trusted XP grant interface from kill/quest events | none | none | progression.ts via match loop | no | no | no |
-| `interaction.ts` | S | NPC range checks | none | none | none | no | INTERACTION_RESULT | no |
+| `interaction.ts` | S | NPC existence, zone, per-NPC range, optional service gate | none | none | none | no | INTERACTION_RESULT | no |
+| `npc.ts` | S | NPC definition lookup and service list | none | none | none | no | no | no |
+| `vendor.ts` | S | Buy/sell apply; server prices; unsellable/locked | none | none | inventory, wallet, transaction | no | VENDOR_BUY / VENDOR_SELL | yes (pure) |
+| `inn.ts` | S | Inn/healer rest, gold, heal, resource restore, bind | none | none | wallet, transaction | bind on character | INN_REST | yes (pure) |
+| `quest_objectives.ts` | S | Talk/kill/collect/enter/boss/return progress | none | none | quest.ts | no | via loop | no |
 | `loot.ts` | S | Ground loot TTL and pickup apply | match loot list | none | `inventory.ts` | no | via loop | grant in memory |
 | `inventory.ts` / `inventory_store.ts` (domain) | S | Stack rules, instance fields, locks, serialize inventory | none | none | none | serialize only | no | yes (pure) |
 | `equipment.ts` / `equipment_store.ts` (domain) | S | Content-defined slots + derived attack serialize | none | none | inventory locks | serialize only | no | no |
 | `transaction.ts` | S | Idempotent gold + version check, audit events, in-memory committer | none | none | `wallet.ts` | no | no | yes (pure) |
 | `wallet.ts` | S | Canonical gold mutations (character, delta, reason, request, resulting balance) | none | none | none | no | no | yes (pure) |
-| `quest.ts` / `quest_store.ts` (domain) | S | Quest log serialize/progress | none | none | none | serialize only | no | no |
+| `quest.ts` / `quest_store.ts` (domain) | S | Quest log serialize/progress including optional stages | none | none | none | serialize only | no | no |
 | `quest_reward.ts` | S | Turn-in apply + gold via currency helper | none | none | inventory, quest, wallet | no | no | yes (pure) |
 | `character.ts` / `character_name.ts` / `character_roster.ts` / `character_ticket.ts` / `character_lifecycle.ts` / `class_catalog.ts` | S | Name policy, roster, tickets, class lookup | none | none | content classes | serialize character | RPC bodies | starter stacks via class |
 | `join_validation.ts` | S | Match join rules including selection ticket | none | none | none | no | join reject | no |

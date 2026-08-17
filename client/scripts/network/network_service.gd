@@ -522,6 +522,63 @@ func send_release_respawn(request_id: String) -> Dictionary:
 	)
 
 
+func send_vendor_buy(npc_id: String, item_id: String, quantity: int = 1, request_id: String = "") -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var rid := request_id
+	if rid.is_empty():
+		rid = MatchProtocol.new_request_id()
+	var extra: Dictionary = {"npcId": npc_id, "itemId": item_id, "requestId": rid}
+	if quantity != 1:
+		extra["quantity"] = quantity
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_VENDOR_BUY,
+		MatchProtocol.client_envelope_json(extra)
+	)
+
+
+func send_vendor_sell(npc_id: String, instance_id: String, quantity: int = 0, request_id: String = "") -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var rid := request_id
+	if rid.is_empty():
+		rid = MatchProtocol.new_request_id()
+	var extra: Dictionary = {"npcId": npc_id, "instanceId": instance_id, "requestId": rid}
+	if quantity > 0:
+		extra["quantity"] = quantity
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_VENDOR_SELL,
+		MatchProtocol.client_envelope_json(extra)
+	)
+
+
+func send_inn_rest(npc_id: String, mode: String = "", request_id: String = "") -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var rid := request_id
+	if rid.is_empty():
+		rid = MatchProtocol.new_request_id()
+	var extra: Dictionary = {"npcId": npc_id, "requestId": rid}
+	if not mode.is_empty():
+		extra["mode"] = mode
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_INN_REST,
+		MatchProtocol.client_envelope_json(extra)
+	)
+
+
+func send_cave_enter(npc_id: String, request_id: String = "") -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var rid := request_id
+	if rid.is_empty():
+		rid = MatchProtocol.new_request_id()
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_CAVE_ENTER,
+		MatchProtocol.client_envelope_json({"npcId": npc_id, "requestId": rid})
+	)
+
+
 func join_zone_chat() -> bool:
 	_connect_chat_signals()
 	if not zone_chat_id.is_empty():

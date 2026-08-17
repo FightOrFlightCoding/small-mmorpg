@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "e25c7589697354405e85712f6b166bdfd202eeb38e08b26d10e26451957dc682";
+export const contentHash = "5b41c0cdfdf7e6130c4198b098cc88c1e7be512074589b577991f37f34ee3a0d";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = [] as const;
 export const content = {
@@ -1440,10 +1440,157 @@ export const content = {
   },
   "npcs": {
     "npc.elder": {
+      "dialogueId": "dialogue.npc.elder",
       "displayName": "Elder",
+      "displayNameKey": "npc.elder.name",
       "id": "npc.elder",
+      "interactionRange": 48,
       "kind": "npc",
-      "visualId": "visual.npc_elder"
+      "position": {
+        "x": 160,
+        "y": 320
+      },
+      "services": [
+        {
+          "type": "dialogue"
+        },
+        {
+          "questIds": [
+            "quest.slime_problem"
+          ],
+          "type": "quest_offer"
+        },
+        {
+          "questIds": [
+            "quest.slime_problem"
+          ],
+          "type": "quest_turn_in"
+        }
+      ],
+      "visualId": "visual.npc_elder",
+      "zoneId": "zone.starter"
+    },
+    "npc.test_cave_portal": {
+      "dialogueId": "dialogue.npc.test_cave_portal",
+      "displayName": "Test Cave Portal",
+      "displayNameKey": "npc.test_cave_portal.name",
+      "id": "npc.test_cave_portal",
+      "interactionRange": 48,
+      "kind": "npc",
+      "position": {
+        "x": 440,
+        "y": 640
+      },
+      "services": [
+        {
+          "type": "dialogue"
+        },
+        {
+          "type": "cave_entrance"
+        }
+      ],
+      "visualId": "visual.npc_cave_portal",
+      "zoneId": "zone.starter"
+    },
+    "npc.test_herald": {
+      "dialogueId": "dialogue.npc.test_herald",
+      "displayName": "Test Herald",
+      "displayNameKey": "npc.test_herald.name",
+      "id": "npc.test_herald",
+      "interactionRange": 48,
+      "kind": "npc",
+      "position": {
+        "x": 320,
+        "y": 640
+      },
+      "services": [
+        {
+          "type": "dialogue"
+        },
+        {
+          "questIds": [
+            "quest.test.talk",
+            "quest.test.kill",
+            "quest.test.collect",
+            "quest.test.main_chain",
+            "quest.test.boss",
+            "quest.test.enter",
+            "quest.test.gated",
+            "quest.test.reward"
+          ],
+          "type": "quest_offer"
+        },
+        {
+          "questIds": [
+            "quest.test.talk",
+            "quest.test.kill",
+            "quest.test.collect",
+            "quest.test.main_chain",
+            "quest.test.boss",
+            "quest.test.enter",
+            "quest.test.gated",
+            "quest.test.reward"
+          ],
+          "type": "quest_turn_in"
+        }
+      ],
+      "visualId": "visual.npc_herald",
+      "zoneId": "zone.starter"
+    },
+    "npc.test_innkeeper": {
+      "dialogueId": "dialogue.npc.test_innkeeper",
+      "displayName": "Test Innkeeper",
+      "displayNameKey": "npc.test_innkeeper.name",
+      "id": "npc.test_innkeeper",
+      "interactionRange": 48,
+      "kind": "npc",
+      "position": {
+        "x": 200,
+        "y": 640
+      },
+      "services": [
+        {
+          "type": "dialogue"
+        },
+        {
+          "bindRespawn": true,
+          "goldCost": 5,
+          "healToFull": true,
+          "restoreResources": true,
+          "type": "inn"
+        },
+        {
+          "goldCost": 0,
+          "healToFull": true,
+          "restoreResources": true,
+          "type": "healer"
+        }
+      ],
+      "visualId": "visual.npc_innkeeper",
+      "zoneId": "zone.starter"
+    },
+    "npc.test_vendor": {
+      "dialogueId": "dialogue.npc.test_vendor",
+      "displayName": "Test Vendor",
+      "displayNameKey": "npc.test_vendor.name",
+      "id": "npc.test_vendor",
+      "interactionRange": 48,
+      "kind": "npc",
+      "position": {
+        "x": 80,
+        "y": 640
+      },
+      "services": [
+        {
+          "type": "dialogue"
+        },
+        {
+          "type": "vendor",
+          "vendorId": "vendor.test_general"
+        }
+      ],
+      "visualId": "visual.npc_vendor",
+      "zoneId": "zone.starter"
     }
   },
   "player": {
@@ -1463,6 +1610,7 @@ export const content = {
   "quests": {
     "quest.slime_problem": {
       "acceptNpcId": "npc.elder",
+      "category": "main",
       "completeOnce": true,
       "consume": [
         {
@@ -1491,6 +1639,248 @@ export const content = {
         "xp": 20
       },
       "turnInNpcId": "npc.elder"
+    },
+    "quest.test.boss": {
+      "acceptNpcId": "npc.test_herald",
+      "category": "side",
+      "completeOnce": true,
+      "consume": [],
+      "displayName": "Test Boss",
+      "id": "quest.test.boss",
+      "kind": "quest",
+      "objectives": [
+        {
+          "enemyId": "test.enemy.cave_boss",
+          "enemyTags": [
+            "boss"
+          ],
+          "partyCreditPolicy": "solo",
+          "quantity": 1,
+          "type": "defeat_boss"
+        }
+      ],
+      "rewards": {
+        "gold": 10,
+        "items": [],
+        "xp": 15
+      },
+      "turnInNpcId": "npc.test_herald"
+    },
+    "quest.test.collect": {
+      "acceptNpcId": "npc.test_herald",
+      "category": "side",
+      "completeOnce": true,
+      "consume": [
+        {
+          "itemId": "item.test_pebble",
+          "quantity": 1
+        }
+      ],
+      "displayName": "Test Collect",
+      "id": "quest.test.collect",
+      "kind": "quest",
+      "objectives": [
+        {
+          "itemId": "item.test_pebble",
+          "quantity": 1,
+          "type": "collect_item"
+        }
+      ],
+      "rewards": {
+        "gold": 2,
+        "items": [],
+        "xp": 2
+      },
+      "turnInNpcId": "npc.test_herald"
+    },
+    "quest.test.enter": {
+      "acceptNpcId": "npc.test_herald",
+      "category": "side",
+      "completeOnce": true,
+      "consume": [],
+      "displayName": "Test Enter",
+      "id": "quest.test.enter",
+      "kind": "quest",
+      "objectives": [
+        {
+          "location": {
+            "height": 80,
+            "width": 80,
+            "x": 60,
+            "y": 620
+          },
+          "quantity": 1,
+          "type": "enter_location",
+          "zoneId": "zone.starter"
+        }
+      ],
+      "rewards": {
+        "gold": 1,
+        "items": [],
+        "xp": 1
+      },
+      "turnInNpcId": "npc.test_herald"
+    },
+    "quest.test.gated": {
+      "acceptNpcId": "npc.test_herald",
+      "category": "side",
+      "completeOnce": true,
+      "consume": [],
+      "displayName": "Test Gated",
+      "id": "quest.test.gated",
+      "kind": "quest",
+      "objectives": [
+        {
+          "npcId": "npc.test_herald",
+          "quantity": 1,
+          "type": "talk_to_npc"
+        }
+      ],
+      "prerequisites": {
+        "minLevel": 1,
+        "questIds": [
+          "quest.test.talk"
+        ]
+      },
+      "rewards": {
+        "gold": 1,
+        "items": [],
+        "xp": 1
+      },
+      "turnInNpcId": "npc.test_herald"
+    },
+    "quest.test.kill": {
+      "acceptNpcId": "npc.test_herald",
+      "category": "side",
+      "completeOnce": true,
+      "consume": [],
+      "displayName": "Test Kill",
+      "id": "quest.test.kill",
+      "kind": "quest",
+      "objectives": [
+        {
+          "enemyId": "enemy.green_slime",
+          "enemyTags": [
+            "slime"
+          ],
+          "partyCreditPolicy": "solo",
+          "quantity": 1,
+          "type": "kill_enemy",
+          "zoneId": "zone.starter"
+        }
+      ],
+      "rewards": {
+        "gold": 2,
+        "items": [],
+        "xp": 2
+      },
+      "turnInNpcId": "npc.test_herald"
+    },
+    "quest.test.main_chain": {
+      "acceptNpcId": "npc.test_herald",
+      "category": "main",
+      "completeOnce": true,
+      "consume": [
+        {
+          "itemId": "item.test_pebble",
+          "quantity": 1
+        }
+      ],
+      "displayName": "Test Main Chain",
+      "id": "quest.test.main_chain",
+      "kind": "quest",
+      "rewards": {
+        "gold": 5,
+        "items": [],
+        "xp": 8
+      },
+      "stages": [
+        {
+          "id": "talk",
+          "objectives": [
+            {
+              "npcId": "npc.test_herald",
+              "quantity": 1,
+              "type": "talk_to_npc"
+            }
+          ]
+        },
+        {
+          "id": "collect",
+          "objectives": [
+            {
+              "itemId": "item.test_pebble",
+              "quantity": 1,
+              "type": "collect_item"
+            }
+          ]
+        },
+        {
+          "id": "return",
+          "objectives": [
+            {
+              "npcId": "npc.test_herald",
+              "quantity": 1,
+              "type": "return_to_npc"
+            }
+          ]
+        }
+      ],
+      "turnInNpcId": "npc.test_herald"
+    },
+    "quest.test.reward": {
+      "acceptNpcId": "npc.test_herald",
+      "category": "side",
+      "completeOnce": true,
+      "consume": [],
+      "displayName": "Test Reward Pack",
+      "id": "quest.test.reward",
+      "kind": "quest",
+      "objectives": [
+        {
+          "npcId": "npc.test_herald",
+          "quantity": 1,
+          "type": "talk_to_npc"
+        }
+      ],
+      "rewards": {
+        "abilityUnlockIds": [
+          "test.ability.small_heal"
+        ],
+        "attributePoints": 1,
+        "gold": 3,
+        "items": [
+          {
+            "itemId": "item.test_pebble",
+            "quantity": 1
+          }
+        ],
+        "skillPoints": 1,
+        "xp": 4
+      },
+      "turnInNpcId": "npc.test_herald"
+    },
+    "quest.test.talk": {
+      "acceptNpcId": "npc.test_herald",
+      "category": "side",
+      "completeOnce": true,
+      "consume": [],
+      "displayName": "Test Talk",
+      "id": "quest.test.talk",
+      "kind": "quest",
+      "objectives": [
+        {
+          "npcId": "npc.test_herald",
+          "quantity": 1,
+          "type": "talk_to_npc"
+        }
+      ],
+      "rewards": {
+        "gold": 1,
+        "items": [],
+        "xp": 1
+      },
+      "turnInNpcId": "npc.test_herald"
     }
   },
   "resources": {
@@ -1581,6 +1971,36 @@ export const content = {
       "zoneId": "zone.starter"
     }
   },
+  "vendors": {
+    "vendor.test_general": {
+      "displayName": "Test General Goods",
+      "id": "vendor.test_general",
+      "kind": "vendor",
+      "sellMultiplier": 0.5,
+      "stock": [
+        {
+          "buyPrice": 10,
+          "classRequirements": [],
+          "itemId": "item.test_potion",
+          "levelRequirement": 0
+        },
+        {
+          "buyPrice": 15,
+          "classRequirements": [],
+          "itemId": "item.training_sword",
+          "levelRequirement": 0
+        },
+        {
+          "buyPrice": 40,
+          "classRequirements": [
+            "test.class.vanguard"
+          ],
+          "itemId": "item.test_vanguard_mail",
+          "levelRequirement": 2
+        }
+      ]
+    }
+  },
   "zones": {
     "zone.starter": {
       "collisions": [
@@ -1638,6 +2058,26 @@ export const content = {
           "npcId": "npc.elder",
           "x": 160,
           "y": 320
+        },
+        {
+          "npcId": "npc.test_vendor",
+          "x": 80,
+          "y": 640
+        },
+        {
+          "npcId": "npc.test_innkeeper",
+          "x": 200,
+          "y": 640
+        },
+        {
+          "npcId": "npc.test_herald",
+          "x": 320,
+          "y": 640
+        },
+        {
+          "npcId": "npc.test_cave_portal",
+          "x": 440,
+          "y": 640
         }
       ],
       "playerSpawn": {

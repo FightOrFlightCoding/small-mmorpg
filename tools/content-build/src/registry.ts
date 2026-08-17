@@ -38,6 +38,7 @@ export const DEFAULT_MANIFEST: ContentPackageManifest = {
     ai_profile: { schema: "ai_profile.json", definitionSchemaVersion: 1, idPrefix: "test.ai" },
     loot_table: { schema: "loot_table.json", definitionSchemaVersion: 1, idPrefix: "loot" },
     spawn: { schema: "spawn.json", definitionSchemaVersion: 1, idPrefix: "spawn" },
+    vendor: { schema: "vendor.json", definitionSchemaVersion: 1, idPrefix: "vendor" },
   },
 };
 

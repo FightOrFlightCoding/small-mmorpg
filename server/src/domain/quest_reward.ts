@@ -13,9 +13,11 @@ import {
   QUEST_STATUS_ACCEPTED,
   QUEST_STATUS_COMPLETED,
   cloneQuestLog,
+  questObjectivesSatisfied,
   type QuestDefinition,
   type QuestLog,
 } from "./quest";
+import { npcOffersQuest, type NpcDefinition } from "./npc";
 import { applyGoldMutation, WALLET_CURRENCY_GOLD } from "./wallet";
 
 export interface QuestTurnInInput {
@@ -34,6 +36,7 @@ export interface QuestTurnInInput {
   itemsById: { [id: string]: ItemDefinition };
   newId: () => string;
   tick?: number;
+  npcById?: { [id: string]: NpcDefinition };
 }
 
 export interface QuestTurnInOutcome {
@@ -98,8 +101,15 @@ export function applyQuestTurnIn(input: QuestTurnInInput): QuestTurnInOutcome {
   if (npc === null) {
     return fail("invalid_target", log, inventory, input.gold);
   }
-  if (distance(input.playerX, input.playerY, npc.x, npc.y) > input.interactionRange) {
+  const range = npc.interactionRange !== undefined ? npc.interactionRange : input.interactionRange;
+  if (distance(input.playerX, input.playerY, npc.x, npc.y) > range) {
     return fail("out_of_range", log, inventory, input.gold);
+  }
+  if (input.npcById !== undefined) {
+    const npcDef = input.npcById[input.npcId];
+    if (npcDef !== undefined && !npcOffersQuest(npcDef, input.questId, "quest_turn_in")) {
+      return fail("invalid_service", log, inventory, input.gold);
+    }
   }
   const progress = log.quests[input.questId];
   if (progress === undefined) {
@@ -111,12 +121,13 @@ export function applyQuestTurnIn(input: QuestTurnInInput): QuestTurnInOutcome {
   if (progress.status !== QUEST_STATUS_ACCEPTED) {
     return fail("invalid_id", log, inventory, input.gold);
   }
-  if (!objectivesSatisfied(progress.objectives)) {
+  if (!questObjectivesSatisfied(progress)) {
     return fail("incomplete_objective", log, inventory, input.gold);
   }
   let nextInventory = inventory;
-  for (let i = 0; i < definition.consume.length; i++) {
-    const need = definition.consume[i];
+  const consume = definition.consume !== undefined ? definition.consume : [];
+  for (let i = 0; i < consume.length; i++) {
+    const need = consume[i];
     if (countItem(nextInventory, need.itemId) < need.quantity) {
       return fail("missing_item", log, nextInventory, input.gold);
     }
@@ -185,15 +196,6 @@ export function walletChangeset(goldDelta: number): { [key: string]: number } {
   const changeset: { [key: string]: number } = {};
   changeset[WALLET_CURRENCY_GOLD] = goldDelta;
   return changeset;
-}
-
-function objectivesSatisfied(objectives: { current: number; required: number }[]): boolean {
-  for (let i = 0; i < objectives.length; i++) {
-    if (objectives[i].current < objectives[i].required) {
-      return false;
-    }
-  }
-  return objectives.length > 0;
 }
 
 function rewardMetadata(

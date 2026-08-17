@@ -53,6 +53,7 @@ export function buildPackage(payload: ContentPayload, options: BuildPackageOptio
     aiProfiles: canonicalPayload.aiProfiles,
     lootTables: canonicalPayload.lootTables,
     spawns: canonicalPayload.spawns,
+    vendors: canonicalPayload.vendors,
   };
 }
 
@@ -86,6 +87,7 @@ export function toContentBundle(pkg: ContentPackage): ContentBundle {
     aiProfiles: pkg.aiProfiles,
     lootTables: pkg.lootTables,
     spawns: pkg.spawns,
+    vendors: pkg.vendors,
   };
 }
 
@@ -112,6 +114,7 @@ export function emitServerModule(bundle: ContentBundle): string {
     aiProfiles: bundle.aiProfiles,
     lootTables: bundle.lootTables,
     spawns: bundle.spawns,
+    vendors: bundle.vendors,
   };
   const body = JSON.stringify(canonicalize(payload), null, 2);
   return [

@@ -1,0 +1,27 @@
+{
+  "id": "npc.test_innkeeper",
+  "kind": "npc",
+  "displayName": "Test Innkeeper",
+  "displayNameKey": "npc.test_innkeeper.name",
+  "visualId": "visual.npc_innkeeper",
+  "zoneId": "zone.starter",
+  "position": { "x": 200, "y": 640 },
+  "interactionRange": 48,
+  "dialogueId": "dialogue.npc.test_innkeeper",
+  "services": [
+    { "type": "dialogue" },
+    {
+      "type": "inn",
+      "goldCost": 5,
+      "healToFull": true,
+      "restoreResources": true,
+      "bindRespawn": true
+    },
+    {
+      "type": "healer",
+      "goldCost": 0,
+      "healToFull": true,
+      "restoreResources": true
+    }
+  ]
+}

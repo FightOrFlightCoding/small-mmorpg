@@ -23,13 +23,18 @@ export function storedQuestWriteValue(log: QuestLog): { [key: string]: unknown }
       objectives.push({
         type: objective.type,
         itemId: objective.itemId,
+        npcId: objective.npcId,
+        enemyId: objective.enemyId,
         current: objective.current,
         required: objective.required,
+        stageId: objective.stageId,
+        stageIndex: objective.stageIndex,
       });
     }
     quests.push({
       questId: progress.questId,
       status: progress.status,
+      stageIndex: progress.stageIndex !== undefined ? progress.stageIndex : 0,
       objectives: objectives,
     });
   }
@@ -161,22 +166,38 @@ function parseProgress(value: unknown): QuestProgress | null {
       continue;
     }
     const row = objective as { [key: string]: unknown };
-    if (typeof row.type !== "string" || typeof row.itemId !== "string") {
+    if (typeof row.type !== "string") {
       continue;
     }
     if (typeof row.current !== "number" || typeof row.required !== "number") {
       continue;
     }
-    objectives.push({
+    const parsed: QuestProgress["objectives"][number] = {
       type: row.type,
-      itemId: row.itemId,
       current: row.current,
       required: row.required,
-    });
+    };
+    if (typeof row.itemId === "string") {
+      parsed.itemId = row.itemId;
+    }
+    if (typeof row.npcId === "string") {
+      parsed.npcId = row.npcId;
+    }
+    if (typeof row.enemyId === "string") {
+      parsed.enemyId = row.enemyId;
+    }
+    if (typeof row.stageId === "string") {
+      parsed.stageId = row.stageId;
+    }
+    if (typeof row.stageIndex === "number" && isFinite(row.stageIndex)) {
+      parsed.stageIndex = row.stageIndex;
+    }
+    objectives.push(parsed);
   }
   return {
     questId: data.questId,
     status: data.status,
+    stageIndex: typeof data.stageIndex === "number" && isFinite(data.stageIndex) ? data.stageIndex : 0,
     objectives: objectives,
   };
 }

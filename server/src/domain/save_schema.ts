@@ -35,6 +35,10 @@ export const CHARACTER_SAVE_KEYS = [
   "position",
   "lastPlayedAt",
   "deletedAt",
+  "bindX",
+  "bindY",
+  "bindZoneId",
+  "innByRequestId",
 ];
 export const INVENTORY_SAVE_KEYS = [
   "schemaVersion",

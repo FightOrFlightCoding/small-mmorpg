@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Generic enemies, spawn controllers, AI profiles, loot tables, and bosses**.
+Last accepted phase: **Generic NPC services, dialogue, quests, merchants, and inn**.
 
 Current phase: none.
 
@@ -493,6 +493,28 @@ The Prompt 18 slime is a normal enemy definition (`enemy.green_slime`, `test.ai.
 | Audit | `FOUNDATION_AUDIT_OK` (10 storage records, 18 client opcodes, 12 server opcodes) |
 | Server | 301/301 |
 | Client GdUnit | 146/146, 0 orphans, `SHELL_LOGIN` |
+| E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect) |
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-content.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+powershell -File scripts/test-e2e.ps1
+```
+
+## Generic NPC services, dialogue, quests, merchants, and inn acceptance (2026-08-17)
+
+The Prompt 18 elder is a normal NPC with content services (`dialogue`, `quest_offer`, `quest_turn_in`). There are no elder, merchant, or innkeeper classes. `quest.slime_problem` runs on the generic quest engine (stages, reusable objectives, prerequisites). Vendors buy and sell at server prices through the transaction service. Inn/healer rest heals, restores class resources, optionally charges gold, and persists bind on the character record. `CAVE_ENTER` returns `cave_unavailable` and does not transfer the player. Dialogue opens only after server-approved `INTERACTION_RESULT` extras. Adding another ordinary quest that uses existing objective types is content-only. Cave instances, parties, and player trading were not added. Prompt 18 elder/slime positions and the slime-quest complete notice remain.
+
+| Gate | Result |
+| --- | --- |
+| Content | 14/14, matching hash `5b41c0cdfdf7e6130c4198b098cc88c1e7be512074589b577991f37f34ee3a0d` |
+| Audit | `FOUNDATION_AUDIT_OK` (10 storage records, 22 client opcodes, 12 server opcodes) |
+| Server | 325/325 |
+| Client GdUnit | 149/149, 0 orphans, `SHELL_LOGIN` |
 | E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect) |
 
 Reproduction:

@@ -98,7 +98,7 @@ Notifications: **none** registered.
 
 ## Client → server match opcodes
 
-Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST 8; INTERACT/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/quest/ALLOCATE_ATTRIBUTES/ASSIGN_HOTBAR/UNLOCK_ABILITY 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
+Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARGET 8; INTERACT/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/quest/VENDOR_BUY/VENDOR_SELL/INN_REST/CAVE_ENTER/ALLOCATE_ATTRIBUTES/ASSIGN_HOTBAR/UNLOCK_ABILITY 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
 
 ### 1 `INPUT`
 
@@ -116,9 +116,9 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST 8; INTER
 | Field | Value |
 | --- | --- |
 | Body | `{ protocolVersion, targetId, requestId }` |
-| Authority | Server range vs `interactionRange` |
+| Authority | Server range vs per-NPC `interactionRange` (fallback `player.base.interactionRange`) |
 | `requestId` | Required (correlation, not a grant) |
-| Errors | `out_of_range`, `invalid_target`, `player_dead`, `invalid_request_id` |
+| Errors | `out_of_range`, `invalid_target`, `invalid_zone`, `player_dead`, `invalid_request_id` |
 | Tests | `interaction.test.ts`, `interaction_client_test.gd` |
 
 ### 3 `ATTACK`
@@ -156,7 +156,7 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST 8; INTER
 | Field | Value |
 | --- | --- |
 | Body | `{ protocolVersion, questId, requestId }` |
-| Authority | Server quest def + elder range |
+| Authority | Server quest def + accept-NPC range, level, and class |
 | Idempotency | Same `requestId` → `accepted`; later id → `already_accepted` |
 | Errors | `invalid_id`, `out_of_range`, `player_dead`, `unknown_field:status` |
 | Tests | `quest.test.ts`, `quest_service_test.gd` |
@@ -288,6 +288,50 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST 8; INTER
 | Rate limit | Shares ALLOCATE window (8) |
 | Tests | `combat_pipeline.test.ts`, `combat_client_test.gd` |
 
+### 19 `VENDOR_BUY`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, npcId, itemId, quantity?, requestId }` |
+| Authority | Server vendor stock and prices; client must not send `price` / `gold` |
+| Idempotency | Successful `requestId` replays `ok` without a second grant |
+| Errors | `invalid_id`, `out_of_range`, `insufficient_gold`, `inventory_full`, `class_restricted`, `level_restricted`, `player_dead`, `unknown_field:price`, `stat_injection:gold` |
+| Rate limit | Shares quest window (8) |
+| Tests | `vendor.test.ts`, `protocol.test.ts`, `vendor_inn_service_test.gd` |
+
+### 20 `VENDOR_SELL`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, npcId, instanceId, quantity?, requestId }` |
+| Authority | Server sell value × vendor multiplier; equipped is `item_locked`; floor 0 is unsellable |
+| Idempotency | Successful `requestId` replays `ok` without a second gold grant |
+| Errors | `invalid_id`, `out_of_range`, `unowned`, `item_locked`, `unsellable`, `player_dead` |
+| Rate limit | Shares quest window (8) |
+| Tests | `vendor.test.ts`, `protocol.test.ts`, `vendor_inn_service_test.gd` |
+
+### 21 `INN_REST`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, npcId, mode?, requestId }` (`mode` is `inn` or `healer`) |
+| Authority | Server gold cost, full heal, resource restore, bind persistence. Healer may skip gold and rebind. Client health/gold rejected. |
+| Idempotency | Successful `requestId` replays `ok` without a second charge |
+| Errors | `invalid_id`, `out_of_range`, `insufficient_gold`, `player_dead`, `stat_injection:gold` |
+| Rate limit | Shares quest window (8) |
+| Tests | `inn.test.ts`, `protocol.test.ts`, `vendor_inn_service_test.gd` |
+
+### 22 `CAVE_ENTER`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, npcId, requestId }` |
+| Authority | Always `cave_unavailable`; no match transfer |
+| Idempotency | Same `requestId` replays `cave_unavailable` |
+| Errors | `cave_unavailable`, `invalid_id`, `out_of_range`, `player_dead` |
+| Rate limit | Shares quest window (8) |
+| Tests | `inn.test.ts`, `protocol.test.ts`, `vendor_inn_service_test.gd` |
+
 No other client opcodes exist. Unknown opcode → `unknown_opcode`.
 
 ## Server → client match opcodes
@@ -302,7 +346,7 @@ No client rate limit. Occupied matches send **102** every tick.
 | 104 | `COMBAT_EVENT` | tick, events[] (`hit`, `heal`, `death`, `respawn`, `interrupt`, `effect_*`, `resource`, `threat`, `credit`, `message`) | `combat.test.ts`, `combat_pipeline.test.ts`, `boss.test.ts`, `combat_client_test.gd` |
 | 105 | `INVENTORY_STATE` | capacity, items | `inventory.test.ts` |
 | 106 | `QUEST_STATE` | quests | `quest.test.ts` |
-| 107 | `INTERACTION_RESULT` | ok, code, requestId, targetId | `interaction.test.ts` |
+| 107 | `INTERACTION_RESULT` | ok, code, requestId, targetId, optional dialogueId/services/context | `interaction.test.ts` |
 | 108 | `SYSTEM_MESSAGE` | code, message | protocol/security/chat |
 | 109 | `EQUIPMENT_STATE` | slots, derived | `equipment.test.ts` |
 | 110 | `WALLET_STATE` | gold | `quest_reward.test.ts`, `wallet_service_test.gd` |

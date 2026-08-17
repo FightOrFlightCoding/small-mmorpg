@@ -65,11 +65,12 @@ Match code spawns enemies from zone content (`enemyDefinitionsFromContent`) rath
 | --- | --- |
 | Source + generated catalog (quest consume/reward lists) | Correct content reference |
 | `npc.elder.dialogue` `do QuestService.request_*("quest.slime_problem"…)` | Temporary Prompt 18 assumption |
+| `server/src/domain/match_loop.ts` complete notice for `quest.slime_problem` | Temporary Prompt 18 assumption |
 | `content_catalog.gd` `REQUIRED_IDS` | Architectural hard-coding requiring later removal |
 | E2E driver constants | Test fixture |
 | Tests | Test fixture |
 
-Turn-in apply already uses quest definition rewards from content, not a second hardcoded gold constant in `quest_reward.ts`. The **25 gold** and iron sword still exist as authored quest data.
+Turn-in apply already uses quest definition rewards from content, not a second hardcoded gold constant in `quest_reward.ts`. The **25 gold** and iron sword still exist as authored quest data. The complete `SYSTEM_MESSAGE` copy “Iron Sword and 25 gold” remains hardcoded for `quest.slime_problem` only.
 
 ## Structural hard-coding (not always an ID string)
 

@@ -99,6 +99,10 @@ export interface StoredCharacter {
   updatedAt: number;
   lastPlayedAt?: number;
   deletedAt?: number;
+  bindX?: number;
+  bindY?: number;
+  bindZoneId?: string;
+  innByRequestId?: { [requestId: string]: string };
   extras?: { [key: string]: unknown };
 }
 
@@ -341,6 +345,26 @@ export function storedCharacterFromValue(
   } else {
     record.deletedAt = 0;
   }
+  if (typeof value.bindX === "number" && isFinite(value.bindX)) {
+    record.bindX = value.bindX;
+  }
+  if (typeof value.bindY === "number" && isFinite(value.bindY)) {
+    record.bindY = value.bindY;
+  }
+  if (typeof value.bindZoneId === "string" && value.bindZoneId.length > 0) {
+    record.bindZoneId = value.bindZoneId;
+  }
+  if (value.innByRequestId !== null && typeof value.innByRequestId === "object" && !Array.isArray(value.innByRequestId)) {
+    const inn: { [requestId: string]: string } = {};
+    const innSource = value.innByRequestId as { [key: string]: unknown };
+    const innKeys = Object.keys(innSource);
+    for (let i = 0; i < innKeys.length; i++) {
+      if (typeof innSource[innKeys[i]] === "string") {
+        inn[innKeys[i]] = innSource[innKeys[i]] as string;
+      }
+    }
+    record.innByRequestId = inn;
+  }
   return record;
 }
 
@@ -357,6 +381,10 @@ export function storedCharacterWriteValue(record: StoredCharacter): { [key: stri
       position: { x: record.position.x, y: record.position.y },
       lastPlayedAt: record.lastPlayedAt !== undefined ? record.lastPlayedAt : record.updatedAt,
       deletedAt: record.deletedAt !== undefined ? record.deletedAt : 0,
+      bindX: record.bindX !== undefined ? record.bindX : null,
+      bindY: record.bindY !== undefined ? record.bindY : null,
+      bindZoneId: record.bindZoneId !== undefined ? record.bindZoneId : "",
+      innByRequestId: record.innByRequestId !== undefined ? record.innByRequestId : {},
     },
     envelopeFromRecord(record),
     record.extras,
@@ -379,6 +407,10 @@ export function cloneStoredCharacter(record: StoredCharacter): StoredCharacter {
     updatedAt: record.updatedAt,
     lastPlayedAt: record.lastPlayedAt,
     deletedAt: record.deletedAt,
+    bindX: record.bindX,
+    bindY: record.bindY,
+    bindZoneId: record.bindZoneId,
+    innByRequestId: record.innByRequestId,
     extras: cloneExtras(record.extras),
   };
 }
@@ -388,6 +420,7 @@ export function checkpointCharacterPosition(
   x: number,
   y: number,
   nowMs: number = record.updatedAt,
+  bind?: { bindX: number; bindY: number; bindZoneId: string; innByRequestId?: { [requestId: string]: string } },
 ): StoredCharacter {
   const next = cloneStoredCharacter(record);
   const envelope = envelopeFromRecord(record);
@@ -395,5 +428,13 @@ export function checkpointCharacterPosition(
   next.schemaVersion = envelope.schemaVersion;
   next.createdAt = envelope.createdAt;
   next.updatedAt = nowMs;
+  if (bind !== undefined) {
+    next.bindX = bind.bindX;
+    next.bindY = bind.bindY;
+    next.bindZoneId = bind.bindZoneId;
+    if (bind.innByRequestId !== undefined) {
+      next.innByRequestId = bind.innByRequestId;
+    }
+  }
   return next;
 }

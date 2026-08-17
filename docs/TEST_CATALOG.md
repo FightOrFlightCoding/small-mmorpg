@@ -1,6 +1,6 @@
 # Test catalog
 
-Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, Prompt 24 ability coverage, Prompt 25 combat-pipeline coverage, and Prompt 26 enemy/spawn/AI/loot/boss coverage. Do not weaken these tests. Live gate counts after Prompt 26: content 14/14, server 301/301, client GdUnit 146/146 (0 orphans), `E2E_SLICE_OK`.
+Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, Prompt 24 ability coverage, Prompt 25 combat-pipeline coverage, Prompt 26 enemy/spawn/AI/loot/boss coverage, and Prompt 27 NPC/quest/vendor/inn coverage. Do not weaken these tests. Live gate counts after Prompt 27: content 14/14, server 325/325, client GdUnit 149/149 (0 orphans), `E2E_SLICE_OK`.
 
 Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDATION_BASELINE.md).
 
@@ -51,10 +51,12 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `inventory.test.ts` | pickup, stack merge/split/move, destroy, locks, capacity, Prompt 18 instance ids | VS-T4, T5 |
 | `equipment.test.ts` | weapons/armor slots, class/level/lock, derived attack | VS-T5 |
 | `transaction.test.ts` | gold add/remove/insufficient, idempotency, OCC, audit, in-memory committer | |
-| `quest.test.ts` | accept, already_accepted | VS-T6 |
+| `quest.test.ts` | accept, already_accepted, talk/kill/collect/enter/stages/prereq | VS-T6 |
 | `quest_reward.test.ts` | turn-in, `multiUpdate` fake, duplicate reward | VS-T4, T6, T7 |
 | `quest_store.test.ts` | serialize/load | |
-| `interaction.test.ts` | range, dead player | |
+| `vendor.test.ts` | buy, sell, insufficient gold, full inventory, equipped locked, unsellable, idempotent | |
+| `inn.test.ts` | rest heal+bind, insufficient gold, healer, reconnect bind, cave_unavailable | |
+| `interaction.test.ts` | range, dead player, dialogueId/services extras | |
 | `security.test.ts` | mapped attacks, rate limits | VS-T1–T6, T9 |
 | `match.test.ts` | join, empty shutdown, FULL_STATE | VS-T9 |
 | `character.test.ts` | bootstrap wrapper, `permissionWrite: 0` | |
@@ -84,6 +86,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `entity_registry_test.gd` / `world_render_test.gd` | presentation | VS-M1 analog |
 | `interaction_client_test.gd` | INTERACT, dialogue after result | |
 | `quest_service_test.gd` | accept/turn-in intents | VS-T6 analog |
+| `vendor_inn_service_test.gd` | vendor buy/sell, inn rest, cave enter; no client prices | |
 | `inventory_service_test.gd` / `equipment_service_test.gd` / `wallet_service_test.gd` / `progression_service_test.gd` | mirrors | VS-T5, T8 |
 | `combat_client_test.gd` | attack intent, target frame with AI `state`, death overlay, combat `message`, SET_TARGET / RELEASE | VS-T3 analog |
 | `ability_service_test.gd` | use/ground-target intentions, canonical hotbar/cooldown/cast bar | |
