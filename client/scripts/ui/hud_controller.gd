@@ -73,6 +73,7 @@ func sync_windows() -> void:
 		_hud.set_panel_visible(WindowManager.PARTY, WindowManager.is_open(WindowManager.PARTY))
 		_hud.set_panel_visible(WindowManager.PARTY_CHAT, WindowManager.is_open(WindowManager.PARTY))
 		_hud.set_panel_visible(WindowManager.TRADE, WindowManager.is_open(WindowManager.TRADE))
+		_hud.set_panel_visible(WindowManager.GM, WindowManager.is_open(WindowManager.GM))
 		_hud.set_panel_visible(WindowManager.SETTINGS, WindowManager.is_open(WindowManager.SETTINGS))
 		_hud.set_panel_visible(WindowManager.VENDOR, WindowManager.is_open(WindowManager.VENDOR))
 		_hud.set_panel_visible(WindowManager.INN, WindowManager.is_open(WindowManager.INN))

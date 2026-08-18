@@ -1,0 +1,23 @@
+{
+  "id": "enemy.proof_critter",
+  "kind": "enemy",
+  "displayName": "Proof Critter",
+  "displayNameKey": "enemy.proof_critter.name",
+  "visualId": "visual.enemy_proof_critter",
+  "level": 1,
+  "maxHealth": 8,
+  "damage": 1,
+  "defense": 0,
+  "moveSpeed": 20,
+  "aggroRadius": 40,
+  "attackRange": 24,
+  "attackCooldown": 2,
+  "leashRadius": 80,
+  "respawnDelay": 12,
+  "abilityLoadout": [],
+  "aiProfileId": "test.ai.melee",
+  "xpReward": 2,
+  "lootTableId": "loot.proof_critter",
+  "collisionProfileId": "collision.enemy_default",
+  "tags": ["proof", "wildlife"]
+}

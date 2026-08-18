@@ -453,7 +453,7 @@ export function publicQuestPayloads(
   return payloads;
 }
 
-function createAcceptedProgress(definition: QuestDefinition): QuestProgress {
+export function createAcceptedProgress(definition: QuestDefinition): QuestProgress {
   const objectives: QuestObjectiveProgress[] = [];
   for (let s = 0; s < definition.stages.length; s++) {
     const stage = definition.stages[s];

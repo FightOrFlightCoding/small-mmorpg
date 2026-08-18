@@ -23,6 +23,7 @@ export const REGISTERED_RPC_IDS = [
   "party_promote",
   "party_disband",
   "party_get_state",
+  "gm_command",
 ] as const;
 
 export { PROTOCOL_VERSION };

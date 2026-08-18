@@ -728,7 +728,7 @@
       "visualAssetSetId": "visual.class_vanguard"
     }
   },
-  "contentHash": "58134490916197c49e40642465d949fe17350fe7f798edc5857bed947a1ade86",
+  "contentHash": "985e5073b1e51f52205f73f85c65982f63454ed87ca4142765fd17a97692b7bc",
   "derivedStats": {
     "test.stat.attack": {
       "components": [
@@ -863,7 +863,20 @@
       "role": "max_mana"
     }
   },
-  "developmentOnly": [],
+  "developmentOnly": [
+    "npc.lab_exit",
+    "npc.lab_inn",
+    "npc.lab_keeper",
+    "npc.lab_trainer",
+    "npc.lab_vendor",
+    "quest.lab_tour",
+    "spawn.lab.boss",
+    "spawn.lab.caster",
+    "spawn.lab.melee",
+    "spawn.lab.ranged",
+    "test.zone.systems_lab",
+    "vendor.lab_general"
+  ],
   "enemies": {
     "enemy.green_slime": {
       "abilityLoadout": [],
@@ -897,6 +910,32 @@
       ],
       "visualId": "visual.enemy_green_slime",
       "xpReward": 10
+    },
+    "enemy.proof_critter": {
+      "abilityLoadout": [],
+      "aggroRadius": 40,
+      "aiProfileId": "test.ai.melee",
+      "attackCooldown": 2,
+      "attackRange": 24,
+      "collisionProfileId": "collision.enemy_default",
+      "damage": 1,
+      "defense": 0,
+      "displayName": "Proof Critter",
+      "displayNameKey": "enemy.proof_critter.name",
+      "id": "enemy.proof_critter",
+      "kind": "enemy",
+      "leashRadius": 80,
+      "level": 1,
+      "lootTableId": "loot.proof_critter",
+      "maxHealth": 8,
+      "moveSpeed": 20,
+      "respawnDelay": 12,
+      "tags": [
+        "proof",
+        "wildlife"
+      ],
+      "visualId": "visual.enemy_proof_critter",
+      "xpReward": 2
     },
     "test.enemy.caster": {
       "abilityLoadout": [
@@ -1109,6 +1148,26 @@
       "uniquePolicy": "none",
       "visualId": "visual.item_iron_sword",
       "worldAssetId": "visual.item_iron_sword"
+    },
+    "item.proof_token": {
+      "attackBonus": 0,
+      "category": "quest",
+      "classRequirements": [],
+      "descriptionKey": "item.proof_token.desc",
+      "destroyable": false,
+      "displayName": "Proof Token",
+      "displayNameKey": "item.proof_token.name",
+      "iconAssetId": "visual.item_proof_token",
+      "id": "item.proof_token",
+      "kind": "item",
+      "levelRequirement": 0,
+      "maxStack": 20,
+      "sellValue": 0,
+      "statModifiers": [],
+      "tradeable": false,
+      "uniquePolicy": "none",
+      "visualId": "visual.item_proof_token",
+      "worldAssetId": "visual.item_proof_token"
     },
     "item.slime_gel": {
       "attackBonus": 0,
@@ -1358,6 +1417,21 @@
       "kind": "loot_table",
       "ownershipPolicy": "ground_free"
     },
+    "loot.proof_critter": {
+      "displayName": "Proof Critter",
+      "entries": [
+        {
+          "chance": 1,
+          "guaranteed": true,
+          "itemDefinitionId": "item.proof_token",
+          "maximumQuantity": 1,
+          "minimumQuantity": 1
+        }
+      ],
+      "id": "loot.proof_critter",
+      "kind": "loot_table",
+      "ownershipPolicy": "ground_free"
+    },
     "loot.test.personal": {
       "displayName": "Test Personal Loot",
       "entries": [
@@ -1494,6 +1568,37 @@
         }
       ],
       "visualId": "visual.npc_elder",
+      "zoneId": "zone.starter"
+    },
+    "npc.proof_giver": {
+      "dialogueId": "dialogue.npc.proof_giver",
+      "displayName": "Proof Giver",
+      "displayNameKey": "npc.proof_giver.name",
+      "id": "npc.proof_giver",
+      "interactionRange": 48,
+      "kind": "npc",
+      "position": {
+        "x": 600,
+        "y": 640
+      },
+      "services": [
+        {
+          "type": "dialogue"
+        },
+        {
+          "questIds": [
+            "quest.proof_errand"
+          ],
+          "type": "quest_offer"
+        },
+        {
+          "questIds": [
+            "quest.proof_errand"
+          ],
+          "type": "quest_turn_in"
+        }
+      ],
+      "visualId": "visual.npc_proof_giver",
       "zoneId": "zone.starter"
     },
     "npc.test_cave_exit": {
@@ -1666,6 +1771,33 @@
     "visualId": "visual.player"
   },
   "quests": {
+    "quest.proof_errand": {
+      "acceptNpcId": "npc.proof_giver",
+      "category": "side",
+      "completeOnce": true,
+      "consume": [
+        {
+          "itemId": "item.proof_token",
+          "quantity": 1
+        }
+      ],
+      "displayName": "Proof Errand",
+      "id": "quest.proof_errand",
+      "kind": "quest",
+      "objectives": [
+        {
+          "itemId": "item.proof_token",
+          "quantity": 1,
+          "type": "acquire_item"
+        }
+      ],
+      "rewards": {
+        "gold": 8,
+        "items": [],
+        "xp": 5
+      },
+      "turnInNpcId": "npc.proof_giver"
+    },
     "quest.slime_problem": {
       "acceptNpcId": "npc.elder",
       "category": "main",
@@ -2032,6 +2164,18 @@
       "y": 400,
       "zoneId": "zone.starter"
     },
+    "spawn.starter.proof_critter": {
+      "activationPolicy": "always",
+      "enemyId": "enemy.proof_critter",
+      "groupId": "group.starter_proof",
+      "id": "spawn.starter.proof_critter",
+      "kind": "spawn",
+      "respawnDelay": 12,
+      "spawnCount": 1,
+      "x": 1184,
+      "y": 700,
+      "zoneId": "zone.starter"
+    },
     "spawn.starter.test_caster": {
       "activationPolicy": "manual",
       "enemyId": "test.enemy.caster",
@@ -2210,6 +2354,12 @@
           "spawnId": "spawn.starter.green_slime",
           "x": 960,
           "y": 400
+        },
+        {
+          "enemyId": "enemy.proof_critter",
+          "spawnId": "spawn.starter.proof_critter",
+          "x": 1184,
+          "y": 700
         }
       ],
       "height": 768,
@@ -2239,6 +2389,11 @@
         {
           "npcId": "npc.test_cave_portal",
           "x": 440,
+          "y": 640
+        },
+        {
+          "npcId": "npc.proof_giver",
+          "x": 600,
           "y": 640
         }
       ],

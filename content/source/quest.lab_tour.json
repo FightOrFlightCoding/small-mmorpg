@@ -1,0 +1,51 @@
+{
+  "id": "quest.lab_tour",
+  "kind": "quest",
+  "displayName": "Lab Tour",
+  "category": "side",
+  "acceptNpcId": "npc.lab_keeper",
+  "turnInNpcId": "npc.lab_keeper",
+  "stages": [
+    {
+      "id": "talk",
+      "objectives": [{ "type": "talk_to_npc", "npcId": "npc.lab_keeper", "quantity": 1 }]
+    },
+    {
+      "id": "kill",
+      "objectives": [{ "type": "kill_enemy", "enemyId": "test.enemy.melee", "quantity": 1 }]
+    },
+    {
+      "id": "collect",
+      "objectives": [{ "type": "collect_item", "itemId": "item.test_cloth", "quantity": 1 }]
+    },
+    {
+      "id": "enter",
+      "objectives": [
+        {
+          "type": "enter_location",
+          "zoneId": "test.zone.systems_lab",
+          "location": { "x": 640, "y": 220, "width": 80, "height": 80 },
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "id": "boss",
+      "objectives": [{ "type": "defeat_boss", "enemyId": "test.enemy.cave_boss", "quantity": 1 }]
+    },
+    {
+      "id": "return",
+      "objectives": [{ "type": "return_to_npc", "npcId": "npc.lab_keeper", "quantity": 1 }]
+    }
+  ],
+  "consume": [{ "itemId": "item.test_cloth", "quantity": 1 }],
+  "rewards": {
+    "gold": 10,
+    "xp": 40,
+    "items": [],
+    "skillPoints": 1,
+    "abilityUnlockIds": ["test.ability.small_heal"]
+  },
+  "completeOnce": true,
+  "developmentOnly": true
+}

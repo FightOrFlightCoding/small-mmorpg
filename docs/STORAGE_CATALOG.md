@@ -407,6 +407,60 @@ Value: `{ schemaVersion, characterId, tradeId, state }`. `tradeId` is empty afte
 
 Value: `{ schemaVersion, characterId, requestId, reasonType, reasonId, goldDelta, resultingBalance, code, ok, metadata }`. `reasonType` is `trade`.
 
+## `gm` / `allowlist`
+
+
+| Field             | Value                                                                                          |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| Purpose           | Server-owned GM authorization. Default `{ enabled: false, userIds: [], customIds: [], emails: [] }` disables all commands. |
+| Owner             | Operators via Nakama console / storage write. Never the Godot client.                          |
+| Scope             | System user `00000000-0000-0000-0000-000000000000`                                             |
+| `permissionRead`  | 0                                                                                              |
+| `permissionWrite` | 0                                                                                              |
+| Schema version    | 1                                                                                              |
+| Client access     | No                                                                                             |
+
+
+## `gm` / `recent`
+
+
+| Field             | Value                                              |
+| ----------------- | -------------------------------------------------- |
+| Purpose           | Ring of recent GM audit ids (max 20)               |
+| Owner             | Server `gm_command`                                |
+| Scope             | System user                                        |
+| `permissionWrite` | 0                                                  |
+| Schema version    | 1                                                  |
+| Client access     | No                                                 |
+
+
+## `gm` / `r`
+
+
+| Field             | Value                                                                 |
+| ----------------- | --------------------------------------------------------------------- |
+| Purpose           | Match-signal result keyed `r_<requestId>` so the RPC can read live apply outcome |
+| Owner             | Match `matchSignal` GM path                                           |
+| Scope             | System user                                                           |
+| `permissionWrite` | 0                                                                     |
+| Schema version    | 1                                                                     |
+| Client access     | No                                                                    |
+
+
+## `gm_audit` / `a`
+
+
+| Field             | Value                                                                                          |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| Purpose           | One audit object per GM command: administrator user, target character, command, reason, timestamp, result |
+| Owner             | Server `gm_command`                                                                            |
+| Scope             | System user; keys `a_<auditId>`                                                                |
+| `permissionRead`  | 0                                                                                              |
+| `permissionWrite` | 0                                                                                              |
+| Schema version    | 1                                                                                              |
+| Client access     | No. Operators read storage or `view_recent_transaction_audit`.                                 |
+
+
 ## Nakama wallet `gold`
 
 

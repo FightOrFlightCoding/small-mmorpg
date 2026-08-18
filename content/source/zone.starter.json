@@ -35,6 +35,11 @@
       "npcId": "npc.test_cave_portal",
       "x": 440,
       "y": 640
+    },
+    {
+      "npcId": "npc.proof_giver",
+      "x": 600,
+      "y": 640
     }
   ],
   "enemies": [
@@ -43,6 +48,12 @@
       "x": 960,
       "y": 400,
       "spawnId": "spawn.starter.green_slime"
+    },
+    {
+      "enemyId": "enemy.proof_critter",
+      "x": 1184,
+      "y": 700,
+      "spawnId": "spawn.starter.proof_critter"
     }
   ],
   "walkableBounds": {

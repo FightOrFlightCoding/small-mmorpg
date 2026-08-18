@@ -190,3 +190,11 @@ func test_ui_state_clears_after_zone_transfer() -> void:
 	assert_bool(WindowManager.is_open(WindowManager.INN)).is_false()
 	assert_bool(WindowManager.is_open(WindowManager.DIALOGUE)).is_false()
 	assert_str(UiStateService.last_zone_id).is_equal("zone.cave")
+
+
+func test_gm_window_is_closeable_without_granting() -> void:
+	WindowManager.open(WindowManager.GM)
+	assert_bool(WindowManager.is_open(WindowManager.GM)).is_true()
+	assert_bool(WindowManager.close_top()).is_true()
+	assert_bool(WindowManager.is_open(WindowManager.GM)).is_false()
+	assert_bool(GmService.is_debug_panel_allowed()).is_equal(OS.is_debug_build())

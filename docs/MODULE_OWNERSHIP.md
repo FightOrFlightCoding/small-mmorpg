@@ -29,6 +29,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `CaveService` | C | Cave-enter/exit intents; transfer overlay after ticket extras | Last approved cave NPC | none | `NetworkService` | no | CAVE_ENTER / CAVE_EXIT | no |
 | `PartyService` | C | Party mirror; create/invite/accept/leave/kick/promote/disband; party chat | In-memory party view, pending invite, chat lines | none | `NetworkService`, `AppState` | no | party RPCs, PARTY_STATE / PARTY_EVENT, `party.<id>` channel | no |
 | `TradeService` | C | Trade mirror; invite/offer/gold/accept/cancel | In-memory trade view | none | `NetworkService`, `AppState` | no | TRADE_* / TRADE_STATE | no grants |
+| `GmService` | C | Debug GM panel; `gm_command` RPC intention + reason | Last result copy | none | `NetworkService` | no | `gm_command` RPC | no grants |
 | `WindowManager` / `HudController` / `UiStateService` | C | Open/close/focus/exclusivity of shell and HUD windows; character/zone restore | Open window ids, UI scale | none | `AppState` | no | no | no |
 | `TooltipService` / `DragDropService` / `NotificationService` | C | Tooltip clamp, drag preview, toast copy | Ephemeral presentation | none | none | no | no | no |
 | `InputSettingsService` / `AudioSettingsService` / `LocalSettingsStore` | C | Rebindable InputMap, volume/window/scale | `user://client_settings.json` | none | `UiStateService` | local settings only | no | no |
@@ -92,9 +93,10 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `rpcs/find_or_create_starter_zone.ts` | A | Public-world locator; live cave on reconnect | none | registry, location, cave | protocol version | yes (match singleton) | RPC | no |
 | `rpcs/cave.ts` | A | request_cave_entry / find_or_create_owned_cave / request_cave_exit | none | cave/location/party stores | domain cave | yes | RPC | no |
 | `rpcs/party.ts` | A | Party create/invite/accept/decline/leave/kick/promote/disband/get | none | party_store, character stores | domain party | yes | RPC | no |
+| `rpcs/gm.ts` / `gm.ts` / `gm_store.ts` | A/S | Allowlist, audited `gm_command`, live matchSignal apply | none | gm / gm_audit storage | domain gm | yes | RPC | admin grants |
 | `main.ts` | A | `InitModule` registrations | none | Nakama initializer | RPCs, match, hooks | no | register | no |
 | `generated/content.ts` | S generated | Catalog | immutable content | content-build | none | no | no | no |
-| `tools/content-build` | T | Validate + generate catalogs, diff, trace, package manifest | none | Ajv | `content/source`, `content/package.manifest.json` | no | no | no |
+| `tools/content-build` | T | Validate, generate, diff, trace, unused, new/copy templates, migrate, package, CSV | none | Ajv | `content/source`, `content/package.manifest.json`, client visual/dialogue maps | no | no | no |
 | `tools/foundation-audit` | T | Freeze checks | none | none | catalogs + git | no | no | no |
 | `server/src/domain/save_schema.ts` / `migration.ts` / `save_load.ts` | S | Save envelope, v0→v1 registry, load | none | none | storage parsers | serialize + migrate | no | no |
 | `wallet_ref.ts` / `wallet_ref_store.ts` | S/A | Versioned gold pointer, not the balance | none | Nakama storage | save_schema | yes | no | pointer only |

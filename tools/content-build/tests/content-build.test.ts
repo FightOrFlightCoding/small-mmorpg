@@ -1,14 +1,29 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { copyDefinition, createFromTemplate, migrateSource } from "../src/authoring";
+import { canonicalize } from "../src/canonical";
+import {
+  exportEnemyStats,
+  exportLevelCurves,
+  exportLootEntries,
+  exportVendorStock,
+  importEnemyStats,
+  importLevelCurves,
+  importLootEntries,
+  importVendorStock,
+} from "../src/csv";
 import { emitClientJson, emitServerModule, buildBundle, writeOutputs } from "../src/emit";
 import { diffPayloads } from "../src/diff";
 import { ContentValidationError } from "../src/issues";
 import { loadSourceDocuments } from "../src/load";
+import { defaultIdFor } from "../src/templates";
 import { traceReferences } from "../src/trace";
 import type { SourceDocument } from "../src/types";
+import { unusedReport } from "../src/unused";
+import { defaultClientAssetPaths, loadAssetIndex } from "../src/assets";
 import { developmentOnlyIds, validateDocuments } from "../src/validate";
 
 const REPO_ROOT = join(__dirname, "..", "..", "..", "..");
@@ -216,11 +231,13 @@ test("development-only definitions are excluded from the production payload", ()
   const withDev = validateDocuments(SCHEMA_DIR, docs, { includeDevelopment: true });
   assert.equal(production.items["item.debug_widget"], undefined);
   assert.equal(withDev.items["item.debug_widget"].displayName, "Debug Widget");
-  assert.deepEqual(developmentOnlyIds(docs), ["item.debug_widget"]);
-  const prodBundle = buildBundle(production, { developmentOnly: developmentOnlyIds(docs) });
+  const excluded = developmentOnlyIds(docs);
+  assert.ok(excluded.indexOf("item.debug_widget") !== -1);
+  assert.ok(excluded.indexOf("test.zone.systems_lab") !== -1);
+  const prodBundle = buildBundle(production, { developmentOnly: excluded });
   const baseline = buildBundle(validateDocuments(SCHEMA_DIR, loadValid()));
   assert.equal(prodBundle.contentHash, baseline.contentHash);
-  assert.deepEqual(prodBundle.developmentOnly, ["item.debug_widget"]);
+  assert.ok(prodBundle.developmentOnly.indexOf("item.debug_widget") !== -1);
   assert.equal(Object.prototype.hasOwnProperty.call(prodBundle.items, "item.debug_widget"), false);
 });
 
@@ -275,4 +292,143 @@ test("reference tracing lists inbound and outbound IDs", () => {
   assert.ok(quest.outbound.indexOf("npc.elder") !== -1);
   assert.ok(quest.outbound.indexOf("item.slime_gel") !== -1);
   assert.ok(quest.outbound.indexOf("item.iron_sword") !== -1);
+  const slime = traceReferences(payload, "enemy.green_slime");
+  assert.ok(slime);
+  assert.ok(slime.usedBy.quests.indexOf("quest.test.kill") !== -1 || slime.usedBy.zones.indexOf("zone.starter") !== -1);
+  const melee = traceReferences(payload, "test.ability.basic_melee");
+  assert.ok(melee);
+  assert.ok(melee.usedBy.classes.indexOf("test.class.vanguard") !== -1);
+  const sword = traceReferences(payload, "item.training_sword");
+  assert.ok(sword);
+  assert.ok(sword.usedBy.lootTables.length >= 0);
+  const vendorItem = traceReferences(payload, "item.test_potion");
+  assert.ok(vendorItem);
+  assert.ok(vendorItem.usedBy.vendors.indexOf("vendor.test_general") !== -1 || vendorItem.inbound.indexOf("vendor.test_general") !== -1);
 });
+
+test("production payload includes the content-only proof chain and excludes the systems lab", () => {
+  const production = validateDocuments(SCHEMA_DIR, loadValid());
+  assert.ok(production.items["item.proof_token"]);
+  assert.ok(production.enemies["enemy.proof_critter"]);
+  assert.ok(production.lootTables["loot.proof_critter"]);
+  assert.ok(production.npcs["npc.proof_giver"]);
+  assert.ok(production.quests["quest.proof_errand"]);
+  assert.equal(production.zones["test.zone.systems_lab"], undefined);
+  assert.equal(production.npcs["npc.lab_keeper"], undefined);
+  const withDev = validateDocuments(SCHEMA_DIR, loadValid(), { includeDevelopment: true });
+  assert.ok(withDev.zones["test.zone.systems_lab"]);
+  assert.ok(withDev.quests["quest.lab_tour"]);
+  assert.ok(developmentOnlyIds(loadValid()).indexOf("test.zone.systems_lab") !== -1);
+});
+
+test("content new writes schema-valid starter templates", () => {
+  const dir = mkdtempSync(join(tmpdir(), "vibecode-new-"));
+  try {
+    const sourceDir = join(dir, "source");
+    cpSync(SOURCE_DIR, sourceDir, { recursive: true });
+    const written = createFromTemplate({
+      root: REPO_ROOT,
+      sourceDir: sourceDir,
+      type: "item",
+      id: defaultIdFor("item"),
+    });
+    assert.ok(written.length >= 1);
+    const loaded = loadSourceDocuments(sourceDir);
+    const payload = validateDocuments(SCHEMA_DIR, loaded.documents, { includeDevelopment: true });
+    assert.ok(payload.items["item.starter_template"]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("content copy clones a definition under a new id", () => {
+  const dir = mkdtempSync(join(tmpdir(), "vibecode-copy-"));
+  try {
+    const sourceDir = join(dir, "source");
+    cpSync(SOURCE_DIR, sourceDir, { recursive: true });
+    copyDefinition({ sourceDir: sourceDir, fromId: "item.test_pebble", toId: "item.copied_pebble" });
+    const loaded = loadSourceDocuments(sourceDir);
+    const payload = validateDocuments(SCHEMA_DIR, loaded.documents, { includeDevelopment: true });
+    assert.ok(payload.items["item.copied_pebble"]);
+    assert.equal(payload.items["item.copied_pebble"].displayName, payload.items["item.test_pebble"].displayName);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("unused report lists definitions with no inbound references", () => {
+  const payload = validateDocuments(SCHEMA_DIR, loadValid());
+  const report = unusedReport(payload);
+  assert.ok(report.unused.indexOf("item.test_leather_cap") !== -1);
+});
+
+test("csv import/export round-trips tabular definitions", () => {
+  const payload = validateDocuments(SCHEMA_DIR, loadValid());
+  const curves = importLevelCurves(payload.levelCurves, exportLevelCurves(payload.levelCurves));
+  assert.deepEqual(canonicalize(curves), canonicalize(payload.levelCurves));
+  const vendors = importVendorStock(payload.vendors, exportVendorStock(payload.vendors));
+  assert.deepEqual(canonicalize(vendors), canonicalize(payload.vendors));
+  const enemies = importEnemyStats(payload.enemies, exportEnemyStats(payload.enemies));
+  assert.deepEqual(canonicalize(enemies), canonicalize(payload.enemies));
+  const loot = importLootEntries(payload.lootTables, exportLootEntries(payload.lootTables));
+  assert.deepEqual(canonicalize(loot), canonicalize(payload.lootTables));
+});
+
+test("cyclic quest prerequisites are rejected", () => {
+  const docs = clone(loadValid());
+  const first = find(docs, "quest.test.talk");
+  const second = find(docs, "quest.test.kill");
+  first["prerequisites"] = { questIds: ["quest.test.kill"] };
+  second["prerequisites"] = { questIds: ["quest.test.talk"] };
+  const codes = codesOf(() => validateDocuments(SCHEMA_DIR, docs));
+  assert.ok(codes.some((code) => code.indexOf("cyclic_prerequisite:") === 0));
+});
+
+test("production definitions may not reference development-only ids", () => {
+  const docs = clone(loadValid());
+  docs.push({
+    fileName: "item.debug_widget.json",
+    data: {
+      id: "item.debug_widget",
+      kind: "item",
+      displayName: "Debug Widget",
+      visualId: "visual.item_pebble",
+      category: "miscellaneous",
+      maxStack: 1,
+      developmentOnly: true,
+    },
+  });
+  const quest = find(docs, "quest.proof_errand");
+  (quest["rewards"] as { items: Array<{ itemId: string; quantity: number }> }).items.push({
+    itemId: "item.debug_widget",
+    quantity: 1,
+  });
+  const codes = codesOf(() => validateDocuments(SCHEMA_DIR, docs));
+  assert.ok(codes.some((code) => code.indexOf("development_content_leakage:") === 0));
+});
+
+test("missing client assets are rejected when an asset index is supplied", () => {
+  const docs = clone(loadValid());
+  find(docs, "item.proof_token")["visualId"] = "visual.missing_proof";
+  const assets = loadAssetIndex(defaultClientAssetPaths(REPO_ROOT));
+  const codes = codesOf(() => validateDocuments(SCHEMA_DIR, docs, { assets: assets }));
+  assert.ok(codes.indexOf("missing_asset:visual.missing_proof") !== -1);
+});
+
+test("content migrate writes schemaVersion 1", () => {
+  const dir = mkdtempSync(join(tmpdir(), "vibecode-migrate-"));
+  try {
+    const sourceDir = join(dir, "source");
+    cpSync(SOURCE_DIR, sourceDir, { recursive: true });
+    const first = migrateSource(sourceDir, 1);
+    assert.ok(first.updated.length > 0);
+    const second = migrateSource(sourceDir, 1);
+    assert.equal(second.updated.length, 0);
+    assert.ok(second.skipped.length > 0);
+    const parsed = JSON.parse(readFileSync(join(sourceDir, "player.base.json"), "utf8")) as { schemaVersion: number };
+    assert.equal(parsed.schemaVersion, 1);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+

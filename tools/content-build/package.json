@@ -9,8 +9,18 @@
     "typecheck": "tsc --noEmit",
     "test": "tsc -p tsconfig.json && node --test dist/tests",
     "generate": "tsc -p tsconfig.json && node dist/src/cli.js generate",
+    "build": "tsc -p tsconfig.json && node dist/src/cli.js build",
+    "validate": "tsc -p tsconfig.json && node dist/src/cli.js validate",
     "diff": "tsc -p tsconfig.json && node dist/src/cli.js diff",
-    "trace": "tsc -p tsconfig.json && node dist/src/cli.js trace"
+    "trace": "tsc -p tsconfig.json && node dist/src/cli.js trace",
+    "references": "tsc -p tsconfig.json && node dist/src/cli.js references",
+    "unused": "tsc -p tsconfig.json && node dist/src/cli.js unused",
+    "new": "tsc -p tsconfig.json && node dist/src/cli.js new",
+    "copy": "tsc -p tsconfig.json && node dist/src/cli.js copy",
+    "migrate": "tsc -p tsconfig.json && node dist/src/cli.js migrate",
+    "package": "tsc -p tsconfig.json && node dist/src/cli.js package",
+    "csv-export": "tsc -p tsconfig.json && node dist/src/cli.js csv-export",
+    "csv-import": "tsc -p tsconfig.json && node dist/src/cli.js csv-import"
   },
   "devDependencies": {
     "@types/node": "^20.17.0",

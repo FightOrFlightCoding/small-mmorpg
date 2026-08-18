@@ -133,10 +133,11 @@ export function emptyCaveRecord(params: {
   nowMs: number;
   emptyTimeoutMs: number;
   completionState?: CaveCompletionState;
+  zoneTemplateId?: string;
 }): CaveRecord {
   const record: CaveRecord = {
     instanceId: params.instanceId,
-    zoneTemplateId: CAVE_ZONE_ID,
+    zoneTemplateId: params.zoneTemplateId !== undefined && params.zoneTemplateId.length > 0 ? params.zoneTemplateId : CAVE_ZONE_ID,
     matchId: params.matchId,
     createdAt: params.nowMs,
     lastActiveAt: params.nowMs,

@@ -1,0 +1,16 @@
+[remap]
+
+importer="dialogue_manager"
+importer_version=15
+type="Resource"
+uid="uid://c65atfhuh7gw0"
+path="res://.godot/imported/npc.lab_trainer.dialogue-2a76834923c7cf5447611d4826f2685e.tres"
+
+[deps]
+
+source_file="res://content/dialogue/npc.lab_trainer.dialogue"
+dest_files=["res://.godot/imported/npc.lab_trainer.dialogue-2a76834923c7cf5447611d4826f2685e.tres"]
+
+[params]
+
+defaults=true

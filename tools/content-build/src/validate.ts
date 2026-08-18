@@ -1,5 +1,7 @@
 import { definitionSchemaVersion, isDevelopmentOnly, stripDefinitionMeta } from "./definition_meta";
-import { KIND_PREFIX, isAllowedEquipSlot, isContentId } from "./ids";
+import { collectDefinitionIds } from "./diff";
+import { KIND_PREFIX, isAllowedEquipSlot, isContentId, prefixMatches } from "./ids";
+import { outboundRefs } from "./trace";
 import { ContentValidationError, issue, type ContentIssue } from "./issues";
 import { DEFAULT_MANIFEST, type ContentPackageManifest } from "./registry";
 import { loadAjv, mapAjvErrors, validatorForKind } from "./schema";
@@ -29,9 +31,15 @@ import type {
   ZoneDef,
 } from "./types";
 
+export interface AssetIndex {
+  visualIds: { [id: string]: boolean };
+  dialogueIds: { [id: string]: boolean };
+}
+
 export interface ValidateOptions {
   manifest?: ContentPackageManifest;
   includeDevelopment?: boolean;
+  assets?: AssetIndex;
 }
 
 export function validateDocuments(
@@ -91,41 +99,62 @@ export function validateDocuments(
     }
   }
 
-  const selected = selectDocuments(byId, includeDevelopment);
-  const player = asKind<PlayerDef>(selected, "player", issues);
-  const items = asKindMap<ItemDef>(selected, "item");
-  const npcs = asKindMap<NpcDef>(selected, "npc");
-  const enemies = asKindMap<EnemyDef>(selected, "enemy");
-  const quests = asKindMap<QuestDef>(selected, "quest");
-  const zones = asKindMap<ZoneDef>(selected, "zone");
-  const classes = asKindMap<ClassDef>(selected, "class");
-  const attributes = asKindMap<AttributeDef>(selected, "attribute");
-  const resources = asKindMap<ResourceDef>(selected, "resource");
-  const derivedStats = asKindMap<DerivedStatDef>(selected, "derived_stat");
-  const levelCurves = asKindMap<LevelCurveDef>(selected, "level_curve");
-  const classProgressions = asKindMap<ClassProgressionDef>(selected, "class_progression");
-  const equipmentSlots = asKindMap<EquipmentSlotDef>(selected, "equipment_slot");
-  const abilities = asKindMap<AbilityDef>(selected, "ability");
-  const aiProfiles = asKindMap<AiProfileDef>(selected, "ai_profile");
-  const lootTables = asKindMap<LootTableDef>(selected, "loot_table");
-  const spawns = asKindMap<SpawnDef>(selected, "spawn");
-  const vendors = asKindMap<VendorDef>(selected, "vendor");
+  const allDocs = selectDocuments(byId, true);
+  const playerAll = asKind<PlayerDef>(allDocs, "player", issues);
+  const items = asKindMap<ItemDef>(allDocs, "item");
+  const npcs = asKindMap<NpcDef>(allDocs, "npc");
+  const enemies = asKindMap<EnemyDef>(allDocs, "enemy");
+  const quests = asKindMap<QuestDef>(allDocs, "quest");
+  const zones = asKindMap<ZoneDef>(allDocs, "zone");
+  const classes = asKindMap<ClassDef>(allDocs, "class");
+  const attributes = asKindMap<AttributeDef>(allDocs, "attribute");
+  const resources = asKindMap<ResourceDef>(allDocs, "resource");
+  const derivedStats = asKindMap<DerivedStatDef>(allDocs, "derived_stat");
+  const levelCurves = asKindMap<LevelCurveDef>(allDocs, "level_curve");
+  const classProgressions = asKindMap<ClassProgressionDef>(allDocs, "class_progression");
+  const equipmentSlots = asKindMap<EquipmentSlotDef>(allDocs, "equipment_slot");
+  const abilities = asKindMap<AbilityDef>(allDocs, "ability");
+  const aiProfiles = asKindMap<AiProfileDef>(allDocs, "ai_profile");
+  const lootTables = asKindMap<LootTableDef>(allDocs, "loot_table");
+  const spawns = asKindMap<SpawnDef>(allDocs, "spawn");
+  const vendors = asKindMap<VendorDef>(allDocs, "vendor");
+  const fullPayload = payloadFromParts(
+    playerAll,
+    items,
+    npcs,
+    enemies,
+    quests,
+    zones,
+    classes,
+    attributes,
+    resources,
+    derivedStats,
+    levelCurves,
+    classProgressions,
+    equipmentSlots,
+    abilities,
+    aiProfiles,
+    lootTables,
+    spawns,
+    vendors,
+  );
+  const assets = options.assets;
 
-  if (player) {
-    checkVisual(player.visualId, issues);
-    if (player.basicAbilityId !== undefined && !abilities[player.basicAbilityId]) {
-      issues.push(issue("missing_reference:" + player.basicAbilityId));
+  if (playerAll) {
+    checkVisual(playerAll.visualId, issues, assets);
+    if (playerAll.basicAbilityId !== undefined && !abilities[playerAll.basicAbilityId]) {
+      issues.push(issue("missing_reference:" + playerAll.basicAbilityId));
     }
   }
 
   const slotTags = slotTagsFrom(equipmentSlots, issues);
   const itemIds = Object.keys(items);
   for (let i = 0; i < itemIds.length; i++) {
-    checkItem(items[itemIds[i]], classes, derivedStats, slotTags, issues);
+    checkItem(items[itemIds[i]], classes, derivedStats, slotTags, issues, assets);
   }
   const npcIds = Object.keys(npcs);
   for (let i = 0; i < npcIds.length; i++) {
-    checkNpc(npcs[npcIds[i]], zones, vendors, quests, classes, issues);
+    checkNpc(npcs[npcIds[i]], zones, vendors, quests, classes, issues, assets);
   }
   const vendorIds = Object.keys(vendors);
   for (let i = 0; i < vendorIds.length; i++) {
@@ -133,7 +162,7 @@ export function validateDocuments(
   }
   const enemyIds = Object.keys(enemies);
   for (let i = 0; i < enemyIds.length; i++) {
-    checkEnemy(enemies[enemyIds[i]], items, abilities, aiProfiles, lootTables, resources, spawns, issues);
+    checkEnemy(enemies[enemyIds[i]], items, abilities, aiProfiles, lootTables, resources, spawns, issues, assets);
   }
   const lootTableIds = Object.keys(lootTables);
   for (let i = 0; i < lootTableIds.length; i++) {
@@ -149,22 +178,69 @@ export function validateDocuments(
   }
   const zoneIds = Object.keys(zones);
   for (let i = 0; i < zoneIds.length; i++) {
-    checkZone(zones[zoneIds[i]], npcs, enemies, spawns, issues);
+    checkZone(zones[zoneIds[i]], npcs, enemies, spawns, issues, assets);
   }
-  checkClasses(classes, items, classProgressions, slotTags, abilities, issues);
+  checkClasses(classes, items, classProgressions, slotTags, abilities, issues, assets);
   checkProgressionCatalog(attributes, resources, derivedStats, levelCurves, classProgressions, classes, issues);
-  checkAbilities(abilities, resources, derivedStats, classes, issues);
+  checkAbilities(abilities, resources, derivedStats, classes, issues, assets);
+  checkCyclicPrerequisites(quests, abilities, issues);
+  checkDevelopmentLeakage(documents, fullPayload, issues);
+  checkOrphanedDefinitions(fullPayload, issues);
 
   if (issues.length > 0) {
     throw new ContentValidationError(uniqueIssues(issues));
   }
 
+  const selected = selectDocuments(byId, includeDevelopment);
+  const player = asKind<PlayerDef>(selected, "player", issues);
   if (!player) {
     throw new Error("missing_player");
   }
 
-  return {
+  return payloadFromParts(
     player,
+    asKindMap<ItemDef>(selected, "item"),
+    asKindMap<NpcDef>(selected, "npc"),
+    asKindMap<EnemyDef>(selected, "enemy"),
+    asKindMap<QuestDef>(selected, "quest"),
+    asKindMap<ZoneDef>(selected, "zone"),
+    asKindMap<ClassDef>(selected, "class"),
+    asKindMap<AttributeDef>(selected, "attribute"),
+    asKindMap<ResourceDef>(selected, "resource"),
+    asKindMap<DerivedStatDef>(selected, "derived_stat"),
+    asKindMap<LevelCurveDef>(selected, "level_curve"),
+    asKindMap<ClassProgressionDef>(selected, "class_progression"),
+    asKindMap<EquipmentSlotDef>(selected, "equipment_slot"),
+    asKindMap<AbilityDef>(selected, "ability"),
+    asKindMap<AiProfileDef>(selected, "ai_profile"),
+    asKindMap<LootTableDef>(selected, "loot_table"),
+    asKindMap<SpawnDef>(selected, "spawn"),
+    asKindMap<VendorDef>(selected, "vendor"),
+  );
+}
+
+function payloadFromParts(
+  player: PlayerDef | null,
+  items: Record<string, ItemDef>,
+  npcs: Record<string, NpcDef>,
+  enemies: Record<string, EnemyDef>,
+  quests: Record<string, QuestDef>,
+  zones: Record<string, ZoneDef>,
+  classes: Record<string, ClassDef>,
+  attributes: Record<string, AttributeDef>,
+  resources: Record<string, ResourceDef>,
+  derivedStats: Record<string, DerivedStatDef>,
+  levelCurves: Record<string, LevelCurveDef>,
+  classProgressions: Record<string, ClassProgressionDef>,
+  equipmentSlots: Record<string, EquipmentSlotDef>,
+  abilities: Record<string, AbilityDef>,
+  aiProfiles: Record<string, AiProfileDef>,
+  lootTables: Record<string, LootTableDef>,
+  spawns: Record<string, SpawnDef>,
+  vendors: Record<string, VendorDef>,
+): ContentPayload {
+  return {
+    player: player as PlayerDef,
     items,
     npcs,
     enemies,
@@ -198,16 +274,6 @@ function selectDocuments(byId: Map<string, SourceDocument>, includeDevelopment: 
     selected.set(docs[i].data["id"] as string, docs[i]);
   }
   return selected;
-}
-
-function prefixMatches(kind: string, id: string, prefix: string | undefined): boolean {
-  if (!prefix) {
-    return false;
-  }
-  if (id.indexOf(prefix + ".") === 0) {
-    return true;
-  }
-  return kind === "enemy" && id.indexOf("test.enemy.") === 0;
 }
 
 function asKind<T>(byId: Map<string, SourceDocument>, kind: string, issues: ContentIssue[]): T | null {
@@ -271,13 +337,14 @@ function checkItem(
   derivedStats: Record<string, DerivedStatDef>,
   slotTags: readonly string[],
   issues: ContentIssue[],
+  assets: AssetIndex | undefined,
 ): void {
-  checkVisual(item.visualId, issues);
+  checkVisual(item.visualId, issues, assets);
   if (item.iconAssetId !== undefined) {
-    checkVisual(item.iconAssetId, issues);
+    checkVisual(item.iconAssetId, issues, assets);
   }
   if (item.worldAssetId !== undefined) {
-    checkVisual(item.worldAssetId, issues);
+    checkVisual(item.worldAssetId, issues, assets);
   }
   if (item.maxStack < 1) {
     issues.push(issue("invalid_stack_size:" + item.id));
@@ -305,6 +372,7 @@ function checkItem(
   for (let c = 0; c < classReqs.length; c++) {
     if (!classes[classReqs[c]]) {
       issues.push(issue("missing_reference:" + classReqs[c]));
+      issues.push(issue("invalid_class_reference:" + classReqs[c]));
     }
   }
   const modifiers = item.statModifiers !== undefined ? item.statModifiers : [];
@@ -324,8 +392,9 @@ function checkEnemy(
   resources: Record<string, ResourceDef>,
   spawns: Record<string, SpawnDef>,
   issues: ContentIssue[],
+  assets: AssetIndex | undefined,
 ): void {
-  checkVisual(enemy.visualId, issues);
+  checkVisual(enemy.visualId, issues, assets);
   if (enemy.leashRadius < enemy.aggroRadius) {
     issues.push(issue("invalid_range:leashRadius"));
   }
@@ -341,6 +410,7 @@ function checkEnemy(
   for (let a = 0; a < enemy.abilityLoadout.length; a++) {
     if (!abilities[enemy.abilityLoadout[a]]) {
       issues.push(issue("missing_reference:" + enemy.abilityLoadout[a]));
+      issues.push(issue("missing_enemy_ability:" + enemy.abilityLoadout[a]));
     }
   }
   const enemyResources = enemy.resources !== undefined ? enemy.resources : [];
@@ -391,6 +461,9 @@ function checkLootTable(table: LootTableDef, items: Record<string, ItemDef>, iss
   for (let i = 0; i < table.entries.length; i++) {
     const entry = table.entries[i];
     requireItem(entry.itemDefinitionId, items, issues);
+    if (!items[entry.itemDefinitionId] || entry.minimumQuantity < 1 || entry.maximumQuantity < 1 || entry.chance < 0 || entry.chance > 1) {
+      issues.push(issue("invalid_loot_entry:" + table.id));
+    }
     if (entry.minimumQuantity > entry.maximumQuantity) {
       issues.push(issue("invalid_range:maximumQuantity"));
     }
@@ -430,8 +503,12 @@ function checkNpc(
   quests: Record<string, QuestDef>,
   classes: Record<string, ClassDef>,
   issues: ContentIssue[],
+  assets: AssetIndex | undefined,
 ): void {
-  checkVisual(npc.visualId, issues);
+  checkVisual(npc.visualId, issues, assets);
+  if (assets !== undefined && assets.dialogueIds[npc.dialogueId] !== true) {
+    issues.push(issue("missing_asset:" + npc.dialogueId));
+  }
   if (!zones[npc.zoneId]) {
     issues.push(issue("missing_reference:" + npc.zoneId));
   }
@@ -452,6 +529,7 @@ function checkNpc(
     for (let c = 0; c < classReqs.length; c++) {
       if (!classes[classReqs[c]]) {
         issues.push(issue("missing_reference:" + classReqs[c]));
+        issues.push(issue("invalid_class_reference:" + classReqs[c]));
       }
     }
     if (service.requiredQuestId !== undefined && !quests[service.requiredQuestId]) {
@@ -478,6 +556,7 @@ function checkVendor(
     for (let c = 0; c < classReqs.length; c++) {
       if (!classes[classReqs[c]]) {
         issues.push(issue("missing_reference:" + classReqs[c]));
+        issues.push(issue("invalid_class_reference:" + classReqs[c]));
       }
     }
   }
@@ -495,8 +574,17 @@ function checkQuest(
 ): void {
   requireNpc(quest.acceptNpcId, npcs, issues);
   requireNpc(quest.turnInNpcId, npcs, issues);
+  if (!npcs[quest.acceptNpcId]) {
+    issues.push(issue("missing_quest_npc:" + quest.acceptNpcId));
+  }
+  if (!npcs[quest.turnInNpcId]) {
+    issues.push(issue("missing_quest_npc:" + quest.turnInNpcId));
+  }
   if (quest.startNpcId !== undefined) {
     requireNpc(quest.startNpcId, npcs, issues);
+    if (!npcs[quest.startNpcId]) {
+      issues.push(issue("missing_quest_npc:" + quest.startNpcId));
+    }
   }
   const objectives = flattenedQuestObjectives(quest);
   if (objectives.length === 0) {
@@ -542,6 +630,14 @@ function checkQuest(
   for (let c = 0; c < classIds.length; c++) {
     if (!classes[classIds[c]]) {
       issues.push(issue("missing_reference:" + classIds[c]));
+      issues.push(issue("invalid_class_reference:" + classIds[c]));
+    }
+  }
+  if (quest.stages !== undefined) {
+    for (let s = 0; s < quest.stages.length; s++) {
+      if (quest.stages[s].objectives.length === 0) {
+        issues.push(issue("impossible_quest_stage:" + quest.id));
+      }
     }
   }
 }
@@ -587,12 +683,19 @@ function checkQuestObjective(
     }
   }
   if (objective.type === "kill_enemy" || objective.type === "defeat_boss") {
+    const tags = objective.enemyTags !== undefined ? objective.enemyTags : [];
+    if (objective.enemyId === undefined && tags.length === 0) {
+      issues.push(issue("impossible_quest_stage:missing_enemy"));
+    }
     if (objective.enemyId !== undefined && !enemies[objective.enemyId]) {
       issues.push(issue("missing_reference:" + objective.enemyId));
     }
   }
-  if (objective.type === "enter_location" && objective.location === undefined) {
-    issues.push(issue("missing_field:location"));
+  if (objective.type === "enter_location" && objective.location === undefined && objective.zoneId === undefined) {
+    issues.push(issue("impossible_quest_stage:enter_location"));
+  }
+  if (objective.quantity !== undefined && objective.quantity < 1) {
+    issues.push(issue("impossible_quest_stage:quantity"));
   }
 }
 
@@ -602,8 +705,9 @@ function checkZone(
   enemies: Record<string, EnemyDef>,
   spawns: Record<string, SpawnDef>,
   issues: ContentIssue[],
+  assets: AssetIndex | undefined,
 ): void {
-  checkVisual(zone.visualId, issues);
+  checkVisual(zone.visualId, issues, assets);
   checkPointInWorld(zone, zone.playerSpawn.x, zone.playerSpawn.y, "playerSpawn", issues);
   checkAabbInWorld(zone, zone.walkableBounds, "walkableBounds", issues);
   for (let i = 0; i < zone.npcs.length; i++) {
@@ -664,6 +768,7 @@ function checkClasses(
   slotTags: readonly string[],
   abilities: Record<string, AbilityDef>,
   issues: ContentIssue[],
+  assets: AssetIndex | undefined,
 ): void {
   const ids = Object.keys(classes);
   if (ids.length === 0) {
@@ -673,7 +778,7 @@ function checkClasses(
   let defaults = 0;
   for (let i = 0; i < ids.length; i++) {
     const def = classes[ids[i]];
-    checkVisual(def.visualAssetSetId, issues);
+    checkVisual(def.visualAssetSetId, issues, assets);
     for (let e = 0; e < def.startingEquipment.length; e++) {
       requireItem(def.startingEquipment[e].itemId, items, issues);
     }
@@ -749,12 +854,20 @@ function checkProgressionCatalog(
     const curve = levelCurves[curveIds[i]];
     if (curve.maxLevel < 2 || curve.xpRequired.length !== curve.maxLevel - 1) {
       issues.push(issue("invalid_range:xpRequired"));
+      issues.push(issue("invalid_level_curve:" + curve.id));
     }
     if (curve.attributePointsPerLevel.length !== curve.maxLevel - 1) {
       issues.push(issue("invalid_range:attributePointsPerLevel"));
+      issues.push(issue("invalid_level_curve:" + curve.id));
     }
     if (curve.skillPointsPerLevel.length !== curve.maxLevel - 1) {
       issues.push(issue("invalid_range:skillPointsPerLevel"));
+      issues.push(issue("invalid_level_curve:" + curve.id));
+    }
+    for (let x = 0; x < curve.xpRequired.length; x++) {
+      if (curve.xpRequired[x] <= 0) {
+        issues.push(issue("invalid_level_curve:" + curve.id));
+      }
     }
   }
   const progressionIds = Object.keys(progressions);
@@ -765,9 +878,11 @@ function checkProgressionCatalog(
     const progression = progressions[progressionIds[i]];
     if (!classes[progression.classId]) {
       issues.push(issue("missing_reference:" + progression.classId));
+      issues.push(issue("invalid_class_reference:" + progression.classId));
     }
     if (!levelCurves[progression.levelCurveId]) {
       issues.push(issue("missing_reference:" + progression.levelCurveId));
+      issues.push(issue("invalid_level_curve:" + progression.levelCurveId));
     }
     requireIdMap(progression.startingAttributes, attributes, issues);
     requireIdMap(progression.attributeGrowth, attributes, issues);
@@ -790,6 +905,7 @@ function checkAbilities(
   derivedStats: Record<string, DerivedStatDef>,
   classes: Record<string, ClassDef>,
   issues: ContentIssue[],
+  assets: AssetIndex | undefined,
 ): void {
   const classTags: { [tag: string]: boolean } = {};
   const classIds = Object.keys(classes);
@@ -804,9 +920,9 @@ function checkAbilities(
   const ids = Object.keys(abilities);
   for (let i = 0; i < ids.length; i++) {
     const ability = abilities[ids[i]];
-    checkVisual(ability.animationAssetId, issues);
-    checkVisual(ability.iconAssetId, issues);
-    checkVisual(ability.soundAssetId, issues);
+    checkVisual(ability.animationAssetId, issues, assets);
+    checkVisual(ability.iconAssetId, issues, assets);
+    checkVisual(ability.soundAssetId, issues, assets);
     if (ability.minimumRange > ability.range) {
       issues.push(issue("invalid_range:minimumRange"));
     }
@@ -891,9 +1007,128 @@ function requireEnemy(id: string, enemies: Record<string, EnemyDef>, issues: Con
   }
 }
 
-function checkVisual(id: string, issues: ContentIssue[]): void {
+function checkVisual(id: string, issues: ContentIssue[], assets?: AssetIndex): void {
   if (!isContentId(id) || id.indexOf("visual.") !== 0) {
     issues.push(issue("missing_reference:" + id));
+    return;
+  }
+  if (assets !== undefined && assets.visualIds[id] !== true) {
+    issues.push(issue("missing_asset:" + id));
+  }
+}
+
+function checkCyclicPrerequisites(
+  quests: Record<string, QuestDef>,
+  abilities: Record<string, AbilityDef>,
+  issues: ContentIssue[],
+): void {
+  const questGraph: { [id: string]: string[] } = {};
+  const questIds = Object.keys(quests);
+  for (let i = 0; i < questIds.length; i++) {
+    const quest = quests[questIds[i]];
+    const prereq =
+      quest.prerequisites !== undefined && quest.prerequisites.questIds !== undefined
+        ? quest.prerequisites.questIds
+        : [];
+    questGraph[quest.id] = prereq.slice();
+  }
+  detectCycles(questGraph, "cyclic_prerequisite:", issues);
+  const abilityGraph: { [id: string]: string[] } = {};
+  const abilityIds = Object.keys(abilities);
+  for (let a = 0; a < abilityIds.length; a++) {
+    const ability = abilities[abilityIds[a]];
+    abilityGraph[ability.id] = ability.prerequisites.slice();
+  }
+  detectCycles(abilityGraph, "cyclic_prerequisite:", issues);
+}
+
+function detectCycles(graph: { [id: string]: string[] }, prefix: string, issues: ContentIssue[]): void {
+  const visiting: { [id: string]: boolean } = {};
+  const visited: { [id: string]: boolean } = {};
+  const ids = Object.keys(graph);
+  function dfs(id: string): boolean {
+    if (visiting[id] === true) {
+      return true;
+    }
+    if (visited[id] === true) {
+      return false;
+    }
+    visiting[id] = true;
+    const next = graph[id] !== undefined ? graph[id] : [];
+    for (let i = 0; i < next.length; i++) {
+      if (dfs(next[i])) {
+        visiting[id] = false;
+        visited[id] = true;
+        return true;
+      }
+    }
+    visiting[id] = false;
+    visited[id] = true;
+    return false;
+  }
+  for (let i = 0; i < ids.length; i++) {
+    if (dfs(ids[i])) {
+      issues.push(issue(prefix + ids[i]));
+    }
+  }
+}
+
+function checkDevelopmentLeakage(
+  documents: SourceDocument[],
+  payload: ContentPayload,
+  issues: ContentIssue[],
+): void {
+  const development: { [id: string]: boolean } = {};
+  for (let i = 0; i < documents.length; i++) {
+    const id = documents[i].data["id"];
+    if (typeof id === "string" && isDevelopmentOnly(documents[i].data)) {
+      development[id] = true;
+    }
+  }
+  const ids = collectDefinitionIds(payload);
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
+    if (development[id] === true) {
+      continue;
+    }
+    const refs = outboundRefs(payload, id);
+    for (let r = 0; r < refs.length; r++) {
+      if (development[refs[r]] === true) {
+        issues.push(issue("development_content_leakage:" + id + "->" + refs[r]));
+      }
+    }
+  }
+}
+
+const ORPHAN_KINDS = ["npc", "quest", "enemy"] as const;
+
+function checkOrphanedDefinitions(payload: ContentPayload, issues: ContentIssue[]): void {
+  const inbound: { [id: string]: number } = {};
+  const ids = collectDefinitionIds(payload);
+  for (let i = 0; i < ids.length; i++) {
+    inbound[ids[i]] = 0;
+  }
+  for (let i = 0; i < ids.length; i++) {
+    const refs = outboundRefs(payload, ids[i]);
+    for (let r = 0; r < refs.length; r++) {
+      const target = refs[r];
+      if (inbound[target] === undefined) {
+        continue;
+      }
+      inbound[target] += 1;
+    }
+  }
+  for (let k = 0; k < ORPHAN_KINDS.length; k++) {
+    const kind = ORPHAN_KINDS[k];
+    const map =
+      kind === "npc" ? payload.npcs : kind === "quest" ? payload.quests : payload.enemies;
+    const kindIds = Object.keys(map);
+    for (let i = 0; i < kindIds.length; i++) {
+      const id = kindIds[i];
+      if (inbound[id] === undefined || inbound[id] === 0) {
+        issues.push(issue("orphaned_definition:" + id));
+      }
+    }
   }
 }
 

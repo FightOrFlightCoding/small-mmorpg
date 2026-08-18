@@ -397,3 +397,18 @@ function isVersionConflict(error: unknown): boolean {
   }
   return String(error).toLowerCase().indexOf("version") !== -1;
 }
+
+export function readTradeAudit(
+  nk: nkruntime.Nakama,
+  userId: string,
+  characterId: string,
+): { [key: string]: unknown } | null {
+  const objects = nk.storageRead([
+    { collection: "player", key: storageKey(TRADE_AUDIT_KEY, characterId), userId: userId },
+  ]);
+  if (objects.length === 0) {
+    return null;
+  }
+  return objects[0].value as { [key: string]: unknown };
+}
+

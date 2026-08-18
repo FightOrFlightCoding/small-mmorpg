@@ -439,3 +439,19 @@ Input rebinding uses the Godot `InputMap` (movement, interact, target, hotbar 1�
 
 `SAVE_SCHEMA_VERSION` stays **1**. Content hash stays `58134490916197c49e40642465d949fe17350fe7f798edc5857bed947a1ade86`.
 
+## 2026-08-19 — Content production workflow, systems lab, and GM tools
+
+The issued Prompt 32 adds a project-owned content CLI, a development-only systems lab, and server-authorized GM commands. It does not add an RPG database plugin, new match opcodes, or `SAVE_SCHEMA_VERSION` 2. Protocol version stays **1**. Prompt 18 village/slime poses stay frozen (elder 160,320; slime 960,400).
+
+Content tooling extends `tools/content-build` (`scripts/content.ps1`): `validate`, `build`, `diff`, `references`, `unused`, `new <type>`, `copy <id>`, `migrate`, `package`, and optional CSV for level curves, vendor stock, enemy stats, and loot entries. JSON remains canonical. `content new` writes schema-valid templates without generating final balance or prose. Production generate validates all source (including `developmentOnly`) then emits a payload that omits those ids unless `--include-dev`.
+
+`test.zone.systems_lab` is `developmentOnly`. Production catalogs exclude it. Authorized GM `open_cave` may request that template when the running catalog contains it; otherwise cave create still defaults to `zone.cave`. Party cave `matchInit` honors `params.zoneTemplateId` when that id exists in `content.zones`.
+
+GM authority is server-owned storage `gm` / `allowlist` (`enabled` default **false**, plus `userIds` / `customIds` / `emails`). No Godot debug flag or client-only checkbox grants commands. RPC `gm_command` (not a match opcode) requires session + allowlist. Every invocation writes `gm_audit` / `a_<id>` with administrator user, target character, command, reason, timestamp, and result. Dangerous commands stay disabled in production until an operator writes an enabled allowlist.
+
+GM `open_cave` is an explicit exception to Prompt 29 “tickets only from the match loop”: the RPC may issue a one-time transfer ticket so an administrator can enter the lab without a cave portal NPC.
+
+Content-only proof (production, changes `contentHash`): `item.proof_token`, `enemy.proof_critter`, `loot.proof_critter`, `spawn.starter.proof_critter`, `npc.proof_giver`, `quest.proof_errand`, plus `zone.starter` rows and client dialogue/visual/manifest entries. No protocol or persistence feature was added for that chain.
+
+Content hash after this phase: `985e5073b1e51f52205f73f85c65982f63454ed87ca4142765fd17a97692b7bc`.
+

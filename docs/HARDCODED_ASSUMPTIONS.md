@@ -98,6 +98,7 @@ Turn-in apply already uses quest definition rewards from content, not a second h
 | Max level / XP / attributes are content-defined | `level_curve` / `class_progression` catalogs | Temporary test curve (`maxLevel` 5). Ability unlock still later |
 | Item categories are content fields (`weapon`, `armor`, `consumable`, `quest`, `material`, `miscellaneous`) | item schema + runtime validation | Prompt 23. Protocol does not enumerate item definition ids. |
 | World dimensions from `zone.starter` JSON | Correct content for the slice; runtime still assumes that one zone | Architectural hard-coding requiring later removal |
+| Systems lab zone id `test.zone.systems_lab` | `server/src/domain/gm.ts` `SYSTEMS_LAB_ZONE_ID`; `client/content/asset_manifest.json` tileset map | Development-only template. Production generate omits it. GM `open_cave` prefers it only when present in the running catalog. |
 
 ## Out of scope for this file
 

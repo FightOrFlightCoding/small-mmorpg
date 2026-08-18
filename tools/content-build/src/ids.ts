@@ -35,3 +35,16 @@ export function isAllowedEquipSlot(value: string, slotTags: readonly string[] = 
   }
   return (ALLOWED_EQUIP_SLOTS as readonly string[]).indexOf(value) !== -1;
 }
+
+export function prefixMatches(kind: string, id: string, prefix: string | undefined): boolean {
+  if (!prefix) {
+    return false;
+  }
+  if (id.indexOf(prefix + ".") === 0) {
+    return true;
+  }
+  if (kind === "enemy" && id.indexOf("test.enemy.") === 0) {
+    return true;
+  }
+  return kind === "zone" && id.indexOf("test.zone.") === 0;
+}

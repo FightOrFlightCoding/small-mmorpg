@@ -63,10 +63,11 @@ export function createCaveMatch(nk: nkruntime.Nakama, params: {
   ownerPartyId?: string;
   ownerCharacterId?: string;
   completionState: CaveCompletionState;
+  zoneTemplateId?: string;
 }): string {
   const payload: { [key: string]: string } = {
     instanceType: PARTY_CAVE_INSTANCE_TYPE,
-    zoneTemplateId: MATCH_CAVE_ZONE_ID,
+    zoneTemplateId: params.zoneTemplateId !== undefined && params.zoneTemplateId.length > 0 ? params.zoneTemplateId : MATCH_CAVE_ZONE_ID,
     instanceId: params.instanceId,
     completionState: params.completionState,
     maxPlayers: String(CAVE_MATCH_MAX_PLAYERS),

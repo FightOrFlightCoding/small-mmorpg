@@ -130,6 +130,23 @@ Shared errors: `unauthenticated`, `malformed_json`, `unknown_field`, `selection_
 
 Tests: `server/tests/cave.test.ts`.
 
+### `gm_command`
+
+| Field | Value |
+| --- | --- |
+| Direction | Client → server HTTP RPC |
+| Request | `{ command, reason, characterId, requestId?, x?, y?, itemId?, quantity?, amount?, questId?, status?, stageIndex?, spawnId?, enemyInstanceId?, zoneTemplateId?, tradeId? }` |
+| Response | `{ ok, code, command, characterId, result }` |
+| Authority | Server allowlist `gm` / `allowlist`. Debug client UI is presentation only. |
+| Auth | Nakama session (`ctx.userId` required) plus allowlist (`enabled` + userId / customId / email) |
+| Rate limit | None in-app |
+| Payload | Strict keys; `reason` required (max 240, no `token=`) |
+| Idempotency | Command `requestId`; XP grants use `gm:<requestId>` |
+| Errors | `unauthenticated`, `gm_disabled`, `unauthorized`, `malformed_json`, `unknown_field`, `unknown_command`, `reason_required`, `character_missing`, plus per-command codes |
+| Tests | `server/tests/gm.test.ts`, `client/tests/app/gm_service_test.gd` |
+
+Commands: `inspect_character`, `teleport_character`, `repair_invalid_location`, `grant_test_item`, `remove_test_item`, `grant_test_gold`, `grant_test_xp`, `reset_attribute_allocation`, `reset_skill_allocation`, `set_quest_state`, `reset_quest`, `spawn_enemy`, `kill_enemy`, `open_cave`, `inspect_party`, `cancel_trade`, `view_recent_transaction_audit`. Not match opcodes. `open_cave` may issue a transfer ticket (GM exception to Prompt 29 match-loop tickets). Every call writes `gm_audit`.
+
 ## Client → server match opcodes
 
 Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARGET 8; INTERACT/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/quest/VENDOR_BUY/VENDOR_SELL/INN_REST/CAVE_ENTER/CAVE_EXIT/TRADE_*/ALLOCATE_ATTRIBUTES/ASSIGN_HOTBAR/UNLOCK_ABILITY 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.

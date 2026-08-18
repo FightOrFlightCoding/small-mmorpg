@@ -20,11 +20,13 @@ It may:
 - Persist only non-authoritative local settings (keybinds, volume, window mode, UI scale) under `user://client_settings.json`. Never credentials, tickets, or canonical game records.
 - Show visible connection, validation, reconnecting, transfer, and rejection errors. It must not spin on an indefinite loading state.
 - In **debug** builds only, a headless `--e2e-slice` driver may open two Nakama sessions and send the same intentions as a player. Release builds refuse that hook.
+- In **debug** builds only, show a GM panel that sends `gm_command` RPC intentions with a required reason. The panel does not grant items, gold, XP, or location changes locally.
 
 It must not:
 
 - Decide hits, damage, deaths, loot tables, quest completion, or currency changes.
 - Send authoritative position, speed, health, damage, item grants, quest flags, wallet deltas, party member lists, credit/loot recipients, destination match ids, or fabricated transfer tickets.
+- Grant GM or administrator authority from a client build flag, debug panel, or local setting.
 - Write Nakama storage records for inventory, equipment, quests, or currency.
 - Persist canonical inventory, equipment, quest, currency, health, or position records under `user://`.
 - Reference content by filesystem paths in network messages or persistent records.
@@ -38,6 +40,7 @@ It must:
 - Load persistent player state when the player joins, migrate older save versions server-side, persist the migrated result once, and reject unsupported future or corrupted required fields without resetting them.
 - Host **one** authoritative public-world match (`public_world`, template `zone.starter`) and private `party_cave` matches (`zone.cave`) on the same `starter_zone` module. No public-world sharding.
 - Simulate movement collision, combat, cooldowns, enemy behavior, loot, inventory, equipment, quests, currency, temporary parties, group credit, group loot, cave lifecycle, transfer tickets, and direct player trades.
+- Authorize developer/GM commands only from a server-owned allowlist (default disabled). Record an audit row for every `gm_command`. A client debug flag is not authority.
 - Maintain canonical character location and consume one-time transfer tickets on destination join.
 - Validate every external payload. Reject unknown opcodes, strict unknown fields, malformed JSON, invalid IDs, oversized messages, protocol-version mismatch, and rate-limited floods.
 - Reject empty, oversized, and malformed zone-chat and party-chat payloads in a realtime before hook.
@@ -98,6 +101,7 @@ There is exactly one gameplay match **module**: `starter_zone`. Foundation v1 us
 | Currency | Nakama wallet via server |
 | Canonical location, cave ownership, transfer tickets | Server storage + match |
 | Direct player trades | Server match + storage |
+| Developer/GM commands | Server allowlist + `gm_command` RPC; audit storage |
 | Content definitions | Server-loaded generated content, IDs only |
 
 The client is untrusted. A well-formed intention can still be rejected (invalid target, on cooldown, out of range, unknown ID, duplicate `requestId`).
@@ -110,7 +114,7 @@ Third-party libraries are implementation details. Game code talks to project-own
 | --- | --- | --- |
 | `AppState` | none | Non-authoritative client/session flags and shell signals. Never canonical game data. |
 | `ContentRegistry` | generated `client/content/bundle.json` plus `client/content/visual_map.json` and `client/content/asset_manifest.json` | Schema version check, content hash, lookup by stable ID, visual ID → local texture/fallback, visual sets |
-| `NetworkService` | Nakama Godot SDK 3.4.0 | Email/password and debug device auth, `user://` session token cache, refresh, reauth (device only), realtime socket, bounded reconnect backoff, logout/cancel, character list/create/select/delete/restore, `character_bootstrap` wrapper, `find_or_create_starter_zone`, match join with `selectionTicket` or `transferTicket`, leave/rejoin, match opcodes, party RPCs, starter-zone and party room chat, transfer overlay. Socket match/chat/closed signals are connected once. |
+| `NetworkService` | Nakama Godot SDK 3.4.0 | Email/password and debug device auth, `user://` session token cache, refresh, reauth (device only), realtime socket, bounded reconnect backoff, logout/cancel, character list/create/select/delete/restore, `character_bootstrap` wrapper, `find_or_create_starter_zone`, match join with `selectionTicket` or `transferTicket`, leave/rejoin, match opcodes, party RPCs, `gm_command` RPC, starter-zone and party room chat, transfer overlay. Socket match/chat/closed signals are connected once. |
 | `GameService` | the autoloads above | Boot, email register/login, debug device login, character lifecycle, starter-zone join. Not a gameplay authority. |
 | `SceneRouter` | Godot scene tree | Transitions among boot, login, character, and world |
 | `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE`/`SNAPSHOT`. Local movement is predicted and reconciled; all remote entities interpolate from one snapshot buffer keyed `kind:id`. The HUD journal mirrors `QuestService`. The HUD inventory list mirrors `InventoryService`. The HUD equipment slots and attack label mirror `EquipmentService`. The HUD gold label mirrors `WalletService`. The HUD progression panel mirrors `ProgressionService`. The HUD hotbar, cast bar, resource hint, and status icons mirror `AbilityService`. The HUD party panel mirrors `PartyService` (members, leader, connection state, vitals, invite/leave/kick/promote, party chat Label). The HUD trade panel mirrors `TradeService` (invite, two offer lists, gold, revision, acceptances, offer-changed warning, cancel, result). Cave objective/boss copy mirrors `FULL_STATE.instance`. Target frame, combat-state label, health, death overlay, and respawn copy server vitals. Settings, inn, and cave panels send intentions only. Not a gameplay authority. |
@@ -130,6 +134,7 @@ Third-party libraries are implementation details. Game code talks to project-own
 | `VendorService` / `InnService` / `CaveService` | none | Buy/sell/rest/cave-enter/cave-exit intentions after server-approved services. Never send prices, gold, health, bind, destination match ids, or tickets. |
 | `PartyService` | none | Client-side mirror of server party state from `FULL_STATE` / `PARTY_STATE` / `PARTY_EVENT`. RPCs send owned `characterId` and `requestId` only. Never sends member lists or credit/loot recipients. Not a gameplay authority. |
 | `TradeService` | none | Client-side mirror of server trade state from `TRADE_STATE`. Sends invite/offer/gold/accept/cancel intentions only. Never predicts ownership or gold. Not a gameplay authority. |
+| `GmService` | none | Debug-only `gm_command` RPC intention plus required reason. Never grants locally. Not a gameplay authority. |
 | `Test runner scripts` | GdUnit4 6.2.0 | Client unit/scene tests |
 | `SliceJourney` / `SliceSession` | Nakama Godot SDK via `NakamaNetworkBackend` | Debug-only headless two-identity journey (`--e2e-slice`). Sends the same intentions as the graphical client. Unavailable in release builds. Not a gameplay authority. |
 
@@ -143,7 +148,7 @@ Authoritative content lives in `content/`:
 
 - `content/schemas/` — JSON Schema contracts.
 - `content/source/` — human-authored documents keyed by stable IDs (`zone.starter`, `item.training_sword`).
-- `tools/content-build/` — generator that emits `server/src/generated/content.ts` and `client/content/bundle.json`.
+- `tools/content-build/` — project-owned CLI (`validate`, `build`, `diff`, `references`, `unused`, `new`, `copy`, `migrate`, `package`, CSV import/export) that emits `server/src/generated/content.ts` and `client/content/bundle.json`. Authoring examples: [CONTENT_AUTHORING.md](CONTENT_AUTHORING.md).
 
 Generated artifacts must preserve IDs. Network messages and storage records carry IDs only, never `res://` paths. The client catalog is the only place an ID becomes a Godot resource path, and that mapping is local.
 
@@ -157,6 +162,7 @@ Generated artifacts must preserve IDs. Network messages and storage records carr
 - Character progression (level, XP, allocated attributes, unspent points, unlocked abilities, hotbar, optional ranks)
 - Position checkpoints
 - Nearby trade records and trade audit events (not a player-save kind)
+- GM allowlist, recent command ids, per-command signal results, and GM audit events (not a player-save kind; production allowlist defaults to disabled)
 
 **Transient** (match memory only):
 
@@ -175,4 +181,4 @@ Transactions that grant items or currency persist immediately with `nk.multiUpda
 
 ## Developer scripts
 
-PowerShell and bash variants live in `scripts/`: `setup`, `dev-up`, `dev-down`, `server-build`, `run-client`, `run-two-clients`, `test-client`, `test-server`, `test-content`, `test-e2e`, `test-all`, and `migrate-status` / `migrate-dry-run` / `migrate-apply` / `migrate-verify`. Each command must exit nonzero when a required step fails. `scripts/test-all` is the clean-setup gate (dependencies, matching content hashes, server tests, client GdUnit, then the debug-only two-identity journey). Graphical Alice/Bob windows are `scripts/run-two-clients`. Local Nakama data is kept across `dev-down`; wipe it only with `scripts/backend-volume-destroy`. Save-schema commands are documented in [MIGRATIONS.md](MIGRATIONS.md).
+PowerShell and bash variants live in `scripts/`: `setup`, `dev-up`, `dev-down`, `server-build`, `run-client`, `run-two-clients`, `test-client`, `test-server`, `test-content`, `test-e2e`, `test-all`, `content` / `content-build`, and `migrate-status` / `migrate-dry-run` / `migrate-apply` / `migrate-verify`. Each command must exit nonzero when a required step fails. `scripts/test-all` is the clean-setup gate (dependencies, matching content hashes, server tests, client GdUnit, then the debug-only two-identity journey). Graphical Alice/Bob windows are `scripts/run-two-clients`. Local Nakama data is kept across `dev-down`; wipe it only with `scripts/backend-volume-destroy`. Save-schema commands are documented in [MIGRATIONS.md](MIGRATIONS.md).

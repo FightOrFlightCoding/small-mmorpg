@@ -1,0 +1,13 @@
+{
+  "id": "spawn.lab.boss",
+  "kind": "spawn",
+  "zoneId": "test.zone.systems_lab",
+  "enemyId": "test.enemy.cave_boss",
+  "x": 1100,
+  "y": 400,
+  "spawnCount": 1,
+  "respawnDelay": 20,
+  "activationPolicy": "always",
+  "groupId": "group.lab_boss",
+  "developmentOnly": true
+}

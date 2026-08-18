@@ -5,6 +5,7 @@ import { defaultManifestPath, loadPackageManifest, type ContentPackageManifest }
 import type { ContentBundle, ContentPackage } from "./types";
 import { developmentOnlyIds, validateDocuments } from "./validate";
 import { ContentValidationError } from "./issues";
+import { defaultClientAssetPaths, loadAssetIndex } from "./assets";
 
 export interface GenerateOptions {
   root: string;
@@ -45,6 +46,7 @@ export function compileContentPackage(options: GenerateOptions): ContentPackage 
   const payload = validateDocuments(resolved.schemaDir, loaded.documents, {
     manifest: manifest,
     includeDevelopment: resolved.includeDevelopment,
+    assets: loadAssetIndex(defaultClientAssetPaths(resolved.root)),
   });
   return buildPackage(payload, {
     manifest: manifest,

@@ -1,0 +1,7 @@
+~ start
+Vendor: Lab stock covers weapons, a head slot, a chest slot, potions, and pebbles.
+- Show me your stock.
+	do VendorService.open_from_dialogue()
+	=> END
+- Not now.
+	=> END

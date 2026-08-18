@@ -5,7 +5,7 @@ import { content, contentHash, developmentOnly, packageId } from "../src/generat
 test("generated server content is importable without filesystem access", () => {
   assert.match(contentHash, /^[a-f0-9]{64}$/);
   assert.equal(packageId, "vibecode.foundation");
-  assert.deepEqual(developmentOnly, []);
+  assert.ok((developmentOnly as readonly string[]).indexOf("test.zone.systems_lab") !== -1);
   assert.equal(content.player.id, "player.base");
   assert.equal(content.zones["zone.starter"].id, "zone.starter");
   assert.equal(content.quests["quest.slime_problem"].rewards.gold, 25);
@@ -45,4 +45,7 @@ test("generated server content is importable without filesystem access", () => {
   assert.equal(content.lootTables["loot.green_slime"].entries[0].itemDefinitionId, "item.slime_gel");
   assert.equal(content.spawns["spawn.starter.green_slime"].activationPolicy, "always");
   assert.equal(content.spawns["spawn.starter.test_melee"].activationPolicy, "manual");
+  assert.ok(content.items["item.proof_token"]);
+  assert.ok(content.enemies["enemy.proof_critter"]);
+  assert.ok(content.quests["quest.proof_errand"]);
 });

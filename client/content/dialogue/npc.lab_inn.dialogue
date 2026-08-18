@@ -1,0 +1,7 @@
+~ start
+Innkeeper: Rest here to heal, restore resources, and bind.
+- Rest.
+	do InnService.request_rest()
+	=> END
+- Not now.
+	=> END

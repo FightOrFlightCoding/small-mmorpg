@@ -138,6 +138,12 @@ Debug-only `--e2e-slice` opens two real sessions and sends ordinary intentions. 
 
 Structured logs may include opcode, rejection reason, user ID, match ID, and `requestId`. Match rejections use `match_action rejected user_id=… action=… reason=… tick=…`. They must not include session tokens, passwords, device identifiers beyond Nakama’s own account ID, or raw full untrusted payloads when oversized.
 
+### Client-only GM / debug flags
+
+**Attack:** A debug Godot build, HUD checkbox, or `--dev-user` flag grants items, gold, teleport, or cave entry.
+
+**Defense:** `gm_command` requires a server allowlist object with `enabled: true` and a matching user id, custom id, or email. Default allowlist is disabled. The debug GM panel only sends the RPC. Failed authorization is `gm_disabled` / `unauthorized` and is audited.
+
 ## Attack mapping
 
 Every expected attack maps to a validation rule, an automated test, and a safe server response:
@@ -153,7 +159,7 @@ Every expected attack maps to a validation rule, an automated test, and a safe s
 | Cooldown bypassing | Server individual + global cooldown clocks | `combat.test.ts`, `ability.test.ts`, `security.test.ts` | `ACTION_RESULT` `on_cooldown` / `on_global_cooldown` |
 | XP injection | No client XP amount; `xp`/`level`/`currentXp` rejected | `progression.test.ts`, `protocol.test.ts`, `xp_hooks.test.ts` | `stat_injection:xp`; progression unchanged |
 | Attribute overspend / unknown / negative | Server validates catalog, class, unspent points | `progression.test.ts` | `insufficient_points` / `unknown_attribute` / `invalid_amount` |
-| Item injection | No grant opcode; `instanceId` on `PICKUP` rejected; storage `permissionWrite: 0` | `protocol.test.ts`, `inventory.test.ts`, `security.test.ts` | `unknown_opcode` / `stat_injection:instanceId` |
+| Item injection | No grant opcode; `instanceId` on `PICKUP` rejected; storage `permissionWrite: 0` | `protocol.test.ts`, `inventory.test.ts`, `security.test.ts`, `gm.test.ts` | `unknown_opcode` / `stat_injection:instanceId`; GM grants require allowlist |
 | Equipment spoofing | Own instance, equippable `main_hand`, server derived attack | `equipment.test.ts`, `security.test.ts` | `unowned` / `not_equippable` / `stat_injection:attack` |
 | Duplicate pickup | First success despawns loot; same `requestId` replays | `inventory.test.ts`, `security.test.ts` | Second apply `ok` without a second grant |
 | Duplicate reward | `requestId` idempotency on pickup, equip, quest, vendor, inn, allocate; XP `eventId` | `inventory.test.ts`, `quest.test.ts`, `quest_reward.test.ts`, `vendor.test.ts`, `inn.test.ts`, `progression.test.ts`, `security.test.ts` | Replay `ok`/`accepted`; no second mutate |
@@ -177,5 +183,6 @@ Every expected attack maps to a validation rule, an automated test, and a safe s
 | Stale movement sequence | `seq <= lastProcessedSeq` ignored | `movement.test.ts`, `security.test.ts` | Pose unchanged |
 | Excessive movement / resync | Per-player `actionRates` in match state | `security.test.ts` | `rate_limited`; extra seq/full states dropped |
 | Dead-player actions | Health checked before move/attack/interact/loot/equip/ability; `RELEASE_RESPAWN` is the exception | `combat.test.ts`, `combat_pipeline.test.ts`, `interaction.test.ts`, `inventory.test.ts`, `equipment.test.ts`, `security.test.ts` | `player_dead`; no mutate |
+| Forged GM command | Server allowlist; client debug UI is not authority | `gm.test.ts`, `gm_service_test.gd` | `gm_disabled` / `unauthorized`; audit written |
 | Malformed JSON / unknown opcode / unknown fields / NaN / missing fields | Strict `parseClientMessage` | `protocol.test.ts`, `match.test.ts`, `security.test.ts` fixtures | `SYSTEM_MESSAGE`; match does not crash |
 

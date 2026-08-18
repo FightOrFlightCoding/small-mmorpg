@@ -69,6 +69,12 @@ var _cave_panel: PanelContainer
 var _settings_panel: PanelContainer
 var _settings_rebind_host: VBoxContainer
 var _trade_panel: PanelContainer
+var _gm_panel: PanelContainer
+var _gm_command: OptionButton
+var _gm_reason: LineEdit
+var _gm_character: LineEdit
+var _gm_extra: LineEdit
+var _gm_result: Label
 var _trade_status: Label
 var _trade_mine: ItemList
 var _trade_theirs: ItemList
@@ -126,6 +132,11 @@ func _ready() -> void:
 	_build_inn_panel()
 	_build_cave_panel()
 	ensure_settings_panel()
+	if OS.is_debug_build():
+		_build_gm_panel()
+		_add_gm_button()
+		if not GmService.command_finished.is_connected(_on_gm_finished):
+			GmService.command_finished.connect(_on_gm_finished)
 	if not VendorService.vendor_opened.is_connected(_on_vendor_opened):
 		VendorService.vendor_opened.connect(_on_vendor_opened)
 	if not VendorService.vendor_closed.is_connected(_hide_vendor):
@@ -1548,6 +1559,8 @@ func _panel_node(window_id: String) -> Control:
 			return get_node_or_null("Root/LeftColumn/Party")
 		WindowManager.TRADE:
 			return _trade_panel
+		WindowManager.GM:
+			return _gm_panel
 		WindowManager.SETTINGS:
 			return _settings_panel
 		WindowManager.VENDOR:
@@ -1558,6 +1571,128 @@ func _panel_node(window_id: String) -> Control:
 			return _cave_panel
 		_:
 			return null
+
+
+func _add_gm_button() -> void:
+	if _settings_button == null:
+		return
+	var host := _settings_button.get_parent()
+	if host == null:
+		return
+	if host.get_node_or_null("GmButton") != null:
+		return
+	var button := Button.new()
+	button.name = "GmButton"
+	button.text = "GM"
+	button.pressed.connect(_on_gm_pressed)
+	host.add_child(button)
+
+
+func _on_gm_pressed() -> void:
+	if not OS.is_debug_build():
+		return
+	HudController.toggle_panel(WindowManager.GM)
+	if _gm_panel != null:
+		_gm_panel.visible = WindowManager.is_open(WindowManager.GM)
+
+
+func _build_gm_panel() -> void:
+	if _gm_panel != null:
+		return
+	_gm_panel = PanelContainer.new()
+	_gm_panel.name = "GmPanel"
+	_gm_panel.visible = false
+	_gm_panel.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	_gm_panel.offset_left = -360.0
+	_gm_panel.offset_top = -220.0
+	_gm_panel.offset_right = -16.0
+	_gm_panel.offset_bottom = 220.0
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	_gm_panel.add_child(margin)
+	var vbox := VBoxContainer.new()
+	margin.add_child(vbox)
+	var title := Label.new()
+	title.text = "GM (debug, server-authorized)"
+	vbox.add_child(title)
+	_gm_command = OptionButton.new()
+	var names := [
+		"inspect_character",
+		"teleport_character",
+		"repair_invalid_location",
+		"grant_test_item",
+		"remove_test_item",
+		"grant_test_gold",
+		"grant_test_xp",
+		"reset_attribute_allocation",
+		"reset_skill_allocation",
+		"set_quest_state",
+		"reset_quest",
+		"spawn_enemy",
+		"kill_enemy",
+		"open_cave",
+		"inspect_party",
+		"cancel_trade",
+		"view_recent_transaction_audit",
+	]
+	for command_name in names:
+		_gm_command.add_item(String(command_name))
+	vbox.add_child(_gm_command)
+	_gm_reason = LineEdit.new()
+	_gm_reason.placeholder_text = "Reason (required)"
+	vbox.add_child(_gm_reason)
+	_gm_character = LineEdit.new()
+	_gm_character.placeholder_text = "Character id"
+	vbox.add_child(_gm_character)
+	_gm_extra = LineEdit.new()
+	_gm_extra.placeholder_text = "itemId / amount / spawnId / x,y"
+	vbox.add_child(_gm_extra)
+	var run := Button.new()
+	run.text = "Run command"
+	run.pressed.connect(_on_gm_run)
+	vbox.add_child(run)
+	_gm_result = Label.new()
+	_gm_result.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(_gm_result)
+	add_child(_gm_panel)
+
+
+func _on_gm_run() -> void:
+	if not OS.is_debug_build() or _gm_command == null:
+		return
+	var command := _gm_command.get_item_text(_gm_command.selected)
+	var extra: Dictionary = {}
+	var character_id := _gm_character.text.strip_edges()
+	if not character_id.is_empty():
+		extra["characterId"] = character_id
+	var extra_text := _gm_extra.text.strip_edges()
+	if command == "grant_test_item" or command == "remove_test_item":
+		extra["itemId"] = extra_text
+	elif command == "grant_test_gold" or command == "grant_test_xp":
+		extra["amount"] = int(extra_text)
+	elif command == "spawn_enemy":
+		extra["spawnId"] = extra_text
+	elif command == "kill_enemy":
+		extra["enemyInstanceId"] = extra_text
+	elif command == "set_quest_state" or command == "reset_quest":
+		extra["questId"] = extra_text
+	elif command == "open_cave" and not extra_text.is_empty():
+		extra["zoneTemplateId"] = extra_text
+	elif command == "teleport_character":
+		var parts := extra_text.split(",")
+		if parts.size() >= 2:
+			extra["x"] = float(parts[0])
+			extra["y"] = float(parts[1])
+	GmService.run_command(command, _gm_reason.text, extra)
+
+
+func _on_gm_finished(payload: Dictionary) -> void:
+	if _gm_result == null:
+		return
+	_gm_result.text = JSON.stringify(payload)
 
 
 func _build_inn_panel() -> void:

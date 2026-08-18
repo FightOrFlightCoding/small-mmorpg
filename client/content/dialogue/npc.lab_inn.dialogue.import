@@ -1,0 +1,16 @@
+[remap]
+
+importer="dialogue_manager"
+importer_version=15
+type="Resource"
+uid="uid://upyp16xjb07i"
+path="res://.godot/imported/npc.lab_inn.dialogue-20200266be7f9d1dd761d9dacdf2304e.tres"
+
+[deps]
+
+source_file="res://content/dialogue/npc.lab_inn.dialogue"
+dest_files=["res://.godot/imported/npc.lab_inn.dialogue-20200266be7f9d1dd761d9dacdf2304e.tres"]
+
+[params]
+
+defaults=true

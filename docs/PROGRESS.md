@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Complete functional UI, settings, and asset contracts**.
+Last accepted phase: **Content production workflow, systems lab, and developer/GM tools**.
 
 Current phase: none.
 
@@ -608,6 +608,28 @@ Reproduction:
 ```powershell
 powershell -File scripts/test-audit.ps1
 powershell -File scripts/test-client.ps1
+```
+
+## Content production workflow, systems lab, and developer/GM tools acceptance (2026-08-19)
+
+One developer can author Foundation content through `scripts/content.ps1` (`validate`, `build`, `diff`, `references`, `unused`, `new <type>`, `copy`, `migrate`, `package`, optional CSV). Templates are schema-valid starters without generated balance or prose. Validation covers duplicate IDs, missing references, cyclic prerequisites, impossible quest stages, missing quest NPCs and enemy abilities, invalid loot/equipment/class/level-curve data, missing assets, development-content leakage, orphans, and unsupported schema versions. `test.zone.systems_lab` is `developmentOnly` and is omitted from the production payload unless `--include-dev`. A content-only proof chain (`item.proof_token`, `enemy.proof_critter`, `loot.proof_critter`, `npc.proof_giver`, `quest.proof_errand`) is in production; elder stays at 160,320 and slime at 960,400. `gm_command` is server-allowlisted (default disabled) and audited; the debug GM panel is not authority. No RPG database plugin. Protocol version and `SAVE_SCHEMA_VERSION` stay 1. Guide: [CONTENT_AUTHORING.md](CONTENT_AUTHORING.md).
+
+| Gate | Result |
+| --- | --- |
+| Content | 23/23, matching hash `985e5073b1e51f52205f73f85c65982f63454ed87ca4142765fd17a97692b7bc` |
+| Audit | `FOUNDATION_AUDIT_OK` (24 storage records, 31 client opcodes, 15 server opcodes, 21 rpcs) |
+| Server | 405/405 |
+| Client GdUnit | 193/193, 0 orphans, `SHELL_LOGIN` |
+| E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect) |
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-content.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+powershell -File scripts/test-e2e.ps1
 ```
 
 

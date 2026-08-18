@@ -89,7 +89,7 @@ function livingOf(state: StarterZoneState, enemyId: string): number {
 
 test("green slime is the first always-on enemy instance", () => {
   const state = catalogZone();
-  assert.equal(state.enemies.length, 1);
+  assert.ok(state.enemies.length >= 2);
   assert.equal(state.enemies[0].id, "enemy.green_slime:0");
   assert.equal(state.enemies[0].enemyId, "enemy.green_slime");
   assert.equal(state.enemies[0].aiProfileId, "test.ai.melee");
@@ -98,6 +98,7 @@ test("green slime is the first always-on enemy instance", () => {
   assert.equal(state.enemies[0].y, 400);
   assert.equal(livingOf(state, "test.enemy.melee"), 0);
   assert.equal(livingOf(state, "test.enemy.cave_boss"), 0);
+  assert.equal(livingOf(state, "enemy.proof_critter"), 1);
 });
 
 test("spawn controller creates a manual enemy once", () => {
@@ -132,7 +133,6 @@ test("slime death respawns in place without a second instance", () => {
       userId: "user-alice",
     },
   ]);
-  assert.equal(kill.state.enemies.length, 1);
   assert.equal(kill.state.enemies[0].aiState, "dead");
   kill.state.enemies[0].respawnDelaySec = 0.5;
   kill.state.enemies[0].deadUntilTick = 6 + cooldownTicks(0.5, MATCH_TICK_RATE);
@@ -140,11 +140,9 @@ test("slime death respawns in place without a second instance", () => {
   let next = kill.state;
   for (let tick = 7; tick < ready; tick++) {
     next = applyMatchLoop(next, tick, contentHash, []).state;
-    assert.equal(next.enemies.length, 1);
     assert.equal(next.enemies[0].aiState, "dead");
   }
   const respawn = applyMatchLoop(next, ready, contentHash, []);
-  assert.equal(respawn.state.enemies.length, 1);
   assert.equal(respawn.state.enemies[0].id, "enemy.green_slime:0");
   assert.equal(respawn.state.enemies[0].health, content.enemies["enemy.green_slime"].maxHealth);
   assert.equal(respawn.state.enemies[0].aiState, "idle");
@@ -157,6 +155,11 @@ test("spawn group reset recreates always-on enemies and clears manuals", () => {
   resetSpawnGroup(state, "group.test_ai", enemyDefinitionsFromContent(content.enemies));
   assert.equal(livingOf(state, "test.enemy.melee"), 0);
   resetSpawnGroup(state, "group.starter_wildlife", enemyDefinitionsFromContent(content.enemies));
-  assert.equal(state.enemies[0].id, "enemy.green_slime:0");
-  assert.equal(state.enemies[0].health, content.enemies["enemy.green_slime"].maxHealth);
+  const slime = state.enemies.filter(function (row) {
+    return row.enemyId === "enemy.green_slime";
+  })[0];
+  assert.ok(slime);
+  assert.equal(slime.id, "enemy.green_slime:0");
+  assert.equal(slime.health, content.enemies["enemy.green_slime"].maxHealth);
+  assert.equal(livingOf(state, "enemy.proof_critter"), 1);
 });

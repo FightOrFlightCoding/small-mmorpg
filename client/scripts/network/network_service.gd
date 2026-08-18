@@ -22,6 +22,7 @@ signal ability_state_received(payload: Dictionary)
 signal party_state_received(payload: Dictionary)
 signal party_event_received(payload: Dictionary)
 signal trade_state_received(payload: Dictionary)
+signal gm_command_received(payload: Dictionary)
 signal system_notice_received(code: String, message: String)
 signal logged_out
 
@@ -804,6 +805,38 @@ func send_zone_chat(text: String) -> Dictionary:
 
 func rpc_party(rpc_id: String, payload: Dictionary) -> void:
 	_rpc_party(rpc_id, payload)
+
+
+func rpc_gm(rpc_id: String, payload: Dictionary) -> void:
+	_rpc_gm(rpc_id, payload)
+
+
+func _rpc_gm(rpc_id: String, payload: Dictionary) -> void:
+	if _backend().is_session_expired():
+		var session_ok := await ensure_session()
+		if not session_ok:
+			gm_command_received.emit({"ok": false, "code": "session_expired"})
+			return
+	var encoded := JSON.stringify(payload)
+	var result: Dictionary = await _backend().rpc(rpc_id, encoded)
+	if not bool(result.get("ok", false)):
+		var auth_code := String(result.get("code", "rpc_failed"))
+		if auth_code == "session_expired" or auth_code == "unauthenticated":
+			if await ensure_session():
+				result = await _backend().rpc(rpc_id, encoded)
+	if not bool(result.get("ok", false)):
+		var code := String(result.get("code", "rpc_failed"))
+		if code == "session_expired" or code == "unauthenticated":
+			AppState.report_recoverable("session_expired", String(result.get("message", "Session expired.")))
+			gm_command_received.emit({"ok": false, "code": "session_expired"})
+			return
+		gm_command_received.emit({"ok": false, "code": code, "message": String(result.get("message", ""))})
+		return
+	var parsed: Variant = JSON.parse_string(String(result.get("payload", "")))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		gm_command_received.emit({"ok": false, "code": "rpc_failed"})
+		return
+	gm_command_received.emit(parsed)
 
 
 func _rpc_party(rpc_id: String, payload: Dictionary) -> void:

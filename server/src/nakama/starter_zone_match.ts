@@ -5,12 +5,14 @@ import { readInventory, writeInventory, writeInventoryOnce } from "./inventory_s
 import { readEquipment, writeEquipment } from "./equipment_store";
 import { loadWalletRef } from "./wallet_ref_store";
 import { SAVE_SCHEMA_VERSION } from "../domain/save_schema";
+import { applyGmToMatch, gmRequestFromMatchSignal } from "../domain/gm";
+import { writeGmCommandResult } from "./gm_store";
 import { commitQuestReward, commitTransaction, readGold } from "./quest_reward_store";
 import { commitTradeTransaction, readTrade, readTradeIndex, writeTrade } from "./trade_store";
 import { cancelTradesForUser, recoverCommittingTrades } from "../domain/match_trade";
 import { cancelTrade, type TradeRecord } from "../domain/trade";
 import { clearLocksByLockId, initializeInventoryFromStacks, itemDefinitionsFromContent, INVENTORY_CAPACITY, type PlayerInventory } from "../domain/inventory";
-import { TX_REASON_EQUIPMENT, TX_REASON_LOOT } from "../domain/transaction";
+import { TX_REASON_ADMIN_GRANT, TX_REASON_EQUIPMENT, TX_REASON_LOOT } from "../domain/transaction";
 import { validateJoinAttempt } from "../domain/join_validation";
 import { applyMatchLoop, snapshotForOthers, type IncomingMatchData, type EquipmentPersist, type InventoryPersist, type MatchLoopResult } from "../domain/match_loop";
 import { PLAYER_RESPAWN_DELAY_SEC } from "../domain/combat";
@@ -27,11 +29,13 @@ import {
   CAVE_ZONE_ID,
   MATCH_TICK_RATE,
   PARTY_CAVE_LABEL,
+  STARTER_ZONE_ID,
   STARTER_ZONE_LABEL,
   addPlayer,
   buildFullState,
   createStarterZoneState,
   enemyDefinitionsFromContent,
+  findPlayerByCharacterId,
   fullStateOpcode,
   partyViewForPlayer,
   type MatchPlayer,
@@ -59,7 +63,7 @@ import { characterLifecycleDeps } from "./character_lifecycle_deps";
 import { readSelection, writeSelection } from "./selection_store";
 import { catalogFromContent, syncCombatStatsFromPipeline } from "../domain/stats";
 import { initializeProgression } from "../domain/progression";
-import { abilityDefinitionsFromContent, prepareJoinedPlayerAbilities } from "../domain/ability";
+import { abilityDefinitionsFromContent, prepareJoinedPlayerAbilities, startingAbilitiesForClass } from "../domain/ability";
 import { spawnDefinitionsFromContent } from "../domain/spawn_controller";
 import { aiProfilesFromContent } from "../domain/threat";
 import { lootTablesFromContent } from "../domain/loot_table";
@@ -105,8 +109,8 @@ export function matchInit(
 ): { state: StarterMatchRuntimeState; tickRate: number; label: string } {
   const instanceType = String(params.instanceType !== undefined ? params.instanceType : "public_world");
   const isCave = instanceType === "party_cave";
-  const zoneTemplateId = isCave ? CAVE_ZONE_ID : "zone.starter";
-  const zoneContent = content.zones[zoneTemplateId];
+  const requested = String(params.zoneTemplateId !== undefined ? params.zoneTemplateId : "");
+  const zoneContent = resolveZoneContent(isCave, requested);
   const instanceId = String(params.instanceId !== undefined ? params.instanceId : "world.public");
   const completionState = String(params.completionState !== undefined ? params.completionState : "none") as
     | "none"
@@ -679,8 +683,8 @@ export function matchTerminate(
 
 export function matchSignal(
   _ctx: nkruntime.Context,
-  _logger: nkruntime.Logger,
-  _nk: nkruntime.Nakama,
+  logger: nkruntime.Logger,
+  nk: nkruntime.Nakama,
   dispatcher: nkruntime.MatchDispatcher,
   tick: number,
   state: StarterMatchRuntimeState,
@@ -690,6 +694,13 @@ export function matchSignal(
   if (typeof data === "string" && data.length > 0) {
     try {
       const parsed = JSON.parse(data) as { [key: string]: unknown };
+      if (parsed.type === "gm_command") {
+        const gmData = applyGmSignal(nk, logger, dispatcher, tick, state, parsed);
+        return {
+          state: persistable(state),
+          data: JSON.stringify(gmData),
+        };
+      }
       if (state.zone.partyByCharacterId === undefined) {
         state.zone.partyByCharacterId = {};
       }
@@ -1080,6 +1091,97 @@ function recoverJoinTrade(nk: nkruntime.Nakama, zone: StarterZoneState, player: 
 function persistable(state: StarterMatchRuntimeState): StarterMatchRuntimeState {
   stripContentCatalogs(state.zone);
   return state;
+}
+
+function resolveZoneContent(isCave: boolean, requested: string): (typeof content.zones)[keyof typeof content.zones] {
+  const zones = content.zones as { [id: string]: (typeof content.zones)[keyof typeof content.zones] };
+  if (!isCave) {
+    return zones[STARTER_ZONE_ID];
+  }
+  if (requested.length > 0 && zones[requested] !== undefined) {
+    return zones[requested];
+  }
+  return zones[CAVE_ZONE_ID];
+}
+
+function applyGmSignal(
+  nk: nkruntime.Nakama,
+  logger: nkruntime.Logger,
+  dispatcher: nkruntime.MatchDispatcher,
+  tick: number,
+  state: StarterMatchRuntimeState,
+  parsed: { [key: string]: unknown },
+): { ok: boolean; code: string; result: { [key: string]: unknown } } {
+  const requestId = typeof parsed.requestId === "string" && parsed.requestId.length > 0 ? parsed.requestId : "gm-req";
+  try {
+    const request = gmRequestFromMatchSignal(parsed);
+    const player = findPlayerByCharacterId(state.zone, request.characterId);
+    if (player === null) {
+      const missing = { ok: false, code: "character_missing", result: {} };
+      writeGmCommandResult(nk, request.requestId, missing);
+      return missing;
+    }
+    const classId = player.classId !== undefined ? player.classId : "";
+    const applied = applyGmToMatch(
+      state.zone,
+      player,
+      request,
+      Date.now(),
+      tick,
+      state.zone.itemsById,
+      state.zone.questsById,
+      startingAbilitiesForClass(state.zone, classId),
+    );
+    persistGmFromMatch(nk, logger, player, applied, request.requestId);
+    const out = { ok: applied.ok, code: applied.code, result: applied.result };
+    writeGmCommandResult(nk, request.requestId, out);
+    const presence = state.presences[player.userId];
+    if (presence !== undefined) {
+      dispatcher.broadcastMessage(fullStateOpcode(), buildFullState(state.zone, tick, player.userId), [presence], null, true);
+    }
+    return out;
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "internal_error";
+    const failed = { ok: false, code: code, result: {} };
+    writeGmCommandResult(nk, requestId, failed);
+    return failed;
+  }
+}
+
+function persistGmFromMatch(
+  nk: nkruntime.Nakama,
+  logger: nkruntime.Logger,
+  player: MatchPlayer,
+  applied: { persistInventory: boolean; persistProgression: boolean; persistQuests: boolean; goldDelta: number; repairLocation: boolean },
+  requestId: string,
+): void {
+  if (applied.persistInventory && player.inventory !== undefined) {
+    writeInventory(nk, player.userId, player.inventory, player.characterId);
+  }
+  if (applied.persistProgression && player.progression !== undefined) {
+    writeProgression(nk, player.userId, player.progression, player.characterId);
+  }
+  if (applied.persistQuests) {
+    writeQuests(nk, player.userId, player.questLog, player.characterId);
+  }
+  if (applied.goldDelta !== 0) {
+    const committed = commitTransaction(nk, {
+      requestId: requestId,
+      characterId: player.characterId,
+      userId: player.userId,
+      reasonType: TX_REASON_ADMIN_GRANT,
+      reasonId: requestId,
+      goldDelta: applied.goldDelta,
+      currentGold: player.gold !== undefined ? player.gold : 0,
+    });
+    if (committed.ok) {
+      player.gold = committed.gold;
+    }
+  }
+  if (applied.repairLocation) {
+    const matchId = findOrCreateStarterZoneMatch(nk, logger);
+    writeActiveLocation(nk, publicWorldLocation(matchId, player.characterId, player.userId, player.x, player.y, Date.now()));
+  }
 }
 
 function bindContentCatalogs(zone: StarterZoneState): void {

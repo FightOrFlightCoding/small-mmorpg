@@ -1,7 +1,7 @@
 {
   "protocolVersion": 1,
   "contentSchemaVersion": 1,
-  "contentHash": "58134490916197c49e40642465d949fe17350fe7f798edc5857bed947a1ade86",
+  "contentHash": "985e5073b1e51f52205f73f85c65982f63454ed87ca4142765fd17a97692b7bc",
   "exactDependencies": {
     "server/package.json:typescript": "5.8.3",
     "server/package.json:nakama-runtime": "github:heroiclabs/nakama-common#v1.47.0",
@@ -46,7 +46,8 @@
     "party_kick",
     "party_promote",
     "party_disband",
-    "party_get_state"
+    "party_get_state",
+    "gm_command"
   ],
   "realtimeBeforeHooks": ["ChannelMessageSend", "ChannelJoin"],
   "realtimeAfterHooks": [],
@@ -122,12 +123,18 @@
     { "collection": "player", "key": "trade", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "player", "key": "trade_audit", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "names", "key": "n", "permissionWrite": 0, "schemaVersion": "absent" },
-    { "collection": "match", "key": "starter_zone", "permissionWrite": 0, "schemaVersion": "absent" }
+    { "collection": "match", "key": "starter_zone", "permissionWrite": 0, "schemaVersion": "absent" },
+    { "collection": "gm", "key": "allowlist", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "gm", "key": "recent", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "gm", "key": "r", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "gm_audit", "key": "a", "permissionWrite": 0, "schemaVersion": 1 }
   ],
   "walletCurrencies": ["gold"],
   "productionContentFiles": [
     "enemy.green_slime.json",
+    "enemy.proof_critter.json",
     "item.iron_sword.json",
+    "item.proof_token.json",
     "item.slime_gel.json",
     "item.test_cloth.json",
     "item.test_leather_cap.json",
@@ -138,6 +145,7 @@
     "item.training_sword.json",
     "loot.empty.json",
     "loot.green_slime.json",
+    "loot.proof_critter.json",
     "loot.test.personal.json",
     "loot.test.server_assigned.json",
     "loot.test_boss.json",
@@ -145,12 +153,20 @@
     "loot.test_ranged.json",
     "loot.test_weighted.json",
     "npc.elder.json",
+    "npc.lab_exit.json",
+    "npc.lab_inn.json",
+    "npc.lab_keeper.json",
+    "npc.lab_trainer.json",
+    "npc.lab_vendor.json",
+    "npc.proof_giver.json",
     "npc.test_cave_exit.json",
     "npc.test_cave_portal.json",
     "npc.test_herald.json",
     "npc.test_innkeeper.json",
     "npc.test_vendor.json",
     "player.base.json",
+    "quest.lab_tour.json",
+    "quest.proof_errand.json",
     "quest.slime_problem.json",
     "quest.test.boss.json",
     "quest.test.collect.json",
@@ -168,9 +184,14 @@
     "slot.main_hand.json",
     "slot.off_hand.json",
     "spawn.cave.boss.json",
+    "spawn.lab.boss.json",
+    "spawn.lab.caster.json",
+    "spawn.lab.melee.json",
+    "spawn.lab.ranged.json",
     "spawn.starter.boss_add.json",
     "spawn.starter.cave_boss.json",
     "spawn.starter.green_slime.json",
+    "spawn.starter.proof_critter.json",
     "spawn.starter.test_caster.json",
     "spawn.starter.test_melee.json",
     "spawn.starter.test_ranged.json",
@@ -205,6 +226,8 @@
     "test.stat.attack.json",
     "test.stat.max_health.json",
     "test.stat.max_mana.json",
+    "test.zone.systems_lab.json",
+    "vendor.lab_general.json",
     "vendor.test_general.json",
     "zone.cave.json",
     "zone.starter.json"
@@ -261,6 +284,10 @@
       "client/scripts/e2e/slice_journey.gd",
       "client/content/dialogue/npc.elder.dialogue",
       "server/src/domain/match_loop.ts"
+    ],
+    "test.zone.systems_lab": [
+      "server/src/domain/gm.ts",
+      "client/content/asset_manifest.json"
     ]
   }
 }

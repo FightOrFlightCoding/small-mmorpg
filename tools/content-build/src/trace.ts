@@ -5,6 +5,7 @@ export interface ReferenceTrace {
   id: string;
   outbound: string[];
   inbound: string[];
+  usedBy: UsedByReport;
 }
 
 export function traceReferences(payload: ContentPayload, id: string): ReferenceTrace | null {
@@ -25,10 +26,68 @@ export function traceReferences(payload: ContentPayload, id: string): ReferenceT
     }
   }
   inbound.sort();
-  return { id: id, outbound: outbound, inbound: inbound };
+  return {
+    id: id,
+    outbound: outbound,
+    inbound: inbound,
+    usedBy: categorizeInbound(payload, inbound),
+  };
 }
 
-function outboundRefs(payload: ContentPayload, id: string): string[] {
+export interface UsedByReport {
+  quests: string[];
+  classes: string[];
+  lootTables: string[];
+  zones: string[];
+  npcs: string[];
+  enemies: string[];
+  vendors: string[];
+  abilities: string[];
+  spawns: string[];
+  other: string[];
+}
+
+export function categorizeInbound(payload: ContentPayload, inbound: string[]): UsedByReport {
+  const report: UsedByReport = {
+    quests: [],
+    classes: [],
+    lootTables: [],
+    zones: [],
+    npcs: [],
+    enemies: [],
+    vendors: [],
+    abilities: [],
+    spawns: [],
+    other: [],
+  };
+  for (let i = 0; i < inbound.length; i++) {
+    const other = inbound[i];
+    if (payload.quests[other]) {
+      report.quests.push(other);
+    } else if (payload.classes[other]) {
+      report.classes.push(other);
+    } else if (payload.lootTables[other]) {
+      report.lootTables.push(other);
+    } else if (payload.zones[other]) {
+      report.zones.push(other);
+    } else if (payload.npcs[other]) {
+      report.npcs.push(other);
+    } else if (payload.enemies[other]) {
+      report.enemies.push(other);
+    } else if (payload.vendors[other]) {
+      report.vendors.push(other);
+    } else if (payload.abilities[other]) {
+      report.abilities.push(other);
+    } else if (payload.spawns[other]) {
+      report.spawns.push(other);
+    } else {
+      report.other.push(other);
+    }
+  }
+  return report;
+}
+
+export function outboundRefs(payload: ContentPayload, id: string): string[] {
   const refs: string[] = [];
   if (payload.player.id === id) {
     refs.push(payload.player.visualId);

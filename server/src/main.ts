@@ -20,6 +20,7 @@ import {
   rpcPartyLeave,
   rpcPartyPromote,
 } from "./rpcs/party";
+import { rpcGmCommand } from "./rpcs/gm";
 import { starterZoneMatchHandler } from "./nakama/starter_zone_match";
 import { beforeChannelJoin, beforeChannelMessageSend } from "./nakama/chat_hooks";
 import { STARTER_ZONE_MODULE } from "./domain/match_state";
@@ -73,12 +74,13 @@ function InitModule(
   initializer.registerRpc("party_promote", rpcPartyPromote);
   initializer.registerRpc("party_disband", rpcPartyDisband);
   initializer.registerRpc("party_get_state", rpcPartyGetState);
+  initializer.registerRpc("gm_command", rpcGmCommand);
   initializer.registerMatch(STARTER_ZONE_MODULE, starterZoneMatchHandler);
   // Nakama 3.40.0 walks InitModule's AST for registerRtBefore; a helper call is not visible.
   initializer.registerRtBefore("ChannelMessageSend", beforeChannelMessageSend);
   initializer.registerRtBefore("ChannelJoin", beforeChannelJoin);
   logger.info(
-    "vibecode runtime loaded rpc=vibecode_health,character_bootstrap,character_list,character_create,character_select,character_soft_delete,character_restore,find_or_create_starter_zone,request_cave_entry,find_or_create_owned_cave,request_cave_exit,party_create,party_invite,party_accept,party_decline,party_leave,party_kick,party_promote,party_disband,party_get_state match=%s protocol_version=%s content_hash=%s zone=%s chat_room=zone.starter",
+    "vibecode runtime loaded rpc=vibecode_health,character_bootstrap,character_list,character_create,character_select,character_soft_delete,character_restore,find_or_create_starter_zone,request_cave_entry,find_or_create_owned_cave,request_cave_exit,party_create,party_invite,party_accept,party_decline,party_leave,party_kick,party_promote,party_disband,party_get_state,gm_command match=%s protocol_version=%s content_hash=%s zone=%s chat_room=zone.starter",
     STARTER_ZONE_MODULE,
     String(PROTOCOL_VERSION),
     contentHash,

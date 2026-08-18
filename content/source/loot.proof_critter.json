@@ -1,0 +1,15 @@
+{
+  "id": "loot.proof_critter",
+  "kind": "loot_table",
+  "displayName": "Proof Critter",
+  "ownershipPolicy": "ground_free",
+  "entries": [
+    {
+      "itemDefinitionId": "item.proof_token",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "chance": 1,
+      "guaranteed": true
+    }
+  ]
+}

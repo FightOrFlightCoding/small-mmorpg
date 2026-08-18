@@ -1034,6 +1034,10 @@ function pendingInvitePayload(
   return row !== undefined ? row : null;
 }
 
+export function findPlayerByCharacterId(state: StarterZoneState, characterId: string): MatchPlayer | null {
+  return playerByCharacterId(state, characterId);
+}
+
 function playerByCharacterId(state: StarterZoneState, characterId: string): MatchPlayer | null {
   const ids = Object.keys(state.players);
   for (let i = 0; i < ids.length; i++) {

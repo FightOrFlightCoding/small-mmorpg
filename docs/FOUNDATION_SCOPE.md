@@ -53,6 +53,9 @@ A later phase may implement a Required-for-Foundation-v1 row only when that phas
 | Local prediction and snapshot interpolation | Existing and accepted | Presentation only. |
 | Debug two-client e2e journey | Existing and accepted | `--e2e-slice`; unavailable in release. |
 | Functional client shell, settings, asset contracts | Existing and accepted (Prompt 31) | Windowing, local settings, stable visual/audio IDs. No final art. UI never authoritative. |
+| Content production workflow | Existing and accepted (Prompt 32) | Project-owned CLI: templates, validate, diff, references, unused, migrate, package, optional CSV. No RPG database plugin. |
+| Systems lab | Existing and accepted (Prompt 32) | `test.zone.systems_lab` is development-only. Does not replace automated tests. |
+| Developer / GM tools | Existing and accepted (Prompt 32) | Server allowlist + audited `gm_command`. Client debug UI is not authority. |
 
 ## Game content (not systems)
 
@@ -94,7 +97,7 @@ A later phase may implement a Required-for-Foundation-v1 row only when that phas
 
 ## Authority (Foundation v1)
 
-The server is the only authority for: selected character, class, level, experience, attribute allocation, skill allocation, unlocked abilities, hotbar validity, position, collision, targeting, health and resources, casts, cooldowns, damage, healing, status effects, death and respawn, enemy AI, spawn state, loot, inventory, equipment, currency, merchant transactions, quest state, quest rewards, party membership, group credit, cave ownership, zone transfers, canonical location, and direct player trades.
+The server is the only authority for: selected character, class, level, experience, attribute allocation, skill allocation, unlocked abilities, hotbar validity, position, collision, targeting, health and resources, casts, cooldowns, damage, healing, status effects, death and respawn, enemy AI, spawn state, loot, inventory, equipment, currency, merchant transactions, quest state, quest rewards, party membership, group credit, cave ownership, zone transfers, canonical location, direct player trades, and developer/GM commands.
 
 The client sends intentions, never outcomes.
 

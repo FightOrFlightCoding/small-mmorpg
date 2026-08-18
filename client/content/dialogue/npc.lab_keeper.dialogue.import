@@ -1,0 +1,16 @@
+[remap]
+
+importer="dialogue_manager"
+importer_version=15
+type="Resource"
+uid="uid://cdhif65a3kbur"
+path="res://.godot/imported/npc.lab_keeper.dialogue-92dcefcc2c7e4ad286b4935229c67278.tres"
+
+[deps]
+
+source_file="res://content/dialogue/npc.lab_keeper.dialogue"
+dest_files=["res://.godot/imported/npc.lab_keeper.dialogue-92dcefcc2c7e4ad286b4935229c67278.tres"]
+
+[params]
+
+defaults=true

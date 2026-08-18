@@ -1,0 +1,13 @@
+{
+  "id": "spawn.lab.melee",
+  "kind": "spawn",
+  "zoneId": "test.zone.systems_lab",
+  "enemyId": "test.enemy.melee",
+  "x": 240,
+  "y": 520,
+  "spawnCount": 1,
+  "respawnDelay": 8,
+  "activationPolicy": "always",
+  "groupId": "group.lab_ai",
+  "developmentOnly": true
+}

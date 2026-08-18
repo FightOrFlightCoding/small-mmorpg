@@ -46,6 +46,7 @@ export interface CaveMatchFactory {
     ownerPartyId?: string;
     ownerCharacterId?: string;
     completionState: CaveCompletionState;
+    zoneTemplateId?: string;
   }): string;
   isRunning(matchId: string): boolean;
   contentHash: string;
@@ -218,6 +219,7 @@ export function findOrCreateOwnedCave(
     ownerKind: "party" | "character";
     ownerId: string;
     party: PartyRecord | null;
+    zoneTemplateId?: string;
   },
 ): AllocateCaveResult {
   const association = repo.getCharacterAssociation(input.characterId);
@@ -267,6 +269,7 @@ export function findOrCreateOwnedCave(
     ownerPartyId: input.ownerKind === "party" ? input.ownerId : undefined,
     ownerCharacterId: input.ownerKind === "character" ? input.ownerId : undefined,
     completionState: "none",
+    zoneTemplateId: input.zoneTemplateId,
   });
   const record = emptyCaveRecord({
     instanceId: claimed.instanceId,
@@ -276,6 +279,7 @@ export function findOrCreateOwnedCave(
     contentVersion: factory.contentHash,
     nowMs: factory.nowMs,
     emptyTimeoutMs: factory.emptyTimeoutMs,
+    zoneTemplateId: input.zoneTemplateId,
   });
   repo.putCave(record);
   repo.putCharacterAssociation({

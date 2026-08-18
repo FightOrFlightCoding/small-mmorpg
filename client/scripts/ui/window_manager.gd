@@ -23,6 +23,7 @@ const SKILLS := "skills"
 const QUEST_JOURNAL := "quest_journal"
 const PARTY := "party"
 const TRADE := "trade"
+const GM := "gm"
 const CHAT := "chat"
 const PARTY_CHAT := "party_chat"
 const DIALOGUE := "dialogue"
@@ -45,6 +46,7 @@ const CLOSEABLE := [
 	"quest_journal",
 	"party",
 	"trade",
+	"gm",
 	"chat",
 	"party_chat",
 	"dialogue",

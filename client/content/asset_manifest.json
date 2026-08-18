@@ -144,11 +144,61 @@
       "spriteVisualId": "visual.npc_cave_exit",
       "directionCount": 4,
       "fallbackVisualId": "visual.npc_cave_exit"
+    },
+    "visual_set.npc.proof_giver": {
+      "kind": "npc",
+      "contentId": "npc.proof_giver",
+      "spriteVisualId": "visual.npc_proof_giver",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.npc_proof_giver"
+    },
+    "visual_set.npc.lab_keeper": {
+      "kind": "npc",
+      "contentId": "npc.lab_keeper",
+      "spriteVisualId": "visual.npc_lab_keeper",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.npc_lab_keeper"
+    },
+    "visual_set.npc.lab_vendor": {
+      "kind": "npc",
+      "contentId": "npc.lab_vendor",
+      "spriteVisualId": "visual.npc_lab_vendor",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.npc_lab_vendor"
+    },
+    "visual_set.npc.lab_inn": {
+      "kind": "npc",
+      "contentId": "npc.lab_inn",
+      "spriteVisualId": "visual.npc_lab_inn",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.npc_lab_inn"
+    },
+    "visual_set.npc.lab_trainer": {
+      "kind": "npc",
+      "contentId": "npc.lab_trainer",
+      "spriteVisualId": "visual.npc_lab_trainer",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.npc_lab_trainer"
+    },
+    "visual_set.npc.lab_exit": {
+      "kind": "npc",
+      "contentId": "npc.lab_exit",
+      "spriteVisualId": "visual.npc_lab_exit",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.npc_lab_exit"
+    },
+    "visual_set.enemy.proof_critter": {
+      "kind": "enemy",
+      "contentId": "enemy.proof_critter",
+      "spriteVisualId": "visual.enemy_proof_critter",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.enemy_proof_critter"
     }
   },
   "tilesets": {
     "zone.starter": "visual.zone_starter",
-    "zone.cave": "visual.zone_cave"
+    "zone.cave": "visual.zone_cave",
+    "test.zone.systems_lab": "visual.zone_systems_lab"
   },
   "icons": {
     "item": {
@@ -160,7 +210,8 @@
       "item.relic_blade": "visual.item_relic_blade",
       "item.cloth": "visual.item_cloth",
       "item.potion": "visual.item_potion",
-      "item.pebble": "visual.item_pebble"
+      "item.pebble": "visual.item_pebble",
+      "item.proof_token": "visual.item_proof_token"
     },
     "ability": {
       "test.ability.basic_melee": "visual.ability_melee_icon",
