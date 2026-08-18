@@ -40,6 +40,7 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ClientOpcode.VENDOR_SELL, 20);
   assert.equal(ClientOpcode.INN_REST, 21);
   assert.equal(ClientOpcode.CAVE_ENTER, 22);
+  assert.equal(ClientOpcode.CAVE_EXIT, 23);
   assert.equal(ServerOpcode.FULL_STATE, 101);
   assert.equal(ServerOpcode.SNAPSHOT, 102);
   assert.equal(ServerOpcode.ACTION_RESULT, 103);
@@ -52,6 +53,8 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ServerOpcode.WALLET_STATE, 110);
   assert.equal(ServerOpcode.PROGRESSION_STATE, 111);
   assert.equal(ServerOpcode.ABILITY_STATE, 112);
+  assert.equal(ServerOpcode.PARTY_STATE, 113);
+  assert.equal(ServerOpcode.PARTY_EVENT, 114);
 });
 
 test("valid movement input parses direction and sequence only", () => {
@@ -177,6 +180,35 @@ test("reward and interact requests require a unique requestId", () => {
   assert.equal(isProtocolError(missingEquip), true);
   if (isProtocolError(missingEquip)) {
     assert.equal(missingEquip.code, "invalid_request_id");
+  }
+});
+
+test("client-forged party membership is rejected", () => {
+  const parsed = parse(
+    ClientOpcode.ATTACK,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      targetId: "enemy.1",
+      requestId: "req-party-atk1",
+      members: ["user-alice", "user-bob"],
+    }),
+  );
+  assert.equal(isProtocolError(parsed), true);
+  if (isProtocolError(parsed)) {
+    assert.equal(parsed.code, "stat_injection:members");
+  }
+  const credit = parse(
+    ClientOpcode.ATTACK,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      targetId: "enemy.1",
+      requestId: "req-party-atk2",
+      creditUserIds: ["user-bob"],
+    }),
+  );
+  assert.equal(isProtocolError(credit), true);
+  if (isProtocolError(credit)) {
+    assert.equal(credit.code, "stat_injection:creditUserIds");
   }
 });
 
@@ -531,6 +563,15 @@ test("vendor and inn opcodes parse without client prices", () => {
     }),
   );
   assert.equal(isProtocolError(cave), false);
+  const caveExit = parse(
+    ClientOpcode.CAVE_EXIT,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      npcId: "npc.test_cave_exit",
+      requestId: "req-cave-exit0001",
+    }),
+  );
+  assert.equal(isProtocolError(caveExit), false);
 });
 
 test("vendor price spoofing is rejected", () => {

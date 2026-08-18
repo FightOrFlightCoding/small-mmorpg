@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "5b41c0cdfdf7e6130c4198b098cc88c1e7be512074589b577991f37f34ee3a0d";
+export const contentHash = "58134490916197c49e40642465d949fe17350fe7f798edc5857bed947a1ade86";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = [] as const;
 export const content = {
@@ -1363,6 +1363,36 @@ export const content = {
       "kind": "loot_table",
       "ownershipPolicy": "ground_free"
     },
+    "loot.test.personal": {
+      "displayName": "Test Personal Loot",
+      "entries": [
+        {
+          "chance": 1,
+          "guaranteed": true,
+          "itemDefinitionId": "item.test_pebble",
+          "maximumQuantity": 1,
+          "minimumQuantity": 1
+        }
+      ],
+      "id": "loot.test.personal",
+      "kind": "loot_table",
+      "ownershipPolicy": "personal"
+    },
+    "loot.test.server_assigned": {
+      "displayName": "Test Server Assigned Loot",
+      "entries": [
+        {
+          "chance": 1,
+          "guaranteed": true,
+          "itemDefinitionId": "item.test_cloth",
+          "maximumQuantity": 1,
+          "minimumQuantity": 1
+        }
+      ],
+      "id": "loot.test.server_assigned",
+      "kind": "loot_table",
+      "ownershipPolicy": "server_assigned"
+    },
     "loot.test_boss": {
       "displayName": "Cave Boss",
       "entries": [
@@ -1470,6 +1500,28 @@ export const content = {
       "visualId": "visual.npc_elder",
       "zoneId": "zone.starter"
     },
+    "npc.test_cave_exit": {
+      "dialogueId": "dialogue.npc.test_cave_exit",
+      "displayName": "Cave Exit",
+      "displayNameKey": "npc.test_cave_exit.name",
+      "id": "npc.test_cave_exit",
+      "interactionRange": 48,
+      "kind": "npc",
+      "position": {
+        "x": 80,
+        "y": 256
+      },
+      "services": [
+        {
+          "type": "dialogue"
+        },
+        {
+          "type": "cave_exit"
+        }
+      ],
+      "visualId": "visual.npc_cave_exit",
+      "zoneId": "zone.cave"
+    },
     "npc.test_cave_portal": {
       "dialogueId": "dialogue.npc.test_cave_portal",
       "displayName": "Test Cave Portal",
@@ -1516,7 +1568,8 @@ export const content = {
             "quest.test.boss",
             "quest.test.enter",
             "quest.test.gated",
-            "quest.test.reward"
+            "quest.test.reward",
+            "quest.test.party_kill"
           ],
           "type": "quest_offer"
         },
@@ -1529,7 +1582,8 @@ export const content = {
             "quest.test.boss",
             "quest.test.enter",
             "quest.test.gated",
-            "quest.test.reward"
+            "quest.test.reward",
+            "quest.test.party_kill"
           ],
           "type": "quest_turn_in"
         }
@@ -1598,6 +1652,12 @@ export const content = {
     "attackCooldown": 0.7,
     "attackRange": 40,
     "basicAbilityId": "test.ability.basic_melee",
+    "groupCredit": {
+      "defaultLootPolicy": "personal",
+      "rangePx": 512,
+      "recentlyActiveAfterDeathSec": 15,
+      "xpFormula": "full"
+    },
     "id": "player.base",
     "interactionRange": 48,
     "inventoryCapacity": 20,
@@ -1828,6 +1888,33 @@ export const content = {
       ],
       "turnInNpcId": "npc.test_herald"
     },
+    "quest.test.party_kill": {
+      "acceptNpcId": "npc.test_herald",
+      "category": "side",
+      "completeOnce": true,
+      "consume": [],
+      "displayName": "Test Party Kill",
+      "id": "quest.test.party_kill",
+      "kind": "quest",
+      "objectives": [
+        {
+          "enemyId": "enemy.green_slime",
+          "enemyTags": [
+            "slime"
+          ],
+          "partyCreditPolicy": "party",
+          "quantity": 1,
+          "type": "kill_enemy",
+          "zoneId": "zone.starter"
+        }
+      ],
+      "rewards": {
+        "gold": 1,
+        "items": [],
+        "xp": 1
+      },
+      "turnInNpcId": "npc.test_herald"
+    },
     "quest.test.reward": {
       "acceptNpcId": "npc.test_herald",
       "category": "side",
@@ -1898,6 +1985,18 @@ export const content = {
     }
   },
   "spawns": {
+    "spawn.cave.boss": {
+      "activationPolicy": "always",
+      "enemyId": "test.enemy.cave_boss",
+      "groupId": "group.cave_boss",
+      "id": "spawn.cave.boss",
+      "kind": "spawn",
+      "respawnDelay": 0,
+      "spawnCount": 1,
+      "x": 480,
+      "y": 256,
+      "zoneId": "zone.cave"
+    },
     "spawn.starter.boss_add": {
       "activationPolicy": "manual",
       "enemyId": "test.enemy.melee",
@@ -2002,6 +2101,70 @@ export const content = {
     }
   },
   "zones": {
+    "zone.cave": {
+      "collisions": [
+        {
+          "height": 16,
+          "width": 640,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "height": 16,
+          "width": 640,
+          "x": 0,
+          "y": 496
+        },
+        {
+          "height": 512,
+          "width": 16,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "height": 512,
+          "width": 16,
+          "x": 624,
+          "y": 0
+        }
+      ],
+      "displayName": "Test Cave",
+      "enemies": [
+        {
+          "activationPolicy": "always",
+          "enemyId": "test.enemy.cave_boss",
+          "groupId": "group.cave_boss",
+          "respawnDelay": 0,
+          "spawnCount": 1,
+          "spawnId": "spawn.cave.boss",
+          "x": 480,
+          "y": 256
+        }
+      ],
+      "height": 512,
+      "id": "zone.cave",
+      "kind": "zone",
+      "npcs": [
+        {
+          "npcId": "npc.test_cave_exit",
+          "x": 80,
+          "y": 256
+        }
+      ],
+      "playerSpawn": {
+        "x": 96,
+        "y": 256
+      },
+      "tileSize": 16,
+      "visualId": "visual.zone_cave",
+      "walkableBounds": {
+        "height": 480,
+        "width": 608,
+        "x": 16,
+        "y": 16
+      },
+      "width": 640
+    },
     "zone.starter": {
       "collisions": [
         {

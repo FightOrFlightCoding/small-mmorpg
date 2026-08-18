@@ -26,16 +26,32 @@ export function deathEventId(instanceId: string, deathCount: number): string {
   return "kill:" + instanceId + ":" + String(deathCount);
 }
 
-export function applyEnemyDeathSideEffects(
+export function normalizedLootPolicy(policy: string): "ground" | "personal" | "server_assigned" {
+  if (policy === "personal" || policy === "party_split") {
+    return "personal";
+  }
+  if (policy === "server_assigned") {
+    return "server_assigned";
+  }
+  return "ground";
+}
+
+export interface EnemyDeathWork {
+  eventId: string;
+  enemyId: string;
+  instanceId: string;
+  killerId: string;
+  x: number;
+  y: number;
+  table: LootTableDefinition | undefined;
+}
+
+export function collectNewEnemyDeaths(
   state: StarterZoneState,
   events: CombatEvent[],
-  tick: number,
-  tickRate: number,
-  newId: () => string,
-  partyCredit: PartyCreditSink = noopPartyCredit,
-): void {
-  const expireTicks = lootExpireTicks(tickRate);
+): EnemyDeathWork[] {
   const processed = dict(state.processedDeathEventIds);
+  const work: EnemyDeathWork[] = [];
   for (let i = 0; i < events.length; i++) {
     const event = events[i];
     if (event.type !== "death" || event.targetKind !== "enemy") {
@@ -50,26 +66,53 @@ export function applyEnemyDeathSideEffects(
       continue;
     }
     processed[eventId] = true;
-    state.processedDeathEventIds = processed;
-    partyCredit(
-      partyCreditFromThreat(eventId, enemy.enemyId, enemy.id, enemy.threatByPlayerId, event.sourceId),
-    );
     const tableId = enemy.lootTableId !== undefined ? enemy.lootTableId : "";
     const catalog = state.lootTablesById;
     let table = catalog !== undefined && tableId.length > 0 ? catalog[tableId] : undefined;
     if (table == null || !Array.isArray(table.entries)) {
       table = inlineLootAsTable(enemy.enemyId, state.enemyLootById[enemy.enemyId]);
     }
-    const drops = rollLootTable(table, lcgRng(hashSeed(eventId)));
-    state.loot = spawnRolledLoot(
-      state.loot,
-      drops,
-      event.x !== undefined ? event.x : enemy.x,
-      event.y !== undefined ? event.y : enemy.y,
-      tick,
-      expireTicks,
-      newId,
+    work.push({
+      eventId: eventId,
+      enemyId: enemy.enemyId,
+      instanceId: enemy.id,
+      killerId: event.sourceId,
+      x: event.x !== undefined ? event.x : enemy.x,
+      y: event.y !== undefined ? event.y : enemy.y,
+      table: table,
+    });
+  }
+  state.processedDeathEventIds = processed;
+  return work;
+}
+
+export function applyEnemyDeathSideEffects(
+  state: StarterZoneState,
+  events: CombatEvent[],
+  tick: number,
+  tickRate: number,
+  newId: () => string,
+  partyCredit: PartyCreditSink = noopPartyCredit,
+): void {
+  const expireTicks = lootExpireTicks(tickRate);
+  const deaths = collectNewEnemyDeaths(state, events);
+  for (let i = 0; i < deaths.length; i++) {
+    const death = deaths[i];
+    const enemy = findEnemyInState(state, death.instanceId);
+    partyCredit(
+      partyCreditFromThreat(
+        death.eventId,
+        death.enemyId,
+        death.instanceId,
+        enemy !== null ? enemy.threatByPlayerId : undefined,
+        death.killerId,
+      ),
     );
+    if (normalizedLootPolicy(death.table !== undefined ? death.table.ownershipPolicy : "ground_free") !== "ground") {
+      continue;
+    }
+    const drops = rollLootTable(death.table, lcgRng(hashSeed(death.eventId)));
+    state.loot = spawnRolledLoot(state.loot, drops, death.x, death.y, tick, expireTicks, newId);
   }
 }
 

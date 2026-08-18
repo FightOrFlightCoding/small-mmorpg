@@ -120,6 +120,13 @@ test("join rejects protocol and content mismatches", () => {
     false,
   );
   assert.equal(ok.accept, true);
+  const transfer = validateJoinAttempt(
+    state,
+    contentHash,
+    { protocolVersion: "1", contentHash: contentHash, transferTicket: "ticket-xfer-1" },
+    false,
+  );
+  assert.equal(transfer.accept, true);
 });
 
 test("join requires a selection ticket and rejects character id injection", () => {

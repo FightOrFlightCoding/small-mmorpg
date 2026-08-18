@@ -1,6 +1,6 @@
 # Foundation roadmap
 
-Prompt 19 (catalogs/audit), Prompt 20 (versioned content and save schemas), Prompt 21 (authentication, slots, and class selection), Prompt 22 (XP, derived stats, and attribute allocation), Prompt 23 (generic items, inventory, equipment, currency, and the transaction core), Prompt 24 (generic ability, casting, cooldown, resource, and effect engine), Prompt 25 (generic combat pipeline, targeting, death, respawn, and XP hooks), Prompt 26 (generic enemies, spawn controllers, AI profiles, loot tables, and bosses), and Prompt 27 (generic NPC services, dialogue, quests, merchants, and inn) are accepted. Public-world, cave instances, parties, and trading remain later.
+Prompt 19 (catalogs/audit), Prompt 20 (versioned content and save schemas), Prompt 21 (authentication, slots, and class selection), Prompt 22 (XP, derived stats, and attribute allocation), Prompt 23 (generic items, inventory, equipment, currency, and the transaction core), Prompt 24 (generic ability, casting, cooldown, resource, and effect engine), Prompt 25 (generic combat pipeline, targeting, death, respawn, and XP hooks), Prompt 26 (generic enemies, spawn controllers, AI profiles, loot tables, and bosses), Prompt 27 (generic NPC services, dialogue, quests, merchants, and inn), Prompt 28 (temporary parties, party chat, group credit, and group loot), and Prompt 29 (public world, party cave instances, transfers, and reconnection) are accepted. Trading remains later.
 
 | Order | Theme | Outcome | Depends on |
 | --- | --- | --- | --- |
@@ -13,10 +13,9 @@ Prompt 19 (catalogs/audit), Prompt 20 (versioned content and save schemas), Prom
 | 25 | Generic combat pipeline, targeting, death, respawn, XP hooks | One resolver for players, enemies, abilities, and effects; PvE death/respawn; structured formulas; targeting modes; XP via server events. PvP off. | 24 |
 | 26 | Generic enemies, spawn controllers, AI profiles, loot tables, bosses | Data-defined enemies; spawn create/track/respawn/reset; melee/ranged/caster/boss AI; loot tables; simple boss phases. PvP off. Caves later. | 24–25 |
 | 27 | Generic NPC services, dialogue, quests, merchants, inn | One NPC type with content services; generic quest engine; vendors; inn bind/heal. Cave entrance returns unavailable. Issued as this prompt (supersedes old roadmap 28/29). | 23–26 |
-| Later | Secure direct trade | Server trade state machine; no client-complete; idempotent. Previously numbered as Prompt 30. | later parties, 27 |
-| Later | Cave instances and transfer tickets | Private matches; party-shared instance; one-time server tickets; reconnect restores the correct match; empty-cave grace. Previously numbered as Prompt 26/29. | later parties |
-| Later | Temporary parties (max 5) and party chat | Server membership; group credit hooks; party channel. Zone chat remains. Previously numbered as Prompt 25. | public world (later) |
-| Later | Public village-and-fields world | One public-world template (may still be one match). No sharding. Previously numbered as Prompt 24. | 21 |
+| 28 | Temporary parties, party chat, group credit, group loot | Server membership max 5; party channel; group XP/quest credit; personal and server-assigned loot. No guilds, matchmaking, or need/greed. | 25–27 |
+| 29 | Public world, party caves, transfers, reconnect | One `public_world` match; private `party_cave` matches; one-time tickets; canonical location; empty-cave grace. No sharding. | 28 |
+| Later | Secure direct trade | Server trade state machine; no client-complete; idempotent. Previously numbered as Prompt 30. | 28, 27 |
 | Later | Abilities and hotbar | Implemented as issued Prompt 24. | 22 |
 | Content | Names, balance, extra IDs, art | Authored under `content/source` after systems exist. | relevant systems |
 
@@ -55,3 +54,15 @@ Accepted in [PROGRESS.md](PROGRESS.md) as **Generic combat pipeline, targeting, 
 ## Prompt 26 status
 
 Accepted in [PROGRESS.md](PROGRESS.md) as **Generic enemies, spawn controllers, AI profiles, loot tables, and bosses**.
+
+## Prompt 27 status
+
+Accepted in [PROGRESS.md](PROGRESS.md) as **Generic NPC services, dialogue, quests, merchants, and inn**.
+
+## Prompt 28 status
+
+Accepted in [PROGRESS.md](PROGRESS.md) as **Temporary parties, party chat, group credit, and group loot**.
+
+## Prompt 29 status
+
+Accepted in [PROGRESS.md](PROGRESS.md) as **Public world, party cave instances, transfers, and reconnection**.

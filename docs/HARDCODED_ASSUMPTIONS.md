@@ -20,6 +20,8 @@ Classification:
 | `content/source/zone.starter.json`, generated catalogs | Correct content reference |
 | `server/src/domain/match_state.ts` `STARTER_ZONE_ID` / `STARTER_ZONE_LABEL` | Architectural hard-coding requiring later removal |
 | `server/src/domain/chat.ts` `STARTER_ZONE_CHAT_ROOM` | Architectural hard-coding requiring later removal |
+| `server/src/domain/instance.ts` | Architectural hard-coding requiring later removal |
+| `server/src/rpcs/cave.ts` | Architectural hard-coding requiring later removal |
 | `server/src/main.ts` log + `content.zones["zone.starter"]` | Architectural hard-coding requiring later removal |
 | `server/src/nakama/starter_zone_match.ts` `content.zones["zone.starter"]` | Architectural hard-coding requiring later removal |
 | `server/src/rpcs/character_bootstrap.ts` spawn zone | Architectural hard-coding requiring later removal |

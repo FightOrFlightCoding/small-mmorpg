@@ -1,6 +1,6 @@
 # Protocol catalog
 
-Every Prompt 18 match opcode, RPC, realtime hook, and the absence of auth/notification hooks. Duplicate numeric identifiers are a defect; `tools/foundation-audit` fails if client/server tables diverge.
+Every registered match opcode, RPC, realtime hook, and the absence of auth/notification hooks. Duplicate numeric identifiers are a defect; `tools/foundation-audit` fails if client/server tables diverge.
 
 Related: [NETWORK_PROTOCOL.md](NETWORK_PROTOCOL.md), [SECURITY_MODEL.md](SECURITY_MODEL.md). Machine-readable opcodes/RPCs: `tools/foundation-audit/expected.json`.
 
@@ -87,18 +87,52 @@ Notifications: **none** registered.
 | --- | --- |
 | Direction | Client → server HTTP RPC |
 | Request | Empty or `{}` |
-| Response | `{ matchId, zoneId, protocolVersion, contentHash }` |
-| Authority | Server match singleton |
+| Response | `{ matchId, zoneId, instanceId, instanceType, protocolVersion, contentHash }` |
+| Authority | Server public-world singleton, or a live owned cave on reconnect |
 | Auth | Session required |
 | Rate limit | None in-app |
 | Payload | Empty object |
-| Idempotency | Concurrent callers converge on one match id |
+| Idempotency | Concurrent public-world callers converge on one match id |
 | Errors | `unauthenticated`, `malformed_json`, `unknown_field` |
-| Tests | `server/tests/starter_zone_registry.test.ts`, `client/tests/app/zone_join_test.gd` |
+| Tests | `server/tests/starter_zone_registry.test.ts`, `server/tests/cave.test.ts`, `client/tests/app/zone_join_test.gd` |
+
+### Party RPCs
+
+Authenticated session RPCs. Canonical party state is server-owned (`PartyService` + storage). Clients send owned `characterId`, optional `revision`, and `requestId`. They never send member lists or credit/loot recipients (`stat_injection:members` and related keys). Invite by display name uses the name reservation; domain tests may pass a `PartyActor` directly.
+
+Shared errors: `unauthenticated`, `malformed_json`, `unknown_field`, `stat_injection`, `invalid_id`, `invalid_request_id`, `character_missing`, `selection_foreign`, `already_in_party`, `party_full`, `not_leader`, `not_member`, `invite_missing`, `invite_expired`, `invalid_target`, `revision_mismatch`, `party_missing`.
+
+| RPC | Request keys | Authority |
+| --- | --- | --- |
+| `party_create` | `characterId`, `requestId` | Creates a size-1 party; max 5 |
+| `party_invite` | `characterId`, `requestId`, `targetName`, optional `targetCharacterId`, `revision` | Leader only; invite TTL 60 s |
+| `party_accept` | `characterId`, `requestId`, `partyId`, optional `revision` | Invitee ownership; capacity and membership checks |
+| `party_decline` | `characterId`, `requestId`, `partyId` | Invitee only |
+| `party_leave` | `characterId`, `requestId`, optional `revision` | Member; last member or leader leave disbands |
+| `party_kick` | `characterId`, `requestId`, `targetCharacterId`, optional `revision` | Leader; cannot kick self |
+| `party_promote` | `characterId`, `requestId`, `targetCharacterId`, optional `revision` | Leader transfers leadership |
+| `party_disband` | `characterId`, `requestId`, optional `revision` | Leader; expires storage and closes party chat |
+| `party_get_state` | `characterId` | Read-only unless the party was already expired |
+
+Successful mutating RPCs `matchSignal` the starter-zone match so the in-memory party cache refreshes from `revision` without a storage read every tick. Tests: `server/tests/party.test.ts`, `client/tests/app/party_service_test.gd`.
+
+### Cave RPCs
+
+Authenticated session RPCs. They validate selection and eligibility and allocate or look up an owned cave. They do **not** issue transfer tickets. Tickets are issued from the match loop after `CAVE_ENTER` / `CAVE_EXIT`.
+
+Shared errors: `unauthenticated`, `malformed_json`, `unknown_field`, `selection_required`, `character_missing`, `invalid_origin`, `already_transferring`, `player_dead`, `invalid_target`, `out_of_range`, `invalid_service`, `not_party_member`, `content_mismatch`, `instance_not_ready`.
+
+| RPC | Request keys | Authority |
+| --- | --- | --- |
+| `request_cave_entry` | optional `npcId` | Validates public-world entrance and returns `{ matchId, instanceId, zoneId, instanceType, protocolVersion, contentHash }` |
+| `find_or_create_owned_cave` | empty or `{ npcId? }` | First-write-wins owner index; same party members share `instanceId`/`matchId` |
+| `request_cave_exit` | optional `npcId` | Validates cave exit; returns the public-world locator payload |
+
+Tests: `server/tests/cave.test.ts`.
 
 ## Client → server match opcodes
 
-Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARGET 8; INTERACT/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/quest/VENDOR_BUY/VENDOR_SELL/INN_REST/CAVE_ENTER/ALLOCATE_ATTRIBUTES/ASSIGN_HOTBAR/UNLOCK_ABILITY 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
+Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARGET 8; INTERACT/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/quest/VENDOR_BUY/VENDOR_SELL/INN_REST/CAVE_ENTER/CAVE_EXIT/ALLOCATE_ATTRIBUTES/ASSIGN_HOTBAR/UNLOCK_ABILITY 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
 
 ### 1 `INPUT`
 
@@ -326,11 +360,22 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 | Field | Value |
 | --- | --- |
 | Body | `{ protocolVersion, npcId, requestId }` |
-| Authority | Always `cave_unavailable`; no match transfer |
-| Idempotency | Same `requestId` replays `cave_unavailable` |
-| Errors | `cave_unavailable`, `invalid_id`, `out_of_range`, `player_dead` |
+| Authority | Match loop validates entrance, allocates the owned cave, checkpoints origin pose, issues a one-time transfer ticket. Client never nominates `matchId`. |
+| Idempotency | Successful `requestId` does not issue a second ticket while transfer is `pending`/`issued` |
+| Errors | `invalid_target`, `out_of_range`, `player_dead`, `already_transferring`, `invalid_origin`, `invalid_service`, `not_party_member`, `content_mismatch`, `instance_not_ready` |
 | Rate limit | Shares quest window (8) |
-| Tests | `inn.test.ts`, `protocol.test.ts`, `vendor_inn_service_test.gd` |
+| Tests | `cave.test.ts`, `inn.test.ts`, `protocol.test.ts`, `cave_service_test.gd` |
+
+### 23 `CAVE_EXIT`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, npcId, requestId }` |
+| Authority | Match loop validates the cave-exit NPC and issues a ticket to the public world |
+| Idempotency | Same as `CAVE_ENTER` |
+| Errors | `invalid_origin`, `already_transferring`, `player_dead`, `invalid_target`, `out_of_range`, `invalid_service` |
+| Rate limit | Shares quest window (8) |
+| Tests | `cave.test.ts`, `protocol.test.ts`, `cave_service_test.gd` |
 
 No other client opcodes exist. Unknown opcode → `unknown_opcode`.
 
@@ -340,9 +385,9 @@ No client rate limit. Occupied matches send **102** every tick.
 
 | Opcode | Name | Body (summary) | Tests |
 | --- | --- | --- | --- |
-| 101 | `FULL_STATE` | tick, zone, self, players, npcs, enemies, loot, quests, inventory, equipment, derived, wallet, progression, abilities | `protocol.test.ts`, `zone_join_test.gd`, `progression.test.ts`, `ability.test.ts` |
+| 101 | `FULL_STATE` | tick, zone, self, players, npcs, enemies, loot, quests, inventory, equipment, derived, wallet, progression, abilities, optional party, optional instance | `protocol.test.ts`, `zone_join_test.gd`, `progression.test.ts`, `ability.test.ts`, `party_service_test.gd`, `cave.test.ts` |
 | 102 | `SNAPSHOT` | tick, players, enemies, loot | `movement.test.ts`, `entity_registry_test.gd` |
-| 103 | `ACTION_RESULT` | ok, code, requestId? | combat/inventory/quest tests |
+| 103 | `ACTION_RESULT` | ok, code, requestId?, ticket extras | combat/inventory/quest/cave tests |
 | 104 | `COMBAT_EVENT` | tick, events[] (`hit`, `heal`, `death`, `respawn`, `interrupt`, `effect_*`, `resource`, `threat`, `credit`, `message`) | `combat.test.ts`, `combat_pipeline.test.ts`, `boss.test.ts`, `combat_client_test.gd` |
 | 105 | `INVENTORY_STATE` | capacity, items | `inventory.test.ts` |
 | 106 | `QUEST_STATE` | quests | `quest.test.ts` |
@@ -352,8 +397,10 @@ No client rate limit. Occupied matches send **102** every tick.
 | 110 | `WALLET_STATE` | gold | `quest_reward.test.ts`, `wallet_service_test.gd` |
 | 111 | `PROGRESSION_STATE` | progression (class, level, XP, attributes, derived, unspent points) | `progression.test.ts`, `progression_service_test.gd` |
 | 112 | `ABILITY_STATE` | unlocked ids, hotbar, ranks, resources, cooldowns, active cast, effects | `ability.test.ts`, `ability_service_test.gd` |
+| 113 | `PARTY_STATE` | optional `party` view for the recipient (ids, leader, members, revision, connection state, pending invite) | `party.test.ts`, `party_service_test.gd` |
+| 114 | `PARTY_EVENT` | `partyId`, `eventType`, optional `systemMessage` / loot assignment | `party.test.ts`, `party_credit_loot.test.ts` |
 
-Join metadata: `{ protocolVersion, contentHash }` strings. Mismatch → join reject / fatal client error.
+`FULL_STATE` may include optional `party` for the recipient and optional `instance` (`type`, `instanceId`, `zoneTemplateId`, `completionState`, `bossAlive`, owners). Snapshots do not carry party membership. Join metadata: `{ protocolVersion, contentHash }` strings plus `selectionTicket` or `transferTicket`. Mismatch → join reject / fatal client error. Transfer join rejects `ticket_reused`, `ticket_expired`, `ticket_wrong_character`, `ticket_wrong_destination`, `still_in_origin`, `already_elsewhere`.
 
 ## Realtime hooks
 
@@ -362,22 +409,22 @@ Join metadata: `{ protocolVersion, contentHash }` strings. Mismatch → join rej
 | Field | Value |
 | --- | --- |
 | Direction | Client chat send → server |
-| Request | Nakama envelope; content JSON `{ message }` |
+| Request | Nakama envelope; content JSON `{ message, partyId? }` |
 | Response | Same envelope with trimmed message, or throw |
-| Auth | Session + channel membership |
-| Limits | 1–200 characters; no extra JSON keys |
-| Errors | `empty_message`, `message_too_long`, `malformed_json`, `invalid_payload` |
+| Auth | Session + channel membership. `partyId` requires current party membership. |
+| Limits | 1–200 characters; no extra JSON keys besides `partyId`. Party sends: 4 per 2 s (process-local). Zone chat stays stateless. |
+| Errors | `empty_message`, `message_too_long`, `malformed_json`, `invalid_payload`, `not_party_member`, `rate_limited` |
 | Tests | `chat.test.ts`, `chat_client_test.gd`, `security.test.ts` |
 
 ### `ChannelJoin` before
 
 | Field | Value |
 | --- | --- |
-| Request | Room type `1`, target `zone.starter` only |
+| Request | Room type `1`, target `zone.starter` or `party.<partyId>` for current members |
 | Errors | `invalid_channel` |
 | Tests | `chat.test.ts` |
 
-No `registerRtAfter`. No group/DM channels.
+No `registerRtAfter`. No group/DM channels. Party chat messages never drive gameplay state.
 
 ## Authentication and notifications
 

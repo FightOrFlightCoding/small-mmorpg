@@ -167,7 +167,7 @@ test("inn bind survives reconnect grace restore", () => {
   assert.equal(restored.bindY, inn.y);
 });
 
-test("cave entrance returns unavailable and does not transfer", () => {
+test("cave entrance queues a transfer intent without moving the player", () => {
   const cave = cavePos();
   const actor = playerAt(cave.x, cave.y, 0);
   actor.x = cave.x;
@@ -181,7 +181,8 @@ test("cave entrance returns unavailable and does not transfer", () => {
       userId: "user-alice",
     },
   ]);
-  assert.equal(actions(result)[0].ok, false);
-  assert.equal(actions(result)[0].code, "cave_unavailable");
+  assert.equal(result.transfers.length, 1);
+  assert.equal(result.transfers[0].direction, "enter");
   assert.equal(result.state.players["user-alice"].x, beforeX);
+  assert.equal(result.state.players["user-alice"].transferState, "pending");
 });

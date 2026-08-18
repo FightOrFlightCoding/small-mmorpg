@@ -74,6 +74,7 @@ export interface QuestObjectiveProgress {
   required: number;
   stageId?: string;
   stageIndex?: number;
+  partyCreditPolicy?: string;
 }
 
 export interface QuestProgress {
@@ -480,6 +481,9 @@ function createAcceptedProgress(definition: QuestDefinition): QuestProgress {
       if (objective.zoneId !== undefined) {
         progress.zoneId = objective.zoneId;
       }
+      if (objective.partyCreditPolicy !== undefined) {
+        progress.partyCreditPolicy = objective.partyCreditPolicy;
+      }
       objectives.push(progress);
     }
   }
@@ -514,6 +518,9 @@ function cloneQuestProgress(progress: QuestProgress): QuestProgress {
     }
     if (objective.zoneId !== undefined) {
       copied.zoneId = objective.zoneId;
+    }
+    if (objective.partyCreditPolicy !== undefined) {
+      copied.partyCreditPolicy = objective.partyCreditPolicy;
     }
     if (objective.stageId !== undefined) {
       copied.stageId = objective.stageId;

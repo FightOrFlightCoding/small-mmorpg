@@ -20,9 +20,9 @@ A later phase may implement a Required-for-Foundation-v1 row only when that phas
 
 | Feature | Class | Prompt 18 status |
 | --- | --- | --- |
-| One public village-and-fields world | Required for Foundation v1 | Existing prototype is the single `zone.starter` match. Must become the public-world template; no public-world sharding in v1. |
-| Party-owned cave instances | Required for Foundation v1 | Absent. Private matches, one player or one party, shared instance for members entering together. |
-| Maximum party size of five | Required for Foundation v1 | Absent. Current match cap is 8 unrelated players in one public match. |
+| One public village-and-fields world | Existing and accepted (Prompt 29) | One `public_world` match using template `zone.starter`. No public-world sharding in v1. |
+| Party-owned cave instances | Existing and accepted (Prompt 29) | Private `party_cave` matches (`zone.cave`). One solo character or one party. Shared instance for members entering together. |
+| Maximum party size of five | Existing and accepted (Prompt 28) | Temporary parties cap at 5. Public match cap remains 8 unrelated players. |
 | Data-defined character classes | Existing and accepted (Prompt 21) | Temporary test classes in content; selection is immutable. XP and attribute allocation are Prompt 22. Ability unlock remains later. |
 | Level and experience progression | Existing and accepted (Prompt 22) | Content level curves; server XP from trusted events; client never submits amounts. |
 | Optional attribute-point allocation | Existing and accepted (Prompt 22) | `ALLOCATE_ATTRIBUTES`; class `allowedAttributeIds`; recalculated derived stats. |
@@ -31,21 +31,21 @@ A later phase may implement a Required-for-Foundation-v1 row only when that phas
 | Server-authoritative target-based PvE combat | Existing and accepted | Slice combat: `ATTACK` with `targetId` + `requestId`; server damage, cooldown, death, respawn. Foundation v1 must keep server authority while generalizing beyond one slime. |
 | Casts, resources, and status effects | Required for Foundation v1 | Absent. Health exists; no mana/resource pool or status pipeline. |
 | NPC dialogue | Existing and accepted (Prompt 27) | Dialogue after server `INTERACTION_RESULT`. Conditions read server-approved quest/class/level state. Scripts do not mutate canonical state. |
-| NPC services (beyond dialogue) | Existing and accepted (Prompt 27) | Content services: dialogue, quest_offer, quest_turn_in, vendor, inn, healer, cave_entrance. One NPC type; no elder/merchant/innkeeper classes. |
+| NPC services (beyond dialogue) | Existing and accepted (Prompt 27, cave exit Prompt 29) | Content services: dialogue, quest_offer, quest_turn_in, vendor, inn, healer, cave_entrance, cave_exit. One NPC type; no elder/merchant/innkeeper classes. |
 | Quests | Existing and accepted (Prompt 27) | Generic engine: categories, stages, reusable objectives, prerequisites, non-repeatable unless test-configured. Prompt 18 slime quest is content on that engine. |
 | Merchants | Existing and accepted (Prompt 27) | Content vendors; server prices; buy/sell through the transaction service. Infinite static stock. |
-| Inn and respawn binding | Existing and accepted (Prompt 27) | Inn/healer services heal, restore class resources, optionally charge gold, and persist bind on the character record. Cave entry returns `cave_unavailable` until cave instances. |
+| Inn and respawn binding | Existing and accepted (Prompt 27, cave instances Prompt 29) | Inn/healer services heal, restore class resources, optionally charge gold, and persist bind on the character record. Cave entry uses transfer tickets into a private match. |
 | Inventory | Existing and accepted (Prompt 23) | Server-owned, content `inventoryCapacity`, stack merge/split/move, destroy, locks, `permissionWrite: 0`. |
 | Equipment | Existing and accepted (Prompt 23) | Content-defined slots (temporary six tags), server-enforced requirements, canonical stat recalc. |
 | Primary currency gold | Existing and accepted (Prompt 23) | Nakama wallet `gold`; every mutation goes through the currency/transaction service. |
-| Simple loot | Existing and accepted (Prompt 26) | Data-defined loot tables; transient ground loot; `requestId` pickup. Party loot later. |
+| Simple loot | Existing and accepted (Prompt 26, group policies Prompt 28) | Data-defined loot tables; slime remains `ground_free`. Party tables may use `personal` or `server_assigned`. Need/greed remains later. |
 | Zone chat | Existing and accepted | Room `zone.starter`, 200 characters, no BBCode. |
-| Party chat | Required for Foundation v1 | Absent. Direct-message and group joins are rejected. |
-| Temporary parties | Required for Foundation v1 | Absent. |
+| Party chat | Existing and accepted (Prompt 28) | Room `party.<partyId>` for members. Direct-message and group joins remain rejected. |
+| Temporary parties | Existing and accepted (Prompt 28) | Server-owned; survive 60 s disconnect grace; not permanently persistent. |
 | Secure direct player trading | Required for Foundation v1 | Absent. |
-| Transfer tickets between public world and caves | Required for Foundation v1 | Absent. Join is `find_or_create_starter_zone` only. |
-| Reconnect to the correct public world or cave | Required for Foundation v1 | Slice reconnects only to `zone.starter`. |
-| Empty cave grace shutdown | Required for Foundation v1 | Public match empty shutdown is 30s; caves do not exist. |
+| Transfer tickets between public world and caves | Existing and accepted (Prompt 29) | One-time server-issued tickets consumed on destination join. |
+| Reconnect to the correct public world or cave | Existing and accepted (Prompt 29) | Canonical location; cave rejoin during 60 s grace; public-world fallback if the cave is gone. |
+| Empty cave grace shutdown | Existing and accepted (Prompt 29) | Public match empty shutdown is 30 s; caves empty-timeout and terminate after 60 s. |
 | One character selected per account | Existing and accepted | Selection ticket; one active character in the match. Up to three live slots. |
 | Email-and-password authentication | Existing and accepted (Prompt 21) | Nakama email auth; session cache; no password storage. Password-recovery email is out of v1 (admin-assisted). |
 | Device authentication (development) | Existing and accepted | Debug builds only. Alice/Bob flags. Not production identity. |
@@ -91,9 +91,9 @@ A later phase may implement a Required-for-Foundation-v1 row only when that phas
 | New gameplay frameworks (QuestSystem, LimboAI, netfox, RPG database plugins) | Explicitly excluded |
 | Upgrading Godot, Nakama, GLoot, Dialogue Manager, or GdUnit4 without a pin-change phase | Explicitly excluded |
 
-## Authority (Foundation v1, not yet fully implemented)
+## Authority (Foundation v1)
 
-When a later phase adds a row from the locked list, the server is the only authority for: selected character, class, level, experience, attribute allocation, skill allocation, unlocked abilities, hotbar validity, position, collision, targeting, health and resources, casts, cooldowns, damage, healing, status effects, death and respawn, enemy AI, spawn state, loot, inventory, equipment, currency, merchant transactions, quest state, quest rewards, party membership, group credit, cave ownership, zone transfers, trade state, and trade completion.
+The server is the only authority for: selected character, class, level, experience, attribute allocation, skill allocation, unlocked abilities, hotbar validity, position, collision, targeting, health and resources, casts, cooldowns, damage, healing, status effects, death and respawn, enemy AI, spawn state, loot, inventory, equipment, currency, merchant transactions, quest state, quest rewards, party membership, group credit, cave ownership, zone transfers, and canonical location. Trade state remains later.
 
 The client sends intentions, never outcomes.
 

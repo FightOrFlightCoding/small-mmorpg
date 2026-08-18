@@ -6,7 +6,7 @@ Machine-readable twin: `tools/foundation-audit/expected.json` `storageRecords`. 
 
 **Defect rule:** `permissionWrite !== 0` on a canonical record is a security defect.
 
-**Schema version:** Player records store gameplay `schemaVersion` **1** plus `createdAt` and `updatedAt` (Unix ms, camelCase). Prompt 18 blobs with no `schemaVersion` are v0 and migrate on load. OCC still uses Nakama’s object `version`. The match locator is not a player save and has no gameplay schema version.
+**Schema version:** Player records store gameplay `schemaVersion` **1** plus `createdAt` and `updatedAt` (Unix ms, camelCase). Prompt 18 blobs with no `schemaVersion` are v0 and migrate on load. OCC still uses Nakama’s object `version`. The match locator is not a player save and has no gameplay schema version. Cave, location, and transfer records also are not player-save kinds.
 
 ## `player` / `character`
 
@@ -210,6 +210,147 @@ Value: `{ schemaVersion, createdAt, updatedAt, level, currentXp, lifetimeXp, all
 
 Value: `{ matchId }`.
 
+## `party` / `p`
+
+
+| Field             | Value                                                                                          |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| Purpose           | Canonical temporary party record (`p_<partyId>`). Not a player-save kind.                      |
+| Owner             | Server `PartyService` RPCs                                                                     |
+| Scope             | System user `00000000-0000-0000-0000-000000000000`                                             |
+| `permissionRead`  | 1                                                                                              |
+| `permissionWrite` | 0                                                                                              |
+| Schema version    | 1 (party schema, not `SAVE_SCHEMA_VERSION`)                                                    |
+| Creation          | `party_create`                                                                                 |
+| Read              | Party RPCs; match join/resume and reward/cave revalidation by revision                         |
+| Update            | Invite/accept/leave/kick/promote/disband; connection grace; OCC `revision`                     |
+| Concurrency       | Storage version plus party `revision`                                                          |
+| Migration         | None. Parties are not permanently persistent.                                                  |
+| Deletion          | Expire marker written on disband or all-absent grace; indexes cleared. No `storageDelete`.     |
+| Client access     | No. Clients receive `FULL_STATE.party` / `PARTY_STATE` only.                                   |
+
+
+Value: `{ partyId, leaderCharacterId, members, invites, revision, createdAt, lastActiveAt, expiresAt, schemaVersion, lootPolicy, byRequestId, allAbsentSince? }`. Members: `{ accountUserId, characterId, displayName, joinedAt, connectionState, lastSeenAt }`. Idle TTL 4 h, refreshed on activity.
+
+## `player` / `party`
+
+
+| Field             | Value                                                          |
+| ----------------- | -------------------------------------------------------------- |
+| Purpose           | Per-character party index (`party_<compactCharacterId>`)       |
+| Owner             | Server party RPCs                                              |
+| Scope             | Account-scoped                                                 |
+| `permissionRead`  | 1                                                              |
+| `permissionWrite` | 0                                                              |
+| Schema version    | 1                                                              |
+| Creation          | Create/accept                                                  |
+| Read              | Party RPCs, chat membership, match cache refresh               |
+| Update            | Join, leave, disband, pending invite                           |
+| Deletion          | Empty index on leave/disband                                   |
+| Client access     | No                                                             |
+
+
+Value: `{ schemaVersion, characterId, partyId, pendingPartyId }`.
+
+## `cave` / `c`
+
+
+| Field             | Value                                                                                          |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| Purpose           | Canonical cave-instance record (`c_<instanceId>`). Not a player-save kind.                     |
+| Owner             | Server cave allocation / match terminate                                                       |
+| Scope             | System user `00000000-0000-0000-0000-000000000000`                                             |
+| `permissionRead`  | 0                                                                                              |
+| `permissionWrite` | 0                                                                                              |
+| Schema version    | 1 (cave schema, not `SAVE_SCHEMA_VERSION`)                                                     |
+| Creation          | `find_or_create_owned_cave` / match-loop enter                                                 |
+| Read              | Cave RPCs, match join, `find_or_create_starter_zone` reconnect                                 |
+| Update            | Occupancy touch, completion, empty grace, expire, terminate                                    |
+| Concurrency       | Owner index first-write-wins; lost create race is `instance_not_ready`                         |
+| Migration         | None                                                                                           |
+| Deletion          | Lifecycle `terminated` / `expired`; records are not reused                                     |
+| Client access     | No. Clients receive `FULL_STATE.instance` and transfer extras only.                            |
+
+
+Value: `{ instanceId, zoneTemplateId, matchId, ownerPartyId?, ownerCharacterId?, createdAt, lastActiveAt, expiresAt, lifecycleState, contentVersion, completionState, schemaVersion }`.
+
+## `cave_index` / `owner`
+
+
+| Field             | Value                                                                 |
+| ----------------- | --------------------------------------------------------------------- |
+| Purpose           | Owner → instance index (`owner_party_<id>` or `owner_character_<id>`) |
+| Owner             | Server cave allocation                                                |
+| Scope             | System user                                                           |
+| `permissionRead`  | 0                                                                     |
+| `permissionWrite` | 0                                                                     |
+| Schema version    | 1                                                                     |
+| Creation          | First successful allocation for that owner                            |
+| Read              | `findOrCreateOwnedCave`                                               |
+| Update            | Cleared when the cave expires or terminates                           |
+| Client access     | No                                                                    |
+
+
+Value: `{ schemaVersion, ownerKind, ownerId, instanceId }`.
+
+## `player` / `cave`
+
+
+| Field             | Value                                                    |
+| ----------------- | -------------------------------------------------------- |
+| Purpose           | Per-character active cave association (`cave_<compactId>`)|
+| Owner             | Server cave allocation / exit / terminate                |
+| Scope             | Account-scoped                                           |
+| `permissionRead`  | 1                                                        |
+| `permissionWrite` | 0                                                        |
+| Schema version    | 1                                                        |
+| Creation          | Enter / associate                                        |
+| Read              | Join eligibility                                         |
+| Update            | Cleared on exit or cave destroy                          |
+| Client access     | No                                                       |
+
+
+Value: `{ schemaVersion, characterId, instanceId }`.
+
+## `player` / `location`
+
+
+| Field             | Value                                                                 |
+| ----------------- | --------------------------------------------------------------------- |
+| Purpose           | Canonical active location (`location_<compactCharacterId>`)           |
+| Owner             | Server match join/leave/transfer                                      |
+| Scope             | Account-scoped                                                        |
+| `permissionRead`  | 1                                                                     |
+| `permissionWrite` | 0                                                                     |
+| Schema version    | 1 (location schema, not `SAVE_SCHEMA_VERSION`)                        |
+| Creation          | First successful match join                                           |
+| Read              | Join presence gate, cave RPCs, `find_or_create_starter_zone`          |
+| Update            | Checkpoint, transfer `issued`/`in_flight`/`idle`, destination commit  |
+| Client access     | No                                                                    |
+
+
+Value: `{ instanceType, zoneTemplateId, instanceId, matchId, position, characterId, accountUserId, selectionTicketId?, lastCheckpointAt, transferState, schemaVersion }`. `transferState` is `idle` / `issued` / `in_flight`.
+
+## `transfer` / `t`
+
+
+| Field             | Value                                                |
+| ----------------- | ---------------------------------------------------- |
+| Purpose           | One-time transfer ticket (`t_<ticketId>`)            |
+| Owner             | Origin match loop issues; destination join consumes  |
+| Scope             | System user                                          |
+| `permissionRead`  | 0                                                    |
+| `permissionWrite` | 0                                                    |
+| Schema version    | 1                                                    |
+| Creation          | After eligible `CAVE_ENTER` / `CAVE_EXIT`            |
+| Read              | Destination `matchJoinAttempt` / `matchJoin`         |
+| Update            | `consumedAt` set once                                |
+| Deletion          | Not deleted; reuse is `ticket_reused`                |
+| Client access     | Ticket id only, via `ACTION_RESULT` extras           |
+
+
+Value: `{ ticketId, characterId, accountUserId, originMatchId, destinationMatchId, destinationInstanceId, issuedAt, expiresAt, consumedAt, schemaVersion }`. TTL 25 s.
+
 ## Nakama wallet `gold`
 
 
@@ -233,6 +374,6 @@ Value: `{ matchId }`.
 
 ## Not stored
 
-Match-only: live pose interpolation, health, slime AI, ground loot, cooldowns, `actionRates`, disconnected grace records. Health is still not a canonical field; if a v0 blob had a `health` extra, migration preserves it and join still uses full `player.base.maxHealth`.
+Match-only: live pose interpolation, health, slime AI, ground loot, cooldowns, `actionRates`, disconnected grace records, and the in-match party cache (invalidated on `revision`). Health is still not a canonical field; if a v0 blob had a `health` extra, migration preserves it and join still uses full `player.base.maxHealth`. Temporary party records live in storage until grace/idle expiry; they are not a player-save kind. Cave completion and ownership persist; transient cave enemies and combat effects do not.
 
 No custom SQL tables.

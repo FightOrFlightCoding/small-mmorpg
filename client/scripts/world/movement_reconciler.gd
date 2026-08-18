@@ -15,6 +15,7 @@ var last_error: float = 0.0
 var last_correction: String = "none"
 
 var _pending: Array[Dictionary] = []
+var _last_axis: Vector2 = Vector2.ZERO
 
 
 func _init(p_sim: MovementSim = null) -> void:
@@ -28,6 +29,7 @@ func reset(origin: Vector2) -> void:
 	last_error = 0.0
 	last_correction = "none"
 	_pending.clear()
+	_last_axis = Vector2.ZERO
 
 
 func pending_count() -> int:
@@ -52,7 +54,14 @@ func advance(delta: float, axis: Vector2) -> Vector2:
 	var dt := clampf(delta, 0.0, MovementSim.TICK_DT)
 	if dt <= 0.0:
 		return display
-	display = sim.step(display, axis, dt)
+	var clean := MovementSim.sanitize_axes(axis)
+	_last_axis = clean
+	if clean.is_zero_approx():
+		display = display.move_toward(predicted, sim.move_speed * dt)
+		if sim.blocked_at(display) and not sim.blocked_at(predicted):
+			display = predicted
+		return display
+	display = sim.step(display, clean, dt)
 	return display
 
 
@@ -68,19 +77,25 @@ func reconcile(server_pos: Vector2, ack_seq: int) -> Dictionary:
 	for cmd in _pending:
 		replayed = sim.step(replayed, cmd["axis"])
 
-	var visual_error := display.distance_to(replayed)
-	last_error = visual_error
+	var old_predicted := predicted
 	predicted = replayed
+	var sim_error := old_predicted.distance_to(replayed)
+	last_error = sim_error
+	var holding := not _last_axis.is_zero_approx()
 
-	if visual_error <= AGREE_EPSILON:
+	if sim_error <= AGREE_EPSILON:
 		last_correction = "none"
-		display = replayed
-	elif visual_error <= SNAP_THRESHOLD:
+	elif sim_error <= SNAP_THRESHOLD:
 		last_correction = "smooth"
-		display = display.lerp(replayed, SMOOTH_BLEND)
+		if not holding:
+			var blended: Vector2 = display.lerp(predicted, SMOOTH_BLEND)
+			if sim.blocked_at(blended) and not sim.blocked_at(predicted):
+				display = predicted
+			else:
+				display = blended
 	else:
 		last_correction = "snap"
-		display = replayed
+		display = predicted
 
 	return {
 		"display": display,

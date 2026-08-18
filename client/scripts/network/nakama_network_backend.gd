@@ -385,11 +385,12 @@ func _from_exception(exception: NakamaException, fallback_code: String, fallback
 	var code := fallback_code
 	var lowered := exception.message.to_lower()
 	if exception.grpc_status_code == 16 or exception.status_code == 401:
-		if fallback_code == "invalid_credentials" or lowered.contains("invalid"):
+		if fallback_code == "invalid_credentials":
 			code = "invalid_credentials"
 			message = "Email or password is incorrect."
 		else:
 			code = "session_expired"
+			message = "The session expired. Sign in again."
 	elif fallback_code == "invalid_credentials" and (lowered.contains("invalid") or lowered.contains("already in use") or lowered.contains("exists")):
 		if lowered.contains("exists") or lowered.contains("already"):
 			code = "email_taken"

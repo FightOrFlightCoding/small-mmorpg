@@ -22,6 +22,9 @@ test("health response has the required shape", () => {
   assert.deepEqual(body.rpcs, REGISTERED_RPC_IDS);
   assert.ok(body.rpcs.includes("character_bootstrap"));
   assert.ok(body.rpcs.includes("find_or_create_starter_zone"));
+  assert.ok(body.rpcs.includes("request_cave_entry"));
+  assert.ok(body.rpcs.includes("find_or_create_owned_cave"));
+  assert.ok(body.rpcs.includes("request_cave_exit"));
   assert.match(body.content_version, /^[a-f0-9]{64}$/);
 });
 

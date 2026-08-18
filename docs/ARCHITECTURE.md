@@ -10,39 +10,41 @@ The Godot 4.7.1 client (`client/`) is a presentation and input device. Its main 
 
 It may:
 
-- Render the starter-zone floor, bounds, collision AABBs, spawn marker, and entities from server snapshots plus content IDs.
+- Render the current zone floor, bounds, collision AABBs, spawn marker, and entities from server snapshots plus content IDs (`zone.starter` public world or `zone.cave` party cave).
 - Capture local input and send **intentions** (move, attack, interact, loot, equip, destroy, split, move item, dialogue choice).
 - Predict local movement presentation using the same speed, dt, and collision rules as the server, then reconcile to `lastProcessedSeq`. After `FULL_STATE` or `SNAPSHOT`, the client adopts `lastProcessedSeq` when the server is ahead so a new world scene does not send stale `INPUT`. Prediction never grants rewards or changes canonical stats.
 - Display inventory, equipment, dialogue, quest, and currency **views** from server-owned state.
 - Join the starter-zone Nakama room channel after entering `zone.starter`, send chat text, and render received messages as plain text.
+- Join `party.<partyId>` when the server reports party membership, send party chat, and render it as a `Label`.
 - Map stable content IDs to scenes, sprites, and Dialogue Manager resources through a project-owned catalog.
-- Show visible connection, validation, reconnecting, and rejection errors. It must not spin on an indefinite loading state.
+- Show visible connection, validation, reconnecting, transfer, and rejection errors. It must not spin on an indefinite loading state.
 - In **debug** builds only, a headless `--e2e-slice` driver may open two Nakama sessions and send the same intentions as a player. Release builds refuse that hook.
 
 It must not:
 
 - Decide hits, damage, deaths, loot tables, quest completion, or currency changes.
-- Send authoritative position, speed, health, damage, item grants, quest flags, or wallet deltas.
+- Send authoritative position, speed, health, damage, item grants, quest flags, wallet deltas, party member lists, credit/loot recipients, destination match ids, or fabricated transfer tickets.
 - Write Nakama storage records for inventory, equipment, quests, or currency.
 - Persist canonical inventory, equipment, quest, currency, health, or position records under `user://`.
 - Reference content by filesystem paths in network messages or persistent records.
 
 ## Nakama server responsibilities
 
-The Nakama 3.40.0 TypeScript runtime (`server/`) is the authority for the slice.
+The Nakama 3.40.0 TypeScript runtime (`server/`) is the authority for the slice and Foundation world lifecycle.
 
 It must:
 
 - Load persistent player state when the player joins, migrate older save versions server-side, persist the migrated result once, and reject unsupported future or corrupted required fields without resetting them.
-- Host **one** authoritative match for the starter zone.
-- Simulate movement collision, combat, cooldowns, enemy behavior, loot, inventory, equipment, quests, and currency.
+- Host **one** authoritative public-world match (`public_world`, template `zone.starter`) and private `party_cave` matches (`zone.cave`) on the same `starter_zone` module. No public-world sharding.
+- Simulate movement collision, combat, cooldowns, enemy behavior, loot, inventory, equipment, quests, currency, temporary parties, group credit, group loot, cave lifecycle, and transfer tickets.
+- Maintain canonical character location and consume one-time transfer tickets on destination join.
 - Validate every external payload. Reject unknown opcodes, strict unknown fields, malformed JSON, invalid IDs, oversized messages, protocol-version mismatch, and rate-limited floods.
-- Reject empty, oversized, and malformed zone-chat payloads in a realtime before hook.
+- Reject empty, oversized, and malformed zone-chat and party-chat payloads in a realtime before hook.
 - Apply rewarded actions idempotently using a unique client `requestId`.
 - Broadcast snapshots and support full-state resynchronization.
 - Persist transactions immediately and position checkpoints periodically.
 - Persist position on graceful match leave and match terminate.
-- Keep a 5-second reconnect grace in match memory so a returning presence can restore live pose and health without appearing as a ghost.
+- Keep a 5-second public-world reconnect grace in match memory so a returning presence can restore live pose and health without appearing as a ghost. Cave empty timeout and reconnect grace are 60 seconds.
 - Keep pure domain logic in modules that do not import Nakama APIs, with Nakama adapters in a separate layer.
 
 It must not:
@@ -60,6 +62,7 @@ It stores:
 
 - Account and session material owned by Nakama.
 - Canonical player records (inventory, equipment, quest progress, and related metadata) with `permissionWrite: 0`.
+- Temporary party records and per-character party indexes (`permissionWrite: 0`). Not a player-save kind.
 - Wallet/currency balances via Nakama wallet APIs.
 - Versioned storage objects so concurrent updates can retry safely.
 
@@ -70,15 +73,16 @@ It does not store:
 
 No project-defined SQL schema is allowed.
 
-## The authoritative starter-zone match
+## The authoritative public world and party caves
 
-There is exactly one gameplay match module for this slice: the starter zone.
+There is exactly one gameplay match **module**: `starter_zone`. Foundation v1 uses two instance types on that module.
 
-- Module name `starter_zone`, label `zone.starter`, 10 Hz, maximum 8 players.
-- Players join that match after authentication and character bootstrap (single character, no slots) via `find_or_create_starter_zone`.
-- The match owns live positions, collision, combatants, ground loot, in-memory cooldowns, live quest logs, live inventories, live equipment, and live wallet gold loaded from storage. This phase also checkpoints position, removes disconnected ghosts, restores persistent character state after rejoin or match restart, and reconnects the client with session refresh.
+- Public world: label `zone.starter`, type `public_world`, template `zone.starter`, 10 Hz, maximum 8 players. Empty shutdown **30 s**. Pose reconnect grace **5 s**.
+- Party cave: label `party.cave`, type `party_cave`, template `zone.cave`, 10 Hz, maximum 5 players. Empty timeout and reconnect grace **60 s**.
+- Players discover the public world (or a still-running owned cave) after authentication and character select via `find_or_create_starter_zone`. Transfers use a server-issued one-time ticket in join metadata.
+- Each match owns live positions, collision, combatants, ground loot, in-memory cooldowns, live quest logs, live inventories, live equipment, and live wallet gold loaded from storage. Position checkpoints, disconnected-ghost removal, persistent restore, and session refresh still apply. Cave matches skip periodic character-position checkpoints so exit returns to the public-world portal pose.
 - The client never hosts a second simulation of those values.
-- An empty match shuts down after 30 seconds. Reconnect re-enters the shared starter-zone match with loaded persistent state plus last checkpointed position. Health is not persisted: after grace expiry or a new match, the player joins at full `player.base.maxHealth`. Ground loot, slime AI, and cooldowns reset with the match.
+- An empty public-world match shuts down after 30 seconds. An empty cave persists ownership/completion for 60 seconds, then terminates. Reconnect during cave grace re-enters that cave; after expiration the locator returns the public world. Health is not persisted: after public-world grace expiry or a new public match, the player joins at full `player.base.maxHealth`. Ground loot, AI, and cooldowns reset with the match and are not persisted across cave destruction.
 
 ## Client/server trust boundaries
 
@@ -91,6 +95,7 @@ There is exactly one gameplay match module for this slice: the starter zone.
 | Inventory, equipment, loot grants | Server + persistent storage |
 | Quest stage and completion | Server + persistent storage |
 | Currency | Nakama wallet via server |
+| Canonical location, cave ownership, transfer tickets | Server storage + match |
 | Content definitions | Server-loaded generated content, IDs only |
 
 The client is untrusted. A well-formed intention can still be rejected (invalid target, on cooldown, out of range, unknown ID, duplicate `requestId`).
@@ -103,11 +108,11 @@ Third-party libraries are implementation details. Game code talks to project-own
 | --- | --- | --- |
 | `AppState` | none | Non-authoritative client/session flags and shell signals. Never canonical game data. |
 | `ContentRegistry` | generated `client/content/bundle.json` plus `client/content/visual_map.json` | Schema version check, content hash, lookup by stable ID, visual ID → local texture/fallback |
-| `NetworkService` | Nakama Godot SDK 3.4.0 | Email/password and debug device auth, `user://` session token cache, refresh, reauth (device only), realtime socket, bounded reconnect backoff, logout/cancel, character list/create/select/delete/restore, `character_bootstrap` wrapper, `find_or_create_starter_zone`, match join with `selectionTicket`, leave/rejoin, match opcodes, starter-zone room chat. Socket match/chat/closed signals are connected once. |
+| `NetworkService` | Nakama Godot SDK 3.4.0 | Email/password and debug device auth, `user://` session token cache, refresh, reauth (device only), realtime socket, bounded reconnect backoff, logout/cancel, character list/create/select/delete/restore, `character_bootstrap` wrapper, `find_or_create_starter_zone`, match join with `selectionTicket` or `transferTicket`, leave/rejoin, match opcodes, party RPCs, starter-zone and party room chat, transfer overlay. Socket match/chat/closed signals are connected once. |
 | `GameService` | the autoloads above | Boot, email register/login, debug device login, character lifecycle, starter-zone join. Not a gameplay authority. |
 | `SceneRouter` | Godot scene tree | Transitions among boot, login, character, and world |
-| `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE`/`SNAPSHOT`. Local movement is predicted and reconciled; all remote entities interpolate from one snapshot buffer keyed `kind:id`. The HUD journal mirrors `QuestService`. The HUD inventory list mirrors `InventoryService`. The HUD equipment slots and attack label mirror `EquipmentService`. The HUD gold label mirrors `WalletService`. The HUD progression panel mirrors `ProgressionService`. The HUD hotbar, cast bar, resource hint, and status icons mirror `AbilityService`. Target frame, combat-state label, health, death overlay, and respawn copy server vitals. Not a gameplay authority. |
-| `ChatPanel` / `ZoneChat` | none | Presentation of the starter-zone room channel. History is a `Label` (no BBCode). Not a gameplay authority. |
+| `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE`/`SNAPSHOT`. Local movement is predicted and reconciled; all remote entities interpolate from one snapshot buffer keyed `kind:id`. The HUD journal mirrors `QuestService`. The HUD inventory list mirrors `InventoryService`. The HUD equipment slots and attack label mirror `EquipmentService`. The HUD gold label mirrors `WalletService`. The HUD progression panel mirrors `ProgressionService`. The HUD hotbar, cast bar, resource hint, and status icons mirror `AbilityService`. The HUD party panel mirrors `PartyService` (members, leader, connection state, vitals, invite/leave/kick/promote, party chat Label). Cave objective/boss copy mirrors `FULL_STATE.instance`. Target frame, combat-state label, health, death overlay, and respawn copy server vitals. Not a gameplay authority. |
+| `ChatPanel` / `ZoneChat` | none | Presentation of the starter-zone room channel and helpers for party chat payloads. History is a `Label` (no BBCode). Not a gameplay authority. |
 | `QuestService` | none | In-memory mirror of server quest records from `FULL_STATE` / `QUEST_STATE`. Accept sends `QUEST_ACCEPT` only. Turn-in sends `QUEST_TURN_IN` with `questId`, `npcId`, and `requestId`. Not a gameplay authority. Do not use QuestSystem. |
 | `AttackIntent` / `CombatFeedback` | none | Nearby enemy pick and floating damage numbers. Attack sends `targetId` + `requestId` only. Not a gameplay authority. |
 | `InventoryService` | GLoot 3.0.2 | Client-side mirror of canonical server inventory. Rebuilds from `FULL_STATE` / `INVENTORY_STATE`. UI mutations are disabled or reverted. Pickup, destroy, split, and move send intentions only. Not a gameplay authority. |
@@ -117,7 +122,8 @@ Third-party libraries are implementation details. Game code talks to project-own
 | `AbilityService` | none | Client-side mirror of server abilities from `FULL_STATE` / `ABILITY_STATE` / snapshots. Use sends `abilityId` + target + `requestId` only. Never sends damage, healing, range, cooldown, cast time, cost, or duration. Not a gameplay authority. |
 | `PickupIntent` | none | Nearby loot pick for usability. Server range, capacity, and grants are authoritative. |
 | `DialoguePresenter` / `DialogueCatalog` | Dialogue Manager 3.10.5 | Opens dialogue only after a matching `INTERACTION_RESULT`. Prefers server `dialogueId`. Local `.dialogue` text; quest/vendor/inn/cave mutations go through project services. |
-| `VendorService` / `InnService` / `CaveService` | none | Buy/sell/rest/cave-enter intentions after server-approved services. Never send prices, gold, health, or bind. |
+| `VendorService` / `InnService` / `CaveService` | none | Buy/sell/rest/cave-enter/cave-exit intentions after server-approved services. Never send prices, gold, health, bind, destination match ids, or tickets. |
+| `PartyService` | none | Client-side mirror of server party state from `FULL_STATE` / `PARTY_STATE` / `PARTY_EVENT`. RPCs send owned `characterId` and `requestId` only. Never sends member lists or credit/loot recipients. Not a gameplay authority. |
 | `Test runner scripts` | GdUnit4 6.2.0 | Client unit/scene tests |
 | `SliceJourney` / `SliceSession` | Nakama Godot SDK via `NakamaNetworkBackend` | Debug-only headless two-identity journey (`--e2e-slice`). Sends the same intentions as the graphical client. Unavailable in release builds. Not a gameplay authority. |
 

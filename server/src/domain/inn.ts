@@ -121,9 +121,9 @@ export function applyCaveEnter(input: {
     return { ok: false, code: "invalid_service", message: "This NPC does not offer cave entry." };
   }
   return {
-    ok: false,
-    code: "cave_unavailable",
-    message: "Cave system unavailable.",
+    ok: true,
+    code: "ok",
+    message: "",
   };
 }
 

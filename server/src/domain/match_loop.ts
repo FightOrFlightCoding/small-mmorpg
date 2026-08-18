@@ -9,6 +9,7 @@ import {
   inventoryState,
   isProtocolError,
   parseClientMessage,
+  partyEventMessage,
   progressionState,
   questState,
   systemMessage,
@@ -27,12 +28,14 @@ import {
   fullStateOpcode,
   snapshotOpcode,
 } from "./match_state";
-import { intendedDelta, resolveMove } from "./movement";
+import { collisionsWithPlayers, intendedDelta, resolveMove } from "./movement";
 import { findNpc, resolveInteraction } from "./interaction";
 import { applyQuestAccept, cloneQuestLog, publicQuestPayloads, syncAcquireObjectives, type QuestLog } from "./quest";
 import { applyTalkObjectives, applyKillObjectives, applyEnterLocation, enterLocationsFromQuests } from "./quest_objectives";
 import { applyVendorBuy, applyVendorSell, type VendorTradeOutcome } from "./vendor";
 import { applyCaveEnter, applyInnRest } from "./inn";
+import { applyCaveWipeIfNeeded, markCaveBossDefeated, evaluateCaveExit, type CaveTransferIntent } from "./cave";
+import { TRANSFER_TICKET_TTL_MS } from "./instance";
 import { TX_REASON_INN, TX_REASON_VENDOR, type TransactionCommitter } from "./transaction";
 import {
   applyQuestTurnIn,
@@ -59,8 +62,23 @@ import {
   type InventoryOwner,
   type PlayerEquipment,
 } from "./equipment";
-import { applyPickup, expireLoot } from "./loot";
-import { applyEnemyDeathSideEffects } from "./loot_table";
+import { applyPickup, expireLoot, lootExpireTicks, spawnRolledLoot } from "./loot";
+import {
+  collectNewEnemyDeaths,
+  hashSeed,
+  lcgRng,
+  normalizedLootPolicy,
+  rollLootTable,
+} from "./loot_table";
+import {
+  eligibleGroupCreditMembers,
+  killXpEventId,
+  splitKillXp,
+  type CreditParticipant,
+} from "./party_credit";
+import { assignPartyLoot } from "./party_loot";
+import { defaultGroupCreditRules } from "./party";
+import { dict } from "./maps";
 import {
   allocateAttributes,
   applyQuestRewardProgression,
@@ -137,6 +155,8 @@ export interface MatchLoopResult {
   persistRewards: RewardPersist[];
   persistCheckpoints: PositionCheckpoint[];
   rejections: RejectedAction[];
+  transfers: CaveTransferIntent[];
+  caveCompletionChanged: boolean;
 }
 
 export interface IncomingMatchData {
@@ -167,6 +187,8 @@ export function applyMatchLoop(
   const skipStorageUsers: { [userId: string]: boolean } = {};
   const extraCheckpoints: PositionCheckpoint[] = [];
   const combatEvents: CombatEvent[] = [];
+  const transfers: CaveTransferIntent[] = [];
+  expireStaleTransfers(next, tick);
   const makeId = newId !== undefined ? newId : sequentialIdFactory(tick);
   reconcileAllEquipment(next, persistEquipmentByUser);
 
@@ -205,6 +227,7 @@ export function applyMatchLoop(
       skipStorageUsers,
       extraCheckpoints,
       combatEvents,
+      transfers,
       makeId,
       commitReward,
       commitTxn,
@@ -220,10 +243,19 @@ export function applyMatchLoop(
   tickCombatFlags(next, tick);
   interruptDamagedCasters(next, combatEvents, tick);
   tickEffects(next, tick, combatEvents);
-  grantKillXpFromEvents(next, combatEvents, tick, persistProgressionByUser, outbound);
-  applyKillQuestProgress(next, combatEvents, persistByUser, outbound);
   refreshAllDerived(next);
-  spawnLootFromDeaths(next, tick, combatEvents, makeId);
+  processEnemyDeathRewards(
+    next,
+    tick,
+    combatEvents,
+    makeId,
+    persistInventoryByUser,
+    persistProgressionByUser,
+    persistByUser,
+    outbound,
+  );
+  const caveCompletionChanged = maybeCompleteCaveBoss(next, combatEvents);
+  applyCaveWipeIfNeeded(next, tick, MATCH_TICK_RATE);
   next.loot = expireLoot(next.loot, tick);
   applyEnterQuestProgress(next, persistByUser, outbound);
   pushCombatEvents(outbound, tick, combatEvents);
@@ -302,9 +334,13 @@ export function applyMatchLoop(
     persistRewards.push({ userId: userId, request: persistRewardByUser[userId] });
   }
 
+  const timeout =
+    typeof next.emptyTimeoutTicks === "number" && next.emptyTimeoutTicks > 0
+      ? next.emptyTimeoutTicks
+      : EMPTY_MATCH_TIMEOUT_TICKS;
   return {
     state: next,
-    terminate: playerCount(next) === 0 && next.emptyTicks >= EMPTY_MATCH_TIMEOUT_TICKS,
+    terminate: playerCount(next) === 0 && next.emptyTicks >= timeout,
     outbound: outbound,
     persistQuests: persistQuests,
     persistInventories: persistInventories,
@@ -313,6 +349,8 @@ export function applyMatchLoop(
     persistRewards: persistRewards,
     persistCheckpoints: persistCheckpoints,
     rejections: rejections,
+    transfers: transfers,
+    caveCompletionChanged: caveCompletionChanged,
   };
 }
 
@@ -381,6 +419,7 @@ function handleValidated(
   skipStorageUsers: { [userId: string]: boolean },
   extraCheckpoints: PositionCheckpoint[],
   combatEvents: CombatEvent[],
+  transfers: CaveTransferIntent[],
   makeId: () => string,
   commitReward?: RewardCommitter,
   commitTxn?: TransactionCommitter,
@@ -509,7 +548,11 @@ function handleValidated(
     return;
   }
   if (parsed.opcode === ClientOpcode.CAVE_ENTER) {
-    handleCaveEnter(parsed, userId, state, outbound);
+    handleCaveEnter(parsed, userId, state, tick, outbound, transfers);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.CAVE_EXIT) {
+    handleCaveExit(parsed, userId, state, tick, outbound, transfers);
     return;
   }
   const result = actionResult("not_implemented", false, parsed.requestId);
@@ -543,6 +586,7 @@ function handleInteract(
     classId: player.classId,
     questLog: player.questLog,
     npcById: npcCatalog(state),
+    inParty: playerInCachedParty(state, player),
   });
   const extra = interactionExtras(state, player, npc !== null ? npc.npcId : targetId);
   const result = interactionResult(decision.code, decision.ok, parsed.requestId, targetId, extra);
@@ -586,6 +630,7 @@ function handleQuestAccept(
     playerLevel: playerLevelOf(player),
     classId: player.classId,
     npcById: npcCatalog(state),
+    inParty: playerInCachedParty(state, player),
   });
   player.questLog = outcome.log;
   const synced = syncAcquireObjectives(player.questLog, player.inventory);
@@ -920,7 +965,9 @@ function handleCaveEnter(
   parsed: ParsedClientMessage,
   userId: string,
   state: StarterZoneState,
+  tick: number,
   outbound: MatchOutbound[],
+  transfers: CaveTransferIntent[],
 ): void {
   const player = state.players[userId];
   if (player === undefined) {
@@ -928,17 +975,169 @@ function handleCaveEnter(
     outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
     return;
   }
+  const requestId = parsed.requestId as string;
+  const npcId = parsed.fields.npcId !== undefined ? parsed.fields.npcId : "";
+  const prior = dict(player.caveEnterByRequestId)[requestId];
+  if (prior !== undefined) {
+    if (prior === "ok") {
+      queueCaveTransfer(player, transfers, userId, requestId, "enter", npcId, tick);
+      return;
+    }
+    const replayed = actionResult(prior, false, requestId);
+    outbound.push({ opcode: replayed.opcode, body: replayed.body, toUserId: userId });
+    return;
+  }
+  if (player.transferState === "issued" || player.transferState === "pending") {
+    const busy = actionResult("already_transferring", false, requestId);
+    outbound.push({ opcode: busy.opcode, body: busy.body, toUserId: userId });
+    return;
+  }
   const outcome = applyCaveEnter({
     playerHealth: player.health,
     playerX: player.x,
     playerY: player.y,
-    npcId: parsed.fields.npcId,
+    npcId: npcId,
     npcs: state.npcs,
     interactionRange: state.interactionRange,
     npcById: npcCatalog(state),
   });
-  const result = actionResult(outcome.code, false, parsed.requestId);
-  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  if (!outcome.ok) {
+    rememberCaveRequest(player, requestId, outcome.code);
+    const result = actionResult(outcome.code, false, requestId);
+    outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+    return;
+  }
+  if (state.instanceType === "party_cave") {
+    rememberCaveRequest(player, requestId, "invalid_origin");
+    const result = actionResult("invalid_origin", false, requestId);
+    outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+    return;
+  }
+  rememberCaveRequest(player, requestId, "ok");
+  queueCaveTransfer(player, transfers, userId, requestId, "enter", npcId, tick);
+}
+
+function handleCaveExit(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  tick: number,
+  outbound: MatchOutbound[],
+  transfers: CaveTransferIntent[],
+): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  const requestId = parsed.requestId as string;
+  const npcId = parsed.fields.npcId !== undefined ? parsed.fields.npcId : "";
+  const prior = dict(player.caveEnterByRequestId)[requestId];
+  if (prior !== undefined) {
+    if (prior === "ok") {
+      queueCaveTransfer(player, transfers, userId, requestId, "exit", npcId, tick);
+      return;
+    }
+    const replayed = actionResult(prior, false, requestId);
+    outbound.push({ opcode: replayed.opcode, body: replayed.body, toUserId: userId });
+    return;
+  }
+  if (player.transferState === "issued" || player.transferState === "pending") {
+    const busy = actionResult("already_transferring", false, requestId);
+    outbound.push({ opcode: busy.opcode, body: busy.body, toUserId: userId });
+    return;
+  }
+  const outcome = evaluateCaveExit({
+    health: player.health,
+    x: player.x,
+    y: player.y,
+    npcId: npcId,
+    npcs: state.npcs,
+    interactionRange: state.interactionRange,
+    npcById: npcCatalog(state),
+    transferring: false,
+    originInstanceType: state.instanceType !== undefined ? state.instanceType : "public_world",
+  });
+  if (!outcome.ok) {
+    rememberCaveRequest(player, requestId, outcome.code);
+    const result = actionResult(outcome.code, false, requestId);
+    outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+    return;
+  }
+  rememberCaveRequest(player, requestId, "ok");
+  queueCaveTransfer(player, transfers, userId, requestId, "exit", npcId, tick);
+}
+
+function rememberCaveRequest(player: MatchPlayer, requestId: string, code: string): void {
+  const next = dict(player.caveEnterByRequestId);
+  next[requestId] = code;
+  player.caveEnterByRequestId = next;
+}
+
+function queueCaveTransfer(
+  player: MatchPlayer,
+  transfers: CaveTransferIntent[],
+  userId: string,
+  requestId: string,
+  direction: "enter" | "exit",
+  npcId: string,
+  tick: number,
+): void {
+  if (player.transferState === "issued" || player.transferState === "pending") {
+    return;
+  }
+  player.transferState = "pending";
+  player.transferIssuedAtTick = tick;
+  transfers.push({
+    userId: userId,
+    characterId: player.characterId,
+    requestId: requestId,
+    direction: direction,
+    npcId: npcId,
+  });
+}
+
+function expireStaleTransfers(state: StarterZoneState, tick: number): void {
+  const ttlTicks = Math.max(1, Math.floor((TRANSFER_TICKET_TTL_MS / 1000) * MATCH_TICK_RATE));
+  const players = dict(state.players);
+  const ids = Object.keys(players);
+  for (let i = 0; i < ids.length; i++) {
+    const player = players[ids[i]];
+    if (player.transferState !== "issued" && player.transferState !== "pending") {
+      continue;
+    }
+    const started = typeof player.transferIssuedAtTick === "number" ? player.transferIssuedAtTick : tick;
+    if (tick - started < ttlTicks) {
+      continue;
+    }
+    player.transferState = "idle";
+    player.transferIssuedAtTick = undefined;
+  }
+}
+
+function maybeCompleteCaveBoss(state: StarterZoneState, events: CombatEvent[]): boolean {
+  if (state.instanceType !== "party_cave") {
+    return false;
+  }
+  for (let i = 0; i < events.length; i++) {
+    const event = events[i];
+    if (event.type !== "death" || event.targetKind !== "enemy") {
+      continue;
+    }
+    for (let e = 0; e < state.enemies.length; e++) {
+      const enemy = state.enemies[e];
+      if (enemy.id !== event.targetId) {
+        continue;
+      }
+      const tags = enemy.tags !== undefined ? enemy.tags : [];
+      if (tags.indexOf("boss") === -1) {
+        continue;
+      }
+      return markCaveBossDefeated(state);
+    }
+  }
+  return false;
 }
 
 function handleAttack(
@@ -1437,13 +1636,192 @@ function reconcileAllEquipment(
   }
 }
 
-function spawnLootFromDeaths(
+function processEnemyDeathRewards(
   state: StarterZoneState,
   tick: number,
   events: CombatEvent[],
   newId: () => string,
+  persistInventoryByUser: { [userId: string]: PlayerInventory },
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
+  persistByUser: { [userId: string]: QuestLog },
+  outbound: MatchOutbound[],
 ): void {
-  applyEnemyDeathSideEffects(state, events, tick, MATCH_TICK_RATE, newId);
+  const deaths = collectNewEnemyDeaths(state, events);
+  const rules = state.groupCreditRules !== undefined ? state.groupCreditRules : defaultGroupCreditRules();
+  const expireTicks = lootExpireTicks(MATCH_TICK_RATE);
+  const participants = creditParticipants(state);
+  for (let i = 0; i < deaths.length; i++) {
+    const death = deaths[i];
+    const eligible = eligibleGroupCreditMembers({
+      killerUserId: death.killerId,
+      enemyX: death.x,
+      enemyY: death.y,
+      tick: tick,
+      tickRate: MATCH_TICK_RATE,
+      players: participants,
+      partyByCharacterId: state.partyByCharacterId,
+      rules: rules,
+    });
+    const enemy = findMatchEnemy(state, death.instanceId);
+    grantKillXpToEligible(state, death, eligible, enemy, tick, persistProgressionByUser, outbound, rules.xpFormula);
+    applyKillQuestToEligible(state, death, eligible, enemy, persistByUser, outbound);
+    const policy = death.table !== undefined ? death.table.ownershipPolicy : "ground_free";
+    const drops = rollLootTable(death.table, lcgRng(hashSeed(death.eventId)));
+    if (normalizedLootPolicy(policy) === "ground") {
+      state.loot = spawnRolledLoot(state.loot, drops, death.x, death.y, tick, expireTicks, newId);
+      continue;
+    }
+    const inventories: { [userId: string]: PlayerInventory | undefined } = {};
+    for (let e = 0; e < eligible.length; e++) {
+      const player = state.players[eligible[e].userId];
+      inventories[eligible[e].userId] = player !== undefined ? player.inventory : undefined;
+    }
+    const assignment = assignPartyLoot({
+      eventId: death.eventId,
+      policy: policy,
+      drops: drops,
+      eligible: eligible,
+      inventories: inventories,
+      itemsById: state.itemsById,
+      newId: newId,
+    });
+    if (assignment === null) {
+      continue;
+    }
+    for (let g = 0; g < assignment.grants.length; g++) {
+      const grant = assignment.grants[g];
+      const player = state.players[grant.userId];
+      if (player === undefined) {
+        continue;
+      }
+      const grantedInventory = inventories[grant.userId];
+      if (grant.code === "ok" && grantedInventory !== undefined) {
+        player.inventory = grantedInventory;
+        persistInventoryByUser[grant.userId] = grantedInventory;
+        const inventory = inventoryState(
+          state.contentHash,
+          publicInventory(grantedInventory),
+          death.eventId,
+        );
+        outbound.push({ opcode: inventory.opcode, body: inventory.body, toUserId: grant.userId });
+      }
+      if (grant.code === "inventory_full") {
+        const full = partyEventMessage(state.contentHash, "inventory_full", {
+          characterId: grant.characterId,
+          itemId: grant.itemId,
+        });
+        outbound.push({ opcode: full.opcode, body: full.body, toUserId: grant.userId });
+      }
+    }
+    if (assignment.policy === "server_assigned" && assignment.assignedUserId.length > 0) {
+      const assigned = partyEventMessage(state.contentHash, "loot_assigned", {
+        eventId: death.eventId,
+        userId: assignment.assignedUserId,
+        itemId: assignment.grants.length > 0 ? assignment.grants[0].itemId : "",
+      });
+      outbound.push({ opcode: assigned.opcode, body: assigned.body });
+    }
+  }
+}
+
+function creditParticipants(state: StarterZoneState): { [userId: string]: CreditParticipant } {
+  const out: { [userId: string]: CreditParticipant } = {};
+  const ids = Object.keys(state.players);
+  for (let i = 0; i < ids.length; i++) {
+    const player = state.players[ids[i]];
+    out[ids[i]] = {
+      userId: player.userId,
+      characterId: player.characterId !== undefined ? player.characterId : "",
+      x: player.x,
+      y: player.y,
+      alive: player.health > 0,
+      lastDeathTick: player.lastDeathTick,
+    };
+  }
+  return out;
+}
+
+function grantKillXpToEligible(
+  state: StarterZoneState,
+  death: { eventId: string; killerId: string },
+  eligible: { userId: string; characterId: string }[],
+  enemy: { id: string; enemyId: string; xpReward?: number; deathCount: number } | null,
+  tick: number,
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
+  outbound: MatchOutbound[],
+  formula: string,
+): void {
+  if (enemy === null) {
+    return;
+  }
+  const amount = splitKillXp(enemy.xpReward !== undefined ? enemy.xpReward : 0, eligible.length, formula);
+  const killer = state.players[death.killerId];
+  const killerCharacterId = killer !== undefined ? killer.characterId : "";
+  for (let i = 0; i < eligible.length; i++) {
+    const member = eligible[i];
+    const grant = killXpGrantFromEnemy(
+      {
+        id: enemy.id,
+        enemyId: enemy.enemyId,
+        xpReward: amount,
+        deathCount: enemy.deathCount,
+      },
+      member.characterId,
+    );
+    if (grant === null) {
+      continue;
+    }
+    grant.eventId = killXpEventId(death.eventId, member.characterId, killerCharacterId);
+    grant.amount = amount;
+    applyServerXpGrant(matchXpSink(state, tick, persistProgressionByUser, outbound), member.userId, grant);
+  }
+}
+
+function applyKillQuestToEligible(
+  state: StarterZoneState,
+  death: { enemyId: string; killerId: string },
+  eligible: { userId: string; characterId: string }[],
+  enemy: { enemyId: string; tags?: string[] } | null,
+  persistByUser: { [userId: string]: QuestLog },
+  outbound: MatchOutbound[],
+): void {
+  if (enemy === null) {
+    return;
+  }
+  const tags = enemy.tags !== undefined ? enemy.tags : [];
+  const credit = {
+    enemyId: enemy.enemyId,
+    tags: tags,
+    zoneId: state.zoneId,
+    isBoss: tags.indexOf("boss") !== -1,
+  };
+  if (state.players[death.killerId] !== undefined) {
+    const credited = applyKillObjectives(state.players[death.killerId].questLog, credit);
+    if (credited.changed) {
+      state.players[death.killerId].questLog = credited.log;
+      persistByUser[death.killerId] = cloneQuestLog(credited.log);
+      pushQuestState(state, death.killerId, outbound);
+    }
+  }
+  for (let i = 0; i < eligible.length; i++) {
+    const player = state.players[eligible[i].userId];
+    if (player === undefined) {
+      continue;
+    }
+    const credited = applyKillObjectives(player.questLog, {
+      enemyId: credit.enemyId,
+      tags: credit.tags,
+      zoneId: credit.zoneId,
+      isBoss: credit.isBoss,
+      partyShare: true,
+    });
+    if (!credited.changed) {
+      continue;
+    }
+    player.questLog = credited.log;
+    persistByUser[eligible[i].userId] = cloneQuestLog(player.questLog);
+    pushQuestState(state, eligible[i].userId, outbound);
+  }
 }
 
 function sequentialIdFactory(tick: number): () => string {
@@ -1539,13 +1917,16 @@ function simulateMovement(state: StarterZoneState, dt: number): void {
       continue;
     }
     const delta = intendedDelta(player.axisX, player.axisY, state.moveSpeed, dt);
+    if (delta.x === 0 && delta.y === 0) {
+      continue;
+    }
     const next = resolveMove(
       player.x,
       player.y,
       delta.x,
       delta.y,
       state.playerHalfExtent,
-      state.collisions,
+      collisionsWithPlayers(state.collisions, state.players, ids[i], state.playerHalfExtent, state.npcs),
       state.walkableBounds,
     );
     player.x = next.x;
@@ -1628,28 +2009,6 @@ function handleAllocate(
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
   if (outcome.ok) {
     pushProgressionState(state, userId, outbound, parsed.requestId);
-  }
-}
-
-function grantKillXpFromEvents(
-  state: StarterZoneState,
-  events: CombatEvent[],
-  tick: number,
-  persistProgressionByUser: { [userId: string]: CharacterProgression },
-  outbound: MatchOutbound[],
-): void {
-  for (let i = 0; i < events.length; i++) {
-    const event = events[i];
-    if (event.type !== "death" || event.targetKind !== "enemy") {
-      continue;
-    }
-    const userId = event.sourceId;
-    const enemy = findMatchEnemy(state, event.targetId);
-    if (enemy === null) {
-      continue;
-    }
-    const characterId = characterIdOf(state, userId) !== undefined ? (characterIdOf(state, userId) as string) : "";
-    applyServerXpGrant(matchXpSink(state, tick, persistProgressionByUser, outbound), userId, killXpGrantFromEnemy(enemy, characterId));
   }
 }
 
@@ -1811,6 +2170,13 @@ function npcCatalog(state: StarterZoneState) {
   return state.npcsById !== undefined ? state.npcsById : {};
 }
 
+function playerInCachedParty(state: StarterZoneState, player: MatchPlayer): boolean {
+  if (player.characterId.length === 0 || state.partyByCharacterId === undefined) {
+    return false;
+  }
+  return state.partyByCharacterId[player.characterId] !== undefined;
+}
+
 function vendorCatalog(state: StarterZoneState) {
   return state.vendorsById !== undefined ? state.vendorsById : {};
 }
@@ -1889,38 +2255,6 @@ function grantQuestExtraRewards(
   persistProgressionByUser[userId] = cloneProgression(player.progression);
   refreshPlayerDerived(state, userId);
   pushProgressionState(state, userId, outbound, requestId);
-}
-
-function applyKillQuestProgress(
-  state: StarterZoneState,
-  events: CombatEvent[],
-  persistByUser: { [userId: string]: QuestLog },
-  outbound: MatchOutbound[],
-): void {
-  for (let i = 0; i < events.length; i++) {
-    const event = events[i];
-    if (event.type !== "death" || event.targetKind !== "enemy") {
-      continue;
-    }
-    const player = state.players[event.sourceId];
-    const enemy = findMatchEnemy(state, event.targetId);
-    if (player === undefined || enemy === null) {
-      continue;
-    }
-    const tags = enemy.tags !== undefined ? enemy.tags : [];
-    const credited = applyKillObjectives(player.questLog, {
-      enemyId: enemy.enemyId,
-      tags: tags,
-      zoneId: state.zoneId,
-      isBoss: tags.indexOf("boss") !== -1,
-    });
-    if (!credited.changed) {
-      continue;
-    }
-    player.questLog = credited.log;
-    persistByUser[event.sourceId] = cloneQuestLog(player.questLog);
-    pushQuestState(state, event.sourceId, outbound);
-  }
 }
 
 function applyEnterQuestProgress(

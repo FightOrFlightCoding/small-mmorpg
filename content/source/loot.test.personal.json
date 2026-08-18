@@ -1,0 +1,15 @@
+{
+  "id": "loot.test.personal",
+  "kind": "loot_table",
+  "displayName": "Test Personal Loot",
+  "ownershipPolicy": "personal",
+  "entries": [
+    {
+      "itemDefinitionId": "item.test_pebble",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "chance": 1,
+      "guaranteed": true
+    }
+  ]
+}

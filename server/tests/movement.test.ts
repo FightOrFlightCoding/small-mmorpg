@@ -9,7 +9,14 @@ import {
   type MatchPlayer,
   type StarterZoneState,
 } from "../src/domain/match_state";
-import { intendedDelta, sanitizeAxes } from "../src/domain/movement";
+import {
+  PLAYER_HALF_EXTENT,
+  aabbsOverlap,
+  intendedDelta,
+  playerAabb,
+  resolveMove,
+  sanitizeAxes,
+} from "../src/domain/movement";
 import { ClientOpcode, PROTOCOL_VERSION, ServerOpcode, isProtocolError, parseClientMessage } from "../src/domain/protocol";
 import { emptyQuestLog, questDefinitionsFromContent } from "../src/domain/quest";
 
@@ -223,4 +230,81 @@ test("alice and bob move independently and share snapshot positions", () => {
   assert.equal(body.players[1].x, bob.x);
   assert.equal(body.players[0].lastProcessedSeq, 1);
   assert.equal(body.players[1].lastProcessedSeq, 1);
+});
+
+test("already overlapping an obstacle is pushed out instead of sinking further", () => {
+  const bounds = content.zones["zone.starter"].walkableBounds;
+  const collisions = content.zones["zone.starter"].collisions;
+  const inside = resolveMove(695, 504, -12, 0, PLAYER_HALF_EXTENT, collisions, bounds);
+  assert.equal(
+    aabbsOverlap(playerAabb(inside.x, inside.y, PLAYER_HALF_EXTENT), {
+      x: 640,
+      y: 480,
+      width: 48,
+      height: 48,
+    }),
+    false,
+  );
+  assert.ok(inside.x >= 688 + PLAYER_HALF_EXTENT - 1e-9);
+});
+
+test("extended sliding along an obstacle stays outside it", () => {
+  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", 760, 504));
+  let current = state;
+  for (let i = 1; i <= 30; i++) {
+    current = step(current, i, "user-alice", i, -1, 0).state;
+    const pose = current.players["user-alice"];
+    assert.equal(
+      aabbsOverlap(playerAabb(pose.x, pose.y, PLAYER_HALF_EXTENT), {
+        x: 640,
+        y: 480,
+        width: 48,
+        height: 48,
+      }),
+      false,
+    );
+    assert.ok(pose.x >= 688 + PLAYER_HALF_EXTENT - 1e-9);
+  }
+  assert.equal(current.players["user-alice"].x, 688 + PLAYER_HALF_EXTENT);
+});
+
+test("living players block each other and dead players do not", () => {
+  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", 400, 400));
+  state = addPlayer(state, playerAt("user-bob", "Bob", 448, 400));
+  let current = state;
+  for (let i = 1; i <= 10; i++) {
+    current = step(current, i, "user-alice", i, 1, 0).state;
+  }
+  const alice = current.players["user-alice"];
+  const bob = current.players["user-bob"];
+  assert.equal(
+    aabbsOverlap(
+      playerAabb(alice.x, alice.y, PLAYER_HALF_EXTENT),
+      playerAabb(bob.x, bob.y, PLAYER_HALF_EXTENT),
+    ),
+    false,
+  );
+  assert.ok(alice.x <= bob.x - PLAYER_HALF_EXTENT * 2 + 1e-9);
+  assert.ok(alice.x < 400 + content.player.moveSpeed);
+
+  const corpse = playerAt("user-bob", "Bob", 424, 400);
+  corpse.health = 0;
+  let open = addPlayer(emptyZone(), playerAt("user-alice", "Alice", 400, 400));
+  open = addPlayer(open, corpse);
+  const through = step(open, 1, "user-alice", 1, 1, 0).state;
+  assert.equal(through.players["user-alice"].x, 400 + content.player.moveSpeed * (1 / MATCH_TICK_RATE));
+});
+
+test("npcs block movement", () => {
+  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", 320, 700));
+  let current = state;
+  for (let i = 1; i <= 20; i++) {
+    current = step(current, i, "user-alice", i, 0, -1).state;
+    const pose = current.players["user-alice"];
+    assert.equal(
+      aabbsOverlap(playerAabb(pose.x, pose.y, PLAYER_HALF_EXTENT), playerAabb(320, 640, PLAYER_HALF_EXTENT)),
+      false,
+    );
+  }
+  assert.ok(current.players["user-alice"].y >= 640 + PLAYER_HALF_EXTENT * 2 - 1e-9);
 });

@@ -1,7 +1,7 @@
 ~ start
-Portal: The cave system is not open. Do not expect a transfer.
-- Request entry.
+Portal: Enter the private cave? Solo characters get their own instance. Party members share one.
+- Enter the cave.
 	do CaveService.request_enter()
 	=> END
-- Leave it.
+- Stay in the valley.
 	=> END

@@ -35,6 +35,7 @@ const CLIENT_VENDOR_BUY: int = 19
 const CLIENT_VENDOR_SELL: int = 20
 const CLIENT_INN_REST: int = 21
 const CLIENT_CAVE_ENTER: int = 22
+const CLIENT_CAVE_EXIT: int = 23
 
 const SERVER_FULL_STATE: int = 101
 const SERVER_SNAPSHOT: int = 102
@@ -48,6 +49,8 @@ const SERVER_EQUIPMENT_STATE: int = 109
 const SERVER_WALLET_STATE: int = 110
 const SERVER_PROGRESSION_STATE: int = 111
 const SERVER_ABILITY_STATE: int = 112
+const SERVER_PARTY_STATE: int = 113
+const SERVER_PARTY_EVENT: int = 114
 
 const FIND_OR_CREATE_STARTER_ZONE_RPC: String = "find_or_create_starter_zone"
 
@@ -63,12 +66,18 @@ static func client_envelope_json(extra: Dictionary = {}) -> String:
 	return JSON.stringify(client_envelope(extra))
 
 
-static func join_metadata(content_hash: String, selection_ticket: String = "") -> Dictionary:
-	return {
+static func join_metadata(content_hash: String, selection_ticket: String = "", transfer_ticket: String = "") -> Dictionary:
+	var meta: Dictionary = {
 		"protocolVersion": str(VERSION),
 		"contentHash": content_hash,
-		"selectionTicket": selection_ticket,
 	}
+	if not selection_ticket.is_empty():
+		meta["selectionTicket"] = selection_ticket
+	elif transfer_ticket.is_empty():
+		meta["selectionTicket"] = ""
+	if not transfer_ticket.is_empty():
+		meta["transferTicket"] = transfer_ticket
+	return meta
 
 
 static func parse_full_state(raw: String, expected_content_hash: String) -> Dictionary:
@@ -125,6 +134,8 @@ static func parse_full_state(raw: String, expected_content_hash: String) -> Dict
 			"wallet": _optional_wallet(parsed),
 			"progression": _optional_object(parsed, "progression"),
 			"abilities": _optional_object(parsed, "abilities"),
+			"party": _optional_object(parsed, "party"),
+			"instance": _optional_object(parsed, "instance"),
 		},
 	}
 
@@ -179,6 +190,8 @@ static func parse_find_or_create(raw: String, expected_content_hash: String) -> 
 		"ok": true,
 		"match_id": String(parsed["matchId"]),
 		"zone_id": String(parsed.get("zoneId", "zone.starter")),
+		"instance_id": String(parsed.get("instanceId", "")),
+		"instance_type": String(parsed.get("instanceType", "public_world")),
 	}
 
 
@@ -211,6 +224,12 @@ static func parse_action_result(raw: String) -> Dictionary:
 		"result_ok": bool(parsed.get("ok", false)),
 		"code": String(parsed.get("code", "unknown")),
 		"request_id": String(parsed.get("requestId", "")),
+		"ticket_id": String(parsed.get("ticketId", "")),
+		"destination_match_id": String(parsed.get("destinationMatchId", "")),
+		"destination_instance_id": String(parsed.get("destinationInstanceId", "")),
+		"origin_match_id": String(parsed.get("originMatchId", "")),
+		"zone_id": String(parsed.get("zoneId", "")),
+		"instance_type": String(parsed.get("instanceType", "")),
 	}
 
 
@@ -304,6 +323,42 @@ static func parse_ability_state(raw: String) -> Dictionary:
 		"ok": true,
 		"request_id": String(parsed.get("requestId", "")),
 		"abilities": _optional_object(parsed, "abilities"),
+	}
+
+
+static func parse_party_state(raw: String) -> Dictionary:
+	var parsed: Dictionary = _parse_object(raw)
+	if parsed.has("ok") and not bool(parsed["ok"]) and parsed.has("message"):
+		return parsed
+	if not _version_ok(parsed):
+		return _fail("protocol_mismatch", "The party-state protocol version does not match this client.")
+	var body: Dictionary = {
+		"ok": true,
+		"party": _optional_object(parsed, "party"),
+		"pendingInvite": _optional_object(parsed, "pendingInvite"),
+	}
+	if parsed.has("deleted"):
+		body["deleted"] = bool(parsed["deleted"])
+	if parsed.has("code"):
+		body["code"] = String(parsed["code"])
+	return body
+
+
+static func parse_party_event(raw: String) -> Dictionary:
+	var parsed: Dictionary = _parse_object(raw)
+	if parsed.has("ok") and not bool(parsed["ok"]) and parsed.has("message"):
+		return parsed
+	if not _version_ok(parsed):
+		return _fail("protocol_mismatch", "The party-event protocol version does not match this client.")
+	return {
+		"ok": true,
+		"type": String(parsed.get("type", "")),
+		"systemMessage": String(parsed.get("systemMessage", "")),
+		"partyId": String(parsed.get("partyId", "")),
+		"eventId": String(parsed.get("eventId", "")),
+		"userId": String(parsed.get("userId", "")),
+		"characterId": String(parsed.get("characterId", "")),
+		"itemId": String(parsed.get("itemId", "")),
 	}
 
 

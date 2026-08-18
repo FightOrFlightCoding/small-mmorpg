@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Generic NPC services, dialogue, quests, merchants, and inn**.
+Last accepted phase: **Public world, party cave instances, transfers, and reconnection**.
 
 Current phase: none.
 
@@ -515,6 +515,50 @@ The Prompt 18 elder is a normal NPC with content services (`dialogue`, `quest_of
 | Audit | `FOUNDATION_AUDIT_OK` (10 storage records, 22 client opcodes, 12 server opcodes) |
 | Server | 325/325 |
 | Client GdUnit | 149/149, 0 orphans, `SHELL_LOGIN` |
+| E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect) |
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-content.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+powershell -File scripts/test-e2e.ps1
+```
+
+## Temporary parties, party chat, group credit, and group loot acceptance (2026-08-17)
+
+Up to five characters can form a server-owned temporary party. Canonical records live in Nakama storage (`party` / `p`, `player` / `party`) with `permissionWrite: 0` and are not a player-save kind. Parties survive a 60 s disconnect grace, then disband when all members stay absent. Party chat is room `party.<partyId>` with membership checks, 200-character Label text, and a 4/2 s send limit. Group kill and quest credit use the match party cache (same match, alive or recently dead, 512 px). XP defaults to `full` per eligible member; solo remains killer-only. Loot policies `personal` and `server_assigned` cannot duplicate a death `eventId`. Clients cannot nominate members or recipients. Cave entry remains `cave_unavailable`. Prompt 18 elder/slime/gel/solo XP behavior is unchanged when not in a party. The e2e elder approach standoff is 24 px so walk arrival stays inside interaction range.
+
+| Gate | Result |
+| --- | --- |
+| Content | 14/14, matching hash `231a99ccee7209e8e1faf4392e97863f57f73a68d3b3f194343a532d80bb380f` |
+| Audit | `FOUNDATION_AUDIT_OK` (12 storage records, 22 client opcodes, 14 server opcodes, 17 rpcs) |
+| Server | 343/343 |
+| Client GdUnit | 163/163, 0 orphans, `SHELL_LOGIN` |
+| E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect) |
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-content.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+powershell -File scripts/test-e2e.ps1
+```
+
+## Public world, party cave instances, transfers, and reconnection acceptance (2026-08-18)
+
+Players share one discoverable `public_world` match (`zone.starter`). A solo character or a party of up to five can enter one private `party_cave` (`zone.cave`) through the valley portal. Party members receive the same instance and match ids; non-members are denied. `CAVE_ENTER` / `CAVE_EXIT` issue one-time server tickets (25 s TTL). The destination consumes the ticket and sends `FULL_STATE`. Canonical location forbids two live matches. Disconnecting cave players rejoin during a 60 s grace, then fall back to the public world. Cave matches empty-timeout, expire, and terminate without persisting transient enemies. There is no public-world sharding or extra world-directory system. `find_or_create_starter_zone` remains the locator. Prompt 18 elder/slime/gel/solo XP and the e2e slice stay on the public world.
+
+| Gate | Result |
+| --- | --- |
+| Content | 14/14, matching hash `58134490916197c49e40642465d949fe17350fe7f798edc5857bed947a1ade86` |
+| Audit | `FOUNDATION_AUDIT_OK` (17 storage records, 23 client opcodes, 14 server opcodes, 20 rpcs) |
+| Server | 370/370 |
+| Client GdUnit | 174/174, 0 orphans, `SHELL_LOGIN` |
 | E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect) |
 
 Reproduction:

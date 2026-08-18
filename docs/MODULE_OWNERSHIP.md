@@ -10,7 +10,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `AppState` | C | Session flags and shell signals | Loading, errors, scene id, zone view mirror, reconnect flag | none | none | no | no | no |
 | `ContentRegistry` / `ContentCatalog` / `VisualCatalog` | C | Load bundle, ID lookup, visual ID → texture | Parsed catalog in memory | `bundle.json`, `visual_map.json` | none | no | no | no |
-| `NetworkService` | C | Auth, socket, RPCs, match send/recv, chat join/send, reconnect | In-memory Nakama session | `NakamaNetworkBackend` | `AppState`, `MatchProtocol`, `ContentRegistry` | no | yes (send/recv) | no |
+| `NetworkService` | C | Auth, socket, RPCs, match send/recv, chat join/send, reconnect, transfer join | In-memory Nakama session | `NakamaNetworkBackend` | `AppState`, `MatchProtocol`, `ContentRegistry` | no | yes (send/recv) | no |
 | `NakamaNetworkBackend` | C | Thin Nakama SDK | Client, session, socket, match id | Nakama Godot SDK 3.4.0 | none | no | transport only | no |
 | `SessionCache` / `DevIdentity` | C | Token cache (never passwords); debug identity gate | `user://session_cache.json` tokens only | none | none | tokens only | no | no |
 | `ReconnectPolicy` | C | Backoff timings | none | none | none | no | no | no |
@@ -26,9 +26,10 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `DialogueCatalog` / `DialoguePresenter` | C | Map server `dialogueId` (fallback NPC id) → `.dialogue`; open after INTERACTION_RESULT | pending request ids | Dialogue Manager 3.10.5 | `QuestService` / `VendorService` / `InnService` / `CaveService` from dialogue `do` lines | no | no | no |
 | `VendorService` | C | Vendor panel mirror; buy/sell intents | Last approved vendor NPC; selected stock/instance | none | `NetworkService` | no | VENDOR_BUY / VENDOR_SELL | no prices |
 | `InnService` | C | Inn/healer rest intent | Last approved inn/healer NPC | none | `NetworkService` | no | INN_REST | no gold/health |
-| `CaveService` | C | Cave-enter intent; shows server `cave_unavailable` | Last approved cave NPC | none | `NetworkService` | no | CAVE_ENTER | no |
+| `CaveService` | C | Cave-enter/exit intents; transfer overlay after ticket extras | Last approved cave NPC | none | `NetworkService` | no | CAVE_ENTER / CAVE_EXIT | no |
+| `PartyService` | C | Party mirror; create/invite/accept/leave/kick/promote/disband; party chat | In-memory party view, pending invite, chat lines | none | `NetworkService`, `AppState` | no | party RPCs, PARTY_STATE / PARTY_EVENT, `party.<id>` channel | no |
 | `ZoneChat` / `ChatPanel` | C | Room join/leave, history Label | chat lines | none | `NetworkService` | no | chat channel, not match opcode | no |
-| `World` / `ZoneView` / `EntityRegistry` / avatars / `WorldHud` | C | Render zone and HUD (hotbar, cast bar, ground-target preview, status icons, target frame, death overlay, combat indicator, vendor panel) | display poses | none | services above | no | INPUT via World | no |
+| `World` / `ZoneView` / `EntityRegistry` / avatars / `WorldHud` | C | Render zone and HUD (hotbar, cast bar, ground-target preview, status icons, target frame, death overlay, combat indicator, vendor panel, party panel, cave objective) | display poses | none | services above | no | INPUT via World | no |
 | `MoveIntent` / `MovementSim` / `MovementReconciler` / `SnapshotBuffer` | C | Prediction and interpolation | unacked cmds, buffer | none | `MatchProtocol` | no | INPUT | no |
 | `AttackIntent` / `CombatFeedback` / `InteractIntent` / `PickupIntent` | C | Usability targeting and floating numbers | none | none | `NetworkService` | no | ATTACK / SET_TARGET / INTERACT / PICKUP | no |
 | `NetDebugOverlay` | C | Debug FPS / ping EMA | none | none | none | no | no | no |
@@ -40,7 +41,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `movement.ts` | S | Axes, collision, speed | none | none | none | no | no | no |
 | `combat.ts` / `combat_pipeline.ts` / `targeting.ts` / `enemy_ai.ts` / `enemy_ability.ts` / `threat.ts` / `boss.ts` | S | Shared combat resolver, targeting, AI profiles, threat, boss phases, death, respawn | enemy/player combat fields in match | none | `loot.ts`, `loot_table.ts`, `xp_hooks.ts`, `spawn_controller.ts` | no | COMBAT_EVENT / SET_TARGET / RELEASE_RESPAWN | no |
 | `spawn_controller.ts` | S | Create/track/respawn/despawn/reset spawn groups | match `spawns` + enemy slots | none | match_state types | no | COMBAT_EVENT respawn | no |
-| `loot_table.ts` / `party_credit.ts` | S | Deterministic loot rolls; party-credit hook from threat | `processedDeathEventIds` | none | `loot.ts` | no | via loop | grant in memory |
+| `loot_table.ts` / `party_credit.ts` / `party_loot.ts` | S | Deterministic loot rolls; group credit; personal/server-assigned party loot | `processedDeathEventIds` | none | `loot.ts`, `inventory.ts` | no | via loop | grant in memory |
 | `ability.ts` | S | Ability use, casts, cooldowns, unlock, hotbar, ATTACK wrapper | match casts/cooldowns; progression unlocks/hotbar | none | effects, combat_pipeline, stats | serialize via progression | USE_ABILITY / CANCEL_CAST / ASSIGN_HOTBAR / UNLOCK_ABILITY | no |
 | `effects.ts` | S | Structured effect handlers (damage, heal, resource, modifier, periodic, stun, root) | match effect lists | none | combat_pipeline, stats | no | COMBAT_EVENT | no |
 | `stats.ts` | S | Deterministic derived-stat pipeline | none | none | equipment modifiers | no | no | no |
@@ -59,24 +60,31 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `quest.ts` / `quest_store.ts` (domain) | S | Quest log serialize/progress including optional stages | none | none | none | serialize only | no | no |
 | `quest_reward.ts` | S | Turn-in apply + gold via currency helper | none | none | inventory, quest, wallet | no | no | yes (pure) |
 | `character.ts` / `character_name.ts` / `character_roster.ts` / `character_ticket.ts` / `character_lifecycle.ts` / `class_catalog.ts` | S | Name policy, roster, tickets, class lookup | none | none | content classes | serialize character | RPC bodies | starter stacks via class |
-| `join_validation.ts` | S | Match join rules including selection ticket | none | none | none | no | join reject | no |
-| `persistence.ts` | S | Grace, seq reset, checkpoints | disconnected map | none | match_state | no (decides when) | no | no |
+| `join_validation.ts` | S | Match join rules including selection ticket or transfer ticket | none | none | none | no | join reject | no |
+| `persistence.ts` | S | Grace, seq reset, checkpoints, transfer leave | disconnected map | none | match_state | no (decides when) | no | no |
 | `rate_limit.ts` / `security_log.ts` | S | Action windows, reject logs | actionRates in match | none | none | no | SYSTEM_MESSAGE | no |
-| `chat.ts` | S | Channel join/send filters | none | none | none | no | RT hooks | no |
-| `starter_zone_registry.ts` (domain) | S | Canonical match-id selection | none | none | none | no | no | no |
+| `chat.ts` | S | Channel join/send filters including party rooms | none | none | `party.ts` | no | RT hooks | no |
+| `party.ts` | S | Temporary party lifecycle, invites, OCC revision, connection grace | none | none | `cave_ownership.ts` | serialize only | RPC bodies | no |
+| `cave.ts` / `instance.ts` / `location.ts` / `transfer.ts` | S | Cave eligibility/allocation, instance types, canonical location, one-time tickets | none | none | party.ts | serialize only | CAVE_ENTER / CAVE_EXIT extras | no |
+| `cave_ownership.ts` | S | Expire party-owned caves on disband | none | none | `cave.ts` | via cave store | no | no |
+| `starter_zone_registry.ts` (domain) | S | Canonical public-world match-id selection | none | none | none | no | no | no |
 | `character_store.ts` / `roster_store.ts` / `selection_store.ts` / `name_reservation_store.ts` | A | Character, roster, ticket, name reservation | none | Nakama storage | domain character/roster | yes | no | no |
 | `inventory_store.ts` (nakama) | A | Read/write inventory | none | Nakama storage | domain inventory_store | yes | no | yes |
 | `quest_store.ts` (nakama) | A | Read/write quests | none | Nakama storage | domain quest_store | yes | no | no |
 | `equipment_store.ts` (nakama) | A | Read/write equipment | none | Nakama storage | domain equipment_store | yes | no | no |
 | `progression_store.ts` (nakama) | A | Read/write progression | none | Nakama storage | domain progression_store | yes | no | no |
+| `party_store.ts` (nakama) | A | Read/write party records and character indexes | none | Nakama storage | domain party | yes | no | no |
+| `cave_store.ts` / `location_store.ts` / `transfer_store.ts` | A | Cave records/indexes, active location, transfer tickets | none | Nakama storage | domain cave/location/transfer | yes | no | no |
 | `quest_reward_store.ts` / `transaction_store.ts` | A | `nk.multiUpdate` transaction boundary (loot/equipment/destroy/turn-in) | none | Nakama storage + wallet | domain transaction | yes | no | yes |
 | `starter_zone_registry.ts` (nakama) | A | Find/create match + singleton | none | Nakama match + storage | domain registry | yes (match id) | no | no |
-| `starter_zone_match.ts` | A | Match handler lifecycle | live zone + presences | Nakama match | all domain + stores | yes (join/txn/checkpoint) | yes | yes (via stores) |
-| `chat_hooks.ts` | A | `registerRtBefore` | none | Nakama RT | domain chat | no | RT | no |
+| `starter_zone_match.ts` | A | Match handler lifecycle for public world and party caves | live zone + presences | Nakama match | all domain + stores | yes (join/txn/checkpoint/ticket) | yes | yes (via stores) |
+| `chat_hooks.ts` | A | `registerRtBefore` | process-local party send times | Nakama RT | domain chat, party_store | no | RT | no |
 | `rpcs/health.ts` | A | `vibecode_health` | none | none | generated hash | no | RPC | no |
 | `rpcs/character_lifecycle.ts` | A | `character_bootstrap` wrapper plus list/create/select/soft-delete/restore | none | character/roster/selection/name stores | domain lifecycle | yes | RPC | new characters only |
 | `rpcs/character_bootstrap.ts` | A | Re-exports bootstrap wrapper | none | character_lifecycle | domain lifecycle | yes | RPC | no |
-| `rpcs/find_or_create_starter_zone.ts` | A | Join ticket for starter match | none | registry | protocol version | yes (match singleton) | RPC | no |
+| `rpcs/find_or_create_starter_zone.ts` | A | Public-world locator; live cave on reconnect | none | registry, location, cave | protocol version | yes (match singleton) | RPC | no |
+| `rpcs/cave.ts` | A | request_cave_entry / find_or_create_owned_cave / request_cave_exit | none | cave/location/party stores | domain cave | yes | RPC | no |
+| `rpcs/party.ts` | A | Party create/invite/accept/decline/leave/kick/promote/disband/get | none | party_store, character stores | domain party | yes | RPC | no |
 | `main.ts` | A | `InitModule` registrations | none | Nakama initializer | RPCs, match, hooks | no | register | no |
 | `generated/content.ts` | S generated | Catalog | immutable content | content-build | none | no | no | no |
 | `tools/content-build` | T | Validate + generate catalogs, diff, trace, package manifest | none | Ajv | `content/source`, `content/package.manifest.json` | no | no | no |

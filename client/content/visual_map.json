@@ -30,6 +30,15 @@
   "visual.npc_cave_portal": {
     "fallback_color": "#4A3A5C"
   },
+  "visual.npc_cave_exit": {
+    "fallback_color": "#3A4A5C"
+  },
+  "visual.zone_cave": {
+    "texture": "res://assets/third_party/kenney_rpg_base/PNG/rpgTile045.png",
+    "fallback_color": "#3A3228",
+    "obstacle_texture": "res://assets/third_party/kenney_rpg_base/PNG/rpgTile080.png",
+    "obstacle_fallback_color": "#2A2218"
+  },
   "visual.enemy_green_slime": {
     "texture": "res://assets/third_party/kenney_rpg_base/PNG/rpgTile160.png",
     "fallback_color": "#4CAF50"

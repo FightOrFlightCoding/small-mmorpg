@@ -10,7 +10,7 @@
     "displayName": { "type": "string", "minLength": 1 },
     "ownershipPolicy": {
       "type": "string",
-      "enum": ["ground_free", "killer", "party_split"]
+      "enum": ["ground_free", "killer", "party_split", "personal", "server_assigned"]
     },
     "entries": {
       "type": "array",

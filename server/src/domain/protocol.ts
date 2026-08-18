@@ -26,6 +26,7 @@ export const ClientOpcode = {
   VENDOR_SELL: 20,
   INN_REST: 21,
   CAVE_ENTER: 22,
+  CAVE_EXIT: 23,
 } as const;
 
 export const ServerOpcode = {
@@ -41,6 +42,8 @@ export const ServerOpcode = {
   WALLET_STATE: 110,
   PROGRESSION_STATE: 111,
   ABILITY_STATE: 112,
+  PARTY_STATE: 113,
+  PARTY_EVENT: 114,
 } as const;
 
 export type ClientOpcode = (typeof ClientOpcode)[keyof typeof ClientOpcode];
@@ -69,6 +72,7 @@ const CLIENT_OPCODES: ClientOpcode[] = [
   ClientOpcode.VENDOR_SELL,
   ClientOpcode.INN_REST,
   ClientOpcode.CAVE_ENTER,
+  ClientOpcode.CAVE_EXIT,
 ];
 
 const REWARD_OPCODES: ClientOpcode[] = [
@@ -105,6 +109,7 @@ OPCODE_KEYS[ClientOpcode.VENDOR_BUY] = ["npcId", "itemId", "quantity"];
 OPCODE_KEYS[ClientOpcode.VENDOR_SELL] = ["npcId", "instanceId", "quantity"];
 OPCODE_KEYS[ClientOpcode.INN_REST] = ["npcId", "mode"];
 OPCODE_KEYS[ClientOpcode.CAVE_ENTER] = ["npcId"];
+OPCODE_KEYS[ClientOpcode.CAVE_EXIT] = ["npcId"];
 
 const OUTCOME_KEYS = [
   "attack",
@@ -151,6 +156,12 @@ const OUTCOME_KEYS = [
   "effectDuration",
   "magnitude",
   "stacks",
+  "members",
+  "memberIds",
+  "partyMembers",
+  "creditUserIds",
+  "lootRecipients",
+  "xpRecipients",
 ];
 
 const INPUT_NUMBER_KEYS = ["seq", "axisX", "axisY"];
@@ -204,7 +215,8 @@ function requiresRequestId(opcode: ClientOpcode): boolean {
     opcode === ClientOpcode.UNLOCK_ABILITY ||
     opcode === ClientOpcode.SET_TARGET ||
     opcode === ClientOpcode.RELEASE_RESPAWN ||
-    opcode === ClientOpcode.CAVE_ENTER
+    opcode === ClientOpcode.CAVE_ENTER ||
+    opcode === ClientOpcode.CAVE_EXIT
   );
 }
 
@@ -438,6 +450,7 @@ export function actionResult(
   code: string,
   ok: boolean,
   requestId?: string,
+  extra?: { [key: string]: unknown },
 ): { opcode: number; body: string } {
   const payload: { [key: string]: unknown } = {
     protocolVersion: PROTOCOL_VERSION,
@@ -446,6 +459,12 @@ export function actionResult(
   };
   if (requestId !== undefined) {
     payload.requestId = requestId;
+  }
+  if (extra !== undefined) {
+    const keys = Object.keys(extra);
+    for (let i = 0; i < keys.length; i++) {
+      payload[keys[i]] = extra[keys[i]];
+    }
   }
   return {
     opcode: ServerOpcode.ACTION_RESULT,
@@ -596,6 +615,47 @@ export function abilityState(
   }
   return {
     opcode: ServerOpcode.ABILITY_STATE,
+    body: JSON.stringify(payload),
+  };
+}
+
+export function partyStateMessage(
+  contentHash: string,
+  party: { [key: string]: unknown } | null,
+  pendingInvite: { [key: string]: unknown } | null,
+  requestId?: string,
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    contentHash: contentHash,
+    party: party,
+    pendingInvite: pendingInvite,
+  };
+  if (requestId !== undefined) {
+    payload.requestId = requestId;
+  }
+  return {
+    opcode: ServerOpcode.PARTY_STATE,
+    body: JSON.stringify(payload),
+  };
+}
+
+export function partyEventMessage(
+  contentHash: string,
+  eventType: string,
+  extras: { [key: string]: unknown } = {},
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    contentHash: contentHash,
+    type: eventType,
+  };
+  const keys = Object.keys(extras);
+  for (let i = 0; i < keys.length; i++) {
+    payload[keys[i]] = extras[keys[i]];
+  }
+  return {
+    opcode: ServerOpcode.PARTY_EVENT,
     body: JSON.stringify(payload),
   };
 }

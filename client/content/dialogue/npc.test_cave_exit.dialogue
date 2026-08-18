@@ -1,0 +1,7 @@
+~ start
+Exit: Leave the cave for the valley?
+- Return to the valley.
+	do CaveService.request_exit()
+	=> END
+- Stay.
+	=> END

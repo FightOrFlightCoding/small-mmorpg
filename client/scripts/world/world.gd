@@ -32,6 +32,7 @@ var _ping_ms: int = 0
 var _ping_ema_ms: float = 0.0
 var _frame_ms: float = 0.0
 var _ground_preview: Polygon2D
+var _rendered_zone_id: String = ""
 
 
 func _ready() -> void:
@@ -59,12 +60,11 @@ func _ready() -> void:
 	_connect_chat_signals()
 	_connect_interaction_signals()
 	_entities.follow_camera = _camera
-	_sim = MovementSim.from_content()
-	_reconciler = MovementReconciler.new(_sim)
+	_bind_zone_presentation(_current_zone_id())
 	if _overlay != null:
 		_overlay.set_debug_build(OS.is_debug_build())
-	_render_zone_geometry()
 	_ensure_ground_preview()
+	_sync_player_blockers()
 	_apply_zone_state()
 	_last_state_msec = Time.get_ticks_msec()
 	if AppState.has_fatal_error:
@@ -79,12 +79,17 @@ func _process(delta: float) -> void:
 	if not _input_blocked() and _local_alive():
 		axis = MoveIntent.read_axes()
 	if not NetworkService.match_id.is_empty():
+		_sync_player_blockers()
 		_entities.pose_local(_reconciler.advance(delta, axis))
 	_input_accum += delta
 	var interval := 1.0 / MatchProtocol.INPUT_SEND_HZ
-	while _input_accum >= interval:
-		_input_accum -= interval
+	if _input_accum >= interval:
+		_input_accum = fmod(_input_accum, interval)
 		_send_move_intent(axis)
+	if not axis.is_zero_approx():
+		var focused := get_viewport().gui_get_focus_owner()
+		if focused != null and not (_chat != null and _chat.has_input_focus()):
+			focused.release_focus()
 	_buffer.advance(delta)
 	_update_ground_preview()
 	if not _snapshot_stale:
@@ -110,11 +115,27 @@ func _exit_tree() -> void:
 	_disconnect_interaction_signals()
 
 
-func _render_zone_geometry() -> void:
-	var zone_id := "zone.starter"
+func _current_zone_id() -> String:
 	if AppState.has_zone_state:
-		zone_id = String(AppState.zone_view.get("zone_id", zone_id))
-	_zone.render_zone(ContentRegistry.get_by_id(zone_id))
+		var zone_id := String(AppState.zone_view.get("zone_id", "zone.starter"))
+		if not zone_id.is_empty():
+			return zone_id
+	return "zone.starter"
+
+
+func _bind_zone_presentation(zone_id: String) -> void:
+	if zone_id.is_empty():
+		zone_id = "zone.starter"
+	if zone_id == _rendered_zone_id and _sim != null:
+		return
+	_rendered_zone_id = zone_id
+	if _zone != null:
+		_zone.render_zone(ContentRegistry.get_by_id(zone_id))
+	_sim = MovementSim.from_content(zone_id)
+	if _reconciler != null:
+		_reconciler.sim = _sim
+	else:
+		_reconciler = MovementReconciler.new(_sim)
 
 
 func _ensure_ground_preview() -> void:
@@ -159,6 +180,7 @@ func _apply_zone_state() -> void:
 		_buffer.frozen = false
 	_snapshot_stale = false
 	var state: Dictionary = AppState.zone_view
+	_bind_zone_presentation(String(state.get("zone_id", "zone.starter")))
 	if AppState.zone_view_is_full:
 		_adopt_ack_seq(int(state.get("ack_seq", 0)))
 		_entities.apply_full_state(state)
@@ -169,6 +191,7 @@ func _apply_zone_state() -> void:
 		_entities.apply_snapshot(state)
 		var ack := int(state.get("ack_seq", 0))
 		_adopt_ack_seq(ack)
+		_sync_player_blockers()
 		var result: Dictionary = _reconciler.reconcile(_local_server_pos(state), ack)
 		_entities.pose_local(result["display"])
 		_update_ping(ack)
@@ -237,6 +260,7 @@ func _send_move_intent(axis: Vector2) -> void:
 	if NetworkService.match_id.is_empty():
 		return
 	_input_seq += 1
+	_sync_player_blockers()
 	_reconciler.predict(_input_seq, axis)
 	_sent_at[_input_seq] = Time.get_ticks_msec()
 	NetworkService.send_input(_input_seq, axis.x, axis.y)
@@ -329,6 +353,8 @@ func _input_blocked() -> bool:
 		return true
 	if _chat != null and _chat.has_input_focus():
 		return true
+	if _hud != null and _hud.has_party_input_focus():
+		return true
 	if _dialogue != null and _dialogue.is_open():
 		return true
 	return false
@@ -345,6 +371,36 @@ func _local_alive() -> bool:
 			continue
 		return int(entry.get("health", 1)) > 0
 	return true
+
+
+func _sync_player_blockers() -> void:
+	if _sim == null:
+		return
+	var rects: Array[Rect2] = []
+	if AppState.has_zone_state:
+		var self_id := String(AppState.zone_view.get("self_id", _entities.local_server_id))
+		var half := _sim.half_extent
+		var size := half * 2.0
+		var poses: Dictionary = {}
+		if _buffer.depth() > 0:
+			poses = _buffer.sample(_buffer.render_tick())
+		for entry in AppState.zone_view.get("players", []):
+			if typeof(entry) != TYPE_DICTIONARY:
+				continue
+			var record: Dictionary = entry
+			var user_id := String(record.get("userId", record.get("user_id", "")))
+			if user_id.is_empty() or user_id == self_id:
+				continue
+			if int(record.get("health", 1)) <= 0:
+				continue
+			if record.has("alive") and not bool(record.get("alive", true)):
+				continue
+			var pos := Vector2(float(record.get("x", 0.0)), float(record.get("y", 0.0)))
+			var pose_key := "player:%s" % user_id
+			if poses.has(pose_key):
+				pos = poses[pose_key]
+			rects.append(Rect2(pos.x - half, pos.y - half, size, size))
+	_sim.dynamic_collisions = rects
 
 
 func try_interact() -> void:
@@ -403,6 +459,8 @@ func _connect_interaction_signals() -> void:
 		AbilityService.request_started.connect(_on_ability_request_started)
 	if not WalletService.wallet_changed.is_connected(_on_wallet_changed):
 		WalletService.wallet_changed.connect(_on_wallet_changed)
+	if not PartyService.party_changed.is_connected(_on_party_changed):
+		PartyService.party_changed.connect(_on_party_changed)
 
 
 func _disconnect_interaction_signals() -> void:
@@ -426,6 +484,8 @@ func _disconnect_interaction_signals() -> void:
 		AbilityService.request_started.disconnect(_on_ability_request_started)
 	if WalletService.wallet_changed.is_connected(_on_wallet_changed):
 		WalletService.wallet_changed.disconnect(_on_wallet_changed)
+	if PartyService.party_changed.is_connected(_on_party_changed):
+		PartyService.party_changed.disconnect(_on_party_changed)
 
 
 func _on_interaction_result(payload: Dictionary) -> void:
@@ -472,6 +532,9 @@ func _on_action_result(payload: Dictionary) -> void:
 	var code := String(payload.get("code", "action_failed"))
 	if code == "not_implemented":
 		return
+	if code == "not_party_member" or code == "not_cave_owner" or code == "already_transferring" or code == "cave_expired" or code == "cave_already_associated" or code == "invalid_origin" or code == "instance_not_ready" or code == "content_mismatch":
+		AppState.report_recoverable(code, _cave_message(code))
+		return
 	if code == "pvp_disabled" or code == "invalid_target" or code == "target_dead" or code == "player_dead" or code == "not_dead" or code == "invalid_relation":
 		AppState.report_recoverable(code, _combat_message(code))
 		return
@@ -496,6 +559,11 @@ func _on_equipment_changed() -> void:
 func _on_wallet_changed() -> void:
 	if _hud != null:
 		_hud.refresh_wallet()
+
+
+func _on_party_changed() -> void:
+	if _hud != null:
+		_hud.refresh_party()
 
 
 func _on_equip_request_started(request_id: String) -> void:
@@ -624,6 +692,26 @@ func _inventory_message(code: String) -> String:
 	return "The server rejected that inventory action."
 
 
+func _cave_message(code: String) -> String:
+	if code == "not_party_member":
+		return "Only party members can enter that cave."
+	if code == "not_cave_owner":
+		return "That cave belongs to someone else."
+	if code == "already_transferring":
+		return "A transfer is already in progress."
+	if code == "cave_expired":
+		return "That cave is no longer available."
+	if code == "cave_already_associated":
+		return "You already have an active cave."
+	if code == "invalid_origin":
+		return "Use the cave entrance or exit."
+	if code == "instance_not_ready":
+		return "The cave is still opening. Try again."
+	if code == "content_mismatch":
+		return "Your client does not match that cave."
+	return "You cannot enter that cave."
+
+
 func _quest_message(code: String) -> String:
 	if code == "out_of_range":
 		return "Too far from the elder."
@@ -671,6 +759,8 @@ func _on_chat_send_requested(text: String) -> void:
 func _on_chat_message(payload: Dictionary) -> void:
 	if _chat == null:
 		return
+	if String(payload.get("channel_id", "")) != NetworkService.zone_chat_id:
+		return
 	var sender := ZoneChat.sender_name(
 		String(payload.get("sender_id", "")),
 		String(payload.get("username", "")),
@@ -681,6 +771,8 @@ func _on_chat_message(payload: Dictionary) -> void:
 
 func _on_chat_presence(payload: Dictionary) -> void:
 	if _chat == null:
+		return
+	if String(payload.get("channel_id", "")) != NetworkService.zone_chat_id:
 		return
 	for entry in payload.get("joins", []):
 		if typeof(entry) != TYPE_DICTIONARY:

@@ -29,13 +29,13 @@ Do not upgrade, replace, or add foundational packages unless the current phase e
 - GdUnit4 6.2.0
 - JSON Schema-based content definitions
 - Built-in Godot TileMap workflow
-- One server-authoritative Nakama match representing the starter zone (Prompt 18 freeze; Foundation v1 public world and caves are documented, not implemented, in `docs/FOUNDATION_SCOPE.md`)
+- One server-authoritative Nakama match module `starter_zone` hosting the public world (`zone.starter`) and private party caves (`zone.cave`). Prompt 18 freeze still applies to village/slime behavior. No public-world sharding.
 
 ## Architecture
 
-- The server is authoritative for position, collision, health, damage, cooldowns, enemy behavior, inventory, equipment, loot, quests, rewards, currency, experience, levels, attribute allocation, abilities, casts, resources, derived statistics, targeting, death, and respawn.
+- The server is authoritative for position, collision, health, damage, cooldowns, enemy behavior, inventory, equipment, loot, quests, rewards, currency, experience, levels, attribute allocation, abilities, casts, resources, derived statistics, targeting, death, respawn, party membership, group credit, group loot, canonical location, transfer tickets, and cave instance ownership.
 - The client sends intentions, never outcomes.
-- The client must never send an authoritative position, damage value, health value, item grant, quest completion, currency change, or XP amount.
+- The client must never send an authoritative position, damage value, health value, item grant, quest completion, currency change, XP amount, party member list, credit/loot recipient list, destination match id, instance id, or fabricated transfer ticket.
 - Important player storage must use `permissionWrite: 0`.
 - Do not allow the Godot client to write canonical inventory, equipment, quest, currency, or progression storage records.
 - Do not read or write persistent storage every server tick.
@@ -59,7 +59,7 @@ Do not upgrade, replace, or add foundational packages unless the current phase e
 
 Prompt 18 is accepted and frozen. Do not change its player-visible behavior unless the current phase explicitly repairs a defect.
 
-Foundation v1 product scope is [docs/FOUNDATION_SCOPE.md](docs/FOUNDATION_SCOPE.md). Implement a Foundation feature only when the current phase prompt names it. Prompt 19 is documentation and audit only. Prompt 20 is accepted: versioned content packages and save-schema migrations without new player-facing gameplay. Prompt 21 is accepted: email accounts, slots, and class selection. Prompt 22 is accepted: server-authoritative XP, levels, derived stats, and attribute allocation. Prompt 23 is accepted: generic items, inventory, equipment, gold, and the transaction core (trading remains later). Prompt 24 is accepted: data-defined abilities, casting, cooldowns, resources, and the effect engine (PvP remains disabled). Prompt 25 is accepted: one combat-resolution pipeline, targeting, PvE death/respawn, and XP hooks (PvP remains disabled; parties remain later). Prompt 26 is accepted: data-defined enemies, spawn controllers, AI profiles, loot tables, and simple bosses (caves, parties, and PvP remain later). Prompt 27 is accepted: generic NPC services, dialogue, quests, merchants, and inn (cave instances and parties remain later).
+Foundation v1 product scope is [docs/FOUNDATION_SCOPE.md](docs/FOUNDATION_SCOPE.md). Implement a Foundation feature only when the current phase prompt names it. Prompt 19 is documentation and audit only. Prompt 20 is accepted: versioned content packages and save-schema migrations without new player-facing gameplay. Prompt 21 is accepted: email accounts, slots, and class selection. Prompt 22 is accepted: server-authoritative XP, levels, derived stats, and attribute allocation. Prompt 23 is accepted: generic items, inventory, equipment, gold, and the transaction core (trading remains later). Prompt 24 is accepted: data-defined abilities, casting, cooldowns, resources, and the effect engine (PvP remains disabled). Prompt 25 is accepted: one combat-resolution pipeline, targeting, PvE death/respawn, and XP hooks (PvP remains disabled). Prompt 26 is accepted: data-defined enemies, spawn controllers, AI profiles, loot tables, and simple bosses (PvP remains disabled). Prompt 27 is accepted: generic NPC services, dialogue, quests, merchants, and inn. Prompt 28 is accepted: temporary parties (max 5), party chat, group credit, and group loot (guilds, matchmaking, need/greed, and trading remain later). Prompt 29 is accepted: one public world, party cave instances, one-time transfer tickets, canonical location, and reconnection (no sharding).
 
 Always excluded: public-world sharding, extra overworlds, guilds, auction houses, crafting, PvP, monetization, procedural generation as a world system, open-world streaming, extra gameplay frameworks (QuestSystem, LimboAI, netfox, RPG database plugins).
 
@@ -82,8 +82,8 @@ Record necessary assumptions in `docs/DECISIONS.md`.
 
 | Path | Role |
 | --- | --- |
-| `client/` | Godot 4.7.1 application (boot → login → character list → content-driven starter zone after `FULL_STATE`). Email/password; debug device auth; joins `zone.starter` with a selection ticket. Progression panel and ability HUD (hotbar, cast bar, cooldowns, target frame, death overlay) mirror server state. Visual IDs in `client/content/visual_map.json`. |
-| `server/` | TypeScript Nakama runtime (health RPC, character lifecycle RPCs, `find_or_create_starter_zone`, starter-zone match; generated content catalog including classes, attributes, resources, derived stats, level curves, class progression, equipment slots, and item categories). |
+| `client/` | Godot 4.7.1 application (boot → login → character list → content-driven public world or owned cave after `FULL_STATE`). Email/password; debug device auth; joins with a selection ticket or a one-time transfer ticket. Progression panel, ability HUD, party panel, cave objective, and transfer overlay mirror server state. Visual IDs in `client/content/visual_map.json`. |
+| `server/` | TypeScript Nakama runtime (health RPC, character lifecycle RPCs, `find_or_create_starter_zone`, cave RPCs, public-world and party-cave matches; generated content catalog including classes, attributes, resources, derived stats, level curves, class progression, equipment slots, and item categories). |
 | `content/schemas/` | JSON Schemas for authored content. |
 | `content/source/` | ID-addressed source content documents. |
 | `infra/` | Docker Compose and Nakama configuration. |

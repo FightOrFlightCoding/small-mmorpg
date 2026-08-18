@@ -11,6 +11,18 @@ export const REGISTERED_RPC_IDS = [
   "character_soft_delete",
   "character_restore",
   "find_or_create_starter_zone",
+  "request_cave_entry",
+  "find_or_create_owned_cave",
+  "request_cave_exit",
+  "party_create",
+  "party_invite",
+  "party_accept",
+  "party_decline",
+  "party_leave",
+  "party_kick",
+  "party_promote",
+  "party_disband",
+  "party_get_state",
 ] as const;
 
 export { PROTOCOL_VERSION };

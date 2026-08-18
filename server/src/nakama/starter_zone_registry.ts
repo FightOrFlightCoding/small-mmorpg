@@ -14,7 +14,7 @@ interface StoredMatch {
 }
 
 export function findOrCreateStarterZoneMatch(nk: nkruntime.Nakama, logger: nkruntime.Logger): string {
-  const stored = readStoredMatchId(nk);
+  const stored = readStarterZoneMatchId(nk);
   const storedRunning = stored !== null && nk.matchGet(stored) !== null;
   if (storedRunning && stored !== null) {
     return stored;
@@ -24,7 +24,7 @@ export function findOrCreateStarterZoneMatch(nk: nkruntime.Nakama, logger: nkrun
   if (listed.length > 0) {
     const canonical = selectCanonicalMatchId(listed);
     persistMatchIdIfAbsentOrDead(nk, canonical);
-    const storedAfter = readStoredMatchId(nk);
+    const storedAfter = readStarterZoneMatchId(nk);
     const storedAfterRunning = storedAfter !== null && nk.matchGet(storedAfter) !== null;
     return resolveStarterMatchId(listed, storedAfter, storedAfterRunning, canonical);
   }
@@ -35,7 +35,7 @@ export function findOrCreateStarterZoneMatch(nk: nkruntime.Nakama, logger: nkrun
   if (listedAfter.indexOf(created) === -1) {
     listedAfter.push(created);
   }
-  const storedAfter = readStoredMatchId(nk);
+  const storedAfter = readStarterZoneMatchId(nk);
   const storedAfterRunning = storedAfter !== null && nk.matchGet(storedAfter) !== null;
   const canonical = resolveStarterMatchId(listedAfter, storedAfter, storedAfterRunning, created);
   if (canonical !== created) {
@@ -53,7 +53,7 @@ function listStarterMatchIds(nk: nkruntime.Nakama): string[] {
   return ids;
 }
 
-function readStoredMatchId(nk: nkruntime.Nakama): string | null {
+export function readStarterZoneMatchId(nk: nkruntime.Nakama): string | null {
   const objects = nk.storageRead([
     {
       collection: MATCH_COLLECTION,

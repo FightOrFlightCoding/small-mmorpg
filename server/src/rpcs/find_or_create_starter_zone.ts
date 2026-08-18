@@ -1,8 +1,12 @@
 import { requireAuthenticatedUserId } from "../domain/character";
 import { PROTOCOL_VERSION } from "../domain/protocol";
 import { STARTER_ZONE_ID } from "../domain/match_state";
+import { PUBLIC_WORLD_INSTANCE_ID, PUBLIC_WORLD_INSTANCE_TYPE } from "../domain/instance";
 import { findOrCreateStarterZoneMatch } from "../nakama/starter_zone_registry";
 import { contentHash } from "../generated/content";
+import { readSelection } from "../nakama/selection_store";
+import { readActiveLocation } from "../nakama/location_store";
+import { nakamaCaveRepository } from "../nakama/cave_store";
 
 export const FIND_OR_CREATE_STARTER_ZONE_RPC_ID = "find_or_create_starter_zone";
 
@@ -33,13 +37,38 @@ export function rpcFindOrCreateStarterZone(
   payload: string,
 ): string {
   try {
-    requireAuthenticatedUserId(ctx.userId);
+    const userId = requireAuthenticatedUserId(ctx.userId);
     parseFindOrCreatePayload(payload);
+    const selected = readSelection(nk, userId);
+    if (selected !== null && selected.characterId.length > 0) {
+      const location = readActiveLocation(nk, userId, selected.characterId);
+      if (location !== null && location.instanceType === "party_cave") {
+        const cave = nakamaCaveRepository(nk).getCave(location.instanceId);
+        if (
+          cave !== null &&
+          cave.lifecycleState !== "expired" &&
+          cave.lifecycleState !== "terminated" &&
+          nk.matchGet(cave.matchId) !== null
+        ) {
+          logger.info("find_or_create_starter_zone reconnect_cave user_id=%s match_id=%s", userId, cave.matchId);
+          return JSON.stringify({
+            matchId: cave.matchId,
+            zoneId: cave.zoneTemplateId,
+            instanceId: cave.instanceId,
+            instanceType: "party_cave",
+            protocolVersion: PROTOCOL_VERSION,
+            contentHash: contentHash,
+          });
+        }
+      }
+    }
     const matchId = findOrCreateStarterZoneMatch(nk, logger);
     logger.info("find_or_create_starter_zone ok user_id=%s match_id=%s", ctx.userId, matchId);
     return JSON.stringify({
       matchId: matchId,
       zoneId: STARTER_ZONE_ID,
+      instanceId: PUBLIC_WORLD_INSTANCE_ID,
+      instanceType: PUBLIC_WORLD_INSTANCE_TYPE,
       protocolVersion: PROTOCOL_VERSION,
       contentHash: contentHash,
     });

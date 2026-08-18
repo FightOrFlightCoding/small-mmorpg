@@ -19,6 +19,8 @@ signal equipment_state_received(payload: Dictionary)
 signal wallet_state_received(payload: Dictionary)
 signal progression_state_received(payload: Dictionary)
 signal ability_state_received(payload: Dictionary)
+signal party_state_received(payload: Dictionary)
+signal party_event_received(payload: Dictionary)
 signal system_notice_received(code: String, message: String)
 signal logged_out
 
@@ -29,6 +31,7 @@ const CHARACTER_SELECT_RPC := "character_select"
 const CHARACTER_SOFT_DELETE_RPC := "character_soft_delete"
 const CHARACTER_RESTORE_RPC := "character_restore"
 const FULL_STATE_TIMEOUT_SEC := 10.0
+const TRANSFER_TIMEOUT_SEC := 20.0
 const AUTH_COOLDOWN_START_MS := 1000
 const AUTH_COOLDOWN_MAX_MS := 8000
 
@@ -37,6 +40,9 @@ var last_auth_attempted: bool = false
 var socket_connected: bool = false
 var match_id: String = ""
 var zone_chat_id: String = ""
+var party_chat_id: String = ""
+var party_chat_party_id: String = ""
+var _chat_join_busy: bool = false
 
 var _device_id: String = ""
 var _username: String = ""
@@ -579,7 +585,82 @@ func send_cave_enter(npc_id: String, request_id: String = "") -> Dictionary:
 	)
 
 
+func send_cave_exit(npc_id: String, request_id: String = "") -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var rid := request_id
+	if rid.is_empty():
+		rid = MatchProtocol.new_request_id()
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_CAVE_EXIT,
+		MatchProtocol.client_envelope_json({"npcId": npc_id, "requestId": rid})
+	)
+
+
+func begin_transfer(payload: Dictionary) -> bool:
+	var ticket_id := String(payload.get("ticket_id", ""))
+	var destination := String(payload.get("destination_match_id", ""))
+	if ticket_id.is_empty() or destination.is_empty():
+		CaveService.transferring = false
+		return false
+	AppState.notify_loading_started("transfer")
+	_got_full_state = false
+	await leave_zone_chat()
+	if _backend().has_method("leave_match"):
+		await _backend().leave_match()
+	match_id = ""
+	var join_result: Dictionary = await _backend().join_match(
+		destination,
+		MatchProtocol.join_metadata(ContentRegistry.get_content_hash(), "", ticket_id)
+	)
+	if not bool(join_result.get("ok", false)):
+		CaveService.transferring = false
+		AppState.notify_loading_completed("transfer")
+		AppState.report_recoverable(String(join_result.get("code", "transfer_failed")), "Could not join the destination.")
+		return false
+	match_id = String(join_result.get("match_id", destination))
+	var received := await _wait_for_full_state(TRANSFER_TIMEOUT_SEC)
+	CaveService.transferring = false
+	if not received:
+		AppState.notify_loading_completed("transfer")
+		AppState.report_recoverable("transfer_timeout", "The transfer timed out.")
+		return false
+	await join_zone_chat()
+	AppState.notify_loading_completed("transfer")
+	return true
+
+
+func _wait_chat_join_slot() -> void:
+	while _chat_join_busy:
+		var tree := get_tree()
+		if tree == null:
+			break
+		await tree.process_frame
+
+
 func join_zone_chat() -> bool:
+	if not should_join_zone_chat():
+		return true
+	await _wait_chat_join_slot()
+	_chat_join_busy = true
+	var joined := await _join_zone_chat_unlocked()
+	_chat_join_busy = false
+	return joined
+
+
+func should_join_zone_chat() -> bool:
+	return not in_party_cave()
+
+
+func in_party_cave() -> bool:
+	var instance: Variant = AppState.zone_view.get("instance", {})
+	if typeof(instance) == TYPE_DICTIONARY:
+		if String(instance.get("type", "")) == "party_cave":
+			return true
+	return String(AppState.zone_view.get("zone_id", "")) == "zone.cave"
+
+
+func _join_zone_chat_unlocked() -> bool:
 	_connect_chat_signals()
 	if not zone_chat_id.is_empty():
 		await leave_zone_chat()
@@ -624,6 +705,106 @@ func send_zone_chat(text: String) -> Dictionary:
 		_fail_chat("chat_send_failed", "Join zone chat before sending a message.")
 		return {"ok": false, "code": "chat_send_failed", "message": "Join zone chat before sending a message."}
 	var sent: Dictionary = await _backend().send_chat_message(zone_chat_id, ZoneChat.payload(text))
+	if not bool(sent.get("ok", false)):
+		_fail_chat(
+			String(sent.get("code", "chat_send_failed")),
+			String(sent.get("message", "The server rejected the chat message."))
+		)
+		return sent
+	return {"ok": true}
+
+
+func rpc_party(rpc_id: String, payload: Dictionary) -> void:
+	_rpc_party(rpc_id, payload)
+
+
+func _rpc_party(rpc_id: String, payload: Dictionary) -> void:
+	if _backend().is_session_expired():
+		var session_ok := await ensure_session()
+		if not session_ok:
+			party_state_received.emit({"ok": false, "code": "session_expired"})
+			return
+	var encoded := JSON.stringify(payload)
+	var result: Dictionary = await _backend().rpc(rpc_id, encoded)
+	if not bool(result.get("ok", false)):
+		var auth_code := String(result.get("code", "rpc_failed"))
+		if auth_code == "session_expired" or auth_code == "unauthenticated":
+			if await ensure_session():
+				result = await _backend().rpc(rpc_id, encoded)
+	if not bool(result.get("ok", false)):
+		var code := String(result.get("code", "rpc_failed"))
+		var message := String(result.get("message", "The party request failed."))
+		var domain := _party_rpc_failure_code(code, message)
+		if code == "session_expired" or code == "unauthenticated":
+			AppState.report_recoverable("session_expired", message)
+			party_state_received.emit({"ok": false, "code": "session_expired"})
+			return
+		if domain.is_empty():
+			party_state_received.emit({"ok": false, "code": code})
+		else:
+			party_state_received.emit({"ok": false, "code": domain})
+		return
+	var parsed: Variant = JSON.parse_string(String(result.get("payload", "")))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return
+	party_state_received.emit(parsed)
+
+
+func join_party_chat(party_id: String) -> bool:
+	await _wait_chat_join_slot()
+	_chat_join_busy = true
+	var joined := await _join_party_chat_unlocked(party_id)
+	_chat_join_busy = false
+	return joined
+
+
+func _join_party_chat_unlocked(party_id: String) -> bool:
+	_connect_chat_signals()
+	if party_id.is_empty() or backend == null:
+		return false
+	if party_chat_party_id == party_id and not party_chat_id.is_empty():
+		return true
+	if not backend.has_method("join_chat"):
+		return false
+	if not party_chat_id.is_empty():
+		await leave_party_chat()
+	var joined: Dictionary = await backend.join_chat(
+		"party." + party_id,
+		ZoneChat.CHANNEL_TYPE_ROOM,
+		false,
+		false
+	)
+	if not bool(joined.get("ok", false)):
+		return false
+	party_chat_id = String(joined.get("channel_id", ""))
+	party_chat_party_id = party_id
+	if party_chat_id.is_empty():
+		party_chat_party_id = ""
+		return false
+	return true
+
+
+func leave_party_chat() -> void:
+	if party_chat_id.is_empty():
+		party_chat_party_id = ""
+		return
+	var channel_id := party_chat_id
+	party_chat_id = ""
+	party_chat_party_id = ""
+	if backend != null and backend.has_method("leave_chat"):
+		await backend.leave_chat(channel_id)
+
+
+func send_party_chat(text: String, party_id: String) -> Dictionary:
+	var reason := ZoneChat.reject_reason(text)
+	if not reason.is_empty():
+		var message := "Chat message is empty." if reason == "empty_message" else "Chat message exceeds 200 characters."
+		_fail_chat(reason, message)
+		return {"ok": false, "code": reason, "message": message}
+	if party_id.is_empty() or party_chat_id.is_empty() or backend == null or not backend.has_method("send_chat_message"):
+		_fail_chat("chat_send_failed", "Join party chat before sending a message.")
+		return {"ok": false, "code": "chat_send_failed", "message": "Join party chat before sending a message."}
+	var sent: Dictionary = await backend.send_chat_message(party_chat_id, ZoneChat.party_payload(text, party_id))
 	if not bool(sent.get("ok", false)):
 		_fail_chat(
 			String(sent.get("code", "chat_send_failed")),
@@ -826,12 +1007,15 @@ func logout() -> void:
 		AppState.notify_reconnecting(false)
 	AppState.notify_loading_started("logout")
 	await leave_zone_chat()
+	await leave_party_chat()
 	if _backend().has_method("leave_match"):
 		await _backend().leave_match()
 	await _backend().logout()
 	socket_connected = false
 	match_id = ""
 	zone_chat_id = ""
+	party_chat_id = ""
+	party_chat_party_id = ""
 	_got_full_state = false
 	_device_id = ""
 	_username = ""
@@ -854,6 +1038,9 @@ func reset_for_tests() -> void:
 	socket_connected = false
 	match_id = ""
 	zone_chat_id = ""
+	party_chat_id = ""
+	party_chat_party_id = ""
+	_chat_join_busy = false
 	_got_full_state = false
 	_match_signals_connected = false
 	_chat_signals_connected = false
@@ -978,14 +1165,10 @@ func _disconnect_chat_signals() -> void:
 
 
 func _on_channel_message(payload: Dictionary) -> void:
-	if not zone_chat_id.is_empty() and String(payload.get("channel_id", "")) != zone_chat_id:
-		return
 	chat_message_received.emit(payload)
 
 
 func _on_channel_presence(payload: Dictionary) -> void:
-	if not zone_chat_id.is_empty() and String(payload.get("channel_id", "")) != zone_chat_id:
-		return
 	chat_presence_received.emit(payload)
 
 
@@ -1088,6 +1271,20 @@ func _on_match_state(opcode: int, payload: String) -> void:
 			return
 		ability_state_received.emit(abilities)
 		return
+	if opcode == MatchProtocol.SERVER_PARTY_STATE:
+		var party_state: Dictionary = MatchProtocol.parse_party_state(payload)
+		if not bool(party_state.get("ok", false)):
+			AppState.report_recoverable(String(party_state.get("code", "party_state_failed")), String(party_state.get("message", "Party state was invalid.")))
+			return
+		party_state_received.emit(party_state)
+		return
+	if opcode == MatchProtocol.SERVER_PARTY_EVENT:
+		var party_event: Dictionary = MatchProtocol.parse_party_event(payload)
+		if not bool(party_event.get("ok", false)):
+			AppState.report_recoverable(String(party_event.get("code", "party_event_failed")), String(party_event.get("message", "Party event was invalid.")))
+			return
+		party_event_received.emit(party_event)
+		return
 
 
 func _wait_for_full_state(timeout_sec: float) -> bool:
@@ -1183,3 +1380,29 @@ func _character_view(data: Dictionary) -> Dictionary:
 		"base_stats": stats.duplicate(true),
 		"position": position.duplicate(true),
 	}
+
+
+func _party_rpc_failure_code(code: String, message: String) -> String:
+	var known := PackedStringArray([
+		"already_in_party",
+		"duplicate_invite",
+		"invite_expired",
+		"invite_missing",
+		"invite_pending",
+		"invalid_id",
+		"invalid_request_id",
+		"invalid_target",
+		"not_in_party",
+		"not_leader",
+		"not_member",
+		"party_full",
+		"party_missing",
+		"revision_mismatch",
+		"stale_revision",
+	])
+	if known.has(code):
+		return code
+	for item in known:
+		if message.contains(item):
+			return item
+	return ""

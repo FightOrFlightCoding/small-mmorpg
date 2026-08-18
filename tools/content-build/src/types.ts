@@ -32,7 +32,7 @@ export interface LootTableEntry {
   weight?: number;
   groupId?: string;
   guaranteed?: boolean;
-  ownershipPolicy?: "ground_free" | "killer" | "party_split";
+  ownershipPolicy?: "ground_free" | "killer" | "party_split" | "personal" | "server_assigned";
 }
 
 export interface PlayerDef {
@@ -48,6 +48,12 @@ export interface PlayerDef {
   pickupRange: number;
   inventoryCapacity?: number;
   basicAbilityId?: string;
+  groupCredit?: {
+    rangePx?: number;
+    recentlyActiveAfterDeathSec?: number;
+    xpFormula?: "full" | "split";
+    defaultLootPolicy?: "personal" | "server_assigned";
+  };
 }
 
 export interface ItemStatModifier {
@@ -87,7 +93,7 @@ export interface EquipmentSlotDef {
 }
 
 export interface NpcServiceDef {
-  type: "dialogue" | "quest_offer" | "quest_turn_in" | "vendor" | "inn" | "healer" | "cave_entrance";
+  type: "dialogue" | "quest_offer" | "quest_turn_in" | "vendor" | "inn" | "healer" | "cave_entrance" | "cave_exit";
   questIds?: string[];
   vendorId?: string;
   goldCost?: number;
@@ -193,7 +199,7 @@ export interface LootTableDef {
   id: string;
   kind: "loot_table";
   displayName: string;
-  ownershipPolicy: "ground_free" | "killer" | "party_split";
+  ownershipPolicy: "ground_free" | "killer" | "party_split" | "personal" | "server_assigned";
   entries: LootTableEntry[];
 }
 

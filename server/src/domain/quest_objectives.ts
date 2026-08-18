@@ -5,6 +5,7 @@ export interface KillCredit {
   tags: ReadonlyArray<string>;
   zoneId: string;
   isBoss: boolean;
+  partyShare?: boolean;
 }
 
 export function applyTalkObjectives(log: QuestLog, npcId: string): { log: QuestLog; changed: boolean } {
@@ -18,6 +19,14 @@ export function applyTalkObjectives(log: QuestLog, npcId: string): { log: QuestL
 
 export function applyKillObjectives(log: QuestLog, credit: KillCredit): { log: QuestLog; changed: boolean } {
   return incrementMatching(log, function (objective) {
+    const policy = objective.partyCreditPolicy !== undefined ? objective.partyCreditPolicy : "solo";
+    if (policy === "party") {
+      if (credit.partyShare !== true) {
+        return false;
+      }
+    } else if (credit.partyShare === true) {
+      return false;
+    }
     if (objective.zoneId !== undefined && objective.zoneId.length > 0 && objective.zoneId !== credit.zoneId) {
       return false;
     }
@@ -135,6 +144,7 @@ function incrementMatching(
     enemyId?: string;
     enemyTags?: string[];
     zoneId?: string;
+    partyCreditPolicy?: string;
   }) => boolean,
   amount: number,
 ): { log: QuestLog; changed: boolean } {

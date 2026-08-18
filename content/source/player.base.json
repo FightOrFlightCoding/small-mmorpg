@@ -10,5 +10,11 @@
   "interactionRange": 48,
   "pickupRange": 40,
   "inventoryCapacity": 20,
-  "basicAbilityId": "test.ability.basic_melee"
+  "basicAbilityId": "test.ability.basic_melee",
+  "groupCredit": {
+    "rangePx": 512,
+    "recentlyActiveAfterDeathSec": 15,
+    "xpFormula": "full",
+    "defaultLootPolicy": "personal"
+  }
 }

@@ -5,6 +5,7 @@ export const NPC_SERVICE_VENDOR = "vendor";
 export const NPC_SERVICE_INN = "inn";
 export const NPC_SERVICE_HEALER = "healer";
 export const NPC_SERVICE_CAVE_ENTRANCE = "cave_entrance";
+export const NPC_SERVICE_CAVE_EXIT = "cave_exit";
 
 export interface NpcService {
   type: string;

@@ -64,7 +64,8 @@ static func run(host: Node) -> Dictionary:
 	var elder := alice.npc_pos(NPC_ID)
 	if elder == Vector2.ZERO:
 		elder = Vector2(160.0, 320.0)
-	if not await alice.walk_to(approach_point(alice.self_pos(), elder, 36.0), 14.0, 16.0):
+	# 24 px standoff + 14 px arrival stays inside npc.elder interactionRange 48.
+	if not await alice.walk_to(approach_point(alice.self_pos(), elder, 24.0), 14.0, 16.0):
 		return _fail(alice.fail_reason)
 	var interacted: Dictionary = await alice.interact(NPC_ID)
 	if not bool(interacted.get("result_ok", false)):
@@ -85,7 +86,7 @@ static func run(host: Node) -> Dictionary:
 	if not await _pickup_gel(alice):
 		return _fail(alice.fail_reason if not alice.fail_reason.is_empty() else "pickup_failed")
 	print("E2E step=alice_picked_gel")
-	if not await alice.walk_to(approach_point(alice.self_pos(), elder, 36.0), 14.0, 20.0):
+	if not await alice.walk_to(approach_point(alice.self_pos(), elder, 24.0), 14.0, 20.0):
 		return _fail(alice.fail_reason)
 	var turned: Dictionary = await alice.send_action(
 		MatchProtocol.CLIENT_QUEST_TURN_IN,
@@ -107,7 +108,7 @@ static func run(host: Node) -> Dictionary:
 	if alice.gold() != 25:
 		return _fail("reconnect_gold")
 	print("E2E step=alice_reconnected")
-	if not await alice.walk_to(approach_point(alice.self_pos(), elder, 36.0), 14.0, 12.0):
+	if not await alice.walk_to(approach_point(alice.self_pos(), elder, 24.0), 14.0, 12.0):
 		return _fail(alice.fail_reason)
 	var duplicate: Dictionary = await alice.send_action(
 		MatchProtocol.CLIENT_QUEST_TURN_IN,

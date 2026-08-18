@@ -41,7 +41,13 @@ export function actionForOpcode(opcode: number): RateAction {
   if (opcode === ClientOpcode.QUEST_ACCEPT || opcode === ClientOpcode.QUEST_TURN_IN) {
     return "quest";
   }
-  if (opcode === ClientOpcode.VENDOR_BUY || opcode === ClientOpcode.VENDOR_SELL || opcode === ClientOpcode.INN_REST || opcode === ClientOpcode.CAVE_ENTER) {
+  if (
+    opcode === ClientOpcode.VENDOR_BUY ||
+    opcode === ClientOpcode.VENDOR_SELL ||
+    opcode === ClientOpcode.INN_REST ||
+    opcode === ClientOpcode.CAVE_ENTER ||
+    opcode === ClientOpcode.CAVE_EXIT
+  ) {
     return "quest";
   }
   if (opcode === ClientOpcode.ALLOCATE_ATTRIBUTES || opcode === ClientOpcode.ASSIGN_HOTBAR || opcode === ClientOpcode.UNLOCK_ABILITY || opcode === ClientOpcode.RELEASE_RESPAWN) {

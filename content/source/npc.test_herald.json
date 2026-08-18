@@ -20,7 +20,8 @@
         "quest.test.boss",
         "quest.test.enter",
         "quest.test.gated",
-        "quest.test.reward"
+        "quest.test.reward",
+        "quest.test.party_kill"
       ]
     },
     {
@@ -33,7 +34,8 @@
         "quest.test.boss",
         "quest.test.enter",
         "quest.test.gated",
-        "quest.test.reward"
+        "quest.test.reward",
+        "quest.test.party_kill"
       ]
     }
   ]

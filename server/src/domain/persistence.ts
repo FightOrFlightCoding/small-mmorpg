@@ -61,12 +61,19 @@ export function applyPlayerLeave(state: StarterZoneState, userId: string, tick: 
   if (player === undefined) {
     return { state: state, checkpoint: null };
   }
+  if (player.transferState === "issued" || player.transferState === "pending") {
+    return applyPlayerTransfer(state, userId);
+  }
   const next = cloneStarterZoneState(state);
   const parked = next.players[userId];
   delete next.players[userId];
+  const grace =
+    typeof state.reconnectGraceTicks === "number" && state.reconnectGraceTicks > 0
+      ? state.reconnectGraceTicks
+      : RECONNECT_GRACE_TICKS;
   next.disconnected[userId] = {
     player: parked,
-    expiresAtTick: tick + RECONNECT_GRACE_TICKS,
+    expiresAtTick: tick + grace,
   };
   if (playerCount(next) === 0) {
     next.emptyTicks = 0;
@@ -76,6 +83,27 @@ export function applyPlayerLeave(state: StarterZoneState, userId: string, tick: 
     checkpoint: withBind(
       { userId: userId, characterId: parked.characterId, x: parked.x, y: parked.y },
       parked,
+    ),
+  };
+}
+
+export function applyPlayerTransfer(state: StarterZoneState, userId: string): PlayerLeaveResult {
+  const player = dict(state.players)[userId];
+  if (player === undefined) {
+    return { state: state, checkpoint: null };
+  }
+  const next = cloneStarterZoneState(state);
+  const leaving = next.players[userId];
+  delete next.players[userId];
+  delete next.disconnected[userId];
+  if (playerCount(next) === 0) {
+    next.emptyTicks = 0;
+  }
+  return {
+    state: next,
+    checkpoint: withBind(
+      { userId: userId, characterId: leaving.characterId, x: leaving.x, y: leaving.y },
+      leaving,
     ),
   };
 }
@@ -187,6 +215,9 @@ export function restoreGracePlayer(
     lastReleaseRequestId: parked.lastReleaseRequestId,
     lastReleaseResultCode: parked.lastReleaseResultCode,
     lastReleaseResultOk: parked.lastReleaseResultOk,
+    lastDeathTick: parked.lastDeathTick,
+    transferState: "idle",
+    caveEnterByRequestId: parked.caveEnterByRequestId,
   };
 }
 

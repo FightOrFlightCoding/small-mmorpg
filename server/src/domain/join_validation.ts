@@ -22,7 +22,7 @@ const JOIN_INJECTION_KEYS = SAVE_VERSION_METADATA_KEYS.concat([
   "x",
   "y",
 ]);
-const JOIN_ALLOWED_KEYS = ["protocolVersion", "contentHash", "selectionTicket"];
+const JOIN_ALLOWED_KEYS = ["protocolVersion", "contentHash", "selectionTicket", "transferTicket"];
 
 export function validateJoinAttempt(
   state: StarterZoneState,
@@ -57,11 +57,15 @@ export function validateJoinAttempt(
     }
     return { accept: false, rejectMessage: "already_in_match" };
   }
-  if (playerCount(state) >= MATCH_MAX_PLAYERS) {
+  const cap = typeof state.maxPlayers === "number" ? state.maxPlayers : MATCH_MAX_PLAYERS;
+  if (playerCount(state) >= cap) {
     return { accept: false, rejectMessage: "match_full" };
   }
+  const transfer = metadata.transferTicket;
   const ticket = metadata.selectionTicket;
-  if (typeof ticket !== "string" || ticket.length === 0) {
+  const hasTransfer = typeof transfer === "string" && transfer.length > 0;
+  const hasSelection = typeof ticket === "string" && ticket.length > 0;
+  if (!hasTransfer && !hasSelection) {
     return { accept: false, rejectMessage: "selection_required" };
   }
   return { accept: true };

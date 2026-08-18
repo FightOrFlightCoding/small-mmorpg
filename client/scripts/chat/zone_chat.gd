@@ -26,6 +26,10 @@ static func payload(raw: String) -> Dictionary:
 	return {"message": normalize_text(raw)}
 
 
+static func party_payload(raw: String, party_id: String) -> Dictionary:
+	return {"message": normalize_text(raw), "partyId": party_id}
+
+
 static func parse_content(raw: String) -> String:
 	if raw.is_empty():
 		return ""

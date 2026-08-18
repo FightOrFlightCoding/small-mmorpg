@@ -1,7 +1,7 @@
 {
   "protocolVersion": 1,
   "contentSchemaVersion": 1,
-  "contentHash": "5b41c0cdfdf7e6130c4198b098cc88c1e7be512074589b577991f37f34ee3a0d",
+  "contentHash": "58134490916197c49e40642465d949fe17350fe7f798edc5857bed947a1ade86",
   "exactDependencies": {
     "server/package.json:typescript": "5.8.3",
     "server/package.json:nakama-runtime": "github:heroiclabs/nakama-common#v1.47.0",
@@ -34,7 +34,19 @@
     "character_select",
     "character_soft_delete",
     "character_restore",
-    "find_or_create_starter_zone"
+    "find_or_create_starter_zone",
+    "request_cave_entry",
+    "find_or_create_owned_cave",
+    "request_cave_exit",
+    "party_create",
+    "party_invite",
+    "party_accept",
+    "party_decline",
+    "party_leave",
+    "party_kick",
+    "party_promote",
+    "party_disband",
+    "party_get_state"
   ],
   "realtimeBeforeHooks": ["ChannelMessageSend", "ChannelJoin"],
   "realtimeAfterHooks": [],
@@ -62,7 +74,8 @@
     "VENDOR_BUY": 19,
     "VENDOR_SELL": 20,
     "INN_REST": 21,
-    "CAVE_ENTER": 22
+    "CAVE_ENTER": 22,
+    "CAVE_EXIT": 23
   },
   "serverOpcodes": {
     "FULL_STATE": 101,
@@ -76,7 +89,9 @@
     "EQUIPMENT_STATE": 109,
     "WALLET_STATE": 110,
     "PROGRESSION_STATE": 111,
-    "ABILITY_STATE": 112
+    "ABILITY_STATE": 112,
+    "PARTY_STATE": 113,
+    "PARTY_EVENT": 114
   },
   "storageRecords": [
     { "collection": "player", "key": "character", "permissionWrite": 0, "schemaVersion": 1 },
@@ -87,6 +102,13 @@
     { "collection": "player", "key": "equipment", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "player", "key": "wallet_ref", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "player", "key": "progression", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "player", "key": "party", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "player", "key": "cave", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "player", "key": "location", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "party", "key": "p", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "cave", "key": "c", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "cave_index", "key": "owner", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "transfer", "key": "t", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "names", "key": "n", "permissionWrite": 0, "schemaVersion": "absent" },
     { "collection": "match", "key": "starter_zone", "permissionWrite": 0, "schemaVersion": "absent" }
   ],
@@ -104,11 +126,14 @@
     "item.training_sword.json",
     "loot.empty.json",
     "loot.green_slime.json",
+    "loot.test.personal.json",
+    "loot.test.server_assigned.json",
     "loot.test_boss.json",
     "loot.test_melee.json",
     "loot.test_ranged.json",
     "loot.test_weighted.json",
     "npc.elder.json",
+    "npc.test_cave_exit.json",
     "npc.test_cave_portal.json",
     "npc.test_herald.json",
     "npc.test_innkeeper.json",
@@ -121,6 +146,7 @@
     "quest.test.gated.json",
     "quest.test.kill.json",
     "quest.test.main_chain.json",
+    "quest.test.party_kill.json",
     "quest.test.reward.json",
     "quest.test.talk.json",
     "slot.chest.json",
@@ -129,6 +155,7 @@
     "slot.legs.json",
     "slot.main_hand.json",
     "slot.off_hand.json",
+    "spawn.cave.boss.json",
     "spawn.starter.boss_add.json",
     "spawn.starter.cave_boss.json",
     "spawn.starter.green_slime.json",
@@ -167,15 +194,18 @@
     "test.stat.max_health.json",
     "test.stat.max_mana.json",
     "vendor.test_general.json",
+    "zone.cave.json",
     "zone.starter.json"
   ],
   "hardcodedIds": {
     "zone.starter": [
       "server/src/domain/match_state.ts",
       "server/src/domain/chat.ts",
+      "server/src/domain/instance.ts",
       "server/src/main.ts",
       "server/src/nakama/starter_zone_match.ts",
       "server/src/nakama/character_lifecycle_deps.ts",
+      "server/src/rpcs/cave.ts",
       "client/scripts/content/content_catalog.gd",
       "client/scripts/chat/zone_chat.gd",
       "client/scripts/world/world_hud.gd",

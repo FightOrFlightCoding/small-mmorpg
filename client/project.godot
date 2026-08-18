@@ -30,6 +30,7 @@ AbilityService="*res://scripts/ability/ability_service.gd"
 VendorService="*res://scripts/vendor/vendor_service.gd"
 InnService="*res://scripts/inn/inn_service.gd"
 CaveService="*res://scripts/cave/cave_service.gd"
+PartyService="*res://scripts/party/party_service.gd"
 GameService="*res://scripts/game/game_service.gd"
 SceneRouter="*res://scripts/routing/scene_router.gd"
 Nakama="*res://addons/com.heroiclabs.nakama/Nakama.gd"
@@ -92,7 +93,7 @@ pickup={
 
 [internationalization]
 
-locale/translations_pot_files=PackedStringArray("res://content/dialogue/npc.elder.dialogue", "res://content/dialogue/npc.test_cave_portal.dialogue", "res://content/dialogue/npc.test_herald.dialogue", "res://content/dialogue/npc.test_innkeeper.dialogue", "res://content/dialogue/npc.test_vendor.dialogue")
+locale/translations_pot_files=PackedStringArray("res://content/dialogue/npc.elder.dialogue", "res://content/dialogue/npc.test_cave_portal.dialogue", "res://content/dialogue/npc.test_herald.dialogue", "res://content/dialogue/npc.test_innkeeper.dialogue", "res://content/dialogue/npc.test_vendor.dialogue", "res://content/dialogue/npc.test_cave_exit.dialogue")
 
 [rendering]
 

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   CHANNEL_TYPE_ROOM,
+  CHAT_RATE_MAX,
   MAX_CHAT_MESSAGE_CHARS,
   STARTER_ZONE_CHAT_ROOM,
   filterChannelJoin,
@@ -70,10 +71,51 @@ test("invalid chat payloads are rejected", () => {
   );
 });
 
-test("only the starter-zone room channel may be joined", () => {
+test("only the starter-zone room or a member party room may be joined", () => {
   const allowed = filterChannelJoin(joinEnvelope(STARTER_ZONE_CHAT_ROOM, CHANNEL_TYPE_ROOM));
   assert.equal(allowed.channelJoin.target, STARTER_ZONE_CHAT_ROOM);
   assert.throws(() => filterChannelJoin(joinEnvelope("other.room", CHANNEL_TYPE_ROOM)), /invalid_channel/);
   assert.throws(() => filterChannelJoin(joinEnvelope(STARTER_ZONE_CHAT_ROOM, 2)), /invalid_channel/);
   assert.throws(() => filterChannelJoin({} as nkruntime.EnvelopeChannelJoin), /invalid_payload/);
+  assert.throws(() => filterChannelJoin(joinEnvelope("party.p_one", CHANNEL_TYPE_ROOM)), /invalid_channel/);
+  const partyJoin = filterChannelJoin(joinEnvelope("party.p_one", CHANNEL_TYPE_ROOM), {
+    isPartyMember: function (partyId: string) {
+      return partyId === "p_one";
+    },
+  });
+  assert.equal(partyJoin.channelJoin.target, "party.p_one");
+  const boxedType = filterChannelJoin(joinEnvelope(STARTER_ZONE_CHAT_ROOM, "1" as unknown as number));
+  assert.equal(boxedType.channelJoin.target, STARTER_ZONE_CHAT_ROOM);
+});
+
+test("party chat send requires membership and allows partyId", () => {
+  assert.throws(
+    () =>
+      filterChannelMessageSend(sendEnvelope(JSON.stringify({ message: "hi", partyId: "p_one" }))),
+    /not_party_member/,
+  );
+  const sent = filterChannelMessageSend(sendEnvelope(JSON.stringify({ message: "  hi  ", partyId: "p_one" })), {
+    isPartyMember: function (partyId: string) {
+      return partyId === "p_one";
+    },
+  });
+  assert.equal(sent.channelMessageSend.content, JSON.stringify({ message: "hi", partyId: "p_one" }));
+  const times: number[] = [];
+  const member = {
+    isPartyMember: function (partyId: string) {
+      return partyId === "p_one";
+    },
+    nowMs: 1000,
+    recentSendTimes: times,
+  };
+  for (let i = 0; i < CHAT_RATE_MAX; i++) {
+    member.nowMs = 1000 + i;
+    filterChannelMessageSend(sendEnvelope(JSON.stringify({ message: "n" + String(i), partyId: "p_one" })), member);
+  }
+  member.nowMs = 1000 + CHAT_RATE_MAX;
+  assert.throws(
+    () =>
+      filterChannelMessageSend(sendEnvelope(JSON.stringify({ message: "nope", partyId: "p_one" })), member),
+    /rate_limited/,
+  );
 });

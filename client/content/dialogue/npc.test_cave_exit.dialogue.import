@@ -1,0 +1,16 @@
+[remap]
+
+importer="dialogue_manager"
+importer_version=15
+type="Resource"
+uid="uid://bh0nt7qo3f8bs"
+path="res://.godot/imported/npc.test_cave_exit.dialogue-31eceb298bdbfa752955cc3040503180.tres"
+
+[deps]
+
+source_file="res://content/dialogue/npc.test_cave_exit.dialogue"
+dest_files=["res://.godot/imported/npc.test_cave_exit.dialogue-31eceb298bdbfa752955cc3040503180.tres"]
+
+[params]
+
+defaults=true

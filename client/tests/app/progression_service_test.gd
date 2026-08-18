@@ -8,6 +8,7 @@ func before_test() -> void:
 	AppState.reset_for_tests()
 	NetworkService.reset_for_tests()
 	ProgressionService.reset_for_tests()
+	AbilityService.reset_for_tests()
 
 
 func test_allocate_uses_allocate_opcode_without_xp_amount() -> void:
@@ -85,3 +86,78 @@ func test_hud_allocate_buttons_are_enabled_and_skill_points_are_display_only() -
 	assert_bool(button.disabled).is_false()
 	assert_float(button.custom_minimum_size.x).is_greater_equal(40.0)
 	assert_float(button.custom_minimum_size.y).is_greater_equal(28.0)
+
+
+func test_hud_unlock_buttons_survive_repeated_snapshot_refresh() -> void:
+	assert_bool(ContentRegistry.load_bundle()).is_true()
+	ProgressionService.apply_canonical({
+		"classId": "class.one",
+		"classDisplayName": "Test Vanguard",
+		"level": 4,
+		"currentXp": 0,
+		"xpToNext": 150,
+		"atMaxLevel": false,
+		"baseAttributes": {"attr.one": 7},
+		"allocatedAttributes": {"attr.one": 0},
+		"derived": {"stat.one": 7},
+		"unspentAttributePoints": 1,
+		"unspentSkillPoints": 1,
+		"unlockedAbilityIds": ["test.ability.basic_melee"],
+	})
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	var hud: WorldHud = auto_free(preload("res://scenes/world/world_hud.tscn").instantiate())
+	add_child(hud)
+	await get_tree().process_frame
+	var unlocks: VBoxContainer = hud.get_node("Root/Progression/Margin/VBox/Unlocks")
+	assert_int(unlocks.get_child_count()).is_greater(0)
+	var button: Button = unlocks.get_child(0).get_child(1)
+	assert_str(button.text).contains("Unlock")
+	assert_bool(button.disabled).is_false()
+	var first := button
+	hud.refresh_progression()
+	hud.refresh_abilities()
+	hud.refresh({
+		"self_id": "user-alice",
+		"zone_id": "zone.starter",
+		"tick": 12,
+		"ack_seq": 4,
+		"players": [{"userId": "user-alice", "name": "Alice", "x": 240, "y": 384, "health": 40}],
+	}, PackedStringArray(["Alice"]))
+	assert_object(unlocks.get_child(0).get_child(1)).is_same(first)
+	first.pressed.emit()
+	await get_tree().process_frame
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_UNLOCK_ABILITY)
+
+
+func test_hud_allocate_button_survives_preview_refresh() -> void:
+	assert_bool(ContentRegistry.load_bundle()).is_true()
+	ProgressionService.apply_canonical({
+		"classId": "class.one",
+		"classDisplayName": "Test Vanguard",
+		"level": 4,
+		"currentXp": 0,
+		"xpToNext": 150,
+		"atMaxLevel": false,
+		"baseAttributes": {"attr.one": 7},
+		"allocatedAttributes": {"attr.one": 0},
+		"derived": {"stat.one": 7},
+		"unspentAttributePoints": 2,
+		"unspentSkillPoints": 0,
+		"unlockedAbilityIds": ["test.ability.basic_melee"],
+	})
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	var hud: WorldHud = auto_free(preload("res://scenes/world/world_hud.tscn").instantiate())
+	add_child(hud)
+	await get_tree().process_frame
+	var attributes: VBoxContainer = hud.get_node("Root/Progression/Margin/VBox/Attributes")
+	assert_int(attributes.get_child_count()).is_greater(0)
+	var button: Button = attributes.get_child(0).get_child(1)
+	var first := button
+	button.pressed.emit()
+	assert_object(attributes.get_child(0).get_child(1)).is_same(first)
+	assert_int(ProgressionService.unspent_attribute_points).is_equal(1)
+	assert_bool(first.disabled).is_false()

@@ -80,7 +80,7 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Attack:** Empty, malformed, or oversized chat; extra JSON fields; BBCode or other markup meant to restyle or execute in the client.
 
-**Defense:** `ChannelMessageSend` is validated in a Nakama realtime before hook with no module-level memory. Content must be JSON `{ "message": string }` only. Empty and >200 character bodies are rejected. The client renders chat in a `Label` and never enables BBCode on untrusted text. Direct-message and group channel joins are rejected; only room `zone.starter` is allowed.
+**Defense:** `ChannelMessageSend` is validated in a Nakama realtime before hook. Zone chat stays stateless: content must be JSON `{ "message": string }` only. Party chat may include `partyId` and requires current membership (`not_party_member`). Empty and >200 character bodies are rejected. Party sends are limited to 4 per 2 s in process memory. The client renders chat in a `Label` and never enables BBCode on untrusted text. Direct-message and group channel joins are rejected; only room `zone.starter` and `party.<partyId>` for members are allowed. Party chat never drives gameplay state.
 
 ### Protocol-version mismatch
 
@@ -92,29 +92,35 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Attack:** Client sends `schemaVersion`, `createdAt`, or a migration id in bootstrap or join metadata.
 
-**Defense:** Bootstrap treats those keys as `stat_injection`. Join metadata is only `protocolVersion`, `contentHash`, and `selectionTicket`. `characterId` in join metadata is `stat_injection`. Migrations run only on server-read storage. Future save versions reject join with a visible `save_incompatible` error; data is not reset.
+**Defense:** Bootstrap treats those keys as `stat_injection`. Join metadata is only `protocolVersion`, `contentHash`, and `selectionTicket` or `transferTicket`. `characterId` in join metadata is `stat_injection`. Migrations run only on server-read storage. Future save versions reject join with a visible `save_incompatible` error; data is not reset.
 
 ### XP injection
 
 **Attack:** Client sends an XP amount, level, or `currentXp` on a match opcode, or calls an XP RPC.
 
-**Defense:** There is no client XP opcode and no debug grant RPC. XP is granted only from trusted server events (kill credit, quest reward, administrator domain `grantXp`) with `reasonType`, `reasonId`, `eventId`, `characterId`, and `amount`. Duplicate `eventId` values do not grant twice. Outcome keys `xp`, `currentXp`, `lifetimeXp`, and `level` are `stat_injection`.
+**Defense:** There is no client XP opcode and no debug grant RPC. XP is granted only from trusted server events (kill credit, quest reward, administrator domain `grantXp`) with `reasonType`, `reasonId`, `eventId`, `characterId`, and `amount`. Duplicate `eventId` values do not grant twice. Outcome keys `xp`, `currentXp`, `lifetimeXp`, and `level` are `stat_injection`. Group kill/quest credit uses the match party cache (same match, alive or dead within 15 s, within 512 px). Clients cannot nominate recipients (`creditUserIds` / `xpRecipients` / `members` are `stat_injection`).
+
+### Forged party membership and group loot
+
+**Attack:** Client sends a member list, claims to be in a party, or nominates loot/credit recipients.
+
+**Defense:** Party RPCs and match opcodes reject `members`, `memberIds`, `partyMembers`, `creditUserIds`, `lootRecipients`, and `xpRecipients`. Membership is the server party record plus match cache keyed by `revision`. Personal loot grants each eligible member independently once per death `eventId`; `inventory_full` skips that member. Server-assigned loot picks one eligible member from a match-local LCG seeded by the death event and announces the assignment. Duplicate death events do not roll again. `party_split` maps to `personal`. Green slime stays `ground_free`.
 
 ### Vendor price spoof, inn bind, cave transfer
 
-**Attack:** Client sends a buy/sell price or gold delta; forges inn health/bind; or treats `CAVE_ENTER` as a zone transfer.
+**Attack:** Client sends a buy/sell price or gold delta; forges inn health/bind; or invents a cave destination / transfer ticket.
 
-**Defense:** `VENDOR_BUY`/`VENDOR_SELL` accept `npcId`, item or instance id, optional quantity, and `requestId` only. `price` is `unknown_field`; `gold` is `stat_injection`. Server catalog prices and the transaction service own gold. `INN_REST` heals and optionally binds from content; bind persists on the character record (`permissionWrite: 0`). `CAVE_ENTER` always returns `cave_unavailable` and never creates or joins another match.
+**Defense:** `VENDOR_BUY`/`VENDOR_SELL` accept `npcId`, item or instance id, optional quantity, and `requestId` only. `price` is `unknown_field`; `gold` is `stat_injection`. Server catalog prices and the transaction service own gold. `INN_REST` heals and optionally binds from content; bind persists on the character record (`permissionWrite: 0`). `CAVE_ENTER` / `CAVE_EXIT` are intentions. The match loop allocates the destination and issues a one-time ticket. Join metadata `transferTicket` is validated and consumed; reuse, expiry, wrong character, wrong destination, and origin still present are rejected. Canonical location forbids two live matches. Destination match ids from the client are not trusted.
 
 ### Rate-limit abuse
 
-**Attack:** Flood `INPUT`, `ATTACK`, `USE_ABILITY`, `CANCEL_CAST`, `SET_TARGET`, `INTERACT`, `PICKUP`, `EQUIP`, `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, quest opcodes, `VENDOR_BUY`, `VENDOR_SELL`, `INN_REST`, `CAVE_ENTER`, `ALLOCATE_ATTRIBUTES`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, `RELEASE_RESPAWN`, or `RESYNC_REQUEST` faster than an honest client.
+**Attack:** Flood `INPUT`, `ATTACK`, `USE_ABILITY`, `CANCEL_CAST`, `SET_TARGET`, `INTERACT`, `PICKUP`, `EQUIP`, `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, quest opcodes, `VENDOR_BUY`, `VENDOR_SELL`, `INN_REST`, `CAVE_ENTER`, `CAVE_EXIT`, `ALLOCATE_ATTRIBUTES`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, `RELEASE_RESPAWN`, or `RESYNC_REQUEST` faster than an honest client.
 
 **Defense:** Match state stores per-user `actionRates` for a 10-tick window. Excess is `rate_limited`, logged, and not applied. Honest 10 Hz movement stays under the `INPUT` cap of 20/s.
 
 ## Client local storage
 
-The Godot client must not write canonical inventory, equipment, quest, currency, progression, health, or position records to `user://` or other local files. `AppState` is in-memory presentation/session flags only. Persistence is Nakama storage and wallet, written by the server. Session tokens (never passwords) may be cached in `user://session_cache.json` for refresh. Email reauthentication cannot use a stored password: refresh, then a visible `session_expired` if the refresh token is dead. Device reauthentication remains available only for debug device-auth sessions.
+The Godot client must not write canonical inventory, equipment, quest, currency, progression, party, cave, location, health, or position records to `user://` or other local files. `AppState` is in-memory presentation/session flags only. Persistence is Nakama storage and wallet, written by the server. Session tokens (never passwords) may be cached in `user://session_cache.json` for refresh. Email reauthentication cannot use a stored password: refresh, then a visible `session_expired` if the refresh token is dead. Device reauthentication remains available only for debug device-auth sessions.
 
 Debug Alice/Bob/machine device identities are gated by `OS.is_debug_build()` (tests may set `DevIdentity.force_release_config`). Release builds expose email registration and login only.
 
@@ -149,11 +155,13 @@ Every expected attack maps to a validation rule, an automated test, and a safe s
 | Client quest progress | `status` / `questComplete` / `gold` rejected | `protocol.test.ts`, `security.test.ts` | `unknown_field` / `stat_injection:questComplete` |
 | Vendor price spoof | Client `price` / `gold` rejected; server catalog prices | `vendor.test.ts`, `protocol.test.ts` | `unknown_field:price` / `stat_injection:gold`; gold unchanged |
 | Inn health/gold spoof | Client health/gold rejected; server heal and bind | `inn.test.ts`, `protocol.test.ts` | `stat_injection:gold`; bind unchanged on reject |
-| Fake cave transfer | `CAVE_ENTER` never changes match | `inn.test.ts`, `protocol.test.ts` | `cave_unavailable`; still in `zone.starter` |
+| Fake cave transfer | Ticket validation; client cannot nominate destination | `cave.test.ts`, `inn.test.ts`, `protocol.test.ts` | `ticket_reused` / `ticket_expired` / `ticket_wrong_character` / `already_elsewhere`; still one presence |
 | Fabricated NPC interaction | Server range and live health | `interaction.test.ts` | `out_of_range` / `invalid_target` / `player_dead` |
 | Invalid target IDs | Match entity + content indexes | `combat.test.ts`, `combat_pipeline.test.ts`, `targeting.test.ts`, `inventory.test.ts`, `interaction.test.ts`, `security.test.ts` | `invalid_target` / `invalid_id`; match continues |
 | Oversized payloads | 2048-byte client match cap; 24 messages/tick | `protocol.test.ts`, `security.test.ts` | `payload_too_large` / `rate_limited` |
-| Chat injection | Before-hook JSON `{message}`; Label render, no BBCode | `chat.test.ts`, `chat_client_test.gd`, `security.test.ts` | `message_too_long` / `invalid_payload`; markup is plain text |
+| Chat injection | Before-hook JSON `{message}` or `{message, partyId}`; Label render, no BBCode; party membership | `chat.test.ts`, `chat_client_test.gd`, `security.test.ts` | `message_too_long` / `invalid_payload` / `not_party_member` / `invalid_channel`; markup is plain text |
+| Forged party membership | Server party record + revision cache; client member lists rejected | `party.test.ts`, `protocol.test.ts`, `party_service_test.gd` | `stat_injection:members`; match ignores client lists |
+| Nominated group credit/loot | Server eligibility and assignment only | `party_credit_loot.test.ts`, `protocol.test.ts` | `stat_injection:creditUserIds`; one death `eventId` |
 | Protocol-version mismatch | Envelope version checked first | `protocol.test.ts`, `match.test.ts` | `protocol_mismatch`; no apply |
 | Character stat injection | Bootstrap/create accept name and classId only | `character.test.ts`, `character_lifecycle.test.ts` | `stat_injection`; `permissionWrite: 0` |
 | Foreign character select | Ticket and roster ownership | `character_lifecycle.test.ts`, `match.test.ts` | `selection_foreign` / `character_missing` |

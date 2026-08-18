@@ -8,7 +8,7 @@ import { SAVE_SCHEMA_VERSION } from "../domain/save_schema";
 import { commitQuestReward, commitTransaction, readGold } from "./quest_reward_store";
 import { TX_REASON_EQUIPMENT, TX_REASON_LOOT } from "../domain/transaction";
 import { validateJoinAttempt } from "../domain/join_validation";
-import { applyMatchLoop, snapshotForOthers, type IncomingMatchData, type EquipmentPersist, type InventoryPersist } from "../domain/match_loop";
+import { applyMatchLoop, snapshotForOthers, type IncomingMatchData, type EquipmentPersist, type InventoryPersist, type MatchLoopResult } from "../domain/match_loop";
 import { PLAYER_RESPAWN_DELAY_SEC } from "../domain/combat";
 import { questDefinitionsFromContent } from "../domain/quest";
 import { initializeInventoryFromStacks, itemDefinitionsFromContent, INVENTORY_CAPACITY } from "../domain/inventory";
@@ -18,17 +18,28 @@ import {
   loadEquipment,
 } from "../domain/equipment";
 import {
+  CAVE_EMPTY_TIMEOUT_TICKS,
+  CAVE_MATCH_MAX_PLAYERS,
+  CAVE_RECONNECT_GRACE_TICKS,
+  CAVE_ZONE_ID,
   MATCH_TICK_RATE,
+  PARTY_CAVE_LABEL,
   STARTER_ZONE_LABEL,
   addPlayer,
   buildFullState,
   createStarterZoneState,
   enemyDefinitionsFromContent,
   fullStateOpcode,
+  partyViewForPlayer,
   type MatchPlayer,
   type StarterZoneState,
 } from "../domain/match_state";
 import { dict } from "../domain/maps";
+import { groupCreditRulesFromPlayer } from "../domain/party";
+import { applyPartyMatchSignal } from "../domain/party_credit";
+import { actionResult, partyEventMessage, partyStateMessage } from "../domain/protocol";
+import { nakamaPartyRepository } from "./party_store";
+import { markPartyDisconnectGrace, markPartyOnline } from "../rpcs/party";
 import {
   applyPlayerLeave,
   bindJoiningSession,
@@ -52,21 +63,55 @@ import { lootTablesFromContent } from "../domain/loot_table";
 import { npcDefinitionsFromContent } from "../domain/npc";
 import { vendorDefinitionsFromContent } from "../domain/vendor";
 import { readProgression, writeProgression, writeProgressionOnce } from "./progression_store";
+import { accountCaveRepository, nakamaCaveRepository } from "./cave_store";
+import { readActiveLocation, writeActiveLocation } from "./location_store";
+import { nakamaTransferRepository } from "./transfer_store";
+import {
+  applyPersistedCaveCompletion,
+  associateCharacterWithCave,
+  canJoinOwnedCave,
+  clearCharacterCaveAssociation,
+  emptyTimeoutMs,
+  findOrCreateOwnedCave,
+  markCaveActive,
+  markCaveEmptyGrace,
+  resolvePartyForActor,
+  setCaveCompletion,
+  terminateCave,
+} from "../domain/cave";
+import {
+  caveLocation,
+  publicWorldLocation,
+} from "../domain/instance";
+import { evaluateJoinPresence, withCheckpoint, withTransferState } from "../domain/location";
+import { consumeTransferTicket, issueTransferTicket, previewTransferTicket } from "../domain/transfer";
+import { createCaveMatch } from "../rpcs/cave";
+import { findOrCreateStarterZoneMatch } from "./starter_zone_registry";
 
 export interface StarterMatchRuntimeState {
   zone: StarterZoneState;
   presences: { [userId: string]: nkruntime.Presence };
+  pendingTransfers?: { [userId: string]: string };
 }
 
 export function matchInit(
   _ctx: nkruntime.Context,
   logger: nkruntime.Logger,
   _nk: nkruntime.Nakama,
-  _params: { [key: string]: any },
+  params: { [key: string]: any },
 ): { state: StarterMatchRuntimeState; tickRate: number; label: string } {
+  const instanceType = String(params.instanceType !== undefined ? params.instanceType : "public_world");
+  const isCave = instanceType === "party_cave";
+  const zoneTemplateId = isCave ? CAVE_ZONE_ID : "zone.starter";
+  const zoneContent = content.zones[zoneTemplateId];
+  const instanceId = String(params.instanceId !== undefined ? params.instanceId : "world.public");
+  const completionState = String(params.completionState !== undefined ? params.completionState : "none") as
+    | "none"
+    | "in_progress"
+    | "boss_defeated";
   const zone = createStarterZoneState(
     contentHash,
-    content.zones["zone.starter"],
+    zoneContent,
     enemyDefinitionsFromContent(content.enemies),
     {
       id: content.player.id,
@@ -95,19 +140,35 @@ export function matchInit(
       lootTablesById: lootTablesFromContent(content.lootTables),
       npcsById: npcDefinitionsFromContent(content.npcs),
       vendorsById: vendorDefinitionsFromContent(content.vendors),
+      groupCreditRules: groupCreditRulesFromPlayer(content.player),
+      instanceType: isCave ? "party_cave" : "public_world",
+      instanceId: instanceId,
+      ownerPartyId: params.ownerPartyId !== undefined && String(params.ownerPartyId).length > 0 ? String(params.ownerPartyId) : undefined,
+      ownerCharacterId:
+        params.ownerCharacterId !== undefined && String(params.ownerCharacterId).length > 0
+          ? String(params.ownerCharacterId)
+          : undefined,
+      completionState: completionState,
+      maxPlayers: isCave ? CAVE_MATCH_MAX_PLAYERS : undefined,
+      emptyTimeoutTicks: isCave ? CAVE_EMPTY_TIMEOUT_TICKS : undefined,
+      reconnectGraceTicks: isCave ? CAVE_RECONNECT_GRACE_TICKS : undefined,
     },
   );
   zone.progressionCatalog = catalogFromContent(content);
-  logger.info("starter_zone init label=%s content_hash=%s", STARTER_ZONE_LABEL, contentHash);
+  if (isCave) {
+    applyPersistedCaveCompletion(zone);
+  }
+  const label = isCave ? PARTY_CAVE_LABEL : STARTER_ZONE_LABEL;
+  logger.info("starter_zone init label=%s instance_type=%s content_hash=%s", label, instanceType, contentHash);
   return {
     state: persistable({ zone: zone, presences: {} }),
     tickRate: MATCH_TICK_RATE,
-    label: STARTER_ZONE_LABEL,
+    label: label,
   };
 }
 
 export function matchJoinAttempt(
-  _ctx: nkruntime.Context,
+  ctx: nkruntime.Context,
   logger: nkruntime.Logger,
   nk: nkruntime.Nakama,
   _dispatcher: nkruntime.MatchDispatcher,
@@ -137,26 +198,81 @@ export function matchJoinAttempt(
     logger.info("starter_zone join rejected user_id=%s reason=%s", presence.userId, gate.rejectMessage);
     return { state: persistable(state), accept: false, rejectMessage: gate.rejectMessage };
   }
-  const alreadySameSession =
-    alreadyJoined && (existing === undefined || existing.sessionId === presence.sessionId || existing.sessionId === "");
-  if (alreadySameSession) {
-    return { state: persistable(state), accept: true };
-  }
+  const transferTicketId = meta.transferTicket !== undefined ? meta.transferTicket : "";
+  const hasTransfer = transferTicketId.length > 0;
   try {
     const deps = characterLifecycleDeps(nk);
     migrateLegacyCharacterIntoRoster(presence.userId, deps);
     const ticket = readSelection(nk, presence.userId);
-    const presented = meta.selectionTicket !== undefined ? meta.selectionTicket : "";
     const selectedId = ticket !== null ? ticket.characterId : "";
     const character = selectedId.length > 0 ? readCharacter(nk, presence.userId, selectedId) : null;
-    const selected = validateJoinSelection(presented, ticket, presence.userId, character, Date.now());
-    if (!selected.ok) {
-      logger.info("starter_zone join rejected user_id=%s reason=%s", presence.userId, selected.reason);
-      return { state: persistable(state), accept: false, rejectMessage: selected.reason };
+    if (!hasTransfer) {
+      const presented = meta.selectionTicket !== undefined ? meta.selectionTicket : "";
+      const selected = validateJoinSelection(presented, ticket, presence.userId, character, Date.now());
+      if (!selected.ok) {
+        logger.info("starter_zone join rejected user_id=%s reason=%s", presence.userId, selected.reason);
+        return { state: persistable(state), accept: false, rejectMessage: selected.reason };
+      }
     }
     if (character === null) {
       logger.info("starter_zone join rejected user_id=%s reason=character_missing", presence.userId);
       return { state: persistable(state), accept: false, rejectMessage: "character_missing" };
+    }
+    const location = readActiveLocation(nk, presence.userId, character.characterId);
+    const instanceType = state.zone.instanceType !== undefined ? state.zone.instanceType : "public_world";
+    const joiningMatchId = typeof ctx.matchId === "string" ? ctx.matchId : "";
+    let locatedCaveAlive = false;
+    if (location !== null && location.instanceType === "party_cave") {
+      const cave = nakamaCaveRepository(nk).getCave(location.instanceId);
+      locatedCaveAlive =
+        cave !== null &&
+        cave.lifecycleState !== "expired" &&
+        cave.lifecycleState !== "terminated" &&
+        nk.matchGet(cave.matchId) !== null;
+    }
+    const originPresenceLive =
+      location !== null &&
+      location.transferState === "issued" &&
+      (joiningMatchId.length === 0 || location.matchId !== joiningMatchId);
+    const presenceGate = evaluateJoinPresence({
+      location: location,
+      joiningMatchId: joiningMatchId,
+      joiningInstanceType: instanceType,
+      hasTransferTicket: hasTransfer,
+      originPresenceLive: originPresenceLive,
+      destinationCaveAlive: locatedCaveAlive,
+    });
+    if (!presenceGate.accept) {
+      logger.info("starter_zone join rejected user_id=%s reason=%s", presence.userId, presenceGate.rejectMessage);
+      return { state: persistable(state), accept: false, rejectMessage: presenceGate.rejectMessage };
+    }
+    if (hasTransfer) {
+      const preview = nakamaTransferRepository(nk).getTicket(transferTicketId);
+      const checked = previewTransferTicket(preview, {
+        characterId: character.characterId,
+        accountUserId: presence.userId,
+        destinationMatchId: joiningMatchId.length > 0 ? joiningMatchId : preview !== null ? preview.destinationMatchId : "",
+        nowMs: Date.now(),
+      });
+      if (!checked.ok) {
+        return { state: persistable(state), accept: false, rejectMessage: checked.code };
+      }
+      if (state.pendingTransfers === undefined) {
+        state.pendingTransfers = {};
+      }
+      state.pendingTransfers[presence.userId] = transferTicketId;
+    }
+    if (instanceType === "party_cave") {
+      const instanceId = state.zone.instanceId !== undefined ? state.zone.instanceId : "";
+      const record = instanceId.length > 0 ? nakamaCaveRepository(nk).getCave(instanceId) : null;
+      if (record === null) {
+        return { state: persistable(state), accept: false, rejectMessage: "cave_expired" };
+      }
+      const party = resolvePartyForActor(nakamaPartyRepository(nk), presence.userId, character.characterId);
+      const allowed = canJoinOwnedCave({ characterId: character.characterId, record: record, party: party });
+      if (!allowed.ok) {
+        return { state: persistable(state), accept: false, rejectMessage: allowed.code };
+      }
     }
     readInventory(nk, presence.userId, character.characterId);
     readEquipment(nk, presence.userId, character.characterId);
@@ -167,11 +283,16 @@ export function matchJoinAttempt(
     logger.info("starter_zone join rejected user_id=%s reason=%s", presence.userId, reason);
     return { state: persistable(state), accept: false, rejectMessage: reason };
   }
+  const alreadySameSession =
+    alreadyJoined && (existing === undefined || existing.sessionId === presence.sessionId || existing.sessionId === "");
+  if (alreadySameSession) {
+    return { state: persistable(state), accept: true };
+  }
   return { state: persistable(state), accept: true };
 }
 
 export function matchJoin(
-  _ctx: nkruntime.Context,
+  ctx: nkruntime.Context,
   logger: nkruntime.Logger,
   nk: nkruntime.Nakama,
   dispatcher: nkruntime.MatchDispatcher,
@@ -215,6 +336,12 @@ export function matchJoin(
     const existingLive = zone.players[presence.userId];
     if (existingLive !== undefined) {
       bindJoiningSession(existingLive, presence.sessionId, presence.username);
+      loadPartyCache(nk, zone, presence.userId, existingLive.characterId, existingLive.name);
+      markPartyOnline(nk, {
+        accountUserId: presence.userId,
+        characterId: existingLive.characterId,
+        displayName: existingLive.name,
+      }, Date.now());
       joined.push(presence);
       logger.info("starter_zone session resume user_id=%s", presence.userId);
       continue;
@@ -283,8 +410,8 @@ export function matchJoin(
         characterId: character.characterId,
         name: character.name,
         classId: classId,
-        x: character.position.x,
-        y: character.position.y,
+        x: spawnX(zone, character.position.x),
+        y: spawnY(zone, character.position.y),
         maxHealth: content.player.maxHealth,
         health: joinHealth(content.player.maxHealth),
         lastProcessedSeq: 0,
@@ -297,8 +424,8 @@ export function matchJoin(
         gold: gold,
         progression: progression.progression,
         lastCheckpointTick: tick,
-        lastCheckpointX: character.position.x,
-        lastCheckpointY: character.position.y,
+        lastCheckpointX: spawnX(zone, character.position.x),
+        lastCheckpointY: spawnY(zone, character.position.y),
         bindX: character.bindX,
         bindY: character.bindY,
         bindZoneId: character.bindZoneId,
@@ -307,6 +434,22 @@ export function matchJoin(
       applyJoinDerived(zone, player);
       player.health = joinHealth(player.maxHealth);
     }
+    if (
+      !consumeJoinTransfer(
+        nk,
+        state,
+        presence.userId,
+        character.characterId,
+        zone,
+        player,
+        typeof ctx.matchId === "string" ? ctx.matchId : "",
+      )
+    ) {
+      dispatcher.matchKick([presence]);
+      delete nextPresences[presence.userId];
+      continue;
+    }
+    commitJoinLocation(nk, zone, presence.userId, character.characterId, player, typeof ctx.matchId === "string" ? ctx.matchId : "");
     const ownershipChanged = prepareJoinedPlayerAbilities(zone, player, parked === null);
     if (ownershipChanged && player.progression !== undefined) {
       writeProgression(nk, presence.userId, player.progression, character.characterId);
@@ -317,6 +460,12 @@ export function matchJoin(
       logger.info("starter_zone join user_id=%s character_id=%s", presence.userId, character.characterId);
     }
     zone = addPlayer(zone, player);
+    loadPartyCache(nk, zone, presence.userId, character.characterId, character.name);
+    markPartyOnline(nk, {
+      accountUserId: presence.userId,
+      characterId: character.characterId,
+      displayName: character.name,
+    }, Date.now());
     joined.push(presence);
   }
 
@@ -332,7 +481,7 @@ export function matchJoin(
     }
   }
 
-  return { state: persistable({ zone: zone, presences: nextPresences }) };
+  return { state: persistable({ zone: zone, presences: nextPresences, pendingTransfers: state.pendingTransfers }) };
 }
 
 export function matchLeave(
@@ -353,25 +502,46 @@ export function matchLeave(
   }
   for (let i = 0; i < presences.length; i++) {
     const presence = presences[i];
+    const live = zone.players[presence.userId];
+    const transferring = live !== undefined && (live.transferState === "issued" || live.transferState === "pending");
     const left = applyPlayerLeave(zone, presence.userId, tick);
     zone = left.state;
     if (left.checkpoint !== null) {
-      writeCharacterCheckpoint(nk, left.checkpoint.userId, left.checkpoint.x, left.checkpoint.y, left.checkpoint.characterId);
+      if ((zone.instanceType !== "party_cave") && !transferring) {
+        writeCharacterCheckpoint(nk, left.checkpoint.userId, left.checkpoint.x, left.checkpoint.y, left.checkpoint.characterId);
+      }
+      const nowMs = Date.now();
+      const location = readActiveLocation(nk, presence.userId, left.checkpoint.characterId);
+      if (location !== null) {
+        if (transferring) {
+          writeActiveLocation(nk, withTransferState(withCheckpoint(location, left.checkpoint.x, left.checkpoint.y, nowMs), "in_flight", nowMs));
+        } else {
+          writeActiveLocation(nk, withCheckpoint(location, left.checkpoint.x, left.checkpoint.y, nowMs));
+        }
+      }
+      if (!transferring) {
+        markPartyDisconnectGrace(nk, {
+          accountUserId: presence.userId,
+          characterId: left.checkpoint.characterId,
+          displayName: "",
+        }, Date.now());
+      }
       logger.info("starter_zone leave checkpoint user_id=%s", presence.userId);
     }
     delete nextPresences[presence.userId];
     logger.info("starter_zone leave user_id=%s", presence.userId);
   }
+  touchCaveOccupancy(nk, zone);
   const remaining = allPresences(nextPresences);
   if (remaining.length > 0) {
     const snapshot = snapshotForOthers(zone, tick, "");
     dispatcher.broadcastMessage(snapshot.opcode, snapshot.body, remaining, null, true);
   }
-  return { state: persistable({ zone: zone, presences: nextPresences }) };
+  return { state: persistable({ zone: zone, presences: nextPresences, pendingTransfers: state.pendingTransfers }) };
 }
 
 export function matchLoop(
-  _ctx: nkruntime.Context,
+  ctx: nkruntime.Context,
   logger: nkruntime.Logger,
   nk: nkruntime.Nakama,
   dispatcher: nkruntime.MatchDispatcher,
@@ -407,7 +577,18 @@ export function matchLoop(
     writeProgression(nk, persist.userId, persist.progression, persist.characterId);
     logger.info("starter_zone persist progression user_id=%s", persist.userId);
   }
-  writeCheckpoints(nk, logger, result.persistCheckpoints);
+  if (result.state.instanceType !== "party_cave") {
+    writeCheckpoints(nk, logger, result.persistCheckpoints);
+  }
+  processCaveTransfers(nk, logger, dispatcher, ctx, state.presences, result);
+  if (result.caveCompletionChanged && result.state.instanceType === "party_cave" && result.state.instanceId !== undefined) {
+    const repo = nakamaCaveRepository(nk);
+    const record = repo.getCave(result.state.instanceId);
+    if (record !== null && result.state.completionState !== undefined) {
+      repo.putCave(setCaveCompletion(record, result.state.completionState, Date.now()));
+    }
+  }
+  touchCaveOccupancy(nk, result.state);
   for (let r = 0; r < result.rejections.length; r++) {
     const rejected = result.rejections[r];
     logger.info(
@@ -428,9 +609,16 @@ export function matchLoop(
   }
   if (result.terminate) {
     logger.info("starter_zone empty timeout tick=%s", String(tick));
+    if (result.state.instanceType === "party_cave" && result.state.instanceId !== undefined) {
+      const repo = nakamaCaveRepository(nk);
+      const record = repo.getCave(result.state.instanceId);
+      if (record !== null) {
+        terminateCave(repo, record, Date.now());
+      }
+    }
     return null;
   }
-  return { state: persistable({ zone: result.state, presences: state.presences }) };
+  return { state: persistable({ zone: result.state, presences: state.presences, pendingTransfers: state.pendingTransfers }) };
 }
 
 export function matchTerminate(
@@ -444,6 +632,13 @@ export function matchTerminate(
 ): { state: StarterMatchRuntimeState } {
   state = hydrateRuntime(state);
   writeCheckpoints(nk, logger, checkpointsForTerminate(state.zone));
+  if (state.zone.instanceType === "party_cave" && state.zone.instanceId !== undefined) {
+    const repo = nakamaCaveRepository(nk);
+    const record = repo.getCave(state.zone.instanceId);
+    if (record !== null && record.lifecycleState !== "terminated" && record.lifecycleState !== "expired") {
+      terminateCave(repo, record, Date.now());
+    }
+  }
   return { state: persistable(state) };
 }
 
@@ -451,12 +646,27 @@ export function matchSignal(
   _ctx: nkruntime.Context,
   _logger: nkruntime.Logger,
   _nk: nkruntime.Nakama,
-  _dispatcher: nkruntime.MatchDispatcher,
+  dispatcher: nkruntime.MatchDispatcher,
   tick: number,
   state: StarterMatchRuntimeState,
-  _data: string,
+  data: string,
 ): { state: StarterMatchRuntimeState; data: string } {
   state = hydrateRuntime(state);
+  if (typeof data === "string" && data.length > 0) {
+    try {
+      const parsed = JSON.parse(data) as { [key: string]: unknown };
+      if (state.zone.partyByCharacterId === undefined) {
+        state.zone.partyByCharacterId = {};
+      }
+      if (state.zone.pendingInvitesByCharacterId === undefined) {
+        state.zone.pendingInvitesByCharacterId = {};
+      }
+      applyPartyMatchSignal(state.zone.partyByCharacterId, state.zone.pendingInvitesByCharacterId, parsed);
+      broadcastPartyUpdates(dispatcher, state, parsed, tick);
+    } catch {
+      // Party signals are best-effort; ignore malformed payloads.
+    }
+  }
   return {
     state: persistable(state),
     data: JSON.stringify({
@@ -465,6 +675,93 @@ export function matchSignal(
       playerCount: Object.keys(state.zone.players).length,
     }),
   };
+}
+
+function loadPartyCache(
+  nk: nkruntime.Nakama,
+  zone: StarterZoneState,
+  userId: string,
+  characterId: string,
+  displayName: string,
+): void {
+  if (zone.partyByCharacterId === undefined) {
+    zone.partyByCharacterId = {};
+  }
+  if (zone.pendingInvitesByCharacterId === undefined) {
+    zone.pendingInvitesByCharacterId = {};
+  }
+  const repo = nakamaPartyRepository(nk);
+  const index = repo.getIndex(userId, characterId);
+  if (index === null) {
+    return;
+  }
+  if (index.partyId.length > 0) {
+    const party = repo.getParty(index.partyId);
+    if (party !== null) {
+      const members: { [key: string]: unknown }[] = [];
+      for (let i = 0; i < party.members.length; i++) {
+        members.push({
+          accountUserId: party.members[i].accountUserId,
+          characterId: party.members[i].characterId,
+          displayName: party.members[i].displayName,
+          connectionState: party.members[i].connectionState,
+        });
+      }
+      applyPartyMatchSignal(zone.partyByCharacterId, zone.pendingInvitesByCharacterId, {
+        type: "party_update",
+        partyId: party.partyId,
+        characterId: characterId,
+        revision: party.revision,
+        leaderCharacterId: party.leaderCharacterId,
+        lootPolicy: party.lootPolicy,
+        members: members,
+      });
+    }
+  }
+  if (index.pendingPartyId.length > 0) {
+    const pending = repo.getParty(index.pendingPartyId);
+    if (pending !== null) {
+      zone.pendingInvitesByCharacterId[characterId] = {
+        partyId: pending.partyId,
+        fromDisplayName: displayName,
+        expiresAt: Date.now() + 60000,
+      };
+    }
+  }
+}
+
+function broadcastPartyUpdates(
+  dispatcher: nkruntime.MatchDispatcher,
+  state: StarterMatchRuntimeState,
+  parsed: { [key: string]: unknown },
+  _tick: number,
+): void {
+  const eventType = typeof parsed.eventType === "string" ? parsed.eventType : "updated";
+  const ids = Object.keys(state.zone.players);
+  for (let i = 0; i < ids.length; i++) {
+    const player = state.zone.players[ids[i]];
+    const presence = state.presences[player.userId];
+    if (presence === undefined) {
+      continue;
+    }
+    const view = partyViewForPlayer(state.zone, player.userId);
+    const message = partyStateMessage(contentHash, view, view !== null && view.pendingInvite !== undefined ? (view.pendingInvite as { [key: string]: unknown }) : null);
+    dispatcher.broadcastMessage(message.opcode, message.body, [presence], null, true);
+  }
+  const event = partyEventMessage(contentHash, eventType, {
+    partyId: typeof parsed.partyId === "string" ? parsed.partyId : "",
+    systemMessage: typeof parsed.systemMessage === "string" ? parsed.systemMessage : "",
+  });
+  const recipients: nkruntime.Presence[] = [];
+  for (let i = 0; i < ids.length; i++) {
+    const presence = state.presences[ids[i]];
+    if (presence !== undefined) {
+      recipients.push(presence);
+    }
+  }
+  if (recipients.length > 0) {
+    dispatcher.broadcastMessage(event.opcode, event.body, recipients, null, true);
+  }
 }
 
 function hydrateRuntime(state: StarterMatchRuntimeState): StarterMatchRuntimeState {
@@ -476,11 +773,235 @@ function hydrateRuntime(state: StarterMatchRuntimeState): StarterMatchRuntimeSta
     zone.spawns = [];
   }
   zone.processedDeathEventIds = dict(zone.processedDeathEventIds);
+  zone.partyByCharacterId = dict(zone.partyByCharacterId);
+  zone.pendingInvitesByCharacterId = dict(zone.pendingInvitesByCharacterId);
   bindContentCatalogs(zone);
   return {
     zone: zone,
     presences: dict(state.presences),
+    pendingTransfers: dict(state.pendingTransfers),
   };
+}
+
+function spawnX(zone: StarterZoneState, fallback: number): number {
+  if (zone.instanceType === "party_cave") {
+    return zone.playerSpawnX;
+  }
+  return fallback;
+}
+
+function spawnY(zone: StarterZoneState, fallback: number): number {
+  if (zone.instanceType === "party_cave") {
+    return zone.playerSpawnY;
+  }
+  return fallback;
+}
+
+function consumeJoinTransfer(
+  nk: nkruntime.Nakama,
+  state: StarterMatchRuntimeState,
+  userId: string,
+  characterId: string,
+  zone: StarterZoneState,
+  player: MatchPlayer,
+  matchId: string,
+): boolean {
+  const pending = state.pendingTransfers !== undefined ? state.pendingTransfers[userId] : undefined;
+  if (pending === undefined || pending.length === 0) {
+    return true;
+  }
+  if (state.pendingTransfers !== undefined) {
+    delete state.pendingTransfers[userId];
+  }
+  const ticketRepo = nakamaTransferRepository(nk);
+  const pendingTicket = ticketRepo.getTicket(pending);
+  const destinationMatchId =
+    matchId.length > 0 ? matchId : pendingTicket !== null ? pendingTicket.destinationMatchId : "";
+  const consumed = consumeTransferTicket(ticketRepo, pending, {
+    characterId: characterId,
+    accountUserId: userId,
+    destinationMatchId: destinationMatchId,
+    nowMs: Date.now(),
+  });
+  if (!consumed.ok || consumed.ticket === undefined) {
+    return false;
+  }
+  player.transferState = "idle";
+  if (zone.instanceType === "party_cave" && zone.instanceId !== undefined) {
+    associateCharacterWithCave(accountCaveRepository(nk, userId), characterId, zone.instanceId);
+  }
+  return true;
+}
+
+function commitJoinLocation(
+  nk: nkruntime.Nakama,
+  zone: StarterZoneState,
+  userId: string,
+  characterId: string,
+  player: MatchPlayer,
+  matchId: string,
+): void {
+  const nowMs = Date.now();
+  if (zone.instanceType === "party_cave" && zone.instanceId !== undefined) {
+    const record = nakamaCaveRepository(nk).getCave(zone.instanceId);
+    if (record !== null) {
+      writeActiveLocation(nk, caveLocation(record, characterId, userId, player.x, player.y, nowMs));
+      nakamaCaveRepository(nk).putCave(markCaveActive(record, nowMs, emptyTimeoutMs()));
+      return;
+    }
+  }
+  writeActiveLocation(nk, publicWorldLocation(matchId, characterId, userId, player.x, player.y, nowMs));
+}
+
+function touchCaveOccupancy(nk: nkruntime.Nakama, zone: StarterZoneState): void {
+  if (zone.instanceType !== "party_cave" || zone.instanceId === undefined) {
+    return;
+  }
+  const repo = nakamaCaveRepository(nk);
+  const record = repo.getCave(zone.instanceId);
+  if (record === null) {
+    return;
+  }
+  const nowMs = Date.now();
+  const live = Object.keys(dict(zone.players)).length;
+  if (live === 0) {
+    repo.putCave(markCaveEmptyGrace(record, nowMs, emptyTimeoutMs()));
+    return;
+  }
+  repo.putCave(markCaveActive(record, nowMs, emptyTimeoutMs()));
+}
+
+function processCaveTransfers(
+  nk: nkruntime.Nakama,
+  logger: nkruntime.Logger,
+  dispatcher: nkruntime.MatchDispatcher,
+  ctx: nkruntime.Context,
+  presences: { [userId: string]: nkruntime.Presence },
+  result: MatchLoopResult,
+): void {
+  for (let i = 0; i < result.transfers.length; i++) {
+    const intent = result.transfers[i];
+    const player = result.state.players[intent.userId];
+    if (player === undefined) {
+      continue;
+    }
+    try {
+      const originMatchId = typeof ctx.matchId === "string" ? ctx.matchId : "";
+      if (intent.direction === "enter") {
+        const allocated = findOrCreateOwnedCave(accountCaveRepository(nk, intent.userId), {
+          create: function (params) {
+            return createCaveMatch(nk, params);
+          },
+          isRunning: function (matchId: string) {
+            return nk.matchGet(matchId) !== null;
+          },
+          contentHash: contentHash,
+          nowMs: Date.now(),
+          newId: function () {
+            return nk.uuidv4();
+          },
+          emptyTimeoutMs: emptyTimeoutMs(),
+        }, {
+          characterId: intent.characterId,
+          ownerKind: resolvePartyForActor(nakamaPartyRepository(nk), intent.userId, intent.characterId) !== null ? "party" : "character",
+          ownerId: ownerIdFor(nk, intent.userId, intent.characterId),
+          party: resolvePartyForActor(nakamaPartyRepository(nk), intent.userId, intent.characterId),
+        });
+        if (!allocated.ok || allocated.record === undefined) {
+          player.transferState = "idle";
+          const failed = actionResult(allocated.code, false, intent.requestId);
+          const failedTarget = targetPresence(presences, intent.userId);
+          if (failedTarget !== null) {
+            dispatcher.broadcastMessage(failed.opcode, failed.body, [failedTarget], null, true);
+          }
+          logger.info("cave enter rejected user_id=%s reason=%s", intent.userId, allocated.code);
+          continue;
+        }
+        const ticket = issueTransferTicket({
+          ticketId: nk.uuidv4(),
+          characterId: intent.characterId,
+          accountUserId: intent.userId,
+          originMatchId: originMatchId,
+          destinationMatchId: allocated.record.matchId,
+          destinationInstanceId: allocated.record.instanceId,
+          nowMs: Date.now(),
+        });
+        nakamaTransferRepository(nk).putTicket(ticket);
+        player.transferState = "issued";
+        writeCharacterCheckpoint(nk, intent.userId, player.x, player.y, intent.characterId);
+        const location = publicWorldLocation(originMatchId, intent.characterId, intent.userId, player.x, player.y, Date.now());
+        writeActiveLocation(nk, withTransferState(location, "issued", Date.now()));
+        const ok = actionResult("ok", true, intent.requestId, {
+          ticketId: ticket.ticketId,
+          destinationMatchId: ticket.destinationMatchId,
+          destinationInstanceId: ticket.destinationInstanceId,
+          originMatchId: ticket.originMatchId,
+          zoneId: allocated.record.zoneTemplateId,
+          instanceType: "party_cave",
+        });
+        const target = targetPresence(presences, intent.userId);
+        if (target !== null) {
+          dispatcher.broadcastMessage(ok.opcode, ok.body, [target], null, true);
+        }
+        logger.info("cave enter ticket user_id=%s instance_id=%s", intent.userId, allocated.record.instanceId);
+        continue;
+      }
+      const publicMatchId = findOrCreateStarterZoneMatch(nk, logger);
+      const ticket = issueTransferTicket({
+        ticketId: nk.uuidv4(),
+        characterId: intent.characterId,
+        accountUserId: intent.userId,
+        originMatchId: originMatchId,
+        destinationMatchId: publicMatchId,
+        destinationInstanceId: "world.public",
+        nowMs: Date.now(),
+      });
+      nakamaTransferRepository(nk).putTicket(ticket);
+      player.transferState = "issued";
+      const current = readActiveLocation(nk, intent.userId, intent.characterId);
+      if (current !== null) {
+        writeActiveLocation(nk, withTransferState(withCheckpoint(current, player.x, player.y, Date.now()), "issued", Date.now()));
+      }
+      if (result.state.instanceId !== undefined) {
+        clearCharacterCaveAssociation(accountCaveRepository(nk, intent.userId), intent.characterId, result.state.instanceId);
+      }
+      const ok = actionResult("ok", true, intent.requestId, {
+        ticketId: ticket.ticketId,
+        destinationMatchId: ticket.destinationMatchId,
+        destinationInstanceId: ticket.destinationInstanceId,
+        originMatchId: ticket.originMatchId,
+        zoneId: "zone.starter",
+        instanceType: "public_world",
+      });
+      const target = targetPresence(presences, intent.userId);
+      if (target !== null) {
+        dispatcher.broadcastMessage(ok.opcode, ok.body, [target], null, true);
+      }
+      logger.info("cave exit ticket user_id=%s", intent.userId);
+    } catch (error) {
+      player.transferState = "idle";
+      const code = error instanceof Error ? error.message : "internal_error";
+      const failed = actionResult(code, false, intent.requestId);
+      const target = targetPresence(presences, intent.userId);
+      if (target !== null) {
+        dispatcher.broadcastMessage(failed.opcode, failed.body, [target], null, true);
+      }
+      logger.info("cave transfer rejected user_id=%s reason=%s", intent.userId, code);
+    }
+  }
+}
+
+function ownerIdFor(nk: nkruntime.Nakama, userId: string, characterId: string): string {
+  const party = resolvePartyForActor(nakamaPartyRepository(nk), userId, characterId);
+  if (party !== null) {
+    return party.partyId;
+  }
+  return characterId;
+}
+
+function targetPresence(presences: { [userId: string]: nkruntime.Presence }, userId: string): nkruntime.Presence | null {
+  const found = presences[userId];
+  return found !== undefined ? found : null;
 }
 
 function persistable(state: StarterMatchRuntimeState): StarterMatchRuntimeState {

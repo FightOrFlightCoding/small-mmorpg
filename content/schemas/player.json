@@ -28,6 +28,16 @@
     "pickupRange": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
     "inventoryCapacity": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
     "basicAbilityId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "groupCredit": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "rangePx": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+        "recentlyActiveAfterDeathSec": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+        "xpFormula": { "type": "string", "enum": ["full", "split"] },
+        "defaultLootPolicy": { "type": "string", "enum": ["personal", "server_assigned"] }
+      }
+    },
     "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
     "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
   }

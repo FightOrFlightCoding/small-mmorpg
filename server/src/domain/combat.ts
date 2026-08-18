@@ -123,6 +123,7 @@ export function killPlayer(
   player.health = 0;
   player.axisX = 0;
   player.axisY = 0;
+  player.lastDeathTick = tick;
   player.deadUntilTick = tick + cooldownTicks(respawnDelaySec, tickRate);
   if (player.activeCast !== undefined && player.activeCast.interruptReason === "") {
     events.push({

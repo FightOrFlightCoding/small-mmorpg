@@ -42,6 +42,8 @@ import { cloneActiveEffects, effectModifiersFrom, hasControlTag, type ActiveEffe
 import { buildInitialCombatants, cloneEnemyCombatFields, cloneSpawns } from "./spawn_controller";
 import type { AiProfileContent } from "./threat";
 import type { LootTableDefinition } from "./loot_table";
+import { MAX_PARTY_SIZE, type GroupCreditRules } from "./party";
+import type { MatchPartyCache } from "./party_credit";
 
 export type { MatchLoot };
 
@@ -53,6 +55,13 @@ export const MATCH_SNAPSHOT_RATE_HZ = SNAPSHOT_RATE_HZ;
 export const MATCH_MAX_PLAYERS = 8;
 export const EMPTY_MATCH_TIMEOUT_SEC = 30;
 export const EMPTY_MATCH_TIMEOUT_TICKS = MATCH_TICK_RATE * EMPTY_MATCH_TIMEOUT_SEC;
+export const CAVE_ZONE_ID = "zone.cave";
+export const PARTY_CAVE_LABEL = "party.cave";
+export const CAVE_MATCH_MAX_PLAYERS = 5;
+export const CAVE_EMPTY_TIMEOUT_SEC = 60;
+export const CAVE_EMPTY_TIMEOUT_TICKS = MATCH_TICK_RATE * CAVE_EMPTY_TIMEOUT_SEC;
+export const CAVE_RECONNECT_GRACE_SEC = 60;
+export const CAVE_RECONNECT_GRACE_TICKS = MATCH_TICK_RATE * CAVE_RECONNECT_GRACE_SEC;
 export { PLAYER_HALF_EXTENT };
 
 export interface Vec2 {
@@ -110,6 +119,10 @@ export interface MatchPlayer {
   lastReleaseRequestId?: string;
   lastReleaseResultCode?: string;
   lastReleaseResultOk?: boolean;
+  lastDeathTick?: number;
+  transferState?: "idle" | "issued" | "pending";
+  transferIssuedAtTick?: number;
+  caveEnterByRequestId?: { [requestId: string]: string };
 }
 
 export interface DisconnectedPlayer {
@@ -267,6 +280,20 @@ export interface StarterZoneState {
   basicAbilityId?: string;
   classTags?: { [classId: string]: string[] };
   combatApplyByEventId?: { [eventId: string]: CombatApplyRecord };
+  partyByCharacterId?: { [characterId: string]: MatchPartyCache };
+  pendingInvitesByCharacterId?: {
+    [characterId: string]: { partyId: string; fromDisplayName: string; expiresAt: number };
+  };
+  groupCreditRules?: GroupCreditRules;
+  instanceType?: "public_world" | "party_cave";
+  instanceId?: string;
+  ownerPartyId?: string;
+  ownerCharacterId?: string;
+  completionState?: "none" | "in_progress" | "boss_defeated";
+  maxPlayers?: number;
+  emptyTimeoutTicks?: number;
+  reconnectGraceTicks?: number;
+  wipeResetAtTick?: number;
 }
 
 export interface CombatApplyRecord {
@@ -355,6 +382,15 @@ export interface StarterZoneCatalogExtras {
   lootTablesById?: { [id: string]: LootTableDefinition };
   npcsById?: { [id: string]: NpcDefinition };
   vendorsById?: { [id: string]: VendorDefinition };
+  groupCreditRules?: GroupCreditRules;
+  instanceType?: "public_world" | "party_cave";
+  instanceId?: string;
+  ownerPartyId?: string;
+  ownerCharacterId?: string;
+  completionState?: "none" | "in_progress" | "boss_defeated";
+  maxPlayers?: number;
+  emptyTimeoutTicks?: number;
+  reconnectGraceTicks?: number;
 }
 
 export function enemyDefinitionsFromContent(enemies: {
@@ -483,6 +519,18 @@ export function createStarterZoneState(
     basicAbilityId: extras.basicAbilityId !== undefined ? extras.basicAbilityId : playerContent.basicAbilityId,
     classTags: extras.classTags,
     combatApplyByEventId: {},
+    partyByCharacterId: {},
+    pendingInvitesByCharacterId: {},
+    groupCreditRules: extras.groupCreditRules,
+    instanceType: extras.instanceType !== undefined ? extras.instanceType : "public_world",
+    instanceId: extras.instanceId !== undefined ? extras.instanceId : "world.public",
+    ownerPartyId: extras.ownerPartyId,
+    ownerCharacterId: extras.ownerCharacterId,
+    completionState: extras.completionState !== undefined ? extras.completionState : "none",
+    maxPlayers: numberOr(extras.maxPlayers, MATCH_MAX_PLAYERS),
+    emptyTimeoutTicks: numberOr(extras.emptyTimeoutTicks, EMPTY_MATCH_TIMEOUT_TICKS),
+    reconnectGraceTicks: numberOr(extras.reconnectGraceTicks, MATCH_TICK_RATE * 5),
+    wipeResetAtTick: 0,
   };
 }
 
@@ -527,7 +575,13 @@ export function buildFullState(state: StarterZoneState, tick: number, selfId: st
     wallet: walletFor(state, selfId),
     progression: progressionFor(state, selfId),
     abilities: abilitiesFor(state, selfId, tick),
+    party: partyFor(state, selfId),
+    instance: instancePublic(state),
   });
+}
+
+export function partyViewForPlayer(state: StarterZoneState, selfId: string): { [key: string]: unknown } | null {
+  return partyFor(state, selfId);
 }
 
 export function buildSnapshot(state: StarterZoneState, tick: number): string {
@@ -728,6 +782,10 @@ function cloneMatchPlayer(p: MatchPlayer, state: StarterZoneState): MatchPlayer 
     lastReleaseRequestId: p.lastReleaseRequestId != null ? String(p.lastReleaseRequestId) : "",
     lastReleaseResultCode: p.lastReleaseResultCode != null ? String(p.lastReleaseResultCode) : "",
     lastReleaseResultOk: p.lastReleaseResultOk === true,
+    lastDeathTick: p.lastDeathTick != null ? p.lastDeathTick : undefined,
+    transferState: p.transferState !== undefined ? p.transferState : "idle",
+    transferIssuedAtTick: typeof p.transferIssuedAtTick === "number" ? p.transferIssuedAtTick : undefined,
+    caveEnterByRequestId: dict(p.caveEnterByRequestId),
   };
 }
 
@@ -797,6 +855,43 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     basicAbilityId: state.basicAbilityId,
     classTags: state.classTags,
     combatApplyByEventId: cloneCombatApplyMap(state.combatApplyByEventId),
+    partyByCharacterId: clonePartyCache(state.partyByCharacterId),
+    pendingInvitesByCharacterId: clonePendingInvites(state.pendingInvitesByCharacterId),
+    groupCreditRules: state.groupCreditRules,
+    instanceType: state.instanceType !== undefined ? state.instanceType : "public_world",
+    instanceId: state.instanceId !== undefined ? state.instanceId : "world.public",
+    ownerPartyId: state.ownerPartyId,
+    ownerCharacterId: state.ownerCharacterId,
+    completionState: state.completionState !== undefined ? state.completionState : "none",
+    maxPlayers: typeof state.maxPlayers === "number" ? state.maxPlayers : MATCH_MAX_PLAYERS,
+    emptyTimeoutTicks: typeof state.emptyTimeoutTicks === "number" ? state.emptyTimeoutTicks : EMPTY_MATCH_TIMEOUT_TICKS,
+    reconnectGraceTicks: typeof state.reconnectGraceTicks === "number" ? state.reconnectGraceTicks : MATCH_TICK_RATE * 5,
+    wipeResetAtTick: typeof state.wipeResetAtTick === "number" ? state.wipeResetAtTick : 0,
+  };
+}
+
+function instancePublic(state: StarterZoneState): { [key: string]: unknown } {
+  const instanceType = state.instanceType !== undefined ? state.instanceType : "public_world";
+  let bossAlive = false;
+  for (let i = 0; i < state.enemies.length; i++) {
+    const enemy = state.enemies[i];
+    if (enemy === undefined) {
+      continue;
+    }
+    const tags = enemy.tags !== undefined ? enemy.tags : [];
+    if (tags.indexOf("boss") !== -1 && enemy.health > 0) {
+      bossAlive = true;
+      break;
+    }
+  }
+  return {
+    type: instanceType,
+    instanceId: state.instanceId !== undefined ? state.instanceId : "world.public",
+    zoneTemplateId: state.zoneId,
+    completionState: state.completionState !== undefined ? state.completionState : "none",
+    bossAlive: bossAlive,
+    ownerPartyId: state.ownerPartyId !== undefined ? state.ownerPartyId : "",
+    ownerCharacterId: state.ownerCharacterId !== undefined ? state.ownerCharacterId : "",
   };
 }
 
@@ -869,6 +964,122 @@ function abilitiesFor(state: StarterZoneState, selfId: string, tick: number): { 
     return {};
   }
   return publicAbilityState(player, tick);
+}
+
+function partyFor(state: StarterZoneState, selfId: string): { [key: string]: unknown } | null {
+  const player = state.players[selfId];
+  if (player === undefined || player.characterId.length === 0) {
+    return pendingInviteFor(state, "");
+  }
+  const cache = state.partyByCharacterId !== undefined ? state.partyByCharacterId[player.characterId] : undefined;
+  if (cache === undefined) {
+    return pendingInviteFor(state, player.characterId);
+  }
+  const members: { [key: string]: unknown }[] = [];
+  for (let i = 0; i < cache.members.length; i++) {
+    const member = cache.members[i];
+    const live = playerByCharacterId(state, member.characterId);
+    const row: { [key: string]: unknown } = {
+      accountUserId: member.accountUserId,
+      characterId: member.characterId,
+      displayName: member.displayName,
+      connectionState: member.connectionState,
+      isLeader: member.characterId === cache.leaderCharacterId,
+      inMatch: live !== null,
+    };
+    if (live !== null) {
+      row.health = live.health;
+      row.maxHealth = live.maxHealth;
+      row.resources = cloneResourceMap(live.resources);
+    }
+    members.push(row);
+  }
+  return {
+    partyId: cache.partyId,
+    leaderCharacterId: cache.leaderCharacterId,
+    revision: cache.revision,
+    lootPolicy: cache.lootPolicy,
+    maxSize: MAX_PARTY_SIZE,
+    members: members,
+    pendingInvite: pendingInvitePayload(state, player.characterId),
+  };
+}
+
+function pendingInviteFor(state: StarterZoneState, characterId: string): { [key: string]: unknown } | null {
+  const pending = pendingInvitePayload(state, characterId);
+  if (pending === null) {
+    return null;
+  }
+  return { partyId: "", members: [], pendingInvite: pending };
+}
+
+function pendingInvitePayload(
+  state: StarterZoneState,
+  characterId: string,
+): { partyId: string; fromDisplayName: string; expiresAt: number } | null {
+  if (characterId.length === 0 || state.pendingInvitesByCharacterId === undefined) {
+    return null;
+  }
+  const row = state.pendingInvitesByCharacterId[characterId];
+  return row !== undefined ? row : null;
+}
+
+function playerByCharacterId(state: StarterZoneState, characterId: string): MatchPlayer | null {
+  const ids = Object.keys(state.players);
+  for (let i = 0; i < ids.length; i++) {
+    const player = state.players[ids[i]];
+    if (player !== undefined && player.characterId === characterId) {
+      return player;
+    }
+  }
+  return null;
+}
+
+function clonePartyCache(
+  source: { [characterId: string]: MatchPartyCache } | undefined,
+): { [characterId: string]: MatchPartyCache } {
+  const out: { [characterId: string]: MatchPartyCache } = {};
+  const map = dict(source);
+  const keys = Object.keys(map);
+  for (let i = 0; i < keys.length; i++) {
+    const row = map[keys[i]];
+    const members = [];
+    for (let m = 0; m < row.members.length; m++) {
+      members.push({
+        accountUserId: row.members[m].accountUserId,
+        characterId: row.members[m].characterId,
+        displayName: row.members[m].displayName,
+        connectionState: row.members[m].connectionState,
+      });
+    }
+    out[keys[i]] = {
+      partyId: row.partyId,
+      revision: row.revision,
+      leaderCharacterId: row.leaderCharacterId,
+      lootPolicy: row.lootPolicy,
+      members: members,
+    };
+  }
+  return out;
+}
+
+function clonePendingInvites(
+  source:
+    | { [characterId: string]: { partyId: string; fromDisplayName: string; expiresAt: number } }
+    | undefined,
+): { [characterId: string]: { partyId: string; fromDisplayName: string; expiresAt: number } } {
+  const out: { [characterId: string]: { partyId: string; fromDisplayName: string; expiresAt: number } } = {};
+  const map = dict(source);
+  const keys = Object.keys(map);
+  for (let i = 0; i < keys.length; i++) {
+    const row = map[keys[i]];
+    out[keys[i]] = {
+      partyId: row.partyId,
+      fromDisplayName: row.fromDisplayName,
+      expiresAt: row.expiresAt,
+    };
+  }
+  return out;
 }
 
 function publicEntityEffects(effects: ActiveEffect[] | undefined): { [key: string]: unknown }[] {

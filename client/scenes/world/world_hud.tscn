@@ -92,6 +92,131 @@ layout_mode = 2
 text = "No active quest."
 autowrap_mode = 3
 
+[node name="Party" type="PanelContainer" parent="Root"]
+layout_mode = 1
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 156.0
+offset_right = 336.0
+offset_bottom = -356.0
+grow_horizontal = 0
+grow_vertical = 0
+clip_contents = true
+mouse_filter = 0
+
+[node name="Margin" type="MarginContainer" parent="Root/Party"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="Scroll" type="ScrollContainer" parent="Root/Party/Margin"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="VBox" type="VBoxContainer" parent="Root/Party/Margin/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="Heading" type="Label" parent="Root/Party/Margin/Scroll/VBox"]
+layout_mode = 2
+text = "Party"
+
+[node name="Members" type="ItemList" parent="Root/Party/Margin/Scroll/VBox"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Status" type="Label" parent="Root/Party/Margin/Scroll/VBox"]
+layout_mode = 2
+text = "No party. Max 5."
+autowrap_mode = 3
+
+[node name="InviteRow" type="HBoxContainer" parent="Root/Party/Margin/Scroll/VBox"]
+layout_mode = 2
+
+[node name="InviteName" type="LineEdit" parent="Root/Party/Margin/Scroll/VBox/InviteRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Character name"
+max_length = 24
+
+[node name="InviteButton" type="Button" parent="Root/Party/Margin/Scroll/VBox/InviteRow"]
+layout_mode = 2
+text = "Invite"
+
+[node name="ActionRow" type="HBoxContainer" parent="Root/Party/Margin/Scroll/VBox"]
+layout_mode = 2
+
+[node name="CreateButton" type="Button" parent="Root/Party/Margin/Scroll/VBox/ActionRow"]
+layout_mode = 2
+text = "Create"
+
+[node name="LeaveButton" type="Button" parent="Root/Party/Margin/Scroll/VBox/ActionRow"]
+layout_mode = 2
+text = "Leave"
+
+[node name="KickButton" type="Button" parent="Root/Party/Margin/Scroll/VBox/ActionRow"]
+layout_mode = 2
+text = "Kick"
+
+[node name="PromoteButton" type="Button" parent="Root/Party/Margin/Scroll/VBox/ActionRow"]
+layout_mode = 2
+text = "Promote"
+
+[node name="DisbandButton" type="Button" parent="Root/Party/Margin/Scroll/VBox/ActionRow"]
+visible = false
+layout_mode = 2
+text = "Disband"
+disabled = true
+
+[node name="InvitePrompt" type="HBoxContainer" parent="Root/Party/Margin/Scroll/VBox"]
+layout_mode = 2
+
+[node name="Prompt" type="Label" parent="Root/Party/Margin/Scroll/VBox/InvitePrompt"]
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 3
+text = ""
+
+[node name="AcceptButton" type="Button" parent="Root/Party/Margin/Scroll/VBox/InvitePrompt"]
+visible = false
+layout_mode = 2
+text = "Accept"
+
+[node name="DeclineButton" type="Button" parent="Root/Party/Margin/Scroll/VBox/InvitePrompt"]
+visible = false
+layout_mode = 2
+text = "Decline"
+
+[node name="ChatScroll" type="ScrollContainer" parent="Root/Party/Margin/Scroll/VBox"]
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+clip_contents = true
+horizontal_scroll_mode = 0
+
+[node name="ChatHistory" type="Label" parent="Root/Party/Margin/Scroll/VBox/ChatScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 3
+text = ""
+
+[node name="ChatRow" type="HBoxContainer" parent="Root/Party/Margin/Scroll/VBox"]
+layout_mode = 2
+
+[node name="ChatInput" type="LineEdit" parent="Root/Party/Margin/Scroll/VBox/ChatRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Party chat"
+max_length = 200
+
+[node name="ChatSend" type="Button" parent="Root/Party/Margin/Scroll/VBox/ChatRow"]
+layout_mode = 2
+text = "Send"
+
 [node name="Death" type="Label" parent="Root"]
 visible = false
 layout_mode = 1
@@ -180,7 +305,7 @@ anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 16.0
-offset_top = -408.0
+offset_top = -348.0
 offset_right = 336.0
 offset_bottom = -16.0
 grow_vertical = 0

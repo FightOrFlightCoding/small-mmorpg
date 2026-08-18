@@ -3,5 +3,6 @@
   "dialogue.npc.test_vendor": "res://content/dialogue/npc.test_vendor.dialogue",
   "dialogue.npc.test_innkeeper": "res://content/dialogue/npc.test_innkeeper.dialogue",
   "dialogue.npc.test_herald": "res://content/dialogue/npc.test_herald.dialogue",
-  "dialogue.npc.test_cave_portal": "res://content/dialogue/npc.test_cave_portal.dialogue"
+  "dialogue.npc.test_cave_portal": "res://content/dialogue/npc.test_cave_portal.dialogue",
+  "dialogue.npc.test_cave_exit": "res://content/dialogue/npc.test_cave_exit.dialogue"
 }

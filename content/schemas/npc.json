@@ -47,7 +47,8 @@
             "vendor",
             "inn",
             "healer",
-            "cave_entrance"
+            "cave_entrance",
+            "cave_exit"
           ]
         },
         "questIds": {

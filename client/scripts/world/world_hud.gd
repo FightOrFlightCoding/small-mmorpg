@@ -40,10 +40,26 @@ signal respawn_pressed
 @onready var _cast_bar: ProgressBar = $Root/CastBar
 @onready var _resource_hint: Label = $Root/ResourceHint
 @onready var _status_icons: HBoxContainer = $Root/StatusIcons
+@onready var _party_members: ItemList = $Root/Party/Margin/Scroll/VBox/Members
+@onready var _party_status: Label = $Root/Party/Margin/Scroll/VBox/Status
+@onready var _party_invite_name: LineEdit = $Root/Party/Margin/Scroll/VBox/InviteRow/InviteName
+@onready var _party_invite_button: Button = $Root/Party/Margin/Scroll/VBox/InviteRow/InviteButton
+@onready var _party_create: Button = $Root/Party/Margin/Scroll/VBox/ActionRow/CreateButton
+@onready var _party_leave: Button = $Root/Party/Margin/Scroll/VBox/ActionRow/LeaveButton
+@onready var _party_kick: Button = $Root/Party/Margin/Scroll/VBox/ActionRow/KickButton
+@onready var _party_promote: Button = $Root/Party/Margin/Scroll/VBox/ActionRow/PromoteButton
+@onready var _party_disband: Button = $Root/Party/Margin/Scroll/VBox/ActionRow/DisbandButton
+@onready var _party_prompt: Label = $Root/Party/Margin/Scroll/VBox/InvitePrompt/Prompt
+@onready var _party_accept: Button = $Root/Party/Margin/Scroll/VBox/InvitePrompt/AcceptButton
+@onready var _party_decline: Button = $Root/Party/Margin/Scroll/VBox/InvitePrompt/DeclineButton
+@onready var _party_chat_history: Label = $Root/Party/Margin/Scroll/VBox/ChatScroll/ChatHistory
+@onready var _party_chat_input: LineEdit = $Root/Party/Margin/Scroll/VBox/ChatRow/ChatInput
+@onready var _party_chat_send: Button = $Root/Party/Margin/Scroll/VBox/ChatRow/ChatSend
 
 var _inventory_list: Control
 var _slot_view: Control
 var _attribute_row_fingerprint: String = ""
+var _unlock_row_fingerprint: String = ""
 var _vendor_panel: PanelContainer
 var _vendor_list: ItemList
 var _vendor_stock: Array = []
@@ -90,6 +106,8 @@ func _ready() -> void:
 		VendorService.vendor_opened.connect(_on_vendor_opened)
 	if not VendorService.vendor_closed.is_connected(_hide_vendor):
 		VendorService.vendor_closed.connect(_hide_vendor)
+	_bind_party_panel()
+	refresh_party()
 
 
 func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool = false) -> void:
@@ -107,11 +125,12 @@ func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool =
 		if _combat_state != null:
 			_combat_state.text = ""
 		refresh_journal(QuestService.journal_view())
+		refresh_party()
 		return
 	if snapshot_stale:
 		_status.text = "Connection degraded. Remote movement is frozen."
 	elif AppState.is_reconnecting:
-		_status.text = "Reconnecting to the starter zone…"
+		_status.text = "Reconnecting…"
 	else:
 		_status.text = "In %s as %s (you). Tick %s. Ack seq %s." % [
 			String(state.get("zone_id", "zone.starter")),
@@ -119,6 +138,18 @@ func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool =
 			str(state.get("tick", 0)),
 			str(state.get("ack_seq", 0)),
 		]
+		var instance: Variant = state.get("instance", {})
+		if typeof(instance) == TYPE_DICTIONARY:
+			var info: Dictionary = instance
+			if String(info.get("type", "")) == "party_cave":
+				var completion := String(info.get("completionState", "none"))
+				var boss_alive := bool(info.get("bossAlive", false))
+				if completion == "boss_defeated":
+					_status.text += " Cave: boss defeated."
+				elif boss_alive:
+					_status.text += " Cave: defeat the boss."
+				else:
+					_status.text += " Cave: clear the instance."
 	_entities.text = "Present: %s" % ", ".join(names)
 	_refresh_health(state)
 	_refresh_target_frame(state)
@@ -126,6 +157,7 @@ func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool =
 	refresh_equipment()
 	refresh_wallet()
 	refresh_progression()
+	refresh_party()
 
 
 func refresh_journal(view: Dictionary) -> void:
@@ -141,6 +173,103 @@ func refresh_journal(view: Dictionary) -> void:
 		"Count: %s / %s" % [str(int(view.get("current", 0))), str(int(view.get("required", 0)))],
 		"Turn-in: %s" % String(view.get("turn_in_npc", "")),
 	]))
+
+
+func has_party_input_focus() -> bool:
+	if _party_invite_name != null and _party_invite_name.has_focus():
+		return true
+	if _party_chat_input != null and _party_chat_input.has_focus():
+		return true
+	return false
+
+
+func refresh_party() -> void:
+	if _party_status == null:
+		return
+	if _party_chat_history != null:
+		_party_chat_history.text = "\n".join(PartyService.chat_lines)
+	var invite: Dictionary = PartyService.pending_invite
+	var has_invite := not String(invite.get("partyId", "")).is_empty()
+	var invite_from := String(invite.get("fromDisplayName", invite.get("fromCharacterId", "a player")))
+	if _party_prompt != null:
+		if has_invite and PartyService.is_in_party():
+			_party_prompt.text = "Accept will leave your party and join %s." % invite_from
+		elif has_invite:
+			_party_prompt.text = "Invite to party from %s." % invite_from
+		else:
+			_party_prompt.text = ""
+	if _party_accept != null:
+		_party_accept.visible = has_invite
+	if _party_decline != null:
+		_party_decline.visible = has_invite
+	if not PartyService.is_in_party():
+		_party_status.text = "No party. Max 5."
+		if PartyService.last_error == "party_full":
+			_party_status.text = "The party is full (max 5)."
+		if _party_members != null:
+			_party_members.clear()
+		if _party_create != null:
+			_party_create.disabled = false
+			_party_create.visible = true
+		if _party_leave != null:
+			_party_leave.disabled = true
+		if _party_kick != null:
+			_party_kick.disabled = true
+		if _party_promote != null:
+			_party_promote.disabled = true
+		if _party_disband != null:
+			_party_disband.disabled = true
+			_party_disband.visible = false
+		if _party_invite_button != null:
+			_party_invite_button.disabled = true
+		return
+	if PartyService.is_full():
+		_party_status.text = "Party full (5/5)."
+	else:
+		_party_status.text = "Party %s/%s." % [str(PartyService.member_count()), str(PartyService.MAX_SIZE)]
+	if _party_members != null:
+		_party_members.clear()
+		for entry in PartyService.party.get("members", []):
+			if typeof(entry) != TYPE_DICTIONARY:
+				continue
+			var member: Dictionary = entry
+			var line := String(member.get("displayName", member.get("characterId", "member")))
+			if bool(member.get("isLeader", false)):
+				line = "* " + line
+			var health := int(member.get("health", -1))
+			var max_health := int(member.get("maxHealth", 0))
+			if health >= 0 and max_health > 0:
+				line += "  %s/%s" % [str(health), str(max_health)]
+			var resources: Variant = member.get("resources", {})
+			if typeof(resources) == TYPE_DICTIONARY:
+				for resource_id in (resources as Dictionary).keys():
+					var pool: Variant = resources[resource_id]
+					if typeof(pool) != TYPE_DICTIONARY:
+						continue
+					line += "  %s %s/%s" % [
+						String(resource_id),
+						str(int(pool.get("current", 0))),
+						str(int(pool.get("max", 0))),
+					]
+					break
+			line += "  %s" % String(member.get("connectionState", "online"))
+			_party_members.add_item(line)
+			_party_members.set_item_metadata(_party_members.item_count - 1, String(member.get("characterId", "")))
+	var leader := PartyService.is_leader()
+	if _party_create != null:
+		_party_create.disabled = true
+		_party_create.visible = false
+	if _party_leave != null:
+		_party_leave.disabled = false
+	if _party_kick != null:
+		_party_kick.disabled = not leader
+	if _party_promote != null:
+		_party_promote.disabled = not leader
+	if _party_disband != null:
+		_party_disband.visible = true
+		_party_disband.disabled = not leader
+	if _party_invite_button != null:
+		_party_invite_button.disabled = not leader or PartyService.is_full()
 
 
 func refresh_inventory() -> void:
@@ -197,6 +326,10 @@ func show_notice(message: String) -> void:
 
 
 func _on_notice(_code: String, message: String) -> void:
+	show_notice(message)
+
+
+func _on_party_notice(message: String) -> void:
 	show_notice(message)
 
 
@@ -365,8 +498,9 @@ func _refresh_status_icons() -> void:
 func _rebuild_unlock_rows() -> void:
 	if _progression_unlocks == null:
 		return
-	for child in _progression_unlocks.get_children():
-		child.queue_free()
+	var shown: PackedStringArray = PackedStringArray()
+	var parts := PackedStringArray()
+	parts.append(str(ProgressionService.unspent_skill_points))
 	for ability_id in AbilityService.catalog_ability_ids():
 		var definition := AbilityService.ability_definition(ability_id)
 		if definition.is_empty():
@@ -379,17 +513,101 @@ func _rebuild_unlock_rows() -> void:
 		var rank := int(AbilityService.ability_ranks.get(ability_id, 0))
 		if unlocked and rank >= max_rank:
 			continue
-		var row := HBoxContainer.new()
-		var label := Label.new()
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var disabled := ProgressionService.unspent_skill_points < cost
+		shown.append(ability_id)
+		parts.append("%s:%s:%s:%s" % [ability_id, str(rank), str(int(unlocked)), str(int(disabled))])
+	var fingerprint := "|".join(parts)
+	if fingerprint == _unlock_row_fingerprint:
+		return
+	_unlock_row_fingerprint = fingerprint
+	_trim_container(_progression_unlocks, shown.size())
+	for i in shown.size():
+		var ability_id := shown[i]
+		var row := _row_at(_progression_unlocks, i)
+		if row.get_child_count() < 2:
+			continue
+		row.set_meta("ability_id", ability_id)
+		var definition := AbilityService.ability_definition(ability_id)
+		var cost := int(definition.get("skillPointCost", 0))
+		var label: Label = row.get_child(0)
 		label.text = String(definition.get("displayName", ability_id))
-		var button := Button.new()
+		var button: Button = row.get_child(1)
 		button.text = "Unlock %s" % str(cost)
 		button.disabled = ProgressionService.unspent_skill_points < cost
-		button.pressed.connect(func() -> void: AbilityService.request_unlock(ability_id))
-		row.add_child(label)
-		row.add_child(button)
-		_progression_unlocks.add_child(row)
+
+
+func _rebuild_attribute_rows() -> void:
+	if _progression_attributes == null:
+		return
+	var fingerprint := "%s|%s|%s" % [
+		",".join(ProgressionService.attribute_ids()),
+		str(ProgressionService.allocated_attributes),
+		str(ProgressionService.unspent_attribute_points),
+	]
+	if fingerprint == _attribute_row_fingerprint:
+		return
+	_attribute_row_fingerprint = fingerprint
+	var ids := ProgressionService.attribute_ids()
+	_trim_container(_progression_attributes, ids.size())
+	for i in ids.size():
+		var attribute_id := ids[i]
+		var row := _row_at(_progression_attributes, i)
+		if row.get_child_count() < 2:
+			continue
+		row.set_meta("attribute_id", attribute_id)
+		var record: Dictionary = ContentRegistry.get_by_id(attribute_id)
+		var label_name := String(record.get("displayName", attribute_id))
+		var base_value := int(ProgressionService.base_attributes.get(attribute_id, 0))
+		var allocated := int(ProgressionService.allocated_attributes.get(attribute_id, 0))
+		var label: Label = row.get_child(0)
+		label.text = "%s  base %s  alloc %s" % [label_name, str(base_value), str(allocated)]
+		var button: Button = row.get_child(1)
+		button.disabled = ProgressionService.unspent_attribute_points < 1
+
+
+func _trim_container(host: VBoxContainer, keep: int) -> void:
+	while host.get_child_count() > keep:
+		var extra := host.get_child(host.get_child_count() - 1)
+		host.remove_child(extra)
+		extra.queue_free()
+
+
+func _row_at(host: VBoxContainer, index: int) -> HBoxContainer:
+	if index < host.get_child_count():
+		return host.get_child(index)
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_STOP
+	var label := Label.new()
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var button := Button.new()
+	button.mouse_filter = Control.MOUSE_FILTER_STOP
+	button.focus_mode = Control.FOCUS_CLICK
+	if host == _progression_unlocks:
+		button.custom_minimum_size = Vector2(72, 28)
+		button.pressed.connect(_on_unlock_row_pressed.bind(row))
+	else:
+		button.text = "+1"
+		button.custom_minimum_size = Vector2(40, 28)
+		button.pressed.connect(_on_allocate_row_pressed.bind(row))
+	row.add_child(label)
+	row.add_child(button)
+	host.add_child(row)
+	return row
+
+
+func _on_allocate_row_pressed(row: Control) -> void:
+	var attribute_id := String(row.get_meta("attribute_id", ""))
+	if attribute_id.is_empty():
+		return
+	ProgressionService.request_allocate(attribute_id, 1)
+
+
+func _on_unlock_row_pressed(row: Control) -> void:
+	var ability_id := String(row.get_meta("ability_id", ""))
+	if ability_id.is_empty():
+		return
+	AbilityService.request_unlock(ability_id)
 
 
 func _bind_inventory() -> void:
@@ -417,47 +635,6 @@ func _exit_tree() -> void:
 		ProgressionService.progression_changed.disconnect(refresh_progression)
 	if AbilityService.abilities_changed.is_connected(refresh_abilities):
 		AbilityService.abilities_changed.disconnect(refresh_abilities)
-
-
-func _rebuild_attribute_rows() -> void:
-	if _progression_attributes == null:
-		return
-	var fingerprint := "%s|%s|%s" % [
-		",".join(ProgressionService.attribute_ids()),
-		str(ProgressionService.allocated_attributes),
-		str(ProgressionService.unspent_attribute_points),
-	]
-	if fingerprint == _attribute_row_fingerprint:
-		return
-	_attribute_row_fingerprint = fingerprint
-	while _progression_attributes.get_child_count() > 0:
-		var child := _progression_attributes.get_child(0)
-		_progression_attributes.remove_child(child)
-		child.free()
-	for attribute_id in ProgressionService.attribute_ids():
-		var record: Dictionary = ContentRegistry.get_by_id(attribute_id)
-		var label_name := String(record.get("displayName", attribute_id))
-		var base_value := int(ProgressionService.base_attributes.get(attribute_id, 0))
-		var allocated := int(ProgressionService.allocated_attributes.get(attribute_id, 0))
-		var row := HBoxContainer.new()
-		row.mouse_filter = Control.MOUSE_FILTER_STOP
-		var label := Label.new()
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		label.text = "%s  base %s  alloc %s" % [label_name, str(base_value), str(allocated)]
-		var button := Button.new()
-		button.text = "+1"
-		button.custom_minimum_size = Vector2(40, 28)
-		button.mouse_filter = Control.MOUSE_FILTER_STOP
-		button.disabled = ProgressionService.unspent_attribute_points < 1
-		button.pressed.connect(_on_allocate_pressed.bind(attribute_id))
-		row.add_child(label)
-		row.add_child(button)
-		_progression_attributes.add_child(row)
-
-
-func _on_allocate_pressed(attribute_id: String) -> void:
-	ProgressionService.request_allocate(attribute_id, 1)
 
 
 func _refresh_health(state: Dictionary) -> void:
@@ -690,4 +867,91 @@ func _on_vendor_sell() -> void:
 	if instance_id.is_empty():
 		return
 	VendorService.request_sell(instance_id)
+
+
+func _bind_party_panel() -> void:
+	if _party_create != null and not _party_create.pressed.is_connected(_on_party_create):
+		_party_create.pressed.connect(_on_party_create)
+	if _party_leave != null and not _party_leave.pressed.is_connected(_on_party_leave):
+		_party_leave.pressed.connect(_on_party_leave)
+	if _party_kick != null and not _party_kick.pressed.is_connected(_on_party_kick):
+		_party_kick.pressed.connect(_on_party_kick)
+	if _party_promote != null and not _party_promote.pressed.is_connected(_on_party_promote):
+		_party_promote.pressed.connect(_on_party_promote)
+	if _party_disband != null and not _party_disband.pressed.is_connected(_on_party_disband):
+		_party_disband.pressed.connect(_on_party_disband)
+	if _party_invite_button != null and not _party_invite_button.pressed.is_connected(_on_party_invite):
+		_party_invite_button.pressed.connect(_on_party_invite)
+	if _party_accept != null and not _party_accept.pressed.is_connected(_on_party_accept):
+		_party_accept.pressed.connect(_on_party_accept)
+	if _party_decline != null and not _party_decline.pressed.is_connected(_on_party_decline):
+		_party_decline.pressed.connect(_on_party_decline)
+	if _party_chat_send != null and not _party_chat_send.pressed.is_connected(_on_party_chat_send):
+		_party_chat_send.pressed.connect(_on_party_chat_send)
+	if _party_chat_input != null and not _party_chat_input.text_submitted.is_connected(_on_party_chat_submitted):
+		_party_chat_input.text_submitted.connect(_on_party_chat_submitted)
+	if _party_invite_name != null:
+		_party_invite_name.max_length = 24
+	if _party_chat_input != null:
+		_party_chat_input.max_length = ZoneChat.MAX_CHARS
+	if not PartyService.party_changed.is_connected(refresh_party):
+		PartyService.party_changed.connect(refresh_party)
+	if not PartyService.party_notice.is_connected(_on_party_notice):
+		PartyService.party_notice.connect(_on_party_notice)
+
+
+func _selected_party_character_id() -> String:
+	if _party_members == null:
+		return ""
+	var selected: PackedInt32Array = _party_members.get_selected_items()
+	if selected.is_empty():
+		return ""
+	return String(_party_members.get_item_metadata(selected[0]))
+
+
+func _on_party_create() -> void:
+	PartyService.request_create()
+
+
+func _on_party_leave() -> void:
+	PartyService.request_leave()
+
+
+func _on_party_kick() -> void:
+	PartyService.request_kick(_selected_party_character_id())
+
+
+func _on_party_promote() -> void:
+	PartyService.request_promote(_selected_party_character_id())
+
+
+func _on_party_disband() -> void:
+	PartyService.request_disband()
+
+
+func _on_party_invite() -> void:
+	if _party_invite_name == null:
+		return
+	PartyService.request_invite(_party_invite_name.text)
+
+
+func _on_party_accept() -> void:
+	PartyService.request_accept()
+
+
+func _on_party_decline() -> void:
+	PartyService.request_decline()
+
+
+func _on_party_chat_submitted(_text: String) -> void:
+	_on_party_chat_send()
+
+
+func _on_party_chat_send() -> void:
+	if _party_chat_input == null:
+		return
+	var text := _party_chat_input.text
+	_party_chat_input.clear()
+	await PartyService.send_chat(text)
+
 
