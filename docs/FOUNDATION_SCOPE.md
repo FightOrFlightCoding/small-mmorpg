@@ -42,7 +42,7 @@ A later phase may implement a Required-for-Foundation-v1 row only when that phas
 | Zone chat | Existing and accepted | Room `zone.starter`, 200 characters, no BBCode. |
 | Party chat | Existing and accepted (Prompt 28) | Room `party.<partyId>` for members. Direct-message and group joins remain rejected. |
 | Temporary parties | Existing and accepted (Prompt 28) | Server-owned; survive 60 s disconnect grace; not permanently persistent. |
-| Secure direct player trading | Required for Foundation v1 | Absent. |
+| Secure direct player trading | Existing and accepted (Prompt 30) | Nearby online same-match trades of items and gold. No mail, auction house, or offline trade. |
 | Transfer tickets between public world and caves | Existing and accepted (Prompt 29) | One-time server-issued tickets consumed on destination join. |
 | Reconnect to the correct public world or cave | Existing and accepted (Prompt 29) | Canonical location; cave rejoin during 60 s grace; public-world fallback if the cave is gone. |
 | Empty cave grace shutdown | Existing and accepted (Prompt 29) | Public match empty shutdown is 30 s; caves empty-timeout and terminate after 60 s. |
@@ -93,7 +93,7 @@ A later phase may implement a Required-for-Foundation-v1 row only when that phas
 
 ## Authority (Foundation v1)
 
-The server is the only authority for: selected character, class, level, experience, attribute allocation, skill allocation, unlocked abilities, hotbar validity, position, collision, targeting, health and resources, casts, cooldowns, damage, healing, status effects, death and respawn, enemy AI, spawn state, loot, inventory, equipment, currency, merchant transactions, quest state, quest rewards, party membership, group credit, cave ownership, zone transfers, and canonical location. Trade state remains later.
+The server is the only authority for: selected character, class, level, experience, attribute allocation, skill allocation, unlocked abilities, hotbar validity, position, collision, targeting, health and resources, casts, cooldowns, damage, healing, status effects, death and respawn, enemy AI, spawn state, loot, inventory, equipment, currency, merchant transactions, quest state, quest rewards, party membership, group credit, cave ownership, zone transfers, canonical location, and direct player trades.
 
 The client sends intentions, never outcomes.
 

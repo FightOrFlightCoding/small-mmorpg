@@ -303,6 +303,10 @@ export function itemIsDestroyable(definition: ItemDefinition): boolean {
   return definition.destroyable !== false;
 }
 
+export function itemIsTradeable(definition: ItemDefinition): boolean {
+  return definition.tradeable !== false;
+}
+
 export function itemUniquePolicy(definition: ItemDefinition): UniquePolicy {
   return definition.uniquePolicy !== undefined ? definition.uniquePolicy : "none";
 }
@@ -332,7 +336,7 @@ export function consumeItem(inventory: PlayerInventory, itemId: string, quantity
   const kept: ItemInstance[] = [];
   for (let i = 0; i < next.items.length; i++) {
     const stack = next.items[i];
-    if (stack.itemId !== itemId || remaining <= 0) {
+    if (stack.itemId !== itemId || remaining <= 0 || isItemLocked(stack)) {
       kept.push(stack);
       continue;
     }
@@ -345,6 +349,9 @@ export function consumeItem(inventory: PlayerInventory, itemId: string, quantity
     remaining -= stack.quantity;
   }
   next.items = kept;
+  if (remaining > 0) {
+    return null;
+  }
   return next;
 }
 
@@ -390,6 +397,43 @@ export function setItemLock(
   }
   item.lockReason = lockReason;
   item.lockId = lockId;
+  return next;
+}
+
+export function clearLocksByLockId(inventory: PlayerInventory, lockId: string): PlayerInventory {
+  const next = cloneInventory(inventory);
+  if (lockId.length === 0) {
+    return next;
+  }
+  for (let i = 0; i < next.items.length; i++) {
+    if (next.items[i].lockId === lockId) {
+      next.items[i].lockReason = "";
+      next.items[i].lockId = "";
+    }
+  }
+  return next;
+}
+
+export function takeItemQuantity(
+  inventory: PlayerInventory,
+  instanceId: string,
+  quantity: number,
+): PlayerInventory | null {
+  if (quantity < 1 || quantity !== Math.floor(quantity)) {
+    return null;
+  }
+  const next = cloneInventory(inventory);
+  const item = findItem(next, instanceId);
+  if (item === null || item.quantity < quantity) {
+    return null;
+  }
+  if (quantity >= item.quantity) {
+    next.items = next.items.filter((entry) => entry.instanceId !== instanceId);
+    return next;
+  }
+  item.quantity -= quantity;
+  item.lockReason = "";
+  item.lockId = "";
   return next;
 }
 
@@ -663,6 +707,9 @@ export function applyMoveItem(input: {
     }, input.tick);
   }
   if (dest.itemId === item.itemId) {
+    if (isItemLocked(dest)) {
+      return failMutation("item_locked", current);
+    }
     const definition = input.itemsById[item.itemId];
     if (definition === undefined) {
       return failMutation("invalid_id", current);

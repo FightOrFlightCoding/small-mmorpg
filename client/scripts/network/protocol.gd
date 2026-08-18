@@ -36,6 +36,14 @@ const CLIENT_VENDOR_SELL: int = 20
 const CLIENT_INN_REST: int = 21
 const CLIENT_CAVE_ENTER: int = 22
 const CLIENT_CAVE_EXIT: int = 23
+const CLIENT_TRADE_INVITE: int = 24
+const CLIENT_TRADE_ACCEPT_INVITE: int = 25
+const CLIENT_TRADE_DECLINE_INVITE: int = 26
+const CLIENT_TRADE_SET_OFFER: int = 27
+const CLIENT_TRADE_REMOVE_OFFER: int = 28
+const CLIENT_TRADE_SET_GOLD: int = 29
+const CLIENT_TRADE_ACCEPT_REVISION: int = 30
+const CLIENT_TRADE_CANCEL: int = 31
 
 const SERVER_FULL_STATE: int = 101
 const SERVER_SNAPSHOT: int = 102
@@ -51,6 +59,7 @@ const SERVER_PROGRESSION_STATE: int = 111
 const SERVER_ABILITY_STATE: int = 112
 const SERVER_PARTY_STATE: int = 113
 const SERVER_PARTY_EVENT: int = 114
+const SERVER_TRADE_STATE: int = 115
 
 const FIND_OR_CREATE_STARTER_ZONE_RPC: String = "find_or_create_starter_zone"
 
@@ -230,6 +239,7 @@ static func parse_action_result(raw: String) -> Dictionary:
 		"origin_match_id": String(parsed.get("originMatchId", "")),
 		"zone_id": String(parsed.get("zoneId", "")),
 		"instance_type": String(parsed.get("instanceType", "")),
+		"trade_id": String(parsed.get("tradeId", "")),
 	}
 
 
@@ -359,6 +369,19 @@ static func parse_party_event(raw: String) -> Dictionary:
 		"userId": String(parsed.get("userId", "")),
 		"characterId": String(parsed.get("characterId", "")),
 		"itemId": String(parsed.get("itemId", "")),
+	}
+
+
+static func parse_trade_state(raw: String) -> Dictionary:
+	var parsed: Dictionary = _parse_object(raw)
+	if parsed.has("ok") and not bool(parsed["ok"]) and parsed.has("message"):
+		return parsed
+	if not _version_ok(parsed):
+		return _fail("protocol_mismatch", "The trade-state protocol version does not match this client.")
+	return {
+		"ok": true,
+		"request_id": String(parsed.get("requestId", "")),
+		"trade": _optional_object(parsed, "trade"),
 	}
 
 

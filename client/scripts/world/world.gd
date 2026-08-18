@@ -346,6 +346,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			else:
 				AbilityService.cancel_targeting()
 			get_viewport().set_input_as_handled()
+		elif event.button_index == MOUSE_BUTTON_LEFT:
+			if try_select_friendly_player():
+				get_viewport().set_input_as_handled()
 
 
 func _input_blocked() -> bool:
@@ -401,6 +404,45 @@ func _sync_player_blockers() -> void:
 				pos = poses[pose_key]
 			rects.append(Rect2(pos.x - half, pos.y - half, size, size))
 	_sim.dynamic_collisions = rects
+
+
+func try_select_friendly_player() -> bool:
+	if _input_blocked() or not _local_alive() or NetworkService.match_id.is_empty():
+		return false
+	if _entities == null or not AppState.has_zone_state:
+		return false
+	var mouse := get_global_mouse_position()
+	var self_id := String(AppState.zone_view.get("self_id", _entities.local_server_id))
+	var best_id := ""
+	var best_name := ""
+	var best_distance := 36.0
+	for entry in AppState.zone_view.get("players", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var record: Dictionary = entry
+		var user_id := String(record.get("userId", record.get("user_id", "")))
+		if user_id.is_empty() or user_id == self_id:
+			continue
+		if record.has("alive") and not bool(record.get("alive", true)):
+			continue
+		if int(record.get("health", 1)) <= 0:
+			continue
+		var pos := Vector2(float(record.get("x", 0.0)), float(record.get("y", 0.0)))
+		var node: Node2D = _entities.get_entity("player:%s" % user_id)
+		if node != null:
+			pos = node.global_position
+		var distance := mouse.distance_to(pos)
+		if distance > best_distance:
+			continue
+		best_distance = distance
+		best_id = user_id
+		best_name = String(record.get("name", user_id))
+	if best_id.is_empty():
+		return false
+	NetworkService.send_set_target(best_id, MatchProtocol.new_request_id(), "friendly")
+	if _hud != null:
+		_hud.select_player_for_trade(best_id, best_name)
+	return true
 
 
 func try_interact() -> void:

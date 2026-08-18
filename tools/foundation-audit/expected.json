@@ -75,7 +75,15 @@
     "VENDOR_SELL": 20,
     "INN_REST": 21,
     "CAVE_ENTER": 22,
-    "CAVE_EXIT": 23
+    "CAVE_EXIT": 23,
+    "TRADE_INVITE": 24,
+    "TRADE_ACCEPT_INVITE": 25,
+    "TRADE_DECLINE_INVITE": 26,
+    "TRADE_SET_OFFER": 27,
+    "TRADE_REMOVE_OFFER": 28,
+    "TRADE_SET_GOLD": 29,
+    "TRADE_ACCEPT_REVISION": 30,
+    "TRADE_CANCEL": 31
   },
   "serverOpcodes": {
     "FULL_STATE": 101,
@@ -91,7 +99,8 @@
     "PROGRESSION_STATE": 111,
     "ABILITY_STATE": 112,
     "PARTY_STATE": 113,
-    "PARTY_EVENT": 114
+    "PARTY_EVENT": 114,
+    "TRADE_STATE": 115
   },
   "storageRecords": [
     { "collection": "player", "key": "character", "permissionWrite": 0, "schemaVersion": 1 },
@@ -109,6 +118,9 @@
     { "collection": "cave", "key": "c", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "cave_index", "key": "owner", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "transfer", "key": "t", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "trade", "key": "t", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "player", "key": "trade", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "player", "key": "trade_audit", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "names", "key": "n", "permissionWrite": 0, "schemaVersion": "absent" },
     { "collection": "match", "key": "starter_zone", "permissionWrite": 0, "schemaVersion": "absent" }
   ],

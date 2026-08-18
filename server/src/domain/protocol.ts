@@ -27,6 +27,14 @@ export const ClientOpcode = {
   INN_REST: 21,
   CAVE_ENTER: 22,
   CAVE_EXIT: 23,
+  TRADE_INVITE: 24,
+  TRADE_ACCEPT_INVITE: 25,
+  TRADE_DECLINE_INVITE: 26,
+  TRADE_SET_OFFER: 27,
+  TRADE_REMOVE_OFFER: 28,
+  TRADE_SET_GOLD: 29,
+  TRADE_ACCEPT_REVISION: 30,
+  TRADE_CANCEL: 31,
 } as const;
 
 export const ServerOpcode = {
@@ -44,6 +52,7 @@ export const ServerOpcode = {
   ABILITY_STATE: 112,
   PARTY_STATE: 113,
   PARTY_EVENT: 114,
+  TRADE_STATE: 115,
 } as const;
 
 export type ClientOpcode = (typeof ClientOpcode)[keyof typeof ClientOpcode];
@@ -73,6 +82,14 @@ const CLIENT_OPCODES: ClientOpcode[] = [
   ClientOpcode.INN_REST,
   ClientOpcode.CAVE_ENTER,
   ClientOpcode.CAVE_EXIT,
+  ClientOpcode.TRADE_INVITE,
+  ClientOpcode.TRADE_ACCEPT_INVITE,
+  ClientOpcode.TRADE_DECLINE_INVITE,
+  ClientOpcode.TRADE_SET_OFFER,
+  ClientOpcode.TRADE_REMOVE_OFFER,
+  ClientOpcode.TRADE_SET_GOLD,
+  ClientOpcode.TRADE_ACCEPT_REVISION,
+  ClientOpcode.TRADE_CANCEL,
 ];
 
 const REWARD_OPCODES: ClientOpcode[] = [
@@ -110,6 +127,14 @@ OPCODE_KEYS[ClientOpcode.VENDOR_SELL] = ["npcId", "instanceId", "quantity"];
 OPCODE_KEYS[ClientOpcode.INN_REST] = ["npcId", "mode"];
 OPCODE_KEYS[ClientOpcode.CAVE_ENTER] = ["npcId"];
 OPCODE_KEYS[ClientOpcode.CAVE_EXIT] = ["npcId"];
+OPCODE_KEYS[ClientOpcode.TRADE_INVITE] = ["targetId"];
+OPCODE_KEYS[ClientOpcode.TRADE_ACCEPT_INVITE] = ["tradeId"];
+OPCODE_KEYS[ClientOpcode.TRADE_DECLINE_INVITE] = ["tradeId"];
+OPCODE_KEYS[ClientOpcode.TRADE_SET_OFFER] = ["tradeId", "instanceId", "quantity"];
+OPCODE_KEYS[ClientOpcode.TRADE_REMOVE_OFFER] = ["tradeId", "instanceId"];
+OPCODE_KEYS[ClientOpcode.TRADE_SET_GOLD] = ["tradeId", "amount"];
+OPCODE_KEYS[ClientOpcode.TRADE_ACCEPT_REVISION] = ["tradeId", "revision"];
+OPCODE_KEYS[ClientOpcode.TRADE_CANCEL] = ["tradeId"];
 
 const OUTCOME_KEYS = [
   "attack",
@@ -168,6 +193,7 @@ const INPUT_NUMBER_KEYS = ["seq", "axisX", "axisY"];
 const ALLOCATE_NUMBER_KEYS = ["amount"];
 const INVENTORY_NUMBER_KEYS = ["quantity", "toSlotIndex"];
 const ABILITY_NUMBER_KEYS = ["targetX", "targetY", "slotIndex"];
+const TRADE_NUMBER_KEYS = ["revision"];
 
 export interface ProtocolError {
   code: string;
@@ -189,6 +215,7 @@ export interface ParsedClientMessage {
   targetX?: number;
   targetY?: number;
   slotIndex?: number;
+  revision?: number;
 }
 
 export function isClientOpcode(opcode: number): opcode is ClientOpcode {
@@ -216,7 +243,15 @@ function requiresRequestId(opcode: ClientOpcode): boolean {
     opcode === ClientOpcode.SET_TARGET ||
     opcode === ClientOpcode.RELEASE_RESPAWN ||
     opcode === ClientOpcode.CAVE_ENTER ||
-    opcode === ClientOpcode.CAVE_EXIT
+    opcode === ClientOpcode.CAVE_EXIT ||
+    opcode === ClientOpcode.TRADE_INVITE ||
+    opcode === ClientOpcode.TRADE_ACCEPT_INVITE ||
+    opcode === ClientOpcode.TRADE_DECLINE_INVITE ||
+    opcode === ClientOpcode.TRADE_SET_OFFER ||
+    opcode === ClientOpcode.TRADE_REMOVE_OFFER ||
+    opcode === ClientOpcode.TRADE_SET_GOLD ||
+    opcode === ClientOpcode.TRADE_ACCEPT_REVISION ||
+    opcode === ClientOpcode.TRADE_CANCEL
   );
 }
 
@@ -318,6 +353,9 @@ export function parseClientMessage(
     if (ABILITY_NUMBER_KEYS.indexOf(key) !== -1) {
       continue;
     }
+    if (TRADE_NUMBER_KEYS.indexOf(key) !== -1) {
+      continue;
+    }
     if (key === "instanceId" && !Object.prototype.hasOwnProperty.call(data, key)) {
       continue;
     }
@@ -367,12 +405,29 @@ export function parseClientMessage(
     message.axisX = axisX;
     message.axisY = axisY;
   }
-  if (opcode === ClientOpcode.ALLOCATE_ATTRIBUTES) {
+  if (opcode === ClientOpcode.ALLOCATE_ATTRIBUTES || opcode === ClientOpcode.TRADE_SET_GOLD) {
     const amount = data.amount;
     if (typeof amount !== "number" || !isFinite(amount) || amount !== Math.floor(amount)) {
-      return { code: "invalid_amount", message: "ALLOCATE amount must be a finite integer." };
+      return { code: "invalid_amount", message: "Amount must be a finite integer." };
     }
     message.amount = amount;
+  }
+  if (
+    opcode === ClientOpcode.TRADE_SET_OFFER &&
+    Object.prototype.hasOwnProperty.call(data, "quantity")
+  ) {
+    const quantity = data.quantity;
+    if (typeof quantity !== "number" || !isFinite(quantity) || quantity !== Math.floor(quantity)) {
+      return { code: "invalid_amount", message: "TRADE quantity must be a finite integer." };
+    }
+    message.quantity = quantity;
+  }
+  if (opcode === ClientOpcode.TRADE_ACCEPT_REVISION) {
+    const revision = data.revision;
+    if (typeof revision !== "number" || !isFinite(revision) || revision !== Math.floor(revision)) {
+      return { code: "invalid_amount", message: "TRADE revision must be a finite integer." };
+    }
+    message.revision = revision;
   }
   if (opcode === ClientOpcode.DESTROY_ITEM && Object.prototype.hasOwnProperty.call(data, "quantity")) {
     const quantity = data.quantity;
@@ -636,6 +691,25 @@ export function partyStateMessage(
   }
   return {
     opcode: ServerOpcode.PARTY_STATE,
+    body: JSON.stringify(payload),
+  };
+}
+
+export function tradeStateMessage(
+  contentHash: string,
+  trade: { [key: string]: unknown } | null,
+  requestId?: string,
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    contentHash: contentHash,
+    trade: trade,
+  };
+  if (requestId !== undefined) {
+    payload.requestId = requestId;
+  }
+  return {
+    opcode: ServerOpcode.TRADE_STATE,
     body: JSON.stringify(payload),
   };
 }

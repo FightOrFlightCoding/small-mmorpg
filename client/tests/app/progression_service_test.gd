@@ -74,12 +74,12 @@ func test_hud_allocate_buttons_are_enabled_and_skill_points_are_display_only() -
 	var hud: WorldHud = auto_free(preload("res://scenes/world/world_hud.tscn").instantiate())
 	add_child(hud)
 	await get_tree().process_frame
-	var points: Label = hud.get_node("Root/Progression/Margin/VBox/Points")
-	var skills: Label = hud.get_node("Root/Progression/Margin/VBox/Skills")
+	var points: Label = hud.get_node("Root/LeftColumn/Progression/Margin/VBox/Points")
+	var skills: Label = hud.get_node("Root/LeftColumn/Progression/Margin/VBox/Skills")
 	assert_str(points.text).is_equal("Attribute points: 1")
 	assert_str(skills.text).contains("Skill points: 1")
 	assert_bool(skills.text.contains("unlock later")).is_false()
-	var attributes: VBoxContainer = hud.get_node("Root/Progression/Margin/VBox/Attributes")
+	var attributes: VBoxContainer = hud.get_node("Root/LeftColumn/Progression/Margin/VBox/Attributes")
 	assert_int(attributes.get_child_count()).is_equal(1)
 	var button: Button = attributes.get_child(0).get_child(1)
 	assert_str(button.text).is_equal("+1")
@@ -110,7 +110,7 @@ func test_hud_unlock_buttons_survive_repeated_snapshot_refresh() -> void:
 	var hud: WorldHud = auto_free(preload("res://scenes/world/world_hud.tscn").instantiate())
 	add_child(hud)
 	await get_tree().process_frame
-	var unlocks: VBoxContainer = hud.get_node("Root/Progression/Margin/VBox/Unlocks")
+	var unlocks: VBoxContainer = hud.get_node("Root/LeftColumn/Progression/Margin/VBox/Unlocks")
 	assert_int(unlocks.get_child_count()).is_greater(0)
 	var button: Button = unlocks.get_child(0).get_child(1)
 	assert_str(button.text).contains("Unlock")
@@ -153,7 +153,7 @@ func test_hud_allocate_button_survives_preview_refresh() -> void:
 	var hud: WorldHud = auto_free(preload("res://scenes/world/world_hud.tscn").instantiate())
 	add_child(hud)
 	await get_tree().process_frame
-	var attributes: VBoxContainer = hud.get_node("Root/Progression/Margin/VBox/Attributes")
+	var attributes: VBoxContainer = hud.get_node("Root/LeftColumn/Progression/Margin/VBox/Attributes")
 	assert_int(attributes.get_child_count()).is_greater(0)
 	var button: Button = attributes.get_child(0).get_child(1)
 	var first := button

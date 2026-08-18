@@ -43,7 +43,8 @@ import { buildInitialCombatants, cloneEnemyCombatFields, cloneSpawns } from "./s
 import type { AiProfileContent } from "./threat";
 import type { LootTableDefinition } from "./loot_table";
 import { MAX_PARTY_SIZE, type GroupCreditRules } from "./party";
-import type { MatchPartyCache } from "./party_credit";
+import { type MatchPartyCache } from "./party_credit";
+import { cloneTrades, type TradeRecord } from "./trade";
 
 export type { MatchLoot };
 
@@ -294,6 +295,9 @@ export interface StarterZoneState {
   emptyTimeoutTicks?: number;
   reconnectGraceTicks?: number;
   wipeResetAtTick?: number;
+  matchId?: string;
+  trades: { [tradeId: string]: TradeRecord };
+  tradeByCharacterId: { [characterId: string]: string };
 }
 
 export interface CombatApplyRecord {
@@ -531,6 +535,9 @@ export function createStarterZoneState(
     emptyTimeoutTicks: numberOr(extras.emptyTimeoutTicks, EMPTY_MATCH_TIMEOUT_TICKS),
     reconnectGraceTicks: numberOr(extras.reconnectGraceTicks, MATCH_TICK_RATE * 5),
     wipeResetAtTick: 0,
+    matchId: "",
+    trades: {},
+    tradeByCharacterId: {},
   };
 }
 
@@ -867,6 +874,9 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     emptyTimeoutTicks: typeof state.emptyTimeoutTicks === "number" ? state.emptyTimeoutTicks : EMPTY_MATCH_TIMEOUT_TICKS,
     reconnectGraceTicks: typeof state.reconnectGraceTicks === "number" ? state.reconnectGraceTicks : MATCH_TICK_RATE * 5,
     wipeResetAtTick: typeof state.wipeResetAtTick === "number" ? state.wipeResetAtTick : 0,
+    matchId: state.matchId !== undefined ? state.matchId : "",
+    trades: cloneTrades(state.trades),
+    tradeByCharacterId: dict(state.tradeByCharacterId),
   };
 }
 

@@ -21,6 +21,7 @@ signal progression_state_received(payload: Dictionary)
 signal ability_state_received(payload: Dictionary)
 signal party_state_received(payload: Dictionary)
 signal party_event_received(payload: Dictionary)
+signal trade_state_received(payload: Dictionary)
 signal system_notice_received(code: String, message: String)
 signal logged_out
 
@@ -594,6 +595,93 @@ func send_cave_exit(npc_id: String, request_id: String = "") -> Dictionary:
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_CAVE_EXIT,
 		MatchProtocol.client_envelope_json({"npcId": npc_id, "requestId": rid})
+	)
+
+
+func send_trade_invite(target_id: String, request_id: String = "") -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var rid := request_id
+	if rid.is_empty():
+		rid = MatchProtocol.new_request_id()
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_TRADE_INVITE,
+		MatchProtocol.client_envelope_json({"targetId": target_id, "requestId": rid})
+	)
+
+
+func send_trade_accept_invite(trade_id: String, request_id: String = "") -> Dictionary:
+	return await _send_trade_id(MatchProtocol.CLIENT_TRADE_ACCEPT_INVITE, trade_id, request_id)
+
+
+func send_trade_decline_invite(trade_id: String, request_id: String = "") -> Dictionary:
+	return await _send_trade_id(MatchProtocol.CLIENT_TRADE_DECLINE_INVITE, trade_id, request_id)
+
+
+func send_trade_set_offer(trade_id: String, instance_id: String, quantity: int = 0, request_id: String = "") -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var rid := request_id
+	if rid.is_empty():
+		rid = MatchProtocol.new_request_id()
+	var extra: Dictionary = {"tradeId": trade_id, "instanceId": instance_id, "requestId": rid}
+	if quantity > 0:
+		extra["quantity"] = quantity
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_TRADE_SET_OFFER,
+		MatchProtocol.client_envelope_json(extra)
+	)
+
+
+func send_trade_remove_offer(trade_id: String, instance_id: String, request_id: String = "") -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var rid := request_id
+	if rid.is_empty():
+		rid = MatchProtocol.new_request_id()
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_TRADE_REMOVE_OFFER,
+		MatchProtocol.client_envelope_json({"tradeId": trade_id, "instanceId": instance_id, "requestId": rid})
+	)
+
+
+func send_trade_set_gold(trade_id: String, amount: int, request_id: String = "") -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var rid := request_id
+	if rid.is_empty():
+		rid = MatchProtocol.new_request_id()
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_TRADE_SET_GOLD,
+		MatchProtocol.client_envelope_json({"tradeId": trade_id, "amount": amount, "requestId": rid})
+	)
+
+
+func send_trade_accept_revision(trade_id: String, revision: int, request_id: String = "") -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var rid := request_id
+	if rid.is_empty():
+		rid = MatchProtocol.new_request_id()
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_TRADE_ACCEPT_REVISION,
+		MatchProtocol.client_envelope_json({"tradeId": trade_id, "revision": revision, "requestId": rid})
+	)
+
+
+func send_trade_cancel(trade_id: String, request_id: String = "") -> Dictionary:
+	return await _send_trade_id(MatchProtocol.CLIENT_TRADE_CANCEL, trade_id, request_id)
+
+
+func _send_trade_id(opcode: int, trade_id: String, request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var rid := request_id
+	if rid.is_empty():
+		rid = MatchProtocol.new_request_id()
+	return await _backend().send_match_state(
+		opcode,
+		MatchProtocol.client_envelope_json({"tradeId": trade_id, "requestId": rid})
 	)
 
 
@@ -1284,6 +1372,13 @@ func _on_match_state(opcode: int, payload: String) -> void:
 			AppState.report_recoverable(String(party_event.get("code", "party_event_failed")), String(party_event.get("message", "Party event was invalid.")))
 			return
 		party_event_received.emit(party_event)
+		return
+	if opcode == MatchProtocol.SERVER_TRADE_STATE:
+		var trade_state: Dictionary = MatchProtocol.parse_trade_state(payload)
+		if not bool(trade_state.get("ok", false)):
+			AppState.report_recoverable(String(trade_state.get("code", "trade_state_failed")), String(trade_state.get("message", "Trade state was invalid.")))
+			return
+		trade_state_received.emit(trade_state)
 		return
 
 

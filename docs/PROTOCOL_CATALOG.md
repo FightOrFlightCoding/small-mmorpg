@@ -132,7 +132,7 @@ Tests: `server/tests/cave.test.ts`.
 
 ## Client → server match opcodes
 
-Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARGET 8; INTERACT/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/quest/VENDOR_BUY/VENDOR_SELL/INN_REST/CAVE_ENTER/CAVE_EXIT/ALLOCATE_ATTRIBUTES/ASSIGN_HOTBAR/UNLOCK_ABILITY 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
+Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARGET 8; INTERACT/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/quest/VENDOR_BUY/VENDOR_SELL/INN_REST/CAVE_ENTER/CAVE_EXIT/TRADE_*/ALLOCATE_ATTRIBUTES/ASSIGN_HOTBAR/UNLOCK_ABILITY 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
 
 ### 1 `INPUT`
 
@@ -377,6 +377,92 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 | Rate limit | Shares quest window (8) |
 | Tests | `cave.test.ts`, `protocol.test.ts`, `cave_service_test.gd` |
 
+### 24 `TRADE_INVITE`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, targetId, requestId }` |
+| Authority | Server eligibility: same match, alive, in range, not transferring, not already trading, not combat/cast/stun restricted |
+| Idempotency | Successful `requestId` replays without a second invite |
+| Errors | `invalid_target`, `already_trading`, `out_of_range`, `player_dead`, `already_transferring`, `in_combat`, `casting`, `trade_restricted`, `not_in_match` |
+| Rate limit | Shares quest window (8) |
+| Tests | `trade.test.ts`, `protocol.test.ts`, `trade_service_test.gd` |
+
+### 25 `TRADE_ACCEPT_INVITE`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, tradeId, requestId }` |
+| Authority | Invitee only; rechecks eligibility and invite TTL |
+| Idempotency | Successful `requestId` replays |
+| Errors | `invite_expired`, `invalid_target`, `already_trading`, plus invite eligibility codes |
+| Rate limit | Shares quest window (8) |
+| Tests | `trade.test.ts` |
+
+### 26 `TRADE_DECLINE_INVITE`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, tradeId, requestId }` |
+| Authority | Participant cancels an inviting trade |
+| Idempotency | Successful `requestId` replays |
+| Errors | `invalid_target`, `invalid_id` |
+| Rate limit | Shares quest window (8) |
+| Tests | `trade.test.ts`, `trade_service_test.gd` |
+
+### 27 `TRADE_SET_OFFER`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, tradeId, instanceId, quantity?, requestId }` |
+| Authority | Locks an owned tradeable stack; bumps revision; clears acceptances |
+| Idempotency | Successful `requestId` replays |
+| Errors | `unowned_item`, `not_tradeable`, `item_locked`, `item_equipped`, `invalid_amount` |
+| Rate limit | Shares quest window (8) |
+| Tests | `trade.test.ts` |
+
+### 28 `TRADE_REMOVE_OFFER`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, tradeId, instanceId, requestId }` |
+| Authority | Unlocks the stack; bumps revision; clears acceptances |
+| Idempotency | Successful `requestId` replays |
+| Rate limit | Shares quest window (8) |
+| Tests | `trade.test.ts` |
+
+### 29 `TRADE_SET_GOLD`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, tradeId, amount, requestId }` |
+| Authority | Server wallet balance; `gold` is `stat_injection` |
+| Idempotency | Successful `requestId` replays |
+| Errors | `insufficient_gold`, `invalid_amount`, `stat_injection:gold` |
+| Rate limit | Shares quest window (8) |
+| Tests | `trade.test.ts`, `protocol.test.ts` |
+
+### 30 `TRADE_ACCEPT_REVISION`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, tradeId, revision, requestId }` |
+| Authority | Accepts one revision. Commit only when both accepted the current revision. Atomic two-inventory + two-wallet write or recover from `committing`. |
+| Idempotency | Successful `requestId` and completed trades replay without a second mutation |
+| Errors | `revision_mismatch`, `inventory_full`, `insufficient_gold`, `persist_failed`, `already_trading` |
+| Rate limit | Shares quest window (8) |
+| Tests | `trade.test.ts` |
+
+### 31 `TRADE_CANCEL`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, tradeId, requestId }` |
+| Authority | Cancels inviting or open trades and unlocks items. Committing trades are recovered, not cancelled. |
+| Idempotency | Successful `requestId` replays |
+| Rate limit | Shares quest window (8) |
+| Tests | `trade.test.ts`, `trade_service_test.gd` |
+
 No other client opcodes exist. Unknown opcode → `unknown_opcode`.
 
 ## Server → client match opcodes
@@ -387,7 +473,7 @@ No client rate limit. Occupied matches send **102** every tick.
 | --- | --- | --- | --- |
 | 101 | `FULL_STATE` | tick, zone, self, players, npcs, enemies, loot, quests, inventory, equipment, derived, wallet, progression, abilities, optional party, optional instance | `protocol.test.ts`, `zone_join_test.gd`, `progression.test.ts`, `ability.test.ts`, `party_service_test.gd`, `cave.test.ts` |
 | 102 | `SNAPSHOT` | tick, players, enemies, loot | `movement.test.ts`, `entity_registry_test.gd` |
-| 103 | `ACTION_RESULT` | ok, code, requestId?, ticket extras | combat/inventory/quest/cave tests |
+| 103 | `ACTION_RESULT` | ok, code, requestId?, ticket extras, optional tradeId | combat/inventory/quest/cave/trade tests |
 | 104 | `COMBAT_EVENT` | tick, events[] (`hit`, `heal`, `death`, `respawn`, `interrupt`, `effect_*`, `resource`, `threat`, `credit`, `message`) | `combat.test.ts`, `combat_pipeline.test.ts`, `boss.test.ts`, `combat_client_test.gd` |
 | 105 | `INVENTORY_STATE` | capacity, items | `inventory.test.ts` |
 | 106 | `QUEST_STATE` | quests | `quest.test.ts` |
@@ -399,6 +485,7 @@ No client rate limit. Occupied matches send **102** every tick.
 | 112 | `ABILITY_STATE` | unlocked ids, hotbar, ranks, resources, cooldowns, active cast, effects | `ability.test.ts`, `ability_service_test.gd` |
 | 113 | `PARTY_STATE` | optional `party` view for the recipient (ids, leader, members, revision, connection state, pending invite) | `party.test.ts`, `party_service_test.gd` |
 | 114 | `PARTY_EVENT` | `partyId`, `eventType`, optional `systemMessage` / loot assignment | `party.test.ts`, `party_credit_loot.test.ts` |
+| 115 | `TRADE_STATE` | canonical trade: ids, state, revision, offers, goldOffers, acceptances, expiresAt | `trade.test.ts`, `trade_service_test.gd` |
 
 `FULL_STATE` may include optional `party` for the recipient and optional `instance` (`type`, `instanceId`, `zoneTemplateId`, `completionState`, `bossAlive`, owners). Snapshots do not carry party membership. Join metadata: `{ protocolVersion, contentHash }` strings plus `selectionTicket` or `transferTicket`. Mismatch → join reject / fatal client error. Transfer join rejects `ticket_reused`, `ticket_expired`, `ticket_wrong_character`, `ticket_wrong_destination`, `still_in_origin`, `already_elsewhere`.
 

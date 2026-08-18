@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Public world, party cave instances, transfers, and reconnection**.
+Last accepted phase: **Secure direct player trading**.
 
 Current phase: none.
 
@@ -559,6 +559,28 @@ Players share one discoverable `public_world` match (`zone.starter`). A solo cha
 | Audit | `FOUNDATION_AUDIT_OK` (17 storage records, 23 client opcodes, 14 server opcodes, 20 rpcs) |
 | Server | 370/370 |
 | Client GdUnit | 174/174, 0 orphans, `SHELL_LOGIN` |
+| E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect) |
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-content.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+powershell -File scripts/test-e2e.ps1
+```
+
+## Secure direct player trading acceptance (2026-08-18)
+
+Two nearby living players in the same match can invite, offer items and gold, accept a revision, and exchange once. Offers bump `revision` and clear both acceptances. Offered stacks are locked against equip, destroy, vendor sale, consume, stack moves that invalidate quantity, and other trades. Gold is validated at offer and commit and reserved against vendor buy and inn spend. Commit uses `nk.multiUpdate` for both inventories and both wallets, or retries a `committing` snapshot so a crash cannot duplicate items or gold. Duplicate `requestId` replays. Cancel, invite/session timeout, disconnect beyond 5 s, zone transfer, death, and out-of-range leave both players valid. The HUD mirrors invite, two offer panels, gold, revision, acceptances, an offer-changed warning, cancel, and completion/error without predicting ownership. Mail, auction houses, and offline trade were not added. Content hash is unchanged.
+
+| Gate | Result |
+| --- | --- |
+| Content | 14/14, matching hash `58134490916197c49e40642465d949fe17350fe7f798edc5857bed947a1ade86` |
+| Audit | `FOUNDATION_AUDIT_OK` (20 storage records, 31 client opcodes, 15 server opcodes, 20 rpcs) |
+| Server | 399/399 |
+| Client GdUnit | 178/178, 0 orphans, `SHELL_LOGIN` |
 | E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect) |
 
 Reproduction:

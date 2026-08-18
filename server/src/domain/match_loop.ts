@@ -37,6 +37,8 @@ import { applyCaveEnter, applyInnRest } from "./inn";
 import { applyCaveWipeIfNeeded, markCaveBossDefeated, evaluateCaveExit, type CaveTransferIntent } from "./cave";
 import { TRANSFER_TICKET_TTL_MS } from "./instance";
 import { TX_REASON_INN, TX_REASON_VENDOR, type TransactionCommitter } from "./transaction";
+import { type TradeCommitter, type TradeRecord } from "./trade";
+import { handleTradeMessage, isTradeOpcode, recoverCommittingTrades, spendableGold, tickTrades } from "./match_trade";
 import {
   applyQuestTurnIn,
   type QuestRewardWrite,
@@ -154,6 +156,7 @@ export interface MatchLoopResult {
   persistProgression: ProgressionPersist[];
   persistRewards: RewardPersist[];
   persistCheckpoints: PositionCheckpoint[];
+  persistTrades: TradeRecord[];
   rejections: RejectedAction[];
   transfers: CaveTransferIntent[];
   caveCompletionChanged: boolean;
@@ -173,6 +176,7 @@ export function applyMatchLoop(
   newId?: () => string,
   commitReward?: RewardCommitter,
   commitTxn?: TransactionCommitter,
+  commitTrade?: TradeCommitter,
 ): MatchLoopResult {
   const outbound: MatchOutbound[] = [];
   const rejections: RejectedAction[] = [];
@@ -184,6 +188,7 @@ export function applyMatchLoop(
   const persistEquipmentByUser: { [userId: string]: PlayerEquipment } = {};
   const persistProgressionByUser: { [userId: string]: CharacterProgression } = {};
   const persistRewardByUser: { [userId: string]: QuestRewardWrite } = {};
+  const persistTradesById: { [tradeId: string]: TradeRecord } = {};
   const skipStorageUsers: { [userId: string]: boolean } = {};
   const extraCheckpoints: PositionCheckpoint[] = [];
   const combatEvents: CombatEvent[] = [];
@@ -229,8 +234,10 @@ export function applyMatchLoop(
       combatEvents,
       transfers,
       makeId,
+      persistTradesById,
       commitReward,
       commitTxn,
+      commitTrade,
     );
     collectFailedApplies(outbound, outboundBefore, incoming.userId, action, tick, rejections);
   }
@@ -258,6 +265,10 @@ export function applyMatchLoop(
   applyCaveWipeIfNeeded(next, tick, MATCH_TICK_RATE);
   next.loot = expireLoot(next.loot, tick);
   applyEnterQuestProgress(next, persistByUser, outbound);
+  tickTrades(next, tick, outbound, persistInventoryByUser, persistTradesById);
+  if (commitTrade !== undefined) {
+    recoverCommittingTrades(next, commitTrade, outbound, persistInventoryByUser, persistTradesById, skipStorageUsers);
+  }
   pushCombatEvents(outbound, tick, combatEvents);
   expireDisconnected(next, tick);
   const persistCheckpoints = collectPositionCheckpoints(next, tick).concat(extraCheckpoints);
@@ -333,6 +344,11 @@ export function applyMatchLoop(
     const userId = rewardIds[r];
     persistRewards.push({ userId: userId, request: persistRewardByUser[userId] });
   }
+  const persistTrades: TradeRecord[] = [];
+  const tradeIds = Object.keys(persistTradesById);
+  for (let t = 0; t < tradeIds.length; t++) {
+    persistTrades.push(persistTradesById[tradeIds[t]]);
+  }
 
   const timeout =
     typeof next.emptyTimeoutTicks === "number" && next.emptyTimeoutTicks > 0
@@ -348,6 +364,7 @@ export function applyMatchLoop(
     persistProgression: persistProgression,
     persistRewards: persistRewards,
     persistCheckpoints: persistCheckpoints,
+    persistTrades: persistTrades,
     rejections: rejections,
     transfers: transfers,
     caveCompletionChanged: caveCompletionChanged,
@@ -421,8 +438,10 @@ function handleValidated(
   combatEvents: CombatEvent[],
   transfers: CaveTransferIntent[],
   makeId: () => string,
+  persistTradesById: { [tradeId: string]: TradeRecord },
   commitReward?: RewardCommitter,
   commitTxn?: TransactionCommitter,
+  commitTrade?: TradeCommitter,
 ): void {
   if (parsed.opcode === ClientOpcode.RESYNC_REQUEST) {
     outbound.push({
@@ -553,6 +572,21 @@ function handleValidated(
   }
   if (parsed.opcode === ClientOpcode.CAVE_EXIT) {
     handleCaveExit(parsed, userId, state, tick, outbound, transfers);
+    return;
+  }
+  if (isTradeOpcode(parsed.opcode)) {
+    handleTradeMessage(
+      parsed,
+      userId,
+      state,
+      tick,
+      outbound,
+      persistInventoryByUser,
+      persistTradesById,
+      skipStorageUsers,
+      makeId,
+      commitTrade,
+    );
     return;
   }
   const result = actionResult("not_implemented", false, parsed.requestId);
@@ -781,7 +815,7 @@ function handleVendorBuy(
     playerHealth: player.health,
     playerX: player.x,
     playerY: player.y,
-    gold: player.gold !== undefined ? player.gold : 0,
+    gold: spendableGold(state, player),
     inventory: player.inventory,
     npcId: parsed.fields.npcId,
     itemId: parsed.fields.itemId,
@@ -895,7 +929,7 @@ function handleInnRest(
     playerX: player.x,
     playerY: player.y,
     maxHealth: player.maxHealth,
-    gold: player.gold !== undefined ? player.gold : 0,
+    gold: spendableGold(state, player),
     npcId: parsed.fields.npcId,
     requestId: requestId,
     npcs: state.npcs,

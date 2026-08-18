@@ -28,8 +28,9 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `InnService` | C | Inn/healer rest intent | Last approved inn/healer NPC | none | `NetworkService` | no | INN_REST | no gold/health |
 | `CaveService` | C | Cave-enter/exit intents; transfer overlay after ticket extras | Last approved cave NPC | none | `NetworkService` | no | CAVE_ENTER / CAVE_EXIT | no |
 | `PartyService` | C | Party mirror; create/invite/accept/leave/kick/promote/disband; party chat | In-memory party view, pending invite, chat lines | none | `NetworkService`, `AppState` | no | party RPCs, PARTY_STATE / PARTY_EVENT, `party.<id>` channel | no |
+| `TradeService` | C | Trade mirror; invite/offer/gold/accept/cancel | In-memory trade view | none | `NetworkService`, `AppState` | no | TRADE_* / TRADE_STATE | no grants |
 | `ZoneChat` / `ChatPanel` | C | Room join/leave, history Label | chat lines | none | `NetworkService` | no | chat channel, not match opcode | no |
-| `World` / `ZoneView` / `EntityRegistry` / avatars / `WorldHud` | C | Render zone and HUD (hotbar, cast bar, ground-target preview, status icons, target frame, death overlay, combat indicator, vendor panel, party panel, cave objective) | display poses | none | services above | no | INPUT via World | no |
+| `World` / `ZoneView` / `EntityRegistry` / avatars / `WorldHud` | C | Render zone and HUD (hotbar, cast bar, ground-target preview, status icons, target frame, death overlay, combat indicator, vendor panel, party panel, trade panel, cave objective) | display poses | none | services above | no | INPUT via World | no |
 | `MoveIntent` / `MovementSim` / `MovementReconciler` / `SnapshotBuffer` | C | Prediction and interpolation | unacked cmds, buffer | none | `MatchProtocol` | no | INPUT | no |
 | `AttackIntent` / `CombatFeedback` / `InteractIntent` / `PickupIntent` | C | Usability targeting and floating numbers | none | none | `NetworkService` | no | ATTACK / SET_TARGET / INTERACT / PICKUP | no |
 | `NetDebugOverlay` | C | Debug FPS / ping EMA | none | none | none | no | no | no |
@@ -67,6 +68,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `party.ts` | S | Temporary party lifecycle, invites, OCC revision, connection grace | none | none | `cave_ownership.ts` | serialize only | RPC bodies | no |
 | `cave.ts` / `instance.ts` / `location.ts` / `transfer.ts` | S | Cave eligibility/allocation, instance types, canonical location, one-time tickets | none | none | party.ts | serialize only | CAVE_ENTER / CAVE_EXIT extras | no |
 | `cave_ownership.ts` | S | Expire party-owned caves on disband | none | none | `cave.ts` | via cave store | no | no |
+| `trade.ts` / `match_trade.ts` | S | Nearby trade state machine, locks, gold reservation, commit/recovery | match `trades` | none | inventory, wallet, transaction | serialize only | TRADE_* / TRADE_STATE | yes (pure) |
 | `starter_zone_registry.ts` (domain) | S | Canonical public-world match-id selection | none | none | none | no | no | no |
 | `character_store.ts` / `roster_store.ts` / `selection_store.ts` / `name_reservation_store.ts` | A | Character, roster, ticket, name reservation | none | Nakama storage | domain character/roster | yes | no | no |
 | `inventory_store.ts` (nakama) | A | Read/write inventory | none | Nakama storage | domain inventory_store | yes | no | yes |
@@ -75,6 +77,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `progression_store.ts` (nakama) | A | Read/write progression | none | Nakama storage | domain progression_store | yes | no | no |
 | `party_store.ts` (nakama) | A | Read/write party records and character indexes | none | Nakama storage | domain party | yes | no | no |
 | `cave_store.ts` / `location_store.ts` / `transfer_store.ts` | A | Cave records/indexes, active location, transfer tickets | none | Nakama storage | domain cave/location/transfer | yes | no | no |
+| `trade_store.ts` | A | Trade record, character index, audit, `nk.multiUpdate` commit | none | Nakama storage + wallet | domain trade | yes | no | yes |
 | `quest_reward_store.ts` / `transaction_store.ts` | A | `nk.multiUpdate` transaction boundary (loot/equipment/destroy/turn-in) | none | Nakama storage + wallet | domain transaction | yes | no | yes |
 | `starter_zone_registry.ts` (nakama) | A | Find/create match + singleton | none | Nakama match + storage | domain registry | yes (match id) | no | no |
 | `starter_zone_match.ts` | A | Match handler lifecycle for public world and party caves | live zone + presences | Nakama match | all domain + stores | yes (join/txn/checkpoint/ticket) | yes | yes (via stores) |

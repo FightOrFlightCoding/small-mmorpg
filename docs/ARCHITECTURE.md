@@ -36,7 +36,7 @@ It must:
 
 - Load persistent player state when the player joins, migrate older save versions server-side, persist the migrated result once, and reject unsupported future or corrupted required fields without resetting them.
 - Host **one** authoritative public-world match (`public_world`, template `zone.starter`) and private `party_cave` matches (`zone.cave`) on the same `starter_zone` module. No public-world sharding.
-- Simulate movement collision, combat, cooldowns, enemy behavior, loot, inventory, equipment, quests, currency, temporary parties, group credit, group loot, cave lifecycle, and transfer tickets.
+- Simulate movement collision, combat, cooldowns, enemy behavior, loot, inventory, equipment, quests, currency, temporary parties, group credit, group loot, cave lifecycle, transfer tickets, and direct player trades.
 - Maintain canonical character location and consume one-time transfer tickets on destination join.
 - Validate every external payload. Reject unknown opcodes, strict unknown fields, malformed JSON, invalid IDs, oversized messages, protocol-version mismatch, and rate-limited floods.
 - Reject empty, oversized, and malformed zone-chat and party-chat payloads in a realtime before hook.
@@ -96,6 +96,7 @@ There is exactly one gameplay match **module**: `starter_zone`. Foundation v1 us
 | Quest stage and completion | Server + persistent storage |
 | Currency | Nakama wallet via server |
 | Canonical location, cave ownership, transfer tickets | Server storage + match |
+| Direct player trades | Server match + storage |
 | Content definitions | Server-loaded generated content, IDs only |
 
 The client is untrusted. A well-formed intention can still be rejected (invalid target, on cooldown, out of range, unknown ID, duplicate `requestId`).
@@ -111,7 +112,7 @@ Third-party libraries are implementation details. Game code talks to project-own
 | `NetworkService` | Nakama Godot SDK 3.4.0 | Email/password and debug device auth, `user://` session token cache, refresh, reauth (device only), realtime socket, bounded reconnect backoff, logout/cancel, character list/create/select/delete/restore, `character_bootstrap` wrapper, `find_or_create_starter_zone`, match join with `selectionTicket` or `transferTicket`, leave/rejoin, match opcodes, party RPCs, starter-zone and party room chat, transfer overlay. Socket match/chat/closed signals are connected once. |
 | `GameService` | the autoloads above | Boot, email register/login, debug device login, character lifecycle, starter-zone join. Not a gameplay authority. |
 | `SceneRouter` | Godot scene tree | Transitions among boot, login, character, and world |
-| `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE`/`SNAPSHOT`. Local movement is predicted and reconciled; all remote entities interpolate from one snapshot buffer keyed `kind:id`. The HUD journal mirrors `QuestService`. The HUD inventory list mirrors `InventoryService`. The HUD equipment slots and attack label mirror `EquipmentService`. The HUD gold label mirrors `WalletService`. The HUD progression panel mirrors `ProgressionService`. The HUD hotbar, cast bar, resource hint, and status icons mirror `AbilityService`. The HUD party panel mirrors `PartyService` (members, leader, connection state, vitals, invite/leave/kick/promote, party chat Label). Cave objective/boss copy mirrors `FULL_STATE.instance`. Target frame, combat-state label, health, death overlay, and respawn copy server vitals. Not a gameplay authority. |
+| `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE`/`SNAPSHOT`. Local movement is predicted and reconciled; all remote entities interpolate from one snapshot buffer keyed `kind:id`. The HUD journal mirrors `QuestService`. The HUD inventory list mirrors `InventoryService`. The HUD equipment slots and attack label mirror `EquipmentService`. The HUD gold label mirrors `WalletService`. The HUD progression panel mirrors `ProgressionService`. The HUD hotbar, cast bar, resource hint, and status icons mirror `AbilityService`. The HUD party panel mirrors `PartyService` (members, leader, connection state, vitals, invite/leave/kick/promote, party chat Label). The HUD trade panel mirrors `TradeService` (invite, two offer lists, gold, revision, acceptances, offer-changed warning, cancel, result). Cave objective/boss copy mirrors `FULL_STATE.instance`. Target frame, combat-state label, health, death overlay, and respawn copy server vitals. Not a gameplay authority. |
 | `ChatPanel` / `ZoneChat` | none | Presentation of the starter-zone room channel and helpers for party chat payloads. History is a `Label` (no BBCode). Not a gameplay authority. |
 | `QuestService` | none | In-memory mirror of server quest records from `FULL_STATE` / `QUEST_STATE`. Accept sends `QUEST_ACCEPT` only. Turn-in sends `QUEST_TURN_IN` with `questId`, `npcId`, and `requestId`. Not a gameplay authority. Do not use QuestSystem. |
 | `AttackIntent` / `CombatFeedback` | none | Nearby enemy pick and floating damage numbers. Attack sends `targetId` + `requestId` only. Not a gameplay authority. |
@@ -124,6 +125,7 @@ Third-party libraries are implementation details. Game code talks to project-own
 | `DialoguePresenter` / `DialogueCatalog` | Dialogue Manager 3.10.5 | Opens dialogue only after a matching `INTERACTION_RESULT`. Prefers server `dialogueId`. Local `.dialogue` text; quest/vendor/inn/cave mutations go through project services. |
 | `VendorService` / `InnService` / `CaveService` | none | Buy/sell/rest/cave-enter/cave-exit intentions after server-approved services. Never send prices, gold, health, bind, destination match ids, or tickets. |
 | `PartyService` | none | Client-side mirror of server party state from `FULL_STATE` / `PARTY_STATE` / `PARTY_EVENT`. RPCs send owned `characterId` and `requestId` only. Never sends member lists or credit/loot recipients. Not a gameplay authority. |
+| `TradeService` | none | Client-side mirror of server trade state from `TRADE_STATE`. Sends invite/offer/gold/accept/cancel intentions only. Never predicts ownership or gold. Not a gameplay authority. |
 | `Test runner scripts` | GdUnit4 6.2.0 | Client unit/scene tests |
 | `SliceJourney` / `SliceSession` | Nakama Godot SDK via `NakamaNetworkBackend` | Debug-only headless two-identity journey (`--e2e-slice`). Sends the same intentions as the graphical client. Unavailable in release builds. Not a gameplay authority. |
 
@@ -150,6 +152,7 @@ Generated artifacts must preserve IDs. Network messages and storage records carr
 - Currency/wallet (gold amount) plus `player`/`wallet_ref` pointer
 - Character progression (level, XP, allocated attributes, unspent points, unlocked abilities, hotbar, optional ranks)
 - Position checkpoints
+- Nearby trade records and trade audit events (not a player-save kind)
 
 **Transient** (match memory only):
 

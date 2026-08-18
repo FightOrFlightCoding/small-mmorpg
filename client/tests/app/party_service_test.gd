@@ -102,19 +102,19 @@ func test_party_chat_payload_includes_party_id_and_stays_plain_text() -> void:
 		}],
 	})
 	hud.refresh_party()
-	assert_str(hud.get_node("Root/Party/Margin/Scroll/VBox/Status").text).contains("1/5")
-	assert_int(hud.get_node("Root/Party/Margin/Scroll/VBox/Members").item_count).is_equal(1)
-	assert_str(hud.get_node("Root/Party/Margin/Scroll/VBox/Members").get_item_text(0)).contains("Alice")
-	assert_str(hud.get_node("Root/Party/Margin/Scroll/VBox/Members").get_item_text(0)).contains("40/100")
-	assert_str(hud.get_node("Root/Party/Margin/Scroll/VBox/Members").get_item_text(0)).contains("disconnect_grace")
-	var history: Label = hud.get_node("Root/Party/Margin/Scroll/VBox/ChatScroll/ChatHistory")
+	assert_str(hud.get_node("Root/LeftColumn/Party/Margin/Scroll/VBox/Status").text).contains("1/5")
+	assert_int(hud.get_node("Root/LeftColumn/Party/Margin/Scroll/VBox/Members").item_count).is_equal(1)
+	assert_str(hud.get_node("Root/LeftColumn/Party/Margin/Scroll/VBox/Members").get_item_text(0)).contains("Alice")
+	assert_str(hud.get_node("Root/LeftColumn/Party/Margin/Scroll/VBox/Members").get_item_text(0)).contains("40/100")
+	assert_str(hud.get_node("Root/LeftColumn/Party/Margin/Scroll/VBox/Members").get_item_text(0)).contains("disconnect_grace")
+	var history: Label = hud.get_node("Root/LeftColumn/Party/Margin/Scroll/VBox/ChatScroll/ChatHistory")
 	assert_str(history.get_class()).is_not_equal("RichTextLabel")
-	var disband: Button = hud.get_node("Root/Party/Margin/Scroll/VBox/ActionRow/DisbandButton")
+	var disband: Button = hud.get_node("Root/LeftColumn/Party/Margin/Scroll/VBox/ActionRow/DisbandButton")
 	assert_object(disband).is_not_null()
 	assert_str(disband.text).is_equal("Disband")
 	assert_bool(disband.visible).is_true()
 	assert_bool(disband.disabled).is_false()
-	assert_bool(hud.get_node("Root/Party/Margin/Scroll/VBox/ActionRow/CreateButton").visible).is_false()
+	assert_bool(hud.get_node("Root/LeftColumn/Party/Margin/Scroll/VBox/ActionRow/CreateButton").visible).is_false()
 	PartyService.apply_party({
 		"partyId": "p_one",
 		"leaderCharacterId": "char-b",
@@ -156,7 +156,7 @@ func test_accept_while_already_in_a_party_sends_accept() -> void:
 	add_child(hud)
 	await get_tree().process_frame
 	hud.refresh_party()
-	assert_str(hud.get_node("Root/Party/Margin/Scroll/VBox/InvitePrompt/Prompt").text).contains("Accept will leave")
+	assert_str(hud.get_node("Root/LeftColumn/Party/Margin/Scroll/VBox/InvitePrompt/Prompt").text).contains("Accept will leave")
 
 
 func test_created_party_clears_stale_pending_invite() -> void:

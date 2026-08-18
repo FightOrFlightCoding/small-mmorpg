@@ -112,15 +112,21 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Defense:** `VENDOR_BUY`/`VENDOR_SELL` accept `npcId`, item or instance id, optional quantity, and `requestId` only. `price` is `unknown_field`; `gold` is `stat_injection`. Server catalog prices and the transaction service own gold. `INN_REST` heals and optionally binds from content; bind persists on the character record (`permissionWrite: 0`). `CAVE_ENTER` / `CAVE_EXIT` are intentions. The match loop allocates the destination and issues a one-time ticket. Join metadata `transferTicket` is validated and consumed; reuse, expiry, wrong character, wrong destination, and origin still present are rejected. Canonical location forbids two live matches. Destination match ids from the client are not trusted.
 
+### Trade duplication, unowned items, and gold spoof
+
+**Attack:** Client completes a trade, offers an unowned or non-tradeable item, sends a gold amount as an outcome, or retries commit to duplicate items.
+
+**Defense:** Trade opcodes are intentions (`targetId` / `tradeId` / `instanceId` / `amount` / `revision` / `requestId`). `gold` is `stat_injection`. The match owns eligibility, locks, reserved gold, revision, and mutual acceptance of the current revision. Commit uses `nk.multiUpdate` for both inventories and both wallets, or retries a `committing` snapshot. Duplicate `requestId` and completed trades replay. Offered stacks are locked against equip, destroy, vendor sale, consume, and other trades. Failure unlocks and leaves both players valid.
+
 ### Rate-limit abuse
 
-**Attack:** Flood `INPUT`, `ATTACK`, `USE_ABILITY`, `CANCEL_CAST`, `SET_TARGET`, `INTERACT`, `PICKUP`, `EQUIP`, `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, quest opcodes, `VENDOR_BUY`, `VENDOR_SELL`, `INN_REST`, `CAVE_ENTER`, `CAVE_EXIT`, `ALLOCATE_ATTRIBUTES`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, `RELEASE_RESPAWN`, or `RESYNC_REQUEST` faster than an honest client.
+**Attack:** Flood `INPUT`, `ATTACK`, `USE_ABILITY`, `CANCEL_CAST`, `SET_TARGET`, `INTERACT`, `PICKUP`, `EQUIP`, `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, quest opcodes, `VENDOR_BUY`, `VENDOR_SELL`, `INN_REST`, `CAVE_ENTER`, `CAVE_EXIT`, trade opcodes, `ALLOCATE_ATTRIBUTES`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, `RELEASE_RESPAWN`, or `RESYNC_REQUEST` faster than an honest client.
 
 **Defense:** Match state stores per-user `actionRates` for a 10-tick window. Excess is `rate_limited`, logged, and not applied. Honest 10 Hz movement stays under the `INPUT` cap of 20/s.
 
 ## Client local storage
 
-The Godot client must not write canonical inventory, equipment, quest, currency, progression, party, cave, location, health, or position records to `user://` or other local files. `AppState` is in-memory presentation/session flags only. Persistence is Nakama storage and wallet, written by the server. Session tokens (never passwords) may be cached in `user://session_cache.json` for refresh. Email reauthentication cannot use a stored password: refresh, then a visible `session_expired` if the refresh token is dead. Device reauthentication remains available only for debug device-auth sessions.
+The Godot client must not write canonical inventory, equipment, quest, currency, progression, party, cave, location, trade, health, or position records to `user://` or other local files. `AppState` is in-memory presentation/session flags only. Persistence is Nakama storage and wallet, written by the server. Session tokens (never passwords) may be cached in `user://session_cache.json` for refresh. Email reauthentication cannot use a stored password: refresh, then a visible `session_expired` if the refresh token is dead. Device reauthentication remains available only for debug device-auth sessions.
 
 Debug Alice/Bob/machine device identities are gated by `OS.is_debug_build()` (tests may set `DevIdentity.force_release_config`). Release builds expose email registration and login only.
 
@@ -156,6 +162,7 @@ Every expected attack maps to a validation rule, an automated test, and a safe s
 | Vendor price spoof | Client `price` / `gold` rejected; server catalog prices | `vendor.test.ts`, `protocol.test.ts` | `unknown_field:price` / `stat_injection:gold`; gold unchanged |
 | Inn health/gold spoof | Client health/gold rejected; server heal and bind | `inn.test.ts`, `protocol.test.ts` | `stat_injection:gold`; bind unchanged on reject |
 | Fake cave transfer | Ticket validation; client cannot nominate destination | `cave.test.ts`, `inn.test.ts`, `protocol.test.ts` | `ticket_reused` / `ticket_expired` / `ticket_wrong_character` / `already_elsewhere`; still one presence |
+| Trade duplication / unowned offer | Server locks, revision accept, atomic commit or recover | `trade.test.ts`, `protocol.test.ts`, `trade_service_test.gd` | `unowned_item` / `not_tradeable` / `item_locked` / `revision_mismatch` / replay; no second grant |
 | Fabricated NPC interaction | Server range and live health | `interaction.test.ts` | `out_of_range` / `invalid_target` / `player_dead` |
 | Invalid target IDs | Match entity + content indexes | `combat.test.ts`, `combat_pipeline.test.ts`, `targeting.test.ts`, `inventory.test.ts`, `interaction.test.ts`, `security.test.ts` | `invalid_target` / `invalid_id`; match continues |
 | Oversized payloads | 2048-byte client match cap; 24 messages/tick | `protocol.test.ts`, `security.test.ts` | `payload_too_large` / `rate_limited` |

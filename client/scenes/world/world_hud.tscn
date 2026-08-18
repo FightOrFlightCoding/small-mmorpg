@@ -92,128 +92,135 @@ layout_mode = 2
 text = "No active quest."
 autowrap_mode = 3
 
-[node name="Party" type="PanelContainer" parent="Root"]
+[node name="LeftColumn" type="VBoxContainer" parent="Root"]
 layout_mode = 1
 anchor_bottom = 1.0
 offset_left = 16.0
 offset_top = 156.0
 offset_right = 336.0
-offset_bottom = -356.0
-grow_horizontal = 0
+offset_bottom = -16.0
 grow_vertical = 0
+mouse_filter = 0
+theme_override_constants/separation = 8
+clip_contents = true
+
+[node name="Party" type="PanelContainer" parent="Root/LeftColumn"]
+layout_mode = 2
+size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 110)
 clip_contents = true
 mouse_filter = 0
 
-[node name="Margin" type="MarginContainer" parent="Root/Party"]
+[node name="Margin" type="MarginContainer" parent="Root/LeftColumn/Party"]
 layout_mode = 2
 theme_override_constants/margin_left = 8
 theme_override_constants/margin_top = 6
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 6
 
-[node name="Scroll" type="ScrollContainer" parent="Root/Party/Margin"]
+[node name="Scroll" type="ScrollContainer" parent="Root/LeftColumn/Party/Margin"]
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="VBox" type="VBoxContainer" parent="Root/Party/Margin/Scroll"]
+[node name="VBox" type="VBoxContainer" parent="Root/LeftColumn/Party/Margin/Scroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 3
 
-[node name="Heading" type="Label" parent="Root/Party/Margin/Scroll/VBox"]
+[node name="Heading" type="Label" parent="Root/LeftColumn/Party/Margin/Scroll/VBox"]
 layout_mode = 2
 text = "Party"
 
-[node name="Members" type="ItemList" parent="Root/Party/Margin/Scroll/VBox"]
+[node name="Members" type="ItemList" parent="Root/LeftColumn/Party/Margin/Scroll/VBox"]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="Status" type="Label" parent="Root/Party/Margin/Scroll/VBox"]
+[node name="Status" type="Label" parent="Root/LeftColumn/Party/Margin/Scroll/VBox"]
 layout_mode = 2
 text = "No party. Max 5."
 autowrap_mode = 3
 
-[node name="InviteRow" type="HBoxContainer" parent="Root/Party/Margin/Scroll/VBox"]
+[node name="InviteRow" type="HBoxContainer" parent="Root/LeftColumn/Party/Margin/Scroll/VBox"]
 layout_mode = 2
 
-[node name="InviteName" type="LineEdit" parent="Root/Party/Margin/Scroll/VBox/InviteRow"]
+[node name="InviteName" type="LineEdit" parent="Root/LeftColumn/Party/Margin/Scroll/VBox/InviteRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "Character name"
 max_length = 24
 
-[node name="InviteButton" type="Button" parent="Root/Party/Margin/Scroll/VBox/InviteRow"]
+[node name="InviteButton" type="Button" parent="Root/LeftColumn/Party/Margin/Scroll/VBox/InviteRow"]
 layout_mode = 2
 text = "Invite"
 
-[node name="ActionRow" type="HBoxContainer" parent="Root/Party/Margin/Scroll/VBox"]
+[node name="ActionRow" type="HBoxContainer" parent="Root/LeftColumn/Party/Margin/Scroll/VBox"]
 layout_mode = 2
 
-[node name="CreateButton" type="Button" parent="Root/Party/Margin/Scroll/VBox/ActionRow"]
+[node name="CreateButton" type="Button" parent="Root/LeftColumn/Party/Margin/Scroll/VBox/ActionRow"]
 layout_mode = 2
 text = "Create"
 
-[node name="LeaveButton" type="Button" parent="Root/Party/Margin/Scroll/VBox/ActionRow"]
+[node name="LeaveButton" type="Button" parent="Root/LeftColumn/Party/Margin/Scroll/VBox/ActionRow"]
 layout_mode = 2
 text = "Leave"
 
-[node name="KickButton" type="Button" parent="Root/Party/Margin/Scroll/VBox/ActionRow"]
+[node name="KickButton" type="Button" parent="Root/LeftColumn/Party/Margin/Scroll/VBox/ActionRow"]
 layout_mode = 2
 text = "Kick"
 
-[node name="PromoteButton" type="Button" parent="Root/Party/Margin/Scroll/VBox/ActionRow"]
+[node name="PromoteButton" type="Button" parent="Root/LeftColumn/Party/Margin/Scroll/VBox/ActionRow"]
 layout_mode = 2
 text = "Promote"
 
-[node name="DisbandButton" type="Button" parent="Root/Party/Margin/Scroll/VBox/ActionRow"]
+[node name="DisbandButton" type="Button" parent="Root/LeftColumn/Party/Margin/Scroll/VBox/ActionRow"]
 visible = false
 layout_mode = 2
 text = "Disband"
 disabled = true
 
-[node name="InvitePrompt" type="HBoxContainer" parent="Root/Party/Margin/Scroll/VBox"]
+[node name="InvitePrompt" type="HBoxContainer" parent="Root/LeftColumn/Party/Margin/Scroll/VBox"]
 layout_mode = 2
 
-[node name="Prompt" type="Label" parent="Root/Party/Margin/Scroll/VBox/InvitePrompt"]
+[node name="Prompt" type="Label" parent="Root/LeftColumn/Party/Margin/Scroll/VBox/InvitePrompt"]
 layout_mode = 2
 size_flags_horizontal = 3
 autowrap_mode = 3
 text = ""
 
-[node name="AcceptButton" type="Button" parent="Root/Party/Margin/Scroll/VBox/InvitePrompt"]
+[node name="AcceptButton" type="Button" parent="Root/LeftColumn/Party/Margin/Scroll/VBox/InvitePrompt"]
 visible = false
 layout_mode = 2
 text = "Accept"
 
-[node name="DeclineButton" type="Button" parent="Root/Party/Margin/Scroll/VBox/InvitePrompt"]
+[node name="DeclineButton" type="Button" parent="Root/LeftColumn/Party/Margin/Scroll/VBox/InvitePrompt"]
 visible = false
 layout_mode = 2
 text = "Decline"
 
-[node name="ChatScroll" type="ScrollContainer" parent="Root/Party/Margin/Scroll/VBox"]
+[node name="ChatScroll" type="ScrollContainer" parent="Root/LeftColumn/Party/Margin/Scroll/VBox"]
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 clip_contents = true
 horizontal_scroll_mode = 0
 
-[node name="ChatHistory" type="Label" parent="Root/Party/Margin/Scroll/VBox/ChatScroll"]
+[node name="ChatHistory" type="Label" parent="Root/LeftColumn/Party/Margin/Scroll/VBox/ChatScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 autowrap_mode = 3
 text = ""
 
-[node name="ChatRow" type="HBoxContainer" parent="Root/Party/Margin/Scroll/VBox"]
+[node name="ChatRow" type="HBoxContainer" parent="Root/LeftColumn/Party/Margin/Scroll/VBox"]
 layout_mode = 2
 
-[node name="ChatInput" type="LineEdit" parent="Root/Party/Margin/Scroll/VBox/ChatRow"]
+[node name="ChatInput" type="LineEdit" parent="Root/LeftColumn/Party/Margin/Scroll/VBox/ChatRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "Party chat"
 max_length = 200
 
-[node name="ChatSend" type="Button" parent="Root/Party/Margin/Scroll/VBox/ChatRow"]
+[node name="ChatSend" type="Button" parent="Root/LeftColumn/Party/Margin/Scroll/VBox/ChatRow"]
 layout_mode = 2
 text = "Send"
 
@@ -299,62 +306,58 @@ theme_override_colors/font_color = Color(0.95, 0.86, 0.42, 1)
 autowrap_mode = 3
 text = ""
 
-[node name="Progression" type="PanelContainer" parent="Root"]
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 16.0
-offset_top = -348.0
-offset_right = 336.0
-offset_bottom = -16.0
-grow_vertical = 0
+[node name="Progression" type="PanelContainer" parent="Root/LeftColumn"]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.35
+custom_minimum_size = Vector2(0, 140)
+clip_contents = true
 mouse_filter = 0
 
-[node name="Margin" type="MarginContainer" parent="Root/Progression"]
+[node name="Margin" type="MarginContainer" parent="Root/LeftColumn/Progression"]
 layout_mode = 2
 theme_override_constants/margin_left = 10
 theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 10
 theme_override_constants/margin_bottom = 8
 
-[node name="VBox" type="VBoxContainer" parent="Root/Progression/Margin"]
+[node name="VBox" type="VBoxContainer" parent="Root/LeftColumn/Progression/Margin"]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="Heading" type="Label" parent="Root/Progression/Margin/VBox"]
+[node name="Heading" type="Label" parent="Root/LeftColumn/Progression/Margin/VBox"]
 layout_mode = 2
 text = "Progression"
 
-[node name="Summary" type="Label" parent="Root/Progression/Margin/VBox"]
+[node name="Summary" type="Label" parent="Root/LeftColumn/Progression/Margin/VBox"]
 layout_mode = 2
 text = "Class --  Level 1"
 autowrap_mode = 3
 
-[node name="Xp" type="Label" parent="Root/Progression/Margin/VBox"]
+[node name="Xp" type="Label" parent="Root/LeftColumn/Progression/Margin/VBox"]
 layout_mode = 2
 text = "XP: 0 / 0"
 autowrap_mode = 3
 
-[node name="Points" type="Label" parent="Root/Progression/Margin/VBox"]
+[node name="Points" type="Label" parent="Root/LeftColumn/Progression/Margin/VBox"]
 layout_mode = 2
 text = "Attribute points: 0"
 autowrap_mode = 3
 
-[node name="Skills" type="Label" parent="Root/Progression/Margin/VBox"]
+[node name="Skills" type="Label" parent="Root/LeftColumn/Progression/Margin/VBox"]
 layout_mode = 2
 text = "Skill points: 0"
 autowrap_mode = 3
 
-[node name="Unlocks" type="VBoxContainer" parent="Root/Progression/Margin/VBox"]
+[node name="Unlocks" type="VBoxContainer" parent="Root/LeftColumn/Progression/Margin/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 2
 
-[node name="Attributes" type="VBoxContainer" parent="Root/Progression/Margin/VBox"]
+[node name="Attributes" type="VBoxContainer" parent="Root/LeftColumn/Progression/Margin/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 2
 
-[node name="Derived" type="Label" parent="Root/Progression/Margin/VBox"]
+[node name="Derived" type="Label" parent="Root/LeftColumn/Progression/Margin/VBox"]
 layout_mode = 2
 text = "Derived:"
 autowrap_mode = 3

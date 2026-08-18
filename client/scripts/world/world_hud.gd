@@ -29,32 +29,32 @@ signal respawn_pressed
 @onready var _destroy: Button = $Root/Inventory/Margin/VBox/MutateRow/DestroyButton
 @onready var _split: Button = $Root/Inventory/Margin/VBox/MutateRow/SplitButton
 @onready var _notice: Label = $Root/Notice
-@onready var _progression_summary: Label = $Root/Progression/Margin/VBox/Summary
-@onready var _progression_xp: Label = $Root/Progression/Margin/VBox/Xp
-@onready var _progression_points: Label = $Root/Progression/Margin/VBox/Points
-@onready var _progression_skills: Label = $Root/Progression/Margin/VBox/Skills
-@onready var _progression_unlocks: VBoxContainer = $Root/Progression/Margin/VBox/Unlocks
-@onready var _progression_attributes: VBoxContainer = $Root/Progression/Margin/VBox/Attributes
-@onready var _progression_derived: Label = $Root/Progression/Margin/VBox/Derived
+@onready var _progression_summary: Label = $Root/LeftColumn/Progression/Margin/VBox/Summary
+@onready var _progression_xp: Label = $Root/LeftColumn/Progression/Margin/VBox/Xp
+@onready var _progression_points: Label = $Root/LeftColumn/Progression/Margin/VBox/Points
+@onready var _progression_skills: Label = $Root/LeftColumn/Progression/Margin/VBox/Skills
+@onready var _progression_unlocks: VBoxContainer = $Root/LeftColumn/Progression/Margin/VBox/Unlocks
+@onready var _progression_attributes: VBoxContainer = $Root/LeftColumn/Progression/Margin/VBox/Attributes
+@onready var _progression_derived: Label = $Root/LeftColumn/Progression/Margin/VBox/Derived
 @onready var _hotbar: HBoxContainer = $Root/Hotbar
 @onready var _cast_bar: ProgressBar = $Root/CastBar
 @onready var _resource_hint: Label = $Root/ResourceHint
 @onready var _status_icons: HBoxContainer = $Root/StatusIcons
-@onready var _party_members: ItemList = $Root/Party/Margin/Scroll/VBox/Members
-@onready var _party_status: Label = $Root/Party/Margin/Scroll/VBox/Status
-@onready var _party_invite_name: LineEdit = $Root/Party/Margin/Scroll/VBox/InviteRow/InviteName
-@onready var _party_invite_button: Button = $Root/Party/Margin/Scroll/VBox/InviteRow/InviteButton
-@onready var _party_create: Button = $Root/Party/Margin/Scroll/VBox/ActionRow/CreateButton
-@onready var _party_leave: Button = $Root/Party/Margin/Scroll/VBox/ActionRow/LeaveButton
-@onready var _party_kick: Button = $Root/Party/Margin/Scroll/VBox/ActionRow/KickButton
-@onready var _party_promote: Button = $Root/Party/Margin/Scroll/VBox/ActionRow/PromoteButton
-@onready var _party_disband: Button = $Root/Party/Margin/Scroll/VBox/ActionRow/DisbandButton
-@onready var _party_prompt: Label = $Root/Party/Margin/Scroll/VBox/InvitePrompt/Prompt
-@onready var _party_accept: Button = $Root/Party/Margin/Scroll/VBox/InvitePrompt/AcceptButton
-@onready var _party_decline: Button = $Root/Party/Margin/Scroll/VBox/InvitePrompt/DeclineButton
-@onready var _party_chat_history: Label = $Root/Party/Margin/Scroll/VBox/ChatScroll/ChatHistory
-@onready var _party_chat_input: LineEdit = $Root/Party/Margin/Scroll/VBox/ChatRow/ChatInput
-@onready var _party_chat_send: Button = $Root/Party/Margin/Scroll/VBox/ChatRow/ChatSend
+@onready var _party_members: ItemList = $Root/LeftColumn/Party/Margin/Scroll/VBox/Members
+@onready var _party_status: Label = $Root/LeftColumn/Party/Margin/Scroll/VBox/Status
+@onready var _party_invite_name: LineEdit = $Root/LeftColumn/Party/Margin/Scroll/VBox/InviteRow/InviteName
+@onready var _party_invite_button: Button = $Root/LeftColumn/Party/Margin/Scroll/VBox/InviteRow/InviteButton
+@onready var _party_create: Button = $Root/LeftColumn/Party/Margin/Scroll/VBox/ActionRow/CreateButton
+@onready var _party_leave: Button = $Root/LeftColumn/Party/Margin/Scroll/VBox/ActionRow/LeaveButton
+@onready var _party_kick: Button = $Root/LeftColumn/Party/Margin/Scroll/VBox/ActionRow/KickButton
+@onready var _party_promote: Button = $Root/LeftColumn/Party/Margin/Scroll/VBox/ActionRow/PromoteButton
+@onready var _party_disband: Button = $Root/LeftColumn/Party/Margin/Scroll/VBox/ActionRow/DisbandButton
+@onready var _party_prompt: Label = $Root/LeftColumn/Party/Margin/Scroll/VBox/InvitePrompt/Prompt
+@onready var _party_accept: Button = $Root/LeftColumn/Party/Margin/Scroll/VBox/InvitePrompt/AcceptButton
+@onready var _party_decline: Button = $Root/LeftColumn/Party/Margin/Scroll/VBox/InvitePrompt/DeclineButton
+@onready var _party_chat_history: Label = $Root/LeftColumn/Party/Margin/Scroll/VBox/ChatScroll/ChatHistory
+@onready var _party_chat_input: LineEdit = $Root/LeftColumn/Party/Margin/Scroll/VBox/ChatRow/ChatInput
+@onready var _party_chat_send: Button = $Root/LeftColumn/Party/Margin/Scroll/VBox/ChatRow/ChatSend
 
 var _inventory_list: Control
 var _slot_view: Control
@@ -63,6 +63,20 @@ var _unlock_row_fingerprint: String = ""
 var _vendor_panel: PanelContainer
 var _vendor_list: ItemList
 var _vendor_stock: Array = []
+var _trade_panel: PanelContainer
+var _trade_status: Label
+var _trade_mine: ItemList
+var _trade_theirs: ItemList
+var _trade_gold: LineEdit
+var _trade_warning: Label
+var _trade_result: Label
+var _trade_hint: Label
+var _trade_nearby: OptionButton
+var _trade_name: LineEdit
+var _trade_invite: Button
+var _trade_session: VBoxContainer
+var _trade_nearby_fingerprint: String = ""
+var _last_player_target_id: String = ""
 
 
 func _ready() -> void:
@@ -108,6 +122,12 @@ func _ready() -> void:
 		VendorService.vendor_closed.connect(_hide_vendor)
 	_bind_party_panel()
 	refresh_party()
+	_build_trade_panel()
+	if not TradeService.trade_changed.is_connected(refresh_trade):
+		TradeService.trade_changed.connect(refresh_trade)
+	if not TradeService.trade_notice.is_connected(_on_trade_notice):
+		TradeService.trade_notice.connect(_on_trade_notice)
+	refresh_trade()
 
 
 func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool = false) -> void:
@@ -158,6 +178,8 @@ func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool =
 	refresh_wallet()
 	refresh_progression()
 	refresh_party()
+	_refresh_trade_nearby(state)
+	refresh_trade()
 
 
 func refresh_journal(view: Dictionary) -> void:
@@ -179,6 +201,10 @@ func has_party_input_focus() -> bool:
 	if _party_invite_name != null and _party_invite_name.has_focus():
 		return true
 	if _party_chat_input != null and _party_chat_input.has_focus():
+		return true
+	if _trade_name != null and _trade_name.has_focus():
+		return true
+	if _trade_gold != null and _trade_gold.has_focus():
 		return true
 	return false
 
@@ -767,6 +793,7 @@ func _fill_target_from_players(state: Dictionary, target_id: String, self_id: St
 			continue
 		if _target_name != null:
 			_target_name.text = String(entry.get("name", target_id))
+		_last_player_target_id = target_id
 		if _target_vitals != null:
 			_target_vitals.text = "%s / %s" % [str(int(entry.get("health", 0))), str(int(entry.get("maxHealth", 0)))]
 		return true
@@ -898,6 +925,382 @@ func _bind_party_panel() -> void:
 		PartyService.party_changed.connect(refresh_party)
 	if not PartyService.party_notice.is_connected(_on_party_notice):
 		PartyService.party_notice.connect(_on_party_notice)
+
+
+func _build_trade_panel() -> void:
+	_trade_panel = PanelContainer.new()
+	_trade_panel.name = "TradePanel"
+	_trade_panel.clip_contents = true
+	_trade_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_bottom", 6)
+	_trade_panel.add_child(margin)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	margin.add_child(scroll)
+	var vbox := VBoxContainer.new()
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_theme_constant_override("separation", 4)
+	scroll.add_child(vbox)
+	var title := Label.new()
+	title.text = "Trade"
+	vbox.add_child(title)
+	_trade_hint = Label.new()
+	_trade_hint.name = "Hint"
+	_trade_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_trade_hint.text = "Type a nearby name, pick Nearby, or click them. Not the Party box."
+	vbox.add_child(_trade_hint)
+	_trade_nearby = OptionButton.new()
+	_trade_nearby.name = "Nearby"
+	_trade_nearby.item_selected.connect(_on_trade_nearby_selected)
+	vbox.add_child(_trade_nearby)
+	var invite_row := HBoxContainer.new()
+	invite_row.name = "InviteRow"
+	vbox.add_child(invite_row)
+	_trade_name = LineEdit.new()
+	_trade_name.name = "TradeName"
+	_trade_name.placeholder_text = "Character name"
+	_trade_name.max_length = 24
+	_trade_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_trade_name.text_submitted.connect(_on_trade_name_submitted)
+	invite_row.add_child(_trade_name)
+	_trade_invite = Button.new()
+	_trade_invite.name = "InviteButton"
+	_trade_invite.text = "Invite"
+	_trade_invite.pressed.connect(_on_trade_invite)
+	invite_row.add_child(_trade_invite)
+	_trade_status = Label.new()
+	_trade_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(_trade_status)
+	_trade_session = VBoxContainer.new()
+	_trade_session.name = "Session"
+	_trade_session.visible = false
+	_trade_session.add_theme_constant_override("separation", 4)
+	vbox.add_child(_trade_session)
+	_trade_warning = Label.new()
+	_trade_warning.visible = false
+	_trade_warning.text = "Offer changed. Acceptances were cleared."
+	_trade_session.add_child(_trade_warning)
+	var columns := HBoxContainer.new()
+	_trade_session.add_child(columns)
+	var mine_box := VBoxContainer.new()
+	mine_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	columns.add_child(mine_box)
+	var mine_label := Label.new()
+	mine_label.text = "You offer"
+	mine_box.add_child(mine_label)
+	_trade_mine = ItemList.new()
+	_trade_mine.custom_minimum_size = Vector2(120, 72)
+	mine_box.add_child(_trade_mine)
+	var theirs_box := VBoxContainer.new()
+	theirs_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	columns.add_child(theirs_box)
+	var theirs_label := Label.new()
+	theirs_label.text = "They offer"
+	theirs_box.add_child(theirs_label)
+	_trade_theirs = ItemList.new()
+	_trade_theirs.custom_minimum_size = Vector2(120, 72)
+	theirs_box.add_child(_trade_theirs)
+	var gold_row := HBoxContainer.new()
+	_trade_session.add_child(gold_row)
+	var gold_label := Label.new()
+	gold_label.text = "Gold"
+	gold_row.add_child(gold_label)
+	_trade_gold = LineEdit.new()
+	_trade_gold.placeholder_text = "0"
+	_trade_gold.custom_minimum_size = Vector2(60, 0)
+	gold_row.add_child(_trade_gold)
+	var set_gold := Button.new()
+	set_gold.text = "Set gold"
+	set_gold.pressed.connect(_on_trade_set_gold)
+	gold_row.add_child(set_gold)
+	var offer_row := HBoxContainer.new()
+	_trade_session.add_child(offer_row)
+	var offer := Button.new()
+	offer.text = "Offer selected item"
+	offer.pressed.connect(_on_trade_offer)
+	offer_row.add_child(offer)
+	var action_row := HBoxContainer.new()
+	_trade_session.add_child(action_row)
+	var accept := Button.new()
+	accept.text = "Accept"
+	accept.pressed.connect(_on_trade_accept)
+	action_row.add_child(accept)
+	var decline := Button.new()
+	decline.text = "Decline"
+	decline.pressed.connect(_on_trade_decline)
+	action_row.add_child(decline)
+	var cancel := Button.new()
+	cancel.text = "Cancel"
+	cancel.pressed.connect(_on_trade_cancel)
+	action_row.add_child(cancel)
+	_trade_result = Label.new()
+	_trade_result.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(_trade_result)
+	var column: Control = $Root/LeftColumn
+	column.add_child(_trade_panel)
+	column.move_child(_trade_panel, 1)
+	_trade_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_trade_panel.size_flags_vertical = Control.SIZE_FILL
+	_refresh_trade_nearby({})
+	_layout_trade_panel()
+
+
+func refresh_trade() -> void:
+	if _trade_status == null:
+		return
+	if _trade_result != null:
+		if not TradeService.last_error.is_empty():
+			_trade_result.text = "Error: %s" % TradeService.last_error
+		elif not TradeService.last_result.is_empty():
+			_trade_result.text = TradeService.last_result
+		else:
+			_trade_result.text = ""
+	if _trade_warning != null:
+		_trade_warning.visible = TradeService.offer_changed
+	_layout_trade_panel()
+	if not TradeService.is_trading() and String(TradeService.trade.get("state", "")).is_empty():
+		_trade_status.text = "No active trade."
+		if _trade_session != null:
+			_trade_session.visible = false
+		if _trade_mine != null:
+			_trade_mine.clear()
+		if _trade_theirs != null:
+			_trade_theirs.clear()
+		return
+	if _trade_session != null:
+		_trade_session.visible = true
+	var state := String(TradeService.trade.get("state", ""))
+	_trade_status.text = "Trade %s  revision %s" % [state, str(TradeService.revision())]
+	_fill_trade_offers()
+
+
+func _fill_trade_offers() -> void:
+	if _trade_mine == null or _trade_theirs == null:
+		return
+	_trade_mine.clear()
+	_trade_theirs.clear()
+	var local_id := String(AppState.character_view.get("character_id", ""))
+	var participant_a: Variant = TradeService.trade.get("participantA", {})
+	var participant_b: Variant = TradeService.trade.get("participantB", {})
+	var id_a := ""
+	var id_b := ""
+	if typeof(participant_a) == TYPE_DICTIONARY:
+		id_a = String((participant_a as Dictionary).get("characterId", ""))
+	if typeof(participant_b) == TYPE_DICTIONARY:
+		id_b = String((participant_b as Dictionary).get("characterId", ""))
+	var offers: Variant = TradeService.trade.get("offers", {})
+	var offer_map: Dictionary = offers if typeof(offers) == TYPE_DICTIONARY else {}
+	var gold_offers: Variant = TradeService.trade.get("goldOffers", {})
+	var gold_map: Dictionary = gold_offers if typeof(gold_offers) == TYPE_DICTIONARY else {}
+	_fill_offer_list(_trade_mine, local_id, offer_map, gold_map)
+	var other_id := id_b if local_id == id_a else id_a
+	_fill_offer_list(_trade_theirs, other_id, offer_map, gold_map)
+	var accepted: Variant = TradeService.trade.get("acceptanceRevisionByParticipant", {})
+	if typeof(accepted) == TYPE_DICTIONARY:
+		var revision := TradeService.revision()
+		var mine_rev := int((accepted as Dictionary).get(local_id, 0))
+		var theirs_rev := int((accepted as Dictionary).get(other_id, 0))
+		_trade_status.text += "  you:%s  them:%s" % [
+			"accepted" if mine_rev == revision and revision > 0 else "not accepted",
+			"accepted" if theirs_rev == revision and revision > 0 else "not accepted",
+		]
+
+
+func _fill_offer_list(target: ItemList, character_id: String, offer_map: Dictionary, gold_map: Dictionary) -> void:
+	if character_id.is_empty():
+		return
+	var lines: Variant = offer_map.get(character_id, [])
+	if typeof(lines) == TYPE_ARRAY:
+		for line in lines:
+			if typeof(line) != TYPE_DICTIONARY:
+				continue
+			target.add_item("%s x%s" % [String(line.get("itemId", "")), str(int(line.get("quantity", 0)))])
+	var gold := int(gold_map.get(character_id, 0))
+	if gold > 0:
+		target.add_item("%sg" % str(gold))
+
+
+func _layout_trade_panel() -> void:
+	if _trade_panel == null:
+		return
+	_trade_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if TradeService.is_trading():
+		_trade_panel.custom_minimum_size = Vector2(0, 220)
+	else:
+		_trade_panel.custom_minimum_size = Vector2(0, 148)
+
+
+func _refresh_trade_nearby(state: Dictionary) -> void:
+	if _trade_nearby == null:
+		return
+	var self_id := String(state.get("self_id", ""))
+	var ids: PackedStringArray = PackedStringArray()
+	var names: PackedStringArray = PackedStringArray()
+	for entry in state.get("players", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var record: Dictionary = entry
+		var user_id := String(record.get("userId", record.get("user_id", "")))
+		if user_id.is_empty() or user_id == self_id:
+			continue
+		if record.has("alive") and not bool(record.get("alive", true)):
+			continue
+		if int(record.get("health", 1)) <= 0:
+			continue
+		var named := String(record.get("name", ""))
+		if named.is_empty():
+			named = user_id
+		ids.append(user_id)
+		names.append(named)
+	var fingerprint := ",".join(ids)
+	if fingerprint == _trade_nearby_fingerprint and _trade_nearby.item_count == ids.size() + 1:
+		return
+	var keep := _last_player_target_id
+	_trade_nearby_fingerprint = fingerprint
+	_trade_nearby.clear()
+	_trade_nearby.add_item("Nearby players")
+	_trade_nearby.set_item_metadata(0, "")
+	for i in range(ids.size()):
+		_trade_nearby.add_item(names[i])
+		_trade_nearby.set_item_metadata(i + 1, ids[i])
+	if ids.size() == 1:
+		_trade_nearby.select(1)
+		_last_player_target_id = ids[0]
+		if _trade_name != null and _trade_name.text.strip_edges().is_empty():
+			_trade_name.text = names[0]
+		if _trade_hint != null:
+			_trade_hint.text = "Selected %s. Stand close, then Invite." % names[0]
+		return
+	_select_nearby_user(keep)
+
+
+func _select_nearby_user(user_id: String) -> void:
+	if _trade_nearby == null or user_id.is_empty():
+		return
+	for i in range(_trade_nearby.item_count):
+		if String(_trade_nearby.get_item_metadata(i)) != user_id:
+			continue
+		_trade_nearby.select(i)
+		return
+
+
+func resolve_trade_target_id(query: String = "", state: Dictionary = {}) -> String:
+	var zone: Dictionary = state
+	if zone.is_empty():
+		zone = AppState.zone_view
+	var self_id := String(zone.get("self_id", ""))
+	var trimmed := query.strip_edges()
+	if not trimmed.is_empty():
+		var exact := ""
+		var prefix_id := ""
+		var prefix_count := 0
+		var needle := trimmed.to_lower()
+		for entry in zone.get("players", []):
+			if typeof(entry) != TYPE_DICTIONARY:
+				continue
+			var record: Dictionary = entry
+			var user_id := String(record.get("userId", record.get("user_id", "")))
+			if user_id.is_empty() or user_id == self_id:
+				continue
+			var named := String(record.get("name", "")).to_lower()
+			if named.is_empty():
+				continue
+			if named == needle:
+				exact = user_id
+				break
+			if named.begins_with(needle):
+				prefix_count += 1
+				prefix_id = user_id
+		if not exact.is_empty():
+			return exact
+		if prefix_count == 1:
+			return prefix_id
+		return ""
+	if _trade_nearby != null:
+		var idx := _trade_nearby.selected
+		if idx >= 0 and idx < _trade_nearby.item_count:
+			var from_list := String(_trade_nearby.get_item_metadata(idx))
+			if not from_list.is_empty():
+				return from_list
+	return _last_player_target_id
+
+
+func select_player_for_trade(user_id: String, display_name: String = "") -> void:
+	if user_id.is_empty():
+		return
+	_last_player_target_id = user_id
+	if _trade_name != null and not display_name.is_empty():
+		_trade_name.text = display_name
+	_select_nearby_user(user_id)
+	if _trade_hint != null and not display_name.is_empty():
+		_trade_hint.text = "Selected %s. Stand close, then Invite." % display_name
+
+
+func _on_trade_nearby_selected(index: int) -> void:
+	if _trade_nearby == null or index < 0 or index >= _trade_nearby.item_count:
+		return
+	var user_id := String(_trade_nearby.get_item_metadata(index))
+	if user_id.is_empty():
+		return
+	select_player_for_trade(user_id, _trade_nearby.get_item_text(index))
+
+
+func _on_trade_name_submitted(_text: String) -> void:
+	_on_trade_invite()
+
+
+func _on_trade_invite() -> void:
+	var typed := ""
+	if _trade_name != null:
+		typed = _trade_name.text
+	var target := resolve_trade_target_id(typed)
+	if target.is_empty():
+		show_notice("Type a nearby character name, pick Nearby, or click them, then Invite.")
+		return
+	_last_player_target_id = target
+	TradeService.request_invite(target)
+
+
+func _on_trade_offer() -> void:
+	var instance_id := InventoryService.selected_instance_id
+	if instance_id.is_empty():
+		show_notice("Select an inventory item, then Offer selected item.")
+		return
+	if not TradeService.is_trading():
+		show_notice("Start a trade before offering items.")
+		return
+	TradeService.request_set_offer(instance_id)
+
+
+func _on_trade_set_gold() -> void:
+	if _trade_gold == null:
+		return
+	TradeService.request_set_gold(int(_trade_gold.text))
+
+
+func _on_trade_accept() -> void:
+	var state := String(TradeService.trade.get("state", ""))
+	if state == "inviting":
+		TradeService.request_accept_invite()
+		return
+	TradeService.request_accept_revision()
+
+
+func _on_trade_decline() -> void:
+	TradeService.request_decline_invite()
+
+
+func _on_trade_cancel() -> void:
+	TradeService.request_cancel()
+
+
+func _on_trade_notice(message: String) -> void:
+	show_notice(message)
 
 
 func _selected_party_character_id() -> String:

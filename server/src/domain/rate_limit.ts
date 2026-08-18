@@ -46,7 +46,15 @@ export function actionForOpcode(opcode: number): RateAction {
     opcode === ClientOpcode.VENDOR_SELL ||
     opcode === ClientOpcode.INN_REST ||
     opcode === ClientOpcode.CAVE_ENTER ||
-    opcode === ClientOpcode.CAVE_EXIT
+    opcode === ClientOpcode.CAVE_EXIT ||
+    opcode === ClientOpcode.TRADE_INVITE ||
+    opcode === ClientOpcode.TRADE_ACCEPT_INVITE ||
+    opcode === ClientOpcode.TRADE_DECLINE_INVITE ||
+    opcode === ClientOpcode.TRADE_SET_OFFER ||
+    opcode === ClientOpcode.TRADE_REMOVE_OFFER ||
+    opcode === ClientOpcode.TRADE_SET_GOLD ||
+    opcode === ClientOpcode.TRADE_ACCEPT_REVISION ||
+    opcode === ClientOpcode.TRADE_CANCEL
   ) {
     return "quest";
   }

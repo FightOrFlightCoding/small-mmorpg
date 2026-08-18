@@ -1,17 +1,20 @@
 import { content, contentHash } from "../generated/content";
 import { readCharacter, writeCharacterCheckpoint } from "./character_store";
 import { readQuests, writeQuests } from "./quest_store";
-import { readInventory, writeInventoryOnce } from "./inventory_store";
+import { readInventory, writeInventory, writeInventoryOnce } from "./inventory_store";
 import { readEquipment, writeEquipment } from "./equipment_store";
 import { loadWalletRef } from "./wallet_ref_store";
 import { SAVE_SCHEMA_VERSION } from "../domain/save_schema";
 import { commitQuestReward, commitTransaction, readGold } from "./quest_reward_store";
+import { commitTradeTransaction, readTrade, readTradeIndex, writeTrade } from "./trade_store";
+import { cancelTradesForUser, recoverCommittingTrades } from "../domain/match_trade";
+import { cancelTrade, type TradeRecord } from "../domain/trade";
+import { clearLocksByLockId, initializeInventoryFromStacks, itemDefinitionsFromContent, INVENTORY_CAPACITY, type PlayerInventory } from "../domain/inventory";
 import { TX_REASON_EQUIPMENT, TX_REASON_LOOT } from "../domain/transaction";
 import { validateJoinAttempt } from "../domain/join_validation";
 import { applyMatchLoop, snapshotForOthers, type IncomingMatchData, type EquipmentPersist, type InventoryPersist, type MatchLoopResult } from "../domain/match_loop";
 import { PLAYER_RESPAWN_DELAY_SEC } from "../domain/combat";
 import { questDefinitionsFromContent } from "../domain/quest";
-import { initializeInventoryFromStacks, itemDefinitionsFromContent, INVENTORY_CAPACITY } from "../domain/inventory";
 import {
   derivedAttack,
   equipmentSlotsFromContent,
@@ -95,7 +98,7 @@ export interface StarterMatchRuntimeState {
 }
 
 export function matchInit(
-  _ctx: nkruntime.Context,
+  ctx: nkruntime.Context,
   logger: nkruntime.Logger,
   _nk: nkruntime.Nakama,
   params: { [key: string]: any },
@@ -155,6 +158,9 @@ export function matchInit(
     },
   );
   zone.progressionCatalog = catalogFromContent(content);
+  zone.matchId = typeof ctx.matchId === "string" ? ctx.matchId : "";
+  zone.trades = {};
+  zone.tradeByCharacterId = {};
   if (isCave) {
     applyPersistedCaveCompletion(zone);
   }
@@ -344,6 +350,7 @@ export function matchJoin(
       }, Date.now());
       joined.push(presence);
       logger.info("starter_zone session resume user_id=%s", presence.userId);
+      recoverJoinTrade(nk, zone, existingLive);
       continue;
     }
     const ticket = readSelection(nk, presence.userId);
@@ -460,6 +467,7 @@ export function matchJoin(
       logger.info("starter_zone join user_id=%s character_id=%s", presence.userId, character.characterId);
     }
     zone = addPlayer(zone, player);
+    recoverJoinTrade(nk, zone, player);
     loadPartyCache(nk, zone, presence.userId, character.characterId, character.name);
     markPartyOnline(nk, {
       accountUserId: presence.userId,
@@ -468,6 +476,9 @@ export function matchJoin(
     }, Date.now());
     joined.push(presence);
   }
+  recoverCommittingTrades(zone, function (request) {
+    return commitTradeTransaction(nk, request);
+  });
 
   for (let i = 0; i < joined.length; i++) {
     const presence = joined[i];
@@ -504,6 +515,24 @@ export function matchLeave(
     const presence = presences[i];
     const live = zone.players[presence.userId];
     const transferring = live !== undefined && (live.transferState === "issued" || live.transferState === "pending");
+    if (transferring && live !== undefined) {
+      const persistInventories: { [userId: string]: PlayerInventory } = {};
+      const persistTrades: { [tradeId: string]: TradeRecord } = {};
+      cancelTradesForUser(zone, presence.userId, "zone_transfer", [], persistInventories, persistTrades);
+      const unlockedIds = Object.keys(persistInventories);
+      for (let u = 0; u < unlockedIds.length; u++) {
+        const uid = unlockedIds[u];
+        const inv = persistInventories[uid];
+        const owner = zone.players[uid];
+        if (owner !== undefined) {
+          writeInventory(nk, uid, inv, owner.characterId);
+        }
+      }
+      const tradeIds = Object.keys(persistTrades);
+      for (let t = 0; t < tradeIds.length; t++) {
+        writeTrade(nk, persistTrades[tradeIds[t]]);
+      }
+    }
     const left = applyPlayerLeave(zone, presence.userId, tick);
     zone = left.state;
     if (left.checkpoint !== null) {
@@ -565,6 +594,8 @@ export function matchLoop(
     return commitQuestReward(nk, request);
   }, function (request) {
     return commitTransaction(nk, request);
+  }, function (request) {
+    return commitTradeTransaction(nk, request);
   });
   for (let p = 0; p < result.persistQuests.length; p++) {
     const persist = result.persistQuests[p];
@@ -572,6 +603,10 @@ export function matchLoop(
     logger.info("starter_zone persist quests user_id=%s", persist.userId);
   }
   persistEconomy(nk, logger, tick, result.persistInventories, result.persistEquipment);
+  for (let t = 0; t < result.persistTrades.length; t++) {
+    writeTrade(nk, result.persistTrades[t]);
+    logger.info("starter_zone persist trade trade_id=%s", result.persistTrades[t].tradeId);
+  }
   for (let pg = 0; pg < result.persistProgression.length; pg++) {
     const persist = result.persistProgression[pg];
     writeProgression(nk, persist.userId, persist.progression, persist.characterId);
@@ -775,6 +810,8 @@ function hydrateRuntime(state: StarterMatchRuntimeState): StarterMatchRuntimeSta
   zone.processedDeathEventIds = dict(zone.processedDeathEventIds);
   zone.partyByCharacterId = dict(zone.partyByCharacterId);
   zone.pendingInvitesByCharacterId = dict(zone.pendingInvitesByCharacterId);
+  zone.trades = dict(zone.trades);
+  zone.tradeByCharacterId = dict(zone.tradeByCharacterId);
   bindContentCatalogs(zone);
   return {
     zone: zone,
@@ -1002,6 +1039,42 @@ function ownerIdFor(nk: nkruntime.Nakama, userId: string, characterId: string): 
 function targetPresence(presences: { [userId: string]: nkruntime.Presence }, userId: string): nkruntime.Presence | null {
   const found = presences[userId];
   return found !== undefined ? found : null;
+}
+
+function recoverJoinTrade(nk: nkruntime.Nakama, zone: StarterZoneState, player: MatchPlayer): void {
+  zone.trades = dict(zone.trades);
+  zone.tradeByCharacterId = dict(zone.tradeByCharacterId);
+  const tradeId = readTradeIndex(nk, player.userId, player.characterId);
+  if (tradeId.length === 0) {
+    return;
+  }
+  let trade = zone.trades[tradeId];
+  if (trade === undefined) {
+    const stored = readTrade(nk, tradeId);
+    if (stored === null) {
+      return;
+    }
+    trade = stored;
+  }
+  const matchId = zone.matchId !== undefined ? zone.matchId : "";
+  if (trade.matchId !== matchId && (trade.state === "inviting" || trade.state === "open" || trade.state === "committing")) {
+    if (trade.state === "committing") {
+      zone.trades[trade.tradeId] = trade;
+      return;
+    }
+    const cancelled = cancelTrade(trade, "zone_transfer");
+    if (player.inventory !== undefined) {
+      player.inventory = clearLocksByLockId(player.inventory, trade.tradeId);
+      writeInventory(nk, player.userId, player.inventory, player.characterId);
+    }
+    writeTrade(nk, cancelled.trade);
+    return;
+  }
+  if (trade.state === "inviting" || trade.state === "open" || trade.state === "committing") {
+    zone.trades[trade.tradeId] = trade;
+    zone.tradeByCharacterId[trade.participantA.characterId] = trade.tradeId;
+    zone.tradeByCharacterId[trade.participantB.characterId] = trade.tradeId;
+  }
 }
 
 function persistable(state: StarterMatchRuntimeState): StarterMatchRuntimeState {

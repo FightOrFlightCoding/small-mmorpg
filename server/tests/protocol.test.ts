@@ -41,6 +41,14 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ClientOpcode.INN_REST, 21);
   assert.equal(ClientOpcode.CAVE_ENTER, 22);
   assert.equal(ClientOpcode.CAVE_EXIT, 23);
+  assert.equal(ClientOpcode.TRADE_INVITE, 24);
+  assert.equal(ClientOpcode.TRADE_ACCEPT_INVITE, 25);
+  assert.equal(ClientOpcode.TRADE_DECLINE_INVITE, 26);
+  assert.equal(ClientOpcode.TRADE_SET_OFFER, 27);
+  assert.equal(ClientOpcode.TRADE_REMOVE_OFFER, 28);
+  assert.equal(ClientOpcode.TRADE_SET_GOLD, 29);
+  assert.equal(ClientOpcode.TRADE_ACCEPT_REVISION, 30);
+  assert.equal(ClientOpcode.TRADE_CANCEL, 31);
   assert.equal(ServerOpcode.FULL_STATE, 101);
   assert.equal(ServerOpcode.SNAPSHOT, 102);
   assert.equal(ServerOpcode.ACTION_RESULT, 103);
@@ -55,6 +63,7 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ServerOpcode.ABILITY_STATE, 112);
   assert.equal(ServerOpcode.PARTY_STATE, 113);
   assert.equal(ServerOpcode.PARTY_EVENT, 114);
+  assert.equal(ServerOpcode.TRADE_STATE, 115);
 });
 
 test("valid movement input parses direction and sequence only", () => {
@@ -603,4 +612,30 @@ test("vendor price spoofing is rejected", () => {
   if (isProtocolError(gold)) {
     assert.equal(gold.code, "stat_injection:gold");
   }
+});
+
+test("trade gold field is stat injection", () => {
+  const parsed = parse(
+    ClientOpcode.TRADE_SET_GOLD,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      tradeId: "trade-1",
+      gold: 10,
+      requestId: "req-trade-gold01",
+    }),
+  );
+  assert.equal(isProtocolError(parsed), true);
+  if (isProtocolError(parsed)) {
+    assert.equal(parsed.code, "stat_injection:gold");
+  }
+  const amount = parse(
+    ClientOpcode.TRADE_SET_GOLD,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      tradeId: "trade-1",
+      amount: 10,
+      requestId: "req-trade-amt001",
+    }),
+  );
+  assert.equal(isProtocolError(amount), false);
 });

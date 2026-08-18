@@ -6,7 +6,7 @@ Machine-readable twin: `tools/foundation-audit/expected.json` `storageRecords`. 
 
 **Defect rule:** `permissionWrite !== 0` on a canonical record is a security defect.
 
-**Schema version:** Player records store gameplay `schemaVersion` **1** plus `createdAt` and `updatedAt` (Unix ms, camelCase). Prompt 18 blobs with no `schemaVersion` are v0 and migrate on load. OCC still uses Nakama’s object `version`. The match locator is not a player save and has no gameplay schema version. Cave, location, and transfer records also are not player-save kinds.
+**Schema version:** Player records store gameplay `schemaVersion` **1** plus `createdAt` and `updatedAt` (Unix ms, camelCase). Prompt 18 blobs with no `schemaVersion` are v0 and migrate on load. OCC still uses Nakama’s object `version`. The match locator is not a player save and has no gameplay schema version. Cave, location, transfer, and trade records also are not player-save kinds.
 
 ## `player` / `character`
 
@@ -351,6 +351,62 @@ Value: `{ instanceType, zoneTemplateId, instanceId, matchId, position, character
 
 Value: `{ ticketId, characterId, accountUserId, originMatchId, destinationMatchId, destinationInstanceId, issuedAt, expiresAt, consumedAt, schemaVersion }`. TTL 25 s.
 
+## `trade` / `t`
+
+
+| Field             | Value                                                                                          |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| Purpose           | Canonical nearby trade (`t_<tradeId>`): participants, state, revision, offers, gold, acceptances |
+| Owner             | Server match loop                                                                              |
+| Scope             | System user                                                                                    |
+| `permissionRead`  | 1                                                                                              |
+| `permissionWrite` | 0                                                                                              |
+| Schema version    | 1                                                                                              |
+| Creation          | `TRADE_INVITE`                                                                                 |
+| Read              | Join recovery; commit                                                                          |
+| Update            | Offer/accept/cancel/commit                                                                     |
+| Deletion          | Not deleted; completed/cancelled remain                                                        |
+| Client access     | Via `TRADE_STATE` only                                                                         |
+
+
+Value: `{ schemaVersion, tradeId, participantA, participantB, state, revision, offers, goldOffers, acceptanceRevisionByParticipant, createdAt, expiresAt, createdAtTick, expiresAtTick, inviteExpiresAtTick, matchId, byRequestId, commitRequestId?, cancelReason?, commitSnapshot?, audits? }`. States: `inviting` / `open` / `committing` / `completed` / `cancelled`. Not a player-save kind.
+
+## `player` / `trade`
+
+
+| Field             | Value                                              |
+| ----------------- | -------------------------------------------------- |
+| Purpose           | Live trade index for a character (`trade_<compactId>`) |
+| Owner             | Server match loop                                  |
+| Scope             | Account-scoped                                     |
+| `permissionRead`  | 1                                                  |
+| `permissionWrite` | 0                                                  |
+| Schema version    | 1                                                  |
+| Creation          | Invite                                             |
+| Read              | Join recovery                                      |
+| Update            | Cleared when the trade completes or cancels        |
+| Client access     | No                                                 |
+
+
+Value: `{ schemaVersion, characterId, tradeId, state }`. `tradeId` is empty after complete/cancel.
+
+## `player` / `trade_audit`
+
+
+| Field             | Value                                      |
+| ----------------- | ------------------------------------------ |
+| Purpose           | Last trade audit event (`trade_audit_<compactId>`) |
+| Owner             | Server commit                              |
+| Scope             | Account-scoped                             |
+| `permissionRead`  | 1                                          |
+| `permissionWrite` | 0                                          |
+| Schema version    | 1                                          |
+| Creation          | Successful or recovered commit             |
+| Client access     | No                                         |
+
+
+Value: `{ schemaVersion, characterId, requestId, reasonType, reasonId, goldDelta, resultingBalance, code, ok, metadata }`. `reasonType` is `trade`.
+
 ## Nakama wallet `gold`
 
 
@@ -374,6 +430,6 @@ Value: `{ ticketId, characterId, accountUserId, originMatchId, destinationMatchI
 
 ## Not stored
 
-Match-only: live pose interpolation, health, slime AI, ground loot, cooldowns, `actionRates`, disconnected grace records, and the in-match party cache (invalidated on `revision`). Health is still not a canonical field; if a v0 blob had a `health` extra, migration preserves it and join still uses full `player.base.maxHealth`. Temporary party records live in storage until grace/idle expiry; they are not a player-save kind. Cave completion and ownership persist; transient cave enemies and combat effects do not.
+Match-only: live pose interpolation, health, slime AI, ground loot, cooldowns, `actionRates`, disconnected grace records, and the in-match party cache (invalidated on `revision`). Health is still not a canonical field; if a v0 blob had a `health` extra, migration preserves it and join still uses full `player.base.maxHealth`. Temporary party records live in storage until grace/idle expiry; they are not a player-save kind. Cave completion and ownership persist; transient cave enemies and combat effects do not. Live trades persist for recovery; they are not a player-save kind.
 
 No custom SQL tables.

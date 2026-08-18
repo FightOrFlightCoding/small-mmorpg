@@ -7,6 +7,7 @@ func before_test() -> void:
 	SceneRouter.reset_for_tests()
 	AppState.reset_for_tests()
 	NetworkService.reset_for_tests()
+	TradeService.reset_for_tests()
 	assert_bool(ContentRegistry.load_bundle()).is_true()
 	ContentRegistry.visuals.load_map()
 
@@ -68,7 +69,7 @@ func test_world_hud_panels_do_not_cover_chat_or_allocate_buttons() -> void:
 	add_child(overlay)
 	await get_tree().process_frame
 	assert_int(hud.layer).is_greater(chat.layer)
-	var progression: Control = hud.get_node("Root/Progression")
+	var progression: Control = hud.get_node("Root/LeftColumn/Progression")
 	var inventory: Control = hud.get_node("Root/Inventory")
 	var journal: Control = hud.get_node("Root/Journal")
 	var chat_root: Control = chat.get_node("Root")
@@ -76,18 +77,50 @@ func test_world_hud_panels_do_not_cover_chat_or_allocate_buttons() -> void:
 	assert_bool(progression.get_global_rect().intersects(chat_root.get_global_rect())).is_false()
 	assert_bool(inventory.get_global_rect().intersects(chat_root.get_global_rect())).is_false()
 	assert_bool(journal.get_global_rect().intersects(inventory.get_global_rect())).is_false()
-	var party: Control = hud.get_node("Root/Party")
+	var party: Control = hud.get_node("Root/LeftColumn/Party")
 	assert_object(party).is_not_null()
 	assert_bool(party.get_global_rect().intersects(chat_root.get_global_rect())).is_false()
 	assert_bool(party.get_global_rect().intersects(progression.get_global_rect())).is_false()
-	assert_float(party.anchor_bottom).is_equal(1.0)
+	var left_column: Control = hud.get_node("Root/LeftColumn")
+	assert_float(left_column.anchor_bottom).is_equal(1.0)
+	var trade: Control = hud.get_node("Root/LeftColumn/TradePanel")
+	assert_object(trade).is_not_null()
+	assert_bool(trade.get_global_rect().intersects(party.get_global_rect())).is_false()
+	assert_bool(trade.get_global_rect().intersects(progression.get_global_rect())).is_false()
+	assert_bool(trade.get_global_rect().intersects(chat_root.get_global_rect())).is_false()
+	assert_bool(trade.get_global_rect().intersects(inventory.get_global_rect())).is_false()
+	assert_bool(trade.get_global_rect().intersects(journal.get_global_rect())).is_false()
 	viewport.size = Vector2i(1280, 600)
 	await get_tree().process_frame
 	assert_bool(party.get_global_rect().intersects(progression.get_global_rect())).is_false()
+	assert_bool(trade.get_global_rect().intersects(party.get_global_rect())).is_false()
+	assert_bool(trade.get_global_rect().intersects(progression.get_global_rect())).is_false()
+	assert_bool(left_column.get_global_rect().intersects(chat_root.get_global_rect())).is_false()
 	viewport.size = Vector2i(1280, 720)
-	var party_chat: Label = hud.get_node("Root/Party/Margin/Scroll/VBox/ChatScroll/ChatHistory")
+	var party_chat: Label = hud.get_node("Root/LeftColumn/Party/Margin/Scroll/VBox/ChatScroll/ChatHistory")
 	assert_str(party_chat.get_class()).is_equal("Label")
 	assert_str(party_chat.get_class()).is_not_equal("RichTextLabel")
 	assert_bool(debug_root.get_global_rect().intersects(progression.get_global_rect())).is_false()
 	assert_bool(debug_root.get_global_rect().intersects(chat_root.get_global_rect())).is_false()
 	assert_int(int(debug_root.mouse_filter)).is_equal(Control.MOUSE_FILTER_IGNORE)
+
+
+func test_trade_invite_resolves_nearby_character_name() -> void:
+	var hud: WorldHud = auto_free(preload("res://scenes/world/world_hud.tscn").instantiate())
+	add_child(hud)
+	await get_tree().process_frame
+	var state := {
+		"self_id": "user-alice",
+		"players": [
+			{"userId": "user-alice", "name": "Alice", "health": 10, "maxHealth": 10},
+			{"userId": "user-bob", "name": "Bob", "health": 10, "maxHealth": 10},
+		],
+	}
+	hud.refresh(state, PackedStringArray(["Alice", "Bob"]))
+	assert_str(hud.resolve_trade_target_id("Bob", state)).is_equal("user-bob")
+	assert_str(hud.resolve_trade_target_id("bob", state)).is_equal("user-bob")
+	assert_str(hud.resolve_trade_target_id("Alice", state)).is_equal("")
+	assert_str(hud.resolve_trade_target_id("nobody", state)).is_equal("")
+	var name_edit: LineEdit = hud.find_child("TradeName", true, false)
+	assert_object(name_edit).is_not_null()
+	assert_str(name_edit.text).is_equal("Bob")
