@@ -224,31 +224,37 @@
       "client/scripts/network/network_service.gd",
       "client/scripts/network/protocol.gd",
       "client/scripts/world/world.gd",
-      "client/scripts/world/movement_sim.gd"
+      "client/scripts/world/movement_sim.gd",
+      "client/content/asset_manifest.json"
     ],
     "npc.elder": [
       "client/scripts/content/content_catalog.gd",
       "client/scripts/e2e/slice_journey.gd",
       "client/content/dialogue_map.json",
-      "client/content/dialogue/npc.elder.dialogue"
+      "client/content/dialogue/npc.elder.dialogue",
+      "client/content/asset_manifest.json"
     ],
     "enemy.green_slime": [
       "client/scripts/content/content_catalog.gd",
       "client/scripts/e2e/slice_journey.gd",
-      "client/scripts/e2e/slice_session.gd"
+      "client/scripts/e2e/slice_session.gd",
+      "client/content/asset_manifest.json"
     ],
     "item.training_sword": [
       "server/src/domain/inventory.ts",
-      "client/scripts/content/content_catalog.gd"
+      "client/scripts/content/content_catalog.gd",
+      "client/content/asset_manifest.json"
     ],
     "item.slime_gel": [
       "client/scripts/content/content_catalog.gd",
       "client/scripts/e2e/slice_journey.gd",
-      "client/scripts/e2e/slice_session.gd"
+      "client/scripts/e2e/slice_session.gd",
+      "client/content/asset_manifest.json"
     ],
     "item.iron_sword": [
       "client/scripts/content/content_catalog.gd",
-      "client/scripts/e2e/slice_journey.gd"
+      "client/scripts/e2e/slice_journey.gd",
+      "client/content/asset_manifest.json"
     ],
     "quest.slime_problem": [
       "client/scripts/content/content_catalog.gd",

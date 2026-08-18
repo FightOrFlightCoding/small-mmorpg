@@ -22,7 +22,7 @@ IDs match `^[a-z]+(\.[a-z0-9_]+)+$` (two or more segments). The source filename 
 
 - Network, storage, and quest logic use IDs only.
 - Visual assets are referenced by IDs such as `visual.zone_starter`, never by `res://` paths or machine-absolute paths.
-- Godot `res://` paths exist only in the client-side map `client/content/visual_map.json`, keyed by those visual IDs. That file is not hashed into `contentHash`.
+- Godot `res://` paths exist only in the client-side map `client/content/visual_map.json`, keyed by those visual IDs. Character/enemy/NPC visual sets, icons, tilesets, projectiles, impacts, and audio ids live in `client/content/asset_manifest.json`. Neither file is hashed into `contentHash`.
 
 ## Kinds
 

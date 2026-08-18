@@ -29,6 +29,7 @@ Classification:
 | `client/scripts/chat/zone_chat.gd` `ROOM_NAME` | Architectural hard-coding requiring later removal |
 | `client/scripts/world/world.gd`, `world_hud.gd`, `protocol.gd`, `network_service.gd` defaults | Architectural hard-coding requiring later removal |
 | `client/scripts/world/movement_sim.gd` `get_by_id("zone.starter")` | Architectural hard-coding requiring later removal |
+| `client/content/asset_manifest.json` tileset map | Temporary Prompt 18 assumption |
 | Server/client tests | Test fixture |
 
 ### `npc.elder`
@@ -37,6 +38,7 @@ Classification:
 | --- | --- |
 | `content/source/npc.elder.json`, generated catalogs | Correct content reference |
 | `client/content/dialogue_map.json`, `npc.elder.dialogue` | Temporary Prompt 18 assumption |
+| `client/content/asset_manifest.json` visual set | Temporary Prompt 18 assumption |
 | `client/scripts/content/content_catalog.gd` `REQUIRED_IDS` | Architectural hard-coding requiring later removal |
 | `client/scripts/e2e/slice_journey.gd` | Test fixture |
 | Tests | Test fixture |
@@ -48,6 +50,7 @@ Classification:
 | Source + generated catalog, zone enemy spawn | Correct content reference |
 | `content_catalog.gd` `REQUIRED_IDS` | Architectural hard-coding requiring later removal |
 | `slice_journey.gd` / `slice_session.gd` | Test fixture |
+| `client/content/asset_manifest.json` visual set | Temporary Prompt 18 assumption |
 | Tests | Test fixture |
 
 Match code spawns enemies from zone content (`enemyDefinitionsFromContent`) rather than the string `enemy.green_slime`, but the live world still contains exactly one slime because the zone document does.
@@ -59,6 +62,7 @@ Match code spawns enemies from zone content (`enemyDefinitionsFromContent`) rath
 | Source + generated catalog | Correct content reference |
 | `server/src/domain/inventory.ts` `STARTER_ITEM_ID` | Architectural hard-coding requiring later removal |
 | `content_catalog.gd` `REQUIRED_IDS` | Architectural hard-coding requiring later removal |
+| `client/content/asset_manifest.json` item icons | Temporary Prompt 18 assumption |
 | Tests | Test fixture |
 
 ### `item.slime_gel` / `item.iron_sword` / `quest.slime_problem`
@@ -69,6 +73,7 @@ Match code spawns enemies from zone content (`enemyDefinitionsFromContent`) rath
 | `npc.elder.dialogue` `do QuestService.request_*("quest.slime_problem"…)` | Temporary Prompt 18 assumption |
 | `server/src/domain/match_loop.ts` complete notice for `quest.slime_problem` | Temporary Prompt 18 assumption |
 | `content_catalog.gd` `REQUIRED_IDS` | Architectural hard-coding requiring later removal |
+| `client/content/asset_manifest.json` item icons | Temporary Prompt 18 assumption |
 | E2E driver constants | Test fixture |
 | Tests | Test fixture |
 

@@ -65,6 +65,9 @@ func _ready() -> void:
 		_overlay.set_debug_build(OS.is_debug_build())
 	_ensure_ground_preview()
 	_sync_player_blockers()
+	HudController.bind_hud(_hud)
+	if _chat != null:
+		HudController.bind_chat(_chat)
 	_apply_zone_state()
 	_last_state_msec = Time.get_ticks_msec()
 	if AppState.has_fatal_error:
@@ -80,7 +83,7 @@ func _process(delta: float) -> void:
 		axis = MoveIntent.read_axes()
 	if not NetworkService.match_id.is_empty():
 		_sync_player_blockers()
-		_entities.pose_local(_reconciler.advance(delta, axis))
+		_entities.pose_local(_reconciler.advance(delta, axis), axis)
 	_input_accum += delta
 	var interval := 1.0 / MatchProtocol.INPUT_SEND_HZ
 	if _input_accum >= interval:
@@ -113,6 +116,7 @@ func _exit_tree() -> void:
 		AppState.reconnecting_changed.disconnect(_on_reconnecting_changed)
 	_disconnect_chat_signals()
 	_disconnect_interaction_signals()
+	HudController.unbind()
 
 
 func _current_zone_id() -> String:
@@ -314,6 +318,21 @@ func _refresh_overlay() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+		if DragDropService.active:
+			DragDropService.cancel()
+		elif WindowManager.close_top():
+			pass
+		elif AbilityService.is_targeting():
+			AbilityService.cancel_targeting()
+		else:
+			var cancel_id := AbilityService.request_cancel_cast()
+			if not cancel_id.is_empty():
+				_ability_requests[cancel_id] = true
+		get_viewport().set_input_as_handled()
+		return
+	if WindowManager.has_text_focus() or _input_blocked():
+		return
 	if event.is_action_pressed("interact"):
 		try_interact()
 		get_viewport().set_input_as_handled()
@@ -323,20 +342,36 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("pickup"):
 		try_pickup()
 		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("inventory"):
+		HudController.toggle_panel(WindowManager.INVENTORY)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("character_sheet"):
+		HudController.toggle_panel(WindowManager.CHARACTER)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("quest_journal"):
+		HudController.toggle_panel(WindowManager.QUEST_JOURNAL)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("party_panel"):
+		HudController.toggle_panel(WindowManager.PARTY)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("open_settings"):
+		HudController.toggle_panel(WindowManager.SETTINGS)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("chat_focus"):
+		if _chat != null:
+			_chat.grab_chat_focus()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("target_select"):
+		try_select_combat_target()
+		get_viewport().set_input_as_handled()
 	elif event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_ESCAPE:
-			if AbilityService.is_targeting():
-				AbilityService.cancel_targeting()
-			else:
-				var cancel_id := AbilityService.request_cancel_cast()
-				if not cancel_id.is_empty():
-					_ability_requests[cancel_id] = true
-			get_viewport().set_input_as_handled()
-		elif event.keycode >= KEY_1 and event.keycode <= KEY_8:
-			var request_id := AbilityService.try_hotbar(event.keycode - KEY_1)
-			if not request_id.is_empty():
-				_ability_requests[request_id] = true
-			get_viewport().set_input_as_handled()
+		for slot in range(8):
+			if event.is_action_pressed("hotbar_%s" % str(slot + 1)):
+				var request_id := AbilityService.try_hotbar(slot)
+				if not request_id.is_empty():
+					_ability_requests[request_id] = true
+				get_viewport().set_input_as_handled()
+				break
 	elif event is InputEventMouseButton and event.pressed:
 		if AbilityService.is_targeting():
 			if event.button_index == MOUSE_BUTTON_LEFT:
@@ -354,6 +389,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _input_blocked() -> bool:
 	if AppState.is_reconnecting:
 		return true
+	if WindowManager.has_text_focus():
+		return true
 	if _chat != null and _chat.has_input_focus():
 		return true
 	if _hud != null and _hud.has_party_input_focus():
@@ -361,6 +398,15 @@ func _input_blocked() -> bool:
 	if _dialogue != null and _dialogue.is_open():
 		return true
 	return false
+
+
+func try_select_combat_target() -> void:
+	if _input_blocked() or not _local_alive() or NetworkService.match_id.is_empty():
+		return
+	var enemy_id := AttackIntent.nearest_enemy_id(_reconciler.display, AppState.zone_view.get("enemies", []))
+	if enemy_id.is_empty():
+		return
+	NetworkService.send_set_target(enemy_id, MatchProtocol.new_request_id(), "hostile")
 
 
 func _local_alive() -> bool:

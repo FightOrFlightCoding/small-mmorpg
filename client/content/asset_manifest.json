@@ -1,0 +1,193 @@
+{
+  "schemaVersion": 1,
+  "directionModes": [4, 8],
+  "sets": {
+    "visual_set.player.base": {
+      "kind": "character",
+      "contentId": "player.base",
+      "spriteVisualId": "visual.player",
+      "directionCount": 4,
+      "frameSize": [24, 24],
+      "pivot": [12, 18],
+      "foot": [12, 24],
+      "animations": {
+        "idle": { "frames": [0, 0], "fps": 4, "loop": true },
+        "walk": { "frames": [0, 3], "fps": 8, "loop": true }
+      },
+      "collisionFootprint": { "width": 24, "height": 24 },
+      "shadowVisualId": "visual.player",
+      "equipmentAnchors": { "main_hand": [18, 14], "head": [12, 4] },
+      "fallbackVisualId": "visual.player"
+    },
+    "visual_set.test.class.vanguard": {
+      "kind": "character",
+      "contentId": "test.class.vanguard",
+      "spriteVisualId": "visual.class_vanguard",
+      "directionCount": 4,
+      "frameSize": [24, 24],
+      "pivot": [12, 18],
+      "foot": [12, 24],
+      "animations": {
+        "idle": { "frames": [0, 0], "fps": 4, "loop": true },
+        "walk": { "frames": [0, 3], "fps": 8, "loop": true }
+      },
+      "collisionFootprint": { "width": 24, "height": 24 },
+      "equipmentAnchors": { "main_hand": [18, 14] },
+      "fallbackVisualId": "visual.player"
+    },
+    "visual_set.test.class.arcanist": {
+      "kind": "character",
+      "contentId": "test.class.arcanist",
+      "spriteVisualId": "visual.class_arcanist",
+      "directionCount": 4,
+      "frameSize": [24, 24],
+      "pivot": [12, 18],
+      "foot": [12, 24],
+      "animations": {
+        "idle": { "frames": [0, 0], "fps": 4, "loop": true },
+        "walk": { "frames": [0, 3], "fps": 8, "loop": true }
+      },
+      "collisionFootprint": { "width": 24, "height": 24 },
+      "equipmentAnchors": { "main_hand": [18, 14] },
+      "fallbackVisualId": "visual.player"
+    },
+    "visual_set.enemy.green_slime": {
+      "kind": "enemy",
+      "contentId": "enemy.green_slime",
+      "spriteVisualId": "visual.enemy_green_slime",
+      "directionCount": 4,
+      "frameSize": [24, 24],
+      "pivot": [12, 16],
+      "foot": [12, 22],
+      "animations": {
+        "idle": { "frames": [0, 1], "fps": 3, "loop": true },
+        "walk": { "frames": [0, 1], "fps": 6, "loop": true }
+      },
+      "collisionFootprint": { "width": 20, "height": 16 },
+      "fallbackVisualId": "visual.enemy_green_slime"
+    },
+    "visual_set.test.enemy.ranged": {
+      "kind": "enemy",
+      "contentId": "test.enemy.ranged",
+      "spriteVisualId": "visual.enemy_test_ranged",
+      "directionCount": 8,
+      "frameSize": [24, 24],
+      "pivot": [12, 16],
+      "foot": [12, 22],
+      "animations": {
+        "idle": { "frames": [0, 0], "fps": 4, "loop": true },
+        "walk": { "frames": [0, 7], "fps": 10, "loop": true }
+      },
+      "collisionFootprint": { "width": 20, "height": 16 },
+      "fallbackVisualId": "visual.enemy_test_ranged"
+    },
+    "visual_set.test.enemy.melee": {
+      "kind": "enemy",
+      "contentId": "test.enemy.melee",
+      "spriteVisualId": "visual.enemy_test_melee",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.enemy_test_melee"
+    },
+    "visual_set.test.enemy.caster": {
+      "kind": "enemy",
+      "contentId": "test.enemy.caster",
+      "spriteVisualId": "visual.enemy_test_caster",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.enemy_test_caster"
+    },
+    "visual_set.test.enemy.cave_boss": {
+      "kind": "enemy",
+      "contentId": "test.enemy.cave_boss",
+      "spriteVisualId": "visual.enemy_cave_boss",
+      "directionCount": 4,
+      "frameSize": [32, 32],
+      "fallbackVisualId": "visual.enemy_cave_boss"
+    },
+    "visual_set.npc.elder": {
+      "kind": "npc",
+      "contentId": "npc.elder",
+      "spriteVisualId": "visual.npc_elder",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.npc_elder"
+    },
+    "visual_set.npc.test_vendor": {
+      "kind": "npc",
+      "contentId": "npc.test_vendor",
+      "spriteVisualId": "visual.npc_vendor",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.npc_vendor"
+    },
+    "visual_set.npc.test_innkeeper": {
+      "kind": "npc",
+      "contentId": "npc.test_innkeeper",
+      "spriteVisualId": "visual.npc_innkeeper",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.npc_innkeeper"
+    },
+    "visual_set.npc.test_herald": {
+      "kind": "npc",
+      "contentId": "npc.test_herald",
+      "spriteVisualId": "visual.npc_herald",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.npc_herald"
+    },
+    "visual_set.npc.test_cave_portal": {
+      "kind": "npc",
+      "contentId": "npc.test_cave_portal",
+      "spriteVisualId": "visual.npc_cave_portal",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.npc_cave_portal"
+    },
+    "visual_set.npc.test_cave_exit": {
+      "kind": "npc",
+      "contentId": "npc.test_cave_exit",
+      "spriteVisualId": "visual.npc_cave_exit",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.npc_cave_exit"
+    }
+  },
+  "tilesets": {
+    "zone.starter": "visual.zone_starter",
+    "zone.cave": "visual.zone_cave"
+  },
+  "icons": {
+    "item": {
+      "item.training_sword": "visual.item_training_sword",
+      "item.iron_sword": "visual.item_iron_sword",
+      "item.slime_gel": "visual.item_slime_gel",
+      "item.leather_cap": "visual.item_leather_cap",
+      "item.vanguard_mail": "visual.item_vanguard_mail",
+      "item.relic_blade": "visual.item_relic_blade",
+      "item.cloth": "visual.item_cloth",
+      "item.potion": "visual.item_potion",
+      "item.pebble": "visual.item_pebble"
+    },
+    "ability": {
+      "test.ability.basic_melee": "visual.ability_melee_icon",
+      "test.ability.ranged_bolt": "visual.ability_bolt_icon",
+      "test.ability.small_heal": "visual.ability_heal_icon",
+      "test.ability.power_buff": "visual.ability_buff_icon",
+      "test.ability.damage_over_time": "visual.ability_dot_icon"
+    },
+    "status": {
+      "effect.stun": "visual.ability_buff_icon",
+      "effect.root": "visual.ability_dot_icon",
+      "effect.hot": "visual.ability_heal_icon"
+    }
+  },
+  "projectiles": {
+    "projectile.bolt": { "visualId": "visual.ability_bolt", "setId": "" }
+  },
+  "impacts": {
+    "impact.melee": { "visualId": "visual.ability_melee", "setId": "" },
+    "impact.heal": { "visualId": "visual.ability_heal", "setId": "" }
+  },
+  "audio": {
+    "audio.ui.click": { "stream": "", "bus": "UI" },
+    "audio.ui.error": { "stream": "", "bus": "UI" },
+    "audio.world.step": { "stream": "", "bus": "Effects" },
+    "audio.world.hit": { "stream": "", "bus": "Effects" },
+    "audio.music.starter": { "stream": "", "bus": "Music" },
+    "audio.music.cave": { "stream": "", "bus": "Music" }
+  }
+}

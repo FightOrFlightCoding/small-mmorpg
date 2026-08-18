@@ -82,7 +82,7 @@ Record necessary assumptions in `docs/DECISIONS.md`.
 
 | Path | Role |
 | --- | --- |
-| `client/` | Godot 4.7.1 application (boot → login → character list → content-driven public world or owned cave after `FULL_STATE`). Email/password; debug device auth; joins with a selection ticket or a one-time transfer ticket. Progression panel, ability HUD, party panel, trade panel, cave objective, and transfer overlay mirror server state. Visual IDs in `client/content/visual_map.json`. |
+| `client/` | Godot 4.7.1 application (boot → login → character list → content-driven public world or owned cave after `FULL_STATE`). Email/password; debug device auth; joins with a selection ticket or a one-time transfer ticket. Progression panel, ability HUD, party panel, trade panel, cave objective, settings, and transfer overlay mirror server state. Visual IDs in `client/content/visual_map.json`; visual/audio sets in `client/content/asset_manifest.json`. |
 | `server/` | TypeScript Nakama runtime (health RPC, character lifecycle RPCs, `find_or_create_starter_zone`, cave RPCs, public-world and party-cave matches; generated content catalog including classes, attributes, resources, derived stats, level curves, class progression, equipment slots, and item categories). |
 | `content/schemas/` | JSON Schemas for authored content. |
 | `content/source/` | ID-addressed source content documents. |

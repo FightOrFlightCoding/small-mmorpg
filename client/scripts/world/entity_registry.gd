@@ -123,10 +123,12 @@ func apply_remote_poses(poses: Dictionary) -> void:
 			node.position = poses[id]
 
 
-func pose_local(pos: Vector2) -> void:
+func pose_local(pos: Vector2, facing: Vector2 = Vector2.ZERO) -> void:
 	var node: Node2D = get_entity("%s:%s" % [KIND_PLAYER, local_server_id])
 	if node is WorldAvatar:
-		(node as WorldAvatar).set_server_position(pos.x, pos.y)
+		var avatar := node as WorldAvatar
+		avatar.set_server_position(pos.x, pos.y)
+		avatar.set_move_vector(facing)
 	elif node != null:
 		node.position = pos
 
@@ -260,7 +262,13 @@ func _visual_for(kind: String, record: Dictionary) -> Dictionary:
 	elif kind == KIND_LOOT:
 		content_id = String(record.get("itemId", ""))
 	var visual_id := ContentRegistry.visual_id_for_content(content_id)
-	return ContentRegistry.resolve_visual(visual_id)
+	if visual_id.is_empty() and not content_id.is_empty():
+		visual_id = "visual.unmapped:%s" % content_id
+	var visual: Dictionary = ContentRegistry.resolve_visual(visual_id)
+	var vis_set: Dictionary = ContentRegistry.resolve_visual_set_for_content(content_id)
+	visual["visual_set"] = vis_set
+	visual["direction_count"] = int(vis_set.get("directionCount", 4))
+	return visual
 
 
 func _pose(record: Dictionary) -> Vector2:

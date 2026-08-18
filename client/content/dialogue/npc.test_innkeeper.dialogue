@@ -1,8 +1,8 @@
 ~ start
 Innkeeper: Rest here for five gold. You will heal, restore your resources, and bind your return point.
-- Rest.
-	do InnService.request_rest()
-	Innkeeper: Sleep well. This inn is now your return point.
+- Open inn services.
+	do InnService.open_from_dialogue()
+	Innkeeper: Use the inn window to rest or receive healing.
 	=> END
 - Just a healer's touch, no bind.
 	do InnService.request_heal()

@@ -1,6 +1,6 @@
 # Foundation roadmap
 
-Prompt 19 (catalogs/audit), Prompt 20 (versioned content and save schemas), Prompt 21 (authentication, slots, and class selection), Prompt 22 (XP, derived stats, and attribute allocation), Prompt 23 (generic items, inventory, equipment, currency, and the transaction core), Prompt 24 (generic ability, casting, cooldown, resource, and effect engine), Prompt 25 (generic combat pipeline, targeting, death, respawn, and XP hooks), Prompt 26 (generic enemies, spawn controllers, AI profiles, loot tables, and bosses), Prompt 27 (generic NPC services, dialogue, quests, merchants, and inn), Prompt 28 (temporary parties, party chat, group credit, and group loot), Prompt 29 (public world, party cave instances, transfers, and reconnection), and Prompt 30 (secure direct player trading) are accepted.
+Prompt 19 (catalogs/audit), Prompt 20 (versioned content and save schemas), Prompt 21 (authentication, slots, and class selection), Prompt 22 (XP, derived stats, and attribute allocation), Prompt 23 (generic items, inventory, equipment, currency, and the transaction core), Prompt 24 (generic ability, casting, cooldown, resource, and effect engine), Prompt 25 (generic combat pipeline, targeting, death, respawn, and XP hooks), Prompt 26 (generic enemies, spawn controllers, AI profiles, loot tables, and bosses), Prompt 27 (generic NPC services, dialogue, quests, merchants, and inn), Prompt 28 (temporary parties, party chat, group credit, and group loot), Prompt 29 (public world, party cave instances, transfers, and reconnection), Prompt 30 (secure direct player trading), and Prompt 31 (complete functional UI, settings, and asset contracts) are accepted.
 
 | Order | Theme | Outcome | Depends on |
 | --- | --- | --- | --- |
@@ -16,6 +16,7 @@ Prompt 19 (catalogs/audit), Prompt 20 (versioned content and save schemas), Prom
 | 28 | Temporary parties, party chat, group credit, group loot | Server membership max 5; party channel; group XP/quest credit; personal and server-assigned loot. No guilds, matchmaking, or need/greed. | 25–27 |
 | 29 | Public world, party caves, transfers, reconnect | One `public_world` match; private `party_cave` matches; one-time tickets; canonical location; empty-cave grace. No sharding. | 28 |
 | 30 | Secure direct trade | Server trade state machine; nearby online same-match item and gold exchange; no client-complete; idempotent. Mail, auction houses, and offline trade remain later. | 28, 27, 23 |
+| 31 | Functional UI, settings, asset contracts | Complete client shell, local settings, stable visual/audio sets. No final art. UI never authoritative. | 21–30 |
 | Later | Abilities and hotbar | Implemented as issued Prompt 24. | 22 |
 | Content | Names, balance, extra IDs, art | Authored under `content/source` after systems exist. | relevant systems |
 
@@ -70,3 +71,7 @@ Accepted in [PROGRESS.md](PROGRESS.md) as **Public world, party cave instances, 
 ## Prompt 30 status
 
 Accepted in [PROGRESS.md](PROGRESS.md) as **Secure direct player trading**.
+
+## Prompt 31 status
+
+Accepted in [PROGRESS.md](PROGRESS.md) as **Complete functional UI, settings, and asset contracts**.

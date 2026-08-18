@@ -1,6 +1,6 @@
 # Test catalog
 
-Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, Prompt 24 ability coverage, Prompt 25 combat-pipeline coverage, Prompt 26 enemy/spawn/AI/loot/boss coverage, Prompt 27 NPC/quest/vendor/inn coverage, Prompt 28 party/chat/group-credit/loot coverage, Prompt 29 public-world/cave/transfer/reconnect coverage, and Prompt 30 nearby trade coverage. Do not weaken these tests. Live gate counts after Prompt 30: content 14/14, server 399/399, client GdUnit 178/178 (0 orphans), `E2E_SLICE_OK` unchanged.
+Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, Prompt 24 ability coverage, Prompt 25 combat-pipeline coverage, Prompt 26 enemy/spawn/AI/loot/boss coverage, Prompt 27 NPC/quest/vendor/inn coverage, Prompt 28 party/chat/group-credit/loot coverage, Prompt 29 public-world/cave/transfer/reconnect coverage, Prompt 30 nearby trade coverage, and Prompt 31 UI/settings/asset-contract coverage. Do not weaken these tests. Live gate counts after Prompt 31: content 14/14, server 399/399, client GdUnit 190/190 (0 orphans), `SHELL_LOGIN`. E2E was not required for this client-shell phase.
 
 Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDATION_BASELINE.md).
 
@@ -99,6 +99,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `trade_service_test.gd` | invite/offer/gold/accept/cancel intentions; offer-change warning; completed result without local grant; HUD invite by typed character name | |
 | `chat_client_test.gd` | Label, no BBCode; party payload | |
 | `reconnect_test.gd` | overlay, seq adopt | |
+| `ui_shell_test.gd` | window focus/exclusivity; duplicate `connect_once`; rejected drag/drop; reconnect window restore; settings persistence without credentials; input conflicts; missing-asset fallback; 4/8-dir animation-set validation; UI after character switch and zone transfer | |
 | `e2e_hooks_test.gd` | `--e2e-slice` required | VS-T10 helper |
 
 `fake_network_backend.gd` is a test double, not a suite.

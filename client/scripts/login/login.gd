@@ -21,6 +21,8 @@ func _ready() -> void:
 	_sign_in_button.pressed.connect(_on_sign_in_pressed)
 	_login_button.pressed.connect(_on_login_pressed)
 	_register_button.pressed.connect(_on_register_pressed)
+	WindowManager.open(WindowManager.LOGIN)
+	WindowManager.open(WindowManager.REGISTER)
 	_hint.custom_minimum_size.x = HINT_WIDTH
 	_server_hint.custom_minimum_size.x = HINT_WIDTH
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

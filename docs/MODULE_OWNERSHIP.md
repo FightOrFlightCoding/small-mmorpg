@@ -9,7 +9,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | Module | Runs | Responsibility | State it owns | Wraps | May call | Persistence | Protocol | Inventory/wallet |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `AppState` | C | Session flags and shell signals | Loading, errors, scene id, zone view mirror, reconnect flag | none | none | no | no | no |
-| `ContentRegistry` / `ContentCatalog` / `VisualCatalog` | C | Load bundle, ID lookup, visual ID → texture | Parsed catalog in memory | `bundle.json`, `visual_map.json` | none | no | no | no |
+| `ContentRegistry` / `ContentCatalog` / `VisualCatalog` / `AssetManifest` | C | Load bundle, ID lookup, visual ID → texture, client asset sets | Parsed catalog + manifest in memory | `bundle.json`, `visual_map.json`, `asset_manifest.json` | none | no | no | no |
 | `NetworkService` | C | Auth, socket, RPCs, match send/recv, chat join/send, reconnect, transfer join | In-memory Nakama session | `NakamaNetworkBackend` | `AppState`, `MatchProtocol`, `ContentRegistry` | no | yes (send/recv) | no |
 | `NakamaNetworkBackend` | C | Thin Nakama SDK | Client, session, socket, match id | Nakama Godot SDK 3.4.0 | none | no | transport only | no |
 | `SessionCache` / `DevIdentity` | C | Token cache (never passwords); debug identity gate | `user://session_cache.json` tokens only | none | none | tokens only | no | no |
@@ -29,12 +29,16 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `CaveService` | C | Cave-enter/exit intents; transfer overlay after ticket extras | Last approved cave NPC | none | `NetworkService` | no | CAVE_ENTER / CAVE_EXIT | no |
 | `PartyService` | C | Party mirror; create/invite/accept/leave/kick/promote/disband; party chat | In-memory party view, pending invite, chat lines | none | `NetworkService`, `AppState` | no | party RPCs, PARTY_STATE / PARTY_EVENT, `party.<id>` channel | no |
 | `TradeService` | C | Trade mirror; invite/offer/gold/accept/cancel | In-memory trade view | none | `NetworkService`, `AppState` | no | TRADE_* / TRADE_STATE | no grants |
+| `WindowManager` / `HudController` / `UiStateService` | C | Open/close/focus/exclusivity of shell and HUD windows; character/zone restore | Open window ids, UI scale | none | `AppState` | no | no | no |
+| `TooltipService` / `DragDropService` / `NotificationService` | C | Tooltip clamp, drag preview, toast copy | Ephemeral presentation | none | none | no | no | no |
+| `InputSettingsService` / `AudioSettingsService` / `LocalSettingsStore` | C | Rebindable InputMap, volume/window/scale | `user://client_settings.json` | none | `UiStateService` | local settings only | no | no |
+| `VisualSetMath` | C | 4/8-dir frame math from authored sets | none | none | none | no | no | no |
 | `ZoneChat` / `ChatPanel` | C | Room join/leave, history Label | chat lines | none | `NetworkService` | no | chat channel, not match opcode | no |
-| `World` / `ZoneView` / `EntityRegistry` / avatars / `WorldHud` | C | Render zone and HUD (hotbar, cast bar, ground-target preview, status icons, target frame, death overlay, combat indicator, vendor panel, party panel, trade panel, cave objective) | display poses | none | services above | no | INPUT via World | no |
+| `World` / `ZoneView` / `EntityRegistry` / avatars / `WorldHud` | C | Render zone and HUD (hotbar, cast bar, ground-target preview, status icons, target frame, death overlay, combat indicator, vendor/inn/cave/settings panels, party panel, trade panel, cave objective) | display poses | none | services above, `HudController` | no | INPUT via World | no |
 | `MoveIntent` / `MovementSim` / `MovementReconciler` / `SnapshotBuffer` | C | Prediction and interpolation | unacked cmds, buffer | none | `MatchProtocol` | no | INPUT | no |
 | `AttackIntent` / `CombatFeedback` / `InteractIntent` / `PickupIntent` | C | Usability targeting and floating numbers | none | none | `NetworkService` | no | ATTACK / SET_TARGET / INTERACT / PICKUP | no |
 | `NetDebugOverlay` | C | Debug FPS / ping EMA | none | none | none | no | no | no |
-| `ErrorDialog` / `LoadingOverlay` / `ShellPage` | C | Visible errors and overlays | none | none | `AppState` | no | no | no |
+| `ErrorDialog` / `LoadingOverlay` / `ShellPage` | C | Visible errors and overlays | none | none | `AppState`, `WindowManager` | no | no | no |
 | `Boot` / `Login` / `Character` scenes | C | Shell UI | none | none | `GameService` | no | no | no |
 | `SliceJourney` / `SliceSession` / `e2e_slice` | C debug | Headless two-identity journey | test sessions | `NakamaNetworkBackend` | `MatchProtocol` | no | same opcodes as players | no |
 | `protocol.ts` | S | Opcode parse, injection rejection | none | none | none | no | yes (parse) | no |

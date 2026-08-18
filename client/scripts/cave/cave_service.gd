@@ -2,6 +2,9 @@ extends Node
 
 ## Requests cave entry and exit after a server-approved interaction.
 
+signal cave_opened(npc_id: String, mode: String)
+signal cave_closed
+
 var last_npc_id: String = ""
 var last_exit_npc_id: String = ""
 var transferring: bool = false
@@ -20,10 +23,22 @@ func reset() -> void:
 	last_npc_id = ""
 	last_exit_npc_id = ""
 	transferring = false
+	cave_closed.emit()
 
 
 func reset_for_tests() -> void:
 	reset()
+
+
+func open_from_dialogue(mode: String = "enter") -> void:
+	if mode == "exit":
+		if last_exit_npc_id.is_empty():
+			return
+		cave_opened.emit(last_exit_npc_id, "exit")
+		return
+	if last_npc_id.is_empty():
+		return
+	cave_opened.emit(last_npc_id, "enter")
 
 
 func request_enter() -> void:

@@ -83,6 +83,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		release_chat_focus()
 		get_viewport().set_input_as_handled()
 		return
+	if event.is_action_pressed("chat_focus") and not has_input_focus():
+		grab_chat_focus()
+		get_viewport().set_input_as_handled()
+		return
 	if (key.keycode == KEY_ENTER or key.keycode == KEY_KP_ENTER) and not has_input_focus():
 		grab_chat_focus()
 		get_viewport().set_input_as_handled()

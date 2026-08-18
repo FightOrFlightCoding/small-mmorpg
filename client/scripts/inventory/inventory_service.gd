@@ -254,6 +254,8 @@ func _on_local_item_moved(_item: InventoryItem) -> void:
 func _revert_unsupported_mutation() -> void:
 	if _applying:
 		return
+	if DragDropService.active:
+		DragDropService.reject("client_cannot_mutate")
 	call_deferred("_rebuild_mirror")
 
 

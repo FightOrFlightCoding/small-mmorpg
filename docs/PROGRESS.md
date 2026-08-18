@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Secure direct player trading**.
+Last accepted phase: **Complete functional UI, settings, and asset contracts**.
 
 Current phase: none.
 
@@ -591,6 +591,23 @@ powershell -File scripts/test-audit.ps1
 powershell -File scripts/test-server.ps1
 powershell -File scripts/test-client.ps1
 powershell -File scripts/test-e2e.ps1
+```
+
+## Complete functional UI, settings, and asset contracts acceptance (2026-08-18)
+
+The client shell covers registration, login, character list/create/class select, loading/reconnect, the main HUD (health/resources, target, hotbar, cast bar, status effects, stats, attributes, skills, inventory, equipment, journal, dialogue, merchant, inn, party, zone/party chat, trade, cave, death/respawn, settings, logout, errors). `WindowManager`, `HudController`, `TooltipService`, `DragDropService`, `InputSettingsService`, `AudioSettingsService`, `UiStateService`, and `NotificationService` own presentation only. Local settings persist without credentials. Visual/audio sets use stable IDs in `client/content/asset_manifest.json` (4-dir vs 8-dir is `directionCount`). Missing IDs warn, fall back, and do not crash. No final art. Content hash is unchanged.
+
+| Gate | Result |
+| --- | --- |
+| Content | unchanged hash `58134490916197c49e40642465d949fe17350fe7f798edc5857bed947a1ade86` |
+| Audit | `FOUNDATION_AUDIT_OK` (20 storage records, 31 client opcodes, 15 server opcodes, 20 rpcs) |
+| Client GdUnit | 190/190, 0 orphans, `SHELL_LOGIN` |
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-client.ps1
 ```
 
 

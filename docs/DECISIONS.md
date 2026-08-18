@@ -426,3 +426,16 @@ Every offer change increments `revision`, clears both acceptances, revalidates r
 `nk.multiUpdate` writes both inventories, both wallet gold deltas, the completed trade, both character indexes, and two `trade_audit_*` records. The match first persists a `committing` snapshot so a crash retries the same inventories and gold without duplicating. Committing trades are recovered, not cancelled. Duplicate `requestId` and completed-trade replays do not mutate again. Rate limits share the quest window (8 / 10 ticks).
 
 The client `TradeService` and HUD mirror invite, two offer panels, quantities, gold, revision, acceptances, an offer-changed warning, cancel, and completion/error. The client never predicts ownership or gold. Trade invite is not the Party character-name box: the Trade panel has its own name field and Nearby list, and a left-click on another player sends friendly `SET_TARGET`. The Trade panel sits in the left column between Party and Progression so those panels no longer overlap.
+
+Content hash after this phase: `58134490916197c49e40642465d949fe17350fe7f798edc5857bed947a1ade86`.
+
+## 2026-08-18 — Complete functional UI, settings, and asset contracts
+
+The issued Prompt 31 completes the client shell without final art or game writing. Canonical simulation stays on the server. Windows never mutate inventory, combat, quests, gold, or location.
+
+Project-owned autoloads: `WindowManager`, `HudController`, `TooltipService`, `DragDropService`, `InputSettingsService`, `AudioSettingsService`, `UiStateService`, `NotificationService`. Display settings (window mode, resolution, UI scale, text size) live with `AudioSettingsService` / `UiStateService` and persist through `LocalSettingsStore` to `user://client_settings.json`. Forbidden keys include password, email, tokens, and tickets. Headless skips `DisplayServer` window-mode and content-scale writes.
+
+Input rebinding uses the Godot `InputMap` (movement, interact, target, hotbar 1–8, inventory, character, journal, party, chat focus, settings) and restores project defaults. 4-dir vs 8-dir art is `directionCount` on `client/content/asset_manifest.json` visual sets, consumed by `VisualSetMath` and `WorldAvatar`. That file is not hashed into `contentHash`. Missing visual IDs warn, show a magenta/body fallback labeled with the stable ID, and do not crash.
+
+`SAVE_SCHEMA_VERSION` stays **1**. Content hash stays `58134490916197c49e40642465d949fe17350fe7f798edc5857bed947a1ade86`.
+

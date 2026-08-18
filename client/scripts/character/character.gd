@@ -26,6 +26,9 @@ func _ready() -> void:
 	_select_button.pressed.connect(_on_select_pressed)
 	_delete_button.pressed.connect(_on_delete_pressed)
 	_restore_button.pressed.connect(_on_restore_pressed)
+	WindowManager.open(WindowManager.CHARACTER_LIST)
+	WindowManager.open(WindowManager.CHARACTER_CREATE)
+	WindowManager.open(WindowManager.CLASS_SELECT)
 	_continue_button.disabled = true
 	_name_edit.max_length = 16
 	_fill_classes()

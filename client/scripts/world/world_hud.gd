@@ -11,6 +11,7 @@ signal respawn_pressed
 @onready var _combat_state: Label = $Root/Margin/VBox/CombatState
 @onready var _resync: Button = $Root/Margin/VBox/Buttons/ResyncButton
 @onready var _logout: Button = $Root/Margin/VBox/Buttons/LogoutButton
+@onready var _settings_button: Button = $Root/Margin/VBox/Buttons/SettingsButton
 @onready var _journal_body: Label = $Root/Journal/Margin/VBox/Body
 @onready var _death: Label = $Root/Death
 @onready var _respawn_button: Button = $Root/RespawnButton
@@ -63,6 +64,10 @@ var _unlock_row_fingerprint: String = ""
 var _vendor_panel: PanelContainer
 var _vendor_list: ItemList
 var _vendor_stock: Array = []
+var _inn_panel: PanelContainer
+var _cave_panel: PanelContainer
+var _settings_panel: PanelContainer
+var _settings_rebind_host: VBoxContainer
 var _trade_panel: PanelContainer
 var _trade_status: Label
 var _trade_mine: ItemList
@@ -82,6 +87,8 @@ var _last_player_target_id: String = ""
 func _ready() -> void:
 	_resync.pressed.connect(func() -> void: resync_pressed.emit())
 	_logout.pressed.connect(func() -> void: logout_pressed.emit())
+	if _settings_button != null:
+		_settings_button.pressed.connect(_on_settings_pressed)
 	if _respawn_button != null:
 		_respawn_button.pressed.connect(func() -> void: respawn_pressed.emit())
 	refresh_journal(QuestService.journal_view())
@@ -116,10 +123,21 @@ func _ready() -> void:
 	_bind_hotbar()
 	refresh_abilities()
 	_build_vendor_panel()
+	_build_inn_panel()
+	_build_cave_panel()
+	ensure_settings_panel()
 	if not VendorService.vendor_opened.is_connected(_on_vendor_opened):
 		VendorService.vendor_opened.connect(_on_vendor_opened)
 	if not VendorService.vendor_closed.is_connected(_hide_vendor):
 		VendorService.vendor_closed.connect(_hide_vendor)
+	if not InnService.inn_opened.is_connected(_on_inn_opened):
+		InnService.inn_opened.connect(_on_inn_opened)
+	if not InnService.inn_closed.is_connected(_hide_inn):
+		InnService.inn_closed.connect(_hide_inn)
+	if not CaveService.cave_opened.is_connected(_on_cave_opened):
+		CaveService.cave_opened.connect(_on_cave_opened)
+	if not CaveService.cave_closed.is_connected(_hide_cave):
+		CaveService.cave_closed.connect(_hide_cave)
 	_bind_party_panel()
 	refresh_party()
 	_build_trade_panel()
@@ -443,10 +461,24 @@ func _bind_hotbar() -> void:
 		var button := _hotbar.get_child(i)
 		if button is Button and not (button as Button).pressed.is_connected(_on_hotbar_pressed):
 			(button as Button).pressed.connect(_on_hotbar_pressed.bind(i))
+			if not (button as Button).mouse_entered.is_connected(_on_hotbar_hover):
+				(button as Button).mouse_entered.connect(_on_hotbar_hover.bind(i))
+				(button as Button).mouse_exited.connect(func() -> void: TooltipService.hide_tooltip())
 
 
 func _on_hotbar_pressed(slot_index: int) -> void:
 	AbilityService.try_hotbar(slot_index)
+
+
+func _on_hotbar_hover(slot_index: int) -> void:
+	var ability_id := ""
+	if slot_index < AbilityService.hotbar.size():
+		ability_id = String(AbilityService.hotbar[slot_index])
+	if ability_id.is_empty():
+		TooltipService.show_tooltip("Hotbar %s" % str(slot_index + 1))
+		return
+	var definition := AbilityService.ability_definition(ability_id)
+	TooltipService.show_tooltip(String(definition.get("displayName", ability_id)))
 
 
 func _refresh_hotbar() -> void:
@@ -870,11 +902,13 @@ func _on_vendor_opened(_npc_id: String, vendor_id: String) -> void:
 			_vendor_list.add_item("%s — %sg" % [label, str(int(entry.get("buyPrice", 0)))])
 	if _vendor_panel != null:
 		_vendor_panel.visible = true
+	WindowManager.open(WindowManager.VENDOR)
 
 
 func _hide_vendor() -> void:
 	if _vendor_panel != null:
 		_vendor_panel.visible = false
+	WindowManager.close(WindowManager.VENDOR)
 
 
 func _on_vendor_buy() -> void:
@@ -1356,5 +1390,267 @@ func _on_party_chat_send() -> void:
 	var text := _party_chat_input.text
 	_party_chat_input.clear()
 	await PartyService.send_chat(text)
+
+
+func set_panel_visible(window_id: String, visible: bool) -> void:
+	var node := _panel_node(window_id)
+	if node != null:
+		node.visible = visible
+
+
+func ensure_settings_panel() -> void:
+	if _settings_panel != null:
+		_refresh_settings_panel()
+		return
+	_settings_panel = PanelContainer.new()
+	_settings_panel.name = "SettingsPanel"
+	_settings_panel.visible = false
+	_settings_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_settings_panel.offset_left = -220.0
+	_settings_panel.offset_top = -240.0
+	_settings_panel.offset_right = 220.0
+	_settings_panel.offset_bottom = 240.0
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 10)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_right", 10)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	_settings_panel.add_child(margin)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	margin.add_child(scroll)
+	var vbox := VBoxContainer.new()
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(vbox)
+	var title := Label.new()
+	title.text = "Settings"
+	vbox.add_child(title)
+	vbox.add_child(_labeled_slider("Master", AudioSettingsService.master_volume, func(v: float) -> void: AudioSettingsService.set_master_volume(v)))
+	vbox.add_child(_labeled_slider("Music", AudioSettingsService.music_volume, func(v: float) -> void: AudioSettingsService.set_music_volume(v)))
+	vbox.add_child(_labeled_slider("Effects", AudioSettingsService.effects_volume, func(v: float) -> void: AudioSettingsService.set_effects_volume(v)))
+	var mute := CheckBox.new()
+	mute.text = "Mute"
+	mute.button_pressed = AudioSettingsService.muted
+	mute.toggled.connect(func(on: bool) -> void: AudioSettingsService.set_muted(on))
+	vbox.add_child(mute)
+	var mode := OptionButton.new()
+	mode.add_item("Windowed")
+	mode.add_item("Fullscreen")
+	mode.select(1 if AudioSettingsService.window_mode == "fullscreen" else 0)
+	mode.item_selected.connect(func(index: int) -> void: AudioSettingsService.set_window_mode("fullscreen" if index == 1 else "windowed"))
+	vbox.add_child(mode)
+	var resolution := OptionButton.new()
+	resolution.add_item("1280 x 720")
+	resolution.add_item("1920 x 1080")
+	resolution.select(1 if AudioSettingsService.resolution.x >= 1920 else 0)
+	resolution.item_selected.connect(func(index: int) -> void:
+		AudioSettingsService.set_resolution(Vector2i(1920, 1080) if index == 1 else Vector2i(1280, 720))
+	)
+	vbox.add_child(resolution)
+	vbox.add_child(_labeled_slider("UI scale", (UiStateService.ui_scale - 0.75) / 0.75, func(v: float) -> void: UiStateService.set_ui_scale(0.75 + v * 0.75)))
+	var text_size := OptionButton.new()
+	text_size.add_item("Text 12")
+	text_size.add_item("Text 16")
+	text_size.add_item("Text 22")
+	text_size.select(0 if UiStateService.text_size <= 12 else (2 if UiStateService.text_size >= 22 else 1))
+	text_size.item_selected.connect(func(index: int) -> void:
+		UiStateService.set_text_size(12 if index == 0 else (22 if index == 2 else 16))
+	)
+	vbox.add_child(text_size)
+	_settings_rebind_host = VBoxContainer.new()
+	vbox.add_child(_settings_rebind_host)
+	var defaults := Button.new()
+	defaults.text = "Restore defaults"
+	defaults.pressed.connect(func() -> void:
+		InputSettingsService.restore_defaults()
+		AudioSettingsService.restore_defaults()
+		_refresh_settings_panel()
+	)
+	vbox.add_child(defaults)
+	var close := Button.new()
+	close.text = "Close"
+	close.pressed.connect(func() -> void:
+		WindowManager.close(WindowManager.SETTINGS)
+		HudController.sync_windows()
+	)
+	vbox.add_child(close)
+	add_child(_settings_panel)
+	if not InputSettingsService.bindings_changed.is_connected(_refresh_settings_panel):
+		InputSettingsService.bindings_changed.connect(_refresh_settings_panel)
+	_refresh_settings_panel()
+
+
+func _on_settings_pressed() -> void:
+	ensure_settings_panel()
+	HudController.toggle_panel(WindowManager.SETTINGS)
+	if _settings_panel != null:
+		_settings_panel.visible = WindowManager.is_open(WindowManager.SETTINGS)
+
+
+func _labeled_slider(label_text: String, value: float, setter: Callable) -> Control:
+	var row := VBoxContainer.new()
+	var label := Label.new()
+	label.text = label_text
+	row.add_child(label)
+	var slider := HSlider.new()
+	slider.min_value = 0.0
+	slider.max_value = 1.0
+	slider.step = 0.05
+	slider.value = clampf(value, 0.0, 1.0)
+	slider.value_changed.connect(func(v: float) -> void: setter.call(v))
+	row.add_child(slider)
+	return row
+
+
+func _refresh_settings_panel() -> void:
+	if _settings_rebind_host == null:
+		return
+	for child in _settings_rebind_host.get_children():
+		child.queue_free()
+	for action in InputSettingsService.bindable_actions():
+		var row := HBoxContainer.new()
+		var label := Label.new()
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.text = "%s: %s" % [action, _binding_label(action)]
+		row.add_child(label)
+		var button := Button.new()
+		button.text = "Rebind"
+		button.pressed.connect(_on_rebind_pressed.bind(action))
+		row.add_child(button)
+		_settings_rebind_host.add_child(row)
+
+
+func _on_rebind_pressed(action: String) -> void:
+	InputSettingsService.start_rebind(action)
+
+
+func _binding_label(action: String) -> String:
+	if not InputMap.has_action(action):
+		return "unbound"
+	var events := InputMap.action_get_events(action)
+	if events.is_empty():
+		return "unbound"
+	var event: InputEvent = events[0]
+	if event is InputEventKey:
+		return OS.get_keycode_string((event as InputEventKey).physical_keycode)
+	return event.as_text()
+
+
+func _panel_node(window_id: String) -> Control:
+	match window_id:
+		WindowManager.INVENTORY, WindowManager.EQUIPMENT:
+			return get_node_or_null("Root/Inventory")
+		WindowManager.CHARACTER, WindowManager.ATTRIBUTES, WindowManager.SKILLS:
+			return get_node_or_null("Root/LeftColumn/Progression")
+		WindowManager.QUEST_JOURNAL:
+			return get_node_or_null("Root/Journal")
+		WindowManager.PARTY, WindowManager.PARTY_CHAT:
+			return get_node_or_null("Root/LeftColumn/Party")
+		WindowManager.TRADE:
+			return _trade_panel
+		WindowManager.SETTINGS:
+			return _settings_panel
+		WindowManager.VENDOR:
+			return _vendor_panel
+		WindowManager.INN:
+			return _inn_panel
+		WindowManager.CAVE:
+			return _cave_panel
+		_:
+			return null
+
+
+func _build_inn_panel() -> void:
+	_inn_panel = PanelContainer.new()
+	_inn_panel.name = "InnPanel"
+	_inn_panel.visible = false
+	_inn_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_inn_panel.offset_left = -140.0
+	_inn_panel.offset_top = -140.0
+	_inn_panel.offset_right = 140.0
+	_inn_panel.offset_bottom = -16.0
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	_inn_panel.add_child(margin)
+	var vbox := VBoxContainer.new()
+	margin.add_child(vbox)
+	var title := Label.new()
+	title.text = "Inn"
+	vbox.add_child(title)
+	var rest := Button.new()
+	rest.text = "Rest"
+	rest.pressed.connect(func() -> void: InnService.request_rest())
+	vbox.add_child(rest)
+	var heal := Button.new()
+	heal.text = "Heal"
+	heal.pressed.connect(func() -> void: InnService.request_heal())
+	vbox.add_child(heal)
+	var close := Button.new()
+	close.text = "Close"
+	close.pressed.connect(_hide_inn)
+	vbox.add_child(close)
+	add_child(_inn_panel)
+
+
+func _on_inn_opened(_npc_id: String) -> void:
+	if _inn_panel != null:
+		_inn_panel.visible = true
+	WindowManager.open(WindowManager.INN)
+
+
+func _hide_inn() -> void:
+	if _inn_panel != null:
+		_inn_panel.visible = false
+	WindowManager.close(WindowManager.INN)
+
+
+func _build_cave_panel() -> void:
+	_cave_panel = PanelContainer.new()
+	_cave_panel.name = "CavePanel"
+	_cave_panel.visible = false
+	_cave_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_cave_panel.offset_left = -160.0
+	_cave_panel.offset_top = -140.0
+	_cave_panel.offset_right = 160.0
+	_cave_panel.offset_bottom = -16.0
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	_cave_panel.add_child(margin)
+	var vbox := VBoxContainer.new()
+	margin.add_child(vbox)
+	var title := Label.new()
+	title.text = "Cave"
+	vbox.add_child(title)
+	var enter := Button.new()
+	enter.text = "Enter"
+	enter.pressed.connect(func() -> void: CaveService.request_enter())
+	vbox.add_child(enter)
+	var leave := Button.new()
+	leave.text = "Exit"
+	leave.pressed.connect(func() -> void: CaveService.request_exit())
+	vbox.add_child(leave)
+	var close := Button.new()
+	close.text = "Close"
+	close.pressed.connect(_hide_cave)
+	vbox.add_child(close)
+	add_child(_cave_panel)
+
+
+func _on_cave_opened(_npc_id: String, _mode: String) -> void:
+	if _cave_panel != null:
+		_cave_panel.visible = true
+	WindowManager.open(WindowManager.CAVE)
+
+
+func _hide_cave() -> void:
+	if _cave_panel != null:
+		_cave_panel.visible = false
+	WindowManager.close(WindowManager.CAVE)
 
 

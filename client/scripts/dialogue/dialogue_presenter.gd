@@ -69,9 +69,11 @@ func open_for_npc(npc_id: String, dialogue_id: String = "") -> bool:
 		[QuestService, ProgressionService, VendorService, InnService, CaveService]
 	)
 	dialogue_opened.emit(npc_id)
+	WindowManager.open(WindowManager.DIALOGUE)
 	return true
 
 
 func _on_dialogue_ended(_resource: DialogueResource) -> void:
 	_balloon = null
+	WindowManager.close(WindowManager.DIALOGUE)
 	dialogue_closed.emit()

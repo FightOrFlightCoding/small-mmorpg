@@ -2,6 +2,9 @@ extends Node
 
 ## Sends inn rest/heal/bind intentions. Outcomes stay server-authoritative.
 
+signal inn_opened(npc_id: String)
+signal inn_closed
+
 var last_npc_id: String = ""
 
 
@@ -14,10 +17,17 @@ func _ready() -> void:
 
 func reset() -> void:
 	last_npc_id = ""
+	inn_closed.emit()
 
 
 func reset_for_tests() -> void:
 	reset()
+
+
+func open_from_dialogue() -> void:
+	if last_npc_id.is_empty():
+		return
+	inn_opened.emit(last_npc_id)
 
 
 func request_rest() -> void:

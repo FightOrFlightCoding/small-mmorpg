@@ -9,6 +9,7 @@ var kind: String = ""
 var is_local: bool = false
 var used_fallback: bool = false
 var visual_id: String = ""
+var direction_count: int = 4
 var interpolating: bool:
 	get:
 		return _interpolating
@@ -23,6 +24,11 @@ var _max_health: int = 1
 var _alive: bool = true
 var _health_back: ColorRect
 var _health_fill: ColorRect
+var _visual_set: Dictionary = {}
+var _facing: Vector2 = Vector2(0, 1)
+var _anim_name: String = "idle"
+var _anim_elapsed: float = 0.0
+var _use_frames: bool = false
 
 @onready var _sprite: Sprite2D = $Sprite
 @onready var _body: Polygon2D = $Body
@@ -37,6 +43,11 @@ func configure(p_kind: String, p_server_id: String, p_name: String, visual: Dict
 	is_local = p_local
 	visual_id = String(visual.get("visual_id", ""))
 	used_fallback = bool(visual.get("missing", true))
+	_visual_set = visual.get("visual_set", {}) if typeof(visual.get("visual_set", {})) == TYPE_DICTIONARY else {}
+	direction_count = VisualSetMath.normalize_direction_count(int(visual.get("direction_count", _visual_set.get("directionCount", 4))))
+	_use_frames = bool(_visual_set.get("useFrames", false))
+	_anim_elapsed = 0.0
+	_anim_name = "idle"
 	if _body == null:
 		_body = $Body
 	if _sprite == null:
@@ -50,6 +61,11 @@ func configure(p_kind: String, p_server_id: String, p_name: String, visual: Dict
 		_body.color = _tint_for_player(p_name, p_local)
 	_label.text = p_name
 	_fallback_label.visible = used_fallback
+	if used_fallback:
+		var missing_id := String(visual.get("missing_id", visual_id))
+		if missing_id.is_empty():
+			missing_id = String(_visual_set.get("id", "MISSING"))
+		_fallback_label.text = missing_id
 	if p_local:
 		_label.text = "%s (you)" % p_name
 	modulate = Color.WHITE
@@ -69,6 +85,21 @@ func set_vitals(health: int, max_health: int, alive: bool) -> void:
 		modulate = Color.WHITE
 	else:
 		modulate = Color(0.45, 0.45, 0.5, 0.7)
+
+
+func set_move_vector(vector: Vector2) -> void:
+	if vector.length_squared() > 0.0001:
+		_facing = vector
+		_anim_name = "walk"
+	else:
+		_anim_name = "idle"
+
+
+func _process(delta: float) -> void:
+	if not _use_frames or _sprite == null or not _sprite.visible or _sprite.texture == null:
+		return
+	_anim_elapsed += delta
+	_apply_frame()
 
 
 func set_server_position(x: float, y: float) -> void:
@@ -118,6 +149,31 @@ func _apply_visual(visual: Dictionary) -> void:
 	_sprite.texture = texture
 	_sprite.visible = true
 	_body.visible = false
+	_apply_frame()
+
+
+func _apply_frame() -> void:
+	if not _use_frames or _sprite == null or _sprite.texture == null:
+		return
+	var frame_size: Variant = _visual_set.get("frameSize", [24, 24])
+	if typeof(frame_size) != TYPE_ARRAY or (frame_size as Array).size() < 2:
+		return
+	var frame_w := int((frame_size as Array)[0])
+	var frame_h := int((frame_size as Array)[1])
+	if frame_w <= 0 or frame_h <= 0:
+		return
+	if _sprite.texture.get_width() < frame_w * 2 and _sprite.texture.get_height() < frame_h * 2:
+		return
+	var animations: Variant = _visual_set.get("animations", {})
+	var anim: Dictionary = {}
+	if typeof(animations) == TYPE_DICTIONARY and (animations as Dictionary).has(_anim_name):
+		var row: Variant = (animations as Dictionary)[_anim_name]
+		if typeof(row) == TYPE_DICTIONARY:
+			anim = row
+	var frame := VisualSetMath.frame_index(anim, _anim_elapsed)
+	var dir := VisualSetMath.direction_index(_facing, direction_count)
+	_sprite.region_enabled = true
+	_sprite.region_rect = Rect2(frame * frame_w, dir * frame_h, frame_w, frame_h)
 
 
 func _z_for_kind(p_kind: String, p_local: bool) -> int:
