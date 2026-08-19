@@ -106,14 +106,14 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `account_compat.live.test.ts` | Live Nakama 3.40.0 proofs; skipped unless `ACCT_COMPAT_LIVE=1` | |
 | `gateway_assertion.test.ts` | HTTP-key vs session distinction; assertion tamper/replay/skew | |
 | `auth_challenge.test.ts` | Hash-only challenges; single-use; idempotent consume; expiry; attempt lock | |
-| `auth_gateway_rpc.test.ts` | Session reject; missing assertion; signed HTTP-key ping | |
+| `auth_gateway_rpc.test.ts` | Session reject; missing assertion; signed HTTP-key ping; `support_snapshot` never returns email | |
 | `auth_gateway.live.test.ts` | Live HTTP-key ping and session `gateway_rpc_forbidden` as HTTP 200 JSON without `stackTrace`; skipped unless `ACCT_GATEWAY_LIVE=1` | |
 
 ## Auth gateway (`auth-gateway/tests`)
 
 | File | Coverage |
 | --- | --- |
-| `gateway.test.ts` | Health/ready, missing production config, oversized/invalid JSON, request ids, redaction, rate limits, register/verify, duplicate/concurrent register, legal/password validation, unverified/disabled/deleting login, refresh/logout/logout-all, CLOSED/INVITE_ONLY, unverified cleanup, email failure without deleting the account, reset non-enumeration, challenge expiry, hosted pages, idempotency |
+| `gateway.test.ts` | Health/ready, missing production config, oversized/invalid JSON, request ids, redaction, rate limits, register/verify, duplicate/concurrent register, legal/password validation, unverified/disabled/deleting login, refresh/logout/logout-all, CLOSED/INVITE_ONLY, unverified cleanup, email failure without deleting the account, reset non-enumeration and uniform timing, reset success/expiry/wrong-code/lock/replay, session revocation without auto-login, password change, email-change success/duplicate/expiry/rollback, forgotten-email help, admin-only support lookup |
 | `email.test.ts` | Memory success/failure; SendGrid 202 vs HTTP error |
 | `assertion.test.ts` | Signed RPC envelope |
 
@@ -126,9 +126,9 @@ Reproduction: `powershell -File scripts/test-auth-gateway.ps1`
 | `compatibility/compatibility_test.gd` | addons load | |
 | `content_registry_test.gd` | catalog IDs, hash | VS-T8 |
 | `error_state_test.gd` | visible errors, no hang | VS-M4 |
-| `scene_router_test.gd` / `shell_scenes_test.gd` | boot/login/register/verify/unavailable/disabled/character/world | VS-T8 |
-| `auth_flow_test.gd` | gateway email register/login/verify routing, invalid credentials, session refresh, logout/logout-all, unverified gameplay reject, release-gated device auth, tickets | VS-M4 |
-| `account_service_test.gd` | error mapping, RPC stack sanitization, password strength, credential store unavailable, remember-email, revoked refresh does not loop, failed logout-all keeps the session | |
+| `scene_router_test.gd` / `shell_scenes_test.gd` | boot/login/register/verify/unavailable/disabled/forgot-password/reset/change-password/change-email/forgot-email/character/world | VS-T8 |
+| `auth_flow_test.gd` | gateway email register/login/verify routing, invalid credentials, session refresh, logout/logout-all, unverified gameplay reject, release-gated device auth, tickets, password reset without auto-login, password change, email change | VS-M4 |
+| `account_service_test.gd` | error mapping, RPC stack sanitization, password strength, credential store unavailable, remember-email, revoked refresh does not loop, failed logout-all keeps the session, reset confirm has no tokens, forgotten-email reveals no address, canonical change-password/email paths | |
 | `dev_identity_test.gd` | Alice/Bob ids | |
 | `protocol_test.gd` | client opcodes match | VS-T9 |
 | `zone_join_test.gd` | world after FULL_STATE | |

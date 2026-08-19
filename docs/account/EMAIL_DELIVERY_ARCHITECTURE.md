@@ -23,10 +23,12 @@ Every template is plain text plus minimal HTML. None include passwords, access t
 | `templateId` | Use |
 | --- | --- |
 | `verify_email` | Registration / resend |
-| `password_reset` | Recovery request |
-| `password_changed` | After a successful reset |
-| `email_change_confirmation` | Confirm the new address |
+| `password_reset` | Recovery request; HTTPS link, enterable code, expiry, ignore-this-message, support contact |
+| `password_changed` | After a successful reset or logged-in password change |
+| `email_change_confirmation` | Confirm the new address; code + link; ignore-this-message |
 | `email_change_old_notice` | Notify the previous address (no code) |
+| `email_changed_old` | After commit: old address is no longer the sign-in email |
+| `email_changed_new` | After commit: sign in with the new address |
 | `account_deletion_confirmation` | Confirm deletion |
 | `account_deleted` | After recorded delete |
 | `email_verified` | After successful verification |
@@ -38,7 +40,7 @@ Bodies include expiry time and a support address. Codes are grouped base32 (`XXX
 
 A Nakama account is created before verification mail is sent. If the provider fails, the gateway still returns `{ ok: true, verification_required: true }` and logs `email_send_failed` with request id and template only. It does not delete the account or write a dummy success challenge. Resend is generic whether or not the address exists.
 
-Password-reset and resend responses are identical for unknown and known addresses.
+Password-reset and resend responses are identical for unknown and known addresses. Provider failure after a reset request does not change that generic success. Confirm links on reset and email-change mail use `https://` in staging/production (`AUTH_GATEWAY_PUBLIC_BASE_URL`).
 
 ## Local inspection
 
@@ -51,4 +53,4 @@ Do not put production SendGrid keys in Compose files or git.
 
 ## Logging
 
-Logs may include `request_id`, `template`, and `purpose`. They must not include passwords, tokens, raw challenge codes, or full email bodies.
+Logs may include `request_id`, `template`, `purpose`, `query_kind`, and `query_hash`. They must not include passwords, tokens, raw challenge codes, support keys, or full email bodies.

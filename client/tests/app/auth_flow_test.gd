@@ -170,6 +170,7 @@ func test_login_hint_wraps_and_offers_named_identities() -> void:
 	assert_str(page.get_node("Center/VBox/BobButton").text).is_equal("Sign in as Bob")
 	assert_str(page.get_node("Center/VBox/LoginButton").text).is_equal("Log in")
 	assert_str(page.get_node("Center/VBox/RegisterButton").text).is_equal("Register")
+	assert_str(page.get_node("Center/VBox/ForgotEmailButton").text).is_equal("Forgot which email you used?")
 	assert_bool(String(page.get_node("Center/VBox/ServerHint").text).contains("127.0.0.1:7350")).is_true()
 	assert_bool(NetworkService.last_auth_attempted).is_false()
 
@@ -416,3 +417,69 @@ func test_register_checkboxes_are_not_preselected() -> void:
 	assert_bool(page.get_node("Center/VBox/TermsCheck").button_pressed).is_false()
 	assert_bool(page.get_node("Center/VBox/PrivacyCheck").button_pressed).is_false()
 	assert_bool(AccountService.stay_signed_in_available()).is_false()
+
+
+func test_password_reset_request_is_generic() -> void:
+	assert_bool(GameService.start_boot()).is_true()
+	await GameService.request_password_reset("anyone@example.com")
+	assert_int(_account().reset_calls).is_equal(1)
+	assert_str(SceneRouter.current_scene_id).is_equal(SceneRouter.SCENE_LOGIN)
+
+
+func test_logged_in_password_change_returns_to_password_changed() -> void:
+	_fake()
+	assert_bool(GameService.start_boot()).is_true()
+	await GameService.request_login_email("alice@example.com", "secret-pass-15x")
+	assert_bool(AppState.is_authenticated).is_true()
+	await GameService.request_change_password("secret-pass-15x", "correct horse staple", "correct horse staple")
+	assert_int(_account().password_change_calls).is_equal(1)
+	assert_str(SceneRouter.current_scene_id).is_equal(SceneRouter.SCENE_PASSWORD_CHANGED)
+	assert_bool(AppState.is_authenticated).is_false()
+
+
+func test_incorrect_current_password_stays_authenticated() -> void:
+	_fake()
+	assert_bool(GameService.start_boot()).is_true()
+	await GameService.request_login_email("alice@example.com", "secret-pass-15x")
+	await GameService.request_change_password("wrong-password-15x", "correct horse staple", "correct horse staple")
+	assert_bool(AppState.is_authenticated).is_true()
+	assert_str(AccountService.last_code).is_equal("AUTH_INVALID_CREDENTIALS")
+
+
+func test_password_reset_confirm_does_not_auto_login() -> void:
+	var fake := _fake()
+	assert_bool(GameService.start_boot()).is_true()
+	AccountService.pending_reset_email = "anyone@example.com"
+	await GameService.confirm_password_reset("AAAA-BBBB-CCCC-DDDD", "correct horse staple", "correct horse staple")
+	assert_int(_account().reset_confirm_calls).is_equal(1)
+	assert_bool(AppState.is_authenticated).is_false()
+	assert_int(fake.import_calls).is_equal(0)
+	assert_str(AccountService.access_token).is_equal("")
+	assert_str(SceneRouter.current_scene_id).is_equal(SceneRouter.SCENE_PASSWORD_CHANGED)
+
+
+func test_email_change_request_and_confirm() -> void:
+	_fake()
+	assert_bool(GameService.start_boot()).is_true()
+	await GameService.request_login_email("alice@example.com", "secret-pass-15x")
+	await GameService.request_email_change("secret-pass-15x", "new@example.com")
+	assert_int(_account().email_change_request_calls).is_equal(1)
+	assert_bool(AppState.is_authenticated).is_true()
+	assert_str(SceneRouter.current_scene_id).is_equal(SceneRouter.SCENE_EMAIL_CHANGE_VERIFY)
+	await GameService.confirm_email_change("AAAA-BBBB-CCCC-DDDD")
+	assert_int(_account().email_change_confirm_calls).is_equal(1)
+	assert_bool(AppState.is_authenticated).is_false()
+	assert_str(AccountService.access_token).is_equal("")
+	assert_str(SceneRouter.current_scene_id).is_equal(SceneRouter.SCENE_EMAIL_CHANGE_VERIFY)
+
+
+func test_duplicate_email_change_stays_authenticated() -> void:
+	_fake()
+	assert_bool(GameService.start_boot()).is_true()
+	await GameService.request_login_email("alice@example.com", "secret-pass-15x")
+	_account().email_change_ok = false
+	await GameService.request_email_change("secret-pass-15x", "taken@example.com")
+	assert_bool(AppState.is_authenticated).is_true()
+	assert_str(AccountService.last_code).is_equal("AUTH_EMAIL_TAKEN")
+	assert_str(SceneRouter.current_scene_id).is_equal(SceneRouter.SCENE_CHARACTER)
+

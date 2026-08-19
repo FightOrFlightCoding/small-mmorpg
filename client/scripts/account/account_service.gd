@@ -23,6 +23,10 @@ var user_id: String = ""
 var username: String = ""
 var account_status: String = ""
 var pending_email: String = ""
+var pending_reset_email: String = ""
+var pending_reset_code: String = ""
+var pending_email_change: String = ""
+var pending_email_change_password: String = ""
 var last_code: String = ""
 var last_message: String = ""
 var last_field_errors: Dictionary = {}
@@ -56,6 +60,10 @@ func reset_for_tests() -> void:
 	last_message = ""
 	last_field_errors = {}
 	pending_email = ""
+	pending_reset_email = ""
+	pending_reset_code = ""
+	pending_email_change = ""
+	pending_email_change_password = ""
 	credential_store = CredentialStore.new()
 	_http_busy = false
 	_refresh_in_progress = false
@@ -160,8 +168,88 @@ func request_verification(email: String = "") -> Dictionary:
 
 func request_password_reset(email: String) -> Dictionary:
 	_clear_last_error()
-	var body := {"email": email.strip_edges(), "client_version": CLIENT_VERSION}
-	return await _request("POST", "/v1/auth/password-reset/request", body, "")
+	pending_reset_email = email.strip_edges()
+	var body := {"email": pending_reset_email, "client_version": CLIENT_VERSION}
+	return await _request("POST", "/v1/auth/password/reset/request", body, "")
+
+
+func confirm_password_reset(code: String, new_password: String, confirm: String) -> Dictionary:
+	_clear_last_error()
+	if new_password != confirm:
+		return _fail("password_mismatch", AccountErrors.message_for("password_mismatch"))
+	var key := _idempotency_key()
+	var body := {
+		"email": pending_reset_email,
+		"reset_challenge": code.strip_edges(),
+		"new_password": new_password,
+		"new_password_confirmation": confirm,
+		"client_version": CLIENT_VERSION,
+		"idempotency_key": key,
+	}
+	var result := await _request("POST", "/v1/auth/password/reset/confirm", body, "", key)
+	if bool(result.get("ok", false)):
+		pending_reset_code = ""
+		_clear_session()
+		_stop_refresh_timer()
+	return result
+
+
+func change_password(current_password: String, new_password: String, confirm: String) -> Dictionary:
+	_clear_last_error()
+	if access_token.is_empty():
+		return _fail("AUTH_FORBIDDEN", AccountErrors.message_for("AUTH_FORBIDDEN"))
+	if new_password != confirm:
+		return _fail("password_mismatch", AccountErrors.message_for("password_mismatch"))
+	var key := _idempotency_key()
+	var body := {
+		"current_password": current_password,
+		"new_password": new_password,
+		"new_password_confirmation": confirm,
+		"client_version": CLIENT_VERSION,
+		"idempotency_key": key,
+	}
+	var result := await _request("POST", "/v1/account/password/change", body, access_token, key)
+	if bool(result.get("ok", false)):
+		_clear_session()
+		_stop_refresh_timer()
+	return result
+
+
+func request_email_change(current_password: String, new_email: String) -> Dictionary:
+	_clear_last_error()
+	if access_token.is_empty():
+		return _fail("AUTH_FORBIDDEN", AccountErrors.message_for("AUTH_FORBIDDEN"))
+	var key := _idempotency_key()
+	var body := {
+		"current_password": current_password,
+		"new_email": new_email.strip_edges(),
+		"client_version": CLIENT_VERSION,
+		"idempotency_key": key,
+	}
+	var result := await _request("POST", "/v1/account/email/change/request", body, access_token, key)
+	if bool(result.get("ok", false)):
+		pending_email_change = new_email.strip_edges()
+		pending_email_change_password = current_password
+	return result
+
+
+func confirm_email_change(code: String) -> Dictionary:
+	_clear_last_error()
+	var key := _idempotency_key()
+	var body := {
+		"new_email": pending_email_change,
+		"email_change_challenge": code.strip_edges(),
+		"password": pending_email_change_password,
+		"client_version": CLIENT_VERSION,
+		"idempotency_key": key,
+	}
+	var result := await _request("POST", "/v1/account/email/change/confirm", body, "", key)
+	if bool(result.get("ok", false)):
+		pending_email = pending_email_change
+		pending_email_change_password = ""
+		_clear_session()
+		_stop_refresh_timer()
+	return result
 
 
 func refresh_session() -> Dictionary:

@@ -26,6 +26,11 @@ Gateway registration policy is independent of Nakama `VIBECODE_REGISTRATION` but
 | `AUTH_TERMS_VERSION` / `AUTH_PRIVACY_VERSION` | Required accepted document versions |
 | `AUTH_MIN_CLIENT_VERSION` / `AUTH_MAX_CLIENT_VERSION` | Gateway client-version gate (currently `1.0.0`) |
 | `AUTH_VERIFICATION_TTL_MS` | Verification challenge TTL (default 30 minutes) |
+| `AUTH_PASSWORD_RESET_TTL_MS` | Password-reset challenge TTL (default 15 minutes) |
+| `AUTH_EMAIL_CHANGE_TTL_MS` | Email-change challenge TTL (default 15 minutes) |
+| `AUTH_SENSITIVE_RECENT_MS` | Recent JWT `iat` window for password/email change (default 15 minutes) |
+| `AUTH_RESET_UNIFORM_MS` | Reset-request timing pad (default 150; automated_test 0) |
+| `AUTH_SUPPORT_LOOKUP_SECRET` | Administrator support-lookup key. Staging/production refuse `not-production` and short secrets |
 | `AUTH_UNVERIFIED_RETENTION_MS` | Unverified purge retention (default seven days) |
 | `AUTH_LOGOUT_ALL_RECENT_MS` | Skip password on logout-all when JWT `iat` is this recent (default five minutes) |
 

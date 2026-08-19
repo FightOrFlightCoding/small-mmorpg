@@ -27,21 +27,34 @@ function fakeNk(): nkruntime.Nakama {
   } as unknown as nkruntime.Nakama;
 }
 
-function signedPing(nowMs: number): string {
-  const body = { op: "ping" };
+function signedBody(body: { [key: string]: unknown }, nowMs: number): string {
   const payloadJson = JSON.stringify(body);
+  const operation = typeof body.op === "string" ? body.op : "ping";
   const unsigned = {
-    request_id: "req-ping",
+    request_id: "req-" + operation,
     timestamp: nowMs,
     nonce: randomBytes(16).toString("hex"),
-    operation: "ping",
+    operation: operation,
     payload_hash: canonicalPayloadHash(payloadJson),
   };
   const assertion = {
     ...unsigned,
     signature: signGatewayAssertion(SECRET, unsigned),
   };
-  return JSON.stringify({ assertion: assertion, op: "ping" });
+  return JSON.stringify({ assertion: assertion, ...body });
+}
+
+function signedPing(nowMs: number): string {
+  return signedBody({ op: "ping" }, nowMs);
+}
+
+function httpCtx(): nkruntime.Context {
+  return {
+    env: { VIBECODE_GATEWAY_HMAC_SECRET: SECRET },
+    executionMode: "rpc",
+    node: "local",
+    version: "3.40.0",
+  } as nkruntime.Context;
 }
 
 test("auth_gateway rejects ordinary session invocation", () => {
@@ -101,4 +114,29 @@ test("auth_gateway accepts HTTP-key ping with a valid assertion", () => {
 test("payload hash helper matches Node SHA-256", () => {
   const payload = JSON.stringify({ op: "ping" });
   assert.equal(canonicalPayloadHash(payload), createHash("sha256").update(payload, "utf8").digest("hex"));
+});
+
+test("support_snapshot never returns an email address", () => {
+  const nk = {
+    ...fakeNk(),
+    accountGetId() {
+      return {
+        email: "hidden@example.com",
+        disableTime: 0,
+        user: { userId: "user-1" },
+      };
+    },
+    storageRead() {
+      return [];
+    },
+  } as unknown as nkruntime.Nakama;
+  const body = JSON.parse(
+    rpcAuthGateway(httpCtx(), fakeLogger(), nk, signedBody({ op: "support_snapshot", user_id: "user-1" }, Date.now())),
+  );
+  assert.equal(body.ok, true);
+  assert.equal(body.op, "support_snapshot");
+  assert.equal(body.user_id, "user-1");
+  assert.equal(body.email, undefined);
+  assert.equal(JSON.stringify(body).indexOf("hidden@example.com"), -1);
+  assert.equal(JSON.stringify(body).indexOf("@"), -1);
 });

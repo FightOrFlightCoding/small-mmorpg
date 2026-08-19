@@ -7,7 +7,7 @@ import { renderEmail } from "../src/email/templates";
 import { createGatewayLogger } from "../src/logging/redact";
 import { GatewayRateLimits } from "../src/rate_limits/memory";
 import { createChallengeRecord, consumeChallenge } from "../src/challenges/state";
-import { generateChallengeCode, hashChallengeSecret, normalizeChallengeCode } from "../src/challenges/codes";
+import { generateChallengeCode, hashChallengeSecret, normalizeChallengeCode, emailLookupHash } from "../src/challenges/codes";
 import { FakeNakama } from "./fake_nakama";
 
 const PASSWORD = "correct horse staple";
@@ -39,6 +39,8 @@ function testConfig() {
     VIBECODE_EMAIL_HMAC_PEPPER: "local-email-hmac-pepper-not-production",
     VIBECODE_GATEWAY_HMAC_SECRET: "local-gateway-hmac-secret-not-production",
     VIBECODE_CHALLENGE_HMAC_SECRET: "local-challenge-hmac-secret-not-production",
+    AUTH_RESET_UNIFORM_MS: "0",
+    AUTH_SUPPORT_LOOKUP_SECRET: "local-support-lookup-secret",
   });
 }
 
@@ -46,6 +48,39 @@ function extractCode(text: string): string {
   const match = text.match(/Enter this code: ([A-Z0-9-]+)/);
   assert.ok(match);
   return match[1];
+}
+
+function latestTemplate(email: MemoryEmailProvider, templateId: string) {
+  for (let i = email.sent.length - 1; i >= 0; i--) {
+    if (email.sent[i].templateId === templateId) {
+      return email.sent[i];
+    }
+  }
+  return null;
+}
+
+async function verifyRegistered(
+  app: Awaited<ReturnType<typeof build>>["app"],
+  nakama: FakeNakama,
+  email: MemoryEmailProvider,
+  address: string,
+) {
+  const registered = await app.inject({ method: "POST", url: "/v1/auth/register", payload: registerPayload(address) });
+  assert.equal(registered.statusCode, 200);
+  const mailed = latestTemplate(email, "verify_email");
+  assert.ok(mailed);
+  const code = extractCode(mailed.text);
+  const challenge = Array.from(nakama.challenges.records.values()).find((record) => record.purpose === "EMAIL_VERIFICATION" && record.consumed_at === 0);
+  assert.ok(challenge);
+  const confirmed = await app.inject({
+    method: "POST",
+    url: "/v1/auth/verify/confirm",
+    payload: { challenge_id: challenge.challenge_id, code: code },
+  });
+  assert.equal(confirmed.statusCode, 200);
+  const login = await app.inject({ method: "POST", url: "/v1/auth/login", payload: loginPayload(address) });
+  assert.equal(login.statusCode, 200);
+  return JSON.parse(login.body) as { token: string; refresh_token: string; user_id: string };
 }
 
 async function build() {
@@ -205,20 +240,28 @@ test("email provider failure does not corrupt a created account", async () => {
 });
 
 test("password reset does not reveal whether the email exists", async () => {
-  const { app } = await build();
+  const { app, nakama, email } = await build();
+  await verifyRegistered(app, nakama, email, "known@example.com");
   const missing = await app.inject({
     method: "POST",
-    url: "/v1/auth/password-reset/request",
-    payload: { email: "nobody@example.com" },
+    url: "/v1/auth/password/reset/request",
+    payload: { email: "nobody@example.com", client_version: CLIENT_VERSION },
   });
   const present = await app.inject({
     method: "POST",
     url: "/v1/auth/password-reset/request",
-    payload: { email: "also-nobody@example.com" },
+    payload: { email: "known@example.com", client_version: CLIENT_VERSION },
   });
-  assert.equal(missing.statusCode, present.statusCode);
-  assert.equal(JSON.parse(missing.body).ok, true);
-  assert.equal(JSON.parse(present.body).ok, true);
+  const missingBody = JSON.parse(missing.body);
+  const presentBody = JSON.parse(present.body);
+  assert.equal(missing.statusCode, 200);
+  assert.equal(present.statusCode, 200);
+  assert.equal(missingBody.ok, true);
+  assert.equal(presentBody.ok, true);
+  assert.equal(missingBody.message, presentBody.message);
+  assert.equal(missingBody.message_key, presentBody.message_key);
+  assert.equal(Object.keys(missingBody).sort().join(","), Object.keys(presentBody).sort().join(","));
+  assert.ok(latestTemplate(email, "password_reset"));
   await app.close();
 });
 
@@ -279,6 +322,10 @@ test("email templates never include passwords or access tokens", () => {
   assert.equal(message.text.indexOf("password="), -1);
   assert.equal(message.html.indexOf("Bearer "), -1);
   assert.ok(message.text.indexOf("2026-08-19") !== -1);
+  assert.ok(message.text.toLowerCase().indexOf("ignore this message") !== -1);
+  assert.ok(message.text.indexOf("https://auth.example/v1/confirm") !== -1);
+  assert.ok(message.text.indexOf("ABCD-EFGH-IJKM-NPQR") !== -1);
+  assert.ok(message.text.indexOf("support@example.com") !== -1);
 });
 
 test("per-email-hash rate-limit foundation returns AUTH_RATE_LIMITED", async () => {
@@ -525,6 +572,405 @@ test("unverified cleanup releases the email after retention", async () => {
   assert.equal(purged.data.purged, true);
   const again = await app.inject({ method: "POST", url: "/v1/auth/register", payload: registerPayload("old@example.com") });
   assert.equal(again.statusCode, 200);
+  await app.close();
+});
+
+const NEW_PASSWORD = "correct horse staple 2";
+
+test("password reset success revokes sessions and does not auto-login", async () => {
+  const { app, nakama, email } = await build();
+  const session = await verifyRegistered(app, nakama, email, "resetok@example.com");
+  const second = await app.inject({ method: "POST", url: "/v1/auth/login", payload: loginPayload("resetok@example.com") });
+  assert.equal(second.statusCode, 200);
+  await app.inject({
+    method: "POST",
+    url: "/v1/auth/password/reset/request",
+    payload: { email: "resetok@example.com", client_version: CLIENT_VERSION },
+  });
+  const mailed = latestTemplate(email, "password_reset");
+  assert.ok(mailed);
+  const code = extractCode(mailed.text);
+  const confirm = await app.inject({
+    method: "POST",
+    url: "/v1/auth/password/reset/confirm",
+    payload: {
+      email: "resetok@example.com",
+      reset_challenge: code,
+      new_password: NEW_PASSWORD,
+      new_password_confirmation: NEW_PASSWORD,
+      client_version: CLIENT_VERSION,
+      idempotency_key: "reset-ok-1",
+    },
+  });
+  const body = JSON.parse(confirm.body);
+  assert.equal(confirm.statusCode, 200);
+  assert.equal(body.ok, true);
+  assert.equal(body.require_login, true);
+  assert.equal(body.token, undefined);
+  assert.equal(body.refresh_token, undefined);
+  const oldLogin = await app.inject({ method: "POST", url: "/v1/auth/login", payload: loginPayload("resetok@example.com") });
+  assert.equal(oldLogin.statusCode, 401);
+  const newLogin = await app.inject({
+    method: "POST",
+    url: "/v1/auth/login",
+    payload: loginPayload("resetok@example.com", NEW_PASSWORD),
+  });
+  assert.equal(newLogin.statusCode, 200);
+  const refresh = await app.inject({
+    method: "POST",
+    url: "/v1/auth/refresh",
+    payload: { refresh_token: session.refresh_token, client_version: CLIENT_VERSION },
+  });
+  assert.equal(refresh.statusCode, 401);
+  const replay = await app.inject({
+    method: "POST",
+    url: "/v1/auth/password/reset/confirm",
+    payload: {
+      email: "resetok@example.com",
+      reset_challenge: code,
+      new_password: NEW_PASSWORD,
+      new_password_confirmation: NEW_PASSWORD,
+      client_version: CLIENT_VERSION,
+      idempotency_key: "reset-ok-replay",
+    },
+  });
+  assert.equal(replay.statusCode, 200);
+  await app.close();
+});
+
+test("password reset expiry, wrong code, and attempt limit are enforced over HTTP", async () => {
+  const { app, nakama, email } = await build();
+  await verifyRegistered(app, nakama, email, "resetfail@example.com");
+  await app.inject({
+    method: "POST",
+    url: "/v1/auth/password/reset/request",
+    payload: { email: "resetfail@example.com", client_version: CLIENT_VERSION },
+  });
+  const mailed = latestTemplate(email, "password_reset");
+  assert.ok(mailed);
+  const code = extractCode(mailed.text);
+  const challenge = Array.from(nakama.challenges.records.values()).find((record) => record.purpose === "PASSWORD_RESET");
+  assert.ok(challenge);
+  const stored = nakama.challenges.get(challenge.challenge_id);
+  assert.ok(stored);
+  assert.equal(JSON.stringify(stored).indexOf(code), -1);
+  const expiredCopy = { ...stored, expires_at: 1 };
+  nakama.challenges.records.set(challenge.challenge_id, expiredCopy);
+  const expired = await app.inject({
+    method: "POST",
+    url: "/v1/auth/password/reset/confirm",
+    payload: {
+      email: "resetfail@example.com",
+      reset_challenge: code,
+      new_password: NEW_PASSWORD,
+      new_password_confirmation: NEW_PASSWORD,
+      client_version: CLIENT_VERSION,
+    },
+  });
+  assert.equal(expired.statusCode, 401);
+  assert.equal(JSON.parse(expired.body).code, "AUTH_CHALLENGE_EXPIRED");
+  nakama.challenges.records.set(challenge.challenge_id, { ...stored, expires_at: stored.expires_at, attempt_count: 0, consumed_at: 0 });
+  for (let i = 0; i < 5; i++) {
+    const wrong = await app.inject({
+      method: "POST",
+      url: "/v1/auth/password/reset/confirm",
+      payload: {
+        email: "resetfail@example.com",
+        reset_challenge: "AAAA-BBBB-CCCC-DDDD",
+        new_password: NEW_PASSWORD,
+        new_password_confirmation: NEW_PASSWORD,
+        client_version: CLIENT_VERSION,
+      },
+    });
+    assert.equal(wrong.statusCode, 401);
+  }
+  const locked = await app.inject({
+    method: "POST",
+    url: "/v1/auth/password/reset/confirm",
+    payload: {
+      email: "resetfail@example.com",
+      reset_challenge: code,
+      new_password: NEW_PASSWORD,
+      new_password_confirmation: NEW_PASSWORD,
+      client_version: CLIENT_VERSION,
+    },
+  });
+  assert.equal(locked.statusCode, 401);
+  assert.equal(JSON.parse(locked.body).code, "AUTH_CHALLENGE_LOCKED");
+  await app.close();
+});
+
+test("password reset rate limits apply per email hash", async () => {
+  const { app } = await build();
+  let limited = 0;
+  for (let i = 0; i < 6; i++) {
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/auth/password/reset/request",
+      payload: { email: "ratelimit-reset@example.com", client_version: CLIENT_VERSION },
+    });
+    if (response.statusCode === 429) {
+      limited += 1;
+    }
+  }
+  assert.ok(limited > 0);
+  await app.close();
+});
+
+test("email provider failure does not change the generic reset response", async () => {
+  const { app, email } = await build();
+  email.failNext = true;
+  const missing = await app.inject({
+    method: "POST",
+    url: "/v1/auth/password/reset/request",
+    payload: { email: "provider-miss@example.com", client_version: CLIENT_VERSION },
+  });
+  email.failNext = true;
+  const present = await app.inject({
+    method: "POST",
+    url: "/v1/auth/password/reset/request",
+    payload: { email: "provider-hit@example.com", client_version: CLIENT_VERSION },
+  });
+  assert.equal(missing.statusCode, 200);
+  assert.equal(present.statusCode, 200);
+  assert.equal(JSON.parse(missing.body).message, JSON.parse(present.body).message);
+  await app.close();
+});
+
+test("logged-in password change verifies the current password and revokes sessions", async () => {
+  const { app, nakama, email } = await build();
+  const session = await verifyRegistered(app, nakama, email, "changepw@example.com");
+  const wrong = await app.inject({
+    method: "POST",
+    url: "/v1/account/password/change",
+    headers: { authorization: "Bearer " + session.token },
+    payload: {
+      current_password: "wrong password 15x",
+      new_password: NEW_PASSWORD,
+      new_password_confirmation: NEW_PASSWORD,
+      client_version: CLIENT_VERSION,
+      idempotency_key: "pw-change-wrong",
+    },
+  });
+  assert.equal(wrong.statusCode, 401);
+  const reuse = await app.inject({
+    method: "POST",
+    url: "/v1/account/password/change",
+    headers: { authorization: "Bearer " + session.token },
+    payload: {
+      current_password: PASSWORD,
+      new_password: PASSWORD,
+      new_password_confirmation: PASSWORD,
+      client_version: CLIENT_VERSION,
+      idempotency_key: "pw-change-reuse",
+    },
+  });
+  assert.equal(reuse.statusCode, 400);
+  assert.equal(JSON.parse(reuse.body).code, "AUTH_PASSWORD_REUSE");
+  const changed = await app.inject({
+    method: "POST",
+    url: "/v1/account/password/change",
+    headers: { authorization: "Bearer " + session.token },
+    payload: {
+      current_password: PASSWORD,
+      new_password: NEW_PASSWORD,
+      new_password_confirmation: NEW_PASSWORD,
+      client_version: CLIENT_VERSION,
+      idempotency_key: "pw-change-ok",
+    },
+  });
+  assert.equal(changed.statusCode, 200);
+  assert.equal(JSON.parse(changed.body).require_login, true);
+  const refresh = await app.inject({
+    method: "POST",
+    url: "/v1/auth/refresh",
+    payload: { refresh_token: session.refresh_token, client_version: CLIENT_VERSION },
+  });
+  assert.equal(refresh.statusCode, 401);
+  const oldLogin = await app.inject({ method: "POST", url: "/v1/auth/login", payload: loginPayload("changepw@example.com") });
+  assert.equal(oldLogin.statusCode, 401);
+  const newLogin = await app.inject({
+    method: "POST",
+    url: "/v1/auth/login",
+    payload: loginPayload("changepw@example.com", NEW_PASSWORD),
+  });
+  assert.equal(newLogin.statusCode, 200);
+  await app.close();
+});
+
+test("email change succeeds, rejects duplicates, and rolls back without locking addresses", async () => {
+  const { app, nakama, email } = await build();
+  const first = await verifyRegistered(app, nakama, email, "oldmail@example.com");
+  await verifyRegistered(app, nakama, email, "taken@example.com");
+  const duplicate = await app.inject({
+    method: "POST",
+    url: "/v1/account/email/change/request",
+    headers: { authorization: "Bearer " + first.token },
+    payload: {
+      current_password: PASSWORD,
+      new_email: "taken@example.com",
+      client_version: CLIENT_VERSION,
+      idempotency_key: "email-dup",
+    },
+  });
+  assert.equal(duplicate.statusCode, 409);
+  nakama.failReplaceEmail = true;
+  const rollbackRequest = await app.inject({
+    method: "POST",
+    url: "/v1/account/email/change/request",
+    headers: { authorization: "Bearer " + first.token },
+    payload: {
+      current_password: PASSWORD,
+      new_email: "rollback@example.com",
+      client_version: CLIENT_VERSION,
+      idempotency_key: "email-rollback-req",
+    },
+  });
+  assert.equal(rollbackRequest.statusCode, 200);
+  const rollbackMail = latestTemplate(email, "email_change_confirmation");
+  assert.ok(rollbackMail);
+  const rollbackCode = extractCode(rollbackMail.text);
+  const rollbackConfirm = await app.inject({
+    method: "POST",
+    url: "/v1/account/email/change/confirm",
+    payload: {
+      new_email: "rollback@example.com",
+      email_change_challenge: rollbackCode,
+      password: PASSWORD,
+      client_version: CLIENT_VERSION,
+      idempotency_key: "email-rollback-confirm",
+    },
+  });
+  assert.equal(rollbackConfirm.statusCode, 503);
+  const oldStillWorks = await app.inject({ method: "POST", url: "/v1/auth/login", payload: loginPayload("oldmail@example.com") });
+  assert.equal(oldStillWorks.statusCode, 200);
+  const rollbackLogin = await app.inject({ method: "POST", url: "/v1/auth/login", payload: loginPayload("rollback@example.com") });
+  assert.equal(rollbackLogin.statusCode, 401);
+  const fresh = JSON.parse(oldStillWorks.body);
+  const request = await app.inject({
+    method: "POST",
+    url: "/v1/account/email/change/request",
+    headers: { authorization: "Bearer " + fresh.token },
+    payload: {
+      current_password: PASSWORD,
+      new_email: "newmail@example.com",
+      client_version: CLIENT_VERSION,
+      idempotency_key: "email-ok-req",
+    },
+  });
+  assert.equal(request.statusCode, 200);
+  const confirmMail = latestTemplate(email, "email_change_confirmation");
+  assert.ok(confirmMail);
+  const code = extractCode(confirmMail.text);
+  const expiredChallenge = Array.from(nakama.challenges.records.values()).find((record) => record.purpose === "EMAIL_CHANGE" && record.consumed_at === 0);
+  assert.ok(expiredChallenge);
+  nakama.challenges.records.set(expiredChallenge.challenge_id, { ...expiredChallenge, expires_at: 1 });
+  const expired = await app.inject({
+    method: "POST",
+    url: "/v1/account/email/change/confirm",
+    payload: {
+      new_email: "newmail@example.com",
+      email_change_challenge: code,
+      password: PASSWORD,
+      client_version: CLIENT_VERSION,
+    },
+  });
+  assert.equal(expired.statusCode, 401);
+  nakama.challenges.records.set(expiredChallenge.challenge_id, { ...expiredChallenge, expires_at: expiredChallenge.expires_at });
+  const confirm = await app.inject({
+    method: "POST",
+    url: "/v1/account/email/change/confirm",
+    payload: {
+      new_email: "newmail@example.com",
+      email_change_challenge: code,
+      password: PASSWORD,
+      client_version: CLIENT_VERSION,
+      idempotency_key: "email-ok-confirm",
+    },
+  });
+  assert.equal(confirm.statusCode, 200);
+  assert.equal(JSON.parse(confirm.body).require_login, true);
+  const oldRejected = await app.inject({ method: "POST", url: "/v1/auth/login", payload: loginPayload("oldmail@example.com") });
+  assert.equal(oldRejected.statusCode, 401);
+  const newAccepted = await app.inject({ method: "POST", url: "/v1/auth/login", payload: loginPayload("newmail@example.com") });
+  assert.equal(newAccepted.statusCode, 200);
+  assert.equal(JSON.parse(newAccepted.body).user_id, first.user_id);
+  const config = testConfig();
+  const oldHash = emailLookupHash(config.emailHmacPepper, "oldmail@example.com");
+  const newHash = emailLookupHash(config.emailHmacPepper, "newmail@example.com");
+  const stale = await nakama.rpc("lookup_email", { hmac: oldHash }, "stale", Date.now());
+  assert.equal((stale.data.decision as { ok?: boolean }).ok, false);
+  const live = await nakama.rpc("lookup_email", { hmac: newHash }, "live", Date.now());
+  assert.equal((live.data.decision as { ok?: boolean }).ok, true);
+  assert.ok(latestTemplate(email, "email_changed_old"));
+  assert.ok(latestTemplate(email, "email_changed_new"));
+  await app.close();
+});
+
+test("forgotten-email help reveals no email and support lookup is admin-only", async () => {
+  const { app, nakama, email, logger } = await build();
+  const session = await verifyRegistered(app, nakama, email, "hidden@example.com");
+  nakama.characterNames.set(session.user_id, ["HeroName"]);
+  nakama.nameReservations.set("heroname", session.user_id);
+  const help = await app.inject({ method: "GET", url: "/v1/account/forgot-email" });
+  assert.equal(help.statusCode, 200);
+  assert.equal(help.body.indexOf("hidden@example.com"), -1);
+  assert.ok(help.body.indexOf("Forgot which email you used?") !== -1);
+  assert.equal(help.body.indexOf("<form"), -1);
+  const denied = await app.inject({
+    method: "POST",
+    url: "/v1/support/lookup",
+    payload: { character_name: "HeroName" },
+  });
+  assert.equal(denied.statusCode, 403);
+  const lookup = await app.inject({
+    method: "POST",
+    url: "/v1/support/lookup",
+    headers: { "x-support-key": "local-support-lookup-secret" },
+    payload: { character_name: "HeroName" },
+  });
+  const body = JSON.parse(lookup.body);
+  assert.equal(lookup.statusCode, 200);
+  assert.equal(body.ok, true);
+  assert.equal(body.user_id, session.user_id);
+  assert.deepEqual(body.character_names, ["HeroName"]);
+  assert.equal(body.email, undefined);
+  assert.equal(JSON.stringify(body).indexOf("hidden@example.com"), -1);
+  const joined = logger.lines.join("\n");
+  assert.equal(joined.indexOf("hidden@example.com"), -1);
+  assert.equal(joined.indexOf("HeroName"), -1);
+  await app.close();
+});
+
+test("reset request timing helper is invoked for hits and misses", async () => {
+  const delays: number[] = [];
+  const config = testConfig();
+  config.resetUniformMs = 150;
+  const nakama = new FakeNakama();
+  const email = new MemoryEmailProvider();
+  const app = createGatewayApp({
+    config: config,
+    logger: createGatewayLogger(false),
+    email: email,
+    nakama: nakama,
+    rates: new GatewayRateLimits(),
+    now: () => 1000,
+    delay: async (ms) => {
+      delays.push(ms);
+    },
+  });
+  await app.inject({
+    method: "POST",
+    url: "/v1/auth/password/reset/request",
+    payload: { email: "timing-miss@example.com", client_version: CLIENT_VERSION },
+  });
+  await app.inject({
+    method: "POST",
+    url: "/v1/auth/password/reset/request",
+    payload: { email: "timing-hit@example.com", client_version: CLIENT_VERSION },
+  });
+  assert.equal(delays.length, 2);
+  assert.equal(delays[0], delays[1]);
   await app.close();
 });
 

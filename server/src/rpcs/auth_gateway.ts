@@ -19,9 +19,11 @@ import { ACCOUNT_STATUS_ACTIVE, ACCOUNT_STATUS_PENDING_VERIFICATION } from "../d
 import { evaluateUnverifiedCleanup, DEFAULT_UNVERIFIED_RETENTION_MS } from "../domain/unverified_cleanup";
 import { rpcFailurePayload } from "../domain/rpc_error";
 import { isDeleted } from "../domain/character_roster";
+import { canonicalCharacterName } from "../domain/character_name";
 import { readRoster } from "../nakama/roster_store";
 import { readCharacter } from "../nakama/character_store";
 import { readActiveLocation } from "../nakama/location_store";
+import { readNameReservation } from "../nakama/name_reservation_store";
 
 export const AUTH_GATEWAY_RPC_ID = "auth_gateway";
 
@@ -39,6 +41,7 @@ const AUTH_GATEWAY_OPS = [
   "replace_password",
   "replace_email",
   "delete_account",
+  "support_snapshot",
 ] as const;
 
 type AuthGatewayOp = (typeof AUTH_GATEWAY_OPS)[number];
@@ -63,6 +66,8 @@ const ALLOWED_KEYS = [
   "created_at",
   "accepted_at",
   "retention_ms",
+  "allow_hmac_change",
+  "character_name",
 ];
 
 interface NonceEntry {
@@ -125,6 +130,8 @@ interface ParsedRequest {
   createdAt: number;
   acceptedAt: number;
   retentionMs: number;
+  allowHmacChange: boolean;
+  characterName: string;
   payloadJson: string;
 }
 
@@ -184,6 +191,8 @@ function parseRequest(payload: string): ParsedRequest {
     createdAt: typeof data.created_at === "number" ? data.created_at : 0,
     acceptedAt: typeof data.accepted_at === "number" ? data.accepted_at : 0,
     retentionMs: typeof data.retention_ms === "number" ? data.retention_ms : 0,
+    allowHmacChange: data.allow_hmac_change === true,
+    characterName: typeof data.character_name === "string" ? data.character_name : "",
     payloadJson: JSON.stringify(body),
   };
 }
@@ -205,7 +214,7 @@ function dispatch(nk: nkruntime.Nakama, request: ParsedRequest, nowMs: number): 
       throw new Error("invalid_payload");
     }
     const existing = readAccountProfile(nk, request.userId);
-    if (existing !== null && existing.hmac !== request.hmac) {
+    if (existing !== null && existing.hmac !== request.hmac && !request.allowHmacChange) {
       throw new Error("invalid_payload");
     }
     const extras: {
@@ -393,7 +402,10 @@ function dispatch(nk: nkruntime.Nakama, request: ParsedRequest, nowMs: number): 
     if (request.userId.length === 0 || request.password.length === 0 || request.newEmail.length === 0) {
       throw new Error("invalid_payload");
     }
-    return replaceEmail(nk, request.userId, request.newEmail, request.password);
+    return replaceEmail(nk, request.userId, request.newEmail, request.password, request.hmac);
+  }
+  if (request.op === "support_snapshot") {
+    return supportSnapshot(nk, request.userId, request.characterName);
   }
   if (request.op === "delete_account") {
     if (request.userId.length === 0) {
@@ -412,6 +424,7 @@ function replaceEmail(
   userId: string,
   newEmail: string,
   password: string,
+  hmac: string,
 ): { [key: string]: unknown } {
   const account = nk.accountGetId(userId);
   const oldEmail = typeof account.email === "string" ? account.email : "";
@@ -438,18 +451,79 @@ function replaceEmail(
       nk.unlinkDevice(userId, deviceId);
     }
   }
-  return { ok: true, op: "replace_email", userId: userId, email: newEmail };
+  if (hmac.length > 0) {
+    const existing = readAccountProfile(nk, userId);
+    if (existing !== null) {
+      writeAccountProfile(nk, userId, hmac, existing.verifiedAt);
+    }
+  }
+  return { ok: true, op: "replace_email", userId: userId, email: newEmail, old_email: oldEmail };
+}
+
+function supportSnapshot(nk: nkruntime.Nakama, userIdInput: string, characterName: string): { [key: string]: unknown } {
+  let userId = userIdInput;
+  if (userId.length === 0 && characterName.length > 0) {
+    const reservation = readNameReservation(nk, canonicalCharacterName(characterName));
+    if (reservation !== null) {
+      userId = reservation.accountUserId;
+    }
+  }
+  if (userId.length === 0) {
+    return { ok: false, op: "support_snapshot", reason: "missing" };
+  }
+  const profile = readAccountProfile(nk, userId);
+  let disableTime = 0;
+  try {
+    const account = nk.accountGetId(userId);
+    disableTime = typeof account.disableTime === "number" ? account.disableTime : 0;
+  } catch {
+    disableTime = 0;
+  }
+  const names: string[] = [];
+  const roster = readRoster(nk, userId);
+  if (roster !== null) {
+    for (let i = 0; i < roster.characterIds.length; i++) {
+      const character = readCharacter(nk, userId, roster.characterIds[i]);
+      if (character === null || isDeleted(character.deletedAt)) {
+        continue;
+      }
+      names.push(character.name);
+    }
+  }
+  return {
+    ok: true,
+    op: "support_snapshot",
+    user_id: userId,
+    status: profile !== null ? profile.status : "",
+    verified: profile !== null && profile.verifiedAt > 0,
+    disableTime: disableTime,
+    character_names: names,
+  };
 }
 
 function firstOpenChallenge(records: AuthChallengeRecord[], nowMs: number): AuthChallengeRecord | null {
+  let consumed: AuthChallengeRecord | null = null;
+  let closed: AuthChallengeRecord | null = null;
   for (let i = 0; i < records.length; i++) {
     const record = records[i];
-    if (record.consumed_at > 0 || record.invalidated_at > 0 || record.expires_at <= nowMs) {
+    if (record.invalidated_at > 0) {
       continue;
     }
-    return record;
+    if (record.consumed_at === 0 && record.expires_at > nowMs && record.attempt_count < record.maximum_attempts) {
+      return record;
+    }
+    if (record.consumed_at > 0 && consumed === null) {
+      consumed = record;
+      continue;
+    }
+    if (closed === null) {
+      closed = record;
+    }
   }
-  return null;
+  if (consumed !== null) {
+    return consumed;
+  }
+  return closed;
 }
 
 function lookupUserId(nk: nkruntime.Nakama, hmac: string): string {

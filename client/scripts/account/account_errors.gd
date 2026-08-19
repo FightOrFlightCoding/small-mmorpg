@@ -24,6 +24,14 @@ static func message_for(code: String, fallback: String = "") -> String:
 			return "Too many attempts. Wait and try again."
 		"AUTH_INVALID_CHALLENGE":
 			return "That verification code is invalid or has expired."
+		"AUTH_CHALLENGE_EXPIRED":
+			return "That code has expired. Request a new one."
+		"AUTH_CHALLENGE_LOCKED":
+			return "Too many incorrect codes. Request a new one."
+		"AUTH_PASSWORD_REUSE":
+			return "Choose a different password."
+		"AUTH_EMAIL_TAKEN":
+			return "That email cannot be used."
 		"AUTH_UNAVAILABLE", "network_unreachable":
 			return "The account service is unavailable. Try again shortly."
 		"AUTH_FORBIDDEN":

@@ -1,6 +1,6 @@
 # Account architecture
 
-ACCT-01 catalogued the existing account and character path. ACCT-03 implements public register, verify, login, refresh, and logout on that path. There is still one Nakama identity and one character model.
+ACCT-01 catalogued the existing account and character path. ACCT-03 implements public register, verify, login, refresh, and logout on that path. ACCT-04 adds password recovery, logged-in password change, email change, and forgotten-email support without a second identity or character model.
 
 Related: [ACCOUNT_STATE_MACHINE.md](ACCOUNT_STATE_MACHINE.md), [CHARACTER_STATE_MACHINE.md](CHARACTER_STATE_MACHINE.md), [AUTH_API_CATALOG.md](AUTH_API_CATALOG.md), [ACCOUNT_STORAGE_CATALOG.md](ACCOUNT_STORAGE_CATALOG.md), [ACCOUNT_THREAT_MODEL.md](ACCOUNT_THREAT_MODEL.md), [ACCOUNT_UI_FLOWS.md](ACCOUNT_UI_FLOWS.md), [EMAIL_DELIVERY_ARCHITECTURE.md](EMAIL_DELIVERY_ARCHITECTURE.md), [NAKAMA_COMPATIBILITY_RESULTS.md](NAKAMA_COMPATIBILITY_RESULTS.md), [../STORAGE_CATALOG.md](../STORAGE_CATALOG.md), [../SECURITY_MODEL.md](../SECURITY_MODEL.md).
 
@@ -8,7 +8,7 @@ Pinned versions: Nakama server **3.40.0**, `nakama-runtime` **1.47.0**, Nakama G
 
 ## Current implementation (as shipped)
 
-Accounts are Nakama built-in email/password identities plus a project `account_profile`. Public email register/login/verify/refresh/logout go through `auth-gateway/`. Debug builds also use device authentication (`DevIdentity` Alice/Bob/machine) which remains playable without an email profile. Email accounts must be `ACTIVE` and verified before character or match operations.
+Accounts are Nakama built-in email/password identities plus a project `account_profile`. Public email register/login/verify/refresh/logout/reset/password-change/email-change go through `auth-gateway/`. Debug builds also use device authentication (`DevIdentity` Alice/Bob/machine) which remains playable without an email profile. Email accounts must be `ACTIVE` and verified before character or match operations. Credential changes preserve the Nakama user id and all `player/*` character records.
 
 A player session is a Nakama JWT plus refresh token returned by the gateway. The Godot `AccountService` keeps those tokens in memory. Device-debug sessions may still use `user://session_cache.json` (never a password). Email Stay Signed In is not enabled. Gameplay requires a character selection ticket (TTL 300 s) and then a `starter_zone` match join.
 
@@ -16,7 +16,7 @@ A player session is a Nakama JWT plus refresh token returned by the gateway. The
 
 | Module | Path | Role |
 | --- | --- | --- |
-| `GameService` | `client/scripts/game/game_service.gd` | Orchestrates register/login/verify/logout onto AccountService and device auth onto NetworkService |
+| `GameService` | `client/scripts/game/game_service.gd` | Orchestrates register/login/verify/reset/password-change/email-change/logout onto AccountService and device auth onto NetworkService |
 | `AccountService` | `client/scripts/account/account_service.gd` | Public gateway HTTP, account status, access/refresh tokens, bounded refresh, logout/logout-all. Does not own character gameplay |
 | `NetworkService` | `client/scripts/network/network_service.gd` | Nakama session import, socket, RPCs, reconnect, current-session logout |
 | `NakamaNetworkBackend` | `client/scripts/network/nakama_network_backend.gd` | Thin SDK: device auth, `import_session` from gateway tokens, socket, RPCs. Email product login does not call `authenticate_email_async` |
@@ -73,11 +73,15 @@ See [AUTH_API_CATALOG.md](AUTH_API_CATALOG.md). Hooks: `registerBeforeAuthentica
 
 Development-gated `acct_compat_probe` is an ACCT-01 test seam, not a player API. Internal `auth_gateway` is HTTP-key plus HMAC assertion only.
 
-## Auth gateway (ACCT-02 / ACCT-03)
+## Auth gateway (ACCT-02 / ACCT-03 / ACCT-04)
 
-`auth-gateway/` is the trusted public boundary for registration, verification, login, refresh, logout, recovery, email-change, and account deletion. It holds the Nakama server key, runtime HTTP key, email provider key, email HMAC pepper, and challenge HMAC secret. The Godot `AccountService` talks to versioned `/v1/auth/*` routes; it never receives those secrets.
+`auth-gateway/` is the trusted public boundary for registration, verification, login, refresh, logout, recovery, email-change, and account deletion. It holds the Nakama server key, runtime HTTP key, email provider key, email HMAC pepper, challenge HMAC secret, and the support-lookup secret. The Godot `AccountService` talks to versioned `/v1` routes; it never receives those secrets.
 
-Challenges live in Nakama storage (`auth_challenge` / `c_<id>` on the system user). Only HMAC hashes of codes are stored. New challenges invalidate older unused challenges for the same email-hash and purpose. Verification TTL is `AUTH_VERIFICATION_TTL_MS` (default 30 minutes).
+Challenges live in Nakama storage (`auth_challenge` / `c_<id>` on the system user). Only HMAC hashes of codes are stored. New challenges invalidate older unused challenges for the same email-hash and purpose. Verification TTL is `AUTH_VERIFICATION_TTL_MS` (default 30 minutes). Password-reset and email-change challenges default to 15 minutes, five failed attempts, one-time consume, and idempotent replay of a successful consume.
+
+Password replace is same-email `nk.linkEmail`. Email replace is the proven temp-device sequence (link device, unlink old email, link new email, unlink device, then update `account_profile` HMAC). The old email stays the login identifier until confirm succeeds. A failed replace after consume does not write a new HMAC, so the old address remains usable and the new address is not permanently reserved. Stale index hits are rejected by re-read (`lookup_email` / `decideEmailLookup`).
+
+There is no public email-reveal endpoint. Internal `POST /v1/support/lookup` is gated by `AUTH_SUPPORT_LOOKUP_SECRET` and `auth_gateway` op `support_snapshot`. Every lookup is logged. Responses never include an email.
 
 Email lookup uses `account_profile` / `email_index` (`hmac`, `userId`, `verifiedAt`, `status`, legal-version fields, `createdAt`, `acceptedAt`; `permissionWrite: 0`) and index `account_profile_email_hmac`. Do not reuse `account_compat`. Unverified cleanup is the HMAC-gated `purge_unverified` op (default seven-day retention), invoked opportunistically on duplicate register.
 

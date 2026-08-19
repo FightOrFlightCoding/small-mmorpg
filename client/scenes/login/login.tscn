@@ -110,7 +110,7 @@ text = "Forgot Password"
 
 [node name="ForgotEmailButton" type="Button" parent="Center/VBox"]
 layout_mode = 2
-text = "Forgot Which Email?"
+text = "Forgot which email you used?"
 
 [node name="AliceButton" type="Button" parent="Center/VBox"]
 layout_mode = 2

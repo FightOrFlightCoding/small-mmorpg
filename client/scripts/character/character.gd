@@ -15,6 +15,8 @@ extends "res://scripts/ui/shell_page.gd"
 @onready var _logout_button: Button = $Center/VBox/LogoutButton
 @onready var _logout_all_password: LineEdit = $Center/VBox/LogoutAllPassword
 @onready var _logout_all_button: Button = $Center/VBox/LogoutAllButton
+@onready var _change_password_button: Button = $Center/VBox/ChangePasswordButton
+@onready var _change_email_button: Button = $Center/VBox/ChangeEmailButton
 
 var _pending_delete_id: String = ""
 var _class_ids: PackedStringArray = PackedStringArray()
@@ -25,6 +27,8 @@ func _ready() -> void:
 	_continue_button.pressed.connect(_on_continue_pressed)
 	_logout_button.pressed.connect(_on_logout_pressed)
 	_logout_all_button.pressed.connect(_on_logout_all_pressed)
+	_change_password_button.pressed.connect(func() -> void: SceneRouter.transition_to(SceneRouter.SCENE_CHANGE_PASSWORD))
+	_change_email_button.pressed.connect(func() -> void: SceneRouter.transition_to(SceneRouter.SCENE_CHANGE_EMAIL))
 	_logout_all_password.secret = true
 	_create_button.pressed.connect(_on_create_pressed)
 	_select_button.pressed.connect(_on_select_pressed)

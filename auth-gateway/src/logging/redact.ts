@@ -1,10 +1,13 @@
 const SECRET_KEYS = [
   "password",
+  "new_password",
+  "reset_challenge",
   "token",
   "refresh_token",
   "authorization",
   "code",
   "secret",
+  "support_key",
   "signature",
   "api_key",
   "apikey",

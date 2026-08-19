@@ -10,6 +10,14 @@ const SCENE_REGISTER: String = "register"
 const SCENE_VERIFY: String = "verify"
 const SCENE_SERVER_UNAVAILABLE: String = "server_unavailable"
 const SCENE_ACCOUNT_DISABLED: String = "account_disabled"
+const SCENE_FORGOT_PASSWORD: String = "forgot_password"
+const SCENE_PASSWORD_RESET_CODE: String = "password_reset_code"
+const SCENE_PASSWORD_RESET_NEW: String = "password_reset_new"
+const SCENE_PASSWORD_CHANGED: String = "password_changed"
+const SCENE_CHANGE_PASSWORD: String = "change_password"
+const SCENE_CHANGE_EMAIL: String = "change_email"
+const SCENE_EMAIL_CHANGE_VERIFY: String = "email_change_verify"
+const SCENE_FORGOT_EMAIL: String = "forgot_email"
 const SCENE_CHARACTER: String = "character"
 const SCENE_WORLD: String = "world"
 
@@ -20,6 +28,14 @@ const SCENE_PATHS: Dictionary = {
 	SCENE_VERIFY: "res://scenes/login/verify.tscn",
 	SCENE_SERVER_UNAVAILABLE: "res://scenes/login/server_unavailable.tscn",
 	SCENE_ACCOUNT_DISABLED: "res://scenes/login/account_disabled.tscn",
+	SCENE_FORGOT_PASSWORD: "res://scenes/login/forgot_password.tscn",
+	SCENE_PASSWORD_RESET_CODE: "res://scenes/login/password_reset_code.tscn",
+	SCENE_PASSWORD_RESET_NEW: "res://scenes/login/password_reset_new.tscn",
+	SCENE_PASSWORD_CHANGED: "res://scenes/login/password_changed.tscn",
+	SCENE_CHANGE_PASSWORD: "res://scenes/login/change_password.tscn",
+	SCENE_CHANGE_EMAIL: "res://scenes/login/change_email.tscn",
+	SCENE_EMAIL_CHANGE_VERIFY: "res://scenes/login/email_change_verify.tscn",
+	SCENE_FORGOT_EMAIL: "res://scenes/login/forgot_email.tscn",
 	SCENE_CHARACTER: "res://scenes/character/character.tscn",
 	SCENE_WORLD: "res://scenes/world/world.tscn",
 }
@@ -49,7 +65,21 @@ func can_transition_to(scene_id: String) -> bool:
 			and AppState.has_character
 			and AppState.has_zone_state
 		)
-	if scene_id == SCENE_LOGIN or scene_id == SCENE_REGISTER or scene_id == SCENE_VERIFY or scene_id == SCENE_SERVER_UNAVAILABLE or scene_id == SCENE_ACCOUNT_DISABLED:
+	if scene_id == SCENE_CHANGE_PASSWORD or scene_id == SCENE_CHANGE_EMAIL:
+		return AppState.content_ready and not AppState.has_fatal_error and AppState.is_authenticated
+	if (
+		scene_id == SCENE_LOGIN
+		or scene_id == SCENE_REGISTER
+		or scene_id == SCENE_VERIFY
+		or scene_id == SCENE_SERVER_UNAVAILABLE
+		or scene_id == SCENE_ACCOUNT_DISABLED
+		or scene_id == SCENE_FORGOT_PASSWORD
+		or scene_id == SCENE_PASSWORD_RESET_CODE
+		or scene_id == SCENE_PASSWORD_RESET_NEW
+		or scene_id == SCENE_PASSWORD_CHANGED
+		or scene_id == SCENE_EMAIL_CHANGE_VERIFY
+		or scene_id == SCENE_FORGOT_EMAIL
+	):
 		return AppState.content_ready and not AppState.has_fatal_error
 	return true
 

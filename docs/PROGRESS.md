@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Registration, email verification, login, session refresh, and logout (ACCT-03)**.
+Last accepted phase: **Password recovery, password change, email change, and forgotten-email support (ACCT-04)**.
 
 Current phase: none.
 
@@ -825,5 +825,31 @@ powershell -File scripts/test-client.ps1
 ```
 
 Inspect local mail at http://127.0.0.1:8025. Product email UI is login / register / verify / server-unavailable / account-disabled.
+
+## Password recovery, password change, email change, and forgotten-email support acceptance (ACCT-04, 2026-08-19)
+
+Credential recovery and maintenance. No new gameplay systems. No custom SQL. No ORM. Prompt 18 village/slime behavior unchanged. Nakama user IDs and character records are preserved across password and email changes. Stay Signed In remains hidden. Product delete UI remains later.
+
+Public Godot recovery uses `AccountService` and canonical `/v1/auth/password/reset/*`, `/v1/account/password/change`, and `/v1/account/email/change/*` routes (ACCT-02 kebab aliases remain). Reset request copy is always *If an account exists for that email, password-reset instructions have been sent.* Challenges are HMAC-only, 15-minute TTL, five attempts, sibling-invalidated, and one-time consume. Confirm and logged-in password change revoke all sessions and never return tokens. Email change keeps the old address until confirm, then uses the ACCT-01 temp-device sequence and updates the HMAC index. Forgotten-email help is copy-only. Internal support lookup is secret-gated, logged, and never returns an email.
+
+| Gate | Result |
+| --- | --- |
+| Content | hash `4eeb205a3748b3cd71053bcc217cb017ae69f1f1d4753238ca4c03da9cce35c1` (unchanged) |
+| Server hermetic | 482 passed, 13 skipped (live suites off), `tsc --noEmit` via `scripts/test-server.ps1` |
+| Auth gateway hermetic | 36/36 (`scripts/test-auth-gateway.ps1 -SkipLive`) |
+| Client GdUnit | 248/248, 0 orphans, `SHELL_LOGIN` |
+
+Limitations: Stay Signed In remains hidden. Product account-delete UI remains later. Support lookup is a gateway operator tool, not a player API. Live Compose Mailpit walkthrough was not re-run in this acceptance; the HTTP matrix is covered hermetically, and password/email replace remain the ACCT-01 live-proven Nakama sequences.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-auth-gateway.ps1 -SkipLive
+powershell -File scripts/test-client.ps1
+```
+
+Product recovery UI is Forgot Password Request, Password Reset Code Entry, New Password, Password Changed, Change Password, Change Email, Email Change Verification, and Forgot Which Email Help. Login label is **Forgot which email you used?**.
+
 
 

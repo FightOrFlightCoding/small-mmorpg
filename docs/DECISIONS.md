@@ -565,3 +565,17 @@ Logout-all requires the current password unless the access-token `iat` is within
 
 Nakama 3.40.0 attaches a JavaScript stack to **every** thrown runtime value, including primitive strings (`stackTrace` plus `index.js` frames). RPC adapters therefore **return** `{ ok: false, code }` JSON instead of throwing. `throwRpcFailure` remains only for before-hooks that have no return channel. Godot still sanitizes leftover traces through `AccountErrors.sanitize_public_rpc`.
 
+## 2026-08-19 — ACCT-04 password recovery, password change, email change, and forgotten-email support
+
+Not a gameplay phase. Prompt 18 village/slime behavior is unchanged. There is still one Nakama user id and one character model. Credential changes do not rewrite `player/*` records.
+
+Public recovery is `POST /v1/auth/password/reset/request` (kebab alias kept). The success envelope is identical for missing, existing, disabled, unverified, and deleted addresses. Per-IP, per-email-hash, and global provider limits apply, plus a timing pad (`AUTH_RESET_UNIFORM_MS`) and the 8192-byte body limit. Challenges are HMAC-only, 15-minute TTL, five attempts, sibling-invalidated, one-time consume, with idempotent replay of a successful consume. Confirm uses same-email `nk.linkEmail`, revokes every session, sends `password_changed`, and never returns tokens.
+
+Logged-in password change is `POST /v1/account/password/change`: `ACTIVE` + recent JWT `iat` + current password, detectable reuse rejected when `new === current`, then the same replace/revoke/mail path. No password-history collection.
+
+Email change keeps the old address until confirm. Confirm re-checks uniqueness and uses the ACCT-01 temp-device sequence, then overwrites the HMAC index. A failed replace after consume does not lock both addresses. Old and new addresses are notified. Login must use the new email.
+
+Forgotten-email help is copy-only (`Forgot which email you used?`). There is no public reveal or masked-email endpoint. Internal `POST /v1/support/lookup` requires `AUTH_SUPPORT_LOOKUP_SECRET`, logs every lookup, and never returns an email.
+
+Stay Signed In, five character slots, and product delete UI remain later phases.
+

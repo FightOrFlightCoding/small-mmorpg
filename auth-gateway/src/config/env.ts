@@ -33,6 +33,11 @@ export interface GatewayConfig {
   verificationTtlMs: number;
   unverifiedRetentionMs: number;
   logoutAllRecentAuthMs: number;
+  passwordResetTtlMs: number;
+  emailChangeTtlMs: number;
+  sensitiveRecentMs: number;
+  resetUniformMs: number;
+  supportLookupSecret: string;
 }
 
 export class ConfigError extends Error {
@@ -101,6 +106,11 @@ export function loadGatewayConfig(env: NodeJS.ProcessEnv = process.env): Gateway
     verificationTtlMs: parseInt(read("AUTH_VERIFICATION_TTL_MS", String(30 * 60 * 1000)), 10),
     unverifiedRetentionMs: parseInt(read("AUTH_UNVERIFIED_RETENTION_MS", String(7 * 24 * 60 * 60 * 1000)), 10),
     logoutAllRecentAuthMs: parseInt(read("AUTH_LOGOUT_ALL_RECENT_MS", String(5 * 60 * 1000)), 10),
+    passwordResetTtlMs: parseInt(env.AUTH_PASSWORD_RESET_TTL_MS !== undefined ? env.AUTH_PASSWORD_RESET_TTL_MS : String(15 * 60 * 1000), 10),
+    emailChangeTtlMs: parseInt(env.AUTH_EMAIL_CHANGE_TTL_MS !== undefined ? env.AUTH_EMAIL_CHANGE_TTL_MS : String(15 * 60 * 1000), 10),
+    sensitiveRecentMs: parseInt(env.AUTH_SENSITIVE_RECENT_MS !== undefined ? env.AUTH_SENSITIVE_RECENT_MS : String(15 * 60 * 1000), 10),
+    resetUniformMs: parseInt(env.AUTH_RESET_UNIFORM_MS !== undefined ? env.AUTH_RESET_UNIFORM_MS : "150", 10),
+    supportLookupSecret: env.AUTH_SUPPORT_LOOKUP_SECRET !== undefined ? env.AUTH_SUPPORT_LOOKUP_SECRET : "",
   };
   validateGatewayConfig(config);
   return config;
@@ -151,6 +161,9 @@ export function validateGatewayConfig(config: GatewayConfig): void {
     }
     if (config.challengeHmacSecret.indexOf("not-production") !== -1) {
       missing.push("VIBECODE_CHALLENGE_HMAC_SECRET");
+    }
+    if (config.supportLookupSecret.length < 16 || config.supportLookupSecret.indexOf("not-production") !== -1) {
+      missing.push("AUTH_SUPPORT_LOOKUP_SECRET");
     }
   }
   if (missing.length > 0) {

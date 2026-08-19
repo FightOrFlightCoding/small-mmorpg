@@ -34,4 +34,5 @@ export class MemoryRateLimiter {
 export class GatewayRateLimits {
   readonly ip = new MemoryRateLimiter(60_000, 30);
   readonly emailHash = new MemoryRateLimiter(10 * 60_000, 5);
+  readonly provider = new MemoryRateLimiter(60_000, 20);
 }

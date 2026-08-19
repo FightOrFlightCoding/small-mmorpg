@@ -34,7 +34,12 @@ export function httpStatusForCode(code: string): number {
   if (code === "AUTH_INVALID_JSON" || code === "AUTH_VALIDATION") {
     return 400;
   }
-  if (code === "AUTH_INVALID_CREDENTIALS" || code === "AUTH_INVALID_CHALLENGE") {
+  if (
+    code === "AUTH_INVALID_CREDENTIALS" ||
+    code === "AUTH_INVALID_CHALLENGE" ||
+    code === "AUTH_CHALLENGE_EXPIRED" ||
+    code === "AUTH_CHALLENGE_LOCKED"
+  ) {
     return 401;
   }
   if (
@@ -48,6 +53,9 @@ export function httpStatusForCode(code: string): number {
   }
   if (code === "AUTH_EMAIL_TAKEN" || code === "AUTH_REGISTRATION_FAILED") {
     return 409;
+  }
+  if (code === "AUTH_PASSWORD_REUSE") {
+    return 400;
   }
   if (code === "AUTH_PAYLOAD_TOO_LARGE") {
     return 413;

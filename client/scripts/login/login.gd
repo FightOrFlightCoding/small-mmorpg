@@ -111,19 +111,11 @@ func _on_register_pressed() -> void:
 
 
 func _on_forgot_password() -> void:
-	_clear_errors()
-	await AccountService.request_password_reset(_email_edit.text)
-	AppState.report_recoverable(
-		"password_reset_sent",
-		"If that email is registered, we sent password-reset instructions."
-	)
+	SceneRouter.transition_to(SceneRouter.SCENE_FORGOT_PASSWORD)
 
 
 func _on_forgot_email() -> void:
-	AppState.report_recoverable(
-		"forgot_email",
-		"If you no longer have the email you used, contact support. We cannot reveal whether an address is registered."
-	)
+	SceneRouter.transition_to(SceneRouter.SCENE_FORGOT_EMAIL)
 
 
 func _on_toggle_password() -> void:

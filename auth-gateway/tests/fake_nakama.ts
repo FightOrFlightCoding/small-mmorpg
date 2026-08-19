@@ -47,6 +47,9 @@ export class FakeNakama implements NakamaBridge {
   readonly sessions: FakeSession[] = [];
   usernames = new Set<string>();
   nowMs = () => Date.now();
+  failReplaceEmail = false;
+  readonly characterNames = new Map<string, string[]>();
+  readonly nameReservations = new Map<string, string>();
   private tokenSeq = 0;
 
   async health(): Promise<boolean> {
@@ -155,6 +158,9 @@ export class FakeNakama implements NakamaBridge {
       const userId = String(fields.user_id);
       const hmac = String(fields.hmac);
       const existing = this.profiles.get(userId);
+      if (existing !== undefined && existing.hmac !== hmac && fields.allow_hmac_change !== true) {
+        return { ok: false, status: 400, data: { ok: false }, message: "invalid_payload" };
+      }
       const profile: FakeProfile = {
         hmac: hmac,
         userId: userId,
@@ -272,16 +278,46 @@ export class FakeNakama implements NakamaBridge {
       this.challenges.put(record);
       return { ok: true, status: 200, data: { ok: true, challenge_id: record.challenge_id, expires_at: record.expires_at }, message: "" };
     }
+    if (op === "challenge_get") {
+      const record = this.challenges.get(String(fields.challenge_id));
+      if (record === null) {
+        return { ok: true, status: 200, data: { ok: false, record: null }, message: "" };
+      }
+      return {
+        ok: true,
+        status: 200,
+        data: {
+          ok: true,
+          record: {
+            challenge_id: record.challenge_id,
+            account_user_id: record.account_user_id,
+            email_lookup_hash: record.email_lookup_hash,
+            purpose: record.purpose,
+            created_at: record.created_at,
+            expires_at: record.expires_at,
+            attempt_count: record.attempt_count,
+            maximum_attempts: record.maximum_attempts,
+            consumed_at: record.consumed_at,
+            invalidated_at: record.invalidated_at,
+            request_id: record.request_id,
+            schema_version: record.schema_version,
+          },
+        },
+        message: "",
+      };
+    }
     if (op === "challenge_find") {
       const hmac = String(fields.hmac);
       const purpose = String(fields.purpose);
-      const records = Array.from(this.challenges.records.values()).filter(
-        (record) => record.email_lookup_hash === hmac && record.purpose === purpose && record.consumed_at === 0 && record.invalidated_at === 0 && record.expires_at > nowMs,
+      const matches = Array.from(this.challenges.records.values()).filter(
+        (record) => record.email_lookup_hash === hmac && record.purpose === purpose && record.invalidated_at === 0,
       );
-      if (records.length === 0) {
+      const open = matches.filter((record) => record.consumed_at === 0 && record.expires_at > nowMs && record.attempt_count < record.maximum_attempts);
+      const chosen = open.length > 0 ? open[0] : matches.length > 0 ? matches[0] : null;
+      if (chosen === null) {
         return { ok: true, status: 200, data: { ok: false, challenge_id: "", expires_at: 0 }, message: "" };
       }
-      return { ok: true, status: 200, data: { ok: true, challenge_id: records[0].challenge_id, expires_at: records[0].expires_at }, message: "" };
+      return { ok: true, status: 200, data: { ok: true, challenge_id: chosen.challenge_id, expires_at: chosen.expires_at }, message: "" };
     }
     if (op === "challenge_consume") {
       const existing = this.challenges.get(String(fields.challenge_id));
@@ -326,14 +362,55 @@ export class FakeNakama implements NakamaBridge {
       const userId = String(fields.user_id);
       const password = String(fields.password);
       const newEmail = String(fields.new_email);
+      if (this.failReplaceEmail) {
+        this.failReplaceEmail = false;
+        return { ok: false, status: 500, data: { ok: false, reason: "rollback" }, message: "email_replace_failed" };
+      }
+      const taken = this.users.get(newEmail);
+      if (taken !== undefined && taken.userId !== userId) {
+        return { ok: false, status: 409, data: { ok: false, reason: "email_taken" }, message: "email_taken" };
+      }
       const entries = Array.from(this.users.entries());
+      let oldEmail = "";
       for (let i = 0; i < entries.length; i++) {
         if (entries[i][1].userId === userId) {
+          oldEmail = entries[i][0];
           this.users.delete(entries[i][0]);
           this.users.set(newEmail, { ...entries[i][1], password: password });
         }
       }
-      return { ok: true, status: 200, data: { ok: true, userId: userId, email: newEmail }, message: "" };
+      const profile = this.profiles.get(userId);
+      if (profile !== undefined && typeof fields.hmac === "string" && fields.hmac.length > 0) {
+        this.profiles.set(userId, { ...profile, hmac: String(fields.hmac) });
+      }
+      return { ok: true, status: 200, data: { ok: true, userId: userId, email: newEmail, old_email: oldEmail }, message: "" };
+    }
+    if (op === "support_snapshot") {
+      let userId = typeof fields.user_id === "string" ? String(fields.user_id) : "";
+      const characterName = typeof fields.character_name === "string" ? String(fields.character_name).trim().toLowerCase() : "";
+      if (userId.length === 0 && characterName.length > 0) {
+        const reserved = this.nameReservations.get(characterName);
+        userId = reserved !== undefined ? reserved : "";
+      }
+      if (userId.length === 0) {
+        return { ok: true, status: 200, data: { ok: false, reason: "missing" }, message: "" };
+      }
+      const profile = this.profiles.get(userId);
+      const user = this.userById(userId);
+      const names = this.characterNames.get(userId);
+      return {
+        ok: true,
+        status: 200,
+        data: {
+          ok: true,
+          user_id: userId,
+          status: profile !== undefined ? profile.status : "",
+          verified: profile !== undefined && profile.verifiedAt > 0,
+          disableTime: user !== undefined ? user.disableTime : 0,
+          character_names: names !== undefined ? names.slice() : [],
+        },
+        message: "",
+      };
     }
     if (op === "delete_account") {
       const userId = String(fields.user_id);

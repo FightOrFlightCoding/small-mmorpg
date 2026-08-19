@@ -46,6 +46,45 @@ export function resultPage(ok: boolean): string {
   );
 }
 
+export function forgotEmailHelpPage(supportEmail: string): string {
+  return (
+    "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"referrer\" content=\"no-referrer\"><title>Forgot which email you used?</title>" +
+    "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'\"></head>" +
+    "<body><h1>Forgot which email you used?</h1>" +
+    "<p>We cannot show or guess your sign-in email from a character name or other public information.</p>" +
+    "<ul><li>Check likely inboxes for verification or account emails.</li>" +
+    "<li>Search for the game’s official sender address.</li>" +
+    "<li>Contact support at " +
+    escapeHtml(supportEmail) +
+    ".</li>" +
+    "<li>Provide non-secret identifying information such as known character names.</li>" +
+    "<li>Provide a private recovery/support ID when one is available (your account user id if you saved it).</li>" +
+    "<li>Support will require additional verification and will not reset a password without it.</li></ul>" +
+    "</body></html>"
+  );
+}
+
+export function supportLookupPage(requestId: string, error?: string, result?: string): string {
+  const errorHtml = error !== undefined ? "<p>" + escapeHtml(error) + "</p>" : "";
+  const resultHtml = result !== undefined ? "<pre>" + escapeHtml(result) + "</pre>" : "";
+  return (
+    "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"referrer\" content=\"no-referrer\"><title>Support lookup</title>" +
+    "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'\"></head>" +
+    "<body><h1>Internal support lookup</h1>" +
+    errorHtml +
+    resultHtml +
+    "<form method=\"post\" action=\"/v1/support/lookup\">" +
+    "<label>Support key <input type=\"password\" name=\"support_key\" autocomplete=\"off\"></label>" +
+    "<label>Support ID <input name=\"support_id\" autocomplete=\"off\"></label>" +
+    "<label>Character name <input name=\"character_name\" autocomplete=\"off\"></label>" +
+    "<input type=\"hidden\" name=\"request_id\" value=\"" +
+    escapeHtml(requestId) +
+    "\">" +
+    "<button type=\"submit\">Look up</button></form>" +
+    "<p>This tool never returns an email address. Every lookup is logged.</p></body></html>"
+  );
+}
+
 export function parsePurpose(raw: string): AuthChallengePurpose | null {
   if (
     raw === "EMAIL_VERIFICATION" ||

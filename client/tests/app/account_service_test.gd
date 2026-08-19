@@ -86,3 +86,54 @@ func test_revoked_refresh_does_not_loop() -> void:
 	var second := await AccountService.refresh_session()
 	assert_str(String(second.get("code", ""))).is_equal("session_expired")
 	assert_int(account.refresh_calls).is_equal(1)
+
+
+func test_password_reset_does_not_auto_login() -> void:
+	var account := AccountService.backend as FakeAccountBackend
+	AccountService.pending_reset_email = "player@example.com"
+	var result := await AccountService.confirm_password_reset("AAAA-BBBB-CCCC-DDDD", "correct horse staple", "correct horse staple")
+	assert_bool(bool(result.get("ok", false))).is_true()
+	assert_bool(bool(result.get("require_login", false))).is_true()
+	assert_str(String(result.get("token", ""))).is_equal("")
+	assert_int(account.reset_confirm_calls).is_equal(1)
+
+
+func test_forgotten_email_lookup_does_not_return_an_address() -> void:
+	var page: Control = auto_free(preload("res://scenes/login/forgot_email.tscn").instantiate())
+	add_child(page)
+	await get_tree().process_frame
+	var title := page.get_node("Center/VBox/Title") as Label
+	assert_str(title.text).is_equal("Forgot which email you used?")
+	page.get_node("Center/VBox/NameEdit").text = "HeroName"
+	page.get_node("Center/VBox/LookupButton").emit_signal("pressed")
+	await get_tree().process_frame
+	var status := page.get_node("Center/VBox/StatusLabel") as Label
+	assert_bool(status.text.contains("@")).is_false()
+	assert_bool(status.text.to_lower().contains("hero")).is_false()
+
+
+func test_forgot_password_copy_does_not_enumerate_accounts() -> void:
+	var page: Control = auto_free(preload("res://scenes/login/forgot_password.tscn").instantiate())
+	add_child(page)
+	await get_tree().process_frame
+	var status := page.get_node("Center/VBox/StatusLabel") as Label
+	assert_bool(status.text.contains("If an account exists for that email")).is_true()
+	assert_bool(status.text.contains("registered")).is_false()
+
+
+func test_change_password_and_email_use_canonical_paths() -> void:
+	var account := AccountService.backend as FakeAccountBackend
+	await AccountService.login("alice@example.com", "secret-pass-15x")
+	var changed := await AccountService.change_password("secret-pass-15x", "correct horse staple", "correct horse staple")
+	assert_bool(bool(changed.get("ok", false))).is_true()
+	assert_str(account.last_path).is_equal("/v1/account/password/change")
+	assert_str(AccountService.access_token).is_equal("")
+	await AccountService.login("alice@example.com", "secret-pass-15x")
+	var requested := await AccountService.request_email_change("secret-pass-15x", "new@example.com")
+	assert_bool(bool(requested.get("ok", false))).is_true()
+	assert_str(account.last_path).is_equal("/v1/account/email/change/request")
+	var confirmed := await AccountService.confirm_email_change("AAAA-BBBB-CCCC-DDDD")
+	assert_bool(bool(confirmed.get("ok", false))).is_true()
+	assert_str(account.last_path).is_equal("/v1/account/email/change/confirm")
+	assert_bool(bool(confirmed.get("require_login", false))).is_true()
+

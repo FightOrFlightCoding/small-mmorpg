@@ -4,6 +4,7 @@ extends Node
 
 var last_identity: Dictionary = {}
 var enter_world_after_bootstrap: bool = false
+var defer_login_after_logout: bool = false
 
 
 func _ready() -> void:
@@ -109,6 +110,57 @@ func request_login_email(email: String, password: String) -> void:
 		String(result.get("user_id", "")),
 		String(result.get("username", ""))
 	)
+
+
+func request_password_reset(email: String) -> void:
+	if AppState.has_fatal_error:
+		return
+	await AccountService.request_password_reset(email)
+
+
+func confirm_password_reset(code: String, new_password: String, confirm: String) -> void:
+	if AppState.has_fatal_error:
+		return
+	var result := await AccountService.confirm_password_reset(code, new_password, confirm)
+	if not bool(result.get("ok", false)):
+		AppState.report_recoverable(String(result.get("code", "AUTH_INVALID_CHALLENGE")), String(result.get("message", AccountErrors.message_for("AUTH_INVALID_CHALLENGE"))))
+		return
+	defer_login_after_logout = true
+	await NetworkService.logout()
+	SceneRouter.transition_to(SceneRouter.SCENE_PASSWORD_CHANGED)
+
+
+func request_change_password(current_password: String, new_password: String, confirm: String) -> void:
+	if AppState.has_fatal_error:
+		return
+	var result := await AccountService.change_password(current_password, new_password, confirm)
+	if not bool(result.get("ok", false)):
+		AppState.report_recoverable(String(result.get("code", "AUTH_VALIDATION")), String(result.get("message", AccountErrors.message_for("AUTH_VALIDATION"))))
+		return
+	defer_login_after_logout = true
+	await NetworkService.logout()
+	SceneRouter.transition_to(SceneRouter.SCENE_PASSWORD_CHANGED)
+
+
+func request_email_change(current_password: String, new_email: String) -> void:
+	if AppState.has_fatal_error:
+		return
+	var result := await AccountService.request_email_change(current_password, new_email)
+	if not bool(result.get("ok", false)):
+		AppState.report_recoverable(String(result.get("code", "AUTH_VALIDATION")), String(result.get("message", AccountErrors.message_for("AUTH_VALIDATION"))))
+		return
+	SceneRouter.transition_to(SceneRouter.SCENE_EMAIL_CHANGE_VERIFY)
+
+
+func confirm_email_change(code: String) -> void:
+	if AppState.has_fatal_error:
+		return
+	var result := await AccountService.confirm_email_change(code)
+	if not bool(result.get("ok", false)):
+		AppState.report_recoverable(String(result.get("code", "AUTH_INVALID_CHALLENGE")), String(result.get("message", AccountErrors.message_for("AUTH_INVALID_CHALLENGE"))))
+		return
+	defer_login_after_logout = true
+	await NetworkService.logout()
 
 
 func request_verify_email(code: String) -> void:
@@ -223,6 +275,9 @@ func _on_authentication_finished(success: bool, _message: String) -> void:
 func _on_logged_out() -> void:
 	enter_world_after_bootstrap = false
 	if AppState.has_fatal_error:
+		return
+	if defer_login_after_logout:
+		defer_login_after_logout = false
 		return
 	if AppState.content_ready:
 		SceneRouter.transition_to(SceneRouter.SCENE_LOGIN)

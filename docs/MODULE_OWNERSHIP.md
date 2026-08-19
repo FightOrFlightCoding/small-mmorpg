@@ -11,14 +11,14 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `AppState` | C | Session flags and shell signals | Loading, errors, scene id, zone view mirror, reconnect flag | none | none | no | no | no |
 | `ContentRegistry` / `ContentCatalog` / `VisualCatalog` / `AssetManifest` | C | Load bundle, ID lookup, visual ID → texture, client asset sets | Parsed catalog + manifest in memory | `bundle.json`, `visual_map.json`, `asset_manifest.json` | none | no | no | no |
 | `NetworkService` | C | Socket, RPCs, match send/recv, chat, reconnect, transfer join, device auth, import gateway session | In-memory Nakama session | `NakamaNetworkBackend` | `AppState`, `MatchProtocol`, `ContentRegistry`, `AccountService` | no | yes (send/recv) | no |
-| `AccountService` | C | Gateway HTTP, account status, access/refresh tokens, bounded refresh, logout/logout-all | In-memory tokens and status | HTTP | `AccountErrors` | no | auth-gateway `/v1` | no |
+| `AccountService` | C | Gateway HTTP, account status, access/refresh tokens, bounded refresh, logout/logout-all, password reset, password change, email change | In-memory tokens and status | HTTP | `AccountErrors` | no | auth-gateway `/v1` | no |
 | `RememberEmailStore` / `CredentialStore` | C | Remembered email; Stay Signed In interface (unavailable) | `user://remember_email.json` | none | none | email only | no | no |
 | `NakamaNetworkBackend` | C | Thin Nakama SDK | Client, session, socket, match id | Nakama Godot SDK 3.4.0 | none | no | transport only | no |
 | `SessionCache` / `DevIdentity` | C | Device-debug token cache (never passwords); debug identity gate | `user://session_cache.json` device tokens only | none | none | tokens only | no | no |
 | `ReconnectPolicy` | C | Backoff timings | none | none | none | no | no | no |
 | `MatchProtocol` | C | Opcodes, envelopes, FULL_STATE parse | none | none | none | no | schema only | no |
-| `GameService` | C | Boot, email register/login/verify via AccountService, debug device login, character lifecycle, zone join | none | autoloads | `AccountService`, `NetworkService`, `SceneRouter`, `AppState` | no | via NetworkService | no |
-| `SceneRouter` | C | Boot/login/register/verify/unavailable/disabled/character/world | current scene id | Godot tree | `AppState` | no | no | no |
+| `GameService` | C | Boot, email register/login/verify/reset/password-change/email-change via AccountService, debug device login, character lifecycle, zone join | none | autoloads | `AccountService`, `NetworkService`, `SceneRouter`, `AppState` | no | via NetworkService | no |
+| `SceneRouter` | C | Boot/login/register/verify/unavailable/disabled/forgot-password/reset/change-password/change-email/forgot-email/character/world | current scene id | Godot tree | `AppState` | no | no | no |
 | `QuestService` | C | Journal mirror; accept/turn-in intents | In-memory quest view | none | `NetworkService` | no | QUEST_ACCEPT / QUEST_TURN_IN | no |
 | `InventoryService` | C | Inventory mirror; pickup/destroy/split/move intents | GLoot inventory clone | GLoot 3.0.2 | `NetworkService` | no | PICKUP / DESTROY_ITEM / SPLIT_STACK / MOVE_ITEM | no grants |
 | `EquipmentService` | C | Equipment mirror; equip intents | GLoot ItemSlot clone | GLoot 3.0.2 | `NetworkService`, `InventoryService` | no | EQUIP | no |
@@ -42,7 +42,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `AttackIntent` / `CombatFeedback` / `InteractIntent` / `PickupIntent` | C | Usability targeting and floating numbers | none | none | `NetworkService` | no | ATTACK / SET_TARGET / INTERACT / PICKUP | no |
 | `NetDebugOverlay` | C | Debug FPS / ping EMA | none | none | none | no | no | no |
 | `ErrorDialog` / `LoadingOverlay` / `ShellPage` | C | Visible errors and overlays | none | none | `AppState`, `WindowManager` | no | no | no |
-| `Boot` / `Login` / `Register` / `Verify` / `Character` scenes | C | Shell UI | none | none | `GameService`, `AccountService` | no | no | no |
+| `Boot` / `Login` / `Register` / `Verify` / recovery and credential-change scenes / `Character` scenes | C | Shell UI | none | none | `GameService`, `AccountService` | no | no | no |
 | `SliceJourney` / `SliceSession` / `e2e_slice` | C debug | Headless two-identity journey | test sessions | `NakamaNetworkBackend` | `MatchProtocol` | no | same opcodes as players | no |
 | `protocol.ts` | S | Opcode parse, injection rejection | none | none | none | no | yes (parse) | no |
 | `match_state.ts` / `match_loop.ts` | S | Zone simulation tick | live match state | none | domain combat, inventory, quests | no (tick) | emit snapshots | no (tick) |
@@ -101,7 +101,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `email.ts` / `hmac.ts` / `account_compat.ts` / `rpcs/acct_compat.ts` | S/A | Canonical email, pure HMAC-SHA256, HMAC lookup decision, gated `acct_compat_probe` | none | `account_compat` / `email_index` | `nk.accountExportId`, `nk.accountDeleteId`, `storageIndexList` | yes (compat only) | `acct_compat_probe` | no |
 | `account_status.ts` / `account_gate.ts` / `unverified_cleanup.ts` / `internal_username.ts` | S | Account statuses, playable-account policy, unverified purge policy, random Nakama usernames | none | none | `account_profile` snapshots | no | no | no |
 | `nakama/playable_account.ts` | A | Load profile + Nakama disable/delete times; `requirePlayableUser` | none | none | domain gate + `account_profile_store` | no | character/find/party/gm/match/chat | no |
-| `gateway_assertion.ts` / `auth_challenge.ts` / `account_profile.ts` / `rpcs/auth_gateway.ts` | S/A | Gateway HMAC assertion, challenge state machine, production email HMAC profile, internal `auth_gateway` RPC (`get_profile`, `purge_unverified`, `challenge_find`) | in-memory nonce cache | `account_profile`, `auth_challenge` | `nk.hmacSha256Hash`, `nk.linkEmail`, `nk.accountDeleteId` | yes | `auth_gateway` | no |
+| `gateway_assertion.ts` / `auth_challenge.ts` / `account_profile.ts` / `rpcs/auth_gateway.ts` | S/A | Gateway HMAC assertion, challenge state machine, production email HMAC profile, internal `auth_gateway` RPC (`get_profile`, `purge_unverified`, `challenge_find`, `replace_password`, `replace_email`, `support_snapshot`) | in-memory nonce cache | `account_profile`, `auth_challenge` | `nk.hmacSha256Hash`, `nk.linkEmail`, `nk.linkDevice`, `nk.accountDeleteId` | yes | `auth_gateway` | no |
 | `auth-gateway/` | I | Public auth HTTP, Mailpit/SendGrid, hosted confirm pages | in-memory rate limits + idempotency | none (persists via RPC) | Nakama HTTP + `auth_gateway` | via Nakama | HTTPS (staging/prod) | no |
 | `nakama/auth_hooks.ts` / `environment.ts` | A/S | Registration and device-auth policy from env presets | none | none | compiled presets + `ctx.env` | no | Authenticate* before hooks | no |
 | `cert_load.ts` / `cli/cert.ts` | S/T | Capacity/soak measurement (default public cap stays 8; capacity uses `maxPlayers: 20` extras) | none | none | match_loop | no | no | no |
@@ -128,6 +128,6 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `ContentCatalog.REQUIRED_IDS` | Client boot refuses catalogs missing Prompt 18 IDs. Duplicates content-build’s source set. Later generalization must drop the fixed list. |
 | Wallet vs storage | Gold is Nakama wallet, not a storage object. Inventory/quest/equipment are storage. Turn-in uses both in one `multiUpdate`. |
 | E2E vs `NetworkService` | E2E uses `NakamaNetworkBackend` directly so it can open two identities. Graphical play uses `NetworkService`. Both send the same opcodes. |
-| Godot login vs `auth-gateway/` | Product email register/login/verify/refresh/logout go through `AccountService` to the gateway. Debug Alice/Bob still use device auth. Secrets stay in the gateway process. |
+| Godot login vs `auth-gateway/` | Product email register/login/verify/refresh/logout/reset/password-change/email-change go through `AccountService` to the gateway. Debug Alice/Bob still use device auth. Secrets stay in the gateway process. Forgotten-email help is copy-only. Support lookup is administrator-only. |
 
 No module other than Nakama adapters may access persistence. No client module may write canonical storage or wallet.

@@ -49,6 +49,10 @@ Challenge objects are owned by the system user. Raw codes never appear in storag
 
 Unverified cleanup may delete the Nakama account and the `email_index` object so the HMAC is reusable.
 
+Password reset and logged-in password change do not write a password-history collection. Email change overwrites the same `account_profile` / `email_index` HMAC after a successful `replace_email`. Stale index hits fail the re-read compare. A failed replace does not write the new HMAC, so the old address stays the lookup key.
+
+Support lookup does not persist a project record. The gateway logs `support_lookup` with `request_id`, `query_kind`, `query_hash`, `hit`, and `user_id` only.
+
 ## Client local files
 
 | Path | Allowed | Forbidden |

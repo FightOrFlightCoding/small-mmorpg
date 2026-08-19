@@ -33,14 +33,14 @@ Godot SDK 3.4.0 wraps these. `session_logout_async` always sends the current tok
 | Export | GET | `/v2/console/account/{id}/export` |
 | Recorded delete | DELETE | `/v2/console/account/{id}?record=true` |
 
-Password recovery in Foundation v1 is console-assisted **and** the auth-gateway reset APIs. Reset HTTP responses do not reveal whether an address exists.
+Password recovery in Foundation v1 is the auth-gateway reset APIs. The Nakama console remains an operator fallback. Reset HTTP responses do not reveal whether an address exists.
 
 ## Runtime (Nakama JS, `nakama-runtime` 1.47.0)
 
 | API | Use in later phases |
 | --- | --- |
-| `nk.linkEmail(userId, email, password)` | Password/email replacement after HTTP sequence is proven |
-| `nk.unlinkEmail(userId, email?)` | Same |
+| `nk.linkEmail(userId, email, password)` | Same-email password replace; new-email link in the temp-device sequence |
+| `nk.unlinkEmail(userId, email?)` | Email replace; must not leave zero auth methods |
 | `nk.linkDevice` / `nk.unlinkDevice` | Temporary auth method |
 | `nk.accountExportId(userId)` | Product export |
 | `nk.accountDeleteId(userId, recorded?)` | Product delete **must** pass `recorded=true` |
@@ -55,7 +55,7 @@ Do not use `nk.sqlExec` / `sqlQuery` to change credentials. Do not use Node `cry
 
 Godot `AccountService` uses these routes for product email entry. Staging/production must use HTTPS. Local Compose publishes `http://127.0.0.1:8787`. Secrets (Nakama server key, HTTP key, SendGrid key, HMAC peppers) stay in the gateway process.
 
-Canonical ACCT-03 routes; ACCT-02 aliases remain:
+Canonical ACCT-04 routes; ACCT-02 kebab aliases remain:
 
 | Operation | Method | Path | Notes |
 | --- | --- | --- | --- |
@@ -69,15 +69,18 @@ Canonical ACCT-03 routes; ACCT-02 aliases remain:
 | Logout current | POST | `/v1/auth/logout` | Bearer + optional refresh; revokes that pair |
 | Logout all | POST | `/v1/auth/logout-all` | Bearer; password unless JWT `iat` is within `AUTH_LOGOUT_ALL_RECENT_MS`; security email |
 | Account status | GET | `/v1/account/status` | Bearer; safe status, no internal metadata dump |
-| Password reset request | POST | `/v1/auth/password-reset/request` | Generic success; HMAC lookup |
-| Password reset confirm | POST | `/v1/auth/password-reset/confirm` | Consume + `linkEmail` same address |
-| Email-change request | POST | `/v1/auth/email-change/request` | Bearer session; notice to old address |
-| Email-change confirm | POST | `/v1/auth/email-change/confirm` | ACCT-01 temp-device sequence |
+| Password reset request | POST | `/v1/auth/password/reset/request` | Alias: `/v1/auth/password-reset/request`. `{ email, client_version }`. Always the same success copy: *If an account exists for that email, password-reset instructions have been sent.* Missing, existing, disabled, unverified, and deleted addresses share that shape. Per-IP, per-email-hash, and global provider limits. Uniform timing pad (`AUTH_RESET_UNIFORM_MS`). Body limit 8192 |
+| Password reset confirm | POST | `/v1/auth/password/reset/confirm` | Alias: `/v1/auth/password-reset/confirm`. `{ reset_challenge, new_password, new_password_confirmation, idempotency_key }`. Consume hashed challenge, re-read HMAC index, same-email `nk.linkEmail`, revoke all sessions, `password_changed` mail. **No tokens.** Ordinary login required |
+| Change password | POST | `/v1/account/password/change` | Bearer `ACTIVE` session with recent JWT `iat` (`AUTH_SENSITIVE_RECENT_MS`), current password, new/confirm, idempotency. Rejects detectable reuse (`new === current`). Same-email `linkEmail`, revoke all, `password_changed` mail. Client returns to Login |
+| Email-change request | POST | `/v1/account/email/change/request` | Alias: `/v1/auth/email-change/request`. Bearer `ACTIVE` + recent session, current password, proposed email, idempotency. Rejects unchanged and taken addresses. Challenge goes to the **new** address; `email_change_old_notice` to the current address. Old email stays active |
+| Email-change confirm | POST | `/v1/account/email/change/confirm` | Alias: `/v1/auth/email-change/confirm`. `{ email_change_challenge, new_email, password, idempotency_key }`. Revalidate uniqueness, ACCT-01 temp-device sequence, update HMAC index, revoke all, notify old and new. Failed replace after consume does not lock both addresses; the player requests a new challenge. **No tokens.** Login with the new email |
+| Forgotten-email help | GET | `/v1/account/forgot-email` | Copy-only page. No lookup form, no masked email, no character-name reveal |
+| Support lookup | GET/POST | `/v1/support/lookup` | Administrator only (`x-support-key` / `AUTH_SUPPORT_LOOKUP_SECRET`). Logs every lookup (`query_kind`, `query_hash`, `hit`, `user_id`). Returns status, verified, character names, and user id. **Never returns an email.** Not a public API |
 | Account deletion request | POST | `/v1/auth/account-deletion/request` | Bearer session |
 | Account deletion confirm | POST | `/v1/auth/account-deletion/confirm` | `nk.accountDeleteId(id, true)` |
 | Hosted confirm | GET/POST | `/v1/confirm` | No analytics; `referrer-policy: no-referrer`; POST then redirect to `/v1/confirm/done` |
 
-Headers: `x-request-id` (generated if missing), `Idempotency-Key` (optional, 10-minute replay). Body limit 8192 bytes. Per-IP and per-email-hash rate-limit foundations. Error envelope `{ ok: false, code, message_key, request_id, retry_after_seconds, field_errors }`.
+Headers: `x-request-id` (generated if missing), `Idempotency-Key` (optional, 10-minute replay), `x-support-key` (support lookup only). Body limit 8192 bytes. Per-IP, per-email-hash, and global email-provider rate-limit foundations. Error envelope `{ ok: false, code, message_key, request_id, retry_after_seconds, field_errors }`. Password-reset request success is `{ ok: true, request_id, message, message_key }` for every address class. Reset/email-change confirm and password/email change success include `require_login: true` and never include access or refresh tokens.
 
 ## Authenticate hooks
 
@@ -99,7 +102,7 @@ No `registerAfterAuthenticate*`. Unknown authenticate types are not registered.
 | `find_or_create_starter_zone` | session | Yes |
 | Cave / party / trade / GM / ops RPCs | session (+ allowlist for GM/ops write) | Yes / debug |
 | `acct_compat_probe` | session + `developmentToolsEnabled` | **No** |
-| `auth_gateway` | HTTP key **and** HMAC assertion | **No.** Ordinary session JWT is `gateway_rpc_forbidden` |
+| `auth_gateway` | HTTP key **and** HMAC assertion | **No.** Ordinary session JWT is `gateway_rpc_forbidden`. Ops include `replace_password`, `replace_email` (temp-device sequence + HMAC update), and `support_snapshot` (never returns email) |
 
 Every gameplay join and privileged RPC checks `ctx.userId` and, for email accounts, `requirePlayableUser` (`ACTIVE`, verified, not disabled, not deleting). Handshake, ops, `acct_compat_probe`, and `auth_gateway` are not gated. Device accounts with no email and no profile remain playable.
 
@@ -114,9 +117,13 @@ Metadata allowed: `protocolVersion`, `contentHash`, `clientVersion`, `selectionT
 | Return to Character Select | Not implemented as a distinct server-acked departure |
 | Logout current session | `GameService.request_logout` → leave chats/match → gateway `/v1/auth/logout` when email → Nakama current-token logout → Login |
 | Logout all sessions | Character-select password confirm → `POST /v1/auth/logout-all` → Login. Account and characters preserved |
+| Forgot Password | Unauthenticated `POST /v1/auth/password/reset/request` with generic copy, then code + new password. **No auto-login** |
+| Change password | Authenticated `POST /v1/account/password/change` → Password Changed → Login |
+| Change email | Authenticated request + unauthenticated confirm. Old email stays until confirm. Login with the new address |
+| Forgot which email you used? | Copy-only help. No reveal, no automated lookup from the client |
 | Quit Game | Ordinary window close; **not** a proven safe departure |
 | Unexpected disconnect | Reconnect overlay; 5s/60s grace; not 10s `LINK_DEAD` |
 
 ## Error sanitization
 
-Login `create=false` always maps to `invalid_credentials` (“Email or password is incorrect.”). Registration duplicate email is generic `AUTH_REGISTRATION_FAILED` (“We could not create this account…”). Do not distinguish unknown email vs bad password on login or on password-reset requests. Do not reveal whether a duplicate-register account is verified.
+Login `create=false` always maps to `invalid_credentials` (“Email or password is incorrect.”). Registration duplicate email is generic `AUTH_REGISTRATION_FAILED` (“We could not create this account…”). Do not distinguish unknown email vs bad password on login or on password-reset requests. Do not reveal whether a duplicate-register account is verified. There is no public email-reveal endpoint. Forgotten-email help and support lookup never return an email address.

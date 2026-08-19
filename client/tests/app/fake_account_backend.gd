@@ -32,6 +32,13 @@ var refresh_calls: int = 0
 var logout_calls: int = 0
 var logout_all_calls: int = 0
 var reset_calls: int = 0
+var reset_confirm_calls: int = 0
+var password_change_calls: int = 0
+var email_change_request_calls: int = 0
+var email_change_confirm_calls: int = 0
+var password_change_ok: bool = true
+var email_change_ok: bool = true
+var reset_confirm_ok: bool = true
 var revoked_refresh: Dictionary = {}
 
 
@@ -63,9 +70,38 @@ func request(method: String, path: String, body: Dictionary, bearer: String) -> 
 			return {"ok": false, "code": "AUTH_FORBIDDEN"}
 		revoked_refresh[refresh_token] = true
 		return {"ok": true, "logged_out_all": true}
-	if path == "/v1/auth/password-reset/request":
+	if path == "/v1/auth/password-reset/request" or path == "/v1/auth/password/reset/request":
 		reset_calls += 1
+		return {"ok": true, "message": "If an account exists for that email, password-reset instructions have been sent."}
+	if path == "/v1/auth/password-reset/confirm" or path == "/v1/auth/password/reset/confirm":
+		reset_confirm_calls += 1
+		if not reset_confirm_ok:
+			return {"ok": false, "code": "AUTH_INVALID_CHALLENGE"}
+		token = ""
+		refresh_token = ""
+		return {"ok": true, "require_login": true}
+	if path == "/v1/account/password/change":
+		password_change_calls += 1
+		if bearer.is_empty():
+			return {"ok": false, "code": "AUTH_FORBIDDEN"}
+		if String(body.get("current_password", "")) == "wrong-password-15x":
+			return {"ok": false, "code": "AUTH_INVALID_CREDENTIALS"}
+		if not password_change_ok:
+			return {"ok": false, "code": "AUTH_PASSWORD_REUSE"}
+		revoked_refresh[refresh_token] = true
+		return {"ok": true, "require_login": true}
+	if path == "/v1/account/email/change/request" or path == "/v1/auth/email-change/request":
+		email_change_request_calls += 1
+		if bearer.is_empty():
+			return {"ok": false, "code": "AUTH_FORBIDDEN"}
+		if not email_change_ok:
+			return {"ok": false, "code": "AUTH_EMAIL_TAKEN"}
 		return {"ok": true}
+	if path == "/v1/account/email/change/confirm" or path == "/v1/auth/email-change/confirm":
+		email_change_confirm_calls += 1
+		if not email_change_ok:
+			return {"ok": false, "code": "AUTH_INVALID_CHALLENGE"}
+		return {"ok": true, "require_login": true}
 	if path == "/v1/account/status":
 		if bearer.is_empty():
 			return {"ok": false, "code": "AUTH_FORBIDDEN"}

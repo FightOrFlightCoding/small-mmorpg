@@ -1,6 +1,6 @@
 # Account threat model
 
-ACCT-03 puts Godot product email login on the auth gateway and gates gameplay on verified `ACTIVE` accounts. Challenges remain hashed. Email lookup uses `account_profile`. Debug device auth (Alice/Bob) remains playable without an email profile.
+ACCT-03 puts Godot product email login on the auth gateway and gates gameplay on verified `ACTIVE` accounts. ACCT-04 adds password recovery, logged-in password change, email change, and forgotten-email help. Challenges remain hashed. Email lookup uses `account_profile`. Debug device auth (Alice/Bob) remains playable without an email profile.
 
 ## Assets
 
@@ -44,13 +44,19 @@ ACCT-03 puts Godot product email login on the auth gateway and gates gameplay on
 - Challenges store HMAC only; single-use, expiry, attempt limit, sibling invalidation, idempotent consume
 - Password-reset and resend HTTP responses do not reveal account existence
 - Duplicate register does not reveal whether the address is verified
-- Email provider failure after register does not delete the Nakama user
+- Email provider failure after register or reset does not delete the Nakama user or change the generic reset response
 - Hosted confirm pages: no third-party scripts, `referrer-policy: no-referrer`, generic errors
 - Gateway password policy 15–128 with a small common-password list
 - `requirePlayableUser` rejects unverified, disabled, and deleting email accounts on character RPCs, match discovery/join, chat, party, and GM
 - Login returns `EMAIL_VERIFICATION_REQUIRED` only after valid credentials, without tokens
 - Logout-all revokes every session after password or recent `iat` and sends a security email
 - Email product refresh tokens are not written to `user://`
+- Password-reset and email-change challenges are HMAC-only, 15-minute TTL, five attempts, sibling-invalidated, one-time consume
+- Password reset and password/email change revoke all sessions and never return login tokens
+- Logged-in password and email change require an `ACTIVE` account, current password, and a recent JWT `iat`
+- Email change keeps the old address until confirm; uniqueness is re-checked; failed replace does not lock both addresses
+- Forgotten-email UI and `/v1/account/forgot-email` never reveal or mask an email. Internal `/v1/support/lookup` is secret-gated, logged, and email-free
+- No public email-reveal endpoint
 
 ## Gaps the later lifecycle must close
 
@@ -72,7 +78,7 @@ ACCT-03 puts Godot product email login on the auth gateway and gates gameplay on
 
 - Register: canonicalize email, uniqueness, password policy, legal versions, verification challenge, generic duplicate copy.
 - Login: canonicalize, `create=false`, sanitized errors, client-version gate, verification required only after proof.
-- Reset / forgotten email: HMAC lookup + re-read; same response whether missing or present.
-- Change password / email: only the proven Nakama link/unlink sequence; logout-all if policy requires.
+- Reset / forgotten email: HMAC lookup + re-read; same HTTP success whether missing, present, disabled, unverified, or deleted. No public reveal endpoint.
+- Change password / email: proven Nakama `linkEmail` / temp-device sequence; logout-all; no password history.
 - Delete: authenticated `ACTIVE`, no lease, password + email one-time + typed confirmation + idempotency; `accountDeleteId(id, true)` (Godot UI later).
-- Lookup: never store raw email in a publicly readable index.
+- Lookup: never store raw email in a publicly readable index. Support snapshot never returns email.

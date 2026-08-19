@@ -198,7 +198,7 @@ Commands: `inspect_character`, `teleport_character`, `repair_invalid_location`, 
 | Field | Value |
 | --- | --- |
 | Direction | Auth gateway → server HTTP RPC |
-| Request | `{ assertion, op, ... }` where `op` is `ping` / `put_email_index` / `lookup_email` / `get_profile` / `mark_verified` / `challenge_put` / `challenge_get` / `challenge_find` / `challenge_consume` / `purge_unverified` / `replace_password` / `replace_email` / `delete_account`. `assertion` is `{ request_id, timestamp, nonce, operation, payload_hash, signature }` |
+| Request | `{ assertion, op, ... }` where `op` is `ping` / `put_email_index` / `lookup_email` / `get_profile` / `mark_verified` / `challenge_put` / `challenge_get` / `challenge_find` / `challenge_consume` / `purge_unverified` / `replace_password` / `replace_email` / `delete_account` / `support_snapshot`. `assertion` is `{ request_id, timestamp, nonce, operation, payload_hash, signature }` |
 | Authority | Nakama HTTP key **and** HMAC assertion using `VIBECODE_GATEWAY_HMAC_SECRET`. Session JWT is `gateway_rpc_forbidden`. Timestamp skew 60s; nonce replay cache 4096 |
 | Auth | HTTP key. Not a player UI |
 | Storage | `account_profile` / `email_index`, `auth_challenge` / `c_<id>`, `permissionWrite: 0`, hashes only |

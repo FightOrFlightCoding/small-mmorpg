@@ -1,14 +1,14 @@
 # Account UI flows
 
-ACCT-03 Godot shell for the normal account entry lifecycle. Gateway-hosted `/v1/confirm` pages remain for email links. Product email login goes through `AccountService` and the auth gateway. Debug Alice/Bob/device buttons remain, hidden in release.
+ACCT-04 Godot shell for credential recovery and maintenance on the accepted register/login path. Gateway-hosted `/v1/confirm` pages remain for email links. Product email login goes through `AccountService` and the auth gateway. Debug Alice/Bob/device buttons remain, hidden in release.
 
 ## Login (`scenes/login/login.tscn`)
 
-- Email, password, show/hide, Caps Lock hint where typing looks shifted, Remember Email, Login, Register, Forgot Password, Forgot Which Email?, server status, version, loading, field/global errors.
+- Email, password, show/hide, Caps Lock hint where typing looks shifted, Remember Email, Login, Register, Forgot Password, **Forgot which email you used?**, server status, version, loading, field/global errors.
 - Stay Signed In is hidden (`CredentialStore` unavailable).
 - Debug: Alice, Bob, this machine (hidden in release).
-- Forgot Password calls `POST /v1/auth/password-reset/request` with generic copy.
-- Forgot Which Email? explains that support cannot reveal whether an address is registered.
+- Forgot Password opens Forgot Password Request. The gateway call is `POST /v1/auth/password/reset/request` with generic copy whether or not the address exists.
+- Forgot which email you used? opens the support-assisted help scene. It does not look up or mask an email.
 - Success (verified) → import Nakama session → character scene.
 - Unverified credentials → Email Verification.
 - Disabled → Account Disabled.
@@ -24,13 +24,53 @@ ACCT-03 Godot shell for the normal account entry lifecycle. Gateway-hosted `/v1/
 - Explanation, code field with paste, Verify, Resend with countdown, Change email (registration), Back to Login, delivery-delay copy.
 - Success → Login.
 
+## Forgot Password Request (`scenes/login/forgot_password.tscn`)
+
+- Email, submit, resend, continue to code entry, back to Login, loading, duplicate-submit disabled.
+- Success copy is always *If an account exists for that email, password-reset instructions have been sent.* plus 15-minute expiry guidance. The screen does not say whether the address is registered.
+
+## Password Reset Code Entry (`scenes/login/password_reset_code.tscn`)
+
+- Code field with paste, continue, resend with countdown, expiry guidance, back to Forgot Password.
+
+## New Password (`scenes/login/password_reset_new.tscn`)
+
+- New password, confirmation, show/hide, submit, expired-code copy, back to code entry.
+- Confirm is `POST /v1/auth/password/reset/confirm`. The client never receives tokens and does not auto-login.
+
+## Password Changed (`scenes/login/password_changed.tscn`)
+
+- Clear success: password changed, all sessions signed out, Back to Login.
+- Used after unauthenticated reset and after logged-in password change.
+
+## Change Password (`scenes/login/change_password.tscn`)
+
+- Requires an authenticated session. Current password, new password, confirmation, show/hide, loading, back to Character Select.
+- Success revokes all sessions and opens Password Changed.
+
+## Change Email (`scenes/login/change_email.tscn`)
+
+- Requires an authenticated session. Current password, proposed new email, loading, back to Character Select.
+- Success opens Email Change Verification. The old email stays active until confirm.
+
+## Email Change Verification (`scenes/login/email_change_verify.tscn`)
+
+- Code with paste, resend countdown, expiry copy, back navigation.
+- Confirm does not auto-login. Success copy tells the player to sign in with the new address.
+
+## Forgot Which Email Help (`scenes/login/forgot_email.tscn`)
+
+- Title: **Forgot which email you used?**
+- Explains inbox search, official sender, contacting support, non-secret identifiers such as character names, a private recovery/support ID when one is available, and that support will require additional verification.
+- A character-name field does not call a reveal API. Status copy never includes an email or confirms that a character exists.
+
 ## Server Unavailable / Account Disabled
 
 - Retry/back to Login. Disabled accounts cannot enter character select.
 
 ## Character select (`scenes/character`, `character.gd`)
 
-- Unchanged roster UX plus **Log out all sessions** with current-password confirmation.
+- Unchanged roster UX plus **Log out all sessions**, **Change password**, and **Change email**.
 - Logout current still returns to Login.
 - Unverified/disabled/deleting accounts never reach this scene through the email path; RPCs still enforce the playable-account guard.
 
@@ -39,6 +79,10 @@ ACCT-03 Godot shell for the normal account entry lifecycle. Gateway-hosted `/v1/
 - Logout current → leave match → Login.
 - Settings persist non-credential preferences.
 - Debug GM panel does not grant account authority.
+
+## Shared screen rules
+
+All recovery and maintenance screens provide a loading state, disabled duplicate submit, clear success, clear expiry, resend guidance where a challenge is involved, back navigation, password visibility controls on password fields, and paste support on code fields. None enumerate accounts.
 
 ## Later phases (do not implement here)
 
