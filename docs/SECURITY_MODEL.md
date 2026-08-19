@@ -136,7 +136,7 @@ Debug-only `--e2e-slice` opens two real sessions and sends ordinary intentions. 
 
 ## Logging
 
-Structured logs may include opcode, rejection reason, user ID, match ID, and `requestId`. Match rejections use `match_action rejected user_id=… action=… reason=… tick=…`. They must not include session tokens, passwords, device identifiers beyond Nakama’s own account ID, or raw full untrusted payloads when oversized.
+Structured logs may include opcode, rejection reason, user ID, match ID, and `requestId`. Match rejections use `match_action rejected user_id=… action=… reason=… tick=…`. Ops lines use `ops event=…`. They must not include session tokens, passwords, device identifiers beyond Nakama’s own account ID, raw full untrusted payloads when oversized, or full private chat bodies.
 
 ### Client-only GM / debug flags
 
@@ -176,6 +176,10 @@ Every expected attack maps to a validation rule, an automated test, and a safe s
 | Forged party membership | Server party record + revision cache; client member lists rejected | `party.test.ts`, `protocol.test.ts`, `party_service_test.gd` | `stat_injection:members`; match ignores client lists |
 | Nominated group credit/loot | Server eligibility and assignment only | `party_credit_loot.test.ts`, `protocol.test.ts` | `stat_injection:creditUserIds`; one death `eventId` |
 | Protocol-version mismatch | Envelope version checked first | `protocol.test.ts`, `match.test.ts` | `protocol_mismatch`; no apply |
+| Client/content too old or new | Handshake + join `clientVersion` / hash | `compatibility.test.ts`, `handshake_test.gd` | `client_too_old` / `client_too_new` / `content_mismatch`; no world |
+| Join during maintenance | `rejectJoins` + find/cave RPCs | `maintenance.test.ts`, `handshake_test.gd` | `server_maintenance`; reconnect still allowed |
+| Production registration / device auth | Authenticate before-hooks | `auth_hooks.test.ts` | `registration_disabled` / `device_auth_disabled` |
+| Accidental production restore | Overwrite token + dataReset policy | `recovery.test.ts` | Script refuses without `OVERWRITE-PRODUCTION` |
 | Character stat injection | Bootstrap/create accept name and classId only | `character.test.ts`, `character_lifecycle.test.ts` | `stat_injection`; `permissionWrite: 0` |
 | Foreign character select | Ticket and roster ownership | `character_lifecycle.test.ts`, `match.test.ts` | `selection_foreign` / `character_missing` |
 | Expired or reused selection ticket | TTL 300 s; invalidate on join | `character_lifecycle.test.ts` | `selection_expired` / `selection_invalidated` |

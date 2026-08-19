@@ -1,10 +1,10 @@
-import { content, contentHash } from "../generated/content";
+import { content, contentHash, packageVersion } from "../generated/content";
 import { readCharacter, writeCharacterCheckpoint } from "./character_store";
 import { readQuests, writeQuests } from "./quest_store";
 import { readInventory, writeInventory, writeInventoryOnce } from "./inventory_store";
 import { readEquipment, writeEquipment } from "./equipment_store";
 import { loadWalletRef } from "./wallet_ref_store";
-import { SAVE_SCHEMA_VERSION } from "../domain/save_schema";
+import { SAVE_SCHEMA_VERSION, publicSaveRejectCode } from "../domain/save_schema";
 import { applyGmToMatch, gmRequestFromMatchSignal } from "../domain/gm";
 import { writeGmCommandResult } from "./gm_store";
 import { commitQuestReward, commitTransaction, readGold } from "./quest_reward_store";
@@ -44,7 +44,7 @@ import {
 import { dict } from "../domain/maps";
 import { groupCreditRulesFromPlayer } from "../domain/party";
 import { applyPartyMatchSignal } from "../domain/party_credit";
-import { actionResult, partyEventMessage, partyStateMessage } from "../domain/protocol";
+import { actionResult, partyEventMessage, partyStateMessage, systemMessage } from "../domain/protocol";
 import { nakamaPartyRepository } from "./party_store";
 import { markPartyDisconnectGrace, markPartyOnline } from "../rpcs/party";
 import {
@@ -94,11 +94,15 @@ import { evaluateJoinPresence, withCheckpoint, withTransferState } from "../doma
 import { consumeTransferTicket, issueTransferTicket, previewTransferTicket } from "../domain/transfer";
 import { createCaveMatch } from "../rpcs/cave";
 import { findOrCreateStarterZoneMatch } from "./starter_zone_registry";
+import { formatOpsLog, incrementCounter } from "../domain/ops_metrics";
+import { shouldWarnShutdown, shutdownWarningMessage } from "../domain/maintenance";
+import { readEffectiveMaintenance, readEnvironment } from "./ops_store";
 
 export interface StarterMatchRuntimeState {
   zone: StarterZoneState;
   presences: { [userId: string]: nkruntime.Presence };
   pendingTransfers?: { [userId: string]: string };
+  lastMaintenanceWarnTick?: number;
 }
 
 export function matchInit(
@@ -169,7 +173,8 @@ export function matchInit(
     applyPersistedCaveCompletion(zone);
   }
   const label = isCave ? PARTY_CAVE_LABEL : STARTER_ZONE_LABEL;
-  logger.info("starter_zone init label=%s instance_type=%s content_hash=%s", label, instanceType, contentHash);
+  incrementCounter(isCave ? "activeCaveMatches" : "activePublicMatches");
+  logger.info(formatOpsLog("match_create", { label: label, instance_type: instanceType, content_hash: contentHash }));
   return {
     state: persistable({ zone: zone, presences: {} }),
     tickRate: MATCH_TICK_RATE,
@@ -196,6 +201,8 @@ export function matchJoinAttempt(
   }
   const alreadyJoined = Object.prototype.hasOwnProperty.call(state.zone.players, presence.userId);
   const existing = state.presences[presence.userId];
+  const env = readEnvironment(ctx);
+  const maintenance = readEffectiveMaintenance(nk, env, ctx.env);
   const gate = validateJoinAttempt(
     state.zone,
     contentHash,
@@ -203,9 +210,16 @@ export function matchJoinAttempt(
     alreadyJoined,
     presence.sessionId,
     existing !== undefined ? existing.sessionId : "",
+    {
+      minClientVersion: env.minClientVersion,
+      maxClientVersion: env.maxClientVersion,
+      expectedContentVersion: env.contentVersion.length > 0 ? env.contentVersion : packageVersion,
+      maintenance: maintenance,
+    },
   );
   if (!gate.accept) {
-    logger.info("starter_zone join rejected user_id=%s reason=%s", presence.userId, gate.rejectMessage);
+    logger.info(formatOpsLog("match_join_rejected", { user_id: presence.userId, reason: gate.rejectMessage !== undefined ? gate.rejectMessage : "join_failed" }));
+    incrementCounter("rejectedActions");
     return { state: persistable(state), accept: false, rejectMessage: gate.rejectMessage };
   }
   const transferTicketId = meta.transferTicket !== undefined ? meta.transferTicket : "";
@@ -289,8 +303,10 @@ export function matchJoinAttempt(
     readQuests(nk, presence.userId, character.characterId);
     readProgression(nk, presence.userId, character.characterId);
   } catch (error) {
-    const reason = error instanceof Error ? error.message : "save_incompatible";
-    logger.info("starter_zone join rejected user_id=%s reason=%s", presence.userId, reason);
+    const raw = error instanceof Error ? error.message : "save_incompatible";
+    const reason = publicSaveRejectCode(raw);
+    logger.info(formatOpsLog("match_join_rejected", { user_id: presence.userId, reason: reason }));
+    incrementCounter("rejectedActions");
     return { state: persistable(state), accept: false, rejectMessage: reason };
   }
   const alreadySameSession =
@@ -353,7 +369,9 @@ export function matchJoin(
         displayName: existingLive.name,
       }, Date.now());
       joined.push(presence);
-      logger.info("starter_zone session resume user_id=%s", presence.userId);
+      logger.info(formatOpsLog("reconnect", { user_id: presence.userId }));
+      incrementCounter("reconnects");
+      incrementCounter("connectedPlayers");
       recoverJoinTrade(nk, zone, existingLive);
       continue;
     }
@@ -466,9 +484,12 @@ export function matchJoin(
       writeProgression(nk, presence.userId, player.progression, character.characterId);
     }
     if (parked !== null) {
-      logger.info("starter_zone grace rejoin user_id=%s", presence.userId);
+      logger.info(formatOpsLog("reconnect", { user_id: presence.userId, kind: "grace" }));
+      incrementCounter("reconnects");
+      incrementCounter("connectedPlayers");
     } else {
-      logger.info("starter_zone join user_id=%s character_id=%s", presence.userId, character.characterId);
+      logger.info(formatOpsLog("match_join", { user_id: presence.userId, character_id: character.characterId }));
+      incrementCounter("connectedPlayers");
     }
     zone = addPlayer(zone, player);
     recoverJoinTrade(nk, zone, player);
@@ -562,7 +583,8 @@ export function matchLeave(
       logger.info("starter_zone leave checkpoint user_id=%s", presence.userId);
     }
     delete nextPresences[presence.userId];
-    logger.info("starter_zone leave user_id=%s", presence.userId);
+    logger.info(formatOpsLog("match_leave", { user_id: presence.userId }));
+    incrementCounter("connectedPlayers", -1);
   }
   touchCaveOccupancy(nk, zone);
   const remaining = allPresences(nextPresences);
@@ -592,24 +614,36 @@ export function matchLoop(
       userId: message.sender.userId,
     });
   }
-  const result = applyMatchLoop(state.zone, tick, contentHash, incoming, function () {
-    return nk.uuidv4();
-  }, function (request) {
-    return commitQuestReward(nk, request);
-  }, function (request) {
-    return commitTransaction(nk, request);
-  }, function (request) {
-    return commitTradeTransaction(nk, request);
-  });
+  let result: MatchLoopResult;
+  try {
+    result = applyMatchLoop(state.zone, tick, contentHash, incoming, function () {
+      return nk.uuidv4();
+    }, function (request) {
+      return commitQuestReward(nk, request);
+    }, function (request) {
+      return commitTransaction(nk, request);
+    }, function (request) {
+      return commitTradeTransaction(nk, request);
+    });
+  } catch (error) {
+    incrementCounter("matchLoopErrors");
+    logger.error(
+      formatOpsLog("match_loop_error", {
+        reason: error instanceof Error ? error.message : "internal_error",
+        tick: tick,
+      }),
+    );
+    return { state: persistable(state) };
+  }
   for (let p = 0; p < result.persistQuests.length; p++) {
     const persist = result.persistQuests[p];
     writeQuests(nk, persist.userId, persist.log, persist.characterId);
-    logger.info("starter_zone persist quests user_id=%s", persist.userId);
+    logger.info(formatOpsLog("quest_reward", { user_id: persist.userId }));
   }
   persistEconomy(nk, logger, tick, result.persistInventories, result.persistEquipment);
   for (let t = 0; t < result.persistTrades.length; t++) {
     writeTrade(nk, result.persistTrades[t]);
-    logger.info("starter_zone persist trade trade_id=%s", result.persistTrades[t].tradeId);
+    logger.info(formatOpsLog("trade_complete", { trade_id: result.persistTrades[t].tradeId }));
   }
   for (let pg = 0; pg < result.persistProgression.length; pg++) {
     const persist = result.persistProgression[pg];
@@ -631,12 +665,24 @@ export function matchLoop(
   for (let r = 0; r < result.rejections.length; r++) {
     const rejected = result.rejections[r];
     logger.info(
-      "match_action rejected user_id=%s action=%s reason=%s tick=%s",
-      rejected.userId,
-      rejected.action,
-      rejected.code,
-      String(rejected.tick),
+      formatOpsLog("rejected_action", {
+        user_id: rejected.userId,
+        action: rejected.action,
+        reason: rejected.code,
+        tick: rejected.tick,
+      }),
     );
+    incrementCounter("rejectedActions");
+  }
+  const env = readEnvironment(ctx);
+  const maintenance = readEffectiveMaintenance(nk, env, ctx.env);
+  if (shouldWarnShutdown(maintenance, Date.now())) {
+    const last = state.lastMaintenanceWarnTick !== undefined ? state.lastMaintenanceWarnTick : -1000;
+    if (tick - last >= MATCH_TICK_RATE * 10) {
+      const notice = systemMessage("server_maintenance", shutdownWarningMessage(maintenance, Date.now()));
+      dispatcher.broadcastMessage(notice.opcode, notice.body, null, null, true);
+      state.lastMaintenanceWarnTick = tick;
+    }
   }
   for (let i = 0; i < result.outbound.length; i++) {
     const out = result.outbound[i];
@@ -647,17 +693,19 @@ export function matchLoop(
     dispatcher.broadcastMessage(out.opcode, out.body, targets, null, true);
   }
   if (result.terminate) {
-    logger.info("starter_zone empty timeout tick=%s", String(tick));
+    logger.info(formatOpsLog("match_terminate", { reason: "empty_timeout", tick: tick, instance_type: result.state.instanceType !== undefined ? result.state.instanceType : "public_world" }));
+    incrementCounter(result.state.instanceType === "party_cave" ? "activeCaveMatches" : "activePublicMatches", -1);
     if (result.state.instanceType === "party_cave" && result.state.instanceId !== undefined) {
       const repo = nakamaCaveRepository(nk);
       const record = repo.getCave(result.state.instanceId);
       if (record !== null) {
         terminateCave(repo, record, Date.now());
+        logger.info(formatOpsLog("cave_cleanup", { instance_id: result.state.instanceId, reason: "empty_timeout" }));
       }
     }
     return null;
   }
-  return { state: persistable({ zone: result.state, presences: state.presences, pendingTransfers: state.pendingTransfers }) };
+  return { state: persistable({ zone: result.state, presences: state.presences, pendingTransfers: state.pendingTransfers, lastMaintenanceWarnTick: state.lastMaintenanceWarnTick }) };
 }
 
 export function matchTerminate(
@@ -671,11 +719,15 @@ export function matchTerminate(
 ): { state: StarterMatchRuntimeState } {
   state = hydrateRuntime(state);
   writeCheckpoints(nk, logger, checkpointsForTerminate(state.zone));
+  const instanceType = state.zone.instanceType !== undefined ? state.zone.instanceType : "public_world";
+  incrementCounter(instanceType === "party_cave" ? "activeCaveMatches" : "activePublicMatches", -1);
+  logger.info(formatOpsLog("match_terminate", { instance_type: instanceType }));
   if (state.zone.instanceType === "party_cave" && state.zone.instanceId !== undefined) {
     const repo = nakamaCaveRepository(nk);
     const record = repo.getCave(state.zone.instanceId);
     if (record !== null && record.lifecycleState !== "terminated" && record.lifecycleState !== "expired") {
       terminateCave(repo, record, Date.now());
+      logger.info(formatOpsLog("cave_cleanup", { instance_id: state.zone.instanceId, reason: "match_terminate" }));
     }
   }
   return { state: persistable(state) };
@@ -828,6 +880,7 @@ function hydrateRuntime(state: StarterMatchRuntimeState): StarterMatchRuntimeSta
     zone: zone,
     presences: dict(state.presences),
     pendingTransfers: dict(state.pendingTransfers),
+    lastMaintenanceWarnTick: state.lastMaintenanceWarnTick,
   };
 }
 
@@ -1035,6 +1088,7 @@ function processCaveTransfers(
         dispatcher.broadcastMessage(failed.opcode, failed.body, [target], null, true);
       }
       logger.info("cave transfer rejected user_id=%s reason=%s", intent.userId, code);
+      incrementCounter("transferFailures");
     }
   }
 }
@@ -1297,10 +1351,10 @@ function persistEconomy(
       metadata: { tick: tick },
     });
     if (!result.ok) {
-      logger.info("starter_zone persist economy failed user_id=%s reason=%s", userId, result.code);
+      logger.info(formatOpsLog("inventory_transaction", { user_id: userId, reason: result.code }));
       continue;
     }
-    logger.info("starter_zone persist economy user_id=%s", userId);
+    logger.info(formatOpsLog("inventory_transaction", { user_id: userId, code: "ok" }));
   }
 }
 

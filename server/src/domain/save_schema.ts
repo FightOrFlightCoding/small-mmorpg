@@ -253,6 +253,18 @@ export function deepStableEqual(left: unknown, right: unknown): boolean {
   return JSON.stringify(canonicalizeUnknown(left)) === JSON.stringify(canonicalizeUnknown(right));
 }
 
+export function publicSaveRejectCode(reason: string): string {
+  if (
+    reason === REASON_UNSUPPORTED_FUTURE_VERSION ||
+    reason === REASON_CORRUPTED_RECORD ||
+    reason === REASON_CORRUPTED_REQUIRED_FIELDS ||
+    reason === REASON_CORRUPTED_SCHEMA_VERSION
+  ) {
+    return "unsupported_save_version";
+  }
+  return reason;
+}
+
 function canonicalizeUnknown(value: unknown): unknown {
   if (Array.isArray(value)) {
     const copy: unknown[] = [];

@@ -140,9 +140,94 @@ func _finish_auth(auth: Dictionary, username: String) -> void:
 	_connect_match_signals()
 	_connect_chat_signals()
 	_connect_socket_signals()
+	var handshake := await _run_session_handshake()
+	if not bool(handshake.get("ok", false)):
+		_fail_auth(handshake)
+		return
 	AppState.notify_authenticated(String(auth.get("user_id", "")), String(auth.get("username", username)))
 	AppState.notify_loading_completed("auth")
 	authentication_finished.emit(true, "")
+
+
+func _run_session_handshake() -> Dictionary:
+	var rpc_result: Dictionary = await _backend().rpc(
+		MatchProtocol.SESSION_HANDSHAKE_RPC,
+		JSON.stringify(MatchProtocol.handshake_payload(ContentRegistry.get_content_hash(), ContentRegistry.get_package_version()))
+	)
+	if not bool(rpc_result.get("ok", false)):
+		var code := String(rpc_result.get("code", "rpc_failed"))
+		var message := String(rpc_result.get("message", "The server rejected the session handshake."))
+		if MatchProtocol.is_compatibility_code(code) or MatchProtocol.is_maintenance_code(code):
+			return {"ok": false, "code": code, "message": _handshake_message(code, message)}
+		if _looks_like_compat_message(message):
+			return {"ok": false, "code": _compat_code_from_message(message), "message": _handshake_message(_compat_code_from_message(message), message)}
+		return rpc_result
+	var parsed: Variant = JSON.parse_string(String(rpc_result.get("payload", "")))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {"ok": true}
+	var data: Dictionary = parsed
+	var code := String(data.get("code", "ok"))
+	if MatchProtocol.is_compatibility_code(code):
+		return {"ok": false, "code": code, "message": _handshake_message(code, String(data.get("message", "")))}
+	if bool(data.get("maintenance", false)) or code == "server_maintenance":
+		var notice := String(data.get("message", "The server is in maintenance. Gameplay joins are paused."))
+		if notice.is_empty():
+			notice = "The server is in maintenance. Gameplay joins are paused."
+		NotificationService.push(notice)
+		AppState.report_recoverable("server_maintenance", notice)
+	return {"ok": true}
+
+
+func _handshake_message(code: String, fallback: String) -> String:
+	if code == "client_too_old":
+		return "This client is too old for the server. Update the client."
+	if code == "client_too_new":
+		return "This client is too new for the server. Use the matching release."
+	if code == "protocol_mismatch":
+		return "The client protocol version does not match the server."
+	if code == "content_mismatch":
+		return "The client content catalog does not match the server."
+	if code == "unsupported_save_version":
+		return "This save is incompatible with the server."
+	if code == "server_maintenance":
+		return "The server is in maintenance. Gameplay joins are paused."
+	if code == "migration_required":
+		return "The server is applying a save migration. Try again shortly."
+	if fallback.is_empty():
+		return "This client is not compatible with the server."
+	return fallback
+
+
+func _looks_like_compat_message(message: String) -> bool:
+	var lowered := message.to_lower()
+	return (
+		lowered.contains("client_too_old")
+		or lowered.contains("client_too_new")
+		or lowered.contains("protocol_mismatch")
+		or lowered.contains("content_mismatch")
+		or lowered.contains("unsupported_save_version")
+		or lowered.contains("server_maintenance")
+		or lowered.contains("migration_required")
+	)
+
+
+func _compat_code_from_message(message: String) -> String:
+	var lowered := message.to_lower()
+	if lowered.contains("client_too_old"):
+		return "client_too_old"
+	if lowered.contains("client_too_new"):
+		return "client_too_new"
+	if lowered.contains("protocol_mismatch"):
+		return "protocol_mismatch"
+	if lowered.contains("content_mismatch"):
+		return "content_mismatch"
+	if lowered.contains("unsupported_save_version"):
+		return "unsupported_save_version"
+	if lowered.contains("server_maintenance"):
+		return "server_maintenance"
+	if lowered.contains("migration_required"):
+		return "migration_required"
+	return "rpc_failed"
 
 
 func bootstrap_character(proposed_name: String = "") -> void:
@@ -1433,10 +1518,12 @@ func _fail_auth(result: Dictionary) -> void:
 	_note_auth_failure()
 	socket_connected = false
 	AppState.notify_logged_out()
-	AppState.report_recoverable(
-		String(result.get("code", "authentication_failed")),
-		String(result.get("message", "Could not sign in to Nakama."))
-	)
+	var code := String(result.get("code", "authentication_failed"))
+	var message := String(result.get("message", "Could not sign in to Nakama."))
+	if MatchProtocol.is_compatibility_code(code):
+		AppState.report_fatal_compatibility(code, message)
+	else:
+		AppState.report_recoverable(code, message)
 	AppState.notify_loading_completed("auth")
 	authentication_finished.emit(false, AppState.last_error_message)
 
@@ -1478,6 +1565,8 @@ func _fail_zone(result: Dictionary) -> void:
 	var message := String(result.get("message", "Could not join the starter zone."))
 	if MatchProtocol.is_compatibility_code(code):
 		AppState.report_fatal_compatibility(code, message)
+	elif MatchProtocol.is_maintenance_code(code):
+		AppState.report_recoverable(code, message)
 	else:
 		AppState.report_recoverable(code, message)
 	AppState.notify_loading_completed("zone")

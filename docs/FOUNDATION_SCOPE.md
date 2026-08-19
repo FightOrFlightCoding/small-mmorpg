@@ -56,6 +56,7 @@ A later phase may implement a Required-for-Foundation-v1 row only when that phas
 | Content production workflow | Existing and accepted (Prompt 32) | Project-owned CLI: templates, validate, diff, references, unused, migrate, package, optional CSV. No RPG database plugin. |
 | Systems lab | Existing and accepted (Prompt 32) | `test.zone.systems_lab` is development-only. Does not replace automated tests. |
 | Developer / GM tools | Existing and accepted (Prompt 32) | Server allowlist + audited `gm_command`. Client debug UI is not authority. |
+| Environments, deployment, backups, recovery | Existing and accepted (Prompt 33) | Distinct local/test/staging/production policy. Handshake, maintenance, documented backup restore drill. Not enterprise infra. |
 
 ## Game content (not systems)
 

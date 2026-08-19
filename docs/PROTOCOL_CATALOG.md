@@ -1,12 +1,12 @@
 # Protocol catalog
 
-Every registered match opcode, RPC, realtime hook, and the absence of auth/notification hooks. Duplicate numeric identifiers are a defect; `tools/foundation-audit` fails if client/server tables diverge.
+Every registered match opcode, RPC, realtime hook, and authenticate hook. Duplicate numeric identifiers are a defect; `tools/foundation-audit` fails if client/server tables diverge.
 
-Related: [NETWORK_PROTOCOL.md](NETWORK_PROTOCOL.md), [SECURITY_MODEL.md](SECURITY_MODEL.md). Machine-readable opcodes/RPCs: `tools/foundation-audit/expected.json`.
+Related: [NETWORK_PROTOCOL.md](NETWORK_PROTOCOL.md), [SECURITY_MODEL.md](SECURITY_MODEL.md), [DEPLOYMENT.md](DEPLOYMENT.md). Machine-readable opcodes/RPCs: `tools/foundation-audit/expected.json`.
 
 Shared envelope: JSON camelCase, `protocolVersion` must be `1`. Optional client `contentHash` must match the server catalog. Client→server match bodies > **2048** bytes are `payload_too_large`. Unknown fields on client match JSON are `unknown_field:<key>`. Outcome keys are `stat_injection:<key>`.
 
-Authentication: Nakama built-in email/password and (debug builds only) device auth. This repository registers **no** `Authenticate*` hooks. Password-recovery email is out of Foundation v1; operators reset accounts in the Nakama console.
+Authentication: Nakama built-in email/password and (debug builds only) device auth. This repository registers `registerBeforeAuthenticateEmail` and `registerBeforeAuthenticateDevice` to enforce environment registration and device-auth policy (`registration_disabled`, `device_auth_disabled`). Password-recovery email is out of Foundation v1; operators reset accounts in the Nakama console.
 
 Notifications: **none** registered.
 
@@ -18,7 +18,7 @@ Notifications: **none** registered.
 | --- | --- |
 | Direction | Client/ops → server HTTP RPC |
 | Request | Empty or `{}` |
-| Response | `{ ok, service, protocol_version, content_version, rpcs }` |
+| Response | `{ ok, service, protocol_version, content_version, content_package_version, server_version, environment, min_client_version, max_client_version, maintenance, rpcs, counters }` |
 | Authority | Server catalog hash |
 | Auth | Nakama HTTP key (`defaulthttpkey` locally). Not a user session. |
 | Rate limit | None in-app |
@@ -146,6 +146,39 @@ Tests: `server/tests/cave.test.ts`.
 | Tests | `server/tests/gm.test.ts`, `client/tests/app/gm_service_test.gd` |
 
 Commands: `inspect_character`, `teleport_character`, `repair_invalid_location`, `grant_test_item`, `remove_test_item`, `grant_test_gold`, `grant_test_xp`, `reset_attribute_allocation`, `reset_skill_allocation`, `set_quest_state`, `reset_quest`, `spawn_enemy`, `kill_enemy`, `open_cave`, `inspect_party`, `cancel_trade`, `view_recent_transaction_audit`. Not match opcodes. `open_cave` may issue a transfer ticket (GM exception to Prompt 29 match-loop tickets). Every call writes `gm_audit`.
+
+### `session_handshake`
+
+| Field | Value |
+| --- | --- |
+| Direction | Client → server HTTP RPC after socket connect |
+| Request | `{ clientVersion, protocolVersion, contentHash, contentVersion? }` |
+| Response | `{ ok, code, serverVersion, protocolVersion, contentHash, contentVersion, minClientVersion, maxClientVersion, environment, maintenance, rejectJoins, blockTransactions, message }` |
+| Authority | Server catalog hash, compiled min/max client versions, protocol **1** |
+| Auth | Nakama session |
+| Payload | Strict keys |
+| Errors | `unauthenticated`, `malformed_json`, `unknown_field`, `client_too_old`, `client_too_new`, `protocol_mismatch`, `content_mismatch` |
+| Notes | Does not throw `server_maintenance` so GM/character list still work; body may set `maintenance: true` and `code: server_maintenance` |
+| Tests | `server/tests/compatibility.test.ts`, `client/tests/app/handshake_test.gd` |
+
+### `ops_status`
+
+| Field | Value |
+| --- | --- |
+| Direction | Client/ops → server HTTP RPC |
+| Request | Empty or `{}` |
+| Response | Environment policy, maintenance block, counters |
+| Auth | Nakama session |
+| Errors | `unauthenticated`, `malformed_json`, `unknown_field` |
+
+### `ops_set_maintenance`
+
+| Field | Value |
+| --- | --- |
+| Direction | Operator → server HTTP RPC |
+| Request | `{ enabled, message?, rejectJoins?, blockTransactions?, shutdownAt?, warnAt?, reason? }` |
+| Authority | Same GM allowlist as `gm_command` |
+| Errors | `unauthenticated`, `gm_disabled`, `unauthorized`, `malformed_json`, `unknown_field` |
 
 ## Client → server match opcodes
 

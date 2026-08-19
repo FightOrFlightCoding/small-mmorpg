@@ -1,0 +1,57 @@
+name: vibecode-production
+
+# Example production stack. Copy to docker-compose.production.yml on the host.
+# Secrets live only in gitignored infra/.env.production. Never commit that file.
+
+services:
+  postgres:
+    image: postgres:16.15-alpine
+    container_name: vibecode-production-postgres
+    env_file:
+      - .env.production
+    environment:
+      POSTGRES_DB: nakama_production
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - vibecode_production_postgres_data:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d nakama_production"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  nakama:
+    build:
+      context: ../server
+      dockerfile: Dockerfile
+    image: vibecode-nakama:3.40.0
+    container_name: vibecode-production-nakama
+    env_file:
+      - .env.production
+    entrypoint:
+      - "/bin/sh"
+      - "-ecx"
+      - >
+        /nakama/nakama migrate up --database.address postgres:$${POSTGRES_PASSWORD}@postgres:5432/nakama_production &&
+        exec /nakama/nakama
+        --config /nakama/data/production.yml
+        --database.address postgres:$${POSTGRES_PASSWORD}@postgres:5432/nakama_production
+        --logger.level WARN
+        --runtime.js_entrypoint build/index.js
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ../server/build:/nakama/data/modules/build:ro
+      - ./nakama/production.example.yml:/nakama/data/production.yml:ro
+    ports:
+      - "7350:7350"
+      - "7351:7351"
+    restart: unless-stopped
+
+volumes:
+  vibecode_production_postgres_data:
+    name: vibecode_production_postgres_data

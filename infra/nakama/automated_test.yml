@@ -1,0 +1,23 @@
+logger:
+  level: "INFO"
+runtime:
+  js_entrypoint: "build/index.js"
+  env:
+    - "VIBECODE_ENV=automated_test"
+    - "VIBECODE_SERVER_VERSION=1.0.0"
+    - "VIBECODE_MIN_CLIENT_VERSION=1.0.0"
+    - "VIBECODE_MAX_CLIENT_VERSION=1.0.0"
+    - "VIBECODE_CONTENT_VERSION=1.0.0"
+    - "VIBECODE_LOG_LEVEL=INFO"
+    - "VIBECODE_REGISTRATION=open"
+    - "VIBECODE_DEV_TOOLS=true"
+    - "VIBECODE_DEVICE_AUTH=true"
+    - "VIBECODE_DATA_RESET=allowed"
+    - "VIBECODE_MAINTENANCE=0"
+session:
+  token_expiry_sec: 7200
+socket:
+  max_message_size_bytes: 32768
+  max_request_size_bytes: 131072
+console:
+  max_message_size_bytes: 409600

@@ -62,3 +62,5 @@ Prompt 21 additionally moves a Prompt 18 `player`/`character` object into the ac
 Prompt 22 adds `player`/`progression`. A missing blob is not join-fatal: the match initializes level 1, 0 XP, class `pointsAtCreate`, and class `startingAbilities`, then persists once. A present v0 blob migrates through `mig.progression.v0_to_v1`. Live combat for that character uses the stat pipeline (vanguard level 1 with the training sword still deals `player.base.attack` + `attackBonus`). Skill-tree unlocks remain later.
 
 Prompt 23 keeps `SAVE_SCHEMA_VERSION` **1**. Missing item-instance fields default on load (`sourceType` `migration`, `createdAt` 0, empty locks, sequential `slotIndex`). Existing instance ids, stacks, equipped `main_hand`, and wallet gold are preserved and not duplicated. Extra equipment slot tags are filled empty.
+
+Prompt 33 does not raise `SAVE_SCHEMA_VERSION`. Unsafe migration windows set maintenance `blockTransactions` so ordinary commits return `migration_required`. Deploy order (backup → validate → dry-run → server → apply → client → smoke → clear maintenance) is [DEPLOYMENT.md](DEPLOYMENT.md).

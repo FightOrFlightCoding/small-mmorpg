@@ -1,0 +1,23 @@
+logger:
+  level: "WARN"
+runtime:
+  js_entrypoint: "build/index.js"
+  env:
+    - "VIBECODE_ENV=production"
+    - "VIBECODE_SERVER_VERSION=1.0.0"
+    - "VIBECODE_MIN_CLIENT_VERSION=1.0.0"
+    - "VIBECODE_MAX_CLIENT_VERSION=1.0.0"
+    - "VIBECODE_CONTENT_VERSION=1.0.0"
+    - "VIBECODE_LOG_LEVEL=WARN"
+    - "VIBECODE_REGISTRATION=closed"
+    - "VIBECODE_DEV_TOOLS=false"
+    - "VIBECODE_DEVICE_AUTH=false"
+    - "VIBECODE_DATA_RESET=forbidden"
+    - "VIBECODE_MAINTENANCE=0"
+session:
+  token_expiry_sec: 7200
+socket:
+  max_message_size_bytes: 32768
+  max_request_size_bytes: 131072
+console:
+  max_message_size_bytes: 409600

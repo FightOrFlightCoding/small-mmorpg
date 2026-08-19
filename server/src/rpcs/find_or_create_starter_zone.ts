@@ -7,6 +7,8 @@ import { contentHash } from "../generated/content";
 import { readSelection } from "../nakama/selection_store";
 import { readActiveLocation } from "../nakama/location_store";
 import { nakamaCaveRepository } from "../nakama/cave_store";
+import { readEnvironment, rejectIfGameplayClosed } from "../nakama/ops_store";
+import { formatOpsLog, incrementCounter } from "../domain/ops_metrics";
 
 export const FIND_OR_CREATE_STARTER_ZONE_RPC_ID = "find_or_create_starter_zone";
 
@@ -39,6 +41,7 @@ export function rpcFindOrCreateStarterZone(
   try {
     const userId = requireAuthenticatedUserId(ctx.userId);
     parseFindOrCreatePayload(payload);
+    let reconnectingCave = false;
     const selected = readSelection(nk, userId);
     if (selected !== null && selected.characterId.length > 0) {
       const location = readActiveLocation(nk, userId, selected.characterId);
@@ -50,7 +53,8 @@ export function rpcFindOrCreateStarterZone(
           cave.lifecycleState !== "terminated" &&
           nk.matchGet(cave.matchId) !== null
         ) {
-          logger.info("find_or_create_starter_zone reconnect_cave user_id=%s match_id=%s", userId, cave.matchId);
+          reconnectingCave = true;
+          logger.info(formatOpsLog("zone_transfer", { user_id: userId, action: "reconnect_cave", match_id: cave.matchId }));
           return JSON.stringify({
             matchId: cave.matchId,
             zoneId: cave.zoneTemplateId,
@@ -62,8 +66,9 @@ export function rpcFindOrCreateStarterZone(
         }
       }
     }
+    rejectIfGameplayClosed(nk, readEnvironment(ctx), ctx.env, reconnectingCave);
     const matchId = findOrCreateStarterZoneMatch(nk, logger);
-    logger.info("find_or_create_starter_zone ok user_id=%s match_id=%s", ctx.userId, matchId);
+    logger.info(formatOpsLog("zone_transfer", { user_id: userId, action: "find_or_create_starter_zone", match_id: matchId }));
     return JSON.stringify({
       matchId: matchId,
       zoneId: STARTER_ZONE_ID,
@@ -74,11 +79,12 @@ export function rpcFindOrCreateStarterZone(
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "internal_error";
-    logger.error(
-      "find_or_create_starter_zone rejected user_id=%s action=find_or_create_starter_zone reason=%s",
-      ctx.userId !== undefined ? ctx.userId : "",
-      message,
-    );
+    logger.error(formatOpsLog("zone_transfer", {
+      user_id: ctx.userId !== undefined ? ctx.userId : "",
+      action: "find_or_create_starter_zone",
+      reason: message,
+    }));
+    incrementCounter("transferFailures");
     throw error;
   }
 }

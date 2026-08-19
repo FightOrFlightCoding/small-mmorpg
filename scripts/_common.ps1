@@ -105,3 +105,42 @@ function Assert-ContentHashes {
 	}
 	Write-Host "content_hash=$clientHash"
 }
+
+function Get-EnvironmentName {
+	param([string]$Name = "")
+	if ($Name -ne "") {
+		return $Name
+	}
+	if ($env:VIBECODE_ENV -and $env:VIBECODE_ENV.Trim() -ne "") {
+		return $env:VIBECODE_ENV.Trim()
+	}
+	return "local"
+}
+
+function Get-EnvironmentConfig {
+	param([string]$Name = "")
+	$envName = Get-EnvironmentName -Name $Name
+	$path = Join-Path (Get-RepoRoot) "infra\environments\$envName.json"
+	if (-not (Test-Path $path)) {
+		throw "Unknown environment '$envName'. Expected $path"
+	}
+	return Get-Content $path -Raw | ConvertFrom-Json
+}
+
+function Assert-DataResetAllowed {
+	param([string]$Name = "")
+	$cfg = Get-EnvironmentConfig -Name $Name
+	if ([string]$cfg.dataReset -ne "allowed") {
+		throw "Data reset is forbidden for environment '$($cfg.name)'."
+	}
+}
+
+function Get-PostgresContainer {
+	param([string]$EnvironmentName = "local")
+	switch ($EnvironmentName) {
+		"automated_test" { return "vibecode-test-postgres" }
+		"staging" { return "vibecode-staging-postgres" }
+		"production" { return "vibecode-production-postgres" }
+		default { return "vibecode-postgres" }
+	}
+}

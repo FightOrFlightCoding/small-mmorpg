@@ -35,7 +35,7 @@ if ($health.content_version -notmatch "^[a-f0-9]{64}$") {
 	throw "vibecode_health content_version is missing or not a 64-hex catalog hash."
 }
 $rpcs = @($health.rpcs)
-if ($rpcs -notcontains "character_bootstrap" -or $rpcs -notcontains "find_or_create_starter_zone" -or $rpcs -notcontains "character_list") {
+if ($rpcs -notcontains "character_bootstrap" -or $rpcs -notcontains "find_or_create_starter_zone" -or $rpcs -notcontains "character_list" -or $rpcs -notcontains "session_handshake") {
 	throw "Nakama is running a stale runtime. Health rpcs=$($rpcs -join ','). Rebuild with scripts/backend-up.ps1."
 }
 
@@ -86,6 +86,21 @@ if (-not $bobCharacter.characterId) {
 }
 if ($aliceCharacter.characterId -eq $bobCharacter.characterId) {
 	throw "Alice and Bob resolved to the same character id."
+}
+
+Write-Host "Session handshake as Alice..."
+$handshakeBody = (@{
+	clientVersion = "1.0.0"
+	protocolVersion = 1
+	contentHash = $health.content_version
+	contentVersion = "1.0.0"
+} | ConvertTo-Json -Compress)
+$handshake = Invoke-JsonRpc `
+	-Uri "http://127.0.0.1:7350/v2/rpc/session_handshake?unwrap" `
+	-Headers $aliceHeaders `
+	-Body $handshakeBody
+if (-not $handshake.ok) {
+	throw "session_handshake did not return ok."
 }
 
 Write-Host "Finding starter zone as Alice..."

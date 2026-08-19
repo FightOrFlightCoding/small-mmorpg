@@ -94,6 +94,10 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `rpcs/cave.ts` | A | request_cave_entry / find_or_create_owned_cave / request_cave_exit | none | cave/location/party stores | domain cave | yes | RPC | no |
 | `rpcs/party.ts` | A | Party create/invite/accept/decline/leave/kick/promote/disband/get | none | party_store, character stores | domain party | yes | RPC | no |
 | `rpcs/gm.ts` / `gm.ts` / `gm_store.ts` | A/S | Allowlist, audited `gm_command`, live matchSignal apply | none | gm / gm_audit storage | domain gm | yes | RPC | admin grants |
+| `rpcs/handshake.ts` / `handshake.ts` / `compatibility.ts` | A/S | Login compatibility gate | none | none | catalog hash + env versions | no | `session_handshake` | no |
+| `rpcs/ops.ts` / `ops_store.ts` / `maintenance.ts` / `ops_metrics.ts` | A/S | Maintenance flag, counters, redacted ops logs | in-memory counters | ops storage | domain maintenance | yes | `ops_status` / `ops_set_maintenance` | no |
+| `nakama/auth_hooks.ts` / `environment.ts` | A/S | Registration and device-auth policy from env presets | none | none | compiled presets + `ctx.env` | no | Authenticate* before hooks | no |
+| `recovery.ts` | S | Documented recovery procedures and overwrite tokens | none | none | none | no | no | no |
 | `main.ts` | A | `InitModule` registrations | none | Nakama initializer | RPCs, match, hooks | no | register | no |
 | `generated/content.ts` | S generated | Catalog | immutable content | content-build | none | no | no | no |
 | `tools/content-build` | T | Validate, generate, diff, trace, unused, new/copy templates, migrate, package, CSV | none | Ajv | `content/source`, `content/package.manifest.json`, client visual/dialogue maps | no | no | no |
@@ -101,7 +105,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `server/src/domain/save_schema.ts` / `migration.ts` / `save_load.ts` | S | Save envelope, v0→v1 registry, load | none | none | storage parsers | serialize + migrate | no | no |
 | `wallet_ref.ts` / `wallet_ref_store.ts` | S/A | Versioned gold pointer, not the balance | none | Nakama storage | save_schema | yes | no | pointer only |
 | `server/src/cli/migrate.ts` | T | status / dry-run / apply / verify | none | Node http/fs | domain migration | fixture or console | no | no |
-| `infra/` Compose + `local.yml` | I | Postgres + Nakama process | volume `vibecode_postgres_data` | Docker | none | Nakama’s tables only | no | no |
+| `infra/` Compose + env JSON + `local.yml` | I | Postgres + Nakama process; four environment presets | volumes per environment | Docker | none | Nakama’s tables only | no | no |
 | GdUnit tests / `scripts/` | T | Run suites | none | GdUnit4, Node, Docker | repo | no | no | no |
 
 ## Ambiguous or duplicated ownership

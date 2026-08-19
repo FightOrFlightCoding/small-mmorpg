@@ -39,6 +39,7 @@ const REQUIRED_IDS := [
 
 var schema_version: int = 0
 var content_hash: String = ""
+var package_version: String = ""
 var error_code: String = ""
 var error_message: String = ""
 var _by_id: Dictionary = {}
@@ -76,6 +77,8 @@ func parse_text(text: String) -> bool:
 	content_hash = hash_value
 	if not _is_hex64(content_hash):
 		return _fail("content_incompatible", "The content bundle contentHash is not a 64-character hex digest.")
+	if typeof(data.get("packageVersion", null)) == TYPE_STRING:
+		package_version = String(data["packageVersion"])
 
 	if not _index_player(data["player"]):
 		return false
@@ -187,6 +190,7 @@ func _fail(code: String, message: String) -> bool:
 func _reset() -> void:
 	schema_version = 0
 	content_hash = ""
+	package_version = ""
 	error_code = ""
 	error_message = ""
 	_by_id.clear()

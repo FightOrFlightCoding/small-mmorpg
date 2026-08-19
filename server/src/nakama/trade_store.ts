@@ -4,6 +4,10 @@ import { goldFromWallet } from "../domain/wallet";
 import { storageKey } from "../domain/storage_scope";
 import { walletChangeset } from "../domain/quest_reward";
 import { SYSTEM_USER_ID } from "./starter_zone_registry";
+import { COMPAT_MIGRATION_REQUIRED } from "../domain/compatibility";
+import { transactionsBlocked } from "../domain/maintenance";
+import { incrementCounter } from "../domain/ops_metrics";
+import { readMaintenance } from "./ops_store";
 import {
   TRADE_AUDIT_KEY,
   TRADE_COLLECTION,
@@ -52,6 +56,10 @@ export function readTradeIndex(nk: nkruntime.Nakama, userId: string, characterId
 }
 
 export function commitTradeTransaction(nk: nkruntime.Nakama, request: TradeCommitRequest): TradeCommitResult {
+  if (transactionsBlocked(readMaintenance(nk))) {
+    incrementCounter("transactionFailures");
+    return failCommit(request, COMPAT_MIGRATION_REQUIRED, 0, 0);
+  }
   const existing = readTrade(nk, request.trade.tradeId);
   if (existing !== null && existing.state === "completed") {
     return replayStored(existing, request);

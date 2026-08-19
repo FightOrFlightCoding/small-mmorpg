@@ -461,6 +461,34 @@ Value: `{ schemaVersion, characterId, requestId, reasonType, reasonId, goldDelta
 | Client access     | No. Operators read storage or `view_recent_transaction_audit`.                                 |
 
 
+## `ops` / `maintenance`
+
+
+| Field             | Value |
+| ----------------- | --- |
+| Purpose           | Server-controlled maintenance: reject new gameplay joins, optional transaction block, shutdown warning timestamps, operator message |
+| Owner             | Server `ops_set_maintenance` (GM allowlist) and optional `VIBECODE_MAINTENANCE` env force-on at load |
+| Scope             | System user `00000000-0000-0000-0000-000000000000` |
+| `permissionRead`  | 0 |
+| `permissionWrite` | 0 |
+| Schema version    | 1 |
+| Client access     | No. Clients see `server_maintenance` / handshake `maintenance` and `SYSTEM_MESSAGE`. |
+
+
+## `ops` / `metrics`
+
+
+| Field             | Value |
+| ----------------- | --- |
+| Purpose           | Optional persisted snapshot of in-memory ops counters |
+| Owner             | Server match/RPC adapters |
+| Scope             | System user |
+| `permissionRead`  | 0 |
+| `permissionWrite` | 0 |
+| Schema version    | 1 |
+| Client access     | No. Summaries also appear on `vibecode_health` / `ops_status`. |
+
+
 ## Nakama wallet `gold`
 
 

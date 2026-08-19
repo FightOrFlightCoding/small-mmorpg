@@ -49,6 +49,10 @@ func get_content_hash() -> String:
 	return catalog.content_hash
 
 
+func get_package_version() -> String:
+	return catalog.package_version
+
+
 func get_schema_version() -> int:
 	return catalog.schema_version
 

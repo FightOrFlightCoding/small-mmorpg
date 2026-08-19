@@ -47,11 +47,14 @@
     "party_promote",
     "party_disband",
     "party_get_state",
-    "gm_command"
+    "gm_command",
+    "session_handshake",
+    "ops_status",
+    "ops_set_maintenance"
   ],
   "realtimeBeforeHooks": ["ChannelMessageSend", "ChannelJoin"],
   "realtimeAfterHooks": [],
-  "authenticateHooks": [],
+  "authenticateHooks": ["AuthenticateEmail", "AuthenticateDevice"],
   "notificationCodes": [],
   "clientOpcodes": {
     "INPUT": 1,
@@ -127,7 +130,9 @@
     { "collection": "gm", "key": "allowlist", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "gm", "key": "recent", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "gm", "key": "r", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "gm_audit", "key": "a", "permissionWrite": 0, "schemaVersion": 1 }
+    { "collection": "gm_audit", "key": "a", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "ops", "key": "maintenance", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "ops", "key": "metrics", "permissionWrite": 0, "schemaVersion": 1 }
   ],
   "walletCurrencies": ["gold"],
   "productionContentFiles": [

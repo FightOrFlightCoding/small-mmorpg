@@ -79,16 +79,40 @@ function checkExactDependencies() {
 }
 
 function checkDockerPins() {
-  const compose = read("infra/docker-compose.yml");
-  const dockerfile = read("server/Dockerfile");
-  if (!compose.includes(expected.dockerImages.postgres)) {
-    fail(`infra/docker-compose.yml does not pin ${expected.dockerImages.postgres}`);
+  const files = [
+    "infra/docker-compose.yml",
+    "infra/docker-compose.automated-test.yml",
+    "infra/docker-compose.staging.example.yml",
+    "infra/docker-compose.production.example.yml",
+  ];
+  for (const file of files) {
+    const compose = read(file);
+    if (!compose.includes(expected.dockerImages.postgres)) {
+      fail(`${file} does not pin ${expected.dockerImages.postgres}`);
+    }
   }
+  const dockerfile = read("server/Dockerfile");
   if (!dockerfile.includes("node:20.20.2")) {
     fail(`server/Dockerfile does not pin ${expected.dockerImages.nodeBuilder}`);
   }
-  if (!dockerfile.includes("heroiclabs/nakama:3.40.0") && !compose.includes("vibecode-nakama:3.40.0")) {
+  const localCompose = read("infra/docker-compose.yml");
+  if (!dockerfile.includes("heroiclabs/nakama:3.40.0") && !localCompose.includes("vibecode-nakama:3.40.0")) {
     fail("Nakama 3.40.0 image pin missing from Docker files");
+  }
+}
+
+function checkSecretsNotCommitted() {
+  const result = spawnSync(
+    "git",
+    ["ls-files", "--", "infra/.env", "infra/.env.local", "infra/.env.automated_test", "infra/.env.staging", "infra/.env.production"],
+    { cwd: repoRoot, encoding: "utf8" },
+  );
+  const tracked = (result.stdout || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  if (tracked.length > 0) {
+    fail(`committed secret env file: ${tracked.join(", ")}`);
   }
 }
 
@@ -169,8 +193,18 @@ function checkRpcsAndHooks() {
   if (/registerRtAfter\(/.test(main)) {
     fail("undocumented registerRtAfter hook present");
   }
-  if (/registerMatchmaker/.test(main) || /AuthenticateDevice/.test(main) || /registerNotification/.test(main)) {
-    fail("undocumented matchmaker, auth, or notification hook present");
+  const authHooks = [];
+  if (/registerBeforeAuthenticateEmail\(/.test(main)) {
+    authHooks.push("AuthenticateEmail");
+  }
+  if (/registerBeforeAuthenticateDevice\(/.test(main)) {
+    authHooks.push("AuthenticateDevice");
+  }
+  if (authHooks.join(",") !== expected.authenticateHooks.join(",")) {
+    fail(`authenticate hooks differ: code=${authHooks.join(",")} catalog=${expected.authenticateHooks.join(",")}`);
+  }
+  if (/registerMatchmaker/.test(main) || /registerNotification/.test(main) || /registerAfterAuthenticate/.test(main)) {
+    fail("undocumented matchmaker, after-auth, or notification hook present");
   }
 }
 
@@ -344,6 +378,7 @@ function checkVendorAddons() {
 
 checkExactDependencies();
 checkDockerPins();
+checkSecretsNotCommitted();
 checkOpcodes();
 checkRpcsAndHooks();
 checkStorage();

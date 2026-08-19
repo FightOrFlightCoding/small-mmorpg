@@ -1,6 +1,6 @@
 # Foundation roadmap
 
-Prompt 19 (catalogs/audit), Prompt 20 (versioned content and save schemas), Prompt 21 (authentication, slots, and class selection), Prompt 22 (XP, derived stats, and attribute allocation), Prompt 23 (generic items, inventory, equipment, currency, and the transaction core), Prompt 24 (generic ability, casting, cooldown, resource, and effect engine), Prompt 25 (generic combat pipeline, targeting, death, respawn, and XP hooks), Prompt 26 (generic enemies, spawn controllers, AI profiles, loot tables, and bosses), Prompt 27 (generic NPC services, dialogue, quests, merchants, and inn), Prompt 28 (temporary parties, party chat, group credit, and group loot), Prompt 29 (public world, party cave instances, transfers, and reconnection), Prompt 30 (secure direct player trading), Prompt 31 (complete functional UI, settings, and asset contracts), and Prompt 32 (content production workflow, systems lab, and developer/GM tools) are accepted.
+Prompt 19 (catalogs/audit), Prompt 20 (versioned content and save schemas), Prompt 21 (authentication, slots, and class selection), Prompt 22 (XP, derived stats, and attribute allocation), Prompt 23 (generic items, inventory, equipment, currency, and the transaction core), Prompt 24 (generic ability, casting, cooldown, resource, and effect engine), Prompt 25 (generic combat pipeline, targeting, death, respawn, and XP hooks), Prompt 26 (generic enemies, spawn controllers, AI profiles, loot tables, and bosses), Prompt 27 (generic NPC services, dialogue, quests, merchants, and inn), Prompt 28 (temporary parties, party chat, group credit, and group loot), Prompt 29 (public world, party cave instances, transfers, and reconnection), Prompt 30 (secure direct player trading), Prompt 31 (complete functional UI, settings, and asset contracts), Prompt 32 (content production workflow, systems lab, and developer/GM tools), and Prompt 33 (environments, version compatibility, deployment, backups, and recovery) are accepted.
 
 | Order | Theme | Outcome | Depends on |
 | --- | --- | --- | --- |
@@ -80,3 +80,7 @@ Accepted in [PROGRESS.md](PROGRESS.md) as **Complete functional UI, settings, an
 ## Prompt 32 status
 
 Accepted in [PROGRESS.md](PROGRESS.md) as **Content production workflow, systems lab, and developer/GM tools**.
+
+## Prompt 33 status
+
+Accepted in [PROGRESS.md](PROGRESS.md) as **Environments, version compatibility, deployment, backups, and recovery**.

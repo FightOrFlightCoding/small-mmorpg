@@ -25,6 +25,8 @@ import { nakamaPartyRepository } from "../nakama/party_store";
 import { readSelection } from "../nakama/selection_store";
 import { readActiveLocation } from "../nakama/location_store";
 import { findOrCreateStarterZoneMatch } from "../nakama/starter_zone_registry";
+import { readEnvironment, rejectIfGameplayClosed } from "../nakama/ops_store";
+import { formatOpsLog, incrementCounter } from "../domain/ops_metrics";
 
 export const REQUEST_CAVE_ENTRY_RPC_ID = "request_cave_entry";
 export const FIND_OR_CREATE_OWNED_CAVE_RPC_ID = "find_or_create_owned_cave";
@@ -131,11 +133,17 @@ export function rpcFindOrCreateOwnedCave(
     const userId = requireAuthenticatedUserId(ctx.userId);
     parseEmptyOrNpcPayload(payload);
     const character = selectedCharacter(nk, userId);
+    const location = readActiveLocation(nk, userId, character.characterId);
+    const reconnecting =
+      location !== null &&
+      location.instanceType === "party_cave" &&
+      nk.matchGet(location.matchId) !== null;
+    rejectIfGameplayClosed(nk, readEnvironment(ctx), ctx.env, reconnecting);
     const allocated = allocateOwnedCave(nk, userId, character.characterId);
     if (!allocated.ok || allocated.record === undefined) {
       throw new Error(allocated.code);
     }
-    logger.info("find_or_create_owned_cave ok user_id=%s instance_id=%s", userId, allocated.record.instanceId);
+    logger.info(formatOpsLog("cave_create", { user_id: userId, instance_id: allocated.record.instanceId }));
     return JSON.stringify({
       matchId: allocated.record.matchId,
       instanceId: allocated.record.instanceId,
@@ -147,6 +155,7 @@ export function rpcFindOrCreateOwnedCave(
   } catch (error) {
     const message = error instanceof Error ? error.message : "internal_error";
     logger.error("find_or_create_owned_cave rejected user_id=%s reason=%s", ctx.userId !== undefined ? ctx.userId : "", message);
+    incrementCounter("transferFailures");
     throw error instanceof Error ? error : new Error(message);
   }
 }
@@ -160,6 +169,7 @@ export function rpcRequestCaveEntry(
   try {
     const userId = requireAuthenticatedUserId(ctx.userId);
     const parsed = parseEmptyOrNpcPayload(payload);
+    rejectIfGameplayClosed(nk, readEnvironment(ctx), ctx.env, false);
     const character = selectedCharacter(nk, userId);
     const location = readActiveLocation(nk, userId, character.characterId);
     const npcId = parsed.npcId.length > 0 ? parsed.npcId : "npc.test_cave_portal";
@@ -191,7 +201,7 @@ export function rpcRequestCaveEntry(
     if (!allocated.ok || allocated.record === undefined) {
       throw new Error(allocated.code);
     }
-    logger.info("request_cave_entry ok user_id=%s instance_id=%s", userId, allocated.record.instanceId);
+    logger.info(formatOpsLog("cave_create", { user_id: userId, action: "request_cave_entry", instance_id: allocated.record.instanceId }));
     return JSON.stringify({
       matchId: allocated.record.matchId,
       instanceId: allocated.record.instanceId,
@@ -241,7 +251,7 @@ export function rpcRequestCaveExit(
       throw new Error(gate.code);
     }
     const publicMatchId = findOrCreateStarterZoneMatch(nk, logger);
-    logger.info("request_cave_exit ok user_id=%s match_id=%s", userId, publicMatchId);
+    logger.info(formatOpsLog("zone_transfer", { user_id: userId, action: "request_cave_exit", match_id: publicMatchId }));
     return JSON.stringify({
       matchId: publicMatchId,
       zoneId: "zone.starter",

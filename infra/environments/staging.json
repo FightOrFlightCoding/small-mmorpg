@@ -1,0 +1,19 @@
+{
+  "name": "staging",
+  "database": {
+    "name": "nakama_staging",
+    "volume": "vibecode_staging_postgres_data",
+    "host": "postgres",
+    "port": 5432
+  },
+  "secretsFile": "infra/.env.staging",
+  "contentVersion": "1.0.0",
+  "serverVersion": "1.0.0",
+  "minClientVersion": "1.0.0",
+  "maxClientVersion": "1.0.0",
+  "logLevel": "INFO",
+  "developmentToolsEnabled": false,
+  "deviceAuthEnabled": false,
+  "accountRegistration": "open",
+  "dataReset": "forbidden"
+}

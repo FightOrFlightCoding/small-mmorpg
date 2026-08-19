@@ -1,6 +1,6 @@
 # Test catalog
 
-Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, Prompt 24 ability coverage, Prompt 25 combat-pipeline coverage, Prompt 26 enemy/spawn/AI/loot/boss coverage, Prompt 27 NPC/quest/vendor/inn coverage, Prompt 28 party/chat/group-credit/loot coverage, Prompt 29 public-world/cave/transfer/reconnect coverage, Prompt 30 nearby trade coverage, Prompt 31 UI/settings/asset-contract coverage, and Prompt 32 content-CLI / systems-lab / GM coverage. Do not weaken these tests.
+Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, Prompt 24 ability coverage, Prompt 25 combat-pipeline coverage, Prompt 26 enemy/spawn/AI/loot/boss coverage, Prompt 27 NPC/quest/vendor/inn coverage, Prompt 28 party/chat/group-credit/loot coverage, Prompt 29 public-world/cave/transfer/reconnect coverage, Prompt 30 nearby trade coverage, Prompt 31 UI/settings/asset-contract coverage, Prompt 32 content-CLI / systems-lab / GM coverage, and Prompt 33 environment / handshake / maintenance / backup-restore coverage. Do not weaken these tests.
 
 Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDATION_BASELINE.md).
 
@@ -14,6 +14,8 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `scripts/test-client` | Import, `SHELL_LOGIN`, GdUnit, 0 orphans |
 | `scripts/test-e2e` | Live two-client journey `E2E_SLICE_OK` |
 | `scripts/test-all` | setup + all of the above |
+| `scripts/test-backup` | Dump local `nakama`, restore into `nakama_restore_drill`, verify table counts |
+| `scripts/verify-release` | Content, audit, server, migrations, client, backup drill |
 
 ## Content-build (`tools/content-build/tests`)
 
@@ -74,8 +76,13 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `party.test.ts` | create, invite, accept, decline, expired invite, party full, already in party, leave, kick, promote, leader disconnect, grace reconnect, all-absent disband, forged membership, duplicate requestId, create-declines-pending, accept-leaves-current, ghost-member prune, match-cache eviction | |
 | `party_credit_loot.test.ts` | group kill XP, out-of-range member, group quest credit, personal loot, server-assigned loot, duplicate death event | |
 | `trade.test.ts` | invite, decline, item+gold commit once, offer change clears acceptance, revision mismatch, unowned/non-tradeable/locked, insufficient gold, full inventory, duplicate commit, disconnect, transfer, death, timeout, concurrent destroy, interrupted recovery, audit | |
-| `health.test.ts` | `vibecode_health` | |
+| `health.test.ts` | `vibecode_health` plus handshake/ops RPC ids | |
 | `gm.test.ts` | allowlist default disabled, user authorization, payload parse, audit fields, teleport/grant, cave template fallback to `zone.cave` | |
+| `environment.test.ts` | Four distinct env presets vs committed JSON; no passwords in JSON | |
+| `compatibility.test.ts` | Handshake/join client too old/new, protocol/content mismatch, maintenance skip on handshake | |
+| `maintenance.test.ts` | Patch parse, rejectJoins, transaction window, shutdown warn | |
+| `recovery.test.ts` | Nine procedures, production overwrite token, log redaction | |
+| `auth_hooks.test.ts` | Closed production registration; local device auth allowed | |
 
 ## Client GdUnit (`client/tests`)
 
@@ -104,6 +111,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `reconnect_test.gd` | overlay, seq adopt | |
 | `ui_shell_test.gd` | window focus/exclusivity; duplicate `connect_once`; rejected drag/drop; reconnect window restore; settings persistence without credentials; input conflicts; missing-asset fallback; 4/8-dir animation-set validation; UI after character switch and zone transfer; GM window closeable | |
 | `gm_service_test.gd` | `gm_command` RPC intention; local gold unchanged; debug flag is not authority | |
+| `handshake_test.gd` | Session handshake; fatal version/content mismatch; maintenance login without world entry | |
 | `e2e_hooks_test.gd` | `--e2e-slice` required | VS-T10 helper |
 
 `fake_network_backend.gd` is a test double, not a suite.

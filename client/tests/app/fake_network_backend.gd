@@ -18,6 +18,11 @@ var socket_ok: bool = true
 var rpc_ok: bool = true
 var rpc_code: String = "rpc_failed"
 var rpc_message: String = "The server rejected the request."
+var handshake_ok: bool = true
+var handshake_code: String = "ok"
+var handshake_message: String = ""
+var handshake_payload: String = ""
+var handshake_maintenance: bool = false
 var session_expired: bool = false
 var fail_reauth: bool = false
 var user_id: String = "user-alice"
@@ -131,6 +136,27 @@ func emit_socket_closed(still_connected: bool = false) -> void:
 func rpc(id: String, payload: String) -> Dictionary:
 	last_rpc_id = id
 	last_rpc_payload = payload
+	if id == MatchProtocol.SESSION_HANDSHAKE_RPC:
+		if not handshake_ok:
+			return {"ok": false, "code": handshake_code, "message": handshake_message}
+		if not handshake_payload.is_empty():
+			return {"ok": true, "payload": handshake_payload}
+		var body: Dictionary = {
+			"ok": true,
+			"code": "ok",
+			"serverVersion": "1.0.0",
+			"minClientVersion": "1.0.0",
+			"maxClientVersion": "1.0.0",
+			"contentVersion": "1.0.0",
+			"maintenance": handshake_maintenance,
+			"rejectJoins": handshake_maintenance,
+			"blockTransactions": false,
+			"message": "",
+		}
+		if handshake_maintenance:
+			body["code"] = "server_maintenance"
+			body["message"] = handshake_message if not handshake_message.is_empty() else "The server is in maintenance. Gameplay joins are paused."
+		return {"ok": true, "payload": JSON.stringify(body)}
 	if not rpc_ok:
 		return {"ok": false, "code": rpc_code, "message": rpc_message}
 	if id == MatchProtocol.FIND_OR_CREATE_STARTER_ZONE_RPC:

@@ -8,13 +8,12 @@ import { QUEST_STATUS_COMPLETED } from "../domain/quest";
 import { goldFromWallet } from "../domain/wallet";
 import { storageKey } from "../domain/storage_scope";
 import { walletChangeset } from "../domain/quest_reward";
-import {
-  simulateCommit,
-  TX_REASON_QUEST_REWARD,
-  type TransactionResult,
-  type TransactionWrite,
-} from "../domain/transaction";
+import { simulateCommit, TX_REASON_ADMIN_GRANT, TX_REASON_QUEST_REWARD, type TransactionResult, type TransactionWrite } from "../domain/transaction";
 import type { QuestRewardWrite, RewardCommitResult } from "../domain/quest_reward";
+import { COMPAT_MIGRATION_REQUIRED } from "../domain/compatibility";
+import { transactionsBlocked } from "../domain/maintenance";
+import { incrementCounter } from "../domain/ops_metrics";
+import { readMaintenance } from "./ops_store";
 
 const MAX_TRANSACTION_RETRIES = 5;
 
@@ -24,6 +23,28 @@ export function readGold(nk: nkruntime.Nakama, userId: string): number {
 }
 
 export function commitTransaction(nk: nkruntime.Nakama, request: TransactionWrite): TransactionResult {
+  if (request.reasonType !== TX_REASON_ADMIN_GRANT && transactionsBlocked(readMaintenance(nk))) {
+    incrementCounter("transactionFailures");
+    return {
+      ok: false,
+      code: COMPAT_MIGRATION_REQUIRED,
+      replay: false,
+      gold: 0,
+      goldDelta: 0,
+      audit: {
+        requestId: request.requestId,
+        characterId: request.characterId,
+        userId: request.userId,
+        reasonType: request.reasonType,
+        reasonId: request.reasonId,
+        goldDelta: 0,
+        resultingBalance: 0,
+        code: COMPAT_MIGRATION_REQUIRED,
+        ok: false,
+        metadata: request.metadata !== undefined ? request.metadata : {},
+      },
+    };
+  }
   const characterId = request.characterId;
   const questKey = request.questLog !== undefined ? storageKey(QUEST_KEY, characterId) : "";
   const inventoryKey = request.inventory !== undefined ? storageKey(INVENTORY_KEY, characterId) : "";
@@ -160,6 +181,7 @@ export function commitTransaction(nk: nkruntime.Nakama, request: TransactionWrit
       };
     } catch (error) {
       if (!isVersionConflict(error) || attempt === MAX_TRANSACTION_RETRIES - 1) {
+        incrementCounter("transactionFailures");
         return {
           ok: false,
           code: "persist_failed",

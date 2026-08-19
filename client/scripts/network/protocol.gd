@@ -4,6 +4,7 @@ extends RefCounted
 ## Client/server opcode and envelope contract. Mirrors server/src/domain/protocol.ts.
 
 const VERSION: int = 1
+const CLIENT_VERSION: String = "1.0.0"
 const MAX_PAYLOAD_BYTES: int = 2048
 const REQUEST_ID_PATTERN := "^[A-Za-z0-9_-]{8,64}$"
 const CONTENT_HASH_PATTERN := "^[a-f0-9]{64}$"
@@ -62,6 +63,8 @@ const SERVER_PARTY_EVENT: int = 114
 const SERVER_TRADE_STATE: int = 115
 
 const FIND_OR_CREATE_STARTER_ZONE_RPC: String = "find_or_create_starter_zone"
+const SESSION_HANDSHAKE_RPC: String = "session_handshake"
+const OPS_STATUS_RPC: String = "ops_status"
 
 
 static func client_envelope(extra: Dictionary = {}) -> Dictionary:
@@ -79,6 +82,7 @@ static func join_metadata(content_hash: String, selection_ticket: String = "", t
 	var meta: Dictionary = {
 		"protocolVersion": str(VERSION),
 		"contentHash": content_hash,
+		"clientVersion": CLIENT_VERSION,
 	}
 	if not selection_ticket.is_empty():
 		meta["selectionTicket"] = selection_ticket
@@ -389,8 +393,30 @@ static func new_request_id() -> String:
 	return "r_%s_%s" % [str(Time.get_ticks_usec()), str(randi() % 1000000)]
 
 
+static func handshake_payload(content_hash: String, content_version: String = "") -> Dictionary:
+	var payload: Dictionary = {
+		"clientVersion": CLIENT_VERSION,
+		"protocolVersion": VERSION,
+		"contentHash": content_hash,
+	}
+	if not content_version.is_empty():
+		payload["contentVersion"] = content_version
+	return payload
+
+
 static func is_compatibility_code(code: String) -> bool:
-	return code == "protocol_mismatch" or code == "content_mismatch" or code == "save_incompatible"
+	return (
+		code == "protocol_mismatch"
+		or code == "content_mismatch"
+		or code == "save_incompatible"
+		or code == "client_too_old"
+		or code == "client_too_new"
+		or code == "unsupported_save_version"
+	)
+
+
+static func is_maintenance_code(code: String) -> bool:
+	return code == "server_maintenance" or code == "migration_required"
 
 
 static func _parse_object(raw: String) -> Dictionary:

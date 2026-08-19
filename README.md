@@ -131,6 +131,9 @@ bash scripts/test-all.sh
 | `scripts/migrate-status` / `dry-run` / `apply` / `verify` | Save-schema tooling (fixture or local Nakama). See [docs/MIGRATIONS.md](docs/MIGRATIONS.md) |
 | `scripts/server-build` | Rollup bundle `server/build/index.js` |
 | `scripts/content` | Project-owned content CLI (`validate`, `build`, `diff`, `references`, `unused`, `new`, `copy`, `migrate`, `package`) |
+| `scripts/verify-release` | Content, audit, server, migrations, client, backup restore drill |
+| `scripts/backup-create` / `test-backup` | Dump Postgres; restore into `nakama_restore_drill` |
+| `scripts/export-client-release` | Windows Desktop release export (`client/exports/`, gitignored) |
 
 The e2e scene is `res://scenes/e2e/e2e_slice.tscn`. It runs only in a **debug** Godot build with `--e2e-slice`. It uses two real Nakama sessions and the same match opcodes as the graphical client. It does not skip server validation. Release exports refuse the hook.
 
@@ -146,7 +149,7 @@ powershell -File scripts/backend-volume-destroy.ps1
 bash scripts/backend-volume-destroy.sh
 ```
 
-Then `scripts/dev-up.ps1` again. The headless e2e journey uses unique device ids and does not require a wipe.
+Then `scripts/dev-up.ps1` again. The headless e2e journey uses unique device ids and does not require a wipe. Volume destroy refuses staging/production and any environment whose `dataReset` is `forbidden`. See [docs/ENVIRONMENTS.md](docs/ENVIRONMENTS.md), [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), and [docs/RECOVERY.md](docs/RECOVERY.md).
 
 ## Troubleshooting
 
@@ -223,4 +226,4 @@ That writes `server/src/generated/content.ts` and `client/content/bundle.json` w
 git status
 ```
 
-`.gitignore` excludes Godot `.godot/` caches, `node_modules`, build output, reports, and secrets. Do not commit those.
+`.gitignore` excludes Godot `.godot/` caches, `node_modules`, build output, reports, `backups/*.dump`, and secrets (`infra/.env.*` except `*.example`). Do not commit those.

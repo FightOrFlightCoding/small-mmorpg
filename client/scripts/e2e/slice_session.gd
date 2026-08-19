@@ -44,6 +44,15 @@ func authenticate(device_id: String, account_username: String) -> bool:
 	var socket: Dictionary = await backend.connect_socket()
 	if not bool(socket.get("ok", false)):
 		return _fail("socket:%s" % String(socket.get("code", "failed")))
+	var handshake: Dictionary = await backend.rpc(
+		MatchProtocol.SESSION_HANDSHAKE_RPC,
+		JSON.stringify(MatchProtocol.handshake_payload(ContentRegistry.get_content_hash(), ContentRegistry.get_package_version()))
+	)
+	if not bool(handshake.get("ok", false)):
+		var code := String(handshake.get("code", "failed"))
+		if MatchProtocol.is_maintenance_code(code):
+			return true
+		return _fail("handshake:%s" % code)
 	return true
 
 

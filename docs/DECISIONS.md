@@ -455,3 +455,19 @@ Content-only proof (production, changes `contentHash`): `item.proof_token`, `ene
 
 Content hash after this phase: `985e5073b1e51f52205f73f85c65982f63454ed87ca4142765fd17a97692b7bc`.
 
+## 2026-08-19 — Environments, version compatibility, deployment, backups, and recovery
+
+The issued Prompt 33 makes a small private game deployable and recoverable. It does not add public-world sharding, extra overworlds, or enterprise orchestration.
+
+Policy for `local`, `automated_test`, `staging`, and `production` is compiled into `server/src/domain/environment.ts` (Nakama JS cannot read disk) with matching JSON under `infra/environments/`. Secrets stay in gitignored `infra/.env.*` files. Production registration is closed; data reset is forbidden on staging and production.
+
+Login RPC `session_handshake` and match join metadata carry `clientVersion`. Fatal codes: `client_too_old`, `client_too_new`, `protocol_mismatch`, `content_mismatch`, `unsupported_save_version`. Maintenance and migration windows use `server_maintenance` / `migration_required`. GM `ops_set_maintenance` writes `ops` / `maintenance`. No new match opcodes. Protocol version and `SAVE_SCHEMA_VERSION` stay **1**. Content hash is unchanged.
+
+Backup dumps are gitignored. A dump is accepted only after restore into `nakama_restore_drill`. Production overwrite requires token `OVERWRITE-PRODUCTION`.
+
+Nakama’s JS VM freezes properties of objects created at module load. In-memory ops counters therefore live in lexical numbers inside `createOpsEngine` (`server/src/domain/ops_metrics.ts`). Mutating a module-level object throws `Cannot assign to read only property` and must not be used for counters.
+
+Windows release export is `scripts/export-client-release.ps1` (preset `Windows Desktop`). Official Godot **4.7.1** templates are a separate editor install (not vendored). The script fails clearly if `%APPDATA%/Godot/export_templates/4.7.1.stable/windows_release_x86_64.exe` is missing.
+
+Content hash after this phase: `985e5073b1e51f52205f73f85c65982f63454ed87ca4142765fd17a97692b7bc`.
+

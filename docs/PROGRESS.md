@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Content production workflow, systems lab, and developer/GM tools**.
+Last accepted phase: **Environments, version compatibility, deployment, backups, and recovery**.
 
 Current phase: none.
 
@@ -631,5 +631,33 @@ powershell -File scripts/test-server.ps1
 powershell -File scripts/test-client.ps1
 powershell -File scripts/test-e2e.ps1
 ```
+
+## Environments, version compatibility, deployment, backups, and recovery acceptance (2026-08-19)
+
+Local, `automated_test`, staging, and production policies are distinct (`infra/environments/*.json` plus compiled presets). Secrets stay in gitignored env files; committed examples use `REPLACE_ME`. Login RPC `session_handshake` and match join metadata carry `clientVersion`. Incompatible clients get `client_too_old`, `client_too_new`, `protocol_mismatch`, `content_mismatch`, `unsupported_save_version` and do not enter gameplay. Maintenance rejects new joins, keeps GM/ops login, warns before `shutdownAt`, and blocks ordinary transactions with `migration_required`. Ops counters use lexical storage so Nakama’s JS VM can increment them. A local Postgres dump restored into `nakama_restore_drill` matched 20 public tables. Rollback and recovery procedures are in [RECOVERY.md](RECOVERY.md). Protocol version and `SAVE_SCHEMA_VERSION` stay 1. Content hash is unchanged. Prompt 18 village/slime stay frozen.
+
+| Gate | Result |
+| --- | --- |
+| Content | 23/23, matching hash `985e5073b1e51f52205f73f85c65982f63454ed87ca4142765fd17a97692b7bc` |
+| Audit | `FOUNDATION_AUDIT_OK` (26 storage records, 31 client opcodes, 15 server opcodes, 24 rpcs) |
+| Server | 419/419 |
+| Client GdUnit | 200/200, 0 orphans, `SHELL_LOGIN` |
+| Backup drill | dump local `nakama` → restore `nakama_restore_drill` → 20 public tables |
+| Live backend | `session_handshake` + `find_or_create_starter_zone` (Alice/Bob) |
+| E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 (walk, combat, quest, reconnect) |
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-content.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+powershell -File scripts/test-backup.ps1
+powershell -File scripts/backend-up.ps1
+powershell -File scripts/test-e2e.ps1
+```
+
+Release export: `powershell -File scripts/export-client-release.ps1` (requires Godot 4.7.1 Windows export templates). Docker image: `powershell -File scripts/docker-build.ps1` or `scripts/backend-up.ps1`. Guides: [ENVIRONMENTS.md](ENVIRONMENTS.md), [DEPLOYMENT.md](DEPLOYMENT.md), [RECOVERY.md](RECOVERY.md).
 
 

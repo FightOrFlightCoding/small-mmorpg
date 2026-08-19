@@ -1,0 +1,44 @@
+name: verify
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.20.2"
+      - name: Install Node dependencies
+        run: |
+          npm ci --prefix server
+          npm ci --prefix tools/content-build
+      - name: Content validation and generated-bundle checks
+        run: bash scripts/test-content.sh
+      - name: Protocol, vendor-integrity, and catalog audit
+        run: bash scripts/test-audit.sh
+      - name: Server typecheck
+        run: bash scripts/server-typecheck.sh
+      - name: Server tests including migrations
+        run: bash scripts/test-server.sh
+      - name: Migration fixture dry-run, apply, verify
+        run: |
+          TMP="${RUNNER_TEMP}/p18-alice.v1.json"
+          bash scripts/migrate-dry-run.sh --fixture server/tests/fixtures/saves/p18-alice.json
+          bash scripts/migrate-apply.sh --fixture server/tests/fixtures/saves/p18-alice.json --out "$TMP"
+          bash scripts/migrate-verify.sh --fixture "$TMP"
+      - name: Install Godot 4.7.1
+        run: |
+          curl -fsSL -o /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip"
+          sudo unzip -o /tmp/godot.zip -d /usr/local/bin
+          GODOT_BIN="$(ls /usr/local/bin/Godot_v4.7.1-stable_linux.x86_64*)"
+          sudo chmod +x "$GODOT_BIN"
+          sudo ln -sf "$GODOT_BIN" /usr/local/bin/godot
+          godot --version
+      - name: Client headless tests
+        env:
+          GODOT_BIN: godot
+        run: bash scripts/test-client.sh

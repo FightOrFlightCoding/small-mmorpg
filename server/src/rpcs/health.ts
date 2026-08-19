@@ -1,5 +1,7 @@
 import { PROTOCOL_VERSION } from "../domain/protocol";
-import { contentHash } from "../generated/content";
+import { contentHash, packageVersion } from "../generated/content";
+import { CLIENT_VERSION, SERVER_VERSION } from "../domain/environment";
+import { emptyOpsCounters, type OpsCounters } from "../domain/ops_metrics";
 
 export const HEALTH_RPC_ID = "vibecode_health";
 export const REGISTERED_RPC_IDS = [
@@ -24,6 +26,9 @@ export const REGISTERED_RPC_IDS = [
   "party_disband",
   "party_get_state",
   "gm_command",
+  "session_handshake",
+  "ops_status",
+  "ops_set_maintenance",
 ] as const;
 
 export { PROTOCOL_VERSION };
@@ -34,23 +39,47 @@ export interface HealthResponse {
   service: typeof SERVICE_NAME;
   protocol_version: typeof PROTOCOL_VERSION;
   content_version: string;
+  content_package_version: string;
+  server_version: string;
+  environment: string;
+  min_client_version: string;
+  max_client_version: string;
+  maintenance: boolean;
   rpcs: typeof REGISTERED_RPC_IDS;
+  counters: OpsCounters;
 }
 
-export function buildHealthResponse(): HealthResponse {
+export interface HealthExtras {
+  environment?: string;
+  serverVersion?: string;
+  minClientVersion?: string;
+  maxClientVersion?: string;
+  contentPackageVersion?: string;
+  maintenance?: boolean;
+  counters?: OpsCounters;
+}
+
+export function buildHealthResponse(extras: HealthExtras = {}): HealthResponse {
   return {
     ok: true,
     service: SERVICE_NAME,
     protocol_version: PROTOCOL_VERSION,
     content_version: contentHash,
+    content_package_version: extras.contentPackageVersion !== undefined ? extras.contentPackageVersion : packageVersion,
+    server_version: extras.serverVersion !== undefined ? extras.serverVersion : SERVER_VERSION,
+    environment: extras.environment !== undefined ? extras.environment : "local",
+    min_client_version: extras.minClientVersion !== undefined ? extras.minClientVersion : CLIENT_VERSION,
+    max_client_version: extras.maxClientVersion !== undefined ? extras.maxClientVersion : CLIENT_VERSION,
+    maintenance: extras.maintenance === true,
     rpcs: REGISTERED_RPC_IDS,
+    counters: extras.counters !== undefined ? extras.counters : emptyOpsCounters(),
   };
 }
 
-export function handleHealthRpc(payload: string): HealthResponse {
+export function handleHealthRpc(payload: string, extras: HealthExtras = {}): HealthResponse {
   const trimmed = payload.trim();
   if (trimmed.length === 0) {
-    return buildHealthResponse();
+    return buildHealthResponse(extras);
   }
 
   let parsed: unknown;
@@ -69,5 +98,5 @@ export function handleHealthRpc(payload: string): HealthResponse {
     throw new Error("unknown_field:" + keys[0]);
   }
 
-  return buildHealthResponse();
+  return buildHealthResponse(extras);
 }

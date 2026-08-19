@@ -1,3 +1,6 @@
+import { evaluateCompatibility } from "./compatibility";
+import { emptyMaintenance, type MaintenanceState } from "./maintenance";
+import { CLIENT_VERSION } from "./environment";
 import { PROTOCOL_VERSION } from "./protocol";
 import { MATCH_MAX_PLAYERS, playerCount, type StarterZoneState } from "./match_state";
 
@@ -22,7 +25,14 @@ const JOIN_INJECTION_KEYS = SAVE_VERSION_METADATA_KEYS.concat([
   "x",
   "y",
 ]);
-const JOIN_ALLOWED_KEYS = ["protocolVersion", "contentHash", "selectionTicket", "transferTicket"];
+const JOIN_ALLOWED_KEYS = ["protocolVersion", "contentHash", "clientVersion", "selectionTicket", "transferTicket"];
+
+export interface JoinCompatibilityOptions {
+  minClientVersion?: string;
+  maxClientVersion?: string;
+  expectedContentVersion?: string;
+  maintenance?: MaintenanceState;
+}
 
 export function validateJoinAttempt(
   state: StarterZoneState,
@@ -31,6 +41,7 @@ export function validateJoinAttempt(
   alreadyJoined: boolean,
   joiningSessionId: string = "",
   existingSessionId: string = "",
+  options: JoinCompatibilityOptions = {},
 ): { accept: boolean; rejectMessage?: string } {
   const metaKeys = Object.keys(metadata);
   for (let i = 0; i < metaKeys.length; i++) {
@@ -44,12 +55,20 @@ export function validateJoinAttempt(
   }
   const versionRaw = metadata.protocolVersion;
   const version = versionRaw !== undefined ? parseInt(versionRaw, 10) : NaN;
-  if (version !== PROTOCOL_VERSION) {
-    return { accept: false, rejectMessage: "protocol_mismatch" };
-  }
-  const hash = metadata.contentHash;
-  if (typeof hash !== "string" || hash !== expectedContentHash) {
-    return { accept: false, rejectMessage: "content_mismatch" };
+  const compatibility = evaluateCompatibility({
+    clientVersion: typeof metadata.clientVersion === "string" ? metadata.clientVersion : "",
+    protocolVersion: version,
+    contentHash: typeof metadata.contentHash === "string" ? metadata.contentHash : "",
+    expectedProtocol: PROTOCOL_VERSION,
+    expectedContentHash: expectedContentHash,
+    expectedContentVersion: options.expectedContentVersion !== undefined ? options.expectedContentVersion : "",
+    minClientVersion: options.minClientVersion !== undefined ? options.minClientVersion : CLIENT_VERSION,
+    maxClientVersion: options.maxClientVersion !== undefined ? options.maxClientVersion : CLIENT_VERSION,
+    maintenance: options.maintenance !== undefined ? options.maintenance : emptyMaintenance(),
+    alreadyJoined: alreadyJoined,
+  });
+  if (!compatibility.ok) {
+    return { accept: false, rejectMessage: compatibility.code };
   }
   if (alreadyJoined) {
     if (existingSessionId === "" || joiningSessionId === existingSessionId) {

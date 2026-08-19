@@ -25,6 +25,12 @@ test("health response has the required shape", () => {
   assert.ok(body.rpcs.includes("request_cave_entry"));
   assert.ok(body.rpcs.includes("find_or_create_owned_cave"));
   assert.ok(body.rpcs.includes("request_cave_exit"));
+  assert.ok(body.rpcs.includes("session_handshake"));
+  assert.ok(body.rpcs.includes("ops_status"));
+  assert.ok(body.rpcs.includes("ops_set_maintenance"));
+  assert.equal(body.server_version, "1.0.0");
+  assert.equal(body.environment, "local");
+  assert.equal(body.maintenance, false);
   assert.match(body.content_version, /^[a-f0-9]{64}$/);
 });
 

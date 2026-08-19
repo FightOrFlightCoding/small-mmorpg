@@ -2,7 +2,7 @@
 
 This document is binding. Implementation phases must not contradict it.
 
-Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [SECURITY_MODEL.md](SECURITY_MODEL.md), [NETWORK_PROTOCOL.md](NETWORK_PROTOCOL.md), [CONTENT_MODEL.md](CONTENT_MODEL.md), [MIGRATIONS.md](MIGRATIONS.md), [DEPENDENCIES.md](DEPENDENCIES.md), [THIRD_PARTY.md](THIRD_PARTY.md), [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md), [MODULE_OWNERSHIP.md](MODULE_OWNERSHIP.md).
+Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [SECURITY_MODEL.md](SECURITY_MODEL.md), [NETWORK_PROTOCOL.md](NETWORK_PROTOCOL.md), [CONTENT_MODEL.md](CONTENT_MODEL.md), [MIGRATIONS.md](MIGRATIONS.md), [DEPENDENCIES.md](DEPENDENCIES.md), [THIRD_PARTY.md](THIRD_PARTY.md), [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md), [MODULE_OWNERSHIP.md](MODULE_OWNERSHIP.md), [ENVIRONMENTS.md](ENVIRONMENTS.md), [DEPLOYMENT.md](DEPLOYMENT.md), [RECOVERY.md](RECOVERY.md).
 
 ## Godot client responsibilities
 
@@ -42,7 +42,8 @@ It must:
 - Simulate movement collision, combat, cooldowns, enemy behavior, loot, inventory, equipment, quests, currency, temporary parties, group credit, group loot, cave lifecycle, transfer tickets, and direct player trades.
 - Authorize developer/GM commands only from a server-owned allowlist (default disabled). Record an audit row for every `gm_command`. A client debug flag is not authority.
 - Maintain canonical character location and consume one-time transfer tickets on destination join.
-- Validate every external payload. Reject unknown opcodes, strict unknown fields, malformed JSON, invalid IDs, oversized messages, protocol-version mismatch, and rate-limited floods.
+- Validate every external payload. Reject unknown opcodes, strict unknown fields, malformed JSON, invalid IDs, oversized messages, protocol-version mismatch, client-version mismatch, content mismatch, and rate-limited floods.
+- Reject new gameplay joins while maintenance `rejectJoins` is on; allow reconnect and administrative access.
 - Reject empty, oversized, and malformed zone-chat and party-chat payloads in a realtime before hook.
 - Apply rewarded actions idempotently using a unique client `requestId`.
 - Broadcast snapshots and support full-state resynchronization.
@@ -114,7 +115,7 @@ Third-party libraries are implementation details. Game code talks to project-own
 | --- | --- | --- |
 | `AppState` | none | Non-authoritative client/session flags and shell signals. Never canonical game data. |
 | `ContentRegistry` | generated `client/content/bundle.json` plus `client/content/visual_map.json` and `client/content/asset_manifest.json` | Schema version check, content hash, lookup by stable ID, visual ID → local texture/fallback, visual sets |
-| `NetworkService` | Nakama Godot SDK 3.4.0 | Email/password and debug device auth, `user://` session token cache, refresh, reauth (device only), realtime socket, bounded reconnect backoff, logout/cancel, character list/create/select/delete/restore, `character_bootstrap` wrapper, `find_or_create_starter_zone`, match join with `selectionTicket` or `transferTicket`, leave/rejoin, match opcodes, party RPCs, `gm_command` RPC, starter-zone and party room chat, transfer overlay. Socket match/chat/closed signals are connected once. |
+| `NetworkService` | Nakama Godot SDK 3.4.0 | Email/password and debug device auth, `user://` session token cache, refresh, reauth (device only), realtime socket, bounded reconnect backoff, logout/cancel, character list/create/select/delete/restore, `character_bootstrap` wrapper, `session_handshake` after login, `find_or_create_starter_zone`, match join with `clientVersion` plus `selectionTicket` or `transferTicket`, leave/rejoin, match opcodes, party RPCs, `gm_command` RPC, starter-zone and party room chat, transfer overlay. Socket match/chat/closed signals are connected once. |
 | `GameService` | the autoloads above | Boot, email register/login, debug device login, character lifecycle, starter-zone join. Not a gameplay authority. |
 | `SceneRouter` | Godot scene tree | Transitions among boot, login, character, and world |
 | `EntityRegistry` / `ZoneView` / `WorldHud` | none | Presentation of authoritative `FULL_STATE`/`SNAPSHOT`. Local movement is predicted and reconciled; all remote entities interpolate from one snapshot buffer keyed `kind:id`. The HUD journal mirrors `QuestService`. The HUD inventory list mirrors `InventoryService`. The HUD equipment slots and attack label mirror `EquipmentService`. The HUD gold label mirrors `WalletService`. The HUD progression panel mirrors `ProgressionService`. The HUD hotbar, cast bar, resource hint, and status icons mirror `AbilityService`. The HUD party panel mirrors `PartyService` (members, leader, connection state, vitals, invite/leave/kick/promote, party chat Label). The HUD trade panel mirrors `TradeService` (invite, two offer lists, gold, revision, acceptances, offer-changed warning, cancel, result). Cave objective/boss copy mirrors `FULL_STATE.instance`. Target frame, combat-state label, health, death overlay, and respawn copy server vitals. Settings, inn, and cave panels send intentions only. Not a gameplay authority. |
@@ -163,6 +164,7 @@ Generated artifacts must preserve IDs. Network messages and storage records carr
 - Position checkpoints
 - Nearby trade records and trade audit events (not a player-save kind)
 - GM allowlist, recent command ids, per-command signal results, and GM audit events (not a player-save kind; production allowlist defaults to disabled)
+- Ops maintenance flag and a metrics snapshot (`ops` collection; not a player-save kind)
 
 **Transient** (match memory only):
 
@@ -181,4 +183,4 @@ Transactions that grant items or currency persist immediately with `nk.multiUpda
 
 ## Developer scripts
 
-PowerShell and bash variants live in `scripts/`: `setup`, `dev-up`, `dev-down`, `server-build`, `run-client`, `run-two-clients`, `test-client`, `test-server`, `test-content`, `test-e2e`, `test-all`, `content` / `content-build`, and `migrate-status` / `migrate-dry-run` / `migrate-apply` / `migrate-verify`. Each command must exit nonzero when a required step fails. `scripts/test-all` is the clean-setup gate (dependencies, matching content hashes, server tests, client GdUnit, then the debug-only two-identity journey). Graphical Alice/Bob windows are `scripts/run-two-clients`. Local Nakama data is kept across `dev-down`; wipe it only with `scripts/backend-volume-destroy`. Save-schema commands are documented in [MIGRATIONS.md](MIGRATIONS.md).
+PowerShell and bash variants live in `scripts/`: `setup`, `dev-up`, `dev-down`, `server-build`, `server-typecheck`, `run-client`, `run-two-clients`, `test-client`, `headless-client-test`, `test-server`, `test-content`, `test-e2e`, `test-all`, `content` / `content-validate` / `content-build`, `migrate-status` / `migrate-dry-run` / `migrate-apply` / `migrate-verify`, `backup-create` / `backup-restore-test` / `test-backup`, `export-client-dev` / `export-client-release`, `docker-build`, `deploy-check`, and `verify-release`. Each command must exit nonzero when a required step fails. `scripts/test-all` is the clean-setup gate. `scripts/verify-release` adds migration fixture apply/verify and the backup restore drill. Graphical Alice/Bob windows are `scripts/run-two-clients`. Local Nakama data is kept across `dev-down`; wipe it only with `scripts/backend-volume-destroy` when the environment allows data reset. Save-schema commands are documented in [MIGRATIONS.md](MIGRATIONS.md). Deploy order and environments: [DEPLOYMENT.md](DEPLOYMENT.md), [ENVIRONMENTS.md](ENVIRONMENTS.md).

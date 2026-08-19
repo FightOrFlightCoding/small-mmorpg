@@ -21,23 +21,41 @@ import {
   rpcPartyPromote,
 } from "./rpcs/party";
 import { rpcGmCommand } from "./rpcs/gm";
+import { rpcSessionHandshake } from "./rpcs/handshake";
+import { rpcOpsSetMaintenance, rpcOpsStatus } from "./rpcs/ops";
 import { starterZoneMatchHandler } from "./nakama/starter_zone_match";
 import { beforeChannelJoin, beforeChannelMessageSend } from "./nakama/chat_hooks";
+import { beforeAuthenticateDevice, beforeAuthenticateEmail } from "./nakama/auth_hooks";
 import { STARTER_ZONE_MODULE } from "./domain/match_state";
 import { PROTOCOL_VERSION } from "./domain/protocol";
 import { content, contentHash } from "./generated/content";
 import { bindCaveOwnershipReleaser } from "./domain/cave_ownership";
 import { expirePartyOwnedCave } from "./domain/cave";
 import { nakamaCaveRepository } from "./nakama/cave_store";
+import { environmentFromRuntime, parseBoolEnv } from "./domain/environment";
+import { applyAndStoreMaintenance, readEffectiveMaintenance } from "./nakama/ops_store";
+import { formatOpsLog, snapshotCounters } from "./domain/ops_metrics";
 
 function rpcVibecodeHealth(
-  _ctx: nkruntime.Context,
+  ctx: nkruntime.Context,
   logger: nkruntime.Logger,
-  _nk: nkruntime.Nakama,
+  nk: nkruntime.Nakama,
   payload: string,
 ): string {
   try {
-    return JSON.stringify(handleHealthRpc(payload));
+    const env = environmentFromRuntime(ctx.env);
+    const maintenance = readEffectiveMaintenance(nk, env, ctx.env);
+    return JSON.stringify(
+      handleHealthRpc(payload, {
+        environment: env.name,
+        serverVersion: env.serverVersion,
+        minClientVersion: env.minClientVersion,
+        maxClientVersion: env.maxClientVersion,
+        contentPackageVersion: env.contentVersion,
+        maintenance: maintenance.enabled,
+        counters: snapshotCounters(),
+      }),
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "internal_error";
     logger.error("vibecode_health rejected reason=%s", message);
@@ -46,11 +64,15 @@ function rpcVibecodeHealth(
 }
 
 function InitModule(
-  _ctx: nkruntime.Context,
+  ctx: nkruntime.Context,
   logger: nkruntime.Logger,
   nk: nkruntime.Nakama,
   initializer: nkruntime.Initializer,
 ): void {
+  const env = environmentFromRuntime(ctx.env);
+  if (parseBoolEnv(ctx.env !== undefined ? ctx.env["VIBECODE_MAINTENANCE"] : undefined, false)) {
+    applyAndStoreMaintenance(nk, { enabled: true, rejectJoins: true }, Date.now());
+  }
   bindCaveOwnershipReleaser(function (partyId: string) {
     return expirePartyOwnedCave(nakamaCaveRepository(nk), partyId, Date.now());
   });
@@ -75,16 +97,23 @@ function InitModule(
   initializer.registerRpc("party_disband", rpcPartyDisband);
   initializer.registerRpc("party_get_state", rpcPartyGetState);
   initializer.registerRpc("gm_command", rpcGmCommand);
+  initializer.registerRpc("session_handshake", rpcSessionHandshake);
+  initializer.registerRpc("ops_status", rpcOpsStatus);
+  initializer.registerRpc("ops_set_maintenance", rpcOpsSetMaintenance);
   initializer.registerMatch(STARTER_ZONE_MODULE, starterZoneMatchHandler);
   // Nakama 3.40.0 walks InitModule's AST for registerRtBefore; a helper call is not visible.
   initializer.registerRtBefore("ChannelMessageSend", beforeChannelMessageSend);
   initializer.registerRtBefore("ChannelJoin", beforeChannelJoin);
+  initializer.registerBeforeAuthenticateEmail(beforeAuthenticateEmail);
+  initializer.registerBeforeAuthenticateDevice(beforeAuthenticateDevice);
   logger.info(
-    "vibecode runtime loaded rpc=vibecode_health,character_bootstrap,character_list,character_create,character_select,character_soft_delete,character_restore,find_or_create_starter_zone,request_cave_entry,find_or_create_owned_cave,request_cave_exit,party_create,party_invite,party_accept,party_decline,party_leave,party_kick,party_promote,party_disband,party_get_state,gm_command match=%s protocol_version=%s content_hash=%s zone=%s chat_room=zone.starter",
-    STARTER_ZONE_MODULE,
-    String(PROTOCOL_VERSION),
-    contentHash,
-    content.zones["zone.starter"].id,
+    formatOpsLog("runtime_loaded", {
+      environment: env.name,
+      server_version: env.serverVersion,
+      protocol_version: PROTOCOL_VERSION,
+      content_hash: contentHash,
+      zone: content.zones["zone.starter"].id,
+    }),
   );
 }
 

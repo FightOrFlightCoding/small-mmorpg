@@ -108,7 +108,7 @@ func rpc(id: String, payload: String) -> Dictionary:
 		return _fail("unauthenticated", "Sign-in is required.")
 	var result: NakamaAPI.ApiRpc = await _client.rpc_async(_session, id, payload)
 	if result.is_exception():
-		return _map_save_incompatible(_from_exception(result.get_exception(), "rpc_failed", "The server rejected the request."))
+		return _map_ops_codes(_map_save_incompatible(_from_exception(result.get_exception(), "rpc_failed", "The server rejected the request.")))
 	return {"ok": true, "payload": String(result.payload)}
 
 
@@ -333,14 +333,9 @@ func _store_session(session: NakamaSession, fallback_code: String) -> Dictionary
 
 func _from_join_exception(exception: NakamaException) -> Dictionary:
 	var mapped: Dictionary = _from_exception(exception, "join_failed", "Could not join the starter zone.")
+	mapped = _map_ops_codes(mapped)
 	var message := String(mapped.get("message", "")).to_lower()
-	if message.contains("protocol_mismatch"):
-		mapped["code"] = "protocol_mismatch"
-		mapped["message"] = "The client protocol version does not match the server."
-	elif message.contains("content_mismatch"):
-		mapped["code"] = "content_mismatch"
-		mapped["message"] = "The client content catalog does not match the server."
-	elif message.contains("already_in_match"):
+	if String(mapped.get("code", "")) == "join_failed" and message.contains("already_in_match"):
 		mapped["code"] = "already_in_match"
 		mapped["message"] = "This account is already in the starter zone. Sign in as Alice in one window and Bob in the other."
 	elif message.contains("match_full"):
@@ -360,6 +355,10 @@ func _from_join_exception(exception: NakamaException) -> Dictionary:
 
 func _map_save_incompatible(mapped: Dictionary) -> Dictionary:
 	var message := String(mapped.get("message", "")).to_lower()
+	if message.contains("unsupported_save_version"):
+		mapped["code"] = "unsupported_save_version"
+		mapped["message"] = "This save is incompatible with the server."
+		return mapped
 	if (
 		message.contains("unsupported_future_version")
 		or message.contains("corrupted_required_fields")
@@ -373,6 +372,38 @@ func _map_save_incompatible(mapped: Dictionary) -> Dictionary:
 	):
 		mapped["code"] = "save_incompatible"
 		mapped["message"] = "This save is incompatible with the server. The client cannot choose a migration version."
+	return mapped
+
+
+func _map_ops_codes(mapped: Dictionary) -> Dictionary:
+	var message := String(mapped.get("message", "")).to_lower()
+	if message.contains("client_too_old"):
+		mapped["code"] = "client_too_old"
+		mapped["message"] = "This client is too old for the server. Update the client."
+	elif message.contains("client_too_new"):
+		mapped["code"] = "client_too_new"
+		mapped["message"] = "This client is too new for the server. Use the matching release."
+	elif message.contains("protocol_mismatch"):
+		mapped["code"] = "protocol_mismatch"
+		mapped["message"] = "The client protocol version does not match the server."
+	elif message.contains("content_mismatch"):
+		mapped["code"] = "content_mismatch"
+		mapped["message"] = "The client content catalog does not match the server."
+	elif message.contains("unsupported_save_version"):
+		mapped["code"] = "unsupported_save_version"
+		mapped["message"] = "This save is incompatible with the server."
+	elif message.contains("server_maintenance"):
+		mapped["code"] = "server_maintenance"
+		mapped["message"] = "The server is in maintenance. Gameplay joins are paused."
+	elif message.contains("migration_required"):
+		mapped["code"] = "migration_required"
+		mapped["message"] = "The server is applying a save migration. Try again shortly."
+	elif message.contains("registration_disabled"):
+		mapped["code"] = "registration_disabled"
+		mapped["message"] = "New account registration is disabled on this server."
+	elif message.contains("device_auth_disabled"):
+		mapped["code"] = "device_auth_disabled"
+		mapped["message"] = "Device authentication is disabled on this server."
 	return mapped
 
 
@@ -391,6 +422,12 @@ func _from_exception(exception: NakamaException, fallback_code: String, fallback
 		else:
 			code = "session_expired"
 			message = "The session expired. Sign in again."
+	elif lowered.contains("registration_disabled"):
+		code = "registration_disabled"
+		message = "New account registration is disabled on this server."
+	elif lowered.contains("device_auth_disabled"):
+		code = "device_auth_disabled"
+		message = "Device authentication is disabled on this server."
 	elif fallback_code == "invalid_credentials" and (lowered.contains("invalid") or lowered.contains("already in use") or lowered.contains("exists")):
 		if lowered.contains("exists") or lowered.contains("already"):
 			code = "email_taken"

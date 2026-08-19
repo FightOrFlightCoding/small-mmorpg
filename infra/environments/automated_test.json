@@ -1,0 +1,19 @@
+{
+  "name": "automated_test",
+  "database": {
+    "name": "nakama_test",
+    "volume": "vibecode_test_postgres_data",
+    "host": "postgres",
+    "port": 5432
+  },
+  "secretsFile": "infra/.env.automated_test",
+  "contentVersion": "1.0.0",
+  "serverVersion": "1.0.0",
+  "minClientVersion": "1.0.0",
+  "maxClientVersion": "1.0.0",
+  "logLevel": "INFO",
+  "developmentToolsEnabled": true,
+  "deviceAuthEnabled": true,
+  "accountRegistration": "open",
+  "dataReset": "allowed"
+}
