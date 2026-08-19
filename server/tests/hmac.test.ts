@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
 import test from "node:test";
-import { emailHmacHex, hmacSha256Hex, sha256Hex } from "../src/domain/hmac";
+import { constantTimeEqual, emailHmacHex, hmacSha256Hex, sha256Hex } from "../src/domain/hmac";
 
 test("pure SHA-256 matches Node crypto", () => {
   assert.equal(sha256Hex(""), "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
@@ -18,4 +18,10 @@ test("pure HMAC-SHA256 matches Node crypto", () => {
     "f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8",
   );
   assert.equal(emailHmacHex(pepper, message), hmacSha256Hex(pepper, message));
+});
+
+test("constant-time compare rejects length and content mismatches", () => {
+  assert.equal(constantTimeEqual("abcd", "abcd"), true);
+  assert.equal(constantTimeEqual("abcd", "abce"), false);
+  assert.equal(constantTimeEqual("abc", "abcd"), false);
 });

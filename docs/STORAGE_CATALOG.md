@@ -507,6 +507,42 @@ Value: `{ schemaVersion, characterId, requestId, reasonType, reasonId, goldDelta
 | Client access     | No. The Godot client does not call this RPC. |
 
 
+## `account_profile` / `email_index`
+
+
+| Field             | Value |
+| ----------------- | --- |
+| Purpose           | Production HMAC email lookup for the auth gateway. Value is `{ hmac, userId, verifiedAt }` only. |
+| Owner             | Server `auth_gateway` |
+| Scope             | Account-scoped |
+| `permissionRead`  | 0 |
+| `permissionWrite` | 0 |
+| Schema version    | absent (not a player-save kind) |
+| Creation          | Gateway register / email replace |
+| Read              | `storageRead` after three-argument `storageIndexList` on index `account_profile_email_hmac` |
+| Update            | Overwrite hmac / `verifiedAt` |
+| Deletion          | Recorded account delete |
+| Client access     | No |
+
+
+## `auth_challenge` / `c`
+
+
+| Field             | Value |
+| ----------------- | --- |
+| Purpose           | Single-use email challenges. Value includes `secret_hash` (HMAC), never the plaintext code. |
+| Owner             | Server `auth_gateway` on the system user |
+| Scope             | System user, key `c_<challenge_id>` |
+| `permissionRead`  | 0 |
+| `permissionWrite` | 0 |
+| Schema version    | 1 |
+| Creation          | `challenge_put`; siblings for the same hash+purpose are invalidated |
+| Read              | Direct `storageRead` plus index `auth_challenge_lookup` |
+| Update            | Attempt count, consume, invalidate |
+| Deletion          | Not required; expiry and consume are sufficient |
+| Client access     | No. Codes are mailed or typed; hashes stay server-side |
+
+
 ## Nakama wallet `gold`
 
 

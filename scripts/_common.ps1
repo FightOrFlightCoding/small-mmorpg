@@ -132,6 +132,16 @@ function Test-NakamaHealthy {
 	}
 }
 
+function Test-AuthGatewayHealthy {
+	try {
+		$health = Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:8787/health" -TimeoutSec 3
+		return [bool]$health.ok
+	}
+	catch {
+		return $false
+	}
+}
+
 function Assert-ContentHashes {
 	$repo = Get-RepoRoot
 	$bundle = Get-Content (Join-Path $repo "client\content\bundle.json") -Raw | ConvertFrom-Json

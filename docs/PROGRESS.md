@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Account lifecycle audit and Nakama compatibility (ACCT-01)**.
+Last accepted phase: **Public authentication gateway and email infrastructure (ACCT-02)**.
 
 Current phase: none.
 
@@ -759,5 +759,37 @@ powershell -File scripts/test-account-compat.ps1 -SkipDomain
 powershell -File scripts/test-client.ps1
 powershell -File scripts/test-e2e.ps1
 ```
+
+## Public authentication gateway and email infrastructure acceptance (ACCT-02, 2026-08-19)
+
+Trusted public boundary only. Godot login UI is unchanged and still authenticates to Nakama directly. No new gameplay systems. No custom SQL. No ORM.
+
+`auth-gateway/` is Fastify **5.6.1** on Node **20.20.2**. Local Compose adds Mailpit `axllent/mailpit:v1.30.7` (UI http://127.0.0.1:8025) and the gateway on http://127.0.0.1:8787. Staging/production refuse to start without HTTPS public URLs and non-default secrets. Internal RPC `auth_gateway` rejects session JWTs (`gateway_rpc_forbidden`) and requires a signed HMAC assertion. Challenges store hashes only. Email provider failure after register does not delete the Nakama account.
+
+| Gate | Result |
+| --- | --- |
+| Content | 23/23, hash `4eeb205a3748b3cd71053bcc217cb017ae69f1f1d4753238ca4c03da9cce35c1` (unchanged) |
+| Audit | `FOUNDATION_AUDIT_OK` (29 storage records, 31 client opcodes, 15 server opcodes, 26 rpcs) |
+| Server hermetic | 467 passed, 12 skipped (live suites off), `tsc --noEmit` clean |
+| Auth gateway hermetic | 20/20 (`scripts/test-auth-gateway.ps1 -SkipLive`) |
+| Auth gateway live | 2/2 HTTP-key ping + session reject (`ACCT_GATEWAY_LIVE=1`) |
+| Compose health | Nakama healthy; gateway `/health` and `/ready` (`nakama=true`, `email=true`); Mailpit captured `Verify your Vibecode email` |
+| Client GdUnit | 220/220, 0 orphans, `SHELL_LOGIN` |
+| Gameplay smoke | `scripts/backend-verify.ps1` Alice/Bob bootstrap + starter zone |
+
+Limitations: verification is not a character/match gate yet; Godot is not switched onto the gateway; Fastify 5.6.1 reports npm-audit findings (this process sets `trustProxy: false` and does not use `sendWebStream`).
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-auth-gateway.ps1 -SkipLive
+powershell -File scripts/backend-up.ps1
+powershell -File scripts/test-auth-gateway.ps1
+powershell -File scripts/test-client.ps1
+```
+
+Inspect local mail at http://127.0.0.1:8025 after `POST http://127.0.0.1:8787/v1/auth/register`.
 
 

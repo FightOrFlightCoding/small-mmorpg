@@ -24,5 +24,8 @@ Invoke-Native -FilePath "npm" -ArgumentList @("ci") -WorkingDirectory (Join-Path
 Write-Host "== content-build npm ci =="
 Invoke-Native -FilePath "npm" -ArgumentList @("ci") -WorkingDirectory (Join-Path $RepoRoot "tools\content-build") -FailMessage "content-build npm ci failed"
 
+Write-Host "== auth-gateway npm ci =="
+Invoke-Native -FilePath "npm" -ArgumentList @("ci") -WorkingDirectory (Join-Path $RepoRoot "auth-gateway") -FailMessage "auth-gateway npm ci failed"
+
 Assert-ContentHashes
 Write-Host "Setup complete."

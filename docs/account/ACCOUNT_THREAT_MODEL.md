@@ -1,6 +1,6 @@
 # Account threat model
 
-ACCT-01 documents risks. It does not add verification mail, password policy UI, or HMAC production wiring.
+ACCT-02 adds the public auth gateway, hashed challenges, and HMAC email lookup on `account_profile`. Verification is **not** yet a gameplay gate. Godot login UI is unchanged.
 
 ## Assets
 
@@ -39,20 +39,32 @@ ACCT-01 documents risks. It does not add verification mail, password policy UI, 
 - GM allowlist default disabled
 - Compatibility HMAC lookup rejects missing, multiple, stale, and mismatched hits
 
+## Controls added in ACCT-02
+
+- Auth gateway holds Nakama and mail secrets; they are not shipped to Godot
+- Staging/production gateway requires HTTPS public URLs and non-default secrets
+- Internal RPC `auth_gateway` rejects session JWT (`gateway_rpc_forbidden`) and requires a signed assertion
+- Challenges store HMAC only; single-use, expiry, attempt limit, sibling invalidation, idempotent consume
+- Password-reset and resend HTTP responses do not reveal account existence
+- Email provider failure after register does not delete the Nakama user
+- Hosted confirm pages: no third-party scripts, `referrer-policy: no-referrer`, generic errors
+- Per-IP and per-email-hash rate-limit foundations
+- Gateway password policy 15–128 with a small common-password list (gameplay login still uses Nakama minimum until Godot is wired)
+
 ## Gaps the later lifecycle must close
 
 | Risk | Gap today |
 | --- | --- |
-| Unverified play | No `PENDING_VERIFICATION` gate on character/match/RPCs |
-| Weak passwords | No 15–128 policy, no common-password list; Nakama minimum still applies |
-| Email enumeration via reset | No player reset; console recovery. Future reset must not reveal existence |
+| Unverified play | No `PENDING_VERIFICATION` gate on character/match/RPCs (mail exists; join is not gated) |
+| Weak passwords | Gateway enforces 15–128; Godot login is not on the gateway yet |
+| Email enumeration via reset | Gateway reset/resend always return the same success envelope |
 | Refresh token on disk | `user://session_cache.json` is not an OS credential store |
-| Compiled server key | Godot debug client contains `defaultkey` |
+| Compiled server key | Godot debug client still contains `defaultkey` for gameplay; the gateway also holds it and must not echo it |
 | Logout-all | Not in the UI; HTTP `POST /v2/session/logout` with empty token strings is proven. Callers must wait until the next Unix second after issuing tokens |
 | 10 s link-dead | 5 s / 60 s grace; snapshots omit disconnected players immediately |
 | Active-character lease | Match-local only |
-| Account delete | No product UI, no `DELETING` resume state, no typed `DELETE ACCOUNT` |
-| HMAC pepper | Compat tests use a local non-production string; production must use env |
+| Account delete | Gateway deletion confirm exists; Godot UI and `DELETING` resume state remain later |
+| HMAC pepper | Local Compose uses `local-*-not-production`; staging/production must replace via gitignored env |
 | Client `PUT /v2/account` | Unhooked |
 | Storage writes from a raw HTTP client | No `beforeStorageWrite`; rely on `permissionWrite: 0` |
 | Password in URLs / logs | Client does not put passwords in URLs today; keep that invariant |

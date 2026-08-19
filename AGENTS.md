@@ -87,7 +87,8 @@ Record necessary assumptions in `docs/DECISIONS.md`.
 | `server/` | TypeScript Nakama runtime (health RPC, character lifecycle RPCs, `find_or_create_starter_zone`, cave RPCs, `gm_command`, `session_handshake`, ops maintenance RPCs, public-world and party-cave matches; generated content catalog including classes, attributes, resources, derived stats, level curves, class progression, equipment slots, and item categories). |
 | `content/schemas/` | JSON Schemas for authored content. |
 | `content/source/` | ID-addressed source content documents. |
-| `infra/` | Docker Compose, Nakama configuration, and committed environment presets (no production secrets). |
+| `infra/` | Docker Compose, Nakama configuration, Mailpit, auth-gateway service, and committed environment presets (no production secrets). |
+| `auth-gateway/` | Project-owned public authentication HTTP service (Fastify). Holds Nakama and mail secrets. Not bundled into the Godot client. |
 | `scripts/` | Repeatable developer and CI commands, including `scripts/content.ps1` (`validate` / `build` / `diff` / `references` / `unused` / `new` / `copy` / `migrate` / `package`) and backup/export/verify scripts in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). |
 | `tools/` | Content CLI (`tools/content-build`) and Prompt 18 freeze audit (`tools/foundation-audit`). |
 | `docs/` | Binding project contract, including Foundation catalogs and [CONTENT_AUTHORING.md](docs/CONTENT_AUTHORING.md). |

@@ -30,6 +30,9 @@ server/build/
 server/dist/
 server/dist-test/
 server/dist-cli/
+auth-gateway/node_modules/
+auth-gateway/dist/
+auth-gateway/dist-test/
 npm-debug.log*
 
 # Docker / local data

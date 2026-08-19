@@ -6,7 +6,10 @@
     "server/package.json:typescript": "5.8.3",
     "server/package.json:nakama-runtime": "github:heroiclabs/nakama-common#v1.47.0",
     "tools/content-build/package.json:typescript": "5.8.3",
-    "tools/content-build/package.json:ajv": "8.17.1"
+    "tools/content-build/package.json:ajv": "8.17.1",
+    "auth-gateway/package.json:typescript": "5.8.3",
+    "auth-gateway/package.json:fastify": "5.6.1",
+    "auth-gateway/package.json:@types/node": "20.17.0"
   },
   "lockfileRangeDependencies": [
     "server/package.json:@babel/core",
@@ -24,7 +27,9 @@
   "dockerImages": {
     "postgres": "postgres:16.15-alpine",
     "nodeBuilder": "node:20.20.2-alpine",
-    "nakama": "heroiclabs/nakama:3.40.0"
+    "nakama": "heroiclabs/nakama:3.40.0",
+    "mailpit": "axllent/mailpit:v1.30.7",
+    "nodeGateway": "node:20.20.2-alpine"
   },
   "rpcs": [
     "vibecode_health",
@@ -51,7 +56,8 @@
     "session_handshake",
     "ops_status",
     "ops_set_maintenance",
-    "acct_compat_probe"
+    "acct_compat_probe",
+    "auth_gateway"
   ],
   "realtimeBeforeHooks": ["ChannelMessageSend", "ChannelJoin"],
   "realtimeAfterHooks": [],
@@ -134,7 +140,9 @@
     { "collection": "gm_audit", "key": "a", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "ops", "key": "maintenance", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "ops", "key": "metrics", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "account_compat", "key": "email_index", "permissionWrite": 0, "schemaVersion": "absent" }
+    { "collection": "account_compat", "key": "email_index", "permissionWrite": 0, "schemaVersion": "absent" },
+    { "collection": "account_profile", "key": "email_index", "permissionWrite": 0, "schemaVersion": "absent" },
+    { "collection": "auth_challenge", "key": "c", "permissionWrite": 0, "schemaVersion": 1 }
   ],
   "walletCurrencies": ["gold"],
   "productionContentFiles": [

@@ -59,6 +59,47 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  mailpit:
+    image: axllent/mailpit:v1.30.7
+    container_name: vibecode-test-mailpit
+    expose:
+      - "1025"
+      - "8025"
+    ports:
+      - "1125:1025"
+      - "8125:8025"
+    restart: unless-stopped
+
+  auth-gateway:
+    build:
+      context: ../auth-gateway
+      dockerfile: Dockerfile
+    image: vibecode-auth-gateway:1.0.0
+    container_name: vibecode-test-auth-gateway
+    environment:
+      AUTH_GATEWAY_ENV: automated_test
+      AUTH_GATEWAY_LISTEN_HOST: 0.0.0.0
+      AUTH_GATEWAY_LISTEN_PORT: "8787"
+      AUTH_GATEWAY_PUBLIC_BASE_URL: http://127.0.0.1:8788
+      EMAIL_PROVIDER: mailpit
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      EMAIL_HEALTH_URL: http://mailpit:8025/api/v1/info
+      NAKAMA_HTTP_URL: http://nakama:7350
+      NAKAMA_SERVER_KEY: defaultkey
+      NAKAMA_HTTP_KEY: defaulthttpkey
+      VIBECODE_EMAIL_HMAC_PEPPER: local-email-hmac-pepper-not-production
+      VIBECODE_GATEWAY_HMAC_SECRET: local-gateway-hmac-secret-not-production
+      VIBECODE_CHALLENGE_HMAC_SECRET: local-challenge-hmac-secret-not-production
+    depends_on:
+      nakama:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    ports:
+      - "8788:8787"
+    restart: unless-stopped
+
 volumes:
   vibecode_test_postgres_data:
     name: vibecode_test_postgres_data

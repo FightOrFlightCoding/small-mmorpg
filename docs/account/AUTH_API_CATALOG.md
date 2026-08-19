@@ -2,7 +2,7 @@
 
 Every authentication, session, account, and character lifecycle endpoint the project uses. HTTP paths are Nakama 3.40.0. RPCs are registered in `server/src/main.ts`.
 
-Player-visible error copy today is a domain `code` plus message, not yet the full `{ ok, code, message_key, request_id, retry_after_seconds, field_errors }` envelope. Later phases must adopt that envelope without leaking stack traces, SQL, RPC names, storage collections, tokens, or whether a reset email exists.
+Player-visible error copy today is a domain `code` plus message, not yet the full `{ ok, code, message_key, request_id, retry_after_seconds, field_errors }` envelope on **gameplay** RPCs. The auth gateway already returns that envelope. Later Godot login must adopt it without leaking stack traces, SQL, RPC names, storage collections, tokens, or whether a reset email exists.
 
 ## Nakama HTTP (client / tests)
 
@@ -33,7 +33,7 @@ Godot SDK 3.4.0 wraps these. `session_logout_async` always sends the current tok
 | Export | GET | `/v2/console/account/{id}/export` |
 | Recorded delete | DELETE | `/v2/console/account/{id}?record=true` |
 
-Password recovery in Foundation v1 is console-assisted. There is no forgotten-email HTTP that reveals whether an address exists.
+Password recovery in Foundation v1 is console-assisted **and** the auth-gateway reset APIs. Reset HTTP responses do not reveal whether an address exists.
 
 ## Runtime (Nakama JS, `nakama-runtime` 1.47.0)
 
@@ -49,7 +49,29 @@ Password recovery in Foundation v1 is console-assisted. There is no forgotten-em
 | `initializer.registerStorageIndex` | HMAC lookup index |
 | `nk.storageIndexList` | Three arguments only (`name`, `+value.hmac:<hex>`, `limit`). Empty-string caller id panics. Then **re-read** storage |
 
-Do not use `nk.sqlExec` / `sqlQuery` to change credentials. Do not use Node `crypto` in the runtime; use `hmac.ts`.
+Do not use `nk.sqlExec` / `sqlQuery` to change credentials. Do not use Node `crypto` in the runtime; use `hmac.ts`. HTTP-key RPC context on Nakama 3.40.0 has empty `userId` and `sessionId`, which is distinct from a session JWT, but a leaked `http_key` would still invoke the RPC. Product internal RPCs therefore also require a gateway HMAC assertion (`request_id`, `timestamp`, `nonce`, `operation`, `payload_hash`, `signature`) verified with `nk.hmacSha256Hash` + `nk.base16Encode`.
+
+## Auth gateway HTTP (public boundary)
+
+The Godot client is **not** wired to these routes in ACCT-02. Staging/production must use HTTPS. Local Compose publishes `http://127.0.0.1:8787`. Secrets (Nakama server key, HTTP key, SendGrid key, HMAC peppers) stay in the gateway process.
+
+| Operation | Method | Path | Notes |
+| --- | --- | --- | --- |
+| Health | GET | `/health` | Process liveness |
+| Ready | GET | `/ready` | `{ ok, nakama, email }` |
+| Register | POST | `/v1/auth/register` | Nakama `create=true`, HMAC index, verification challenge. Email failure does not delete the account |
+| Login | POST | `/v1/auth/login` | Nakama `create=false`; collapses unknown/wrong password |
+| Verify email | POST | `/v1/auth/verify-email` | `{ challenge_id, code }` |
+| Resend verification | POST | `/v1/auth/resend-verification` | Generic success |
+| Password reset request | POST | `/v1/auth/password-reset/request` | Generic success; HMAC lookup |
+| Password reset confirm | POST | `/v1/auth/password-reset/confirm` | Consume + `linkEmail` same address |
+| Email-change request | POST | `/v1/auth/email-change/request` | Bearer session; notice to old address |
+| Email-change confirm | POST | `/v1/auth/email-change/confirm` | ACCT-01 temp-device sequence |
+| Account deletion request | POST | `/v1/auth/account-deletion/request` | Bearer session |
+| Account deletion confirm | POST | `/v1/auth/account-deletion/confirm` | `nk.accountDeleteId(id, true)` |
+| Hosted confirm | GET/POST | `/v1/confirm` | No analytics; `referrer-policy: no-referrer`; POST then redirect to `/v1/confirm/done` |
+
+Headers: `x-request-id` (generated if missing), `Idempotency-Key` (optional, 10-minute replay). Body limit 8192 bytes. Per-IP and per-email-hash rate-limit foundations. Error envelope `{ ok: false, code, message_key, request_id, retry_after_seconds, field_errors }`.
 
 ## Authenticate hooks
 
@@ -71,6 +93,7 @@ No `registerAfterAuthenticate*`. Unknown authenticate types are not registered.
 | `find_or_create_starter_zone` | session | Yes |
 | Cave / party / trade / GM / ops RPCs | session (+ allowlist for GM/ops write) | Yes / debug |
 | `acct_compat_probe` | session + `developmentToolsEnabled` | **No** |
+| `auth_gateway` | HTTP key **and** HMAC assertion | **No.** Ordinary session JWT is `gateway_rpc_forbidden` |
 
 Every gameplay join and privileged RPC today checks `ctx.userId` and match tickets. They do **not** check a project account status. Later phases must add that check without adding a second character model.
 

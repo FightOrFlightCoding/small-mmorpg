@@ -36,7 +36,16 @@ Soft-deleted characters keep their gameplay objects. There is no `PURGED` anonym
 
 Never put raw email in this object. Lookup: `storageIndexList(name, "+value.hmac:<hex>", limit)` (three arguments; quoted query and `*` are fallbacks), then `storageRead` and compare hmac + userId. Missing, multiple, stale, or mismatched hits are rejected (`account_compat.ts` `decideEmailLookup`).
 
-Later phases should store the HMAC on a server-only account profile and keep the same verify-after-index rule. Prefer env pepper `VIBECODE_EMAIL_HMAC_PEPPER` in production; do not ship a production pepper in git.
+Later phases should keep the same verify-after-index rule on `account_profile`. Prefer env pepper `VIBECODE_EMAIL_HMAC_PEPPER` in production; do not ship a production pepper in git.
+
+## ACCT-02 production records
+
+| Collection | Key | Index | Value | Write |
+| --- | --- | --- | --- | --- |
+| `account_profile` | `email_index` | `account_profile_email_hmac` on field `hmac` | `{ hmac, userId, verifiedAt }` | 0 |
+| `auth_challenge` | `c_<challenge_id>` | `auth_challenge_lookup` on `email_lookup_hash`, `purpose` | Challenge metadata + `secret_hash` only | 0 |
+
+Challenge objects are owned by the system user. Raw codes never appear in storage or logs. Hosted confirm pages and the later Godot UI both consume the same hashed secret.
 
 ## Client local files
 
@@ -53,4 +62,4 @@ Godot does not write them. HTTP `PUT /v2/account` can still change username, dis
 
 ## Indexing
 
-`registerStorageIndex("acct_compat_email_hmac", "account_compat", "email_index", ["hmac"], ["hmac"], 10000, false)` in `InitModule`. `indexOnly=false` so list results can include storage objects; tests still refuse to trust the index alone.
+`registerStorageIndex("acct_compat_email_hmac", "account_compat", "email_index", ["hmac"], ["hmac"], 10000, false)` in `InitModule` (ACCT-01 seam). Production: `account_profile_email_hmac` on `account_profile` / `email_index`, and `auth_challenge_lookup` on `auth_challenge` with an empty key (all challenge keys). `indexOnly=false` so list results can include storage objects; tests still refuse to trust the index alone.

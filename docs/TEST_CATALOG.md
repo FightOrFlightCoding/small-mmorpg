@@ -100,6 +100,20 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `hmac.test.ts` | Pure SHA-256/HMAC match Node crypto (Nakama JS has no `crypto`) | |
 | `account_compat.test.ts` | HMAC index object shape; lookup rejects missing/multiple/stale hits | |
 | `account_compat.live.test.ts` | Live Nakama 3.40.0 proofs; skipped unless `ACCT_COMPAT_LIVE=1` | |
+| `gateway_assertion.test.ts` | HTTP-key vs session distinction; assertion tamper/replay/skew | |
+| `auth_challenge.test.ts` | Hash-only challenges; single-use; idempotent consume; expiry; attempt lock | |
+| `auth_gateway_rpc.test.ts` | Session reject; missing assertion; signed HTTP-key ping | |
+| `auth_gateway.live.test.ts` | Live HTTP-key ping and session `gateway_rpc_forbidden`; skipped unless `ACCT_GATEWAY_LIVE=1` | |
+
+## Auth gateway (`auth-gateway/tests`)
+
+| File | Coverage |
+| --- | --- |
+| `gateway.test.ts` | Health/ready, missing production config, oversized/invalid JSON, request ids, redaction, rate limits, register/verify, email failure without deleting the account, reset non-enumeration, challenge expiry, hosted pages, idempotency |
+| `email.test.ts` | Memory success/failure; SendGrid 202 vs HTTP error |
+| `assertion.test.ts` | Signed RPC envelope |
+
+Reproduction: `powershell -File scripts/test-auth-gateway.ps1`
 
 ## Client GdUnit (`client/tests`)
 

@@ -60,6 +60,61 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  mailpit:
+    image: axllent/mailpit:v1.30.7
+    container_name: vibecode-mailpit
+    expose:
+      - "1025"
+      - "8025"
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: unless-stopped
+
+  auth-gateway:
+    build:
+      context: ../auth-gateway
+      dockerfile: Dockerfile
+    image: vibecode-auth-gateway:1.0.0
+    container_name: vibecode-auth-gateway
+    environment:
+      AUTH_GATEWAY_ENV: local
+      AUTH_GATEWAY_LISTEN_HOST: 0.0.0.0
+      AUTH_GATEWAY_LISTEN_PORT: "8787"
+      AUTH_GATEWAY_PUBLIC_BASE_URL: http://127.0.0.1:8787
+      EMAIL_PROVIDER: mailpit
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      EMAIL_HEALTH_URL: http://mailpit:8025/api/v1/info
+      EMAIL_FROM: Vibecode <no-reply@localhost>
+      EMAIL_SUPPORT_ADDRESS: support@localhost
+      NAKAMA_HTTP_URL: http://nakama:7350
+      NAKAMA_SERVER_KEY: defaultkey
+      NAKAMA_HTTP_KEY: defaulthttpkey
+      VIBECODE_EMAIL_HMAC_PEPPER: local-email-hmac-pepper-not-production
+      VIBECODE_GATEWAY_HMAC_SECRET: local-gateway-hmac-secret-not-production
+      VIBECODE_CHALLENGE_HMAC_SECRET: local-challenge-hmac-secret-not-production
+    depends_on:
+      nakama:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    ports:
+      - "8787:8787"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8787/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
 volumes:
   vibecode_postgres_data:
     name: vibecode_postgres_data

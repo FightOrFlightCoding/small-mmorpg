@@ -143,3 +143,14 @@ export function hmacSha256Hex(pepper: string, message: string): string {
 export function emailHmacHex(pepper: string, canonicalEmail: string): string {
   return hmacSha256Hex(pepper, canonicalEmail);
 }
+
+export function constantTimeEqual(left: string, right: string): boolean {
+  const length = left.length > right.length ? left.length : right.length;
+  let diff = left.length ^ right.length;
+  for (let i = 0; i < length; i++) {
+    const a = i < left.length ? left.charCodeAt(i) : 0;
+    const b = i < right.length ? right.charCodeAt(i) : 0;
+    diff |= a ^ b;
+  }
+  return diff === 0;
+}

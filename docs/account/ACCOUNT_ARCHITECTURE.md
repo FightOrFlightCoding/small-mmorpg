@@ -68,7 +68,15 @@ No product account-deletion UI or project tombstone. Compatibility proofs call `
 
 See [AUTH_API_CATALOG.md](AUTH_API_CATALOG.md). Hooks: `registerBeforeAuthenticateEmail`, `registerBeforeAuthenticateDevice` (rate limit, `registration_disabled`, `device_auth_disabled`). No after-auth hook.
 
-Development-gated `acct_compat_probe` is an ACCT-01 test seam, not a player API.
+Development-gated `acct_compat_probe` is an ACCT-01 test seam, not a player API. Internal `auth_gateway` is HTTP-key plus HMAC assertion only.
+
+## Auth gateway (ACCT-02)
+
+`auth-gateway/` is the trusted public boundary for registration, verification, recovery, email-change, and account deletion. It holds the Nakama server key, runtime HTTP key, email provider key, email HMAC pepper, and challenge HMAC secret. The Godot client must never receive those values and is **not** switched onto the gateway in this phase (gameplay still authenticates to Nakama directly).
+
+Challenges live in Nakama storage (`auth_challenge` / `c_<id>` on the system user). Only HMAC hashes of codes are stored. New challenges invalidate older unused challenges for the same email-hash and purpose.
+
+Email lookup for recovery uses `account_profile` / `email_index` (`{ hmac, userId, verifiedAt }`, `permissionWrite: 0`) and index `account_profile_email_hmac`. Do not reuse `account_compat`.
 
 ## Client-writable account fields
 
@@ -106,4 +114,4 @@ Later phases must migrate these modules, not replace them:
 - Character: `character_lifecycle.ts`, `character_roster.ts`, `character_name.ts`, `character_ticket.ts`.
 - Persistence: existing `player/*` collections and wallet.
 - Sessions: `SessionCache` + Nakama session logout/refresh.
-- Lookup: `hmac.ts` + storage index pattern proven on `account_compat` (production profile HMAC comes later).
+- Lookup: `hmac.ts` + storage index pattern proven on `account_compat`. Production lookup is `account_profile` / `email_index` via `auth_gateway`.

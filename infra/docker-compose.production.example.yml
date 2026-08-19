@@ -52,6 +52,28 @@ services:
       - "7351:7351"
     restart: unless-stopped
 
+  auth-gateway:
+    build:
+      context: ../auth-gateway
+      dockerfile: Dockerfile
+    image: vibecode-auth-gateway:1.0.0
+    container_name: vibecode-production-auth-gateway
+    env_file:
+      - .env.production
+    environment:
+      AUTH_GATEWAY_ENV: production
+      AUTH_GATEWAY_LISTEN_HOST: 0.0.0.0
+      AUTH_GATEWAY_LISTEN_PORT: "8787"
+      AUTH_GATEWAY_PUBLIC_BASE_URL: ${AUTH_GATEWAY_PUBLIC_BASE_URL}
+      EMAIL_PROVIDER: sendgrid
+      NAKAMA_HTTP_URL: http://nakama:7350
+    depends_on:
+      nakama:
+        condition: service_started
+    ports:
+      - "8787:8787"
+    restart: unless-stopped
+
 volumes:
   vibecode_production_postgres_data:
     name: vibecode_production_postgres_data

@@ -1,6 +1,6 @@
 # Account UI flows
 
-Current Godot shell vs the professional lifecycle UI. ACCT-01 does not change scenes, copy, or controls.
+Current Godot shell vs the professional lifecycle UI. ACCT-02 does not change Godot scenes. Gateway-hosted `/v1/confirm` pages exist for email links; the client still authenticates directly to Nakama.
 
 ## Login / register (`scenes/login`, `login.gd`)
 

@@ -153,6 +153,42 @@ Upgrade policy for every row: **locked**. A later phase may change a pin only by
 | Executes on | Build tooling |
 | Upgrade policy | Locked |
 
+## Auth gateway (Node)
+
+| Field | Value |
+| --- | --- |
+| Purpose | Trusted public HTTP boundary for registration, verification, recovery, and account deletion |
+| Version | Node 20.20.2 (Docker `node:20.20.2-alpine`); TypeScript 5.8.3; Fastify 5.6.1 |
+| Official source | https://hub.docker.com/_/node , https://www.npmjs.com/package/fastify |
+| License | MIT |
+| Installation | `auth-gateway/` with `package-lock.json`. Local Compose service `auth-gateway` on host port 8787 |
+| Executes on | Separate Node process. Not bundled into Nakama |
+| Upgrade policy | Locked |
+
+## Mailpit (local email capture)
+
+| Field | Value |
+| --- | --- |
+| Purpose | Local SMTP capture for verification and recovery mail |
+| Version | v1.30.7 |
+| Official source | Docker `axllent/mailpit:v1.30.7` |
+| License | MIT |
+| Installation | `infra/docker-compose.yml` service `mailpit`. UI http://127.0.0.1:8025 , SMTP 1025 |
+| Executes on | Local / automated_test only |
+| Upgrade policy | Locked |
+
+## SendGrid (staging/production email)
+
+| Field | Value |
+| --- | --- |
+| Purpose | Production `EmailProvider` adapter over HTTPS `POST /v3/mail/send` |
+| Version | HTTP API v3 (no SDK) |
+| Official source | https://docs.sendgrid.com/api-reference/mail-send/mail-send |
+| License | SendGrid terms; adapter is project-owned |
+| Installation | `SENDGRID_API_KEY` in gitignored env. No npm package |
+| Executes on | Auth gateway in staging/production |
+| Upgrade policy | Locked |
+
 ## Rollup + Babel (Nakama JS bundle)
 
 | Field | Value |

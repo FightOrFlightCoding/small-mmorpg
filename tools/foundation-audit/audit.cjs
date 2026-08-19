@@ -76,6 +76,9 @@ function checkExactDependencies() {
   if (!fs.existsSync(path.join(repoRoot, "tools/content-build/package-lock.json"))) {
     fail("tools/content-build/package-lock.json is missing");
   }
+  if (!fs.existsSync(path.join(repoRoot, "auth-gateway/package-lock.json"))) {
+    fail("auth-gateway/package-lock.json is missing");
+  }
 }
 
 function checkDockerPins() {
@@ -98,6 +101,13 @@ function checkDockerPins() {
   const localCompose = read("infra/docker-compose.yml");
   if (!dockerfile.includes("heroiclabs/nakama:3.40.0") && !localCompose.includes("vibecode-nakama:3.40.0")) {
     fail("Nakama 3.40.0 image pin missing from Docker files");
+  }
+  if (!localCompose.includes(expected.dockerImages.mailpit)) {
+    fail(`infra/docker-compose.yml does not pin ${expected.dockerImages.mailpit}`);
+  }
+  const gatewayDocker = read("auth-gateway/Dockerfile");
+  if (!gatewayDocker.includes("node:20.20.2")) {
+    fail(`auth-gateway/Dockerfile does not pin ${expected.dockerImages.nodeGateway}`);
   }
 }
 

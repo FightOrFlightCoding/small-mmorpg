@@ -101,6 +101,7 @@ There is exactly one gameplay match **module**: `starter_zone`. Foundation v1 us
 | Quest stage and completion | Server + persistent storage |
 | Currency | Nakama wallet via server |
 | Canonical location, cave ownership, transfer tickets | Server storage + match |
+| Account challenges, email HMAC lookup, recorded delete | Auth gateway + `auth_gateway` RPC |
 | Direct player trades | Server match + storage |
 | Developer/GM commands | Server allowlist + `gm_command` RPC; audit storage |
 | Content definitions | Server-loaded generated content, IDs only |
@@ -138,6 +139,7 @@ Third-party libraries are implementation details. Game code talks to project-own
 | `GmService` | none | Debug-only `gm_command` RPC intention plus required reason. Never grants locally. Not a gameplay authority. |
 | `Test runner scripts` | GdUnit4 6.2.0 | Client unit/scene tests |
 | `SliceJourney` / `SliceSession` | Nakama Godot SDK via `NakamaNetworkBackend` | Debug-only headless two-identity journey (`--e2e-slice`). Sends the same intentions as the graphical client. Unavailable in release builds. Not a gameplay authority. |
+| Auth gateway (`auth-gateway/`) | Fastify 5.6.1, Mailpit, SendGrid | Trusted public boundary for register/verify/reset/email-change/delete. Holds Nakama and mail secrets. Not a gameplay authority. Godot is not wired to it in ACCT-02. |
 
 Do not call addon APIs from feature scenes except through these adapters. Do not edit files under `client/addons/`. See [THIRD_PARTY.md](THIRD_PARTY.md).
 

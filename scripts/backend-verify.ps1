@@ -35,7 +35,7 @@ if ($health.content_version -notmatch "^[a-f0-9]{64}$") {
 	throw "vibecode_health content_version is missing or not a 64-hex catalog hash."
 }
 $rpcs = @($health.rpcs)
-if ($rpcs -notcontains "character_bootstrap" -or $rpcs -notcontains "find_or_create_starter_zone" -or $rpcs -notcontains "character_list" -or $rpcs -notcontains "session_handshake") {
+if ($rpcs -notcontains "character_bootstrap" -or $rpcs -notcontains "find_or_create_starter_zone" -or $rpcs -notcontains "character_list" -or $rpcs -notcontains "session_handshake" -or $rpcs -notcontains "auth_gateway") {
 	throw "Nakama is running a stale runtime. Health rpcs=$($rpcs -join ','). Rebuild with scripts/backend-up.ps1."
 }
 
@@ -113,3 +113,22 @@ if (-not $zone.matchId) {
 }
 
 Write-Host "Backend verified. Alice=$($aliceCharacter.name) Bob=$($bobCharacter.name) match=$($zone.matchId) hash=$($health.content_version.Substring(0,8))"
+
+Write-Host "Waiting for vibecode-auth-gateway..."
+$GatewayDeadline = (Get-Date).AddSeconds(60)
+while ((Get-Date) -lt $GatewayDeadline) {
+	$gatewayStatus = docker inspect -f "{{.State.Health.Status}}" vibecode-auth-gateway 2>$null
+	if ($gatewayStatus -eq "healthy") {
+		break
+	}
+	Start-Sleep -Seconds 2
+}
+$gatewayHealth = Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:8787/health" -TimeoutSec 5
+if (-not $gatewayHealth.ok) {
+	throw "auth-gateway /health did not return ok."
+}
+$gatewayReady = Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:8787/ready" -TimeoutSec 5
+if (-not $gatewayReady.ok) {
+	throw "auth-gateway /ready did not return ok (nakama=$($gatewayReady.nakama) email=$($gatewayReady.email))."
+}
+Write-Host "Auth gateway ready. nakama=$($gatewayReady.nakama) email=$($gatewayReady.email)"

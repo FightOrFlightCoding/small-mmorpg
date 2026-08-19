@@ -1,0 +1,21 @@
+{
+  "name": "vibecode-auth-gateway",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=20.20.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.json",
+    "test": "tsc -p tsconfig.test.json && node --test dist-test/tests",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "fastify": "5.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "20.17.0",
+    "typescript": "5.8.3"
+  }
+}

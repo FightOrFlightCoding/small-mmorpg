@@ -204,7 +204,7 @@ The Godot client must not write canonical inventory, equipment, quest, currency,
 
 Debug Alice/Bob/machine device identities are gated by `OS.is_debug_build()` (tests may set `DevIdentity.force_release_config`). Release builds expose email registration and login only.
 
-Password-recovery email is out of Foundation v1. For this small private release, an operator resets the account from the Nakama console (local defaults `admin` / `password` on `http://127.0.0.1:7351`): locate the user, change or disable the login, and tell the player to register again if the email must be reused. Do not store raw passwords in project storage or logs.
+Password-recovery email is served by the auth gateway (Mailpit locally, SendGrid in staging/production). Godot login is not on that gateway yet, so the in-game hint may still say administrator-assisted until a later UI phase. Operators can still use the Nakama console. Do not store raw passwords in project storage or logs.
 
 Debug-only `--e2e-slice` opens two real sessions and `--cert-five` opens five. Both send ordinary intentions. They are compiled out of usefulness in release builds (`OS.is_debug_build()` plus an explicit flag). GdUnit `client/tests/app/e2e_hooks_test.gd` requires the flags. `scripts/test-e2e` and `scripts/test-cert-journey` drive the live journeys. They must not call storage, wallet, or match APIs that a player client cannot call, and they must not skip match validation.
 

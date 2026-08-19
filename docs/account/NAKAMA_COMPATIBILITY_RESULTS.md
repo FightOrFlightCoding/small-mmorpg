@@ -5,7 +5,7 @@ Proofs for ACCT-01 against pinned **heroiclabs/nakama:3.40.0** and **nakama-runt
 Hermetic helpers: `server/tests/email.test.ts`, `hmac.test.ts`, `account_compat.test.ts`.
 Live: `ACCT_COMPAT_LIVE=1` via `scripts/test-account-compat.ps1` (`server/tests/account_compat.live.test.ts`).
 
-Live suite on this machine: **10/10 passed** (2026-08-19) after `scripts/backend-up.ps1`. No blocker. Email verification **delivery** remains out of this phase (see [EMAIL_DELIVERY_ARCHITECTURE.md](EMAIL_DELIVERY_ARCHITECTURE.md)); it is not a Nakama API blocker for register, login, password/email replacement, logout, export, recorded delete, or HMAC lookup.
+Live suite on this machine: **10/10 passed** (2026-08-19) after `scripts/backend-up.ps1`. No blocker. Email verification **delivery** is implemented in ACCT-02 (`auth-gateway/` + Mailpit/SendGrid); it is still not a gameplay join gate.
 
 ## Supported sequences for later phases
 
@@ -13,8 +13,8 @@ Live suite on this machine: **10/10 passed** (2026-08-19) after `scripts/backend
 | --- | --- |
 | register | `POST /v2/account/authenticate/email?create=true` after `canonicalizeEmail`. Before-hook may throw `registration_disabled` / `rate_limited`. Nakama lowercases the address; plus-tags and dots are distinct identities. |
 | authenticate | Same path with `create=false`. Never creates. Nakama returns **404** `User account not found.` for an unknown address and **401** `Invalid credentials.` for a wrong password. The Godot client already collapses `create=false` failures to `invalid_credentials`. Password-reset and forgotten-email APIs must do the same. |
-| verify email | **Not available yet** (no mail adapter). Nakama `verifyTime` exists but is not a gameplay gate. Do not fake verification. |
-| reset password | **Not a player API yet.** Future: HMAC lookup + re-read (never reveal hit/miss), then the password-replacement sequence below. Console remains the Foundation v1 operator path. |
+| verify email | Gateway issues an `EMAIL_VERIFICATION` challenge and Mailpit/SendGrid delivers the code. Nakama `verifyTime` is still not a gameplay gate. Do not fake verification. |
+| reset password | Gateway HMAC lookup + re-read (never reveal hit/miss), then same-email `linkEmail`. Console remains an operator path. |
 | change password | `POST /v2/account/link/email` with the **same** canonical email and the **new** password. This updates credentials, preserves the Nakama user id, and rejects the old password. Unlink/relink is **not** required. It is a single call: if it fails, the old password still works. Do not SQL-update hashes. |
 | change email | Link a temporary device, unlink the old email, `linkEmail` the new email/password, unlink the device. Collision with an email already on another account is rejected. User id, storage objects, and wallet survive. Existing sessions remain valid until logout. Later phases must `logout all` if policy requires revocation. |
 | logout current | `POST /v2/session/logout` with `{ token, refresh_token }` for **that** session. Sibling sessions stay valid. Godot already does this. |

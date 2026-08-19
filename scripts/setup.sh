@@ -20,5 +20,8 @@ echo "== server npm ci =="
 echo "== content-build npm ci =="
 (cd "$ROOT/tools/content-build" && npm ci)
 
+echo "== auth-gateway npm ci =="
+(cd "$ROOT/auth-gateway" && npm ci)
+
 assert_content_hashes
 echo "Setup complete."

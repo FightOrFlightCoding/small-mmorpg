@@ -97,6 +97,8 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `rpcs/handshake.ts` / `handshake.ts` / `compatibility.ts` | A/S | Login compatibility gate | none | none | catalog hash + env versions | no | `session_handshake` | no |
 | `rpcs/ops.ts` / `ops_store.ts` / `maintenance.ts` / `ops_metrics.ts` | A/S | Maintenance flag, counters, redacted ops logs | in-memory counters | ops storage | domain maintenance | yes | `ops_status` / `ops_set_maintenance` | no |
 | `email.ts` / `hmac.ts` / `account_compat.ts` / `rpcs/acct_compat.ts` | S/A | Canonical email, pure HMAC-SHA256, HMAC lookup decision, gated `acct_compat_probe` | none | `account_compat` / `email_index` | `nk.accountExportId`, `nk.accountDeleteId`, `storageIndexList` | yes (compat only) | `acct_compat_probe` | no |
+| `gateway_assertion.ts` / `auth_challenge.ts` / `account_profile.ts` / `rpcs/auth_gateway.ts` | S/A | Gateway HMAC assertion, challenge state machine, production email HMAC profile, internal `auth_gateway` RPC | in-memory nonce cache | `account_profile`, `auth_challenge` | `nk.hmacSha256Hash`, `nk.linkEmail`, `nk.accountDeleteId` | yes | `auth_gateway` | no |
+| `auth-gateway/` | I | Public auth HTTP, Mailpit/SendGrid, hosted confirm pages | in-memory rate limits + idempotency | none (persists via RPC) | Nakama HTTP + `auth_gateway` | via Nakama | HTTPS (staging/prod) | no |
 | `nakama/auth_hooks.ts` / `environment.ts` | A/S | Registration and device-auth policy from env presets | none | none | compiled presets + `ctx.env` | no | Authenticate* before hooks | no |
 | `cert_load.ts` / `cli/cert.ts` | S/T | Capacity/soak measurement (default public cap stays 8; capacity uses `maxPlayers: 20` extras) | none | none | match_loop | no | no | no |
 | `recovery.ts` | S | Documented recovery procedures and overwrite tokens | none | none | none | no | no | no |
@@ -107,7 +109,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `server/src/domain/save_schema.ts` / `migration.ts` / `save_load.ts` | S | Save envelope, v0→v1 registry, load | none | none | storage parsers | serialize + migrate | no | no |
 | `wallet_ref.ts` / `wallet_ref_store.ts` | S/A | Versioned gold pointer, not the balance | none | Nakama storage | save_schema | yes | no | pointer only |
 | `server/src/cli/migrate.ts` | T | status / dry-run / apply / verify | none | Node http/fs | domain migration | fixture or console | no | no |
-| `infra/` Compose + env JSON + `local.yml` | I | Postgres + Nakama process; four environment presets | volumes per environment | Docker | none | Nakama’s tables only | no | no |
+| `infra/` Compose + env JSON + `local.yml` | I | Postgres + Nakama + Mailpit + auth gateway; four environment presets | volumes per environment | Docker | none | Nakama’s tables only | no | no |
 | GdUnit tests / `scripts/` | T | Run suites | none | GdUnit4, Node, Docker | repo | no | no | no |
 
 ## Ambiguous or duplicated ownership
@@ -122,5 +124,6 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `ContentCatalog.REQUIRED_IDS` | Client boot refuses catalogs missing Prompt 18 IDs. Duplicates content-build’s source set. Later generalization must drop the fixed list. |
 | Wallet vs storage | Gold is Nakama wallet, not a storage object. Inventory/quest/equipment are storage. Turn-in uses both in one `multiUpdate`. |
 | E2E vs `NetworkService` | E2E uses `NakamaNetworkBackend` directly so it can open two identities. Graphical play uses `NetworkService`. Both send the same opcodes. |
+| Godot login vs `auth-gateway/` | ACCT-02 does not switch Godot onto the gateway. Gameplay still authenticates to Nakama with the SDK. Secrets stay in the gateway process. |
 
 No module other than Nakama adapters may access persistence. No client module may write canonical storage or wallet.

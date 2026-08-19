@@ -14,6 +14,9 @@ runtime:
     - "VIBECODE_DEVICE_AUTH=true"
     - "VIBECODE_DATA_RESET=allowed"
     - "VIBECODE_MAINTENANCE=0"
+    - "VIBECODE_GATEWAY_HMAC_SECRET=local-gateway-hmac-secret-not-production"
+    - "VIBECODE_EMAIL_HMAC_PEPPER=local-email-hmac-pepper-not-production"
+    - "VIBECODE_CHALLENGE_HMAC_SECRET=local-challenge-hmac-secret-not-production"
 session:
   token_expiry_sec: 7200
 socket:

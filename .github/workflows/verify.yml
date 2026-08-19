@@ -16,6 +16,7 @@ jobs:
         run: |
           npm ci --prefix server
           npm ci --prefix tools/content-build
+          npm ci --prefix auth-gateway
       - name: Content validation and generated-bundle checks
         run: bash scripts/test-content.sh
       - name: Protocol, vendor-integrity, and catalog audit
@@ -24,6 +25,8 @@ jobs:
         run: bash scripts/server-typecheck.sh
       - name: Server tests including migrations
         run: bash scripts/test-server.sh
+      - name: Auth gateway tests
+        run: bash scripts/test-auth-gateway.sh
       - name: Migration fixture dry-run, apply, verify
         run: |
           TMP="${RUNNER_TEMP}/p18-alice.v1.json"

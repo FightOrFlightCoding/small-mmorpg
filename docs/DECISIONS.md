@@ -465,7 +465,7 @@ Login RPC `session_handshake` and match join metadata carry `clientVersion`. Fat
 
 Backup dumps are gitignored. A dump is accepted only after restore into `nakama_restore_drill`. Production overwrite requires token `OVERWRITE-PRODUCTION`.
 
-Nakama’s JS VM freezes properties of objects created at module load. In-memory ops counters therefore live in lexical numbers inside `createOpsEngine` (`server/src/domain/ops_metrics.ts`). Mutating a module-level object throws `Cannot assign to read only property` and must not be used for counters.
+Nakama’s JS VM freezes properties of objects created at module load. In-memory ops counters therefore live in lexical numbers inside `createOpsEngine` (`server/src/domain/ops_metrics.ts`). Mutating a module-level object throws `Cannot assign to read only property` and must not be used for counters. The `auth_gateway` nonce replay cache uses the same replace-whole-map pattern as session rate windows.
 
 Windows release export is `scripts/export-client-release.ps1` (preset `Windows Desktop`). Official Godot **4.7.1** templates are a separate editor install (not vendored). The script fails clearly if `%APPDATA%/Godot/export_templates/4.7.1.stable/windows_release_x86_64.exe` is missing.
 
@@ -533,5 +533,17 @@ A development-gated RPC `acct_compat_probe` and storage index `acct_compat_email
 
 Canonical email and HMAC helpers live in `server/src/domain/email.ts` and `hmac.ts` (pure JS; Nakama JS cannot use Node `crypto`). They are not yet wired into authenticate hooks.
 
-Target account/character/presence states, 5 slots, `class.warrior` / `class.marksman` / `class.mage`, 10-second LINK_DEAD, verification mail, and OS credential storage remain later phases. Current live slot limit stays **3**. Disconnect grace stays **5s** public / **60s** cave and party.
+Target account/character/presence states, 5 slots, `class.warrior` / `class.marksman` / `class.mage`, 10-second LINK_DEAD, verification as a **gameplay gate**, and OS credential storage remain later phases. Current live slot limit stays **3**. Disconnect grace stays **5s** public / **60s** cave and party.
+
+## 2026-08-19 — ACCT-02 public authentication gateway and email infrastructure
+
+Not a gameplay phase. Player-visible Godot login, character select, and world behavior are unchanged. The client is not switched onto the gateway.
+
+A project-owned Fastify service `auth-gateway/` is the trusted public boundary. It holds the Nakama server key, runtime HTTP key, SendGrid key, email HMAC pepper, and challenge HMAC secret. Staging/production refuse to start without `https://` public URLs and non-default secrets. Local Compose adds Mailpit `axllent/mailpit:v1.30.7` (UI :8025) and the gateway on :8787.
+
+Nakama 3.40.0 HTTP-key RPC context has empty `userId`/`sessionId`, which is distinct from a session JWT, but that is not enough if `http_key` leaks. Internal RPC `auth_gateway` therefore rejects any session invocation (`gateway_rpc_forbidden`) and also requires a signed assertion (`request_id`, `timestamp`, `nonce`, `operation`, `payload_hash`, HMAC-SHA256). The runtime verifies the signature with `nk.hmacSha256Hash` + `nk.base16Encode`.
+
+Challenges are Nakama storage (`auth_challenge` / `c_<id>`), hashes only, single-use, expiring, attempt-limited. Email lookup for recovery uses `account_profile` / `email_index`, not the ACCT-01 `account_compat` seam. Password replace stays same-email `nk.linkEmail`. Email replace stays the proven temp-device sequence. Recorded delete is `nk.accountDeleteId(id, true)`. Email provider failure after register does not delete the account.
+
+Node for the gateway is the repository pin **20.20.2**. Fastify is exact **5.6.1**. No ORM and no custom SQL.
 
