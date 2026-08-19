@@ -114,15 +114,15 @@ Metadata allowed: `protocolVersion`, `contentHash`, `clientVersion`, `selectionT
 
 | User intent | Current client behavior |
 | --- | --- |
-| Return to Character Select | Not implemented as a distinct server-acked departure |
-| Logout current session | `GameService.request_logout` → leave chats/match → gateway `/v1/auth/logout` when email → Nakama current-token logout → Login |
+| Return to Character Select | Opcode 32; wait for ack; then Character Select |
+| Logout current session | Safe return, then gateway `/v1/auth/logout` when email, Nakama current-token logout, Login. Failed safe leave stays in-world |
 | Logout all sessions | Character-select password confirm → `POST /v1/auth/logout-all` → Login. Account and characters preserved |
 | Forgot Password | Unauthenticated `POST /v1/auth/password/reset/request` with generic copy, then code + new password. **No auto-login** |
 | Change password | Authenticated `POST /v1/account/password/change` → Password Changed → Login |
 | Change email | Authenticated request + unauthenticated confirm. Old email stays until confirm. Login with the new address |
 | Forgot which email you used? | Copy-only help. No reveal, no automated lookup from the client |
-| Quit Game | Ordinary window close; **not** a proven safe departure |
-| Unexpected disconnect | Reconnect overlay; 5s/60s grace; not 10s `LINK_DEAD` |
+| Quit Game | Quit Safely (opcode 32 then close) or Quit Anyway (unexpected-disconnect lifecycle). Alt+F4 shows the same dialog when the close request is delivered |
+| Unexpected disconnect | Connection lost overlay; 10s `LINK_DEAD` after server detection; Character Select countdown; no socket rebind |
 
 ## Error sanitization
 

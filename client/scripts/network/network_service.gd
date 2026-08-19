@@ -25,6 +25,7 @@ signal trade_state_received(payload: Dictionary)
 signal gm_command_received(payload: Dictionary)
 signal system_notice_received(code: String, message: String)
 signal logged_out
+signal gameplay_disconnected_unbound
 
 const CHARACTER_BOOTSTRAP_RPC := "character_bootstrap"
 const CHARACTER_LIST_RPC := "character_list"
@@ -63,6 +64,8 @@ var _reconnect_in_progress: bool = false
 var _reconnect_cancelled: bool = false
 var _join_in_progress: bool = false
 var _pending_reconnect: bool = false
+var _pending_return_request_id: String = ""
+var _pending_return_result: Dictionary = {}
 var reconnect_policy: ReconnectPolicy = ReconnectPolicy.new()
 
 
@@ -303,7 +306,12 @@ func list_characters() -> bool:
 		return false
 	var data: Dictionary = parsed
 	var characters: Array = data.get("characters", [])
-	AppState.notify_character_list(characters, int(data.get("slotLimit", 5)), int(data.get("liveCount", 0)))
+	AppState.notify_character_list(
+		characters,
+		int(data.get("slotLimit", 5)),
+		int(data.get("liveCount", 0)),
+		int(data.get("serverTimeMs", 0))
+	)
 	AppState.notify_loading_completed("character")
 	character_list_finished.emit(true, "")
 	character_bootstrap_finished.emit(true, false, "")
@@ -815,6 +823,33 @@ func send_trade_cancel(trade_id: String, request_id: String = "") -> Dictionary:
 	return await _send_trade_id(MatchProtocol.CLIENT_TRADE_CANCEL, trade_id, request_id)
 
 
+func send_return_to_character_select(request_id: String = "") -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var rid := request_id
+	if rid.is_empty():
+		rid = MatchProtocol.new_request_id()
+	_pending_return_request_id = rid
+	_pending_return_result = {}
+	var sent: Dictionary = await _backend().send_match_state(
+		MatchProtocol.CLIENT_RETURN_TO_CHARACTER_SELECT,
+		MatchProtocol.client_envelope_json({"requestId": rid})
+	)
+	if not bool(sent.get("ok", false)):
+		_pending_return_request_id = ""
+		return sent
+	var deadline := Time.get_ticks_msec() + 5000
+	while Time.get_ticks_msec() < deadline:
+		if not _pending_return_result.is_empty():
+			var result: Dictionary = _pending_return_result.duplicate(true)
+			_pending_return_request_id = ""
+			_pending_return_result = {}
+			return result
+		await get_tree().process_frame
+	_pending_return_request_id = ""
+	return {"ok": false, "code": "timeout", "message": "The server did not confirm departure."}
+
+
 func _send_trade_id(opcode: int, trade_id: String, request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
@@ -1168,6 +1203,7 @@ func start_reconnect() -> void:
 	match_id = ""
 	AppState.notify_reconnecting(true)
 	AppState.notify_loading_started("reconnect")
+	AppState.notify_session_status("Connection lost")
 	var attempt := 0
 	while reconnect_policy.can_retry(attempt) and not _reconnect_cancelled and not AppState.has_fatal_error:
 		var tree := get_tree()
@@ -1183,9 +1219,12 @@ func start_reconnect() -> void:
 			_finish_reconnect(true)
 			return
 		attempt += 1
+	var held_zone := AppState.has_zone_state
 	_finish_reconnect(false)
 	if _reconnect_cancelled or _intentional_disconnect:
 		await logout()
+		return
+	if held_zone:
 		return
 	if not AppState.has_fatal_error:
 		AppState.report_recoverable("reconnect_failed", "Could not reconnect to the starter zone. Log out or try again.")
@@ -1210,6 +1249,8 @@ func _try_reconnect() -> bool:
 	_connect_chat_signals()
 	_connect_socket_signals()
 	if not AppState.has_character:
+		return true
+	if AppState.has_zone_state:
 		return true
 	return await rejoin_starter_zone()
 
@@ -1356,6 +1397,8 @@ func reset_for_tests() -> void:
 	_reconnect_cancelled = false
 	_join_in_progress = false
 	_pending_reconnect = false
+	_pending_return_request_id = ""
+	_pending_return_result = {}
 	reconnect_policy = ReconnectPolicy.new()
 	_device_id = ""
 	_username = ""
@@ -1436,6 +1479,8 @@ func _finish_reconnect(success: bool) -> void:
 	AppState.notify_loading_completed("reconnect")
 	if success:
 		socket_connected = true
+	if AppState.has_zone_state and match_id.is_empty():
+		gameplay_disconnected_unbound.emit()
 
 
 func _disconnect_match_signals() -> void:
@@ -1524,6 +1569,11 @@ func _on_match_state(opcode: int, payload: String) -> void:
 		return
 	if opcode == MatchProtocol.SERVER_ACTION_RESULT:
 		var action: Dictionary = MatchProtocol.parse_action_result(payload)
+		var request_id := String(action.get("request_id", action.get("requestId", "")))
+		if not _pending_return_request_id.is_empty() and request_id == _pending_return_request_id:
+			_pending_return_result = action
+			action_result_received.emit(action)
+			return
 		if not bool(action.get("ok", false)):
 			AppState.report_recoverable(String(action.get("code", "action_failed")), String(action.get("message", "The action failed.")))
 			return

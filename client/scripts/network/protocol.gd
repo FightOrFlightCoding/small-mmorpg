@@ -47,6 +47,7 @@ const CLIENT_TRADE_REMOVE_OFFER: int = 28
 const CLIENT_TRADE_SET_GOLD: int = 29
 const CLIENT_TRADE_ACCEPT_REVISION: int = 30
 const CLIENT_TRADE_CANCEL: int = 31
+const CLIENT_RETURN_TO_CHARACTER_SELECT: int = 32
 
 const SERVER_FULL_STATE: int = 101
 const SERVER_SNAPSHOT: int = 102
@@ -239,6 +240,7 @@ static func parse_action_result(raw: String) -> Dictionary:
 		"result_ok": bool(parsed.get("ok", false)),
 		"code": String(parsed.get("code", "unknown")),
 		"request_id": String(parsed.get("requestId", "")),
+		"message": String(parsed.get("message", "")),
 		"ticket_id": String(parsed.get("ticketId", "")),
 		"destination_match_id": String(parsed.get("destinationMatchId", "")),
 		"destination_instance_id": String(parsed.get("destinationInstanceId", "")),

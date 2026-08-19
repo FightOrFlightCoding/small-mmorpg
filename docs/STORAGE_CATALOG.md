@@ -73,15 +73,18 @@ Value: `{ schemaVersion, createdAt, updatedAt, lastPlayedAt, deletedAt, softDele
 
 | Field             | Value                                                                                          |
 | ----------------- | ---------------------------------------------------------------------------------------------- |
-| Purpose           | Account-wide live character lease. Blocks Play/delete on other characters while present.       |
-| Owner             | Match join/leave                                                                               |
+| Purpose           | Account-wide active-character lease. One live character per account.                           |
+| Owner             | `starter_zone` join/leave/loop for public world and party caves                                |
 | Scope             | Account-scoped                                                                                 |
 | `permissionRead`  | 1                                                                                              |
 | `permissionWrite` | 0                                                                                              |
-| Schema version    | 1                                                                                              |
-| Creation          | Successful `starter_zone` join                                                                 |
-| Update            | `ONLINE` on join; `DISCONNECTING` on leave for public 5s / cave 60s grace                      |
+| Schema version    | 2                                                                                              |
+| Creation          | Atomic `ENTERING` on `matchJoinAttempt` (non-transfer)                                         |
+| Update            | `ONLINE` after entity + `FULL_STATE`; `LEAVING` on safe return; `LINK_DEAD` on presence loss   |
+| Release           | Safe `matchLeave`, link-dead despawn, stale-match repair, `matchTerminate`                     |
 | Client access     | No. Character Select receives `activePresenceState` / `playAvailableAt` / `playBlockedReason`. |
+
+Lease value: `{ accountUserId, characterId, sessionId, socketOrPresenceId, matchId, zoneOrInstanceId, state, createdAt, updatedAt, disconnectDetectedAt, despawnAt, leaseVersion, serverInstanceIdentifier, schemaVersion }` plus aliases `presenceState`, `playAvailableAt`, `acquiredAt`, `lastSeenAt`. `LINK_DEAD` uses server `despawnAt = disconnectDetectedAt + 10_000`. Legacy `DISCONNECTING` parses as `LINK_DEAD`.
 
 ## `player` / `idem`
 

@@ -60,11 +60,11 @@ Join metadata may carry `selectionTicket` or `transferTicket`, never `characterI
 
 ## Active presence and reconnect
 
-- Same account already in **this** match: `already_in_match`.
+- One account-wide gameplay lease. A second gameplay join while the lease is live is `account_busy` or `link_dead`.
+- Same account already **ONLINE** in **this** match with a different session: `already_in_match`. Link-dead entities are not rebound.
 - Presence in another running match: `already_elsewhere` unless a transfer is in flight.
-- Public-world pose grace: **5 seconds** (`RECONNECT_GRACE_SEC`). Cave empty grace: **60 seconds**. Party disconnect grace: **60 seconds**.
-- Account gameplay lease: `player` / `gameplay_lease` on join (`ONLINE`), `DISCONNECTING` on leave for the public **5s** / cave **60s** grace. Character Select treats that as link-dead for the leased character and account-busy for every other character on the account.
-- Client reconnect: refresh/reauth, backoff, `find_or_create_starter_zone` (live cave only if `canJoinOwnedCave`), wait for `FULL_STATE`. Cancel logs out.
+- Unexpected disconnect: **10 s** server-authoritative link-dead hold after **detection**. Party membership grace remains **60 s**. Cave **instance** empty/rejoin grace remains **60 s**.
+- Client: restore the socket for RPCs, return to Character Select, show the server countdown. Do not auto-rejoin the match. Cancel logs out.
 
 ## Account deletion
 
@@ -125,7 +125,7 @@ Do not delete these in this phase.
 Later phases must extend these modules, not replace them:
 
 - Account identity: `auth-gateway` + Nakama email auth + `auth_hooks.ts` + `account_profile`.
-- Character: `character_lifecycle.ts`, `character_roster.ts`, `character_name.ts`, `character_ticket.ts`, `character_catalog.ts`, `character_purge.ts`, `gameplay_lease.ts`.
+- Character: `character_lifecycle.ts`, `character_roster.ts`, `character_name.ts`, `character_ticket.ts`, `character_catalog.ts`, `character_purge.ts`, `gameplay_lease.ts`, `safe_leave.ts`.
 - Persistence: existing `player/*` collections and wallet.
-- Sessions: email access/refresh tokens live in `AccountService` memory. Device-debug sessions may use `SessionCache`. Logout current leaves the match before revoking tokens.
+- Sessions: email access/refresh tokens live in `AccountService` memory. Device-debug sessions may use `SessionCache`. Logout from the world completes opcode 32 before revoking tokens.
 - Lookup: production lookup is `account_profile` / `email_index` via `auth_gateway`. `acct_compat` remains a development-gated proof seam.

@@ -1,5 +1,6 @@
 import { isDeleted } from "./character_roster";
 import {
+  leasePlayAvailableAt,
   liveGameplayLease,
   locationNameKey,
   presenceFromLease,
@@ -80,21 +81,21 @@ export function playAvailability(input: {
   const live = liveGameplayLease(input.lease, input.nowMs);
   if (live !== null && live.characterId !== input.record.characterId) {
     return {
-      playAvailableAt: live.playAvailableAt,
+      playAvailableAt: leasePlayAvailableAt(live),
       playBlockedReason: "account_busy",
       presence: presence,
     };
   }
-  if (live !== null && live.characterId === input.record.characterId && live.presenceState === "DISCONNECTING") {
+  if (live !== null && live.characterId === input.record.characterId && live.state === "LINK_DEAD") {
     return {
-      playAvailableAt: live.playAvailableAt,
+      playAvailableAt: leasePlayAvailableAt(live),
       playBlockedReason: "link_dead",
       presence: presence,
     };
   }
-  if (live !== null && live.characterId === input.record.characterId && live.presenceState === "ONLINE") {
+  if (live !== null && live.characterId === input.record.characterId) {
     return {
-      playAvailableAt: live.playAvailableAt,
+      playAvailableAt: leasePlayAvailableAt(live),
       playBlockedReason: "account_busy",
       presence: presence,
     };

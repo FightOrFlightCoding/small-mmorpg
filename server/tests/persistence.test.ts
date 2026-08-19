@@ -19,6 +19,7 @@ import {
   REQUEST_ID_TTL_TICKS,
   RECONNECT_GRACE_TICKS,
   applyPlayerLeave,
+  applySafeLeave,
   bindJoiningSession,
   checkpointsForTerminate,
   collectPositionCheckpoints,
@@ -26,7 +27,6 @@ import {
   joinHealth,
   lastProcessedSeqForSession,
   pruneKeyedHistory,
-  restoreGracePlayer,
   takeGracePlayer,
 } from "../src/domain/persistence";
 import { ClientOpcode, PROTOCOL_VERSION } from "../src/domain/protocol";
@@ -125,10 +125,9 @@ test("graceful leave checkpoints and removes the avatar from snapshots", () => {
   let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", 512, 400));
   state = addPlayer(state, playerAt("user-bob", "Bob", 240, 384));
   state.players["user-alice"].health = 40;
-  const left = applyPlayerLeave(state, "user-alice", 12);
+  const left = applySafeLeave(state, "user-alice");
   assert.equal(playerCount(left.state), 1);
   assert.equal(left.state.players["user-alice"], undefined);
-  assert.ok(left.state.disconnected["user-alice"] !== undefined);
   assert.equal(left.checkpoint?.userId, "user-alice");
   assert.equal(left.checkpoint?.x, 512);
   const snap = JSON.parse(buildSnapshot(left.state, 12));
@@ -138,81 +137,29 @@ test("graceful leave checkpoints and removes the avatar from snapshots", () => {
   assert.equal(full.players.length, 1);
 });
 
-test("abrupt leave uses the same presence removal path", () => {
+test("abrupt leave keeps a link-dead avatar", () => {
   const state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", 500, 390));
   const left = applyPlayerLeave(state, "user-alice", 3);
-  assert.equal(playerCount(left.state), 0);
+  assert.equal(playerCount(left.state), 1);
+  assert.equal(left.state.players["user-alice"].linkDead, true);
   assert.equal(left.checkpoint?.x, 500);
-  assert.equal(JSON.parse(buildSnapshot(left.state, 3)).players.length, 0);
+  assert.equal(JSON.parse(buildSnapshot(left.state, 3)).players.length, 1);
 });
 
-test("rejoin during grace restores live pose and health", () => {
+test("link-dead pose is not rebound to a new session", () => {
   let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", 640, 400, 55));
   const left = applyPlayerLeave(state, "user-alice", 8);
   state = left.state;
+  assert.equal(state.players["user-alice"].health, 55);
+  assert.equal(state.players["user-alice"].linkDead, true);
   const parked = takeGracePlayer(state, "user-alice", 8 + RECONNECT_GRACE_TICKS - 1);
-  assert.ok(parked !== null);
-  const restored = restoreGracePlayer(
-    parked,
-    "session-reconnect",
-    "alice",
-    parked.questLog,
-    parked.inventory !== undefined ? parked.inventory : emptyInventory(),
-    parked.equipment !== undefined ? parked.equipment : emptyEquipment(),
-    parked.derivedAttack !== undefined ? parked.derivedAttack : 4,
-    parked.gold !== undefined ? parked.gold : 0,
-  );
-  assert.equal(restored.x, 640);
-  assert.equal(restored.health, 55);
-  assert.equal(restored.lastProcessedSeq, 0);
-  assert.equal(restored.sessionId, "session-reconnect");
+  assert.equal(parked, null);
   assert.equal(joinHealth(content.player.maxHealth), content.player.maxHealth);
 });
 
-test("same-session grace rejoin keeps lastProcessedSeq", () => {
-  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", 640, 400, 55));
-  const parkedSession = state.players["user-alice"].sessionId;
-  const left = applyPlayerLeave(state, "user-alice", 8);
-  const parked = takeGracePlayer(left.state, "user-alice", 9);
-  assert.ok(parked !== null);
-  const restored = restoreGracePlayer(
-    parked,
-    parkedSession,
-    "alice",
-    parked.questLog,
-    parked.inventory !== undefined ? parked.inventory : emptyInventory(),
-    parked.equipment !== undefined ? parked.equipment : emptyEquipment(),
-    parked.derivedAttack !== undefined ? parked.derivedAttack : 4,
-    parked.gold !== undefined ? parked.gold : 0,
-  );
-  assert.equal(lastProcessedSeqForSession(parkedSession, parkedSession, 3), 3);
-  assert.equal(restored.lastProcessedSeq, 3);
-  assert.equal(restored.health, 55);
-});
-
-test("new session grace rejoin resets input sequence so the first INPUT applies", () => {
-  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", 400, 400));
-  state.players["user-alice"].lastProcessedSeq = 40;
-  const left = applyPlayerLeave(state, "user-alice", 5);
-  const parked = takeGracePlayer(left.state, "user-alice", 6);
-  assert.ok(parked !== null);
-  const restored = restoreGracePlayer(
-    parked,
-    "session-new-login",
-    "alice",
-    parked.questLog,
-    parked.inventory !== undefined ? parked.inventory : emptyInventory(),
-    parked.equipment !== undefined ? parked.equipment : emptyEquipment(),
-    parked.derivedAttack !== undefined ? parked.derivedAttack : 4,
-    parked.gold !== undefined ? parked.gold : 0,
-  );
-  assert.equal(restored.lastProcessedSeq, 0);
-  state = addPlayer(left.state, restored);
-  const result = applyMatchLoop(state, 7, contentHash, [
-    { opcode: ClientOpcode.INPUT, raw: envelope({ seq: 1, axisX: 1, axisY: 0 }), userId: "user-alice" },
-  ]);
-  assert.equal(result.state.players["user-alice"].lastProcessedSeq, 1);
-  assert.ok(result.state.players["user-alice"].x > 400);
+test("same-session input sequence helpers still distinguish sessions", () => {
+  assert.equal(lastProcessedSeqForSession("session-a", "session-a", 3), 3);
+  assert.equal(lastProcessedSeqForSession("session-a", "session-b", 3), 0);
 });
 
 test("live resume with a new session resets lastProcessedSeq", () => {
@@ -232,7 +179,7 @@ test("live resume with the same session keeps lastProcessedSeq", () => {
   assert.equal(player.sessionId, "session-user-alice");
 });
 
-test("rejoin after grace loads checkpointed position and full health", () => {
+test("rejoin after link-dead deadline uses the checkpointed position", () => {
   let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", 700, 410, 12));
   const left = applyPlayerLeave(state, "user-alice", 10);
   state = left.state;
@@ -398,8 +345,8 @@ test("match loop survives Nakama null maps on tick 0", () => {
 test("player leave survives Nakama null disconnected map", () => {
   const poisoned = poisonEmptyMaps(addPlayer(emptyZone(), playerAt("user-alice", "Alice", 512, 400)));
   const left = applyPlayerLeave(poisoned, "user-alice", 1);
-  assert.equal(playerCount(left.state), 0);
-  assert.ok(left.state.disconnected["user-alice"] !== undefined);
+  assert.equal(playerCount(left.state), 1);
+  assert.equal(left.state.players["user-alice"].linkDead, true);
   assert.equal(left.checkpoint?.x, 512);
 });
 

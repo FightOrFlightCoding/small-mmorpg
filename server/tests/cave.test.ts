@@ -452,11 +452,11 @@ test("disconnect in a cave can rejoin during grace and falls back after the cave
   assert.equal(expired.accept, true);
 });
 
-test("disconnect parks a cave player and transfer leave does not", () => {
+test("disconnect keeps a cave player link-dead and transfer leave does not", () => {
   let state = addPlayer(caveZone(), playerAt("user-alice", "char-alice", 96, 256));
   const parked = applyPlayerLeave(state, "user-alice", 10);
-  assert.equal(parked.state.players["user-alice"], undefined);
-  assert.ok(parked.state.disconnected["user-alice"]);
+  assert.equal(parked.state.players["user-alice"].linkDead, true);
+  assert.equal(parked.state.disconnected["user-alice"], undefined);
   state = addPlayer(caveZone(), playerAt("user-alice", "char-alice", 96, 256));
   state.players["user-alice"].transferState = "issued";
   const transferred = applyPlayerLeave(state, "user-alice", 10);

@@ -35,6 +35,7 @@ export const ClientOpcode = {
   TRADE_SET_GOLD: 29,
   TRADE_ACCEPT_REVISION: 30,
   TRADE_CANCEL: 31,
+  RETURN_TO_CHARACTER_SELECT: 32,
 } as const;
 
 export const ServerOpcode = {
@@ -90,6 +91,7 @@ const CLIENT_OPCODES: ClientOpcode[] = [
   ClientOpcode.TRADE_SET_GOLD,
   ClientOpcode.TRADE_ACCEPT_REVISION,
   ClientOpcode.TRADE_CANCEL,
+  ClientOpcode.RETURN_TO_CHARACTER_SELECT,
 ];
 
 const REWARD_OPCODES: ClientOpcode[] = [
@@ -135,6 +137,7 @@ OPCODE_KEYS[ClientOpcode.TRADE_REMOVE_OFFER] = ["tradeId", "instanceId"];
 OPCODE_KEYS[ClientOpcode.TRADE_SET_GOLD] = ["tradeId", "amount"];
 OPCODE_KEYS[ClientOpcode.TRADE_ACCEPT_REVISION] = ["tradeId", "revision"];
 OPCODE_KEYS[ClientOpcode.TRADE_CANCEL] = ["tradeId"];
+OPCODE_KEYS[ClientOpcode.RETURN_TO_CHARACTER_SELECT] = [];
 
 const OUTCOME_KEYS = [
   "attack",
@@ -251,7 +254,8 @@ function requiresRequestId(opcode: ClientOpcode): boolean {
     opcode === ClientOpcode.TRADE_REMOVE_OFFER ||
     opcode === ClientOpcode.TRADE_SET_GOLD ||
     opcode === ClientOpcode.TRADE_ACCEPT_REVISION ||
-    opcode === ClientOpcode.TRADE_CANCEL
+    opcode === ClientOpcode.TRADE_CANCEL ||
+    opcode === ClientOpcode.RETURN_TO_CHARACTER_SELECT
   );
 }
 

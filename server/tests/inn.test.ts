@@ -13,7 +13,7 @@ import { npcDefinitionsFromContent } from "../src/domain/npc";
 import { vendorDefinitionsFromContent } from "../src/domain/vendor";
 import { emptyInventory, itemDefinitionsFromContent } from "../src/domain/inventory";
 import { ClientOpcode, PROTOCOL_VERSION, ServerOpcode } from "../src/domain/protocol";
-import { applyPlayerLeave, restoreGracePlayer } from "../src/domain/persistence";
+import { applyPlayerLeave } from "../src/domain/persistence";
 import { emptyEquipment } from "../src/domain/equipment";
 
 function envelope(extra: { [key: string]: unknown } = {}): string {
@@ -138,7 +138,7 @@ test("healer rest restores health without charging or rebinding", () => {
   assert.equal(result.state.players["user-alice"].bindY, 20);
 });
 
-test("inn bind survives reconnect grace restore", () => {
+test("inn bind survives unexpected disconnect", () => {
   const inn = innPos();
   const actor = playerAt(inn.x, inn.y, 5);
   actor.health = 2;
@@ -153,18 +153,8 @@ test("inn bind survives reconnect grace restore", () => {
   const left = applyPlayerLeave(state, "user-alice", 3);
   assert.equal(left.checkpoint?.bindX, inn.x);
   assert.equal(left.checkpoint?.bindY, inn.y);
-  const restored = restoreGracePlayer(
-    left.state.disconnected["user-alice"].player,
-    "session-2",
-    "alice",
-    emptyQuestLog(),
-    emptyInventory(),
-    emptyEquipment(),
-    0,
-    0,
-  );
-  assert.equal(restored.bindX, inn.x);
-  assert.equal(restored.bindY, inn.y);
+  assert.equal(left.state.players["user-alice"].bindX, inn.x);
+  assert.equal(left.state.players["user-alice"].linkDead, true);
 });
 
 test("cave entrance queues a transfer intent without moving the player", () => {

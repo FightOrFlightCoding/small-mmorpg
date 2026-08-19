@@ -182,3 +182,19 @@ func test_logout_leaves_zone_chat() -> void:
 	assert_str(NetworkService.zone_chat_id).is_equal("")
 	assert_str(NetworkService.match_id).is_equal("")
 	assert_bool(AppState.is_loading).is_false()
+	assert_bool(AppState.is_authenticated).is_false()
+	assert_str(SceneRouter.current_scene_id).is_equal(SceneRouter.SCENE_LOGIN)
+
+
+func test_failed_safe_leave_does_not_logout() -> void:
+	var fake := _fake()
+	await _boot_and_character(fake)
+	assert_bool(await GameService.enter_starter_zone()).is_true()
+	fake.return_to_select_ok = false
+	await GameService.request_logout()
+	assert_int(fake.logout_calls).is_equal(0)
+	assert_int(fake.leave_calls).is_equal(0)
+	assert_str(NetworkService.match_id).is_equal("match-starter-shared")
+	assert_bool(AppState.is_authenticated).is_true()
+	assert_str(SceneRouter.current_scene_id).is_equal(SceneRouter.SCENE_WORLD)
+	assert_str(AppState.last_error_code).is_equal("unsafe_leave")

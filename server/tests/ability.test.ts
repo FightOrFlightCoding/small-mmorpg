@@ -26,11 +26,10 @@ import {
   type MatchPlayer,
   type StarterZoneState,
 } from "../src/domain/match_state";
-import { restoreGracePlayer } from "../src/domain/persistence";
+import { applyPlayerLeave } from "../src/domain/persistence";
 import { initializeProgression } from "../src/domain/progression";
 import { emptyQuestLog, questDefinitionsFromContent } from "../src/domain/quest";
-import { emptyInventory, itemDefinitionsFromContent } from "../src/domain/inventory";
-import { emptyEquipment } from "../src/domain/equipment";
+import { itemDefinitionsFromContent } from "../src/domain/inventory";
 import { ClientOpcode, PROTOCOL_VERSION, ServerOpcode } from "../src/domain/protocol";
 import { catalogFromContent } from "../src/domain/stats";
 import { classTagsFromContent } from "../src/domain/class_catalog";
@@ -547,7 +546,7 @@ test("hotbar assignment rejects locked abilities", () => {
   assert.equal(ok.progression.hotbar![1], MELEE);
 });
 
-test("reconnect clears transient casts and keeps match-lived resources", () => {
+test("unexpected disconnect interrupts casts and keeps resources", () => {
   const parked = caster(900, 400, { unlocked: [MELEE, BOLT], mana: 21 });
   parked.activeCast = {
     abilityId: BOLT,
@@ -562,18 +561,11 @@ test("reconnect clears transient casts and keeps match-lived resources", () => {
     interruptReason: "",
     requestId: "req-cast-live001",
   };
-  const restored = restoreGracePlayer(
-    parked,
-    "session-alice-2",
-    "alice",
-    parked.questLog,
-    emptyInventory(),
-    emptyEquipment(),
-    4,
-    0,
-  );
-  assert.equal(restored.activeCast, undefined);
-  assert.equal(restored.resources![MANA], 21);
+  const zone = addPlayer(abilityZone(), parked);
+  const left = applyPlayerLeave(zone, parked.userId, 11);
+  assert.equal(left.state.players[parked.userId].activeCast, undefined);
+  assert.equal(left.state.players[parked.userId].resources![MANA], 21);
+  assert.equal(left.state.players[parked.userId].linkDead, true);
 });
 
 test("melee still deals damage after JSON match-state roundtrip", () => {

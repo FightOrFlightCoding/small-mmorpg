@@ -47,10 +47,12 @@ import { classExists, migrationDefaultClassId, type ClassDefinition } from "./cl
 import {
   accountLeaseBlocksDelete,
   accountLeaseBlocksOtherCharacter,
+  leaseIsStale,
   liveGameplayLease,
+  staleLeaseReason,
   type GameplayLease,
 } from "./gameplay_lease";
-import type { ActiveLocation } from "./instance";
+import { publicWorldLocation, type ActiveLocation } from "./instance";
 import type { CharacterProgression } from "./progression";
 import {
   emptyPurgeJob,
@@ -187,6 +189,9 @@ export interface CharacterLifecycleDeps {
   initializeNewCharacterGameplay?: (userId: string, record: StoredCharacter) => void;
   readLease?: (userId: string) => GameplayLease | null;
   writeLease?: (userId: string, lease: GameplayLease | null) => void;
+  matchExists?: (matchId: string) => boolean;
+  writeLocation?: (userId: string, location: ActiveLocation) => void;
+  logLeaseRepair?: (userId: string, matchId: string, reason: string) => void;
   readProgression?: (userId: string, characterId: string) => CharacterProgression | null;
   readLocation?: (userId: string, characterId: string) => ActiveLocation | null;
   readIdempotency?: (userId: string, operation: string, key: string) => { [key: string]: unknown } | null;
@@ -321,8 +326,40 @@ export function loadRosterCharacters(userId: string, deps: CharacterLifecycleDep
   return records;
 }
 
+export function repairAccountLease(userId: string, deps: CharacterLifecycleDeps): void {
+  if (deps.readLease === undefined) {
+    return;
+  }
+  const lease = deps.readLease(userId);
+  if (lease === null) {
+    return;
+  }
+  const nowMs = deps.nowMs();
+  const matchExists =
+    lease.matchId.length === 0 ? false : deps.matchExists !== undefined ? deps.matchExists(lease.matchId) : true;
+  if (!leaseIsStale(lease, nowMs, matchExists)) {
+    return;
+  }
+  if (deps.writeLease !== undefined) {
+    deps.writeLease(userId, null);
+  }
+  if (deps.logLeaseRepair !== undefined) {
+    deps.logLeaseRepair(userId, lease.matchId, staleLeaseReason(lease, nowMs, matchExists));
+  }
+  if (deps.writeLocation !== undefined && deps.readLocation !== undefined) {
+    const location = deps.readLocation(userId, lease.characterId);
+    if (location !== null) {
+      deps.writeLocation(
+        userId,
+        publicWorldLocation("", lease.characterId, userId, location.position.x, location.position.y, nowMs),
+      );
+    }
+  }
+}
+
 export function handleCharacterList(userId: string | undefined, deps: CharacterLifecycleDeps): CharacterListResponse {
   const authenticatedUserId = requireAuthenticatedUserId(userId);
+  repairAccountLease(authenticatedUserId, deps);
   purgeExpiredCharacters(authenticatedUserId, deps);
   const records = loadRosterCharacters(authenticatedUserId, deps);
   const characters: CharacterCatalogEntry[] = [];
@@ -510,13 +547,14 @@ export function handleCharacterSelect(
     throw new Error("content_incompatible");
   }
   const nowMs = deps.nowMs();
+  repairAccountLease(authenticatedUserId, deps);
   const lease = deps.readLease !== undefined ? deps.readLease(authenticatedUserId) : null;
   if (accountLeaseBlocksOtherCharacter(lease, record.characterId, nowMs)) {
     throw new Error("account_busy");
   }
   const liveLease = liveGameplayLease(lease, nowMs);
   if (liveLease !== null && liveLease.characterId === record.characterId) {
-    throw new Error(liveLease.presenceState === "DISCONNECTING" ? "link_dead" : "account_busy");
+    throw new Error(liveLease.state === "LINK_DEAD" ? "link_dead" : "account_busy");
   }
   const existing = deps.readSelection(authenticatedUserId);
   if (
@@ -569,6 +607,7 @@ export function handleCharacterDeleteRequest(
     throw new Error("confirmation_mismatch");
   }
   const nowMs = deps.nowMs();
+  repairAccountLease(authenticatedUserId, deps);
   const lease = deps.readLease !== undefined ? deps.readLease(authenticatedUserId) : null;
   if (accountLeaseBlocksDelete(lease, nowMs)) {
     throw new Error("gameplay_lease");

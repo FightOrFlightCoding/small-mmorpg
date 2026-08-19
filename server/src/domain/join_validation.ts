@@ -41,7 +41,7 @@ export function validateJoinAttempt(
   alreadyJoined: boolean,
   joiningSessionId: string = "",
   existingSessionId: string = "",
-  options: JoinCompatibilityOptions = {},
+  options: JoinCompatibilityOptions & { linkDead?: boolean } = {},
 ): { accept: boolean; rejectMessage?: string } {
   const metaKeys = Object.keys(metadata);
   for (let i = 0; i < metaKeys.length; i++) {
@@ -71,7 +71,10 @@ export function validateJoinAttempt(
     return { accept: false, rejectMessage: compatibility.code };
   }
   if (alreadyJoined) {
-    if (existingSessionId === "" || joiningSessionId === existingSessionId) {
+    if (options.linkDead === true) {
+      return { accept: false, rejectMessage: "link_dead" };
+    }
+    if (existingSessionId !== "" && joiningSessionId === existingSessionId) {
       return { accept: true };
     }
     return { accept: false, rejectMessage: "already_in_match" };

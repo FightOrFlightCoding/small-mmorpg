@@ -73,8 +73,8 @@ ACCT-04 Godot shell for credential recovery and maintenance, plus ACCT-05 Charac
 
 ## Character select (`scenes/character`, `character.gd`)
 
-- Five visible slot cards: name, class, level, placeholder class color, last location, last played, online/disconnecting, Play, Delete.
-- Play is disabled with a reason when the character is deleted, another character on the account is active, the character is link-dead, maintenance is on, content is incompatible, or selection is already pending.
+- Five visible slot cards: name, class, level, placeholder class color, last location, last played, presence, Play, Delete.
+- Link-dead copy is `Character still in world` / `Available in N seconds` from `playAvailableAt` vs `serverTimeMs`. Other live-lease characters show `Waiting for previous character to leave`. All Play buttons stay disabled until the lease clears, then the catalog refreshes and Play needs a new ticket.
 - Create Character, Recently Deleted, Account Settings, Logout, server status, version.
 - Creation: three content-driven class cards (Warrior / Marksman / Mage), name field, name rules, advisory availability, Create, Back, final confirmation. Creation is the only authoritative name reservation.
 - Recently Deleted: name, class, level, time remaining, Restore (disabled without a free slot). No client-only permanent-delete button.
@@ -83,7 +83,10 @@ ACCT-04 Godot shell for credential recovery and maintenance, plus ACCT-05 Charac
 
 ## World HUD
 
-- Logout current → leave match → Login.
+- Character Select: opcode 32, wait for ack, then the character scene.
+- Log out: same safe leave, then revoke current tokens, Login. Failed leave stays in-world.
+- Quit Game: Quit Safely when allowed; otherwise warn about the ten-second hold, Cancel, or Quit Anyway.
+- Session status: Entering world, Online, Returning to Character Select, Logging out, Connection lost, Character remains in world, Server unavailable.
 - Settings persist non-credential preferences.
 - Debug GM panel does not grant account authority.
 
@@ -93,9 +96,8 @@ All recovery and maintenance screens provide a loading state, disabled duplicate
 
 ## Later phases (do not implement here)
 
-1. In-game Return to Character Select vs Quit as distinct server-acked operations.
-2. Account Settings: export, delete (password + email code + `DELETE ACCOUNT`).
-3. Stay Signed In after OS credential-store certification on editor, exported Windows, and exported Linux.
+1. Account Settings: export, delete (password + email code + `DELETE ACCOUNT`).
+2. Stay Signed In after OS credential-store certification on editor, exported Windows, and exported Linux.
 
 ## Error display rules
 

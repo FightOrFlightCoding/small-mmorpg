@@ -778,17 +778,7 @@ export function cancelReasonForTick(input: {
     return "in_combat";
   }
   if (!input.actorA.online || !input.actorB.online) {
-    const absents = dict(input.trade.absentSinceTick);
-    const aId = input.actorA.userId;
-    const bId = input.actorB.userId;
-    const sinceA = !input.actorA.online ? (typeof absents[aId] === "number" ? absents[aId] : input.tick) : 0;
-    const sinceB = !input.actorB.online ? (typeof absents[bId] === "number" ? absents[bId] : input.tick) : 0;
-    if (!input.actorA.online && input.tick - sinceA >= TRADE_DISCONNECT_GRACE_TICKS) {
-      return "disconnected";
-    }
-    if (!input.actorB.online && input.tick - sinceB >= TRADE_DISCONNECT_GRACE_TICKS) {
-      return "disconnected";
-    }
+    return "disconnected";
   }
   return "";
 }

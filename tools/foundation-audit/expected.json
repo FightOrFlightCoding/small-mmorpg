@@ -97,7 +97,8 @@
     "TRADE_REMOVE_OFFER": 28,
     "TRADE_SET_GOLD": 29,
     "TRADE_ACCEPT_REVISION": 30,
-    "TRADE_CANCEL": 31
+    "TRADE_CANCEL": 31,
+    "RETURN_TO_CHARACTER_SELECT": 32
   },
   "serverOpcodes": {
     "FULL_STATE": 101,
@@ -128,7 +129,7 @@
     { "collection": "player", "key": "party", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "player", "key": "cave", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "player", "key": "location", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "player", "key": "gameplay_lease", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "player", "key": "gameplay_lease", "permissionWrite": 0, "schemaVersion": 2 },
     { "collection": "player", "key": "idem", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "player", "key": "purge", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "character_audit", "key": "p", "permissionWrite": 0, "schemaVersion": 1 },

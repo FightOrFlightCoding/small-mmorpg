@@ -53,14 +53,14 @@ import {
   bindJoiningSession,
   checkpointsForTerminate,
   joinHealth,
-  restoreGracePlayer,
-  takeGracePlayer,
   type PositionCheckpoint,
 } from "../domain/persistence";
 import { migrateLegacyCharacterIntoRoster } from "../domain/character_lifecycle";
 import { invalidateTicket, validateJoinSelection } from "../domain/character_ticket";
 import { classDefinitionsFromContent, classEquipmentTagsFromContent, classTagsFromContent, startingEquipmentForClass } from "../domain/class_catalog";
-import { characterLifecycleDeps, acquireMatchGameplayLease, releaseMatchGameplayLease } from "./character_lifecycle_deps";
+import { characterLifecycleDeps, acquireMatchGameplayLease, releaseMatchGameplayLease, clearGameplayLease } from "./character_lifecycle_deps";
+import { tryAcquireEnteringLease, readGameplayLease, writeGameplayLease } from "./gameplay_lease_store";
+import { liveGameplayLease, markLeaseLeaving, serverInstanceIdentifier, LINK_DEAD_MS } from "../domain/gameplay_lease";
 import { readSelection, writeSelection } from "./selection_store";
 import { catalogFromContent, syncCombatStatsFromPipeline } from "../domain/stats";
 import { initializeProgression } from "../domain/progression";
@@ -208,6 +208,7 @@ export function matchJoinAttempt(
     meta[key] = String(metadata[key]);
   }
   const alreadyJoined = Object.prototype.hasOwnProperty.call(state.zone.players, presence.userId);
+  const existingLive = alreadyJoined ? state.zone.players[presence.userId] : undefined;
   const existing = state.presences[presence.userId];
   const env = readEnvironment(ctx);
   const maintenance = readEffectiveMaintenance(nk, env, ctx.env);
@@ -223,6 +224,7 @@ export function matchJoinAttempt(
       maxClientVersion: env.maxClientVersion,
       expectedContentVersion: env.contentVersion.length > 0 ? env.contentVersion : packageVersion,
       maintenance: maintenance,
+      linkDead: existingLive !== undefined && existingLive.linkDead === true,
     },
   );
   if (!gate.accept) {
@@ -310,6 +312,29 @@ export function matchJoinAttempt(
     readEquipment(nk, presence.userId, character.characterId);
     readQuests(nk, presence.userId, character.characterId);
     readProgression(nk, presence.userId, character.characterId);
+    if (!alreadyJoined && !hasTransfer) {
+      const nowMs = Date.now();
+      const existingLease = readGameplayLease(nk, presence.userId);
+      const liveLease = liveGameplayLease(existingLease, nowMs);
+      if (liveLease !== null) {
+        const reason = liveLease.state === "LINK_DEAD" ? "link_dead" : "account_busy";
+        logger.info("starter_zone join rejected user_id=%s reason=%s", presence.userId, reason);
+        return { state: persistable(state), accept: false, rejectMessage: reason };
+      }
+      const zoneOrInstanceId =
+        instanceType === "party_cave" && state.zone.instanceId !== undefined ? state.zone.instanceId : state.zone.zoneId;
+      const node = typeof ctx.node === "string" ? ctx.node : "";
+      tryAcquireEnteringLease(nk, {
+        accountUserId: presence.userId,
+        characterId: character.characterId,
+        sessionId: presence.sessionId,
+        socketOrPresenceId: presence.sessionId,
+        matchId: joiningMatchId,
+        zoneOrInstanceId: zoneOrInstanceId,
+        nowMs: nowMs,
+        serverInstanceIdentifier: serverInstanceIdentifier(joiningMatchId, node),
+      });
+    }
   } catch (error) {
     const raw = error instanceof Error ? error.message : "save_incompatible";
     const reason = publicSaveRejectCode(raw);
@@ -352,8 +377,7 @@ export function matchJoin(
       const characterId = ticket !== null ? ticket.characterId : "";
       character = characterId.length > 0 ? readCharacter(nk, presence.userId, characterId) : readCharacter(nk, presence.userId);
       if (character === null) {
-        dispatcher.matchKick([presence]);
-        delete nextPresences[presence.userId];
+        abortInterruptedJoin(nk, dispatcher, presence, nextPresences);
         continue;
       }
       loadWalletRef(nk, presence.userId);
@@ -363,12 +387,15 @@ export function matchJoin(
         presence.userId,
         error instanceof Error ? error.message : "save_incompatible",
       );
-      dispatcher.matchKick([presence]);
-      delete nextPresences[presence.userId];
+      abortInterruptedJoin(nk, dispatcher, presence, nextPresences);
       continue;
     }
     const existingLive = zone.players[presence.userId];
     if (existingLive !== undefined) {
+      if (existingLive.linkDead === true) {
+        abortInterruptedJoin(nk, dispatcher, presence, nextPresences);
+        continue;
+      }
       bindJoiningSession(existingLive, presence.sessionId, presence.username);
       loadPartyCache(nk, zone, presence.userId, existingLive.characterId, existingLive.name);
       markPartyOnline(nk, {
@@ -404,8 +431,7 @@ export function matchJoin(
         presence.userId,
         error instanceof Error ? error.message : "save_incompatible",
       );
-      dispatcher.matchKick([presence]);
-      delete nextPresences[presence.userId];
+      abortInterruptedJoin(nk, dispatcher, presence, nextPresences);
       continue;
     }
     if (loadedEquipment.persist) {
@@ -419,58 +445,36 @@ export function matchJoin(
       inventory,
       zone.itemsById,
     );
-    const parked = takeGracePlayer(zone, presence.userId, tick);
-    let player: MatchPlayer;
-    if (parked !== null) {
-      player = restoreGracePlayer(
-        parked,
-        presence.sessionId,
-        presence.username,
-        questLog,
-        inventory,
-        loadedEquipment.equipment,
-        derived,
-        gold,
-      );
-      if (player.progression === undefined) {
-        player.progression = progression.progression;
-      }
-      if (player.classId === undefined || player.classId.length === 0) {
-        player.classId = classId;
-      }
-      applyJoinDerived(zone, player);
-    } else {
-      player = {
-        userId: presence.userId,
-        sessionId: presence.sessionId,
-        username: presence.username,
-        characterId: character.characterId,
-        name: character.name,
-        classId: classId,
-        x: spawnX(zone, character.position.x),
-        y: spawnY(zone, character.position.y),
-        maxHealth: content.player.maxHealth,
-        health: joinHealth(content.player.maxHealth),
-        lastProcessedSeq: 0,
-        axisX: 0,
-        axisY: 0,
-        questLog: questLog,
-        inventory: inventory,
-        equipment: loadedEquipment.equipment,
-        derivedAttack: derived,
-        gold: gold,
-        progression: progression.progression,
-        lastCheckpointTick: tick,
-        lastCheckpointX: spawnX(zone, character.position.x),
-        lastCheckpointY: spawnY(zone, character.position.y),
-        bindX: character.bindX,
-        bindY: character.bindY,
-        bindZoneId: character.bindZoneId,
-        innByRequestId: character.innByRequestId,
-      };
-      applyJoinDerived(zone, player);
-      player.health = joinHealth(player.maxHealth);
-    }
+    const player: MatchPlayer = {
+      userId: presence.userId,
+      sessionId: presence.sessionId,
+      username: presence.username,
+      characterId: character.characterId,
+      name: character.name,
+      classId: classId,
+      x: spawnX(zone, character.position.x),
+      y: spawnY(zone, character.position.y),
+      maxHealth: content.player.maxHealth,
+      health: joinHealth(content.player.maxHealth),
+      lastProcessedSeq: 0,
+      axisX: 0,
+      axisY: 0,
+      questLog: questLog,
+      inventory: inventory,
+      equipment: loadedEquipment.equipment,
+      derivedAttack: derived,
+      gold: gold,
+      progression: progression.progression,
+      lastCheckpointTick: tick,
+      lastCheckpointX: spawnX(zone, character.position.x),
+      lastCheckpointY: spawnY(zone, character.position.y),
+      bindX: character.bindX,
+      bindY: character.bindY,
+      bindZoneId: character.bindZoneId,
+      innByRequestId: character.innByRequestId,
+    };
+    applyJoinDerived(zone, player);
+    player.health = joinHealth(player.maxHealth);
     if (
       !consumeJoinTransfer(
         nk,
@@ -482,23 +486,16 @@ export function matchJoin(
         typeof ctx.matchId === "string" ? ctx.matchId : "",
       )
     ) {
-      dispatcher.matchKick([presence]);
-      delete nextPresences[presence.userId];
+      abortInterruptedJoin(nk, dispatcher, presence, nextPresences);
       continue;
     }
     commitJoinLocation(nk, zone, presence.userId, character.characterId, player, typeof ctx.matchId === "string" ? ctx.matchId : "");
-    const ownershipChanged = prepareJoinedPlayerAbilities(zone, player, parked === null);
+    const ownershipChanged = prepareJoinedPlayerAbilities(zone, player, true);
     if (ownershipChanged && player.progression !== undefined) {
       writeProgression(nk, presence.userId, player.progression, character.characterId);
     }
-    if (parked !== null) {
-      logger.info(formatOpsLog("reconnect", { user_id: presence.userId, kind: "grace" }));
-      incrementCounter("reconnects");
-      incrementCounter("connectedPlayers");
-    } else {
-      logger.info(formatOpsLog("match_join", { user_id: presence.userId, character_id: character.characterId }));
-      incrementCounter("connectedPlayers");
-    }
+    logger.info(formatOpsLog("match_join", { user_id: presence.userId, character_id: character.characterId }));
+    incrementCounter("connectedPlayers");
     zone = addPlayer(zone, player);
     recoverJoinTrade(nk, zone, player);
     loadPartyCache(nk, zone, presence.userId, character.characterId, character.name);
@@ -507,12 +504,20 @@ export function matchJoin(
       characterId: character.characterId,
       displayName: character.name,
     }, Date.now());
+    const matchId = typeof ctx.matchId === "string" ? ctx.matchId : "";
+    const zoneOrInstanceId =
+      zone.instanceType === "party_cave" && zone.instanceId !== undefined ? zone.instanceId : zone.zoneId;
+    const node = typeof ctx.node === "string" ? ctx.node : "";
     acquireMatchGameplayLease(
       nk,
       presence.userId,
       character.characterId,
-      typeof ctx.matchId === "string" ? ctx.matchId : "",
+      matchId,
       Date.now(),
+      presence.sessionId,
+      presence.sessionId,
+      zoneOrInstanceId,
+      serverInstanceIdentifier(matchId, node),
     );
     joined.push(presence);
   }
@@ -536,7 +541,7 @@ export function matchJoin(
 }
 
 export function matchLeave(
-  _ctx: nkruntime.Context,
+  ctx: nkruntime.Context,
   logger: nkruntime.Logger,
   nk: nkruntime.Nakama,
   dispatcher: nkruntime.MatchDispatcher,
@@ -555,7 +560,27 @@ export function matchLeave(
     const presence = presences[i];
     const live = zone.players[presence.userId];
     const transferring = live !== undefined && (live.transferState === "issued" || live.transferState === "pending");
-    if (transferring && live !== undefined) {
+    if (live !== undefined && live.linkDead === true) {
+      delete nextPresences[presence.userId];
+      logger.info(formatOpsLog("match_leave", { user_id: presence.userId, kind: "already_link_dead" }));
+      continue;
+    }
+    if (live === undefined) {
+      const leftover = readGameplayLease(nk, presence.userId);
+      if (
+        leftover !== null &&
+        leftover.matchId === (typeof ctx.matchId === "string" ? ctx.matchId : leftover.matchId) &&
+        (leftover.state === "LEAVING" || leftover.state === "ENTERING" || leftover.state === "DESPAWNING")
+      ) {
+        clearGameplayLease(nk, presence.userId);
+        logger.info("gameplay_lease released user_id=%s reason=safe_or_interrupted_leave", presence.userId);
+      }
+      delete nextPresences[presence.userId];
+      logger.info(formatOpsLog("match_leave", { user_id: presence.userId, kind: "already_despawned" }));
+      incrementCounter("connectedPlayers", -1);
+      continue;
+    }
+    if (transferring) {
       const persistInventories: { [userId: string]: PlayerInventory } = {};
       const persistTrades: { [tradeId: string]: TradeRecord } = {};
       cancelTradesForUser(zone, presence.userId, "zone_transfer", [], persistInventories, persistTrades);
@@ -565,6 +590,23 @@ export function matchLeave(
         const inv = persistInventories[uid];
         const owner = zone.players[uid];
         if (owner !== undefined) {
+          writeInventory(nk, uid, inv, owner.characterId);
+        }
+      }
+      const tradeIds = Object.keys(persistTrades);
+      for (let t = 0; t < tradeIds.length; t++) {
+        writeTrade(nk, persistTrades[tradeIds[t]]);
+      }
+    } else {
+      const persistInventories: { [userId: string]: PlayerInventory } = {};
+      const persistTrades: { [tradeId: string]: TradeRecord } = {};
+      cancelTradesForUser(zone, presence.userId, "disconnected", [], persistInventories, persistTrades);
+      const unlockedIds = Object.keys(persistInventories);
+      for (let u = 0; u < unlockedIds.length; u++) {
+        const uid = unlockedIds[u];
+        const inv = persistInventories[uid];
+        const owner = zone.players[uid] !== undefined ? zone.players[uid] : live;
+        if (owner !== undefined && inv !== undefined) {
           writeInventory(nk, uid, inv, owner.characterId);
         }
       }
@@ -597,15 +639,26 @@ export function matchLeave(
       }
       logger.info("starter_zone leave checkpoint user_id=%s", presence.userId);
     }
+    const detectedAt = Date.now();
+    if (!transferring) {
+      logger.info(
+        formatOpsLog("presence_lost", {
+          user_id: presence.userId,
+          match_id: typeof ctx.matchId === "string" ? ctx.matchId : "",
+          disconnect_detected_at: detectedAt,
+          despawn_at: detectedAt + LINK_DEAD_MS,
+        }),
+      );
+    }
     releaseMatchGameplayLease(
       nk,
       presence.userId,
       transferring,
       zone.instanceType !== undefined ? zone.instanceType : "public_world",
-      Date.now(),
+      detectedAt,
     );
     delete nextPresences[presence.userId];
-    logger.info(formatOpsLog("match_leave", { user_id: presence.userId }));
+    logger.info(formatOpsLog("match_leave", { user_id: presence.userId, link_dead: transferring ? "0" : "1" }));
     incrementCounter("connectedPlayers", -1);
   }
   touchCaveOccupancy(nk, zone);
@@ -680,6 +733,7 @@ export function matchLoop(
   if (result.state.instanceType !== "party_cave") {
     writeCheckpoints(nk, logger, result.persistCheckpoints);
   }
+  applyLeaseLifecycle(nk, logger, result.safeLeaveUserIds, result.linkDeadDespawnUserIds);
   processCaveTransfers(nk, logger, dispatcher, ctx, state.presences, result);
   if (result.caveCompletionChanged && result.state.instanceType === "party_cave" && result.state.instanceId !== undefined) {
     const repo = nakamaCaveRepository(nk);
@@ -720,6 +774,16 @@ export function matchLoop(
     dispatcher.broadcastMessage(out.opcode, out.body, targets, null, true);
   }
   if (result.terminate) {
+    const leftoverIds = Object.keys(dict(result.state.players)).concat(Object.keys(dict(result.state.disconnected)));
+    for (let i = 0; i < leftoverIds.length; i++) {
+      clearGameplayLease(nk, leftoverIds[i]);
+      logger.info(
+        "gameplay_lease repaired user_id=%s match_id=%s reason=%s",
+        leftoverIds[i],
+        typeof ctx.matchId === "string" ? ctx.matchId : "",
+        "empty_timeout",
+      );
+    }
     logger.info(formatOpsLog("match_terminate", { reason: "empty_timeout", tick: tick, instance_type: result.state.instanceType !== undefined ? result.state.instanceType : "public_world" }));
     incrementCounter(result.state.instanceType === "party_cave" ? "activeCaveMatches" : "activePublicMatches", -1);
     if (result.state.instanceType === "party_cave" && result.state.instanceId !== undefined) {
@@ -736,7 +800,7 @@ export function matchLoop(
 }
 
 export function matchTerminate(
-  _ctx: nkruntime.Context,
+  ctx: nkruntime.Context,
   logger: nkruntime.Logger,
   nk: nkruntime.Nakama,
   _dispatcher: nkruntime.MatchDispatcher,
@@ -746,6 +810,17 @@ export function matchTerminate(
 ): { state: StarterMatchRuntimeState } {
   state = hydrateRuntime(state);
   writeCheckpoints(nk, logger, checkpointsForTerminate(state.zone));
+  const matchId = typeof ctx.matchId === "string" ? ctx.matchId : "";
+  const playerIds = Object.keys(dict(state.zone.players));
+  for (let i = 0; i < playerIds.length; i++) {
+    clearGameplayLease(nk, playerIds[i]);
+    logger.info("gameplay_lease repaired user_id=%s match_id=%s reason=%s", playerIds[i], matchId, "match_terminate");
+  }
+  const parkedIds = Object.keys(dict(state.zone.disconnected));
+  for (let p = 0; p < parkedIds.length; p++) {
+    clearGameplayLease(nk, parkedIds[p]);
+    logger.info("gameplay_lease repaired user_id=%s match_id=%s reason=%s", parkedIds[p], matchId, "match_terminate");
+  }
   const instanceType = state.zone.instanceType !== undefined ? state.zone.instanceType : "public_world";
   incrementCounter(instanceType === "party_cave" ? "activeCaveMatches" : "activePublicMatches", -1);
   logger.info(formatOpsLog("match_terminate", { instance_type: instanceType }));
@@ -1166,6 +1241,41 @@ function recoverJoinTrade(nk: nkruntime.Nakama, zone: StarterZoneState, player: 
     zone.trades[trade.tradeId] = trade;
     zone.tradeByCharacterId[trade.participantA.characterId] = trade.tradeId;
     zone.tradeByCharacterId[trade.participantB.characterId] = trade.tradeId;
+  }
+}
+
+function abortInterruptedJoin(
+  nk: nkruntime.Nakama,
+  dispatcher: nkruntime.MatchDispatcher,
+  presence: nkruntime.Presence,
+  nextPresences: { [userId: string]: nkruntime.Presence },
+): void {
+  const lease = readGameplayLease(nk, presence.userId);
+  if (lease !== null && lease.state === "ENTERING") {
+    clearGameplayLease(nk, presence.userId);
+  }
+  dispatcher.matchKick([presence]);
+  delete nextPresences[presence.userId];
+}
+
+function applyLeaseLifecycle(
+  nk: nkruntime.Nakama,
+  logger: nkruntime.Logger,
+  safeLeaveUserIds: string[],
+  linkDeadDespawnUserIds: string[],
+): void {
+  const nowMs = Date.now();
+  for (let i = 0; i < safeLeaveUserIds.length; i++) {
+    const userId = safeLeaveUserIds[i];
+    const current = readGameplayLease(nk, userId);
+    if (current !== null) {
+      writeGameplayLease(nk, markLeaseLeaving(current, nowMs));
+    }
+    logger.info("gameplay_lease leaving user_id=%s reason=safe_leave", userId);
+  }
+  for (let d = 0; d < linkDeadDespawnUserIds.length; d++) {
+    clearGameplayLease(nk, linkDeadDespawnUserIds[d]);
+    logger.info("gameplay_lease released user_id=%s reason=link_dead_despawn", linkDeadDespawnUserIds[d]);
   }
 }
 

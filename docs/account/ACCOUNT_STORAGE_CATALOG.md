@@ -19,7 +19,7 @@ Project-owned and Nakama-owned records that touch accounts, sessions, and charac
 | `player` | `roster` | account | 0 | Character id list (max 5 live) |
 | `player` | `character` / `character_<id>` | account | 0 | Identity, class, pose, `status`, `deletedAt`, `softDeleteExpiresAt` |
 | `player` | `selection` | account | 0 | One selection ticket, TTL 300 s |
-| `player` | `gameplay_lease` | account | 0 | Live character / match / presence / `playAvailableAt` |
+| `player` | `gameplay_lease` | account | 0 | Active-character lease (`ENTERING`/`ONLINE`/`LEAVING`/`LINK_DEAD`/`DESPAWNING`) |
 | `player` | `idem_<op>_<key>` | account | 0 | Create/delete idempotency replay |
 | `player` | `purge_<compactId>` | account | 0 | Partial purge job until complete |
 | `player` | `inventory` / `equipment` / `quests` / `progression` / `wallet_ref` | character | 0 | Canonical gameplay |

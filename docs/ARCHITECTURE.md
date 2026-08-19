@@ -49,7 +49,7 @@ It must:
 - Broadcast snapshots and support full-state resynchronization.
 - Persist transactions immediately and position checkpoints periodically.
 - Persist position on graceful match leave and match terminate.
-- Keep a 5-second public-world reconnect grace in match memory so a returning presence can restore live pose and health without appearing as a ghost. Cave empty timeout and reconnect grace are 60 seconds.
+- Keep a 10-second public-world **and cave** link-dead hold after disconnect **detection** so the avatar remains in the world and vulnerable. Party membership grace and cave instance empty timeout remain 60 seconds. The new socket is not rebound during the hold.
 - Keep pure domain logic in modules that do not import Nakama APIs, with Nakama adapters in a separate layer.
 
 It must not:
@@ -82,12 +82,12 @@ No project-defined SQL schema is allowed.
 
 There is exactly one gameplay match **module**: `starter_zone`. Foundation v1 uses two instance types on that module.
 
-- Public world: label `zone.starter`, type `public_world`, template `zone.starter`, 10 Hz, maximum 8 players. Empty shutdown **30 s**. Pose reconnect grace **5 s**.
-- Party cave: label `party.cave`, type `party_cave`, template `zone.cave`, 10 Hz, maximum 5 players. Empty timeout and reconnect grace **60 s**.
+- Public world: label `zone.starter`, type `public_world`, template `zone.starter`, 10 Hz, maximum 8 players. Empty shutdown **30 s**. Link-dead hold **10 s after detection**.
+- Party cave: label `party.cave`, type `party_cave`, template `zone.cave`, 10 Hz, maximum 5 players. Empty timeout **60 s**. Entity link-dead hold **10 s**. Party disconnect grace **60 s**.
 - Players discover the public world (or a still-running owned cave) after authentication and character select via `find_or_create_starter_zone`. Transfers use a server-issued one-time ticket in join metadata.
 - Each match owns live positions, collision, combatants, ground loot, in-memory cooldowns, live quest logs, live inventories, live equipment, and live wallet gold loaded from storage. Position checkpoints, disconnected-ghost removal, persistent restore, and session refresh still apply. Cave matches skip periodic character-position checkpoints so exit returns to the public-world portal pose.
 - The client never hosts a second simulation of those values.
-- An empty public-world match shuts down after 30 seconds. An empty cave persists ownership/completion for 60 seconds, then terminates. Reconnect during cave grace re-enters that cave; after expiration the locator returns the public world. Health is not persisted: after public-world grace expiry or a new public match, the player joins at full `player.base.maxHealth`. Ground loot, AI, and cooldowns reset with the match and are not persisted across cave destruction.
+- An empty public-world match shuts down after 30 seconds. An empty cave persists ownership/completion for 60 seconds, then terminates. After the 10 s entity despawn, Play requires a new selection ticket; a still-owned cave can be re-entered if the instance has not expired. Health is not persisted: the next join uses full `player.base.maxHealth`. Ground loot, AI, and cooldowns reset with the match and are not persisted across cave destruction.
 
 ## Client/server trust boundaries
 
@@ -144,7 +144,7 @@ Third-party libraries are implementation details. Game code talks to project-own
 
 Do not call addon APIs from feature scenes except through these adapters. Do not edit files under `client/addons/`. See [THIRD_PARTY.md](THIRD_PARTY.md).
 
-Shell signals live on `AppState`: `loading_started`, `loading_completed`, `recoverable_error`, `fatal_compatibility_error`, `content_loaded`, `scene_changed`, `user_authenticated`, `logged_out`, `character_loaded`, `zone_state_updated`, `reconnecting_changed`. After a fatal content or protocol error the client must not enter login, character, or world. Character requires a successful sign-in; world also requires a bootstrapped character and a valid `FULL_STATE`. Reconnect shows a cancelable overlay and does not spin indefinitely.
+Shell signals live on `AppState`: `loading_started`, `loading_completed`, `recoverable_error`, `fatal_compatibility_error`, `content_loaded`, `scene_changed`, `user_authenticated`, `logged_out`, `character_loaded`, `zone_state_updated`, `reconnecting_changed`, `session_status_changed`. After a fatal content or protocol error the client must not enter login, character, or world. Character requires a successful sign-in; world also requires a bootstrapped character and a valid `FULL_STATE`. Unexpected disconnect restores the socket, returns to Character Select, and does not rebind the match during the ten-second hold.
 
 ## Shared content generation
 
@@ -173,16 +173,16 @@ Generated artifacts must preserve IDs. Network messages and storage records carr
 
 - Current interpolation/render pose on the client
 - In-flight projectile or swing presentation
-- Player health (full on join after grace expiry or a new match)
-- In-combat flags, last hostile/damage ticks, current targets, death timer (reconnect grace keeps them; they are not stored)
+- Player health (full on join after link-dead despawn or a new match)
+- In-combat flags, last hostile/damage ticks, current targets, death timer (the 10 s link-dead hold keeps them in the match; they are not stored)
 - Enemy aggro unless a later accepted phase persists it (the slice does not)
 - Cooldown remaining time, reconstructed from server timestamps after resync
-- Active casts (cleared on reconnect; not persisted)
+- Active casts (interrupted on unexpected disconnect; not persisted)
 - Status effects (match-lived unless a later phase persists them)
 - Unacked movement intentions
 - Ground loot entities (slime gel and other table rolls expire after 30 seconds and are not stored)
 
-Transactions that grant items or currency persist immediately with `nk.multiUpdate` when storage and wallet must change together. Inventory, equipment, quest, and progression writes happen on those transactions, not every tick. Positions persist every **5 seconds** if they changed, on graceful leave, and on match terminate. A disconnected presence is removed from snapshots immediately (no ghost). Live pose, health, and in-match request ids are kept for **5 seconds** of reconnect grace, then discarded. Abandoned `requestId` maps are pruned after **10 minutes**.
+Transactions that grant items or currency persist immediately with `nk.multiUpdate` when storage and wallet must change together. Inventory, equipment, quest, and progression writes happen on those transactions, not every tick. Positions persist every **5 seconds** if they changed, on graceful leave, and on match terminate. Unexpected disconnect keeps the entity in snapshots for **10 server seconds after detection** (`linkDead`). The body stays targetable and takes PvE damage; player input is rejected. After despawn, join uses the checkpointed position and `joinHealth`. Abandoned `requestId` maps are pruned after **10 minutes**.
 
 ## Developer scripts
 

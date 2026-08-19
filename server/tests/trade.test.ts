@@ -24,7 +24,6 @@ import { applyPlayerLeave } from "../src/domain/persistence";
 import { ClientOpcode, PROTOCOL_VERSION, ServerOpcode } from "../src/domain/protocol";
 import { emptyQuestLog, questDefinitionsFromContent } from "../src/domain/quest";
 import {
-  TRADE_DISCONNECT_GRACE_TICKS,
   TRADE_INVITE_TTL_TICKS,
   TRADE_LOCK_REASON,
   TRADE_RANGE_PX,
@@ -605,16 +604,7 @@ test("disconnect beyond grace cancels the trade", () => {
       trade: session.trade,
       actorA: session.alice,
       actorB: session.bob,
-      tick: 5 + TRADE_DISCONNECT_GRACE_TICKS - 1,
-    }),
-    "",
-  );
-  assert.equal(
-    cancelReasonForTick({
-      trade: session.trade,
-      actorA: session.alice,
-      actorB: session.bob,
-      tick: 5 + TRADE_DISCONNECT_GRACE_TICKS,
+      tick: 5,
     }),
     "disconnected",
   );
@@ -1039,11 +1029,9 @@ test("match loop disconnect beyond grace cancels an open trade", () => {
     makeIds(),
   );
   const left = applyPlayerLeave(accepted.state, "bob", 4);
-  const stillOpen = applyMatchLoop(left.state, 5, contentHash, [], makeIds());
-  assert.equal(stillOpen.state.trades[tradeId].state, "open");
-  const afterGrace = applyMatchLoop(stillOpen.state, 5 + TRADE_DISCONNECT_GRACE_TICKS, contentHash, [], makeIds());
-  assert.equal(afterGrace.state.trades[tradeId].state, "cancelled");
-  assert.equal(afterGrace.state.trades[tradeId].cancelReason, "disconnected");
+  const cancelled = applyMatchLoop(left.state, 5, contentHash, [], makeIds());
+  assert.equal(cancelled.state.trades[tradeId].state, "cancelled");
+  assert.equal(cancelled.state.trades[tradeId].cancelReason, "disconnected");
 });
 
 test("match loop transfer cancels an open trade", () => {

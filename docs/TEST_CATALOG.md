@@ -72,8 +72,9 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `match.test.ts` | join, empty shutdown, FULL_STATE | VS-T9 |
 | `character.test.ts` | bootstrap wrapper, `permissionWrite: 0` | |
 | `character_lifecycle.test.ts` | create warrior/marksman/mage, five slots, sixth rejected, invalid class/name, case-insensitive and concurrent `name_taken`, duplicate create, foreign/soft-deleted select, ticket expiry/replay, delete/lease/restore/purge, Prompt 18 migrate, starter init once | |
+| `gameplay_lease.test.ts` | exclusive acquire, concurrent second acquire, two sessions, second character blocked, ENTERING timeout, stale missing match, link-dead timestamps, no movement, despawn boundary, emptyTicks after expire, Nakama ping/pong detection window, safe leave, combat reject, join reject, catalog countdown, Play disabled, entry after release, no duplicate snapshot avatars | |
 | `starter_zone_registry.test.ts` | canonical match id | |
-| `persistence.test.ts` | checkpoints, grace, seq reset, Nakama null maps/extras on tick 0 | VS-M5 automated analog |
+| `persistence.test.ts` | checkpoints, link-dead avatar, no session rebind, seq reset, Nakama null maps/extras on tick 0 | VS-M5 automated analog |
 | `migration.test.ts` | v0→v1, retry, future version, missing version, null schemaVersion, corrupt, completed quest, equipment, gold | |
 | `chat.test.ts` | RT hooks | |
 | `content.test.ts` | generated catalog shape | VS-T8 analog |
@@ -128,13 +129,13 @@ Reproduction: `powershell -File scripts/test-auth-gateway.ps1`
 | `error_state_test.gd` | visible errors, no hang | VS-M4 |
 | `scene_router_test.gd` / `shell_scenes_test.gd` | boot/login/register/verify/unavailable/disabled/forgot-password/reset/change-password/change-email/forgot-email/character/world | VS-T8 |
 | `auth_flow_test.gd` | gateway email register/login/verify routing, invalid credentials, session refresh, logout/logout-all, unverified gameplay reject, release-gated device auth, tickets, password reset without auto-login, password change, email change, slot limit 5, local Mailpit verify copy | VS-M4 |
-| `character_select_ui_test.gd` | five slot positions, three production class cards, Create / Recently Deleted / Account Settings | |
+| `character_select_ui_test.gd` | five slot positions, three production class cards, Create / Recently Deleted / Account Settings, link-dead countdown disables Play | |
 | `account_service_test.gd` | error mapping, RPC stack sanitization, password strength, credential store unavailable, remember-email, revoked refresh does not loop, failed logout-all keeps the session, reset confirm has no tokens, forgotten-email reveals no address, canonical change-password/email paths, local Mailpit capture | |
 | `dev_identity_test.gd` | Alice/Bob ids | |
 | `protocol_test.gd` | client opcodes match | VS-T9 |
-| `zone_join_test.gd` | world after FULL_STATE | |
+| `zone_join_test.gd` | FULL_STATE gate, mismatch fatal, duplicate join recoverable, resync, chat join failure, logout leaves chat after opcode 32 ack, failed safe leave stays in world | VS-T9 analog |
 | `movement_client_test.gd` / `prediction_test.gd` | prediction/reconcile, look-ahead vs snap-back, diagonal display, wall depenetration, player blockers | |
-| `entity_registry_test.gd` / `world_render_test.gd` | presentation; trade panel does not cover Party/Progression/chat; trade name resolves to nearby userId | VS-M1 analog |
+| `entity_registry_test.gd` / `world_render_test.gd` | presentation; trade panel does not cover Party/Progression/chat; trade name resolves to nearby userId; quit dialog safe/unsafe | VS-M1 analog |
 | `interaction_client_test.gd` | INTERACT, dialogue after result | |
 | `quest_service_test.gd` | accept/turn-in intents | VS-T6 analog |
 | `vendor_inn_service_test.gd` | vendor buy/sell, inn rest, cave enter; no client prices | |
@@ -145,7 +146,7 @@ Reproduction: `powershell -File scripts/test-auth-gateway.ps1`
 | `party_service_test.gd` | create/invite/kick/promote/disband RPCs without member lists; party_full; party chat `partyId`; HUD leader/HP/connection/Label; accept-while-in-party; party RPC does not open login modal | |
 | `trade_service_test.gd` | invite/offer/gold/accept/cancel intentions; offer-change warning; completed result without local grant; HUD invite by typed character name | |
 | `chat_client_test.gd` | Label, no BBCode; party payload | |
-| `reconnect_test.gd` | overlay, seq adopt | |
+| `reconnect_test.gd` | overlay Connection lost / Logging out; socket restore without match rebind; seq adopt | |
 | `ui_shell_test.gd` | window focus/exclusivity; duplicate `connect_once`; rejected drag/drop; reconnect window restore; settings persistence without credentials; input conflicts; missing-asset fallback; 4/8-dir animation-set validation; UI after character switch and zone transfer; GM window closeable | |
 | `gm_service_test.gd` | `gm_command` RPC intention; local gold unchanged; debug flag is not authority | |
 | `handshake_test.gd` | Session handshake; fatal version/content mismatch; maintenance login without world entry | |

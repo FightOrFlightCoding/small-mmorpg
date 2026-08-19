@@ -17,12 +17,7 @@ import {
   type MatchPlayer,
   type StarterZoneState,
 } from "../src/domain/match_state";
-import {
-  RECONNECT_GRACE_TICKS,
-  applyPlayerLeave,
-  restoreGracePlayer,
-  takeGracePlayer,
-} from "../src/domain/persistence";
+import { applyPlayerLeave } from "../src/domain/persistence";
 import { emptyQuestLog, questDefinitionsFromContent } from "../src/domain/quest";
 import { emptyInventory } from "../src/domain/inventory";
 import { emptyEquipment } from "../src/domain/equipment";
@@ -490,30 +485,35 @@ test("hostile player targeting remains impossible", () => {
   assert.equal(set.code, "pvp_disabled");
 });
 
-test("reconnect while dead keeps death and the respawn timer", () => {
+test("death while link-dead keeps death and the respawn timer", () => {
   const spawn = content.zones["zone.starter"].enemies[0];
   let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", spawn.x, spawn.y, 2));
   state = step(state, 10, []).state;
   assert.equal(state.players["user-alice"].health, 0);
   const until = state.players["user-alice"].deadUntilTick;
   const left = applyPlayerLeave(state, "user-alice", 11);
-  const parked = takeGracePlayer(left.state, "user-alice", 11 + RECONNECT_GRACE_TICKS - 1);
-  assert.ok(parked !== null);
-  const restored = restoreGracePlayer(
-    parked,
-    "session-reconnect",
-    "alice",
-    parked.questLog,
-    parked.inventory !== undefined ? parked.inventory : emptyInventory(),
-    parked.equipment !== undefined ? parked.equipment : emptyEquipment(),
-    parked.derivedAttack !== undefined ? parked.derivedAttack : 4,
-    parked.gold !== undefined ? parked.gold : 0,
-  );
-  assert.equal(restored.health, 0);
-  assert.equal(restored.deadUntilTick, until);
-  state = addPlayer(left.state, restored);
-  const stillDead = step(state, 12, []).state;
+  assert.equal(left.state.players["user-alice"].health, 0);
+  assert.equal(left.state.players["user-alice"].deadUntilTick, until);
+  assert.equal(left.state.players["user-alice"].linkDead, true);
+  const stillDead = step(left.state, 12, []).state;
   assert.equal(stillDead.players["user-alice"].health, 0);
+});
+
+test("PvE still damages a link-dead player", () => {
+  const spawn = content.zones["zone.starter"].enemies[0];
+  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", spawn.x, spawn.y));
+  const before = state.players["user-alice"].health;
+  state = applyPlayerLeave(state, "user-alice", 10).state;
+  assert.equal(state.players["user-alice"].linkDead, true);
+  for (let tick = 11; tick <= 40; tick++) {
+    state = step(state, tick, []).state;
+    if (state.players["user-alice"] !== undefined && state.players["user-alice"].health < before) {
+      break;
+    }
+  }
+  assert.equal(state.players["user-alice"] !== undefined, true);
+  assert.ok(state.players["user-alice"].health < before);
+  assert.equal(state.players["user-alice"].linkDead, true);
 });
 
 test("SET_TARGET and RELEASE_RESPAWN parse without outcome fields", () => {

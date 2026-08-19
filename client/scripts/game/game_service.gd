@@ -5,6 +5,7 @@ extends Node
 var last_identity: Dictionary = {}
 var enter_world_after_bootstrap: bool = false
 var defer_login_after_logout: bool = false
+var _departure_busy: bool = false
 
 
 func _ready() -> void:
@@ -12,6 +13,8 @@ func _ready() -> void:
 		NetworkService.authentication_finished.connect(_on_authentication_finished)
 	if not AppState.logged_out.is_connected(_on_logged_out):
 		AppState.logged_out.connect(_on_logged_out)
+	if not NetworkService.gameplay_disconnected_unbound.is_connected(_on_gameplay_disconnected_unbound):
+		NetworkService.gameplay_disconnected_unbound.connect(_on_gameplay_disconnected_unbound)
 
 
 func start_boot(bundle_path: String = ContentRegistry.DEFAULT_BUNDLE_PATH) -> bool:
@@ -227,10 +230,13 @@ func enter_starter_zone() -> bool:
 	if not AppState.has_character:
 		AppState.report_recoverable("character_missing", "A character is required before entering the world.")
 		return false
+	AppState.notify_session_status("Entering world")
 	var joined := await NetworkService.join_starter_zone()
 	if not joined or not AppState.has_zone_state:
+		AppState.notify_session_status("Server unavailable")
 		return false
 	await NetworkService.join_zone_chat()
+	AppState.notify_session_status("Online")
 	return SceneRouter.transition_to(SceneRouter.SCENE_WORLD)
 
 
@@ -238,11 +244,121 @@ func request_resync() -> bool:
 	return await NetworkService.request_resync()
 
 
-func request_logout() -> void:
+func local_player_can_leave_safely() -> bool:
+	if CaveService.transferring:
+		return false
+	if TradeService.is_trading():
+		return false
+	var self_id := String(AppState.zone_view.get("self_id", AppState.user_id))
+	for entry in AppState.zone_view.get("players", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("userId", "")) != self_id:
+			continue
+		if int(entry.get("health", 0)) <= 0:
+			return false
+		if bool(entry.get("inCombat", false)):
+			return false
+		if entry.get("activeCast", null) != null and typeof(entry.get("activeCast")) == TYPE_DICTIONARY:
+			var cast: Dictionary = entry.get("activeCast")
+			if not String(cast.get("abilityId", "")).is_empty():
+				return false
+		if bool(entry.get("linkDead", false)):
+			return false
+		return true
+	return AppState.has_zone_state
+
+
+func request_return_to_character_select() -> bool:
+	if _departure_busy:
+		return false
+	if NetworkService.match_id.is_empty():
+		return SceneRouter.transition_to(SceneRouter.SCENE_CHARACTER)
+	_departure_busy = true
+	AppState.departure_locked = true
+	AppState.notify_session_status("Returning to Character Select")
+	AppState.notify_loading_started("return")
+	var result: Dictionary = await NetworkService.send_return_to_character_select()
+	var ok := bool(result.get("ok", false)) and bool(result.get("result_ok", result.get("ok", false)))
+	if not ok:
+		_departure_busy = false
+		AppState.departure_locked = false
+		AppState.notify_loading_completed("return")
+		AppState.notify_session_status("Online")
+		var message := String(result.get("message", "Cannot leave safely."))
+		AppState.report_recoverable(String(result.get("code", "unsafe_leave")), message)
+		return false
 	enter_world_after_bootstrap = false
 	await NetworkService.depart_gameplay()
+	AppState.clear_zone_state()
+	AppState.selection_ticket = ""
+	_departure_busy = false
+	AppState.departure_locked = false
+	AppState.notify_loading_completed("return")
+	AppState.notify_session_status("")
+	return SceneRouter.transition_to(SceneRouter.SCENE_CHARACTER)
+
+
+func request_logout() -> void:
+	if _departure_busy:
+		return
+	enter_world_after_bootstrap = false
+	if not NetworkService.match_id.is_empty():
+		_departure_busy = true
+		AppState.departure_locked = true
+		AppState.notify_session_status("Logging out")
+		AppState.notify_loading_started("logout")
+		var result: Dictionary = await NetworkService.send_return_to_character_select()
+		var ok := bool(result.get("ok", false)) and bool(result.get("result_ok", result.get("ok", false)))
+		if not ok:
+			_departure_busy = false
+			AppState.departure_locked = false
+			AppState.notify_loading_completed("logout")
+			AppState.notify_session_status("Online")
+			AppState.report_recoverable(String(result.get("code", "unsafe_leave")), String(result.get("message", "Cannot leave safely.")))
+			return
+		await NetworkService.depart_gameplay()
+		_departure_busy = false
+		AppState.departure_locked = false
 	await AccountService.logout_current()
 	await NetworkService.logout()
+
+
+func request_quit_safely() -> bool:
+	if _departure_busy:
+		return false
+	if NetworkService.match_id.is_empty():
+		get_tree().quit()
+		return true
+	_departure_busy = true
+	AppState.departure_locked = true
+	AppState.notify_session_status("Logging out")
+	AppState.notify_loading_started("logout")
+	var result: Dictionary = await NetworkService.send_return_to_character_select()
+	var ok := bool(result.get("ok", false)) and bool(result.get("result_ok", result.get("ok", false)))
+	if not ok:
+		_departure_busy = false
+		AppState.departure_locked = false
+		AppState.notify_loading_completed("logout")
+		AppState.notify_session_status("Online")
+		AppState.report_recoverable(String(result.get("code", "unsafe_leave")), String(result.get("message", "Cannot leave safely.")))
+		return false
+	await NetworkService.depart_gameplay()
+	_departure_busy = false
+	AppState.departure_locked = false
+	AppState.notify_loading_completed("logout")
+	get_tree().quit()
+	return true
+
+
+func request_quit_anyway() -> void:
+	if _departure_busy:
+		return
+	_departure_busy = true
+	AppState.notify_session_status("Character remains in world")
+	await NetworkService.depart_gameplay()
+	_departure_busy = false
+	get_tree().quit()
 
 
 func request_logout_all(password: String) -> void:
@@ -281,5 +397,14 @@ func _on_logged_out() -> void:
 		return
 	if AppState.content_ready:
 		SceneRouter.transition_to(SceneRouter.SCENE_LOGIN)
+
+
+func _on_gameplay_disconnected_unbound() -> void:
+	enter_world_after_bootstrap = false
+	AppState.selection_ticket = ""
+	AppState.clear_zone_state()
+	AppState.notify_session_status("Character remains in world")
+	if SceneRouter.transition_to(SceneRouter.SCENE_CHARACTER):
+		request_character_list()
 
 

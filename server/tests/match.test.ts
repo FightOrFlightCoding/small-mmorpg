@@ -179,7 +179,11 @@ test("join rejects a second session for the same account", () => {
 	const sameSession = validateJoinAttempt(state, contentHash, meta, true, "session-user-alice", "session-user-alice");
 	assert.equal(sameSession.accept, true);
 	const reconnectWithoutPresence = validateJoinAttempt(state, contentHash, meta, true, "session-new", "");
-	assert.equal(reconnectWithoutPresence.accept, true);
+	assert.equal(reconnectWithoutPresence.accept, false);
+	assert.equal(reconnectWithoutPresence.rejectMessage, "already_in_match");
+	const linkDead = validateJoinAttempt(state, contentHash, meta, true, "session-new", "", { linkDead: true });
+	assert.equal(linkDead.accept, false);
+	assert.equal(linkDead.rejectMessage, "link_dead");
 });
 
 test("join rejects when the match is full", () => {

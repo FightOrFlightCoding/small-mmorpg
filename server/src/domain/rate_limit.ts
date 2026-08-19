@@ -76,7 +76,13 @@ export function actionForOpcode(opcode: number): RateAction {
   ) {
     return "trade";
   }
-  if (opcode === ClientOpcode.ALLOCATE_ATTRIBUTES || opcode === ClientOpcode.ASSIGN_HOTBAR || opcode === ClientOpcode.UNLOCK_ABILITY || opcode === ClientOpcode.RELEASE_RESPAWN) {
+  if (
+    opcode === ClientOpcode.ALLOCATE_ATTRIBUTES ||
+    opcode === ClientOpcode.ASSIGN_HOTBAR ||
+    opcode === ClientOpcode.UNLOCK_ABILITY ||
+    opcode === ClientOpcode.RELEASE_RESPAWN ||
+    opcode === ClientOpcode.RETURN_TO_CHARACTER_SELECT
+  ) {
     return "allocate";
   }
   if (opcode === ClientOpcode.RESYNC_REQUEST) {

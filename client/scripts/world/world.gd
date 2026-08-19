@@ -51,6 +51,15 @@ func _ready() -> void:
 		AppState.reconnecting_changed.connect(_on_reconnecting_changed)
 	_hud.resync_pressed.connect(_on_resync_pressed)
 	_hud.logout_pressed.connect(_on_logout_pressed)
+	if _hud.has_signal("return_pressed") and not _hud.return_pressed.is_connected(_on_return_pressed):
+		_hud.return_pressed.connect(_on_return_pressed)
+	if _hud.has_signal("quit_pressed") and not _hud.quit_pressed.is_connected(_on_quit_pressed):
+		_hud.quit_pressed.connect(_on_quit_pressed)
+	if _hud.has_signal("quit_safely_pressed") and not _hud.quit_safely_pressed.is_connected(_on_quit_safely):
+		_hud.quit_safely_pressed.connect(_on_quit_safely)
+	if _hud.has_signal("quit_anyway_pressed") and not _hud.quit_anyway_pressed.is_connected(_on_quit_anyway):
+		_hud.quit_anyway_pressed.connect(_on_quit_anyway)
+	get_tree().set_auto_accept_quit(false)
 	if not _hud.respawn_pressed.is_connected(_on_respawn_pressed):
 		_hud.respawn_pressed.connect(_on_respawn_pressed)
 	if _loading_overlay != null and _loading_overlay.has_signal("cancel_pressed"):
@@ -103,6 +112,8 @@ func _process(delta: float) -> void:
 
 
 func _exit_tree() -> void:
+	if get_tree() != null:
+		get_tree().set_auto_accept_quit(true)
 	if AppState.recoverable_error.is_connected(_on_recoverable_error):
 		AppState.recoverable_error.disconnect(_on_recoverable_error)
 	if AppState.fatal_compatibility_error.is_connected(_on_fatal_error):
@@ -889,11 +900,46 @@ func _on_resync_pressed() -> void:
 	_apply_zone_state()
 
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_on_quit_pressed()
+
+
 func _on_logout_pressed() -> void:
 	if AppState.is_reconnecting:
 		GameService.cancel_reconnect()
 		return
-	GameService.request_logout()
+	if AppState.departure_locked:
+		return
+	_hud.set_departure_locked(true)
+	await GameService.request_logout()
+	if AppState.is_authenticated:
+		_hud.set_departure_locked(false)
+
+
+func _on_return_pressed() -> void:
+	if AppState.departure_locked:
+		return
+	_hud.set_departure_locked(true)
+	var ok := await GameService.request_return_to_character_select()
+	if not ok:
+		_hud.set_departure_locked(false)
+
+
+func _on_quit_pressed() -> void:
+	if AppState.departure_locked:
+		return
+	_hud.show_quit_dialog(GameService.local_player_can_leave_safely())
+
+
+func _on_quit_safely() -> void:
+	var ok := await GameService.request_quit_safely()
+	if not ok:
+		_hud.show_quit_dialog(false, AppState.last_error_message if not AppState.last_error_message.is_empty() else "Cannot leave safely. Closing now leaves the character in the world for at least ten seconds after the server detects the disconnect.")
+
+
+func _on_quit_anyway() -> void:
+	GameService.request_quit_anyway()
 
 
 func _on_respawn_pressed() -> void:

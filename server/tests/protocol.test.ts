@@ -49,6 +49,7 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ClientOpcode.TRADE_SET_GOLD, 29);
   assert.equal(ClientOpcode.TRADE_ACCEPT_REVISION, 30);
   assert.equal(ClientOpcode.TRADE_CANCEL, 31);
+  assert.equal(ClientOpcode.RETURN_TO_CHARACTER_SELECT, 32);
   assert.equal(ServerOpcode.FULL_STATE, 101);
   assert.equal(ServerOpcode.SNAPSHOT, 102);
   assert.equal(ServerOpcode.ACTION_RESULT, 103);

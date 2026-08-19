@@ -38,14 +38,14 @@ import { applyCaveWipeIfNeeded, markCaveBossDefeated, evaluateCaveExit, type Cav
 import { TRANSFER_TICKET_TTL_MS } from "./instance";
 import { TX_REASON_INN, TX_REASON_VENDOR, type TransactionCommitter } from "./transaction";
 import { type TradeCommitter, type TradeRecord } from "./trade";
-import { handleTradeMessage, isTradeOpcode, recoverCommittingTrades, spendableGold, tickTrades } from "./match_trade";
+import { cancelTradesForUser, handleTradeMessage, isTradeOpcode, recoverCommittingTrades, spendableGold, tickTrades } from "./match_trade";
 import {
   applyQuestTurnIn,
   type QuestRewardWrite,
   type RewardCommitter,
 } from "./quest_reward";
 import { type CombatEvent } from "./combat";
-import { assignHotbar, cancelCast, interruptMovingCasters, interruptOnDamage, publicAbilityState, tickCasts, unlockAbility, useAbility, useLegacyAttackOrAbility } from "./ability";
+import { assignHotbar, cancelCast, interruptCast, interruptMovingCasters, interruptOnDamage, publicAbilityState, tickCasts, unlockAbility, useAbility, useLegacyAttackOrAbility } from "./ability";
 import { applyReleaseRespawn, tickCombatFlags } from "./combat_pipeline";
 import { applySetTarget } from "./targeting";
 import { applyServerXpGrant, killXpGrantFromEnemy, questXpGrant, type TrustedXpGrant } from "./xp_hooks";
@@ -92,9 +92,12 @@ import {
 import {
   collectPositionCheckpoints,
   expireDisconnected,
+  expireLinkDeadPlayers,
+  applySafeLeave,
   prunePlayerRequestHistory,
   type PositionCheckpoint,
 } from "./persistence";
+import { evaluateSafeLeave } from "./safe_leave";
 import {
   MAX_MESSAGES_PER_PLAYER_PER_TICK,
   actionForOpcode,
@@ -163,6 +166,8 @@ export interface MatchLoopResult {
   inboundBytes: number;
   parsedMessages: number;
   persistOpCount: number;
+  safeLeaveUserIds: string[];
+  linkDeadDespawnUserIds: string[];
 }
 
 export interface IncomingMatchData {
@@ -196,6 +201,7 @@ export function applyMatchLoop(
   const extraCheckpoints: PositionCheckpoint[] = [];
   const combatEvents: CombatEvent[] = [];
   const transfers: CaveTransferIntent[] = [];
+  const safeLeaveUserIds: string[] = [];
   let inboundBytes = 0;
   expireStaleTransfers(next, tick);
   const makeId = newId !== undefined ? newId : sequentialIdFactory(tick);
@@ -240,6 +246,7 @@ export function applyMatchLoop(
       transfers,
       makeId,
       persistTradesById,
+      safeLeaveUserIds,
       commitReward,
       commitTxn,
       commitTrade,
@@ -276,7 +283,22 @@ export function applyMatchLoop(
   }
   pushCombatEvents(outbound, tick, combatEvents);
   expireDisconnected(next, tick);
-  const persistCheckpoints = collectPositionCheckpoints(next, tick).concat(extraCheckpoints);
+  const expiredLinkDead = expireLinkDeadPlayers(next, tick);
+  const linkDeadDespawnUserIds: string[] = [];
+  for (let d = 0; d < expiredLinkDead.players.length; d++) {
+    const gone = expiredLinkDead.players[d];
+    linkDeadDespawnUserIds.push(gone.userId);
+    stampDepartingPlayerPersist(
+      gone,
+      persistByUser,
+      persistInventoryByUser,
+      persistEquipmentByUser,
+      persistProgressionByUser,
+    );
+  }
+  const persistCheckpoints = collectPositionCheckpoints(next, tick)
+    .concat(extraCheckpoints)
+    .concat(expiredLinkDead.checkpoints);
   pruneLiveRequestHistory(
     next,
     tick,
@@ -383,6 +405,8 @@ export function applyMatchLoop(
       persistRewards.length +
       persistCheckpoints.length +
       persistTrades.length,
+    safeLeaveUserIds: safeLeaveUserIds,
+    linkDeadDespawnUserIds: linkDeadDespawnUserIds,
   };
 }
 
@@ -437,6 +461,69 @@ function collectFailedApplies(
   }
 }
 
+function stampDepartingPlayerPersist(
+  player: MatchPlayer,
+  persistByUser: { [userId: string]: QuestLog },
+  persistInventoryByUser: { [userId: string]: PlayerInventory },
+  persistEquipmentByUser: { [userId: string]: PlayerEquipment },
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
+): void {
+  persistByUser[player.userId] = player.questLog;
+  if (player.inventory !== undefined) {
+    persistInventoryByUser[player.userId] = player.inventory;
+  }
+  if (player.equipment !== undefined) {
+    persistEquipmentByUser[player.userId] = player.equipment;
+  }
+  if (player.progression !== undefined) {
+    persistProgressionByUser[player.userId] = player.progression;
+  }
+}
+
+function handleReturnToCharacterSelect(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  tick: number,
+  outbound: MatchOutbound[],
+  persistByUser: { [userId: string]: QuestLog },
+  persistInventoryByUser: { [userId: string]: PlayerInventory },
+  persistEquipmentByUser: { [userId: string]: PlayerEquipment },
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
+  extraCheckpoints: PositionCheckpoint[],
+  combatEvents: CombatEvent[],
+  persistTradesById: { [tradeId: string]: TradeRecord },
+  safeLeaveUserIds: string[],
+): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  const decision = evaluateSafeLeave(player, state);
+  if (!decision.ok) {
+    const denied = actionResult(decision.code, false, parsed.requestId, { message: decision.message });
+    outbound.push({ opcode: denied.opcode, body: denied.body, toUserId: userId });
+    return;
+  }
+  player.safeLeaveCommitted = true;
+  interruptCast(player, "safe_leave", tick, combatEvents);
+  cancelTradesForUser(state, userId, "disconnected", outbound, persistInventoryByUser, persistTradesById);
+  stampDepartingPlayerPersist(player, persistByUser, persistInventoryByUser, persistEquipmentByUser, persistProgressionByUser);
+  const left = applySafeLeave(state, userId);
+  if (left.checkpoint !== null) {
+    extraCheckpoints.push(left.checkpoint);
+  }
+  const nextPlayers = left.state.players;
+  const nextDisconnected = left.state.disconnected;
+  state.players = nextPlayers;
+  state.disconnected = nextDisconnected;
+  safeLeaveUserIds.push(userId);
+  const ack = actionResult("ok", true, parsed.requestId, { departed: true });
+  outbound.push({ opcode: ack.opcode, body: ack.body, toUserId: userId });
+}
+
 function handleValidated(
   parsed: ParsedClientMessage,
   userId: string,
@@ -454,10 +541,45 @@ function handleValidated(
   transfers: CaveTransferIntent[],
   makeId: () => string,
   persistTradesById: { [tradeId: string]: TradeRecord },
+  safeLeaveUserIds: string[],
   commitReward?: RewardCommitter,
   commitTxn?: TransactionCommitter,
   commitTrade?: TradeCommitter,
 ): void {
+  const actor = state.players[userId];
+  if (actor !== undefined && (actor.linkDead === true || actor.safeLeaveCommitted === true)) {
+    if (parsed.opcode === ClientOpcode.RESYNC_REQUEST) {
+      outbound.push({
+        opcode: fullStateOpcode(),
+        body: buildFullState(state, tick, userId),
+        toUserId: userId,
+      });
+      return;
+    }
+    const blocked = actionResult("link_dead", false, parsed.requestId, {
+      message: "Character remains in world.",
+    });
+    outbound.push({ opcode: blocked.opcode, body: blocked.body, toUserId: userId });
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.RETURN_TO_CHARACTER_SELECT) {
+    handleReturnToCharacterSelect(
+      parsed,
+      userId,
+      state,
+      tick,
+      outbound,
+      persistByUser,
+      persistInventoryByUser,
+      persistEquipmentByUser,
+      persistProgressionByUser,
+      extraCheckpoints,
+      combatEvents,
+      persistTradesById,
+      safeLeaveUserIds,
+    );
+    return;
+  }
   if (parsed.opcode === ClientOpcode.RESYNC_REQUEST) {
     outbound.push({
       opcode: fullStateOpcode(),
@@ -1946,7 +2068,7 @@ function applyInput(state: StarterZoneState, userId: string, seq: number, axisX:
     return;
   }
   player.lastProcessedSeq = seq;
-  if (player.health <= 0) {
+  if (player.health <= 0 || player.linkDead === true) {
     player.axisX = 0;
     player.axisY = 0;
     return;
@@ -1959,7 +2081,7 @@ function simulateMovement(state: StarterZoneState, dt: number): void {
   const ids = Object.keys(state.players);
   for (let i = 0; i < ids.length; i++) {
     const player = state.players[ids[i]];
-    if (player.health <= 0) {
+    if (player.health <= 0 || player.linkDead === true) {
       continue;
     }
     if (hasControlTag(player.effects, "stun") || hasControlTag(player.effects, "root")) {

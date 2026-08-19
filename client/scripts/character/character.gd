@@ -40,6 +40,9 @@ var _selected_class_id: String = ""
 var _pending_delete: Dictionary = {}
 var _create_ready: bool = false
 var _name_timer: Timer
+var _lease_timer: Timer
+var _play_busy: bool = false
+var _lease_list_refresh_busy: bool = false
 
 
 func _ready() -> void:
@@ -67,6 +70,11 @@ func _ready() -> void:
 	_name_timer.wait_time = 0.4
 	_name_timer.timeout.connect(_check_name_availability)
 	add_child(_name_timer)
+	_lease_timer = Timer.new()
+	_lease_timer.wait_time = 1.0
+	_lease_timer.timeout.connect(_on_lease_tick)
+	add_child(_lease_timer)
+	_lease_timer.start()
 	WindowManager.open(WindowManager.CHARACTER_LIST)
 	_fill_classes()
 	if not AppState.character_loaded.is_connected(_on_character_loaded):
@@ -191,6 +199,7 @@ func _refresh_class_selection() -> void:
 
 
 func _on_list_finished(success: bool, _message: String) -> void:
+	_lease_list_refresh_busy = false
 	if not success:
 		_status.text = "Could not load characters."
 		return
@@ -281,10 +290,14 @@ func _fill_active_card(box: VBoxContainer, row: Dictionary) -> void:
 	var play := Button.new()
 	play.text = "Play"
 	var reason := _play_reason(row)
-	play.disabled = not reason.is_empty()
+	play.disabled = not reason.is_empty() or _play_busy
 	if not reason.is_empty():
-		play.tooltip_text = reason
-		play.text = "Play (%s)" % reason
+		play.tooltip_text = reason.replace("\n", " — ")
+		var wait := Label.new()
+		wait.text = reason
+		wait.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		wait.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(wait)
 	play.pressed.connect(func() -> void:
 		_play_character(String(row.get("characterId", "")))
 	)
@@ -346,10 +359,15 @@ func _play_reason(row: Dictionary) -> String:
 	if AppState.server_maintenance or bool(row.get("playBlockedReason", "") == "maintenance"):
 		return "Server maintenance is active."
 	var server_reason := String(row.get("playBlockedReason", ""))
+	var remain := _remaining_seconds(int(row.get("playAvailableAt", 0)))
 	if server_reason == "account_busy":
-		return "Another character on this account is active."
+		if remain > 0:
+			return "Waiting for previous character to leave\nAvailable in %s seconds" % str(remain)
+		return "Waiting for previous character to leave"
 	if server_reason == "link_dead":
-		return "Character is link-dead."
+		if remain > 0:
+			return "Character still in world\nAvailable in %s seconds" % str(remain)
+		return "Character still in world"
 	if server_reason == "selection_pending":
 		return "Selection is already pending."
 	if server_reason == "deleted":
@@ -378,11 +396,44 @@ func _played_label(at_ms: int) -> String:
 func _presence_label(state: String) -> String:
 	if state == "ONLINE":
 		return "Online"
-	if state == "DISCONNECTING" or state == "LINK_DEAD":
-		return "Disconnecting"
+	if state == "LINK_DEAD" or state == "DISCONNECTING":
+		return "Character still in world"
 	if state == "ENTERING":
-		return "Entering"
+		return "Entering world"
+	if state == "LEAVING":
+		return "Returning to Character Select"
+	if state == "DESPAWNING":
+		return "Waiting for previous character to leave"
 	return "Offline"
+
+
+func _remaining_seconds(play_available_at: int) -> int:
+	if play_available_at <= 0:
+		return 0
+	var remain := play_available_at - AppState.server_now_ms()
+	if remain <= 0:
+		return 0
+	return int(ceil(remain / 1000.0))
+
+
+func _on_lease_tick() -> void:
+	var blocked := false
+	var expired := false
+	for entry in AppState.character_list:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var row: Dictionary = entry
+		var reason := String(row.get("playBlockedReason", ""))
+		var available_at := int(row.get("playAvailableAt", 0))
+		if reason == "link_dead" or reason == "account_busy":
+			blocked = true
+			if available_at > 0 and AppState.server_now_ms() >= available_at:
+				expired = true
+	if blocked:
+		_refresh_list()
+	if expired and AppState.is_authenticated and not _lease_list_refresh_busy:
+		_lease_list_refresh_busy = true
+		GameService.request_character_list()
 
 
 func _retention_label(expires_at: int) -> String:
@@ -504,12 +555,15 @@ func _on_confirm_create() -> void:
 
 
 func _play_character(character_id: String) -> void:
-	if character_id.is_empty():
+	if character_id.is_empty() or _play_busy:
 		return
+	_play_busy = true
 	await GameService.request_character_select(character_id)
 	if AppState.selection_ticket.is_empty():
+		_play_busy = false
 		return
 	var entered := await GameService.enter_starter_zone()
+	_play_busy = false
 	if not entered:
 		_status.text = "Could not enter the world."
 

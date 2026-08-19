@@ -589,9 +589,28 @@ Production class IDs are `class.warrior`, `class.marksman`, and `class.mage`. Pr
 
 Name uniqueness is a project-owned `names` reservation with create-if-absent OCC (`version` `*`) plus re-read token confirm. `Archer` / `archer` / `ARCHER` collide. `character_name_available` is advisory.
 
-`character_select` issues a 300-second ticket. Join still requires that ticket (or a transfer ticket), never an arbitrary character id. An account gameplay lease (`player` / `gameplay_lease`) is acquired on match join and set `DISCONNECTING` on leave. Play/delete of another character is `account_busy`. The leased character during grace is `link_dead`.
+`character_select` issues a 300-second ticket. Join still requires that ticket (or a transfer ticket), never an arbitrary character id. An account gameplay lease (`player` / `gameplay_lease`) is acquired on match join; ACCT-06 replaces the `DISCONNECTING` grace with the ten-second `LINK_DEAD` hold.
 
 `character_delete_request` requires the exact display name, marks `SOFT_DELETED`, keeps the name reserved, preserves gameplay, and frees the live slot. Retention is 7 days. Restore does not regrant starters or reset progression, quests, or gold. Idempotent `character_purge` removes gameplay records, releases the name, and writes `{ characterId, purgedAt }` to `character_audit`. Partial jobs resume.
 
 Content hash after this phase: `42047a6420550c4c815d4affafdefbaaecd446590706ae3e8c95c7e46f773455`. Stay Signed In and product account-delete UI remain later.
+
+## 2026-08-19 — ACCT-06 active-character lease, safe departure, and ten-second link-dead
+
+One account may have only one character in a live gameplay lease, in every `starter_zone` match (public world and party caves).
+
+The lease is `player` / `gameplay_lease` `schemaVersion` **2**. Acquire is OCC in `matchJoinAttempt` (`ENTERING`). Join consumes the selection ticket, creates the entity, sends `FULL_STATE`, then marks `ONLINE`. Interrupted `ENTERING` is kicked and cleared, or repaired after 15 s.
+
+Opcode **32** `RETURN_TO_CHARACTER_SELECT` is the only safe in-world departure. Combat, death, casts, trades, transfers, and committing rewards deny it with a player-visible sentence. Success persists, despawns immediately, marks `LEAVING`, and acks; the client leaves after the ack. Logout to Login must succeed on that path before showing Login.
+
+Unexpected disconnect does **not** restore the avatar to a new socket. The entity stays 10 server seconds after **detection** (`LINK_DEAD_MS = 10000`, `LINK_DEAD_TICKS = 100`), remains vulnerable to PvE, and cannot move. Trade cancels immediately. Party membership still uses the 60 s disconnect grace. Cave **instance** empty/rejoin grace stays 60 s; the **entity** is gone at 10 s. Death during the hold uses the normal 3 s auto-respawn; disconnect does not revive or duplicate rewards. The lease releases at the link-dead deadline.
+
+Character Select uses `playAvailableAt` and `serverTimeMs` for `Character still in world` / `Available in N seconds`. Play stays disabled on every slot. After release, a new selection ticket is required.
+
+Stale leases (missing match, ENTERING timeout, match terminate) repair immediately and log; they do not wait ten seconds. The ten-second clock is not client close time. `presence_lost` records `disconnect_detected_at` and `despawn_at`. Frozen clients and cable pulls still wait for Nakama presence timeout before that clock starts.
+
+Window close/Alt+F4 may show the quit dialog; it is not an authoritative logout. Quit Anyway and process kill use the unexpected-disconnect path.
+
+Heartbeat limitation: the 10 s clock is `disconnectDetectedAt` in server time. Nakama 3.40.0 defaults (unchanged here) ping every **15 s** and wait **25 s** for a pong. Frozen clients and cable pulls can therefore sit in `ONLINE` until that pong wait expires. Clean closes can hit `matchLeave` immediately. `presence_lost` records both timestamps. Do not promise the avatar vanishes 10 s after the window closes.
+
 

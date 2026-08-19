@@ -72,6 +72,9 @@ var last_chat_hidden: bool = true
 var last_chat_channel_id: String = ""
 var last_chat_content: Dictionary = {}
 var chat_channel_id: String = "channel-zone-starter"
+var return_to_select_ok: bool = true
+var return_to_select_code: String = "unsafe_leave"
+var return_to_select_message: String = "Cannot leave safely while in combat."
 
 
 func is_session_expired() -> bool:
@@ -223,6 +226,20 @@ func send_match_state(opcode: int, payload: String) -> Dictionary:
 		if body.is_empty():
 			body = default_full_state_payload(99)
 		match_state_received.emit(MatchProtocol.SERVER_FULL_STATE, body)
+	if opcode == MatchProtocol.CLIENT_RETURN_TO_CHARACTER_SELECT:
+		var parsed: Variant = JSON.parse_string(payload)
+		var request_id := ""
+		if typeof(parsed) == TYPE_DICTIONARY:
+			request_id = String((parsed as Dictionary).get("requestId", ""))
+		var result: Dictionary = {
+			"protocolVersion": MatchProtocol.VERSION,
+			"ok": return_to_select_ok,
+			"code": "ok" if return_to_select_ok else return_to_select_code,
+			"requestId": request_id,
+		}
+		if not return_to_select_ok:
+			result["message"] = return_to_select_message
+		match_state_received.emit(MatchProtocol.SERVER_ACTION_RESULT, JSON.stringify(result))
 	return {"ok": true}
 
 

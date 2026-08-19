@@ -77,36 +77,20 @@ func test_session_refresh_then_reauth_after_expired_session() -> void:
 	assert_bool(AppState.is_authenticated).is_true()
 
 
-func test_socket_reconnect_rejoins_and_resyncs_full_state() -> void:
+func test_socket_reconnect_restores_socket_without_match_rebind() -> void:
 	var fake := _fake()
 	await _boot_character_and_zone(fake)
 	var join_before := fake.join_calls
-	var socket_before := fake.socket_calls
-	fake.full_state_payload = JSON.stringify({
-		"protocolVersion": 1,
-		"contentHash": ContentRegistry.get_content_hash(),
-		"tick": 77,
-		"zoneId": "zone.starter",
-		"selfId": "user-alice",
-		"players": [{"userId": "user-alice", "name": "Alice", "x": 640, "y": 400}],
-		"npcs": [{"npcId": "npc.elder"}],
-		"enemies": [{"enemyId": "enemy.green_slime"}],
-		"loot": [],
-		"quests": [],
-		"inventory": {"capacity": 20, "items": []},
-		"wallet": {"gold": 25},
-	})
 	fake.emit_socket_closed()
 	for _i in range(30):
-		if not AppState.is_reconnecting and int(AppState.zone_view.get("tick", 0)) == 77:
+		if not AppState.is_reconnecting and SceneRouter.current_scene_id == SceneRouter.SCENE_CHARACTER:
 			break
 		await get_tree().process_frame
 	assert_bool(AppState.is_reconnecting).is_false()
-	assert_int(fake.socket_calls).is_greater(socket_before)
-	assert_int(fake.join_calls).is_greater(join_before)
-	assert_int(int(AppState.zone_view.get("tick", 0))).is_equal(77)
-	assert_bool(NetworkService.socket_connected).is_true()
-	assert_str(NetworkService.match_id).is_not_empty()
+	assert_int(fake.join_calls).is_equal(join_before)
+	assert_bool(AppState.has_zone_state).is_false()
+	assert_str(SceneRouter.current_scene_id).is_equal(SceneRouter.SCENE_CHARACTER)
+	assert_str(AppState.session_status).is_equal("Character remains in world")
 
 
 func test_reauthentication_during_reconnect_after_expired_session() -> void:
@@ -129,7 +113,8 @@ func test_reauthentication_during_reconnect_after_expired_session() -> void:
 	await NetworkService.start_reconnect()
 	assert_int(fake.authenticate_calls).is_greater(auth_before)
 	assert_bool(AppState.is_authenticated).is_true()
-	assert_bool(AppState.has_zone_state).is_true()
+	assert_bool(AppState.has_zone_state).is_false()
+	assert_str(SceneRouter.current_scene_id).is_equal(SceneRouter.SCENE_CHARACTER)
 
 
 func test_cancel_reconnect_logs_out() -> void:
@@ -179,13 +164,13 @@ func test_reconnecting_hud_and_overlay_cancel() -> void:
 	await get_tree().process_frame
 	AppState.notify_reconnecting(true)
 	hud.refresh({"zone_id": "zone.starter", "tick": 1, "self_id": "user-alice", "players": []}, PackedStringArray(["Alice"]))
-	assert_str(hud.get_node("Root/Margin/VBox/Status").text).contains("Reconnecting")
+	assert_str(hud.get_node("Root/Margin/VBox/Status").text).contains("Connection lost")
 	var overlay: CanvasLayer = auto_free(preload("res://scenes/shared/loading_overlay.tscn").instantiate())
 	add_child(overlay)
 	await get_tree().process_frame
 	overlay.call("show_loading", "reconnect")
 	assert_bool(overlay.visible).is_true()
-	assert_str(overlay.get_node("Panel/VBox/Message").text).contains("Reconnecting")
+	assert_str(overlay.get_node("Panel/VBox/Message").text).contains("Connection lost")
 	assert_bool(overlay.get_node("Panel/VBox/CancelButton").visible).is_true()
 	var cancelled := [false]
 	assert_bool(overlay.has_signal("cancel_pressed")).is_true()
@@ -193,7 +178,7 @@ func test_reconnecting_hud_and_overlay_cancel() -> void:
 	(overlay.get_node("Panel/VBox/CancelButton") as Button).pressed.emit()
 	assert_bool(cancelled[0]).is_true()
 	overlay.call("show_loading", "logout")
-	assert_str(overlay.get_node("Panel/VBox/Message").text).contains("Leaving")
+	assert_str(overlay.get_node("Panel/VBox/Message").text).contains("Logging out")
 	assert_bool(overlay.get_node("Panel/VBox/CancelButton").visible).is_false()
 
 
@@ -250,12 +235,12 @@ func test_nested_loading_complete_keeps_reconnect_overlay() -> void:
 	AppState.notify_reconnecting(true)
 	var overlay: CanvasLayer = page.get_node("LoadingOverlay")
 	assert_bool(overlay.visible).is_true()
-	assert_str(overlay.get_node("Panel/VBox/Message").text).contains("Reconnecting")
+	assert_str(overlay.get_node("Panel/VBox/Message").text).contains("Connection lost")
 	AppState.notify_loading_started("session")
 	AppState.notify_loading_completed("session")
 	AppState.notify_loading_completed("zone")
 	assert_bool(overlay.visible).is_true()
-	assert_str(overlay.get_node("Panel/VBox/Message").text).contains("Reconnecting")
+	assert_str(overlay.get_node("Panel/VBox/Message").text).contains("Connection lost")
 	AppState.notify_reconnecting(false)
 	AppState.notify_loading_completed("reconnect")
 	assert_bool(overlay.visible).is_false()

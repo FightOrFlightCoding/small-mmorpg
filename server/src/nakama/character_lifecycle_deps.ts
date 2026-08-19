@@ -10,7 +10,9 @@ import { emptyQuestLog } from "../domain/quest";
 import { SAVE_SCHEMA_VERSION } from "../domain/save_schema";
 import type { ProgressionCatalog } from "../domain/stats";
 import type { PurgeStep } from "../domain/character_purge";
-import { acquireGameplayLease, disconnectGameplayLease, leaseGraceMs } from "../domain/gameplay_lease";
+import { acquireGameplayLease, markLeaseLinkDead, markLeaseOnline } from "../domain/gameplay_lease";
+import { readGameplayLease, writeGameplayLease, deleteGameplayLease, matchStillExists } from "./gameplay_lease_store";
+import { deleteActiveLocation, readActiveLocation, writeActiveLocation, writeActiveLocationIfAbsent } from "./location_store";
 import { readCharacter, writeCharacter, deleteCharacterRecord } from "./character_store";
 import { readEquipment, writeEquipmentOnce } from "./equipment_store";
 import { readInventory, writeInventoryOnce } from "./inventory_store";
@@ -19,8 +21,6 @@ import { readQuests, writeQuestsOnce } from "./quest_store";
 import { readRoster, writeRoster } from "./roster_store";
 import { readSelection, writeSelection } from "./selection_store";
 import { readProgression, writeProgressionOnce } from "./progression_store";
-import { deleteActiveLocation, readActiveLocation, writeActiveLocationIfAbsent } from "./location_store";
-import { readGameplayLease, writeGameplayLease, deleteGameplayLease } from "./gameplay_lease_store";
 import { readCharacterIdempotency, writeCharacterIdempotencyOnce } from "./character_idempotency_store";
 import { deletePurgeJob, readPurgeJob, writePurgeAudit, writePurgeJob } from "./character_purge_store";
 import { deletePlayerObject } from "./player_storage";
@@ -32,7 +32,11 @@ import { PLAYER_CAVE_KEY } from "../domain/cave";
 import { readEffectiveMaintenance } from "./ops_store";
 import { environmentFromRuntime } from "../domain/environment";
 
-export function characterLifecycleDeps(nk: nkruntime.Nakama, runtimeEnv?: { [key: string]: string }): CharacterLifecycleDeps {
+export function characterLifecycleDeps(
+  nk: nkruntime.Nakama,
+  runtimeEnv?: { [key: string]: string },
+  logger?: nkruntime.Logger,
+): CharacterLifecycleDeps {
   return {
     nowMs: function () {
       return Date.now();
@@ -97,6 +101,17 @@ export function characterLifecycleDeps(nk: nkruntime.Nakama, runtimeEnv?: { [key
         return;
       }
       writeGameplayLease(nk, lease);
+    },
+    matchExists: function (matchId: string) {
+      return matchStillExists(nk, matchId);
+    },
+    writeLocation: function (_userId: string, location) {
+      writeActiveLocation(nk, location);
+    },
+    logLeaseRepair: function (userId: string, matchId: string, reason: string) {
+      if (logger !== undefined) {
+        logger.info("gameplay_lease repaired user_id=%s match_id=%s reason=%s", userId, matchId, reason);
+      }
     },
     readProgression: function (userId: string, characterId: string) {
       return readProgression(nk, userId, characterId);
@@ -225,15 +240,50 @@ export function acquireMatchGameplayLease(
   characterId: string,
   matchId: string,
   nowMs: number,
+  sessionId: string = "",
+  socketOrPresenceId: string = "",
+  zoneOrInstanceId: string = "",
+  serverInstanceIdentifier: string = "",
 ): void {
-  writeGameplayLease(nk, acquireGameplayLease({ accountUserId: userId, characterId: characterId, matchId: matchId, nowMs: nowMs }));
+  const current = readGameplayLease(nk, userId);
+  const online = markLeaseOnline(
+    current !== null
+      ? current
+      : acquireGameplayLease({
+          accountUserId: userId,
+          characterId: characterId,
+          matchId: matchId,
+          nowMs: nowMs,
+          sessionId: sessionId,
+          socketOrPresenceId: socketOrPresenceId,
+          zoneOrInstanceId: zoneOrInstanceId,
+          serverInstanceIdentifier: serverInstanceIdentifier.length > 0 ? serverInstanceIdentifier : matchId,
+        }),
+    { sessionId: sessionId, socketOrPresenceId: socketOrPresenceId, nowMs: nowMs },
+  );
+  writeGameplayLease(nk, {
+    accountUserId: online.accountUserId,
+    characterId: characterId,
+    sessionId: online.sessionId,
+    socketOrPresenceId: online.socketOrPresenceId,
+    matchId: matchId,
+    zoneOrInstanceId: zoneOrInstanceId,
+    state: "ONLINE",
+    createdAt: online.createdAt,
+    updatedAt: nowMs,
+    disconnectDetectedAt: 0,
+    despawnAt: 0,
+    leaseVersion: online.leaseVersion,
+    serverInstanceIdentifier: serverInstanceIdentifier.length > 0 ? serverInstanceIdentifier : online.serverInstanceIdentifier,
+    schemaVersion: online.schemaVersion,
+  });
 }
 
 export function releaseMatchGameplayLease(
   nk: nkruntime.Nakama,
   userId: string,
   transferring: boolean,
-  instanceType: string,
+  _instanceType: string,
   nowMs: number,
 ): void {
   const current = readGameplayLease(nk, userId);
@@ -243,5 +293,16 @@ export function releaseMatchGameplayLease(
   if (transferring) {
     return;
   }
-  writeGameplayLease(nk, disconnectGameplayLease(current, nowMs, leaseGraceMs(instanceType)));
+  if (current.state === "LEAVING" || current.state === "DESPAWNING") {
+    deleteGameplayLease(nk, userId);
+    return;
+  }
+  if (current.state === "LINK_DEAD") {
+    return;
+  }
+  writeGameplayLease(nk, markLeaseLinkDead(current, nowMs));
+}
+
+export function clearGameplayLease(nk: nkruntime.Nakama, userId: string): void {
+  deleteGameplayLease(nk, userId);
 }

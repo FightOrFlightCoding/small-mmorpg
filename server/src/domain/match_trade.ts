@@ -617,7 +617,7 @@ function otherActor(state: StarterZoneState, trade: TradeRecord, characterId: st
 function actorForParticipant(state: StarterZoneState, userId: string): TradeActor | null {
   const live = state.players[userId];
   if (live !== undefined) {
-    return actorFromPlayer(live, true);
+    return actorFromPlayer(live, live.linkDead !== true && live.safeLeaveCommitted !== true);
   }
   const parked = parkedPlayer(state, userId);
   if (parked !== undefined) {

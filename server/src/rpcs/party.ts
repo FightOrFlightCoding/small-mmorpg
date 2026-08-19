@@ -1,3 +1,5 @@
+import { readGameplayLease } from "../nakama/gameplay_lease_store";
+import { leaseBlocksPartyMutation } from "../domain/gameplay_lease";
 import { readCharacter } from "../nakama/character_store";
 import { readRoster } from "../nakama/roster_store";
 import { readNameReservation } from "../nakama/name_reservation_store";
@@ -168,6 +170,13 @@ function runPartyRpc(
     }
     const data = parsePartyRpcPayload(payload, allowedKeys, requireRequestId);
     const actor = actorFromOwnedCharacter(nk, userId, String(data.characterId));
+    if (action !== "party_get_state") {
+      const lease = readGameplayLease(nk, userId);
+      if (leaseBlocksPartyMutation(lease, actor.characterId, Date.now())) {
+        logger.info("party rpc=%s user_id=%s code=%s", action, userId, "link_dead");
+        return JSON.stringify({ ok: false, code: "link_dead" });
+      }
+    }
     const requestId = typeof data.requestId === "string" ? data.requestId : "req-getst";
     const result = apply(actor, data, Date.now(), requestId);
     if (result.deleted === true || (result.ok && action !== "party_get_state")) {

@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Five character slots, Warrior/Marksman/Mage creation, selection, deletion, and restoration (ACCT-05)**.
+Last accepted phase: **Active-character lease, safe departure, and ten-second link-dead (ACCT-06)**.
 
 Current phase: none.
 
@@ -876,6 +876,33 @@ powershell -File scripts/test-client.ps1
 ```
 
 Character Select shows five slot cards, three class cards, Recently Deleted, typed-name delete, Account Settings, Logout, server status, and version. Play is disabled with a reason for deleted, account-busy, link-dead, maintenance, content-incompatible, and pending-selection states.
+
+## Active-character lease, safe departure, and ten-second link-dead acceptance (ACCT-06, 2026-08-19)
+
+Authoritative one-character-per-account online lifecycle for every `starter_zone` match (public world and party caves). No new gameplay systems. Prompt 18 village/slime behavior unchanged. Stay Signed In and product account-delete UI remain later.
+
+One server-only lease (`player` / `gameplay_lease`, `permissionWrite: 0`, `schemaVersion` 2) is acquired atomically as `ENTERING` in `matchJoinAttempt`. A second gameplay join while a live lease exists fails (`account_busy` / `link_dead`). Join consumes the selection ticket, creates the entity, sends `FULL_STATE`, then marks `ONLINE`. Interrupted `ENTERING` is cleared immediately or after 15 s. Opcode 32 `RETURN_TO_CHARACTER_SELECT` is the only safe in-world departure; combat, death, casts, trades, transfers, and committing rewards are denied with a visible sentence. Logout to Login waits for that ack before revoking tokens. Unexpected disconnect keeps the entity targetable and vulnerable to PvE for 10 server seconds after detection (`LINK_DEAD`); the new socket is not rebound. Character Select shows `Character still in world` / `Available in N seconds` from `playAvailableAt`. Stale leases for missing matches repair immediately. The 10 s clock is not window-close time: Nakama 3.40.0 defaults ping every 15 s and wait 25 s for a pong.
+
+| Gate | Result |
+| --- | --- |
+| Content | hash `42047a6420550c4c815d4affafdefbaaecd446590706ae3e8c95c7e46f773455` |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (29 RPCs, 33 storage records, 32 client opcodes) |
+| Server hermetic | 512 passed, 13 skipped (live suites off), `tsc --noEmit` |
+| Client GdUnit | 254/254, 0 orphans, `SHELL_LOGIN` |
+
+Limitations: Stay Signed In remains hidden. Product account-delete UI remains later. Frozen clients and cable pulls wait for Nakama presence timeout before the ten-second hold starts. Party membership and cave instance empty/rejoin grace remain 60 s; the avatar itself despawns at 10 s. Health is not persisted; the next join uses `joinHealth`.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/content-build.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+```
+
+World HUD: Character Select, Log out, Quit Game (Quit Safely / Quit Anyway / Cancel). Alt+F4 shows the same dialog when Godot delivers the close request; it is not an authoritative logout.
+
 
 
 

@@ -13,6 +13,7 @@ signal logged_out
 signal character_loaded(created: bool)
 signal zone_state_updated
 signal reconnecting_changed
+signal session_status_changed
 
 var current_scene_id: String = "boot"
 var is_loading: bool = false
@@ -37,6 +38,10 @@ var has_zone_state: bool = false
 var zone_view: Dictionary = {}
 var zone_view_is_full: bool = true
 var is_reconnecting: bool = false
+var server_time_ms: int = 0
+var list_received_msec: int = 0
+var session_status: String = ""
+var departure_locked: bool = false
 
 
 func notify_loading_started(reason: String) -> void:
@@ -100,6 +105,10 @@ func notify_logged_out() -> void:
 	content_incompatible = false
 	clear_zone_state()
 	is_reconnecting = false
+	server_time_ms = 0
+	list_received_msec = 0
+	session_status = ""
+	departure_locked = false
 	logged_out.emit()
 
 
@@ -110,10 +119,24 @@ func notify_character_loaded(view: Dictionary, created: bool) -> void:
 	character_loaded.emit(created)
 
 
-func notify_character_list(characters: Array, p_slot_limit: int, p_live_count: int) -> void:
+func notify_character_list(characters: Array, p_slot_limit: int, p_live_count: int, p_server_time_ms: int = 0) -> void:
 	character_list = characters.duplicate(true)
 	slot_limit = p_slot_limit
 	live_count = p_live_count
+	if p_server_time_ms > 0:
+		server_time_ms = p_server_time_ms
+		list_received_msec = Time.get_ticks_msec()
+
+
+func server_now_ms() -> int:
+	if server_time_ms <= 0:
+		return int(Time.get_unix_time_from_system() * 1000.0)
+	return server_time_ms + (Time.get_ticks_msec() - list_received_msec)
+
+
+func notify_session_status(text: String) -> void:
+	session_status = text
+	session_status_changed.emit(text)
 
 
 func notify_selection(ticket_id: String, expires_at: int, view: Dictionary) -> void:
@@ -167,3 +190,7 @@ func reset_for_tests() -> void:
 	zone_view = {}
 	zone_view_is_full = true
 	is_reconnecting = false
+	server_time_ms = 0
+	list_received_msec = 0
+	session_status = ""
+	departure_locked = false

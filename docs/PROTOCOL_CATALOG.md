@@ -243,7 +243,7 @@ Commands: `inspect_character`, `teleport_character`, `repair_invalid_location`, 
 
 ## Client → server match opcodes
 
-Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARGET 8; INTERACT/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/quest/VENDOR_BUY/VENDOR_SELL/INN_REST/CAVE_ENTER/CAVE_EXIT/TRADE_*/ALLOCATE_ATTRIBUTES/ASSIGN_HOTBAR/UNLOCK_ABILITY 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
+Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARGET 8; INTERACT/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/quest/VENDOR_BUY/VENDOR_SELL/INN_REST/CAVE_ENTER/CAVE_EXIT/TRADE_*/ALLOCATE_ATTRIBUTES/ASSIGN_HOTBAR/UNLOCK_ABILITY/RETURN_TO_CHARACTER_SELECT 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
 
 ### 1 `INPUT`
 
@@ -574,6 +574,17 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 | Rate limit | Shares quest window (8) |
 | Tests | `trade.test.ts`, `trade_service_test.gd` |
 
+### 32 `RETURN_TO_CHARACTER_SELECT`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, requestId }` |
+| Authority | Safe departure only: alive, not in combat, not casting, not trading, not transferring, no committing reward. Persist, despawn, mark lease `LEAVING`, ack. Client leaves the match after ack. |
+| Idempotency | `requestId` required. Duplicate presses are client-locked. |
+| Errors | `in_combat` (`Cannot leave safely while in combat.`), `dead`, `casting`, `trading`, `transferring`, `reward_in_progress`, `link_dead` |
+| Rate limit | Shares ALLOCATE window (8) |
+| Tests | `gameplay_lease.test.ts`, `protocol.test.ts`, `protocol_test.gd` |
+
 No other client opcodes exist. Unknown opcode → `unknown_opcode`.
 
 ## Server → client match opcodes
@@ -584,7 +595,7 @@ No client rate limit. Occupied matches send **102** every tick.
 | --- | --- | --- | --- |
 | 101 | `FULL_STATE` | tick, zone, self, players, npcs, enemies, loot, quests, inventory, equipment, derived, wallet, progression, abilities, optional party, optional instance | `protocol.test.ts`, `zone_join_test.gd`, `progression.test.ts`, `ability.test.ts`, `party_service_test.gd`, `cave.test.ts` |
 | 102 | `SNAPSHOT` | tick, players, enemies, loot | `movement.test.ts`, `entity_registry_test.gd` |
-| 103 | `ACTION_RESULT` | ok, code, requestId?, ticket extras, optional tradeId | combat/inventory/quest/cave/trade tests |
+| 103 | `ACTION_RESULT` | ok, code, requestId?, message?, ticket extras, optional tradeId | combat/inventory/quest/cave/trade/lease tests |
 | 104 | `COMBAT_EVENT` | tick, events[] (`hit`, `heal`, `death`, `respawn`, `interrupt`, `effect_*`, `resource`, `threat`, `credit`, `message`) | `combat.test.ts`, `combat_pipeline.test.ts`, `boss.test.ts`, `combat_client_test.gd` |
 | 105 | `INVENTORY_STATE` | capacity, items | `inventory.test.ts` |
 | 106 | `QUEST_STATE` | quests | `quest.test.ts` |

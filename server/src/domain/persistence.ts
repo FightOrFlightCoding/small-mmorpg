@@ -11,6 +11,8 @@ import { cloneProgression, type CharacterProgression } from "./progression";
 import { cloneQuestLog, type QuestLog } from "./quest";
 import { cloneCooldownMap, cloneResourceMap } from "./ability";
 import { cloneActiveEffects } from "./effects";
+import { interruptCast } from "./ability";
+import { LINK_DEAD_TICKS } from "./gameplay_lease";
 
 export const CHECKPOINT_INTERVAL_SEC = 5;
 export const CHECKPOINT_INTERVAL_TICKS = 50;
@@ -64,27 +66,91 @@ export function applyPlayerLeave(state: StarterZoneState, userId: string, tick: 
   if (player.transferState === "issued" || player.transferState === "pending") {
     return applyPlayerTransfer(state, userId);
   }
+  if (player.safeLeaveCommitted === true) {
+    return applySafeLeave(state, userId);
+  }
+  return applyUnexpectedDisconnect(state, userId, tick);
+}
+
+export function applySafeLeave(state: StarterZoneState, userId: string): PlayerLeaveResult {
+  const player = dict(state.players)[userId];
+  if (player === undefined) {
+    return { state: state, checkpoint: null };
+  }
   const next = cloneStarterZoneState(state);
-  const parked = next.players[userId];
+  const leaving = next.players[userId];
   delete next.players[userId];
-  const grace =
-    typeof state.reconnectGraceTicks === "number" && state.reconnectGraceTicks > 0
-      ? state.reconnectGraceTicks
-      : RECONNECT_GRACE_TICKS;
-  next.disconnected[userId] = {
-    player: parked,
-    expiresAtTick: tick + grace,
-  };
+  delete next.disconnected[userId];
   if (playerCount(next) === 0) {
     next.emptyTicks = 0;
   }
   return {
     state: next,
     checkpoint: withBind(
-      { userId: userId, characterId: parked.characterId, x: parked.x, y: parked.y },
-      parked,
+      { userId: userId, characterId: leaving.characterId, x: leaving.x, y: leaving.y },
+      leaving,
     ),
   };
+}
+
+export function applyUnexpectedDisconnect(state: StarterZoneState, userId: string, tick: number): PlayerLeaveResult {
+  const player = dict(state.players)[userId];
+  if (player === undefined) {
+    return { state: state, checkpoint: null };
+  }
+  if (player.linkDead === true) {
+    return {
+      state: state,
+      checkpoint: withBind(
+        { userId: userId, characterId: player.characterId, x: player.x, y: player.y },
+        player,
+      ),
+    };
+  }
+  const next = cloneStarterZoneState(state);
+  const remaining = next.players[userId];
+  remaining.axisX = 0;
+  remaining.axisY = 0;
+  remaining.linkDead = true;
+  remaining.linkDeadUntilTick = tick + LINK_DEAD_TICKS;
+  interruptCast(remaining, "disconnected", tick, []);
+  return {
+    state: next,
+    checkpoint: withBind(
+      { userId: userId, characterId: remaining.characterId, x: remaining.x, y: remaining.y },
+      remaining,
+    ),
+  };
+}
+
+export function expireLinkDeadPlayers(state: StarterZoneState, tick: number): {
+  checkpoints: PositionCheckpoint[];
+  players: MatchPlayer[];
+} {
+  const checkpoints: PositionCheckpoint[] = [];
+  const players: MatchPlayer[] = [];
+  const ids = Object.keys(dict(state.players));
+  for (let i = 0; i < ids.length; i++) {
+    const userId = ids[i];
+    const player = state.players[userId];
+    if (player.linkDead !== true) {
+      continue;
+    }
+    const until = typeof player.linkDeadUntilTick === "number" ? player.linkDeadUntilTick : tick;
+    if (tick < until) {
+      continue;
+    }
+    players.push(player);
+    checkpoints.push(
+      withBind({ userId: userId, characterId: player.characterId, x: player.x, y: player.y }, player),
+    );
+    delete state.players[userId];
+    delete state.disconnected[userId];
+  }
+  if (players.length > 0 && playerCount(state) === 0) {
+    state.emptyTicks = 0;
+  }
+  return { checkpoints: checkpoints, players: players };
 }
 
 export function applyPlayerTransfer(state: StarterZoneState, userId: string): PlayerLeaveResult {

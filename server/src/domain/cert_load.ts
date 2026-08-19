@@ -20,7 +20,7 @@ import {
 import { emptyQuestLog, questDefinitionsFromContent } from "./quest";
 import { npcDefinitionsFromContent } from "./npc";
 import { vendorDefinitionsFromContent } from "./vendor";
-import { applyPlayerLeave } from "./persistence";
+import { applyPlayerLeave, applySafeLeave } from "./persistence";
 import { ClientOpcode, PROTOCOL_VERSION } from "./protocol";
 import { SLOW_TICK_MS } from "./rate_limit";
 import { createParty, disbandParty, memoryPartyRepository } from "./party";
@@ -270,7 +270,7 @@ function drainMatch(state: StarterZoneState, startTick: number): StarterZoneStat
   let next = state;
   const ids = Object.keys(dict(next.players));
   for (let i = 0; i < ids.length; i++) {
-    next = applyPlayerLeave(next, ids[i], startTick).state;
+    next = applySafeLeave(next, ids[i]).state;
   }
   const timeout = typeof next.emptyTimeoutTicks === "number" ? next.emptyTimeoutTicks : 5;
   for (let i = 0; i < timeout + 4; i++) {

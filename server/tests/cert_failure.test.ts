@@ -76,15 +76,14 @@ function playerAt(userId: string, x: number, y: number): MatchPlayer {
   };
 }
 
-test("one client disconnect parks grace and reconnect restores the player", () => {
+test("one client disconnect keeps a link-dead entity", () => {
   let state = addPlayer(zone(), playerAt("user-alice", 240, 384));
   const left = applyPlayerLeave(state, "user-alice", 3);
   state = left.state;
-  assert.equal(playerCount(state), 0);
-  assert.ok(state.disconnected["user-alice"] !== undefined);
+  assert.equal(playerCount(state), 1);
+  assert.equal(state.players["user-alice"].linkDead, true);
   const restored = takeGracePlayer(state, "user-alice", 4);
-  assert.notEqual(restored, null);
-  assert.equal(state.disconnected["user-alice"], undefined);
+  assert.equal(restored, null);
 });
 
 test("multiple disconnects expire without ghost presences", () => {
@@ -93,12 +92,12 @@ test("multiple disconnects expire without ghost presences", () => {
   state = applyPlayerLeave(state, "user-alice", 1).state;
   state = applyPlayerLeave(state, "user-bob", 1).state;
   let next = state;
-  for (let tick = 2; tick <= 12; tick++) {
+  for (let tick = 2; tick <= 1 + 100 + 8; tick++) {
     next = applyMatchLoop(next, tick, contentHash, []).state;
   }
   assert.equal(playerCount(next), 0);
   assert.equal(Object.keys(next.disconnected).length, 0);
-  const empty = applyMatchLoop(next, 13, contentHash, []);
+  const empty = applyMatchLoop(next, 1 + 100 + 9, contentHash, []);
   assert.equal(empty.terminate, true);
 });
 

@@ -124,6 +124,9 @@ export interface MatchPlayer {
   transferState?: "idle" | "issued" | "pending";
   transferIssuedAtTick?: number;
   caveEnterByRequestId?: { [requestId: string]: string };
+  linkDead?: boolean;
+  linkDeadUntilTick?: number;
+  safeLeaveCommitted?: boolean;
 }
 
 export interface DisconnectedPlayer {
@@ -633,6 +636,8 @@ function publicPlayer(player: MatchPlayer): { [key: string]: unknown } {
     deadUntilTick: player.deadUntilTick != null ? player.deadUntilTick : 0,
     stunned: hasControlTag(player.effects, "stun"),
     rooted: hasControlTag(player.effects, "root"),
+    linkDead: player.linkDead === true,
+    presenceState: player.safeLeaveCommitted === true ? "LEAVING" : player.linkDead === true ? "LINK_DEAD" : "ONLINE",
   };
 }
 
@@ -793,6 +798,9 @@ function cloneMatchPlayer(p: MatchPlayer, state: StarterZoneState): MatchPlayer 
     transferState: p.transferState !== undefined ? p.transferState : "idle",
     transferIssuedAtTick: typeof p.transferIssuedAtTick === "number" ? p.transferIssuedAtTick : undefined,
     caveEnterByRequestId: dict(p.caveEnterByRequestId),
+    linkDead: p.linkDead === true,
+    linkDeadUntilTick: typeof p.linkDeadUntilTick === "number" ? p.linkDeadUntilTick : undefined,
+    safeLeaveCommitted: p.safeLeaveCommitted === true,
   };
 }
 

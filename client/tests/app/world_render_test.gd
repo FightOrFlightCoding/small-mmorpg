@@ -208,3 +208,37 @@ func test_party_invite_prompts_to_create_first() -> void:
 	hud._on_party_invite()
 	var notice: Label = hud.get_node("Root/Notice")
 	assert_str(notice.text).contains("Create a party first")
+
+
+func test_quit_dialog_offers_safe_and_unsafe_paths() -> void:
+	var hud: WorldHud = auto_free(preload("res://scenes/world/world_hud.tscn").instantiate())
+	add_child(hud)
+	await get_tree().process_frame
+	hud.show_quit_dialog(true)
+	var overlay: ColorRect = hud.find_child("QuitDialog", true, false)
+	assert_object(overlay).is_not_null()
+	assert_bool(overlay.visible).is_true()
+	var safely: Button = hud.find_child("Quit Safely", true, false)
+	if safely == null:
+		for child in overlay.find_children("*", "Button", true, false):
+			if child is Button and String((child as Button).text) == "Quit Safely":
+				safely = child as Button
+	assert_object(safely).is_not_null()
+	assert_bool(safely.visible).is_true()
+	hud.show_quit_dialog(false)
+	var body: Label = null
+	for child in overlay.find_children("*", "Label", true, false):
+		if child is Label and String((child as Label).text).contains("ten seconds"):
+			body = child as Label
+	assert_object(body).is_not_null()
+	var anyway: Button = null
+	var cancel: Button = null
+	for child in overlay.find_children("*", "Button", true, false):
+		if child is Button and String((child as Button).text) == "Quit Anyway":
+			anyway = child as Button
+		if child is Button and String((child as Button).text) == "Cancel":
+			cancel = child as Button
+	assert_object(anyway).is_not_null()
+	assert_bool(anyway.visible).is_true()
+	assert_object(cancel).is_not_null()
+	assert_bool(cancel.visible).is_true()

@@ -50,6 +50,7 @@ func test_join_metadata_carries_selection_ticket_not_character_id() -> void:
 	assert_int(MatchProtocol.CLIENT_TRADE_SET_GOLD).is_equal(29)
 	assert_int(MatchProtocol.CLIENT_TRADE_ACCEPT_REVISION).is_equal(30)
 	assert_int(MatchProtocol.CLIENT_TRADE_CANCEL).is_equal(31)
+	assert_int(MatchProtocol.CLIENT_RETURN_TO_CHARACTER_SELECT).is_equal(32)
 	assert_int(MatchProtocol.SERVER_FULL_STATE).is_equal(101)
 	assert_int(MatchProtocol.SERVER_SNAPSHOT).is_equal(102)
 	assert_int(MatchProtocol.SERVER_ACTION_RESULT).is_equal(103)

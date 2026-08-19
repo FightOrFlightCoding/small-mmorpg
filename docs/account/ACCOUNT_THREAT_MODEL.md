@@ -64,8 +64,8 @@ ACCT-03 puts Godot product email login on the auth gateway and gates gameplay on
 | --- | --- |
 | Refresh token on disk for Stay Signed In | OS credential store is an interface only; Stay Signed In is hidden |
 | Compiled server key | Godot debug client still contains `defaultkey` for gameplay/device auth; the gateway also holds it and must not echo it |
-| 10 s link-dead | 5 s / 60 s grace; snapshots omit disconnected players immediately |
-| Active-character lease | Match-local only |
+| 10 s link-dead | Implemented: entity stays 10 s after **detection**; new socket is not rebound; Play disabled until `despawnAt` |
+| Active-character lease | Account-scoped OCC lease; one live character; stale match repair |
 | Account delete UI | Gateway deletion confirm exists; Godot delete flow and `DELETING` resume remain later |
 | Unverified sweep | Policy + `purge_unverified` + opportunistic duplicate-register purge; no periodic cron of every stale account |
 | HMAC pepper | Local Compose uses `local-*-not-production`; staging/production must replace via gitignored env |

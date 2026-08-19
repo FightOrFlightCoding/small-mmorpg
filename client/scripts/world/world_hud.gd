@@ -3,7 +3,12 @@ extends CanvasLayer
 
 signal resync_pressed
 signal logout_pressed
+signal return_pressed
+signal quit_pressed
 signal respawn_pressed
+signal quit_safely_pressed
+signal quit_anyway_pressed
+signal quit_cancelled
 
 ## Matches server TRADE_RANGE_PX. Nearby list and invite hints only; the match still enforces range.
 const TRADE_RANGE_PX: float = 80.0
@@ -13,8 +18,11 @@ const TRADE_RANGE_PX: float = 80.0
 @onready var _health: Label = $Root/Margin/VBox/Health
 @onready var _combat_state: Label = $Root/Margin/VBox/CombatState
 @onready var _resync: Button = $Root/Margin/VBox/Buttons/ResyncButton
+@onready var _return_button: Button = $Root/Margin/VBox/Buttons/ReturnButton
 @onready var _logout: Button = $Root/Margin/VBox/Buttons/LogoutButton
+@onready var _quit: Button = $Root/Margin/VBox/Buttons/QuitButton
 @onready var _settings_button: Button = $Root/Margin/VBox/Buttons/SettingsButton
+@onready var _session_status: Label = $Root/Margin/VBox/SessionStatus
 @onready var _journal_body: Label = $Root/Journal/Margin/VBox/Body
 @onready var _death: Label = $Root/Death
 @onready var _respawn_button: Button = $Root/RespawnButton
@@ -93,11 +101,25 @@ var _trade_decline: Button
 var _trade_session: VBoxContainer
 var _trade_nearby_fingerprint: String = ""
 var _last_player_target_id: String = ""
+var _quit_overlay: ColorRect
+var _quit_body: Label
+var _quit_safely: Button
+var _quit_anyway: Button
+var _quit_cancel: Button
+var _quit_safe_mode: bool = true
 
 
 func _ready() -> void:
 	_resync.pressed.connect(func() -> void: resync_pressed.emit())
 	_logout.pressed.connect(func() -> void: logout_pressed.emit())
+	if _return_button != null:
+		_return_button.pressed.connect(func() -> void: return_pressed.emit())
+	if _quit != null:
+		_quit.pressed.connect(func() -> void: quit_pressed.emit())
+	_build_quit_dialog()
+	if not AppState.session_status_changed.is_connected(_on_session_status):
+		AppState.session_status_changed.connect(_on_session_status)
+	_on_session_status(AppState.session_status if not AppState.session_status.is_empty() else "Online")
 	if _settings_button != null:
 		_settings_button.pressed.connect(_on_settings_pressed)
 	if _respawn_button != null:
@@ -184,7 +206,7 @@ func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool =
 	if snapshot_stale:
 		_status.text = "Connection degraded. Remote movement is frozen."
 	elif AppState.is_reconnecting:
-		_status.text = "Reconnecting…"
+		_status.text = "Connection lost"
 	else:
 		_status.text = "In %s as %s (you). Tick %s. Ack seq %s." % [
 			String(state.get("zone_id", "zone.starter")),
@@ -312,7 +334,10 @@ func refresh_party() -> void:
 						str(int(pool.get("max", 0))),
 					]
 					break
-			line += "  %s" % String(member.get("connectionState", "online"))
+			var connection := String(member.get("connectionState", "online"))
+			if connection == "disconnect_grace" or connection == "offline":
+				connection = "disconnected"
+			line += "  %s" % connection
 			_party_members.add_item(line)
 			_party_members.set_item_metadata(_party_members.item_count - 1, String(member.get("characterId", "")))
 	var leader := PartyService.is_leader()
@@ -1932,5 +1957,108 @@ func _hide_cave() -> void:
 	if _cave_panel != null:
 		_cave_panel.visible = false
 	WindowManager.close(WindowManager.CAVE)
+
+
+func set_session_status(text: String) -> void:
+	_on_session_status(text)
+	AppState.notify_session_status(text)
+
+
+func _on_session_status(text: String) -> void:
+	if _session_status != null:
+		_session_status.text = text if not text.is_empty() else "Online"
+
+
+func set_departure_locked(locked: bool) -> void:
+	if _return_button != null:
+		_return_button.disabled = locked
+	if _logout != null:
+		_logout.disabled = locked
+	if _quit != null:
+		_quit.disabled = locked
+	if _resync != null:
+		_resync.disabled = locked
+
+
+func show_quit_dialog(safe_available: bool, warning: String = "") -> void:
+	_quit_safe_mode = safe_available
+	if _quit_overlay == null:
+		_build_quit_dialog()
+	if _quit_body != null:
+		if safe_available:
+			_quit_body.text = "Quit the game after a server-authorized departure?"
+		elif warning.is_empty():
+			_quit_body.text = "Closing now leaves the character in the world for at least ten seconds after the server detects the disconnect."
+		else:
+			_quit_body.text = warning
+	if _quit_safely != null:
+		_quit_safely.visible = safe_available
+		_quit_safely.disabled = false
+	if _quit_anyway != null:
+		_quit_anyway.visible = not safe_available
+		_quit_anyway.disabled = false
+	if _quit_cancel != null:
+		_quit_cancel.disabled = false
+	if _quit_overlay != null:
+		_quit_overlay.visible = true
+
+
+func hide_quit_dialog() -> void:
+	if _quit_overlay != null:
+		_quit_overlay.visible = false
+
+
+func _build_quit_dialog() -> void:
+	if _quit_overlay != null:
+		return
+	_quit_overlay = ColorRect.new()
+	_quit_overlay.name = "QuitDialog"
+	_quit_overlay.color = Color(0, 0, 0, 0.55)
+	_quit_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_quit_overlay.visible = false
+	_quit_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.offset_left = -220
+	panel.offset_top = -90
+	panel.offset_right = 220
+	panel.offset_bottom = 90
+	var vbox := VBoxContainer.new()
+	var title := Label.new()
+	title.text = "Quit Game"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_quit_body = Label.new()
+	_quit_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_quit_cancel = Button.new()
+	_quit_cancel.text = "Cancel"
+	_quit_cancel.pressed.connect(func() -> void:
+		hide_quit_dialog()
+		quit_cancelled.emit()
+	)
+	_quit_safely = Button.new()
+	_quit_safely.text = "Quit Safely"
+	_quit_safely.pressed.connect(func() -> void:
+		_quit_safely.disabled = true
+		_quit_cancel.disabled = true
+		quit_safely_pressed.emit()
+	)
+	_quit_anyway = Button.new()
+	_quit_anyway.text = "Quit Anyway"
+	_quit_anyway.pressed.connect(func() -> void:
+		_quit_anyway.disabled = true
+		_quit_cancel.disabled = true
+		quit_anyway_pressed.emit()
+	)
+	row.add_child(_quit_cancel)
+	row.add_child(_quit_safely)
+	row.add_child(_quit_anyway)
+	vbox.add_child(title)
+	vbox.add_child(_quit_body)
+	vbox.add_child(row)
+	panel.add_child(vbox)
+	_quit_overlay.add_child(panel)
+	add_child(_quit_overlay)
 
 

@@ -16,11 +16,17 @@ func _ready() -> void:
 func show_loading(reason: String) -> void:
 	if _label != null:
 		if reason == "reconnect":
-			_label.text = "Reconnecting…"
+			_label.text = "Connection lost"
 		elif reason == "logout":
-			_label.text = "Leaving…"
+			_label.text = "Logging out"
+		elif reason == "return":
+			_label.text = "Returning to Character Select"
+		elif reason == "zone":
+			_label.text = "Entering world"
 		elif reason == "transfer":
 			_label.text = "Transferring…"
+		elif reason == "server":
+			_label.text = "Server unavailable"
 		else:
 			_label.text = "Loading (%s)" % reason
 	if _cancel != null:
