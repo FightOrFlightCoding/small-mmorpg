@@ -493,3 +493,13 @@ Suggested tag `foundation-v1` is not created until the working tree is clean and
 
 Content hash after this phase: `4eeb205a3748b3cd71053bcc217cb017ae69f1f1d4753238ca4c03da9cce35c1`.
 
+## 2026-08-19 — Post-certification defect repair
+
+Not a new gameplay phase. After Prompt 35, three accidental defects were repaired so the suggested `foundation-v1` tag is not blocked by them:
+
+- Proof/cert NPC dialogues called `QuestService.request_turn_in` with one argument. The method requires quest id and NPC id, matching the Elder. Slime Problem at the Elder was already correct.
+- Ground loot looked up character visual sets (`visual_set.item.*`) and warned for items that already have `visualId` / icons. Loot now uses the item visual unless a set is authored.
+- `respawnDestination` now applies an inn bind only when `bindZoneId` matches the current zone. Legacy saves with an empty `bindZoneId` still use bind coordinates in the public world. A public-world inn bind no longer places a body at inn coordinates inside a cave match.
+
+Cave boss `respawnDelay` **0** remains test-content behavior, not a defect. Product exclusions in [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) stay excluded. Godot 4.7.1 Windows export templates are a workstation install (`scripts/install-export-templates.ps1`). Headless export uses the non-console editor binary because the console binary can `STATUS_ACCESS_VIOLATION` after `savepack`; a produced `small-mmorpg.exe` is treated as success.
+

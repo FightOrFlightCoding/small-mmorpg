@@ -139,6 +139,7 @@ bash scripts/test-all.sh
 | `scripts/verify-release` | Content, audit, server, migrations, client, backup restore drill |
 | `scripts/backup-create` / `test-backup` | Dump Postgres; restore into `nakama_restore_drill` |
 | `scripts/export-client-release` | Windows Desktop release export (`client/exports/`, gitignored) |
+| `scripts/install-export-templates` | Download official Godot 4.7.1 Windows export templates into `%APPDATA%` |
 
 The e2e scene is `res://scenes/e2e/e2e_slice.tscn`. It runs only in a **debug** Godot build with `--e2e-slice`. It uses two real Nakama sessions and the same match opcodes as the graphical client. It does not skip server validation. Release exports refuse the hook.
 

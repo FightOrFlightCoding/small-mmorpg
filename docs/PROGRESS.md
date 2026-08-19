@@ -702,15 +702,15 @@ Headless `--cert-five` (stamp `1787139186964`) used five accounts (three `test.c
 | --- | --- |
 | Content | 23/23, hash `4eeb205a3748b3cd71053bcc217cb017ae69f1f1d4753238ca4c03da9cce35c1` |
 | Audit | `FOUNDATION_AUDIT_OK` (26 storage records, 31 client opcodes, 15 server opcodes, 24 rpcs) |
-| Server | 446/446, `tsc --noEmit` clean |
-| Client GdUnit | 204/204, 0 orphans, `SHELL_LOGIN` |
+| Server | 447/447, `tsc --noEmit` clean |
+| Client GdUnit | 206/206, 0 orphans, `SHELL_LOGIN` |
 | Capacity | `reports/capacity.cert.json`: 20 public-world characters + 2×5 cave instances, cave cleanup ok, 0 ghosts |
 | Soak | `reports/soak.cert.json`: 200 ticks, 4 bots, 0 errors, gold unchanged, no ghosts/locks/live trades/parties. Manual: `powershell -File scripts/test-soak.ps1 -DurationSec 3600` |
 | E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 |
 | Five-client | `CERT_FIVE_OK` then backend restart then `CERT_FIVE_RESUME_OK` |
 | Backup | dump `nakama` → `nakama_restore_drill`, 20 public tables |
 | Existing saves | all four fixtures dry-run ok, gold 25, no duplicated slime quest or iron sword |
-| Release export | `scripts/export-client-release.ps1` is the command; this workstation lacked Godot 4.7.1 Windows templates (`windows_release_x86_64.exe`) |
+| Release export | `scripts/export-client-release.ps1` produced `client/exports/windows/small-mmorpg.exe` after `scripts/install-export-templates.ps1` |
 
 Clean checkout commands: [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md). Certificate summary: [FOUNDATION_READY.md](FOUNDATION_READY.md).
 
@@ -724,5 +724,9 @@ powershell -File scripts/server-build.ps1
 powershell -File scripts/dev-up.ps1
 powershell -File scripts/test-all.ps1
 ```
+
+## Post-certification defect repair (2026-08-19)
+
+Not a new phase. Proof/cert quest turn-in now passes the NPC id (Elder was already correct). Ground loot uses item visuals instead of missing `visual_set.item.*` warnings. Cave death uses cave spawn when the inn bind is in `zone.starter`. Server tests **447/447**. Client GdUnit **206/206**. Godot 4.7.1 Windows templates were installed with `scripts/install-export-templates.ps1`; `scripts/export-client-release.ps1` produced `client/exports/windows/small-mmorpg.exe`. Suggested tag **`foundation-v1`** is still not created until the tree is clean and the user approves.
 
 

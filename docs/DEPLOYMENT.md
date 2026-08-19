@@ -26,7 +26,7 @@ Versions stay in [DEPENDENCIES.md](DEPENDENCIES.md): Godot **4.7.1**, Node **20.
 | Full verification | `powershell -File scripts/verify-release.ps1` |
 | Pre-deploy checks | `powershell -File scripts/deploy-check.ps1` |
 
-Release export writes `client/exports/windows/small-mmorpg.exe` (gitignored). It fails clearly if Godot 4.7.1 **export templates** are missing. The export preset is `client/export_presets.cfg`. Windows Desktop needs `windows_debug_x86_64.exe` and `windows_release_x86_64.exe` under `%APPDATA%/Godot/export_templates/4.7.1.stable/` (Editor → Manage Export Templates, matching 4.7.1).
+Release export writes `client/exports/windows/small-mmorpg.exe` (gitignored). It fails clearly if Godot 4.7.1 **export templates** are missing. Install them with `powershell -File scripts/install-export-templates.ps1` or Editor → Manage Export Templates (matching 4.7.1). The export preset is `client/export_presets.cfg`. Windows Desktop needs `windows_debug_x86_64.exe` and `windows_release_x86_64.exe` under `%APPDATA%/Godot/export_templates/4.7.1.stable/`.
 
 CI: `.github/workflows/verify.yml` (content, audit/protocol/vendor/bundle, server typecheck+tests, migration fixture dry-run/apply/verify, Godot headless tests).
 

@@ -22,7 +22,7 @@ Giver: The proof token still sits on that critter.
 ~ ready
 Giver: That is the token. I will take it.
 - Turn in the errand.
-	do QuestService.request_turn_in("quest.proof_errand")
+	do QuestService.request_turn_in("quest.proof_errand", "npc.proof_giver")
 	=> END
 - Keep it.
 	=> END

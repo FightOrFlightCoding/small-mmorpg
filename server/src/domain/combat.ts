@@ -160,8 +160,24 @@ export function rememberAttack(player: MatchPlayer, requestId: string, code: str
   player.lastAttackResultOk = ok;
 }
 
+function bindAppliesInCurrentMatch(state: StarterZoneState, player: MatchPlayer): boolean {
+  const bindZone = typeof player.bindZoneId === "string" ? player.bindZoneId : "";
+  const zoneId = typeof state.zoneId === "string" ? state.zoneId : "";
+  if (bindZone.length > 0) {
+    return bindZone === zoneId;
+  }
+  const instanceType = state.instanceType !== undefined ? state.instanceType : "public_world";
+  return instanceType === "public_world";
+}
+
 export function respawnDestination(state: StarterZoneState, player: MatchPlayer): { x: number; y: number } {
-  if (typeof player.bindX === "number" && isFinite(player.bindX) && typeof player.bindY === "number" && isFinite(player.bindY)) {
+  if (
+    typeof player.bindX === "number" &&
+    isFinite(player.bindX) &&
+    typeof player.bindY === "number" &&
+    isFinite(player.bindY) &&
+    bindAppliesInCurrentMatch(state, player)
+  ) {
     return { x: player.bindX, y: player.bindY };
   }
   return { x: state.playerSpawnX, y: state.playerSpawnY };

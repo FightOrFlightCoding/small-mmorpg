@@ -82,12 +82,15 @@ powershell -File scripts/test-cert-journey.ps1
 
 ## Release export
 
-Requires Godot **4.7.1** Windows export templates at `%APPDATA%\Godot\export_templates\4.7.1.stable\` (`windows_release_x86_64.exe` and `windows_debug_x86_64.exe`). Without them the command fails clearly and does not produce `client/exports/windows/small-mmorpg.exe`.
+Requires Godot **4.7.1** Windows export templates at `%APPDATA%\Godot\export_templates\4.7.1.stable\` (`windows_release_x86_64.exe` and `windows_debug_x86_64.exe`). Install them once, then export:
 
 ```powershell
+powershell -File scripts/install-export-templates.ps1
 powershell -File scripts/export-client-release.ps1
 powershell -File scripts/docker-build.ps1
 ```
+
+If the download is blocked, use Godot Editor → Manage Export Templates → Download and Install for **4.7.1**, then retry `scripts/export-client-release.ps1`. Without templates the export command fails clearly and does not produce `client/exports/windows/small-mmorpg.exe`.
 
 ## Stop / wipe
 

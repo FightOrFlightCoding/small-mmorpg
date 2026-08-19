@@ -71,6 +71,17 @@ func test_elder_dialogue_compiles_with_required_titles() -> void:
 	assert_str(file.get_as_text()).contains("do QuestService.request_turn_in(\"quest.slime_problem\", \"npc.elder\")")
 
 
+func test_proof_and_cert_dialogues_turn_in_with_npc_id() -> void:
+	var proof := FileAccess.get_file_as_string("res://content/dialogue/npc.proof_giver.dialogue")
+	assert_str(proof).contains("do QuestService.request_turn_in(\"quest.proof_errand\", \"npc.proof_giver\")")
+	var cert := FileAccess.get_file_as_string("res://content/dialogue/npc.cert_quartermaster.dialogue")
+	assert_str(cert).contains("do QuestService.request_turn_in(\"quest.cert_scout\", \"npc.cert_quartermaster\")")
+	var proof_resource: DialogueResource = DialogueManager.create_resource_from_text(proof)
+	assert_object(proof_resource).is_not_null()
+	var cert_resource: DialogueResource = DialogueManager.create_resource_from_text(cert)
+	assert_object(cert_resource).is_not_null()
+
+
 func test_world_sends_interact_without_opening_dialogue() -> void:
 	var fake := FakeNetworkBackend.new()
 	NetworkService.backend = fake

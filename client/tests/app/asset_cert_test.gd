@@ -18,6 +18,8 @@ func test_asset_manifest_replacements_do_not_need_gameplay_scripts() -> void:
 	var npc: Dictionary = manifest.resolve_set_for_content("npc.proof_giver")
 	assert_str(String(npc.get("spriteVisualId", ""))).is_equal("visual.npc_herald")
 	assert_str(manifest.icon_visual_id("item", "item.proof_token")).is_equal("visual.item_potion")
+	assert_str(manifest.icon_visual_id("item", "item.test_potion")).is_equal("visual.item_potion")
+	assert_str(manifest.icon_visual_id("item", "item.test_relic_blade")).is_equal("visual.item_relic_blade")
 	assert_str(manifest.icon_visual_id("ability", "test.ability.small_heal")).is_equal("visual.ability_buff_icon")
 	var root: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://content/asset_manifest.json"))
 	assert_bool(typeof(root) == TYPE_DICTIONARY).is_true()

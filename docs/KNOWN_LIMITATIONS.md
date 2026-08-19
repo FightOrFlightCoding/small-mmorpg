@@ -34,7 +34,6 @@ Not in this repository’s foundation track:
 - Temporary parties are not a permanent social system. Idle TTL is **4 hours**. Disconnect grace is **60** seconds.
 - Health, cooldowns, active casts, status effects, ground loot, and live enemy AI reset with the match (or after the **5** second pose grace on a new join). Bind point, inventory, equipment, gold, quests, and progression persist.
 - `spawn.cave.boss` / `zone.cave` use `respawnDelay` **0**, so the cave boss returns immediately after a kill. Headless `--cert-five` treats the first HP wrap (low health then max) as the unique defeat so credit is not farmed.
-- `respawnDestination` uses bind X/Y without requiring `bindZoneId` to match the current instance. An inn bind in the public world followed by death in a cave can place the body at public-world inn coordinates inside the cave match.
 - Inventory item locks and live trades must not survive a completed logout; interrupted trades recover on rejoin or via authorized GM `cancel_trade`.
 - `SAVE_SCHEMA_VERSION` is **1**. There is no supported downgrade path.
 
@@ -61,6 +60,6 @@ Not in this repository’s foundation track:
 ## Client
 
 - Release exports refuse `--e2e-slice` and `--cert-five`.
-- A Windows desktop export (`scripts/export-client-release.ps1`) needs Godot **4.7.1** export templates installed on the workstation. The templates are not in this repository.
+- A Windows desktop export (`scripts/export-client-release.ps1`) needs Godot **4.7.1** export templates installed on the workstation. The templates are not in this repository. Install with `scripts/install-export-templates.ps1` or Editor → Manage Export Templates. Headless export uses the non-console Godot binary. Godot 4.7.1 may print ObjectDB leaks or even `STATUS_ACCESS_VIOLATION` after `savepack` completes; the script treats a produced `small-mmorpg.exe` as success.
 - A debug GM panel never grants authority; `gm_command` is server-allowlisted and default-disabled.
 - UI never writes canonical inventory, equipment, quest, gold, or progression storage.

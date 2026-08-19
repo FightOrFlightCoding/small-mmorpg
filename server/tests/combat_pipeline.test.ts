@@ -346,12 +346,43 @@ test("bound-point fallback uses bind coordinates when present", () => {
   const state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", spawn.x, spawn.y, 0));
   state.players["user-alice"].bindX = 220;
   state.players["user-alice"].bindY = 180;
+  state.players["user-alice"].bindZoneId = "zone.starter";
   state.players["user-alice"].deadUntilTick = 1;
   const events: CombatEvent[] = [];
   applyPlayerRespawn(state, state.players["user-alice"], 4, events);
   assert.equal(state.players["user-alice"].x, 220);
   assert.equal(state.players["user-alice"].y, 180);
   assert.equal(state.players["user-alice"].health, content.player.maxHealth);
+});
+
+test("cave death uses cave spawn instead of a public-world inn bind", () => {
+  const cave = createStarterZoneState(
+    contentHash,
+    content.zones["zone.cave"],
+    enemiesById(),
+    {
+      id: content.player.id,
+      maxHealth: content.player.maxHealth,
+      moveSpeed: content.player.moveSpeed,
+      interactionRange: content.player.interactionRange,
+      attack: content.player.attack,
+      attackRange: content.player.attackRange,
+      attackCooldown: content.player.attackCooldown,
+      respawnDelaySec: PLAYER_RESPAWN_DELAY_SEC,
+    },
+    questDefinitionsFromContent(content.quests),
+    {},
+    { instanceType: "party_cave", instanceId: "cave-bind-test" },
+  );
+  const spawn = content.zones["zone.cave"].playerSpawn;
+  const state = addPlayer(cave, playerAt("user-alice", "Alice", 200, 200, 0));
+  state.players["user-alice"].bindX = 220;
+  state.players["user-alice"].bindY = 180;
+  state.players["user-alice"].bindZoneId = "zone.starter";
+  state.players["user-alice"].deadUntilTick = 1;
+  applyPlayerRespawn(state, state.players["user-alice"], 4, []);
+  assert.equal(state.players["user-alice"].x, spawn.x);
+  assert.equal(state.players["user-alice"].y, spawn.y);
 });
 
 test("explicit release respawns before the timer", () => {

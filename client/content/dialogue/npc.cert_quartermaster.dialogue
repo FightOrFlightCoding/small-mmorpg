@@ -22,7 +22,7 @@ Quartermaster: The scout is still on the ridge.
 ~ ready
 Quartermaster: That scout is down. I will close the errand.
 - Turn in the scout report.
-	do QuestService.request_turn_in("quest.cert_scout")
+	do QuestService.request_turn_in("quest.cert_scout", "npc.cert_quartermaster")
 	=> END
 - Keep hunting.
 	=> END

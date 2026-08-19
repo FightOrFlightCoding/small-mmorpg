@@ -23,6 +23,30 @@ func test_visual_ids_resolve_from_content() -> void:
 	assert_str(slime["texture_path"]).contains("kenney_rpg_base")
 
 
+func test_loot_uses_item_visual_without_character_set_warning() -> void:
+	ContentRegistry.assets.missing_ids = PackedStringArray()
+	ContentRegistry.assets.last_warning = ""
+	var registry: EntityRegistry = auto_free(EntityRegistry.new())
+	add_child(registry)
+	registry.apply_full_state({
+		"self_id": "user-alice",
+		"players": [{"userId": "user-alice", "name": "Alice", "x": 0, "y": 0}],
+		"npcs": [],
+		"enemies": [],
+		"loot": [
+			{"id": "loot-gel-1", "itemId": "item.slime_gel", "x": 10, "y": 10},
+			{"id": "loot-potion-1", "itemId": "item.test_potion", "x": 20, "y": 10},
+			{"id": "loot-blade-1", "itemId": "item.test_relic_blade", "x": 30, "y": 10},
+		],
+	})
+	var gel := registry.get_entity("loot:loot-gel-1") as WorldAvatar
+	assert_object(gel).is_not_null()
+	assert_bool(gel.used_fallback).is_false()
+	assert_bool(ContentRegistry.assets.missing_ids.has("visual_set.item.slime_gel")).is_false()
+	assert_bool(ContentRegistry.assets.missing_ids.has("visual_set.item.test_potion")).is_false()
+	assert_bool(ContentRegistry.assets.missing_ids.has("visual_set.item.test_relic_blade")).is_false()
+
+
 func test_missing_visual_id_is_visible_fallback() -> void:
 	var visual: Dictionary = ContentRegistry.resolve_visual("visual.unknown")
 	assert_bool(bool(visual["missing"])).is_true()

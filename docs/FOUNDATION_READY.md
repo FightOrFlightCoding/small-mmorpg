@@ -50,15 +50,15 @@ Recorded from the Prompt 35 gate run (2026-08-19).
 | --- | --- |
 | Content-build | **23/23**, hash `4eeb205a3748b3cd71053bcc217cb017ae69f1f1d4753238ca4c03da9cce35c1` |
 | Foundation audit | `FOUNDATION_AUDIT_OK` (26 storage records, 31 client opcodes, 15 server opcodes, 24 RPCs) |
-| Server domain tests | **446/446**, `tsc --noEmit` clean |
-| Client GdUnit | **204/204**, 0 orphans, `SHELL_LOGIN` |
+| Server domain tests | **447/447**, `tsc --noEmit` clean |
+| Client GdUnit | **206/206**, 0 orphans, `SHELL_LOGIN` |
 | Prompt 18 e2e | `E2E_SLICE_OK` |
 | Five-client journey | `CERT_FIVE_OK` then backend restart then `CERT_FIVE_RESUME_OK` (stamp `1787139186964`) |
 | Capacity | `reports/capacity.cert.json` (20 public-world characters, 2×5 caves, 0 ghosts, cave cleanup ok) |
 | Soak | `reports/soak.cert.json` (200 ticks, 4 bots, 0 errors, gold unchanged; 3600 s is manual) |
 | Backup restore | dump local `nakama` → `nakama_restore_drill`, **20** public tables |
 | Existing saves | fixtures `p18-alice`, `p20-v1-alice`, `p21-class-alice`, `current-v1-alice` migrate with gold **25** and one completed slime quest / one iron sword |
-| Release export | command exists; this workstation had no Godot 4.7.1 Windows export templates |
+| Release export | `client/exports/windows/small-mmorpg.exe` (112 MB) after `scripts/install-export-templates.ps1` |
 
 ## Five-client journey
 
@@ -112,6 +112,8 @@ Covered by `client/tests/app/asset_cert_test.gd`.
 
 See [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md). Architectural Prompt 18 ID hard-coding that is still catalogued in [HARDCODED_ASSUMPTIONS.md](HARDCODED_ASSUMPTIONS.md) is not a content-authoring blocker: new classes, items, enemies, quests, and vendors are data.
 
+Post-certification repairs (not a new phase): proof/cert turn-in now passes NPC id; ground loot uses item visuals; cave respawn honors `bindZoneId`. Product exclusions and cave-boss `respawnDelay` 0 remain.
+
 ## Repository audit (Prompt 35)
 
 | Check | Result |
@@ -126,4 +128,4 @@ See [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md). Architectural Prompt 18 ID har
 | Storage catalog | 26 records in `expected.json` / [STORAGE_CATALOG.md](STORAGE_CATALOG.md) |
 | Excluded features | No guild, auction, crafting, PvP, or sharding modules |
 | README setup | `scripts/setup.ps1` / `setup.sh` |
-| Release export | `scripts/export-client-release.ps1` + `client/export_presets.cfg`. Failed here: missing `4.7.1.stable` Windows templates. Not a missing project feature. |
+| Release export | `scripts/export-client-release.ps1` + `client/export_presets.cfg`. Templates installed via `scripts/install-export-templates.ps1`. Produced `client/exports/windows/small-mmorpg.exe`. |

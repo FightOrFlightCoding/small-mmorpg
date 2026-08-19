@@ -37,6 +37,50 @@ function Get-GodotGame {
 	return Get-GodotConsole
 }
 
+function Get-GodotExport {
+	$game = "C:\Users\Eszter\Desktop\godot\Godot_v4.7.1-stable_win64.exe"
+	if (Test-Path $game) {
+		return $game
+	}
+	if ($env:GODOT_BIN) {
+		$sibling = [regex]::Replace([string]$env:GODOT_BIN, "_console\.exe$", ".exe")
+		if ($sibling -ne $env:GODOT_BIN -and (Test-Path $sibling)) {
+			return $sibling
+		}
+	}
+	return Get-GodotGame
+}
+
+function Invoke-GodotExport {
+	param(
+		[Parameter(Mandatory = $true)]
+		[string]$Godot,
+		[Parameter(Mandatory = $true)]
+		[string[]]$ArgumentList
+	)
+	# The GUI-subsystem editor returns immediately from `&`. Start-Process -Wait
+	# blocks until export actually finishes.
+	$proc = Start-Process -FilePath $Godot -ArgumentList $ArgumentList -Wait -PassThru -NoNewWindow
+	return $proc.ExitCode
+}
+
+function Assert-GodotExportOutput {
+	param(
+		[Parameter(Mandatory = $true)]
+		[string]$Path,
+		[object]$ExitCode,
+		[Parameter(Mandatory = $true)]
+		[string]$FailMessage
+	)
+	if ((Test-Path $Path) -and ((Get-Item $Path).Length -gt 1MB)) {
+		if ($null -ne $ExitCode -and "$ExitCode" -ne "" -and $ExitCode -ne 0) {
+			Write-Host "Godot export exit code was $ExitCode; treating as success because $Path exists."
+		}
+		return
+	}
+	throw $FailMessage
+}
+
 function Invoke-RepoScript {
 	param(
 		[Parameter(Mandatory = $true)]

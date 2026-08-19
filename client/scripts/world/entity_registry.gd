@@ -262,10 +262,14 @@ func _visual_for(kind: String, record: Dictionary) -> Dictionary:
 	elif kind == KIND_LOOT:
 		content_id = String(record.get("itemId", ""))
 	var visual_id := ContentRegistry.visual_id_for_content(content_id)
+	if visual_id.is_empty() and kind == KIND_LOOT and not content_id.is_empty():
+		visual_id = ContentRegistry.assets.icon_visual_id("item", content_id)
 	if visual_id.is_empty() and not content_id.is_empty():
 		visual_id = "visual.unmapped:%s" % content_id
 	var visual: Dictionary = ContentRegistry.resolve_visual(visual_id)
-	var vis_set: Dictionary = ContentRegistry.resolve_visual_set_for_content(content_id)
+	var vis_set: Dictionary = {}
+	if kind != KIND_LOOT or ContentRegistry.assets.has_set_for_content(content_id):
+		vis_set = ContentRegistry.resolve_visual_set_for_content(content_id)
 	visual["visual_set"] = vis_set
 	visual["direction_count"] = int(vis_set.get("directionCount", 4))
 	return visual

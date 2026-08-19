@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 . "$PSScriptRoot\_common.ps1"
 $RepoRoot = Get-RepoRoot
 $Client = Join-Path $RepoRoot "client"
-$Godot = Get-GodotConsole
+$Godot = Get-GodotExport
 $OutDir = Join-Path $Client "exports\windows"
 $Out = Join-Path $OutDir "small-mmorpg-dev.exe"
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
@@ -12,11 +12,15 @@ if (-not (Test-Path $presetPath)) {
 	throw "Missing client/export_presets.cfg."
 }
 Write-Host "Exporting debug client to $Out"
-& $Godot --headless --path $Client --export-debug "Windows Desktop (Debug)" $Out
-if ($LASTEXITCODE -ne 0) {
-	throw "Debug export failed (exit $LASTEXITCODE). Install Godot 4.7.1 export templates, then retry."
+if (Test-Path $Out) {
+	Remove-Item -Force $Out
 }
-if (-not (Test-Path $Out)) {
-	throw "Debug export reported success but $Out is missing. Export templates are probably not installed."
-}
+$code = Invoke-GodotExport -Godot $Godot -ArgumentList @(
+	"--headless",
+	"--path", $Client,
+	"--export-debug",
+	"`"Windows Desktop (Debug)`"",
+	"`"$Out`""
+)
+Assert-GodotExportOutput -Path $Out -ExitCode $code -FailMessage "Debug export failed (exit $code). Run powershell -File scripts/install-export-templates.ps1, then retry."
 Write-Host "debug_export=$Out"

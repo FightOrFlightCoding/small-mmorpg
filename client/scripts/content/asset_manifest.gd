@@ -53,6 +53,19 @@ func resolve_set(set_id: String) -> Dictionary:
 	return _fallback_set(set_id)
 
 
+func has_set_for_content(content_id: String) -> bool:
+	if content_id.is_empty():
+		return false
+	var mapped := "visual_set.%s" % content_id
+	if _sets.has(mapped):
+		return true
+	for set_id in _sets.keys():
+		var row: Dictionary = _sets[set_id]
+		if String(row.get("contentId", "")) == content_id:
+			return true
+	return false
+
+
 func resolve_set_for_content(content_id: String) -> Dictionary:
 	var mapped := "visual_set.%s" % content_id
 	if _sets.has(mapped):
