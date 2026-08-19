@@ -17,6 +17,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `scripts/test-soak` | Short automated soak; `-DurationSec 3600` for manual certification |
 | `scripts/test-cert-journey` | Live five-client journey `CERT_FIVE_OK`, backend restart, `CERT_FIVE_RESUME_OK` |
 | `scripts/test-failure` | Domain failure tests; `-Live` restarts Nakama/Postgres in a disposable stack |
+| `scripts/test-account-compat` | Domain account helpers plus live Nakama 3.40.0 lifecycle proofs (starts the stack if needed) |
 | `scripts/test-all` | setup + content, audit, server, client, e2e, capacity, soak, five-client, backup |
 | `scripts/test-backup` | Dump local `nakama`, restore into `nakama_restore_drill`, verify table counts |
 | `scripts/verify-release` | Content, audit, server, migrations, client, backup drill |
@@ -95,6 +96,10 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `cert_failure.test.ts` | Disconnect, delayed/duplicate messages, cave terminate, stale presence, transfer leave, trade recover | |
 | `cert_content.test.ts` | Content-only cert pack present; `quest.cert_scout` accept/kill/turn-in; vendor buy `item.cert_mail` | |
 | `existing_save_cert.test.ts` | Prompt 18, p20, p21, and current fixtures keep quest, gear, gold, pose; second migrate does not duplicate | |
+| `email.test.ts` | Canonical email trim/lowercase; plus-tags and dots preserved | |
+| `hmac.test.ts` | Pure SHA-256/HMAC match Node crypto (Nakama JS has no `crypto`) | |
+| `account_compat.test.ts` | HMAC index object shape; lookup rejects missing/multiple/stale hits | |
+| `account_compat.live.test.ts` | Live Nakama 3.40.0 proofs; skipped unless `ACCT_COMPAT_LIVE=1` | |
 
 ## Client GdUnit (`client/tests`)
 

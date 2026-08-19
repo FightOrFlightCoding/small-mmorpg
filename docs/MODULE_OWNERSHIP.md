@@ -96,6 +96,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `rpcs/gm.ts` / `gm.ts` / `gm_store.ts` | A/S | Allowlist, audited `gm_command`, live matchSignal apply | none | gm / gm_audit storage | domain gm | yes | RPC | admin grants |
 | `rpcs/handshake.ts` / `handshake.ts` / `compatibility.ts` | A/S | Login compatibility gate | none | none | catalog hash + env versions | no | `session_handshake` | no |
 | `rpcs/ops.ts` / `ops_store.ts` / `maintenance.ts` / `ops_metrics.ts` | A/S | Maintenance flag, counters, redacted ops logs | in-memory counters | ops storage | domain maintenance | yes | `ops_status` / `ops_set_maintenance` | no |
+| `email.ts` / `hmac.ts` / `account_compat.ts` / `rpcs/acct_compat.ts` | S/A | Canonical email, pure HMAC-SHA256, HMAC lookup decision, gated `acct_compat_probe` | none | `account_compat` / `email_index` | `nk.accountExportId`, `nk.accountDeleteId`, `storageIndexList` | yes (compat only) | `acct_compat_probe` | no |
 | `nakama/auth_hooks.ts` / `environment.ts` | A/S | Registration and device-auth policy from env presets | none | none | compiled presets + `ctx.env` | no | Authenticate* before hooks | no |
 | `cert_load.ts` / `cli/cert.ts` | S/T | Capacity/soak measurement (default public cap stays 8; capacity uses `maxPlayers: 20` extras) | none | none | match_loop | no | no | no |
 | `recovery.ts` | S | Documented recovery procedures and overwrite tokens | none | none | none | no | no | no |

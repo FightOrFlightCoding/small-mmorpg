@@ -180,6 +180,18 @@ Commands: `inspect_character`, `teleport_character`, `repair_invalid_location`, 
 | Authority | Same GM allowlist as `gm_command` |
 | Errors | `unauthenticated`, `gm_disabled`, `unauthorized`, `malformed_json`, `unknown_field` |
 
+### `acct_compat_probe`
+
+| Field | Value |
+| --- | --- |
+| Direction | Compatibility tests → server HTTP RPC |
+| Request | `{ op, hmac? }` where `op` is `put` / `get` / `list` / `delete_object` / `verify` / `export` / `delete_account` / `account_summary` |
+| Authority | Gated by `developmentToolsEnabled`. Not a player UI. Uses `nk.accountExportId`, `nk.accountDeleteId(userId, true)`, and `nk.storageIndexList` |
+| Auth | Nakama session |
+| Storage | `account_compat` / `email_index`, `permissionWrite: 0`, HMAC only (no raw email) |
+| Errors | `unauthenticated`, `dev_tools_disabled`, `malformed_json`, `unknown_field`, `invalid_payload` |
+| Tests | `server/tests/account_compat.test.ts`, `server/tests/account_compat.live.test.ts` |
+
 ## Client → server match opcodes
 
 Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARGET 8; INTERACT/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/quest/VENDOR_BUY/VENDOR_SELL/INN_REST/CAVE_ENTER/CAVE_EXIT/TRADE_*/ALLOCATE_ATTRIBUTES/ASSIGN_HOTBAR/UNLOCK_ABILITY 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
@@ -567,7 +579,7 @@ No `registerRtAfter`. No group/DM channels. Party chat messages never drive game
 
 | Identifier | Status |
 | --- | --- |
-| AuthenticateDevice / AuthenticateEmail / custom auth hooks | Not registered. Nakama built-in email/password and debug device auth. |
+| AuthenticateDevice / AuthenticateEmail / custom auth hooks | `registerBeforeAuthenticateEmail` and `registerBeforeAuthenticateDevice` are registered. They enforce rate limits plus `registration_disabled` / `device_auth_disabled`. There is no after-auth hook and no custom authenticate handler. |
 | Notification codes | None |
 
 ## Duplicate / undocumented scan

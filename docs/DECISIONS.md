@@ -521,3 +521,17 @@ Not a new gameplay phase. After both members log out, the party can disband whil
 
 Not a new gameplay phase. Server trade range stays `TRADE_RANGE_PX = 80`. Trade is match opcodes, not HTTP RPCs. Failed `ACTION_RESULT` / `TRADE_STATE` stay on the trade panel (notice + Error line). Nearby lists every living same-match player with distance; Invite still refuses out-of-range locally and the match still enforces 80 px. Invitee copy uses Accept invite / Decline; the inviter sees a waiting status.
 
+## 2026-08-19 — ACCT-01 account lifecycle audit and Nakama compatibility
+
+Not a gameplay phase. Player-visible login, character select, and world behavior are unchanged.
+
+The distribution-ready account track starts with documentation and proofs against pinned Nakama **3.40.0** / `nakama-runtime` **1.47.0**. Later phases must use only the supported sequences in [account/NAKAMA_COMPATIBILITY_RESULTS.md](account/NAKAMA_COMPATIBILITY_RESULTS.md). Do not modify Nakama authentication tables or password hashes with custom SQL.
+
+Proven on 3.40.0: same-email `linkEmail` replaces the password; email replacement requires a temporary device because unlinking the only identifier returns 403; logout-all is empty token strings after the next Unix second; recorded `accountDeleteId(id, true)` frees the email for a new user id; HMAC lookup is `storageIndexList` (three JS arguments) plus re-read.
+
+A development-gated RPC `acct_compat_probe` and storage index `acct_compat_email_hmac` exist so live tests can call `nk.accountExportId`, `nk.accountDeleteId(userId, true)`, and `nk.storageIndexList`. The Godot client does not call this RPC. Production `developmentToolsEnabled` is false, so the probe throws `dev_tools_disabled`.
+
+Canonical email and HMAC helpers live in `server/src/domain/email.ts` and `hmac.ts` (pure JS; Nakama JS cannot use Node `crypto`). They are not yet wired into authenticate hooks.
+
+Target account/character/presence states, 5 slots, `class.warrior` / `class.marksman` / `class.mage`, 10-second LINK_DEAD, verification mail, and OS credential storage remain later phases. Current live slot limit stays **3**. Disconnect grace stays **5s** public / **60s** cave and party.
+

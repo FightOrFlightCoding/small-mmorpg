@@ -29,6 +29,7 @@ export const REGISTERED_RPC_IDS = [
   "session_handshake",
   "ops_status",
   "ops_set_maintenance",
+  "acct_compat_probe",
 ] as const;
 
 export { PROTOCOL_VERSION };

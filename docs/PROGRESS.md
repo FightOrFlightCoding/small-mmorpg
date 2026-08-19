@@ -1,10 +1,10 @@
 # Progress
 
-Last accepted phase: **Final content-ready foundation certification**.
+Last accepted phase: **Account lifecycle audit and Nakama compatibility (ACCT-01)**.
 
 Current phase: none.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement Foundation features until a later phase names them.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later account-lifecycle features until a later ACCT phase names them.
 
 ## Phase 0 acceptance (2026-08-15)
 
@@ -728,5 +728,36 @@ powershell -File scripts/test-all.ps1
 ## Post-certification defect repair (2026-08-19)
 
 Not a new phase. Proof/cert quest turn-in now passes the NPC id (Elder was already correct). Ground loot uses item visuals instead of missing `visual_set.item.*` warnings. Cave death uses cave spawn when the inn bind is in `zone.starter`. Server tests **447/447**. Client GdUnit **206/206**. Godot 4.7.1 Windows templates were installed with `scripts/install-export-templates.ps1`; `scripts/export-client-release.ps1` produced `client/exports/windows/small-mmorpg.exe`. Suggested tag **`foundation-v1`** is still not created until the tree is clean and the user approves.
+
+## Account lifecycle audit and Nakama compatibility acceptance (ACCT-01, 2026-08-19)
+
+Documentation and compatibility proofs only. Player-visible login, character select, world, slots, classes, disconnect grace, and logout UI are unchanged. No second authentication service or character model. No dependency upgrades. No custom SQL on Nakama auth tables.
+
+Catalogs live under [docs/account/](account/ACCOUNT_ARCHITECTURE.md). Live proofs against pinned **Nakama 3.40.0** / **nakama-runtime 1.47.0** are in [docs/account/NAKAMA_COMPATIBILITY_RESULTS.md](account/NAKAMA_COMPATIBILITY_RESULTS.md). Later phases must use those sequences.
+
+Development-gated RPC `acct_compat_probe` and storage index `acct_compat_email_hmac` exist for proofs. The Godot client does not call the probe. Production `developmentToolsEnabled` is false.
+
+| Gate | Result |
+| --- | --- |
+| Content | 23/23, hash `4eeb205a3748b3cd71053bcc217cb017ae69f1f1d4753238ca4c03da9cce35c1` |
+| Audit | `FOUNDATION_AUDIT_OK` (27 storage records, 31 client opcodes, 15 server opcodes, 25 rpcs) |
+| Server hermetic | 457 passed, 10 skipped (live suite off), `tsc --noEmit` clean |
+| Account live | 10/10 with `ACCT_COMPAT_LIVE=1` (`scripts/test-account-compat.ps1`) |
+| Client GdUnit | 220/220, 0 orphans, `SHELL_LOGIN` |
+| E2E | `E2E_SLICE_OK` (Prompt 18 automated journey) |
+
+Proven: email create / `create=false` / uniqueness; Nakama lowercase vs project canonicalize (plus-tags kept); same-email `linkEmail` password replace; unlink-only-method **403**; email replace via temp device; logout current vs all (empty tokens after the next Unix second); `nk.accountExportId` + console export; recorded `accountDeleteId(id, true)` + email reuse with a new user id; HMAC index lookup with re-read.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-content.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/backend-up.ps1
+powershell -File scripts/test-account-compat.ps1 -SkipDomain
+powershell -File scripts/test-client.ps1
+powershell -File scripts/test-e2e.ps1
+```
 
 

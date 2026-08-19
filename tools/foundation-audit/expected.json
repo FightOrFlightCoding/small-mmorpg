@@ -50,7 +50,8 @@
     "gm_command",
     "session_handshake",
     "ops_status",
-    "ops_set_maintenance"
+    "ops_set_maintenance",
+    "acct_compat_probe"
   ],
   "realtimeBeforeHooks": ["ChannelMessageSend", "ChannelJoin"],
   "realtimeAfterHooks": [],
@@ -132,7 +133,8 @@
     { "collection": "gm", "key": "r", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "gm_audit", "key": "a", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "ops", "key": "maintenance", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "ops", "key": "metrics", "permissionWrite": 0, "schemaVersion": 1 }
+    { "collection": "ops", "key": "metrics", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "account_compat", "key": "email_index", "permissionWrite": 0, "schemaVersion": "absent" }
   ],
   "walletCurrencies": ["gold"],
   "productionContentFiles": [

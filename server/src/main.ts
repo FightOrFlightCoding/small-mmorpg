@@ -23,6 +23,7 @@ import {
 import { rpcGmCommand } from "./rpcs/gm";
 import { rpcSessionHandshake } from "./rpcs/handshake";
 import { rpcOpsSetMaintenance, rpcOpsStatus } from "./rpcs/ops";
+import { rpcAcctCompatProbe } from "./rpcs/acct_compat";
 import { starterZoneMatchHandler } from "./nakama/starter_zone_match";
 import { beforeChannelJoin, beforeChannelMessageSend } from "./nakama/chat_hooks";
 import { beforeAuthenticateDevice, beforeAuthenticateEmail } from "./nakama/auth_hooks";
@@ -100,7 +101,9 @@ function InitModule(
   initializer.registerRpc("session_handshake", rpcSessionHandshake);
   initializer.registerRpc("ops_status", rpcOpsStatus);
   initializer.registerRpc("ops_set_maintenance", rpcOpsSetMaintenance);
+  initializer.registerRpc("acct_compat_probe", rpcAcctCompatProbe);
   initializer.registerMatch(STARTER_ZONE_MODULE, starterZoneMatchHandler);
+  initializer.registerStorageIndex("acct_compat_email_hmac", "account_compat", "email_index", ["hmac"], ["hmac"], 10000, false);
   // Nakama 3.40.0 walks InitModule's AST for registerRtBefore; a helper call is not visible.
   initializer.registerRtBefore("ChannelMessageSend", beforeChannelMessageSend);
   initializer.registerRtBefore("ChannelJoin", beforeChannelJoin);

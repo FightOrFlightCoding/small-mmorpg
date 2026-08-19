@@ -9,6 +9,8 @@ Write-Host "== test-audit =="
 Invoke-RepoScript "test-audit.ps1"
 Write-Host "== test-server =="
 Invoke-RepoScript "test-server.ps1"
+Write-Host "== test-account-compat =="
+Invoke-RepoScript "test-account-compat.ps1" -ArgumentList @("-SkipDomain")
 Write-Host "== test-client =="
 Invoke-RepoScript "test-client.ps1"
 Write-Host "== test-e2e =="

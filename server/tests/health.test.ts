@@ -28,6 +28,7 @@ test("health response has the required shape", () => {
   assert.ok(body.rpcs.includes("session_handshake"));
   assert.ok(body.rpcs.includes("ops_status"));
   assert.ok(body.rpcs.includes("ops_set_maintenance"));
+  assert.ok(body.rpcs.includes("acct_compat_probe"));
   assert.equal(body.server_version, "1.0.0");
   assert.equal(body.environment, "local");
   assert.equal(body.maintenance, false);

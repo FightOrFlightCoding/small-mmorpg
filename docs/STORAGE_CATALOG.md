@@ -489,6 +489,24 @@ Value: `{ schemaVersion, characterId, requestId, reasonType, reasonId, goldDelta
 | Client access     | No. Summaries also appear on `vibecode_health` / `ops_status`. |
 
 
+## `account_compat` / `email_index`
+
+
+| Field             | Value |
+| ----------------- | --- |
+| Purpose           | ACCT-01 compatibility index proving HMAC email lookup. Not a player save. Value is `{ hmac, userId }` only. |
+| Owner             | Server `acct_compat_probe` when `developmentToolsEnabled` |
+| Scope             | Account-scoped |
+| `permissionRead`  | 0 |
+| `permissionWrite` | 0 |
+| Schema version    | absent (not a player-save kind) |
+| Creation          | Test `put` only |
+| Read              | `storageRead` after three-argument `storageIndexList` on index `acct_compat_email_hmac` with `+value.hmac:<hex>`. Never trust the index alone. |
+| Update            | Overwrite hmac for changed-email proofs |
+| Deletion          | Test `delete_object` or recorded account delete |
+| Client access     | No. The Godot client does not call this RPC. |
+
+
 ## Nakama wallet `gold`
 
 
