@@ -27,10 +27,12 @@ var has_character: bool = false
 var character_created: bool = false
 var character_view: Dictionary = {}
 var character_list: Array = []
-var slot_limit: int = 3
+var slot_limit: int = 5
 var live_count: int = 0
 var selection_ticket: String = ""
 var selection_expires_at: int = 0
+var server_maintenance: bool = false
+var content_incompatible: bool = false
 var has_zone_state: bool = false
 var zone_view: Dictionary = {}
 var zone_view_is_full: bool = true
@@ -90,10 +92,12 @@ func notify_logged_out() -> void:
 	character_created = false
 	character_view = {}
 	character_list = []
-	slot_limit = 3
+	slot_limit = 5
 	live_count = 0
 	selection_ticket = ""
 	selection_expires_at = 0
+	server_maintenance = false
+	content_incompatible = false
 	clear_zone_state()
 	is_reconnecting = false
 	logged_out.emit()
@@ -153,10 +157,12 @@ func reset_for_tests() -> void:
 	character_created = false
 	character_view = {}
 	character_list = []
-	slot_limit = 3
+	slot_limit = 5
 	live_count = 0
 	selection_ticket = ""
 	selection_expires_at = 0
+	server_maintenance = false
+	content_incompatible = false
 	has_zone_state = false
 	zone_view = {}
 	zone_view_is_full = true

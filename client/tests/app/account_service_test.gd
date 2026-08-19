@@ -44,6 +44,15 @@ func test_rpc_stack_traces_are_not_shown() -> void:
 	assert_bool(String(unknown.get("message", "")).contains("index.js")).is_false()
 
 
+func test_local_gateway_uses_mailpit_capture() -> void:
+	assert_bool(AccountService.uses_local_mail_capture()).is_true()
+	assert_str(AccountService.LOCAL_MAILPIT_URL).is_equal("http://127.0.0.1:8025")
+	assert_bool(AccountService.local_mail_capture_copy().contains("Mailpit")).is_true()
+	AccountService.gateway_url = "https://auth.example.com"
+	assert_bool(AccountService.uses_local_mail_capture()).is_false()
+	AccountService.gateway_url = AccountService.DEFAULT_GATEWAY_URL
+
+
 func test_failed_logout_all_keeps_session() -> void:
 	var account := AccountService.backend as FakeAccountBackend
 	await AccountService.login("alice@example.com", "secret-pass-15x")

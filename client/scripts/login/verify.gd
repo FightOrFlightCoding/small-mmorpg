@@ -4,6 +4,7 @@ const RESEND_SECONDS := 30
 
 @onready var _explanation: Label = $Center/VBox/Explanation
 @onready var _delay: Label = $Center/VBox/DeliveryDelay
+@onready var _inbox_button: Button = $Center/VBox/InboxButton
 @onready var _code_edit: LineEdit = $Center/VBox/CodeEdit
 @onready var _global_error: Label = $Center/VBox/GlobalError
 @onready var _verify_button: Button = $Center/VBox/VerifyButton
@@ -18,7 +19,9 @@ var _countdown: Timer
 func _ready() -> void:
 	super._ready()
 	_explanation.text = "We sent a verification code to %s. Enter it here. Pasting is supported." % AccountService.pending_email
-	_delay.text = "Email can take a few minutes. Check junk folders. The code expires after a short time."
+	_delay.text = AccountService.local_mail_capture_copy()
+	_inbox_button.visible = AccountService.uses_local_mail_capture()
+	_inbox_button.pressed.connect(_on_inbox_pressed)
 	_code_edit.placeholder_text = "Verification code"
 	_code_edit.secret = false
 	_verify_button.pressed.connect(_on_verify_pressed)
@@ -33,6 +36,10 @@ func _ready() -> void:
 	add_child(_countdown)
 	_start_resend_wait()
 	_code_edit.grab_focus()
+
+
+func _on_inbox_pressed() -> void:
+	OS.shell_open(AccountService.LOCAL_MAILPIT_URL)
 
 
 func _on_code_gui_input(event: InputEvent) -> void:

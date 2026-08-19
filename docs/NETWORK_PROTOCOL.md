@@ -161,9 +161,9 @@ Rejections are typed (`unknown_opcode`, `malformed_json`, `unknown_field`, `inva
 
 Authenticated HTTP/RPC only. Compatibility wrapper around the roster. Payload is JSON, optional `{"name":"Alice"}`, or empty. Unknown fields and any client-supplied stats or position are rejected. Response includes `characterId`, `name`, `created`, `storageVersion`, `contentId`, `zoneId`, `baseStats` (from `player.base`), and `position` (saved or starter spawn). New clients should list/create/select and join with a selection ticket.
 
-## RPC `character_list` / `character_create` / `character_select` / `character_soft_delete` / `character_restore`
+## RPC `character_list` / `character_create` / `character_select` / `character_delete_request` / `character_restore` / `character_name_available` / `character_purge`
 
-Authenticated. Create takes `{ name, classId }`. Select takes `{ characterId }` and returns `{ ticketId, expiresAt, ... }`. Soft-delete and restore take `{ characterId }`. Slot limit is 3 live characters. Canonical names are globally unique.
+Authenticated. Create takes `{ name` or `displayName`, `classId`, optional `idempotencyKey` }`. Select takes `{ characterId }` and returns `{ ticketId, expiresAt, ... }`. Delete takes `{ characterId, confirmationName }`. Restore and purge take `{ characterId }`. Name check is advisory. Slot limit is **5** live characters. Canonical names are globally unique case-insensitively. List returns safe summaries only. Match join still requires a server-issued `selectionTicket`.
 
 ## RPC `find_or_create_starter_zone`
 

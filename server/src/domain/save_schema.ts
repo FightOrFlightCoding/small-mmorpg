@@ -35,6 +35,8 @@ export const CHARACTER_SAVE_KEYS = [
   "position",
   "lastPlayedAt",
   "deletedAt",
+  "softDeleteExpiresAt",
+  "status",
   "bindX",
   "bindY",
   "bindZoneId",

@@ -314,6 +314,9 @@ test("production payload includes the content-only proof chain and excludes the 
   assert.ok(production.npcs["npc.proof_giver"]);
   assert.ok(production.quests["quest.proof_errand"]);
   assert.ok(production.classes["test.class.warden"]);
+  assert.ok(production.classes["class.warrior"]);
+  assert.ok(production.classes["class.marksman"]);
+  assert.ok(production.classes["class.mage"]);
   assert.ok(production.abilities["test.ability.cert_strike"]);
   assert.ok(production.items["item.cert_mail"]);
   assert.ok(production.enemies["enemy.cert_scout"]);

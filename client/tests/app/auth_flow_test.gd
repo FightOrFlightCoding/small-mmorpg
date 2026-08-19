@@ -172,6 +172,7 @@ func test_login_hint_wraps_and_offers_named_identities() -> void:
 	assert_str(page.get_node("Center/VBox/RegisterButton").text).is_equal("Register")
 	assert_str(page.get_node("Center/VBox/ForgotEmailButton").text).is_equal("Forgot which email you used?")
 	assert_bool(String(page.get_node("Center/VBox/ServerHint").text).contains("127.0.0.1:7350")).is_true()
+	assert_bool(String(page.get_node("Center/VBox/ServerHint").text).contains("127.0.0.1:8025")).is_true()
 	assert_bool(NetworkService.last_auth_attempted).is_false()
 
 
@@ -307,7 +308,7 @@ func test_character_list_and_select_issue_a_ticket() -> void:
 	await GameService.request_authenticate("vibecode-dev-alice")
 	await GameService.request_character_list()
 	assert_str(fake.last_rpc_id).is_equal("character_list")
-	assert_int(AppState.slot_limit).is_equal(3)
+	assert_int(AppState.slot_limit).is_equal(5)
 	assert_int(AppState.live_count).is_equal(1)
 	await GameService.request_character_select("char-1")
 	assert_str(AppState.selection_ticket).is_equal("ticket-1")
@@ -339,6 +340,16 @@ func test_unverified_login_goes_to_verify() -> void:
 	assert_str(SceneRouter.current_scene_id).is_equal(SceneRouter.SCENE_VERIFY)
 
 
+func test_local_verify_screen_points_at_mailpit() -> void:
+	AccountService.pending_email = "player@example.com"
+	var page: Control = auto_free(preload("res://scenes/login/verify.tscn").instantiate())
+	add_child(page)
+	await get_tree().process_frame
+	assert_bool(String(page.get_node("Center/VBox/DeliveryDelay").text).contains("127.0.0.1:8025")).is_true()
+	assert_bool(page.get_node("Center/VBox/InboxButton").visible).is_true()
+	assert_str(page.get_node("Center/VBox/InboxButton").text).is_equal("Open local inbox")
+
+
 func test_disabled_account_scene() -> void:
 	_account().login_ok = false
 	_account().login_code = "AUTH_ACCOUNT_DISABLED"
@@ -355,7 +366,7 @@ func test_unverified_gameplay_is_rejected() -> void:
 	fake.rpc_message = "Error: email_verification_required\n    at requirePlayableUser (index.js:19158:11)"
 	assert_bool(GameService.start_boot()).is_true()
 	await GameService.request_authenticate("vibecode-dev-alice")
-	await GameService.request_character_create("Alice", "test.class.warrior")
+	await GameService.request_character_create("Alice", "class.warrior")
 	assert_str(AppState.last_error_code).is_equal("email_verification_required")
 	assert_str(AppState.last_error_message).is_equal(AccountErrors.message_for("email_verification_required"))
 	assert_bool(AppState.last_error_message.contains("index.js")).is_false()
@@ -416,6 +427,8 @@ func test_register_checkboxes_are_not_preselected() -> void:
 	await get_tree().process_frame
 	assert_bool(page.get_node("Center/VBox/TermsCheck").button_pressed).is_false()
 	assert_bool(page.get_node("Center/VBox/PrivacyCheck").button_pressed).is_false()
+	assert_bool(page.get_node("Center/VBox/MailHint").visible).is_true()
+	assert_bool(String(page.get_node("Center/VBox/MailHint").text).contains("127.0.0.1:8025")).is_true()
 	assert_bool(AccountService.stay_signed_in_available()).is_false()
 
 

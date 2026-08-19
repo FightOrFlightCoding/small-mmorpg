@@ -201,8 +201,8 @@ func request_character_select(character_id: String) -> void:
 	await NetworkService.select_character(character_id)
 
 
-func request_character_soft_delete(character_id: String) -> void:
-	await NetworkService.soft_delete_character(character_id)
+func request_character_soft_delete(character_id: String, confirmation_name: String = "") -> void:
+	await NetworkService.soft_delete_character(character_id, confirmation_name)
 
 
 func request_character_restore(character_id: String) -> void:

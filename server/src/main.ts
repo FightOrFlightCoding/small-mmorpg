@@ -2,7 +2,10 @@ import { handleHealthRpc } from "./rpcs/health";
 import {
   rpcCharacterBootstrap,
   rpcCharacterCreate,
+  rpcCharacterDeleteRequest,
   rpcCharacterList,
+  rpcCharacterNameAvailable,
+  rpcCharacterPurge,
   rpcCharacterRestore,
   rpcCharacterSelect,
   rpcCharacterSoftDelete,
@@ -85,7 +88,10 @@ function InitModule(
   initializer.registerRpc("character_create", rpcCharacterCreate);
   initializer.registerRpc("character_select", rpcCharacterSelect);
   initializer.registerRpc("character_soft_delete", rpcCharacterSoftDelete);
+  initializer.registerRpc("character_delete_request", rpcCharacterDeleteRequest);
   initializer.registerRpc("character_restore", rpcCharacterRestore);
+  initializer.registerRpc("character_name_available", rpcCharacterNameAvailable);
+  initializer.registerRpc("character_purge", rpcCharacterPurge);
   initializer.registerRpc("find_or_create_starter_zone", rpcFindOrCreateStarterZone);
   initializer.registerRpc("request_cave_entry", rpcRequestCaveEntry);
   initializer.registerRpc("find_or_create_owned_cave", rpcFindOrCreateOwnedCave);

@@ -99,6 +99,22 @@ static func extract_rpc_domain_code(message: String) -> String:
 		"server_maintenance",
 		"registration_disabled",
 		"device_auth_disabled",
+		"slot_limit",
+		"name_taken",
+		"invalid_name",
+		"invalid_class",
+		"character_deleted",
+		"gameplay_lease",
+		"confirmation_mismatch",
+		"confirmation_required",
+		"retention_expired",
+		"reservation_mismatch",
+		"account_busy",
+		"link_dead",
+		"content_incompatible",
+		"selection_expired",
+		"selection_invalidated",
+		"selection_required",
 	])
 	if known.has(first_line):
 		return first_line

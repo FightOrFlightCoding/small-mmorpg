@@ -66,11 +66,19 @@ function isAllowedNameChar(ch: string): boolean {
   return ch === "-" || ch === "'";
 }
 
+export const NAME_RESERVATION_SCHEMA_VERSION = 1;
+export const RESERVATION_HELD = "HELD";
+export const RESERVATION_RELEASED = "RELEASED";
+
 export interface NameReservation {
   canonicalName: string;
   characterId: string;
   accountUserId: string;
   token: string;
+  reservationState: string;
+  createdAt: number;
+  releasedAt: number;
+  schemaVersion: number;
 }
 
 export function reservationWrite(
@@ -78,12 +86,17 @@ export function reservationWrite(
   characterId: string,
   accountUserId: string,
   token: string,
+  nowMs: number = 0,
 ): NameReservation {
   return {
     canonicalName: canonicalName,
     characterId: characterId,
     accountUserId: accountUserId,
     token: token,
+    reservationState: RESERVATION_HELD,
+    createdAt: nowMs,
+    releasedAt: 0,
+    schemaVersion: NAME_RESERVATION_SCHEMA_VERSION,
   };
 }
 
@@ -94,8 +107,34 @@ export function confirmNameReservation(desired: NameReservation, observed: NameR
   return observed.token === desired.token && observed.canonicalName === desired.canonicalName;
 }
 
+export function nameReservationHeldByCharacter(reservation: NameReservation | null, characterId: string, accountUserId: string): boolean {
+  if (reservation === null) {
+    return false;
+  }
+  if (reservation.reservationState === RESERVATION_RELEASED) {
+    return false;
+  }
+  return reservation.characterId === characterId && reservation.accountUserId === accountUserId;
+}
+
+export function releasedReservation(reservation: NameReservation, nowMs: number): NameReservation {
+  return {
+    canonicalName: reservation.canonicalName,
+    characterId: reservation.characterId,
+    accountUserId: reservation.accountUserId,
+    token: reservation.token,
+    reservationState: RESERVATION_RELEASED,
+    createdAt: reservation.createdAt,
+    releasedAt: nowMs,
+    schemaVersion: NAME_RESERVATION_SCHEMA_VERSION,
+  };
+}
+
 export function nameReservationConflict(existing: NameReservation | null, desired: NameReservation): boolean {
   if (existing === null) {
+    return false;
+  }
+  if (existing.reservationState === RESERVATION_RELEASED) {
     return false;
   }
   if (existing.token === desired.token) {

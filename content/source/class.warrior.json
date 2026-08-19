@@ -1,0 +1,35 @@
+{
+  "id": "class.warrior",
+  "kind": "class",
+  "displayName": "Warrior",
+  "shortDescription": "Front-line melee. Provisional stats and loadout.",
+  "displayNameKey": "class.warrior.display_name",
+  "shortDescriptionKey": "class.warrior.short_description",
+  "longDescriptionKey": "class.warrior.long_description",
+  "roleSummaryKey": "class.warrior.role_summary",
+  "placeholderIconAssetId": "visual.class_warrior",
+  "placeholderVisualSetId": "visual.class_warrior",
+  "placeholderThemeKey": "theme.class.warrior",
+  "selectOrder": 1,
+  "visualAssetSetId": "visual.class_warrior",
+  "legacyMigrationDefault": true,
+  "progressionId": "progression.warrior",
+  "levelCurveId": "test.curve.standard",
+  "startingAttributes": {
+    "test.attribute.might": 6,
+    "test.attribute.vitality": 6,
+    "test.attribute.focus": 2
+  },
+  "startingResources": {
+    "test.resource.health": 100,
+    "test.resource.mana": 20
+  },
+  "attributePointPolicy": { "pointsAtCreate": 0 },
+  "skillPointPolicy": { "pointsAtCreate": 0 },
+  "startingEquipment": [
+    { "itemId": "item.training_sword", "quantity": 1 }
+  ],
+  "startingAbilities": ["test.ability.basic_melee"],
+  "allowedEquipmentTags": ["main_hand", "off_hand", "head", "chest", "legs", "feet"],
+  "tags": ["warrior", "melee", "provisional"]
+}

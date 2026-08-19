@@ -31,7 +31,9 @@ const CHARACTER_LIST_RPC := "character_list"
 const CHARACTER_CREATE_RPC := "character_create"
 const CHARACTER_SELECT_RPC := "character_select"
 const CHARACTER_SOFT_DELETE_RPC := "character_soft_delete"
+const CHARACTER_DELETE_REQUEST_RPC := "character_delete_request"
 const CHARACTER_RESTORE_RPC := "character_restore"
+const CHARACTER_NAME_AVAILABLE_RPC := "character_name_available"
 const FULL_STATE_TIMEOUT_SEC := 10.0
 const TRANSFER_TIMEOUT_SEC := 20.0
 const AUTH_COOLDOWN_START_MS := 1000
@@ -188,13 +190,17 @@ func _run_session_handshake() -> Dictionary:
 	var data: Dictionary = parsed
 	var code := String(data.get("code", "ok"))
 	if MatchProtocol.is_compatibility_code(code):
+		AppState.content_incompatible = true
 		return {"ok": false, "code": code, "message": _handshake_message(code, String(data.get("message", "")))}
 	if bool(data.get("maintenance", false)) or code == "server_maintenance":
+		AppState.server_maintenance = true
 		var notice := String(data.get("message", "The server is in maintenance. Gameplay joins are paused."))
 		if notice.is_empty():
 			notice = "The server is in maintenance. Gameplay joins are paused."
 		NotificationService.push(notice)
 		AppState.report_recoverable("server_maintenance", notice)
+	else:
+		AppState.server_maintenance = false
 	return {"ok": true}
 
 
@@ -297,23 +303,31 @@ func list_characters() -> bool:
 		return false
 	var data: Dictionary = parsed
 	var characters: Array = data.get("characters", [])
-	AppState.notify_character_list(characters, int(data.get("slotLimit", 3)), int(data.get("liveCount", 0)))
+	AppState.notify_character_list(characters, int(data.get("slotLimit", 5)), int(data.get("liveCount", 0)))
 	AppState.notify_loading_completed("character")
 	character_list_finished.emit(true, "")
 	character_bootstrap_finished.emit(true, false, "")
 	return true
 
 
-func create_character(character_name: String, class_id: String) -> bool:
+func create_character(character_name: String, class_id: String, idempotency_key: String = "") -> bool:
 	AppState.notify_loading_started("character")
 	var session_ok := await ensure_session()
 	if not session_ok:
 		AppState.notify_loading_completed("character")
 		character_bootstrap_finished.emit(false, false, AppState.last_error_message)
 		return false
+	var key := idempotency_key
+	if key.is_empty():
+		key = "%s-%s" % [str(Time.get_ticks_usec()), str(randi())]
 	var rpc_result: Dictionary = await _backend().rpc(
 		CHARACTER_CREATE_RPC,
-		JSON.stringify({"name": character_name, "classId": class_id})
+		JSON.stringify({
+			"name": character_name,
+			"displayName": character_name,
+			"classId": class_id,
+			"idempotencyKey": key,
+		})
 	)
 	if not bool(rpc_result.get("ok", false)):
 		_fail_character(rpc_result)
@@ -364,11 +378,15 @@ func select_character(character_id: String) -> bool:
 	return not AppState.selection_ticket.is_empty()
 
 
-func soft_delete_character(character_id: String) -> bool:
-	var rpc_result: Dictionary = await _backend().rpc(
-		CHARACTER_SOFT_DELETE_RPC,
-		JSON.stringify({"characterId": character_id})
-	)
+func soft_delete_character(character_id: String, confirmation_name: String = "", idempotency_key: String = "") -> bool:
+	var key := idempotency_key
+	if key.is_empty():
+		key = "%s-%s" % [str(Time.get_ticks_usec()), str(randi())]
+	var payload: Dictionary = {"characterId": character_id, "idempotencyKey": key}
+	if not confirmation_name.is_empty():
+		payload["confirmationName"] = confirmation_name
+	var rpc_id := CHARACTER_DELETE_REQUEST_RPC if not confirmation_name.is_empty() else CHARACTER_SOFT_DELETE_RPC
+	var rpc_result: Dictionary = await _backend().rpc(rpc_id, JSON.stringify(payload))
 	if not bool(rpc_result.get("ok", false)):
 		_fail_character(rpc_result)
 		return false
@@ -384,6 +402,24 @@ func restore_character(character_id: String) -> bool:
 		_fail_character(rpc_result)
 		return false
 	return await list_characters()
+
+
+func check_character_name(display_name: String) -> Dictionary:
+	var rpc_result: Dictionary = await _backend().rpc(
+		CHARACTER_NAME_AVAILABLE_RPC,
+		JSON.stringify({"displayName": display_name})
+	)
+	if not bool(rpc_result.get("ok", false)):
+		return {"ok": false, "available": false, "code": String(rpc_result.get("code", "rpc_failed"))}
+	var parsed: Variant = JSON.parse_string(String(rpc_result.get("payload", "")))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {"ok": false, "available": false, "code": "malformed_json"}
+	var data: Dictionary = parsed
+	return {
+		"ok": true,
+		"available": bool(data.get("available", false)),
+		"canonicalName": String(data.get("canonicalName", "")),
+	}
 
 
 func join_starter_zone() -> bool:

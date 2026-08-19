@@ -61,7 +61,7 @@ func _ready() -> void:
 	else:
 		_hint.text = "Use email and password, or sign in as Alice in one Play window and Bob in the other."
 		_sign_in_button.text = "Sign in with this machine"
-	_server_hint.text = "Auth gateway 127.0.0.1:8787. Nakama must be running at 127.0.0.1:7350 (scripts/backend-up.ps1)."
+	_server_hint.text = "Auth gateway 127.0.0.1:8787. Nakama must be running at 127.0.0.1:7350 (scripts/backend-up.ps1). Local verification mail is captured at http://127.0.0.1:8025 and is not delivered to Gmail."
 	if not AppState.content_ready:
 		ContentRegistry.load_bundle()
 	_email_edit.text = RememberEmailStore.load_email()

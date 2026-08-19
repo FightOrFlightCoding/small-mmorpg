@@ -1,0 +1,34 @@
+{
+  "id": "class.marksman",
+  "kind": "class",
+  "displayName": "Marksman",
+  "shortDescription": "Ranged damage. Provisional stats and loadout.",
+  "displayNameKey": "class.marksman.display_name",
+  "shortDescriptionKey": "class.marksman.short_description",
+  "longDescriptionKey": "class.marksman.long_description",
+  "roleSummaryKey": "class.marksman.role_summary",
+  "placeholderIconAssetId": "visual.class_marksman",
+  "placeholderVisualSetId": "visual.class_marksman",
+  "placeholderThemeKey": "theme.class.marksman",
+  "selectOrder": 2,
+  "visualAssetSetId": "visual.class_marksman",
+  "progressionId": "progression.marksman",
+  "levelCurveId": "test.curve.standard",
+  "startingAttributes": {
+    "test.attribute.might": 5,
+    "test.attribute.vitality": 5,
+    "test.attribute.focus": 4
+  },
+  "startingResources": {
+    "test.resource.health": 90,
+    "test.resource.mana": 30
+  },
+  "attributePointPolicy": { "pointsAtCreate": 0 },
+  "skillPointPolicy": { "pointsAtCreate": 0 },
+  "startingEquipment": [
+    { "itemId": "item.training_sword", "quantity": 1 }
+  ],
+  "startingAbilities": ["test.ability.basic_melee", "test.ability.ranged_bolt"],
+  "allowedEquipmentTags": ["main_hand", "head", "chest", "legs", "feet"],
+  "tags": ["marksman", "ranged", "provisional"]
+}

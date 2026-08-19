@@ -3,7 +3,6 @@
   "kind": "class",
   "displayName": "Test Vanguard",
   "visualAssetSetId": "visual.class_vanguard",
-  "legacyMigrationDefault": true,
   "progressionId": "test.progression.vanguard",
   "startingEquipment": [
     { "itemId": "item.training_sword", "quantity": 1 }

@@ -61,6 +61,20 @@ export function writeQuests(nk: nkruntime.Nakama, userId: string, log: QuestLog,
   );
 }
 
+export function writeQuestsOnce(nk: nkruntime.Nakama, userId: string, log: QuestLog, characterId?: string): void {
+  const write = buildQuestWrite(userId, log, undefined, characterId);
+  nk.storageWriteRetry(
+    [{ collection: QUEST_COLLECTION, key: storageKey(QUEST_KEY, characterId), userId: userId }],
+    function (objects: nkruntime.StorageObject[]): nkruntime.StorageWriteRequest[] {
+      if (objects.length > 0) {
+        return [];
+      }
+      return [write];
+    },
+    5,
+  );
+}
+
 function persistMigratedQuests(nk: nkruntime.Nakama, userId: string, characterId?: string): void {
   nk.storageWriteRetry(
     [{ collection: QUEST_COLLECTION, key: storageKey(QUEST_KEY, characterId), userId: userId }],

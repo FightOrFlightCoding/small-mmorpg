@@ -577,5 +577,21 @@ Email change keeps the old address until confirm. Confirm re-checks uniqueness a
 
 Forgotten-email help is copy-only (`Forgot which email you used?`). There is no public reveal or masked-email endpoint. Internal `POST /v1/support/lookup` requires `AUTH_SUPPORT_LOOKUP_SECRET`, logs every lookup, and never returns an email.
 
-Stay Signed In, five character slots, and product delete UI remain later phases.
+Stay Signed In and product delete UI remain later phases. Five character slots are ACCT-05.
+
+## 2026-08-19 — ACCT-05 five character slots, production classes, deletion, and restoration
+
+The temporary three-slot / test-class Character Select path is replaced with the Foundation five-slot catalog. `CHARACTER_SLOT_LIMIT` is **5**. The sixth live create is rejected server-side (`slot_limit`).
+
+Production class IDs are `class.warrior`, `class.marksman`, and `class.mage`. Presentation keys, placeholder visuals, and starting loadouts are content. Stats are provisional and are not finalized. Character Select iterates `kind=class` IDs that begin with `class.` and does not hard-code combat behavior. Cert/e2e keep `test.class.vanguard` / `arcanist` / `warden`. Prompt 18 records with an empty `classId` receive `class.warrior` (`legacyMigrationDefault`) without a second starter grant. Existing `test.class.*` saves are not rewritten.
+
+`character_list` returns safe summaries only (`characterId`, `displayName`, `classId`, `level`, `lastLocationNameKey`, `lastPlayedAt`, `createdAt`, `status`, `softDeleteExpiresAt`, `activePresenceState`, `playAvailableAt`). Inventory, quests, and private storage stay off Character Select.
+
+Name uniqueness is a project-owned `names` reservation with create-if-absent OCC (`version` `*`) plus re-read token confirm. `Archer` / `archer` / `ARCHER` collide. `character_name_available` is advisory.
+
+`character_select` issues a 300-second ticket. Join still requires that ticket (or a transfer ticket), never an arbitrary character id. An account gameplay lease (`player` / `gameplay_lease`) is acquired on match join and set `DISCONNECTING` on leave. Play/delete of another character is `account_busy`. The leased character during grace is `link_dead`.
+
+`character_delete_request` requires the exact display name, marks `SOFT_DELETED`, keeps the name reserved, preserves gameplay, and frees the live slot. Retention is 7 days. Restore does not regrant starters or reset progression, quests, or gold. Idempotent `character_purge` removes gameplay records, releases the name, and writes `{ characterId, purgedAt }` to `character_audit`. Partial jobs resume.
+
+Content hash after this phase: `42047a6420550c4c815d4affafdefbaaecd446590706ae3e8c95c7e46f773455`. Stay Signed In and product account-delete UI remain later.
 

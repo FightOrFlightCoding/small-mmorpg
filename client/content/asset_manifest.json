@@ -67,6 +67,54 @@
       "equipmentAnchors": { "main_hand": [18, 14] },
       "fallbackVisualId": "visual.player"
     },
+    "visual_set.class.warrior": {
+      "kind": "character",
+      "contentId": "class.warrior",
+      "spriteVisualId": "visual.class_warrior",
+      "directionCount": 4,
+      "frameSize": [24, 24],
+      "pivot": [12, 18],
+      "foot": [12, 24],
+      "animations": {
+        "idle": { "frames": [0, 0], "fps": 4, "loop": true },
+        "walk": { "frames": [0, 3], "fps": 8, "loop": true }
+      },
+      "collisionFootprint": { "width": 24, "height": 24 },
+      "equipmentAnchors": { "main_hand": [18, 14] },
+      "fallbackVisualId": "visual.player"
+    },
+    "visual_set.class.marksman": {
+      "kind": "character",
+      "contentId": "class.marksman",
+      "spriteVisualId": "visual.class_marksman",
+      "directionCount": 4,
+      "frameSize": [24, 24],
+      "pivot": [12, 18],
+      "foot": [12, 24],
+      "animations": {
+        "idle": { "frames": [0, 0], "fps": 4, "loop": true },
+        "walk": { "frames": [0, 3], "fps": 8, "loop": true }
+      },
+      "collisionFootprint": { "width": 24, "height": 24 },
+      "equipmentAnchors": { "main_hand": [18, 14] },
+      "fallbackVisualId": "visual.player"
+    },
+    "visual_set.class.mage": {
+      "kind": "character",
+      "contentId": "class.mage",
+      "spriteVisualId": "visual.class_mage",
+      "directionCount": 4,
+      "frameSize": [24, 24],
+      "pivot": [12, 18],
+      "foot": [12, 24],
+      "animations": {
+        "idle": { "frames": [0, 0], "fps": 4, "loop": true },
+        "walk": { "frames": [0, 3], "fps": 8, "loop": true }
+      },
+      "collisionFootprint": { "width": 24, "height": 24 },
+      "equipmentAnchors": { "main_hand": [18, 14] },
+      "fallbackVisualId": "visual.player"
+    },
     "visual_set.enemy.green_slime": {
       "kind": "enemy",
       "contentId": "enemy.green_slime",

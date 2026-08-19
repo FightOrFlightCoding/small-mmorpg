@@ -71,7 +71,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `security.test.ts` | mapped attacks, rate limits | VS-T1–T6, T9 |
 | `match.test.ts` | join, empty shutdown, FULL_STATE | VS-T9 |
 | `character.test.ts` | bootstrap wrapper, `permissionWrite: 0` | |
-| `character_lifecycle.test.ts` | names, slots, classes, tickets, concurrent `name_taken`, Prompt 18 migrate | |
+| `character_lifecycle.test.ts` | create warrior/marksman/mage, five slots, sixth rejected, invalid class/name, case-insensitive and concurrent `name_taken`, duplicate create, foreign/soft-deleted select, ticket expiry/replay, delete/lease/restore/purge, Prompt 18 migrate, starter init once | |
 | `starter_zone_registry.test.ts` | canonical match id | |
 | `persistence.test.ts` | checkpoints, grace, seq reset, Nakama null maps/extras on tick 0 | VS-M5 automated analog |
 | `migration.test.ts` | v0→v1, retry, future version, missing version, null schemaVersion, corrupt, completed quest, equipment, gold | |
@@ -127,8 +127,9 @@ Reproduction: `powershell -File scripts/test-auth-gateway.ps1`
 | `content_registry_test.gd` | catalog IDs, hash | VS-T8 |
 | `error_state_test.gd` | visible errors, no hang | VS-M4 |
 | `scene_router_test.gd` / `shell_scenes_test.gd` | boot/login/register/verify/unavailable/disabled/forgot-password/reset/change-password/change-email/forgot-email/character/world | VS-T8 |
-| `auth_flow_test.gd` | gateway email register/login/verify routing, invalid credentials, session refresh, logout/logout-all, unverified gameplay reject, release-gated device auth, tickets, password reset without auto-login, password change, email change | VS-M4 |
-| `account_service_test.gd` | error mapping, RPC stack sanitization, password strength, credential store unavailable, remember-email, revoked refresh does not loop, failed logout-all keeps the session, reset confirm has no tokens, forgotten-email reveals no address, canonical change-password/email paths | |
+| `auth_flow_test.gd` | gateway email register/login/verify routing, invalid credentials, session refresh, logout/logout-all, unverified gameplay reject, release-gated device auth, tickets, password reset without auto-login, password change, email change, slot limit 5, local Mailpit verify copy | VS-M4 |
+| `character_select_ui_test.gd` | five slot positions, three production class cards, Create / Recently Deleted / Account Settings | |
+| `account_service_test.gd` | error mapping, RPC stack sanitization, password strength, credential store unavailable, remember-email, revoked refresh does not loop, failed logout-all keeps the session, reset confirm has no tokens, forgotten-email reveals no address, canonical change-password/email paths, local Mailpit capture | |
 | `dev_identity_test.gd` | Alice/Bob ids | |
 | `protocol_test.gd` | client opcodes match | VS-T9 |
 | `zone_join_test.gd` | world after FULL_STATE | |

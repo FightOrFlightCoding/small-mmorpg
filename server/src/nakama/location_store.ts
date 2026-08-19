@@ -37,3 +37,42 @@ export function writeActiveLocation(nk: nkruntime.Nakama, location: ActiveLocati
     },
   ]);
 }
+
+export function writeActiveLocationIfAbsent(nk: nkruntime.Nakama, location: ActiveLocation): void {
+  const key = storageKey(PLAYER_LOCATION_KEY, location.characterId);
+  nk.storageWriteRetry(
+    [{ collection: "player", key: key, userId: location.accountUserId }],
+    function (objects: nkruntime.StorageObject[]): nkruntime.StorageWriteRequest[] {
+      if (objects.length > 0) {
+        return [];
+      }
+      return [
+        {
+          collection: "player",
+          key: key,
+          userId: location.accountUserId,
+          value: {
+            instanceType: location.instanceType,
+            zoneTemplateId: location.zoneTemplateId,
+            instanceId: location.instanceId,
+            matchId: location.matchId,
+            position: { x: location.position.x, y: location.position.y },
+            characterId: location.characterId,
+            accountUserId: location.accountUserId,
+            selectionTicketId: location.selectionTicketId !== undefined ? location.selectionTicketId : "",
+            lastCheckpointAt: location.lastCheckpointAt,
+            transferState: location.transferState,
+            schemaVersion: LOCATION_SCHEMA_VERSION,
+          },
+          permissionRead: 1,
+          permissionWrite: 0,
+        },
+      ];
+    },
+    5,
+  );
+}
+
+export function deleteActiveLocation(nk: nkruntime.Nakama, accountUserId: string, characterId: string): void {
+  nk.storageDelete([{ collection: "player", key: storageKey(PLAYER_LOCATION_KEY, characterId), userId: accountUserId }]);
+}

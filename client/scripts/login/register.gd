@@ -1,6 +1,7 @@
 extends "res://scripts/ui/shell_page.gd"
 
 @onready var _email_edit: LineEdit = $Center/VBox/EmailEdit
+@onready var _mail_hint: Label = $Center/VBox/MailHint
 @onready var _password_edit: LineEdit = $Center/VBox/PasswordRow/PasswordEdit
 @onready var _confirm_edit: LineEdit = $Center/VBox/ConfirmRow/ConfirmEdit
 @onready var _show_password: Button = $Center/VBox/PasswordRow/ShowPasswordButton
@@ -28,6 +29,8 @@ func _ready() -> void:
 	_terms.button_pressed = false
 	_privacy.button_pressed = false
 	_guidance.text = "Passwords must be 15–128 characters and must not be a common password."
+	_mail_hint.visible = AccountService.uses_local_mail_capture()
+	_mail_hint.text = "Local verification codes are captured in Mailpit at %s. They are not delivered to Gmail." % AccountService.LOCAL_MAILPIT_URL
 	_register_button.pressed.connect(_on_register_pressed)
 	_back_button.pressed.connect(_on_back_pressed)
 	_show_password.pressed.connect(func() -> void: _toggle_secret(_password_edit, _show_password))

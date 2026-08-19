@@ -10,6 +10,7 @@ const CLIENT_VERSION := "1.0.0"
 const TERMS_VERSION := "1"
 const PRIVACY_VERSION := "1"
 const DEFAULT_GATEWAY_URL := "http://127.0.0.1:8787"
+const LOCAL_MAILPIT_URL := "http://127.0.0.1:8025"
 const REFRESH_MAX_ATTEMPTS := 3
 const REFRESH_LEAD_SEC := 60
 
@@ -74,6 +75,17 @@ func reset_for_tests() -> void:
 
 func stay_signed_in_available() -> bool:
 	return CredentialStore.STAY_SIGNED_IN_ENABLED and credential_store != null and credential_store.is_available()
+
+
+func uses_local_mail_capture() -> bool:
+	var lowered := gateway_url.to_lower()
+	return lowered.contains("127.0.0.1") or lowered.contains("localhost")
+
+
+func local_mail_capture_copy() -> String:
+	if uses_local_mail_capture():
+		return "Local development captures mail in Mailpit at %s. It is not sent to Gmail or other inboxes. Open that page and paste the code here. Codes expire after a short time." % LOCAL_MAILPIT_URL
+	return "Email can take a few minutes. Check junk folders. The code expires after a short time."
 
 
 func probe_ready() -> bool:

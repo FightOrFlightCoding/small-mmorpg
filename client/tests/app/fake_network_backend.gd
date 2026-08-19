@@ -188,8 +188,12 @@ func rpc(id: String, payload: String) -> Dictionary:
 		return {"ok": true, "payload": default_character_select_payload(payload)}
 	if id == "character_create":
 		return {"ok": true, "payload": rpc_payload if not rpc_payload.is_empty() else _created_character_payload()}
-	if id == "character_soft_delete" or id == "character_restore":
+	if id == "character_soft_delete" or id == "character_delete_request" or id == "character_restore":
 		return {"ok": true, "payload": default_character_list_payload()}
+	if id == "character_name_available":
+		return {"ok": true, "payload": JSON.stringify({"available": true, "canonicalName": "scout"})}
+	if id == "character_purge":
+		return {"ok": true, "payload": JSON.stringify({"characterId": "", "purged": true})}
 	return {"ok": true, "payload": rpc_payload}
 
 
@@ -345,9 +349,11 @@ func default_character_list_payload() -> String:
 				"schemaVersion": 1,
 			})
 	return JSON.stringify({
-		"slotLimit": 3,
+		"slotLimit": 5,
 		"liveCount": characters.size(),
 		"characters": characters,
+		"serverTimeMs": 0,
+		"maintenance": false,
 	})
 
 

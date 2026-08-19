@@ -17,9 +17,43 @@
     "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
     "kind": { "const": "class" },
     "displayName": { "type": "string", "minLength": 1 },
+    "shortDescription": { "type": "string", "minLength": 1 },
+    "displayNameKey": { "type": "string", "minLength": 1 },
+    "shortDescriptionKey": { "type": "string", "minLength": 1 },
+    "longDescriptionKey": { "type": "string", "minLength": 1 },
+    "roleSummaryKey": { "type": "string", "minLength": 1 },
+    "placeholderIconAssetId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "placeholderVisualSetId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "placeholderThemeKey": { "type": "string", "minLength": 1 },
+    "selectOrder": { "type": "integer", "minimum": 1 },
     "visualAssetSetId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
     "legacyMigrationDefault": { "type": "boolean" },
     "progressionId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "levelCurveId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "startingAttributes": {
+      "type": "object",
+      "additionalProperties": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" }
+    },
+    "startingResources": {
+      "type": "object",
+      "additionalProperties": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" }
+    },
+    "attributePointPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pointsAtCreate"],
+      "properties": {
+        "pointsAtCreate": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" }
+      }
+    },
+    "skillPointPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pointsAtCreate"],
+      "properties": {
+        "pointsAtCreate": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" }
+      }
+    },
     "startingEquipment": {
       "type": "array",
       "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/itemStack" }

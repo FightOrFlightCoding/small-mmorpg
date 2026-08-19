@@ -1,0 +1,34 @@
+{
+  "id": "class.mage",
+  "kind": "class",
+  "displayName": "Mage",
+  "shortDescription": "Arcane caster. Provisional stats and loadout.",
+  "displayNameKey": "class.mage.display_name",
+  "shortDescriptionKey": "class.mage.short_description",
+  "longDescriptionKey": "class.mage.long_description",
+  "roleSummaryKey": "class.mage.role_summary",
+  "placeholderIconAssetId": "visual.class_mage",
+  "placeholderVisualSetId": "visual.class_mage",
+  "placeholderThemeKey": "theme.class.mage",
+  "selectOrder": 3,
+  "visualAssetSetId": "visual.class_mage",
+  "progressionId": "progression.mage",
+  "levelCurveId": "test.curve.standard",
+  "startingAttributes": {
+    "test.attribute.might": 2,
+    "test.attribute.vitality": 4,
+    "test.attribute.focus": 7
+  },
+  "startingResources": {
+    "test.resource.health": 80,
+    "test.resource.mana": 60
+  },
+  "attributePointPolicy": { "pointsAtCreate": 0 },
+  "skillPointPolicy": { "pointsAtCreate": 0 },
+  "startingEquipment": [
+    { "itemId": "item.training_sword", "quantity": 1 }
+  ],
+  "startingAbilities": ["test.ability.basic_melee", "test.ability.ranged_bolt"],
+  "allowedEquipmentTags": ["main_hand", "head", "chest", "legs", "feet"],
+  "tags": ["mage", "caster", "provisional"]
+}

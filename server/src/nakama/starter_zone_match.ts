@@ -60,7 +60,7 @@ import {
 import { migrateLegacyCharacterIntoRoster } from "../domain/character_lifecycle";
 import { invalidateTicket, validateJoinSelection } from "../domain/character_ticket";
 import { classDefinitionsFromContent, classEquipmentTagsFromContent, classTagsFromContent, startingEquipmentForClass } from "../domain/class_catalog";
-import { characterLifecycleDeps } from "./character_lifecycle_deps";
+import { characterLifecycleDeps, acquireMatchGameplayLease, releaseMatchGameplayLease } from "./character_lifecycle_deps";
 import { readSelection, writeSelection } from "./selection_store";
 import { catalogFromContent, syncCombatStatsFromPipeline } from "../domain/stats";
 import { initializeProgression } from "../domain/progression";
@@ -507,6 +507,13 @@ export function matchJoin(
       characterId: character.characterId,
       displayName: character.name,
     }, Date.now());
+    acquireMatchGameplayLease(
+      nk,
+      presence.userId,
+      character.characterId,
+      typeof ctx.matchId === "string" ? ctx.matchId : "",
+      Date.now(),
+    );
     joined.push(presence);
   }
   recoverCommittingTrades(zone, function (request) {
@@ -590,6 +597,13 @@ export function matchLeave(
       }
       logger.info("starter_zone leave checkpoint user_id=%s", presence.userId);
     }
+    releaseMatchGameplayLease(
+      nk,
+      presence.userId,
+      transferring,
+      zone.instanceType !== undefined ? zone.instanceType : "public_world",
+      Date.now(),
+    );
     delete nextPresences[presence.userId];
     logger.info(formatOpsLog("match_leave", { user_id: presence.userId }));
     incrementCounter("connectedPlayers", -1);

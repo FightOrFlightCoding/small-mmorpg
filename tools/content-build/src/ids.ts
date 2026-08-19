@@ -46,5 +46,11 @@ export function prefixMatches(kind: string, id: string, prefix: string | undefin
   if (kind === "enemy" && id.indexOf("test.enemy.") === 0) {
     return true;
   }
+  if (kind === "class" && id.indexOf("class.") === 0) {
+    return true;
+  }
+  if (kind === "class_progression" && id.indexOf("progression.") === 0) {
+    return true;
+  }
   return kind === "zone" && id.indexOf("test.zone.") === 0;
 }

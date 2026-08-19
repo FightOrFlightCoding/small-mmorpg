@@ -1,10 +1,11 @@
 # Account UI flows
 
-ACCT-04 Godot shell for credential recovery and maintenance on the accepted register/login path. Gateway-hosted `/v1/confirm` pages remain for email links. Product email login goes through `AccountService` and the auth gateway. Debug Alice/Bob/device buttons remain, hidden in release.
+ACCT-04 Godot shell for credential recovery and maintenance, plus ACCT-05 Character Select (five slots, production class cards, Recently Deleted). Gateway-hosted `/v1/confirm` pages remain for email links. Product email login goes through `AccountService` and the auth gateway. Debug Alice/Bob/device buttons remain, hidden in release.
 
 ## Login (`scenes/login/login.tscn`)
 
 - Email, password, show/hide, Caps Lock hint where typing looks shifted, Remember Email, Login, Register, Forgot Password, **Forgot which email you used?**, server status, version, loading, field/global errors.
+- Local Compose server hint includes Mailpit (`http://127.0.0.1:8025`); verification mail is not delivered to Gmail.
 - Stay Signed In is hidden (`CredentialStore` unavailable).
 - Debug: Alice, Bob, this machine (hidden in release).
 - Forgot Password opens Forgot Password Request. The gateway call is `POST /v1/auth/password/reset/request` with generic copy whether or not the address exists.
@@ -17,11 +18,13 @@ ACCT-04 Godot shell for credential recovery and maintenance on the accepted regi
 ## Registration (`scenes/login/register.tscn`)
 
 - Email, password, confirm, show/hide, 15–128 guidance, live strength, Terms and Privacy checkboxes **unchecked** by default, placeholder document links, Register, Back to Login, field errors.
+- Local Compose: Mailpit capture note (`http://127.0.0.1:8025`, not Gmail).
 - Success → Email Verification. Duplicate email uses the generic “We could not create this account…” copy.
 
 ## Email verification (`scenes/login/verify.tscn`)
 
 - Explanation, code field with paste, Verify, Resend with countdown, Change email (registration), Back to Login, delivery-delay copy.
+- Local Compose captures mail in Mailpit (`http://127.0.0.1:8025`). The verify screen says so and offers **Open local inbox**. Codes are not delivered to Gmail.
 - Success → Login.
 
 ## Forgot Password Request (`scenes/login/forgot_password.tscn`)
@@ -70,8 +73,12 @@ ACCT-04 Godot shell for credential recovery and maintenance on the accepted regi
 
 ## Character select (`scenes/character`, `character.gd`)
 
-- Unchanged roster UX plus **Log out all sessions**, **Change password**, and **Change email**.
-- Logout current still returns to Login.
+- Five visible slot cards: name, class, level, placeholder class color, last location, last played, online/disconnecting, Play, Delete.
+- Play is disabled with a reason when the character is deleted, another character on the account is active, the character is link-dead, maintenance is on, content is incompatible, or selection is already pending.
+- Create Character, Recently Deleted, Account Settings, Logout, server status, version.
+- Creation: three content-driven class cards (Warrior / Marksman / Mage), name field, name rules, advisory availability, Create, Back, final confirmation. Creation is the only authoritative name reservation.
+- Recently Deleted: name, class, level, time remaining, Restore (disabled without a free slot). No client-only permanent-delete button.
+- Account Settings: change password, change email, logout-all. Permanent account deletion remains later.
 - Unverified/disabled/deleting accounts never reach this scene through the email path; RPCs still enforce the playable-account guard.
 
 ## World HUD
@@ -86,11 +93,9 @@ All recovery and maintenance screens provide a loading state, disabled duplicate
 
 ## Later phases (do not implement here)
 
-1. Character Select with five slots, class cards, Recently Deleted, typed-name delete.
-2. Play disabled while the server reports an active-character lease.
-3. In-game Return to Character Select vs Quit as distinct server-acked operations.
-4. Account Settings: export, delete (password + email code + `DELETE ACCOUNT`).
-5. Stay Signed In after OS credential-store certification on editor, exported Windows, and exported Linux.
+1. In-game Return to Character Select vs Quit as distinct server-acked operations.
+2. Account Settings: export, delete (password + email code + `DELETE ACCOUNT`).
+3. Stay Signed In after OS credential-store certification on editor, exported Windows, and exported Linux.
 
 ## Error display rules
 

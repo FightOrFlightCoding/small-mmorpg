@@ -99,6 +99,8 @@ export interface StoredCharacter {
   updatedAt: number;
   lastPlayedAt?: number;
   deletedAt?: number;
+  softDeleteExpiresAt?: number;
+  status?: string;
   bindX?: number;
   bindY?: number;
   bindZoneId?: string;
@@ -239,6 +241,8 @@ export function createStoredCharacter(
     updatedAt: nowMs,
     lastPlayedAt: nowMs,
     deletedAt: 0,
+    softDeleteExpiresAt: 0,
+    status: "ACTIVE",
   };
 }
 
@@ -345,6 +349,18 @@ export function storedCharacterFromValue(
   } else {
     record.deletedAt = 0;
   }
+  if (typeof value.softDeleteExpiresAt === "number") {
+    record.softDeleteExpiresAt = value.softDeleteExpiresAt;
+  } else {
+    record.softDeleteExpiresAt = 0;
+  }
+  if (typeof value.status === "string" && value.status.length > 0) {
+    record.status = value.status;
+  } else if (record.deletedAt > 0) {
+    record.status = "SOFT_DELETED";
+  } else {
+    record.status = "ACTIVE";
+  }
   if (typeof value.bindX === "number" && isFinite(value.bindX)) {
     record.bindX = value.bindX;
   }
@@ -381,6 +397,8 @@ export function storedCharacterWriteValue(record: StoredCharacter): { [key: stri
       position: { x: record.position.x, y: record.position.y },
       lastPlayedAt: record.lastPlayedAt !== undefined ? record.lastPlayedAt : record.updatedAt,
       deletedAt: record.deletedAt !== undefined ? record.deletedAt : 0,
+      softDeleteExpiresAt: record.softDeleteExpiresAt !== undefined ? record.softDeleteExpiresAt : 0,
+      status: record.status !== undefined && record.status.length > 0 ? record.status : "ACTIVE",
       bindX: record.bindX !== undefined ? record.bindX : null,
       bindY: record.bindY !== undefined ? record.bindY : null,
       bindZoneId: record.bindZoneId !== undefined ? record.bindZoneId : "",
@@ -407,6 +425,8 @@ export function cloneStoredCharacter(record: StoredCharacter): StoredCharacter {
     updatedAt: record.updatedAt,
     lastPlayedAt: record.lastPlayedAt,
     deletedAt: record.deletedAt,
+    softDeleteExpiresAt: record.softDeleteExpiresAt,
+    status: record.status,
     bindX: record.bindX,
     bindY: record.bindY,
     bindZoneId: record.bindZoneId,

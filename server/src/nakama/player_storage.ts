@@ -21,3 +21,18 @@ export function readPlayerObject(
   }
   return legacy[0];
 }
+
+export function deletePlayerObject(
+  nk: nkruntime.Nakama,
+  collection: string,
+  baseKey: string,
+  userId: string,
+  characterId?: string,
+): void {
+  const deletes: nkruntime.StorageDeleteRequest[] = [];
+  if (characterId !== undefined && characterId.length > 0) {
+    deletes.push({ collection: collection, key: storageKey(baseKey, characterId), userId: userId });
+  }
+  deletes.push({ collection: collection, key: baseKey, userId: userId });
+  nk.storageDelete(deletes);
+}

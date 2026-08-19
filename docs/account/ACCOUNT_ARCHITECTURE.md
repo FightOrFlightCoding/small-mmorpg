@@ -1,6 +1,6 @@
 # Account architecture
 
-ACCT-01 catalogued the existing account and character path. ACCT-03 implements public register, verify, login, refresh, and logout on that path. ACCT-04 adds password recovery, logged-in password change, email change, and forgotten-email support without a second identity or character model.
+ACCT-01 catalogued the existing account and character path. ACCT-03 implements public register, verify, login, refresh, and logout on that path. ACCT-04 adds password recovery, logged-in password change, email change, and forgotten-email support without a second identity or character model. ACCT-05 is the five-slot character catalog, production classes, selection tickets, and soft-delete/restore/purge.
 
 Related: [ACCOUNT_STATE_MACHINE.md](ACCOUNT_STATE_MACHINE.md), [CHARACTER_STATE_MACHINE.md](CHARACTER_STATE_MACHINE.md), [AUTH_API_CATALOG.md](AUTH_API_CATALOG.md), [ACCOUNT_STORAGE_CATALOG.md](ACCOUNT_STORAGE_CATALOG.md), [ACCOUNT_THREAT_MODEL.md](ACCOUNT_THREAT_MODEL.md), [ACCOUNT_UI_FLOWS.md](ACCOUNT_UI_FLOWS.md), [EMAIL_DELIVERY_ARCHITECTURE.md](EMAIL_DELIVERY_ARCHITECTURE.md), [NAKAMA_COMPATIBILITY_RESULTS.md](NAKAMA_COMPATIBILITY_RESULTS.md), [../STORAGE_CATALOG.md](../STORAGE_CATALOG.md), [../SECURITY_MODEL.md](../SECURITY_MODEL.md).
 
@@ -10,7 +10,7 @@ Pinned versions: Nakama server **3.40.0**, `nakama-runtime` **1.47.0**, Nakama G
 
 Accounts are Nakama built-in email/password identities plus a project `account_profile`. Public email register/login/verify/refresh/logout/reset/password-change/email-change go through `auth-gateway/`. Debug builds also use device authentication (`DevIdentity` Alice/Bob/machine) which remains playable without an email profile. Email accounts must be `ACTIVE` and verified before character or match operations. Credential changes preserve the Nakama user id and all `player/*` character records.
 
-A player session is a Nakama JWT plus refresh token returned by the gateway. The Godot `AccountService` keeps those tokens in memory. Device-debug sessions may still use `user://session_cache.json` (never a password). Email Stay Signed In is not enabled. Gameplay requires a character selection ticket (TTL 300 s) and then a `starter_zone` match join.
+A player session is a Nakama JWT plus refresh token returned by the gateway. The Godot `AccountService` keeps those tokens in memory. Device-debug sessions may still use `user://session_cache.json` (never a password). Email Stay Signed In is not enabled. Gameplay requires a character selection ticket (TTL 300 s) and then a `starter_zone` match join. An account may have **five** live characters. Production class IDs are `class.warrior`, `class.marksman`, and `class.mage`.
 
 ## Godot authentication services
 
@@ -46,10 +46,13 @@ There is no second character model. E2E drivers still call `NakamaNetworkBackend
 | RPC | Module | Notes |
 | --- | --- | --- |
 | `character_bootstrap` | `character_lifecycle.ts` | Prompt 18 compatibility wrapper: migrate legacy `player/character` into roster slot 1 or create one character |
-| `character_list` | same | Live + soft-deleted rows; `slotLimit` **3** |
-| `character_create` | same | Name policy + class catalog + reservation |
-| `character_select` | same | Issues a selection ticket; one per account |
-| `character_soft_delete` / `character_restore` | same | `deletedAt` timestamp; restore if live count < 3 |
+| `character_list` | same | Safe catalog summaries only; `slotLimit` **5**; opportunistic purge |
+| `character_create` | same | `displayName` / `classId` / `idempotencyKey`; server-generated id; one-time starter init |
+| `character_select` | same | Single-use selection ticket; blocked by lease, deletion, maintenance, incompatibility |
+| `character_delete_request` / `character_soft_delete` | same | Typed exact name; `SOFT_DELETED`; name stays reserved |
+| `character_restore` | same | Free slot + live reservation; no second starter grant |
+| `character_name_available` | same | Advisory only; does not reserve |
+| `character_purge` | same | Idempotent step machine; releases the name |
 
 Canonical records: `player/character_<id>`, `player/roster`, `player/selection`, plus inventory/equipment/quests/progression/wallet scoped per character. All `permissionWrite: 0`. Names: `names/n_<canonical>` on the system user.
 
@@ -60,7 +63,7 @@ Join metadata may carry `selectionTicket` or `transferTicket`, never `characterI
 - Same account already in **this** match: `already_in_match`.
 - Presence in another running match: `already_elsewhere` unless a transfer is in flight.
 - Public-world pose grace: **5 seconds** (`RECONNECT_GRACE_SEC`). Cave empty grace: **60 seconds**. Party disconnect grace: **60 seconds**.
-- There is no global active-character lease and no `LINK_DEAD` / `ENTERING` / `LEAVING` / `DESPAWNING` persistence.
+- Account gameplay lease: `player` / `gameplay_lease` on join (`ONLINE`), `DISCONNECTING` on leave for the public **5s** / cave **60s** grace. Character Select treats that as link-dead for the leased character and account-busy for every other character on the account.
 - Client reconnect: refresh/reauth, backoff, `find_or_create_starter_zone` (live cave only if `canJoinOwnedCave`), wait for `FULL_STATE`. Cancel logs out.
 
 ## Account deletion
@@ -113,8 +116,8 @@ Do not delete these in this phase.
 | `character_bootstrap` vs `character_create` | Bootstrap is the Prompt 18 wrapper; create is the roster path. Keep both |
 | Logout vs leave vs reconnect cancel | Earlier notes disagreed (revoke first vs leave first). Resolved: leave chats/match (`NetworkService.depart_gameplay`) while tokens are still valid, then `AccountService.logout_current` (gateway revoke), then Nakama session logout → Login. Logout-all is a character-select action (password or recent JWT `iat`) that revokes every session only after the password/iat check succeeds; a failed check keeps the local session. Reconnect cancel uses leave + current-session logout. Return to Character Select and Quit Game remain later |
 | Party `connectionState` vs match grace vs online bool | Do not overload; later phases add explicit presence states |
-| Content classes `test.class.vanguard` / `arcanist` / `warden` vs target `class.warrior` / `marksman` / `mage` | Data-defined; do not retarget in ACCT-01 |
-| Slot limit 3 vs target 5 | `CHARACTER_SLOT_LIMIT` stays 3 until a later phase |
+| Content classes `test.class.vanguard` / `arcanist` / `warden` vs product `class.warrior` / `marksman` / `mage` | Product Character Select uses `class.*`. Cert/e2e keep `test.class.*`. Empty `classId` migrates to `class.warrior`. |
+| Slot limit | `CHARACTER_SLOT_LIMIT` is **5**. |
 | Email canonicalization | Gateway `canonicalizeEmail` (trim, lowercase, max 254) is authoritative. Godot trims before POST. Nakama also lowercases on authenticate. Plus-tags and dots stay distinct |
 
 ## Mapping existing code to the target lifecycle
@@ -122,7 +125,7 @@ Do not delete these in this phase.
 Later phases must extend these modules, not replace them:
 
 - Account identity: `auth-gateway` + Nakama email auth + `auth_hooks.ts` + `account_profile`.
-- Character: `character_lifecycle.ts`, `character_roster.ts`, `character_name.ts`, `character_ticket.ts`.
+- Character: `character_lifecycle.ts`, `character_roster.ts`, `character_name.ts`, `character_ticket.ts`, `character_catalog.ts`, `character_purge.ts`, `gameplay_lease.ts`.
 - Persistence: existing `player/*` collections and wallet.
 - Sessions: email access/refresh tokens live in `AccountService` memory. Device-debug sessions may use `SessionCache`. Logout current leaves the match before revoking tokens.
 - Lookup: production lookup is `account_profile` / `email_index` via `auth_gateway`. `acct_compat` remains a development-gated proof seam.

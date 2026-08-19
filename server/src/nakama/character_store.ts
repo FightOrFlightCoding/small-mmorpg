@@ -93,6 +93,13 @@ export function writeLegacyCharacterOnce(nk: nkruntime.Nakama, userId: string, r
   );
 }
 
+export function deleteCharacterRecord(nk: nkruntime.Nakama, userId: string, characterId: string): void {
+  nk.storageDelete([
+    { collection: CHARACTER_COLLECTION, key: storageKey(CHARACTER_KEY, characterId), userId: userId },
+    { collection: CHARACTER_COLLECTION, key: CHARACTER_KEY, userId: userId },
+  ]);
+}
+
 export function writeCharacterCheckpoint(
   nk: nkruntime.Nakama,
   userId: string,

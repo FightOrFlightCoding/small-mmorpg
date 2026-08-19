@@ -66,6 +66,25 @@ export function writeEquipment(
   );
 }
 
+export function writeEquipmentOnce(
+  nk: nkruntime.Nakama,
+  userId: string,
+  equipment: PlayerEquipment,
+  characterId?: string,
+): void {
+  const write = buildEquipmentWrite(userId, equipment, undefined, characterId);
+  nk.storageWriteRetry(
+    [{ collection: EQUIPMENT_COLLECTION, key: storageKey(EQUIPMENT_KEY, characterId), userId: userId }],
+    function (objects: nkruntime.StorageObject[]): nkruntime.StorageWriteRequest[] {
+      if (objects.length > 0) {
+        return [];
+      }
+      return [write];
+    },
+    5,
+  );
+}
+
 function persistMigratedEquipment(nk: nkruntime.Nakama, userId: string, characterId?: string): void {
   nk.storageWriteRetry(
     [{ collection: EQUIPMENT_COLLECTION, key: storageKey(EQUIPMENT_KEY, characterId), userId: userId }],

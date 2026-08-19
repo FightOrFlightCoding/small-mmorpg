@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Password recovery, password change, email change, and forgotten-email support (ACCT-04)**.
+Last accepted phase: **Five character slots, Warrior/Marksman/Mage creation, selection, deletion, and restoration (ACCT-05)**.
 
 Current phase: none.
 
@@ -850,6 +850,33 @@ powershell -File scripts/test-client.ps1
 ```
 
 Product recovery UI is Forgot Password Request, Password Reset Code Entry, New Password, Password Changed, Change Password, Change Email, Email Change Verification, and Forgot Which Email Help. Login label is **Forgot which email you used?**.
+
+## Five character slots, Warrior/Marksman/Mage creation, selection, deletion, and restoration acceptance (ACCT-05, 2026-08-19)
+
+Replaces the temporary three-slot / test-class Character Select path with the Foundation five-slot catalog. No new gameplay systems. No custom SQL. Prompt 18 village/slime behavior unchanged. Cert/e2e keep `test.class.vanguard` / `arcanist` / `warden`. Stay Signed In and product account-delete UI remain later.
+
+An account may have five live characters. The sixth create is rejected server-side (`slot_limit`). Production class IDs are `class.warrior`, `class.marksman`, and `class.mage` with presentation keys, placeholder visuals, and provisional loadouts. Character Select iterates content `class.*` IDs and does not hard-code combat behavior. `character_list` returns safe summaries only (no inventory, quests, or private storage). Names are reserved atomically and case-insensitively (`Archer` / `archer` / `ARCHER`). `character_select` issues a 300-second single-use ticket; match join still requires that ticket (or a transfer ticket). Soft-delete keeps the name reserved, preserves gameplay, and frees the live slot. Restore does not regrant starters. Idempotent purge releases the name and recovers from a partial job. Prompt 18 records with an empty `classId` migrate to `class.warrior` without a second starter grant.
+
+| Gate | Result |
+| --- | --- |
+| Content | hash `42047a6420550c4c815d4affafdefbaaecd446590706ae3e8c95c7e46f773455` |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (29 RPCs, 33 storage records) |
+| Server hermetic | 494 passed, 13 skipped (live suites off), `tsc --noEmit` |
+| Client GdUnit | 249/249, 0 orphans, `SHELL_LOGIN` |
+
+Limitations: Stay Signed In remains hidden. Product account-delete UI remains later. Production class numbers are provisional and are not finalized. Cert/e2e still create `test.class.*`. Name availability in the UI is advisory.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/content-build.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+```
+
+Character Select shows five slot cards, three class cards, Recently Deleted, typed-name delete, Account Settings, Logout, server status, and version. Play is disabled with a reason for deleted, account-busy, link-dead, maintenance, content-incompatible, and pending-selection states.
+
 
 
 

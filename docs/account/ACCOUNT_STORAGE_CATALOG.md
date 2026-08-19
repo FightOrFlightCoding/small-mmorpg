@@ -16,17 +16,21 @@ Project-owned and Nakama-owned records that touch accounts, sessions, and charac
 
 | Collection | Key | Owner | Write | Purpose |
 | --- | --- | --- | --- | --- |
-| `player` | `roster` | account | 0 | Character id list (max 3 live) |
-| `player` | `character` / `character_<id>` | account | 0 | Identity, class, pose checkpoint, `deletedAt` |
+| `player` | `roster` | account | 0 | Character id list (max 5 live) |
+| `player` | `character` / `character_<id>` | account | 0 | Identity, class, pose, `status`, `deletedAt`, `softDeleteExpiresAt` |
 | `player` | `selection` | account | 0 | One selection ticket, TTL 300 s |
+| `player` | `gameplay_lease` | account | 0 | Live character / match / presence / `playAvailableAt` |
+| `player` | `idem_<op>_<key>` | account | 0 | Create/delete idempotency replay |
+| `player` | `purge_<compactId>` | account | 0 | Partial purge job until complete |
 | `player` | `inventory` / `equipment` / `quests` / `progression` / `wallet_ref` | character | 0 | Canonical gameplay |
 | `player` | `party` / `cave` / `location` / `trade` / `trade_audit` | character/account | 0 | Social / instance / trade |
 | `names` | `n_<canonical>` | system user | 0 | Case-insensitive name reservation |
+| `character_audit` | `p_<compactId>` | system user | 0 | Minimal purge audit (`characterId`, `purgedAt`) |
 | `party` / `cave` / `cave_index` / `transfer` / `trade` | see storage catalog | server | 0 | Shared objects |
 | `match` | `starter_zone` | system | 0 | Public match locator |
 | `gm` / `gm_audit` / `ops` | allowlist, audits, maintenance | system | 0 | Operators |
 
-Soft-deleted characters keep their gameplay objects. There is no `PURGED` anonymization pass.
+Soft-deleted characters keep their gameplay objects until retention elapses or `character_purge` runs. Purge is idempotent and recovers from a partial job. Gold stays the account wallet and is not wiped by character purge.
 
 ## ACCT-01 compatibility only
 

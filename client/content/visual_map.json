@@ -17,6 +17,15 @@
   "visual.class_warden": {
     "fallback_color": "#2E7D4F"
   },
+  "visual.class_warrior": {
+    "fallback_color": "#B23B3B"
+  },
+  "visual.class_marksman": {
+    "fallback_color": "#2F6F4F"
+  },
+  "visual.class_mage": {
+    "fallback_color": "#5B4DB8"
+  },
   "visual.npc_elder": {
     "texture": "res://assets/third_party/kenney_rpg_base/PNG/rpgTile165.png",
     "fallback_color": "#D4A017"

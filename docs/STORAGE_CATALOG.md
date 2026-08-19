@@ -24,18 +24,18 @@ Machine-readable twin: `tools/foundation-audit/expected.json` `storageRecords`. 
 | Update            | Position checkpoint every 5 s if changed; leave; terminate; soft-delete/restore timestamps                                                                                    |
 | Concurrency       | `storageWriteRetry` with object version on checkpoint                                                                                                                         |
 | Migration         | v0 → v1 on load; Prompt 18 account key becomes slot 1; missing `classId` is filled from the content class flagged `legacyMigrationDefault`                                    |
-| Deletion          | Soft-delete sets `deletedAt`. Live slot count ignores deleted rows. Restore is allowed while live count < 3.                                                                  |
+| Deletion          | Soft-delete sets `deletedAt`, `softDeleteExpiresAt`, and `status` `SOFT_DELETED`. Live slot count ignores deleted rows. Restore is allowed while live count < 5, retention remains, and the name reservation still belongs to the character. Purge removes gameplay objects and releases the name. |
 | Client access     | Must not write. May see fields only via RPC response / FULL_STATE pose, not by storage read.                                                                                  |
 
 
-Value: `{ schemaVersion, createdAt, updatedAt, lastPlayedAt, deletedAt, characterId, accountUserId, name, canonicalName, classId, contentId, zoneId, position: { x, y } }`. `storageVersion` in the bootstrap RPC response is the Nakama OCC version, not stored in the JSON value.
+Value: `{ schemaVersion, createdAt, updatedAt, lastPlayedAt, deletedAt, softDeleteExpiresAt, status, characterId, accountUserId, name, canonicalName, classId, contentId, zoneId, position: { x, y } }`. `storageVersion` in the bootstrap RPC response is the Nakama OCC version, not stored in the JSON value.
 
 ## `player` / `roster`
 
 
 | Field             | Value                                              |
 | ----------------- | -------------------------------------------------- |
-| Purpose           | Ordered character ids for the account (max 3 live) |
+| Purpose           | Ordered character ids for the account (max 5 live) |
 | Owner             | Server character RPCs                              |
 | Scope             | Account-scoped                                     |
 | `permissionRead`  | 1                                                  |
@@ -69,6 +69,50 @@ Value: `{ schemaVersion, createdAt, updatedAt, lastPlayedAt, deletedAt, characte
 
 
 
+## `player` / `gameplay_lease`
+
+| Field             | Value                                                                                          |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| Purpose           | Account-wide live character lease. Blocks Play/delete on other characters while present.       |
+| Owner             | Match join/leave                                                                               |
+| Scope             | Account-scoped                                                                                 |
+| `permissionRead`  | 1                                                                                              |
+| `permissionWrite` | 0                                                                                              |
+| Schema version    | 1                                                                                              |
+| Creation          | Successful `starter_zone` join                                                                 |
+| Update            | `ONLINE` on join; `DISCONNECTING` on leave for public 5s / cave 60s grace                      |
+| Client access     | No. Character Select receives `activePresenceState` / `playAvailableAt` / `playBlockedReason`. |
+
+## `player` / `idem`
+
+| Field             | Value                                                          |
+| ----------------- | -------------------------------------------------------------- |
+| Purpose           | Prefix for create/delete idempotency objects `idem_<op>_<key>` |
+| Owner             | Character RPCs                                                 |
+| Scope             | Account-scoped                                                 |
+| `permissionWrite` | 0                                                              |
+| Client access     | No.                                                            |
+
+## `player` / `purge`
+
+| Field             | Value                                                      |
+| ----------------- | ---------------------------------------------------------- |
+| Purpose           | Prefix for partial purge jobs `purge_<compactCharacterId>` |
+| Owner             | `character_purge` / opportunistic list purge               |
+| Scope             | Account-scoped                                             |
+| `permissionWrite` | 0                                                          |
+| Client access     | No.                                                        |
+
+## `character_audit` / `p`
+
+| Field             | Value                                                                               |
+| ----------------- | ----------------------------------------------------------------------------------- |
+| Purpose           | Minimal non-personal purge audit. Keys `p_<compactCharacterId>` on the system user. |
+| Owner             | Purge step `audit`                                                                  |
+| `permissionRead`  | 0                                                                                   |
+| `permissionWrite` | 0                                                                                   |
+| Value             | `{ characterId, purgedAt, schemaVersion }`                                          |
+
 ## `names` / `n`
 
 
@@ -79,12 +123,12 @@ Value: `{ schemaVersion, createdAt, updatedAt, lastPlayedAt, deletedAt, characte
 | Scope             | System user `00000000-0000-0000-0000-000000000000`                                                    |
 | `permissionRead`  | 0                                                                                                     |
 | `permissionWrite` | 0                                                                                                     |
-| Schema version    | Absent (reservation token, not a player save)                                                         |
+| Schema version    | 1 (reservation record, not a player save)                                                 |
 | Creation          | Write token, re-read; loser is `name_taken`                                                           |
 | Client access     | No.                                                                                                   |
 
 
-Value: `{ canonicalName, characterId, accountUserId, token }`.
+Value: `{ canonicalName, characterId, accountUserId, token, reservationState, createdAt, releasedAt, schemaVersion }`. Create-if-absent uses Nakama object version `*`. Soft-delete keeps `HELD`. Purge deletes the object.
 
 ## `player` / `quests`
 

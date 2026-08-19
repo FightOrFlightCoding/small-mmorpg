@@ -22,95 +22,211 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.0784314, 0.0901961, 0.109804, 1)
 
-[node name="Center" type="CenterContainer" parent="."]
+[node name="Root" type="MarginContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 16
 
-[node name="VBox" type="VBoxContainer" parent="Center"]
-custom_minimum_size = Vector2(640, 0)
+[node name="VBox" type="VBoxContainer" parent="Root"]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="Title" type="Label" parent="Center/VBox"]
+[node name="Header" type="HBoxContainer" parent="Root/VBox"]
 layout_mode = 2
-text = "Characters"
-horizontal_alignment = 1
+theme_override_constants/separation = 12
 
-[node name="Status" type="Label" parent="Center/VBox"]
+[node name="Title" type="Label" parent="Root/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Character Select"
+horizontal_alignment = 0
+
+[node name="ServerStatus" type="Label" parent="Root/VBox/Header"]
+layout_mode = 2
+text = "Server: checking"
+
+[node name="VersionLabel" type="Label" parent="Root/VBox/Header"]
+layout_mode = 2
+text = "Version"
+
+[node name="LogoutButton" type="Button" parent="Root/VBox/Header"]
+layout_mode = 2
+text = "Log out"
+
+[node name="Status" type="Label" parent="Root/VBox"]
 layout_mode = 2
 text = "Loading characters..."
-horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="SlotLabel" type="Label" parent="Center/VBox"]
+[node name="SlotLabel" type="Label" parent="Root/VBox"]
 layout_mode = 2
-text = "Live slots 0 / 3"
+text = "Live slots 0 / 5"
+
+[node name="SelectPanel" type="VBoxContainer" parent="Root/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="SlotRow" type="HBoxContainer" parent="Root/VBox/SelectPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="NavRow" type="HBoxContainer" parent="Root/VBox/SelectPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CreateButton" type="Button" parent="Root/VBox/SelectPanel/NavRow"]
+layout_mode = 2
+text = "Create Character"
+
+[node name="DeletedButton" type="Button" parent="Root/VBox/SelectPanel/NavRow"]
+layout_mode = 2
+text = "Recently Deleted"
+
+[node name="SettingsButton" type="Button" parent="Root/VBox/SelectPanel/NavRow"]
+layout_mode = 2
+text = "Account Settings"
+
+[node name="CreatePanel" type="VBoxContainer" parent="Root/VBox"]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="CreateTitle" type="Label" parent="Root/VBox/CreatePanel"]
+layout_mode = 2
+text = "Create Character"
 horizontal_alignment = 1
 
-[node name="CharacterList" type="ItemList" parent="Center/VBox"]
-custom_minimum_size = Vector2(640, 120)
+[node name="ClassRow" type="HBoxContainer" parent="Root/VBox/CreatePanel"]
 layout_mode = 2
+theme_override_constants/separation = 12
 
-[node name="NameEdit" type="LineEdit" parent="Center/VBox"]
+[node name="NameRules" type="Label" parent="Root/VBox/CreatePanel"]
+layout_mode = 2
+text = "Name: 3–16 letters, digits, spaces, hyphen, or apostrophe. Names are unique regardless of capitalization."
+autowrap_mode = 3
+
+[node name="NameEdit" type="LineEdit" parent="Root/VBox/CreatePanel"]
 layout_mode = 2
 placeholder_text = "Character name"
 max_length = 16
 
-[node name="ClassOption" type="OptionButton" parent="Center/VBox"]
+[node name="NameAvail" type="Label" parent="Root/VBox/CreatePanel"]
 layout_mode = 2
+text = "Availability is advisory. Creation reserves the name."
 
-[node name="CreateButton" type="Button" parent="Center/VBox"]
+[node name="CreateActions" type="HBoxContainer" parent="Root/VBox/CreatePanel"]
 layout_mode = 2
-text = "Create character"
+theme_override_constants/separation = 8
 
-[node name="SelectButton" type="Button" parent="Center/VBox"]
+[node name="SubmitCreate" type="Button" parent="Root/VBox/CreatePanel/CreateActions"]
 layout_mode = 2
-text = "Select character"
+text = "Create"
 
-[node name="DeleteButton" type="Button" parent="Center/VBox"]
+[node name="BackCreate" type="Button" parent="Root/VBox/CreatePanel/CreateActions"]
 layout_mode = 2
-text = "Soft-delete"
+text = "Back"
 
-[node name="RestoreButton" type="Button" parent="Center/VBox"]
+[node name="ConfirmCreate" type="Button" parent="Root/VBox/CreatePanel"]
+visible = false
 layout_mode = 2
-text = "Restore"
+text = "Confirm create"
 
-[node name="NameValue" type="Label" parent="Center/VBox"]
+[node name="DeletedPanel" type="VBoxContainer" parent="Root/VBox"]
+visible = false
 layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="DeletedTitle" type="Label" parent="Root/VBox/DeletedPanel"]
+layout_mode = 2
+text = "Recently Deleted"
 horizontal_alignment = 1
 
-[node name="StatsValue" type="Label" parent="Center/VBox"]
+[node name="DeletedHelp" type="Label" parent="Root/VBox/DeletedPanel"]
 layout_mode = 2
+text = "Restoration requires a free active slot. Names stay reserved until purge. Permanent removal happens with account deletion."
+autowrap_mode = 3
+
+[node name="DeletedList" type="VBoxContainer" parent="Root/VBox/DeletedPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="BackDeleted" type="Button" parent="Root/VBox/DeletedPanel"]
+layout_mode = 2
+text = "Back"
+
+[node name="SettingsPanel" type="VBoxContainer" parent="Root/VBox"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SettingsTitle" type="Label" parent="Root/VBox/SettingsPanel"]
+layout_mode = 2
+text = "Account Settings"
 horizontal_alignment = 1
 
-[node name="ContinueButton" type="Button" parent="Center/VBox"]
+[node name="SettingsHelp" type="Label" parent="Root/VBox/SettingsPanel"]
 layout_mode = 2
-text = "Continue"
+text = "Permanent account deletion is not available yet. Use password and email change here."
+autowrap_mode = 3
 
-[node name="LogoutButton" type="Button" parent="Center/VBox"]
+[node name="ChangePasswordButton" type="Button" parent="Root/VBox/SettingsPanel"]
 layout_mode = 2
-text = "Log out"
+text = "Change password"
 
-[node name="LogoutAllPassword" type="LineEdit" parent="Center/VBox"]
+[node name="ChangeEmailButton" type="Button" parent="Root/VBox/SettingsPanel"]
+layout_mode = 2
+text = "Change email"
+
+[node name="LogoutAllPassword" type="LineEdit" parent="Root/VBox/SettingsPanel"]
 layout_mode = 2
 placeholder_text = "Current password (logout all sessions)"
 secret = true
 
-[node name="LogoutAllButton" type="Button" parent="Center/VBox"]
+[node name="LogoutAllButton" type="Button" parent="Root/VBox/SettingsPanel"]
 layout_mode = 2
 text = "Log out all sessions"
 
-[node name="ChangePasswordButton" type="Button" parent="Center/VBox"]
+[node name="BackSettings" type="Button" parent="Root/VBox/SettingsPanel"]
 layout_mode = 2
-text = "Change password"
+text = "Back"
 
-[node name="ChangeEmailButton" type="Button" parent="Center/VBox"]
+[node name="DeleteConfirmPanel" type="VBoxContainer" parent="Root/VBox"]
+visible = false
 layout_mode = 2
-text = "Change email"
+theme_override_constants/separation = 10
+
+[node name="DeleteTitle" type="Label" parent="Root/VBox/DeleteConfirmPanel"]
+layout_mode = 2
+text = "Confirm deletion"
+horizontal_alignment = 1
+
+[node name="DeleteHelp" type="Label" parent="Root/VBox/DeleteConfirmPanel"]
+layout_mode = 2
+text = "Type the character name exactly to move this character to Recently Deleted."
+autowrap_mode = 3
+
+[node name="DeleteNameEdit" type="LineEdit" parent="Root/VBox/DeleteConfirmPanel"]
+layout_mode = 2
+placeholder_text = "Character name"
+
+[node name="ConfirmDelete" type="Button" parent="Root/VBox/DeleteConfirmPanel"]
+layout_mode = 2
+text = "Soft-delete"
+
+[node name="CancelDelete" type="Button" parent="Root/VBox/DeleteConfirmPanel"]
+layout_mode = 2
+text = "Cancel"
 
 [node name="ErrorDialog" parent="." instance=ExtResource("2_error")]
 [node name="LoadingOverlay" parent="." instance=ExtResource("3_loading")]

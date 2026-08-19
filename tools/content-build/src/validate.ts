@@ -777,7 +777,8 @@ function checkClasses(
   }
   let defaults = 0;
   for (let i = 0; i < ids.length; i++) {
-    const def = classes[ids[i]];
+    const id = ids[i];
+    const def = classes[id];
     checkVisual(def.visualAssetSetId, issues, assets);
     for (let e = 0; e < def.startingEquipment.length; e++) {
       requireItem(def.startingEquipment[e].itemId, items, issues);
@@ -792,6 +793,30 @@ function checkClasses(
     }
     if (def.legacyMigrationDefault === true) {
       defaults += 1;
+    }
+    if (id.indexOf("class.") === 0) {
+      if (
+        !def.displayNameKey ||
+        !def.shortDescriptionKey ||
+        !def.longDescriptionKey ||
+        !def.roleSummaryKey ||
+        !def.placeholderIconAssetId ||
+        !def.placeholderVisualSetId ||
+        !def.placeholderThemeKey ||
+        !def.levelCurveId ||
+        !def.startingAttributes ||
+        !def.startingResources ||
+        !def.attributePointPolicy ||
+        !def.skillPointPolicy
+      ) {
+        issues.push(issue("missing_class_presentation:" + id));
+      }
+      if (def.placeholderIconAssetId) {
+        checkVisual(def.placeholderIconAssetId, issues, assets);
+      }
+      if (def.placeholderVisualSetId) {
+        checkVisual(def.placeholderVisualSetId, issues, assets);
+      }
     }
     for (let t = 0; t < def.allowedEquipmentTags.length; t++) {
       if (!isAllowedEquipSlot(def.allowedEquipmentTags[t], slotTags)) {

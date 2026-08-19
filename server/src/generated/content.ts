@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "4eeb205a3748b3cd71053bcc217cb017ae69f1f1d4753238ca4c03da9cce35c1";
+export const contentHash = "42047a6420550c4c815d4affafdefbaaecd446590706ae3e8c95c7e46f773455";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = ["npc.lab_exit","npc.lab_inn","npc.lab_keeper","npc.lab_trainer","npc.lab_vendor","quest.lab_tour","spawn.lab.boss","spawn.lab.caster","spawn.lab.melee","spawn.lab.ranged","test.zone.systems_lab","vendor.lab_general"] as const;
 export const content = {
@@ -648,6 +648,120 @@ export const content = {
     }
   },
   "classProgressions": {
+    "progression.mage": {
+      "allowedAttributeIds": [
+        "test.attribute.might",
+        "test.attribute.vitality",
+        "test.attribute.focus"
+      ],
+      "attributeGrowth": {
+        "test.attribute.focus": 1,
+        "test.attribute.might": 0,
+        "test.attribute.vitality": 0
+      },
+      "attributePointRules": {
+        "pointsAtCreate": 0
+      },
+      "classId": "class.mage",
+      "id": "progression.mage",
+      "kind": "class_progression",
+      "levelCurveId": "test.curve.standard",
+      "resourceGrowth": {
+        "test.resource.health": 2,
+        "test.resource.mana": 6
+      },
+      "skillPointRules": {
+        "pointsAtCreate": 0
+      },
+      "startingAttributes": {
+        "test.attribute.focus": 7,
+        "test.attribute.might": 2,
+        "test.attribute.vitality": 4
+      },
+      "startingDerived": {
+        "test.stat.attack": 2
+      },
+      "startingResources": {
+        "test.resource.health": 80,
+        "test.resource.mana": 60
+      }
+    },
+    "progression.marksman": {
+      "allowedAttributeIds": [
+        "test.attribute.might",
+        "test.attribute.vitality",
+        "test.attribute.focus"
+      ],
+      "attributeGrowth": {
+        "test.attribute.focus": 0,
+        "test.attribute.might": 1,
+        "test.attribute.vitality": 0
+      },
+      "attributePointRules": {
+        "pointsAtCreate": 0
+      },
+      "classId": "class.marksman",
+      "id": "progression.marksman",
+      "kind": "class_progression",
+      "levelCurveId": "test.curve.standard",
+      "resourceGrowth": {
+        "test.resource.health": 4,
+        "test.resource.mana": 2
+      },
+      "skillPointRules": {
+        "pointsAtCreate": 0
+      },
+      "startingAttributes": {
+        "test.attribute.focus": 4,
+        "test.attribute.might": 5,
+        "test.attribute.vitality": 5
+      },
+      "startingDerived": {
+        "test.stat.attack": 3
+      },
+      "startingResources": {
+        "test.resource.health": 90,
+        "test.resource.mana": 30
+      }
+    },
+    "progression.warrior": {
+      "allowedAttributeIds": [
+        "test.attribute.might",
+        "test.attribute.vitality",
+        "test.attribute.focus"
+      ],
+      "attributeGrowth": {
+        "test.attribute.focus": 0,
+        "test.attribute.might": 1,
+        "test.attribute.vitality": 0
+      },
+      "attributePointRules": {
+        "pointsAtCreate": 0
+      },
+      "classId": "class.warrior",
+      "id": "progression.warrior",
+      "kind": "class_progression",
+      "levelCurveId": "test.curve.standard",
+      "resourceGrowth": {
+        "test.resource.health": 5,
+        "test.resource.mana": 0
+      },
+      "skillPointRules": {
+        "pointsAtCreate": 0
+      },
+      "startingAttributes": {
+        "test.attribute.focus": 2,
+        "test.attribute.might": 6,
+        "test.attribute.vitality": 6
+      },
+      "startingDerived": {
+        "test.stat.attack": 4
+      },
+      "startingResources": {
+        "test.resource.health": 100,
+        "test.resource.mana": 20
+      }
+    },
     "test.progression.arcanist": {
       "allowedAttributeIds": [
         "test.attribute.might",
@@ -764,6 +878,169 @@ export const content = {
     }
   },
   "classes": {
+    "class.mage": {
+      "allowedEquipmentTags": [
+        "main_hand",
+        "head",
+        "chest",
+        "legs",
+        "feet"
+      ],
+      "attributePointPolicy": {
+        "pointsAtCreate": 0
+      },
+      "displayName": "Mage",
+      "displayNameKey": "class.mage.display_name",
+      "id": "class.mage",
+      "kind": "class",
+      "levelCurveId": "test.curve.standard",
+      "longDescriptionKey": "class.mage.long_description",
+      "placeholderIconAssetId": "visual.class_mage",
+      "placeholderThemeKey": "theme.class.mage",
+      "placeholderVisualSetId": "visual.class_mage",
+      "progressionId": "progression.mage",
+      "roleSummaryKey": "class.mage.role_summary",
+      "selectOrder": 3,
+      "shortDescription": "Arcane caster. Provisional stats and loadout.",
+      "shortDescriptionKey": "class.mage.short_description",
+      "skillPointPolicy": {
+        "pointsAtCreate": 0
+      },
+      "startingAbilities": [
+        "test.ability.basic_melee",
+        "test.ability.ranged_bolt"
+      ],
+      "startingAttributes": {
+        "test.attribute.focus": 7,
+        "test.attribute.might": 2,
+        "test.attribute.vitality": 4
+      },
+      "startingEquipment": [
+        {
+          "itemId": "item.training_sword",
+          "quantity": 1
+        }
+      ],
+      "startingResources": {
+        "test.resource.health": 80,
+        "test.resource.mana": 60
+      },
+      "tags": [
+        "mage",
+        "caster",
+        "provisional"
+      ],
+      "visualAssetSetId": "visual.class_mage"
+    },
+    "class.marksman": {
+      "allowedEquipmentTags": [
+        "main_hand",
+        "head",
+        "chest",
+        "legs",
+        "feet"
+      ],
+      "attributePointPolicy": {
+        "pointsAtCreate": 0
+      },
+      "displayName": "Marksman",
+      "displayNameKey": "class.marksman.display_name",
+      "id": "class.marksman",
+      "kind": "class",
+      "levelCurveId": "test.curve.standard",
+      "longDescriptionKey": "class.marksman.long_description",
+      "placeholderIconAssetId": "visual.class_marksman",
+      "placeholderThemeKey": "theme.class.marksman",
+      "placeholderVisualSetId": "visual.class_marksman",
+      "progressionId": "progression.marksman",
+      "roleSummaryKey": "class.marksman.role_summary",
+      "selectOrder": 2,
+      "shortDescription": "Ranged damage. Provisional stats and loadout.",
+      "shortDescriptionKey": "class.marksman.short_description",
+      "skillPointPolicy": {
+        "pointsAtCreate": 0
+      },
+      "startingAbilities": [
+        "test.ability.basic_melee",
+        "test.ability.ranged_bolt"
+      ],
+      "startingAttributes": {
+        "test.attribute.focus": 4,
+        "test.attribute.might": 5,
+        "test.attribute.vitality": 5
+      },
+      "startingEquipment": [
+        {
+          "itemId": "item.training_sword",
+          "quantity": 1
+        }
+      ],
+      "startingResources": {
+        "test.resource.health": 90,
+        "test.resource.mana": 30
+      },
+      "tags": [
+        "marksman",
+        "ranged",
+        "provisional"
+      ],
+      "visualAssetSetId": "visual.class_marksman"
+    },
+    "class.warrior": {
+      "allowedEquipmentTags": [
+        "main_hand",
+        "off_hand",
+        "head",
+        "chest",
+        "legs",
+        "feet"
+      ],
+      "attributePointPolicy": {
+        "pointsAtCreate": 0
+      },
+      "displayName": "Warrior",
+      "displayNameKey": "class.warrior.display_name",
+      "id": "class.warrior",
+      "kind": "class",
+      "legacyMigrationDefault": true,
+      "levelCurveId": "test.curve.standard",
+      "longDescriptionKey": "class.warrior.long_description",
+      "placeholderIconAssetId": "visual.class_warrior",
+      "placeholderThemeKey": "theme.class.warrior",
+      "placeholderVisualSetId": "visual.class_warrior",
+      "progressionId": "progression.warrior",
+      "roleSummaryKey": "class.warrior.role_summary",
+      "selectOrder": 1,
+      "shortDescription": "Front-line melee. Provisional stats and loadout.",
+      "shortDescriptionKey": "class.warrior.short_description",
+      "skillPointPolicy": {
+        "pointsAtCreate": 0
+      },
+      "startingAbilities": [
+        "test.ability.basic_melee"
+      ],
+      "startingAttributes": {
+        "test.attribute.focus": 2,
+        "test.attribute.might": 6,
+        "test.attribute.vitality": 6
+      },
+      "startingEquipment": [
+        {
+          "itemId": "item.training_sword",
+          "quantity": 1
+        }
+      ],
+      "startingResources": {
+        "test.resource.health": 100,
+        "test.resource.mana": 20
+      },
+      "tags": [
+        "warrior",
+        "melee",
+        "provisional"
+      ],
+      "visualAssetSetId": "visual.class_warrior"
+    },
     "test.class.arcanist": {
       "allowedEquipmentTags": [
         "main_hand",
@@ -804,7 +1081,6 @@ export const content = {
       "displayName": "Test Vanguard",
       "id": "test.class.vanguard",
       "kind": "class",
-      "legacyMigrationDefault": true,
       "progressionId": "test.progression.vanguard",
       "startingAbilities": [
         "test.ability.basic_melee"

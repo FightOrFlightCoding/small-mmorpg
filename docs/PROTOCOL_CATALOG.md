@@ -49,20 +49,24 @@ Email accounts must pass `requirePlayableUser` (`ACTIVE`, verified, not disabled
 | Field | Value |
 | --- | --- |
 | Request | `{}` |
-| Response | `{ slotLimit, liveCount, characters[] }` |
-| Authority | Server roster |
+| Response | `{ slotLimit, liveCount, characters[], serverTimeMs, maintenance }` |
+| Authority | Safe catalog summaries only (no inventory, quests, or private storage). `slotLimit` **5**. Opportunistic purge of expired soft-deletes. |
 | Errors | `unauthenticated`, `email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted` |
-| Tests | `character_lifecycle.test.ts`, `auth_flow_test.gd` |
+| Tests | `character_lifecycle.test.ts`, `auth_flow_test.gd`, `character_select_ui_test.gd` |
+
+Catalog row fields: `characterId`, `displayName`, `name`, `canonicalName`, `classId`, `level`, `lastLocationNameKey`, `lastPlayedAt`, `createdAt`, `status`, `softDeleteExpiresAt`, `activePresenceState`, `playAvailableAt`, `playBlockedReason`.
 
 ### `character_create`
 
 | Field | Value |
 | --- | --- |
-| Request | `{ name, classId }` |
-| Response | `{ characterId, name, canonicalName, classId, created: true }` |
-| Authority | Server name policy, class catalog, slot limit 3, canonical reservation |
-| Errors | `invalid_name`, `invalid_class`, `name_taken`, `slot_limit`, `stat_injection`, `email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted` |
+| Request | `{ name` or `displayName`, `classId`, optional `idempotencyKey` }`. Snake_case aliases accepted. |
+| Response | Safe character summary plus `created: true` |
+| Authority | Verified/active account, live count < 5, class catalog, name policy, atomic canonical reservation, server-generated id, one-time starter inventory/equipment/progression/quests/location |
+| Errors | `invalid_name`, `invalid_class`, `name_taken`, `slot_limit`, `stat_injection`, `unknown_field`, `email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted` |
 | Tests | `character_lifecycle.test.ts` |
+
+The client must not submit character id, level, stats, skills, gold, items, position, or quest state.
 
 ### `character_select`
 
@@ -70,17 +74,49 @@ Email accounts must pass `requirePlayableUser` (`ACTIVE`, verified, not disabled
 | --- | --- |
 | Request | `{ characterId }` |
 | Response | `{ ticketId, characterId, accountUserId, expiresAt, name, classId }` |
-| Authority | Ownership, not deleted, replaces the account's previous ticket |
-| Errors | `character_missing`, `character_deleted`, `selection_foreign`, `email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted` |
+| Authority | Ownership, `ACTIVE`, not deleted, no account gameplay lease conflict, verified, content/save compatible, not in maintenance. Ticket TTL 300 s, single-use on join. |
+| Errors | `character_missing`, `character_deleted`, `selection_foreign`, `account_busy`, `link_dead`, `server_maintenance`, `content_incompatible`, `email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted` |
 | Tests | `character_lifecycle.test.ts` |
 
-### `character_soft_delete` / `character_restore`
+### `character_delete_request` / `character_soft_delete`
+
+| Field | Value |
+| --- | --- |
+| Request | `{ characterId, confirmationName, optional idempotencyKey }` |
+| Response | Soft-deleted catalog summary |
+| Authority | Exact display-name confirmation, ownership, `ACTIVE`, no gameplay lease. Marks `SOFT_DELETED`, sets purge timestamp, frees the live slot, keeps the name reserved, preserves gameplay. |
+| Errors | `confirmation_required`, `confirmation_mismatch`, `gameplay_lease`, `character_missing`, `selection_foreign` |
+| Tests | `character_lifecycle.test.ts` |
+
+`character_soft_delete` is an alias of `character_delete_request` and also requires `confirmationName`.
+
+### `character_restore`
 
 | Field | Value |
 | --- | --- |
 | Request | `{ characterId }` |
-| Response | Updated list payload |
-| Authority | Soft-delete sets `deletedAt`; restore requires a free live slot |
+| Response | Restored catalog summary |
+| Authority | Retention not expired, ownership, free live slot, reservation still held by this character. Does not regrant starters or reset progression, quests, or gold. Relocates only if stored location is missing/invalid. |
+| Errors | `retention_expired`, `slot_limit`, `reservation_mismatch`, `character_missing` |
+| Tests | `character_lifecycle.test.ts` |
+
+### `character_name_available`
+
+| Field | Value |
+| --- | --- |
+| Request | `{ displayName }` or `{ name }` |
+| Response | `{ available, canonicalName }` |
+| Authority | Advisory read of the reservation object. Creation remains the only authoritative reserve. |
+| Tests | `character_lifecycle.test.ts` |
+
+### `character_purge`
+
+| Field | Value |
+| --- | --- |
+| Request | `{ characterId }` |
+| Response | `{ characterId, purged: true }` |
+| Authority | Soft-deleted and retention elapsed (or already purged). Idempotent step machine; recovers a partial job. Releases the name. |
+| Errors | `character_not_deleted`, `retention_active`, `character_missing` |
 | Tests | `character_lifecycle.test.ts` |
 
 ### `find_or_create_starter_zone`

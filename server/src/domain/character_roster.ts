@@ -1,6 +1,7 @@
 import { SAVE_SCHEMA_VERSION } from "./save_schema";
 
-export const CHARACTER_SLOT_LIMIT = 3;
+export const CHARACTER_SLOT_LIMIT = 5;
+export const SOFT_DELETE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 export const ROSTER_COLLECTION = "player";
 export const ROSTER_KEY = "roster";
 export const ROSTER_PERMISSION_READ: 1 = 1;

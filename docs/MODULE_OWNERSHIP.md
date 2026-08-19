@@ -67,7 +67,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `wallet.ts` | S | Canonical gold mutations (character, delta, reason, request, resulting balance) | none | none | none | no | no | yes (pure) |
 | `quest.ts` / `quest_store.ts` (domain) | S | Quest log serialize/progress including optional stages | none | none | none | serialize only | no | no |
 | `quest_reward.ts` | S | Turn-in apply + gold via currency helper | none | none | inventory, quest, wallet | no | no | yes (pure) |
-| `character.ts` / `character_name.ts` / `character_roster.ts` / `character_ticket.ts` / `character_lifecycle.ts` / `class_catalog.ts` | S | Name policy, roster, tickets, class lookup | none | none | content classes | serialize character | RPC bodies | starter stacks via class |
+| `character.ts` / `character_name.ts` / `character_roster.ts` / `character_ticket.ts` / `character_lifecycle.ts` / `character_catalog.ts` / `character_purge.ts` / `character_idempotency.ts` / `gameplay_lease.ts` / `class_catalog.ts` | S | Name policy, five-slot roster, catalog summaries, tickets, purge steps, class lookup, account lease | none | none | content classes | serialize character | RPC bodies | starter stacks via class |
 | `join_validation.ts` | S | Match join rules including selection ticket or transfer ticket | none | none | none | no | join reject | no |
 | `persistence.ts` | S | Grace, seq reset, checkpoints, transfer leave | disconnected map | none | match_state | no (decides when) | no | no |
 | `rate_limit.ts` / `security_log.ts` / `security_catalog.ts` / `auth_privacy.ts` | S | Action windows, session rates, attack matrix, login sanitization | match `actionRates`; lexical session maps | none | none | no | SYSTEM_MESSAGE / auth errors | no |
@@ -90,7 +90,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `starter_zone_match.ts` | A | Match handler lifecycle for public world and party caves | live zone + presences | Nakama match | all domain + stores | yes (join/txn/checkpoint/ticket) | yes | yes (via stores) |
 | `chat_hooks.ts` | A | `registerRtBefore` | none (session rates in `rate_limit.ts`) | Nakama RT | domain chat, party_store, rate_limit | no | RT | no |
 | `rpcs/health.ts` | A | `vibecode_health` | none | none | generated hash | no | RPC | no |
-| `rpcs/character_lifecycle.ts` | A | `character_bootstrap` wrapper plus list/create/select/soft-delete/restore | none | character/roster/selection/name stores | domain lifecycle | yes | RPC | new characters only |
+| `rpcs/character_lifecycle.ts` | A | bootstrap wrapper plus list/create/select/delete-request/restore/name-available/purge | none | character/roster/selection/name/lease/idem/purge stores | domain lifecycle | yes | RPC | new characters only |
 | `rpcs/character_bootstrap.ts` | A | Re-exports bootstrap wrapper | none | character_lifecycle | domain lifecycle | yes | RPC | no |
 | `rpcs/find_or_create_starter_zone.ts` | A | Public-world locator; live cave on reconnect | none | registry, location, cave | protocol version | yes (match singleton) | RPC | no |
 | `rpcs/cave.ts` | A | request_cave_entry / find_or_create_owned_cave / request_cave_exit | none | cave/location/party stores | domain cave | yes | RPC | no |

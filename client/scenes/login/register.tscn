@@ -40,6 +40,11 @@ layout_mode = 2
 text = "Register"
 horizontal_alignment = 1
 
+[node name="MailHint" type="Label" parent="Center/VBox"]
+layout_mode = 2
+text = "Local verification codes are captured in Mailpit at http://127.0.0.1:8025. They are not delivered to Gmail."
+autowrap_mode = 3
+
 [node name="EmailEdit" type="LineEdit" parent="Center/VBox"]
 layout_mode = 2
 placeholder_text = "Email"
