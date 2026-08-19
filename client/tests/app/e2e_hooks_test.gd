@@ -18,6 +18,15 @@ func test_e2e_flag_is_required() -> void:
 		assert_bool(SliceJourney.can_run(PackedStringArray([SliceJourney.FLAG]))).is_true()
 
 
+func test_cert_five_flag_is_required() -> void:
+	assert_bool(CertJourney.cmdline_enabled(PackedStringArray())).is_false()
+	assert_bool(CertJourney.cmdline_enabled(PackedStringArray(["--e2e-slice"]))).is_false()
+	assert_bool(CertJourney.cmdline_enabled(PackedStringArray([CertJourney.FLAG]))).is_true()
+	assert_bool(CertJourney.can_run(PackedStringArray(["--e2e-slice"]))).is_false()
+	if OS.is_debug_build():
+		assert_bool(CertJourney.can_run(PackedStringArray([CertJourney.FLAG]))).is_true()
+
+
 func test_approach_point_stays_off_the_target() -> void:
 	var elder := Vector2(160.0, 320.0)
 	var from := Vector2(240.0, 384.0)

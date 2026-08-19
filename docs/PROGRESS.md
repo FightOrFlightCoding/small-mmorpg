@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Environments, version compatibility, deployment, backups, and recovery**.
+Last accepted phase: **Security, abuse, failure, load, and soak certification**.
 
 Current phase: none.
 
@@ -659,5 +659,35 @@ powershell -File scripts/test-e2e.ps1
 ```
 
 Release export: `powershell -File scripts/export-client-release.ps1` (requires Godot 4.7.1 Windows export templates). Docker image: `powershell -File scripts/docker-build.ps1` or `scripts/backend-up.ps1`. Guides: [ENVIRONMENTS.md](ENVIRONMENTS.md), [DEPLOYMENT.md](DEPLOYMENT.md), [RECOVERY.md](RECOVERY.md).
+
+## Security, abuse, failure, load, and soak certification acceptance (2026-08-19)
+
+No gameplay was added. Protocol version and `SAVE_SCHEMA_VERSION` stay 1. Content hash is unchanged. Public-world cap stays 8; the capacity scenario simulates 20 characters with match extras. Cave cap stays 5. Prompt 18 village/slime poses stay frozen.
+
+Every listed attack has a seven-field control in [SECURITY_MODEL.md](SECURITY_MODEL.md) and `server/src/domain/security_catalog.ts`. Match rate buckets are split (inventory, equip, quest, vendor, cave, trade). Session rates for auth, chat, and mutating party RPCs use a lexical replace-whole-map engine. Deterministic fuzz fixtures do not crash the match or mutate gold/items. Headless `--cert-five` bots use ordinary RPCs and opcodes. Domain failure coverage includes disconnect, delayed/duplicate messages, cave terminate, stale presence, and trade recovery. Live Nakama/Postgres restart is opt-in (`scripts/test-failure.ps1 -Live`).
+
+| Gate | Result |
+| --- | --- |
+| Content | 23/23, matching hash `985e5073b1e51f52205f73f85c65982f63454ed87ca4142765fd17a97692b7bc` |
+| Audit | `FOUNDATION_AUDIT_OK` (26 storage records, 31 client opcodes, 15 server opcodes, 24 rpcs) |
+| Server | 440/440 |
+| Client GdUnit | 203/203, 0 orphans, `SHELL_LOGIN` |
+| Capacity | `reports/capacity.cert.json`: 20 public-world characters + 2×5 cave instances, cave cleanup ok, 0 ghosts |
+| Soak | `reports/soak.cert.json`: 200 ticks, 4 bots, 0 errors, gold unchanged, no ghosts/locks/live trades/parties. Manual: `powershell -File scripts/test-soak.ps1 -DurationSec 3600` |
+| E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 |
+| Five-client | `CERT_FIVE_OK` (auth, join, combat, loot, quest, vendor, party, chat, cave, boss, trade, reconnect) |
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-content.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+powershell -File scripts/test-e2e.ps1
+powershell -File scripts/test-capacity.ps1
+powershell -File scripts/test-soak.ps1
+powershell -File scripts/test-cert-journey.ps1
+```
 
 

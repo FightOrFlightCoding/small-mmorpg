@@ -1,6 +1,6 @@
 # Test catalog
 
-Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, Prompt 24 ability coverage, Prompt 25 combat-pipeline coverage, Prompt 26 enemy/spawn/AI/loot/boss coverage, Prompt 27 NPC/quest/vendor/inn coverage, Prompt 28 party/chat/group-credit/loot coverage, Prompt 29 public-world/cave/transfer/reconnect coverage, Prompt 30 nearby trade coverage, Prompt 31 UI/settings/asset-contract coverage, Prompt 32 content-CLI / systems-lab / GM coverage, and Prompt 33 environment / handshake / maintenance / backup-restore coverage. Do not weaken these tests.
+Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, Prompt 24 ability coverage, Prompt 25 combat-pipeline coverage, Prompt 26 enemy/spawn/AI/loot/boss coverage, Prompt 27 NPC/quest/vendor/inn coverage, Prompt 28 party/chat/group-credit/loot coverage, Prompt 29 public-world/cave/transfer/reconnect coverage, Prompt 30 nearby trade coverage, Prompt 31 UI/settings/asset-contract coverage, Prompt 32 content-CLI / systems-lab / GM coverage, Prompt 33 environment / handshake / maintenance / backup-restore coverage, and Prompt 34 security / fuzz / rate-limit / capacity / soak / five-client certification. Do not weaken these tests.
 
 Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDATION_BASELINE.md).
 
@@ -13,7 +13,11 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `scripts/test-server` | Nakama domain tests |
 | `scripts/test-client` | Import, `SHELL_LOGIN`, GdUnit, 0 orphans |
 | `scripts/test-e2e` | Live two-client journey `E2E_SLICE_OK` |
-| `scripts/test-all` | setup + all of the above |
+| `scripts/test-capacity` | Domain capacity report: 20 public-world characters + cave instances |
+| `scripts/test-soak` | Short automated soak; `-DurationSec 3600` for manual certification |
+| `scripts/test-cert-journey` | Live five-client journey `CERT_FIVE_OK` |
+| `scripts/test-failure` | Domain failure tests; `-Live` restarts Nakama/Postgres in a disposable stack |
+| `scripts/test-all` | setup + content, audit, server, client, e2e, capacity, soak, five-client |
 | `scripts/test-backup` | Dump local `nakama`, restore into `nakama_restore_drill`, verify table counts |
 | `scripts/verify-release` | Content, audit, server, migrations, client, backup drill |
 
@@ -82,7 +86,13 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `compatibility.test.ts` | Handshake/join client too old/new, protocol/content mismatch, maintenance skip on handshake | |
 | `maintenance.test.ts` | Patch parse, rejectJoins, transaction window, shutdown warn | |
 | `recovery.test.ts` | Nine procedures, production overwrite token, log redaction | |
-| `auth_hooks.test.ts` | Closed production registration; local device auth allowed | |
+| `auth_hooks.test.ts` | Closed production registration; local device auth allowed; auth rate limit | |
+| `auth_privacy.test.ts` | Login error sanitization; registration `email_taken` | |
+| `security_catalog.test.ts` | Every Prompt 34 attack id has a seven-field control and a test file | |
+| `fuzz.test.ts` | Deterministic malformed corpus; no crash or gold/item mutate | |
+| `session_rate.test.ts` | Auth/chat/party session windows | |
+| `cert_load.test.ts` | Capacity 20+caves report; short soak cleanup | |
+| `cert_failure.test.ts` | Disconnect, delayed/duplicate messages, cave terminate, stale presence, transfer leave, trade recover | | |
 
 ## Client GdUnit (`client/tests`)
 
@@ -112,7 +122,8 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `ui_shell_test.gd` | window focus/exclusivity; duplicate `connect_once`; rejected drag/drop; reconnect window restore; settings persistence without credentials; input conflicts; missing-asset fallback; 4/8-dir animation-set validation; UI after character switch and zone transfer; GM window closeable | |
 | `gm_service_test.gd` | `gm_command` RPC intention; local gold unchanged; debug flag is not authority | |
 | `handshake_test.gd` | Session handshake; fatal version/content mismatch; maintenance login without world entry | |
-| `e2e_hooks_test.gd` | `--e2e-slice` required | VS-T10 helper |
+| `auth_privacy_test.gd` | Login does not leak whether an email exists | |
+| `e2e_hooks_test.gd` | `--e2e-slice` and `--cert-five` required | VS-T10 helper |
 
 `fake_network_backend.gd` is a test double, not a suite.
 
@@ -121,6 +132,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | Driver | Coverage | VS |
 | --- | --- | --- |
 | `client/scripts/e2e/slice_journey.gd` | Full two-identity loop | VS-T10, VS-M1–M3, M5 analog |
+| `client/scripts/e2e/cert_journey.gd` | Five-identity auth, join, combat, loot, quest, vendor, party, chat, cave, boss, trade, reconnect | |
 
 ## Prompt 19 audit
 

@@ -22,7 +22,7 @@ Match and RPC payloads for the slice are JSON objects.
 - Envelopes are UTF-8 JSON.
 - Strict client intentions reject unknown fields.
 - Client→server match payloads are rejected above **2048** bytes (`payload_too_large`).
-- Limits: `INPUT` **20**, `ATTACK`/`USE_ABILITY`/`CANCEL_CAST`/`SET_TARGET` **8**, `INTERACT` **8**, `PICKUP` **8**, `EQUIP`/`DESTROY_ITEM`/`SPLIT_STACK`/`MOVE_ITEM` **8**, `QUEST_ACCEPT`+`QUEST_TURN_IN`+`VENDOR_BUY`+`VENDOR_SELL`+`INN_REST`+`CAVE_ENTER`+`CAVE_EXIT`+trade opcodes **8**, `ALLOCATE_ATTRIBUTES`/`ASSIGN_HOTBAR`/`UNLOCK_ABILITY`/`RELEASE_RESPAWN` **8**, `RESYNC_REQUEST` **2**. Extra requests are `rate_limited` (`SYSTEM_MESSAGE`), are logged, and do not apply. At most **24** match messages are parsed per player per tick.
+- Limits: `INPUT` **20**, `ATTACK`/`USE_ABILITY`/`CANCEL_CAST`/`SET_TARGET` **8**, `INTERACT` **8**, `PICKUP` **8**, `DESTROY_ITEM`/`SPLIT_STACK`/`MOVE_ITEM` **8**, `EQUIP` **8**, `QUEST_ACCEPT`+`QUEST_TURN_IN` **8**, `VENDOR_BUY`+`VENDOR_SELL`+`INN_REST` **8**, `CAVE_ENTER`+`CAVE_EXIT` **8**, trade opcodes **8**, `ALLOCATE_ATTRIBUTES`/`ASSIGN_HOTBAR`/`UNLOCK_ABILITY`/`RELEASE_RESPAWN` **8**, `RESYNC_REQUEST` **2**. Extra requests are `rate_limited` (`SYSTEM_MESSAGE`), are logged, and do not apply. At most **24** match messages are parsed per player per tick. Session limits: auth **5 / 10 s**, chat **4 / 2 s**, mutating party RPCs **8 / 2 s** (`party_get_state` exempt).
 - `FULL_STATE` / `SNAPSHOT` require the documented fields. `SNAPSHOT` is broadcast at **10 Hz** (the match tick rate) while the zone is occupied.
 
 ## Opcodes

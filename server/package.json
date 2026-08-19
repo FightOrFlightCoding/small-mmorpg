@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test": "tsc -p tsconfig.test.json && node --test dist-test/tests",
     "build": "rollup -c rollup.config.mjs",
-    "migrate": "tsc -p tsconfig.cli.json && node dist-cli/cli/migrate.js"
+    "migrate": "tsc -p tsconfig.cli.json && node dist-cli/cli/migrate.js",
+    "cert": "tsc -p tsconfig.cli.json && node dist-cli/cli/cert.js"
   },
   "devDependencies": {
     "@babel/core": "^7.28.0",

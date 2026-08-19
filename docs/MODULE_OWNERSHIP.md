@@ -68,7 +68,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `character.ts` / `character_name.ts` / `character_roster.ts` / `character_ticket.ts` / `character_lifecycle.ts` / `class_catalog.ts` | S | Name policy, roster, tickets, class lookup | none | none | content classes | serialize character | RPC bodies | starter stacks via class |
 | `join_validation.ts` | S | Match join rules including selection ticket or transfer ticket | none | none | none | no | join reject | no |
 | `persistence.ts` | S | Grace, seq reset, checkpoints, transfer leave | disconnected map | none | match_state | no (decides when) | no | no |
-| `rate_limit.ts` / `security_log.ts` | S | Action windows, reject logs | actionRates in match | none | none | no | SYSTEM_MESSAGE | no |
+| `rate_limit.ts` / `security_log.ts` / `security_catalog.ts` / `auth_privacy.ts` | S | Action windows, session rates, attack matrix, login sanitization | match `actionRates`; lexical session maps | none | none | no | SYSTEM_MESSAGE / auth errors | no |
 | `chat.ts` | S | Channel join/send filters including party rooms | none | none | `party.ts` | no | RT hooks | no |
 | `party.ts` | S | Temporary party lifecycle, invites, OCC revision, connection grace | none | none | `cave_ownership.ts` | serialize only | RPC bodies | no |
 | `cave.ts` / `instance.ts` / `location.ts` / `transfer.ts` | S | Cave eligibility/allocation, instance types, canonical location, one-time tickets | none | none | party.ts | serialize only | CAVE_ENTER / CAVE_EXIT extras | no |
@@ -86,7 +86,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `quest_reward_store.ts` / `transaction_store.ts` | A | `nk.multiUpdate` transaction boundary (loot/equipment/destroy/turn-in) | none | Nakama storage + wallet | domain transaction | yes | no | yes |
 | `starter_zone_registry.ts` (nakama) | A | Find/create match + singleton | none | Nakama match + storage | domain registry | yes (match id) | no | no |
 | `starter_zone_match.ts` | A | Match handler lifecycle for public world and party caves | live zone + presences | Nakama match | all domain + stores | yes (join/txn/checkpoint/ticket) | yes | yes (via stores) |
-| `chat_hooks.ts` | A | `registerRtBefore` | process-local party send times | Nakama RT | domain chat, party_store | no | RT | no |
+| `chat_hooks.ts` | A | `registerRtBefore` | none (session rates in `rate_limit.ts`) | Nakama RT | domain chat, party_store, rate_limit | no | RT | no |
 | `rpcs/health.ts` | A | `vibecode_health` | none | none | generated hash | no | RPC | no |
 | `rpcs/character_lifecycle.ts` | A | `character_bootstrap` wrapper plus list/create/select/soft-delete/restore | none | character/roster/selection/name stores | domain lifecycle | yes | RPC | new characters only |
 | `rpcs/character_bootstrap.ts` | A | Re-exports bootstrap wrapper | none | character_lifecycle | domain lifecycle | yes | RPC | no |
@@ -97,6 +97,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `rpcs/handshake.ts` / `handshake.ts` / `compatibility.ts` | A/S | Login compatibility gate | none | none | catalog hash + env versions | no | `session_handshake` | no |
 | `rpcs/ops.ts` / `ops_store.ts` / `maintenance.ts` / `ops_metrics.ts` | A/S | Maintenance flag, counters, redacted ops logs | in-memory counters | ops storage | domain maintenance | yes | `ops_status` / `ops_set_maintenance` | no |
 | `nakama/auth_hooks.ts` / `environment.ts` | A/S | Registration and device-auth policy from env presets | none | none | compiled presets + `ctx.env` | no | Authenticate* before hooks | no |
+| `cert_load.ts` / `cli/cert.ts` | S/T | Capacity/soak measurement (default public cap stays 8; capacity uses `maxPlayers: 20` extras) | none | none | match_loop | no | no | no |
 | `recovery.ts` | S | Documented recovery procedures and overwrite tokens | none | none | none | no | no | no |
 | `main.ts` | A | `InitModule` registrations | none | Nakama initializer | RPCs, match, hooks | no | register | no |
 | `generated/content.ts` | S generated | Catalog | immutable content | content-build | none | no | no | no |

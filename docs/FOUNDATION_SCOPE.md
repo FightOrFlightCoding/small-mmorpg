@@ -52,6 +52,7 @@ A later phase may implement a Required-for-Foundation-v1 row only when that phas
 | Content IDs, generated catalogs, matching hashes | Existing and accepted | `schemaVersion` 1, SHA-256 `contentHash`. |
 | Local prediction and snapshot interpolation | Existing and accepted | Presentation only. |
 | Debug two-client e2e journey | Existing and accepted | `--e2e-slice`; unavailable in release. |
+| Security, abuse, load, soak certification | Existing and accepted (Prompt 34) | Security matrix, fuzz, split rate limits, five-client journey, capacity/soak reports. No gameplay. |
 | Functional client shell, settings, asset contracts | Existing and accepted (Prompt 31) | Windowing, local settings, stable visual/audio IDs. No final art. UI never authoritative. |
 | Content production workflow | Existing and accepted (Prompt 32) | Project-owned CLI: templates, validate, diff, references, unused, migrate, package, optional CSV. No RPG database plugin. |
 | Systems lab | Existing and accepted (Prompt 32) | `test.zone.systems_lab` is development-only. Does not replace automated tests. |

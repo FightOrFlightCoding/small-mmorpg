@@ -95,6 +95,7 @@ import { consumeTransferTicket, issueTransferTicket, previewTransferTicket } fro
 import { createCaveMatch } from "../rpcs/cave";
 import { findOrCreateStarterZoneMatch } from "./starter_zone_registry";
 import { formatOpsLog, incrementCounter } from "../domain/ops_metrics";
+import { SLOW_TICK_MS } from "../domain/rate_limit";
 import { shouldWarnShutdown, shutdownWarningMessage } from "../domain/maintenance";
 import { readEffectiveMaintenance, readEnvironment } from "./ops_store";
 
@@ -615,6 +616,7 @@ export function matchLoop(
     });
   }
   let result: MatchLoopResult;
+  const tickStartedMs = Date.now();
   try {
     result = applyMatchLoop(state.zone, tick, contentHash, incoming, function () {
       return nk.uuidv4();
@@ -634,6 +636,10 @@ export function matchLoop(
       }),
     );
     return { state: persistable(state) };
+  }
+  const tickMs = Date.now() - tickStartedMs;
+  if (tickMs > SLOW_TICK_MS) {
+    logger.warn(formatOpsLog("slow_tick", { tick: tick, ms: tickMs, messages: incoming.length }));
   }
   for (let p = 0; p < result.persistQuests.length; p++) {
     const persist = result.persistQuests[p];

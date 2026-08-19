@@ -80,7 +80,7 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Attack:** Empty, malformed, or oversized chat; extra JSON fields; BBCode or other markup meant to restyle or execute in the client.
 
-**Defense:** `ChannelMessageSend` is validated in a Nakama realtime before hook. Zone chat stays stateless: content must be JSON `{ "message": string }` only. Party chat may include `partyId` and requires current membership (`not_party_member`). Empty and >200 character bodies are rejected. Party sends are limited to 4 per 2 s in process memory. The client renders chat in a `Label` and never enables BBCode on untrusted text. Direct-message and group channel joins are rejected; only room `zone.starter` and `party.<partyId>` for members are allowed. Party chat never drives gameplay state.
+**Defense:** `ChannelMessageSend` is validated in a Nakama realtime before hook. Zone chat stays stateless: content must be JSON `{ "message": string }` only. Party chat may include `partyId` and requires current membership (`not_party_member`). Empty and >200 character bodies are rejected. Chat sends are limited to 4 per 2 s by the lexical session-rate engine in `rate_limit.ts` (not a mutated process-global object). The client renders chat in a `Label` and never enables BBCode on untrusted text. Direct-message and group channel joins are rejected; only room `zone.starter` and `party.<partyId>` for members are allowed. Party chat never drives gameplay state.
 
 ### Protocol-version mismatch
 
@@ -124,6 +124,80 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Defense:** Match state stores per-user `actionRates` for a 10-tick window. Excess is `rate_limited`, logged, and not applied. Honest 10 Hz movement stays under the `INPUT` cap of 20/s.
 
+Session rates (lexical map replacement, Nakama-safe) live in `rate_limit.ts`:
+
+| Kind | Limit | Window |
+| --- | --- | --- |
+| Authentication (email/device identity) | 5 | 10 s |
+| Chat send | 4 | 2 s |
+| Mutating party RPCs (`party_get_state` exempt) | 8 | 2 s |
+
+Match buckets (per player, 10-tick window): `input` 20; `attack` / `interact` / `pickup` / `inventory` / `equip` / `quest` / `vendor` / `cave` / `trade` / `allocate` 8; `resync` 2; plus 24 messages/tick and 2048-byte bodies.
+
+## Attack mapping
+
+Machine-readable copy: `server/src/domain/security_catalog.ts`. Every expected attack has threat, validation, rate limit, payload-size limit, idempotency, expected rejection, and automated test:
+
+| Attack | Threat | Validation | Rate limit | Payload | Idempotency | Rejection | Test |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| registration_spam | Flood email/device create | Authenticate before-hook; production registration closed | auth 5/10s | Nakama account payload | Extra creates rejected | `rate_limited` / `registration_disabled` | `auth_hooks.test.ts`, `auth_privacy.test.ts` |
+| login_error_leakage | Distinguish unknown email vs bad password | `sanitizeAuthFailure` when `create=false` | auth 5/10s | n/a | n/a | `invalid_credentials` | `auth_privacy.test.ts`, `auth_privacy_test.gd` |
+| foreign_character_selection | Select another account's character | Roster ownership + ticket match | select RPC | RPC | Tickets one-use | `selection_foreign` / `character_missing` | `character_lifecycle.test.ts`, `match.test.ts` |
+| forged_character_ticket | Fabricate `selectionTicket` | Server-issued ticket, TTL 300s, consumed on join | join | join metadata | Reuse invalidated | `selection_invalidated` / `selection_expired` | `character_lifecycle.test.ts` |
+| duplicate_name_reservation | Two accounts claim Alice | Canonical name reservation OCC | create RPC | RPC | Loser `name_taken` | `name_taken` | `character_lifecycle.test.ts` |
+| deleted_character_use | Select or join a soft-deleted slot | Soft-delete flags roster | select RPC | RPC | n/a | `character_deleted` | `character_lifecycle.test.ts` |
+| xp_injection | Client sends xp/level/currentXp | Outcome keys rejected; grants only trusted events | allocate 8/10 ticks | 2048 | XP `eventId` unique | `stat_injection:xp` | `progression.test.ts`, `protocol.test.ts`, `xp_hooks.test.ts`, `security.test.ts` |
+| level_injection | Client sets level | No client level field | allocate 8/10 ticks | 2048 | n/a | `stat_injection:level` | `progression.test.ts`, `protocol.test.ts` |
+| attribute_overspending | Spend more points than unspent | Server pool check | allocate 8/10 ticks | 2048 | `requestId` replay | `insufficient_points` / `invalid_amount` | `progression.test.ts` |
+| skill_point_overspending | Unlock with too few skill points | `unlockAbility` cost check | allocate 8/10 ticks | 2048 | `requestId` replay | `insufficient_points` | `ability.test.ts`, `security.test.ts` |
+| ability_unlock_bypass | Use or hotbar a locked ability | Server unlock list | attack/allocate 8/10 ticks | 2048 | n/a | `ability_locked` | `ability.test.ts`, `protocol.test.ts` |
+| position_spoofing | Send x/y as movement | `INPUT` is axes+seq only | input 20/10 ticks | 2048 | stale seq ignored | `stat_injection:x` | `security.test.ts`, `protocol.test.ts`, `movement.test.ts` |
+| speed_hacking | Oversized axis or implied teleport | Server dt and `moveSpeed` | input 20/10 ticks | 2048 | n/a | Applied speed matches content | `movement.test.ts`, `security.test.ts` |
+| target_spoofing | Attack unknown or foreign IDs | Match entity indexes | attack 8/10 ticks | 2048 | n/a | `invalid_target` | `combat.test.ts`, `targeting.test.ts`, `security.test.ts` |
+| range_bypass | Hit from across the map | Server Euclidean range | attack 8/10 ticks | 2048 | n/a | `out_of_range` | `combat.test.ts`, `ability.test.ts`, `security.test.ts` |
+| cooldown_bypass | Fire faster than ICD/GCD | Server cooldown clocks | attack 8/10 ticks | 2048 | duplicate `requestId` | `on_cooldown` / `on_global_cooldown` | `combat.test.ts`, `ability.test.ts`, `security.test.ts` |
+| resource_bypass | Cast without resource | Server resource pools | attack 8/10 ticks | 2048 | n/a | `resource_missing` | `ability.test.ts` |
+| damage_spoofing | Send damage/health | Intention only | attack 8/10 ticks | 2048 | `eventId` + `requestId` | `stat_injection:damage` | `combat.test.ts`, `ability.test.ts`, `protocol.test.ts`, `security.test.ts` |
+| healing_spoofing | Send heal/healing | Outcome keys rejected | attack 8/10 ticks | 2048 | `eventId` | `stat_injection:heal` | `protocol.test.ts`, `combat_pipeline.test.ts`, `security.test.ts` |
+| dead_character_actions | Act while dead | Health check except `RELEASE_RESPAWN` | per opcode | 2048 | n/a | `player_dead` | `combat.test.ts`, `combat_pipeline.test.ts`, `security.test.ts` |
+| pvp_attempts | Damage another player | Living players friendly; PvP off | attack 8/10 ticks | 2048 | n/a | `pvp_disabled` | `ability.test.ts`, `combat_pipeline.test.ts` |
+| item_injection | Grant opcode or storage write | No grant opcode; `permissionWrite` 0 | inventory 8/10 ticks | 2048 | n/a | `unknown_opcode` | `protocol.test.ts`, `inventory.test.ts`, `security.test.ts` |
+| item_instance_injection | Client `instanceId` on pickup | `instanceId` on `PICKUP` rejected | pickup 8/10 ticks | 2048 | Server generates IDs | `stat_injection:instanceId` | `security.test.ts`, `protocol.test.ts` |
+| stack_overflow | Quantity above `maxStack` | Split at `maxStack`; `acceptItemFailureCode` | inventory 8/10 ticks | 2048 | n/a | `inventory_full` (no overstack) | `inventory.test.ts`, `security.test.ts` |
+| duplicate_loot | Two pickups of one ground item | First despawns; `requestId` replay | pickup 8/10 ticks | 2048 | `requestId` | `invalid_target` / replay ok | `inventory.test.ts`, `security.test.ts` |
+| duplicate_quest_reward | Replay turn-in | `requestId` + already completed | quest 8/10 ticks | 2048 | `requestId` / quest status | `already_completed` | `quest_reward.test.ts`, `security.test.ts` |
+| negative_gold | Negative gold offer or wallet | Finite amount >= 0; wallet clamps | trade/vendor 8/10 ticks | 2048 | txn `requestId` | `invalid_amount` / `insufficient_gold` | `transaction.test.ts`, `trade.test.ts`, `security.test.ts` |
+| vendor_price_spoofing | Client price/gold on buy/sell | `price` unknown; `gold` injection | vendor 8/10 ticks | 2048 | `requestId` | `unknown_field:price` / `stat_injection:gold` | `vendor.test.ts`, `protocol.test.ts` |
+| locked_item_mutation | Equip/destroy/sell a locked stack | `lockReason` checked | equip/inventory/vendor | 2048 | n/a | `item_locked` | `equipment.test.ts`, `trade.test.ts`, `vendor.test.ts` |
+| transaction_replay | Replay `requestId` on gold/item txn | Transaction `requestId` map | vendor/quest 8/10 ticks | 2048 | `requestId` | replay ok; no second mutate | `transaction.test.ts`, `vendor.test.ts` |
+| forged_membership | Send members/creditUserIds | `stat_injection`; server party record | party RPC 8/2s | RPC | n/a | `stat_injection:members` | `party.test.ts`, `protocol.test.ts` |
+| party_over_capacity | Sixth member | `MAX_PARTY_SIZE` 5 | party RPC 8/2s | RPC | n/a | `party_full` | `party.test.ts` |
+| unauthorized_kick | Non-leader kick | Leader-only kick/promote/disband | party RPC 8/2s | RPC | n/a | `not_leader` | `party.test.ts` |
+| group_credit_spoofing | Nominate XP/loot recipients | Server eligibility only | attack 8/10 ticks | 2048 | death `eventId` | `stat_injection:creditUserIds` | `party_credit_loot.test.ts`, `protocol.test.ts` |
+| foreign_cave_entry | Enter another party's cave | Ownership + membership + ticket | cave 8/10 ticks | 2048 | one-time ticket | `not_cave_member` / `ticket_wrong_character` | `cave.test.ts` |
+| transfer_ticket_replay | Reuse consumed ticket | Tickets consumed on join | cave 8/10 ticks | 2048 | one-time | `ticket_reused` | `cave.test.ts` |
+| dual_match_presence | Join two matches at once | Canonical location | join | join metadata | n/a | `already_in_match` / `already_elsewhere` | `cave.test.ts`, `match.test.ts` |
+| rejoin_expired_cave | Reconnect after cave gone | 60s grace then public-world fallback | join | join metadata | n/a | public fallback; no ghost cave | `cave.test.ts` |
+| offer_revision_race | Accept stale revision | Accept must match current revision | trade 8/10 ticks | 2048 | revision | `revision_mismatch` | `trade.test.ts` |
+| acceptance_race | Two accepts of different revisions | Commit only both accepted current revision | trade 8/10 ticks | 2048 | `requestId` | `revision_mismatch` | `trade.test.ts` |
+| item_removal_during_trade | Destroy offered stack | Trade lock | inventory/trade | 2048 | n/a | `item_locked` | `trade.test.ts` |
+| gold_change_during_trade | Spend reserved gold | Reserved gold reduces spendable | vendor/trade | 2048 | n/a | `insufficient_gold` | `trade.test.ts` |
+| duplicate_commit | Replay accept after commit | Completed trade + `requestId` | trade 8/10 ticks | 2048 | `requestId` | replay; no second grant | `trade.test.ts` |
+| disconnect_during_commit | Crash mid `multiUpdate` | `committing` snapshot recovered | trade 8/10 ticks | 2048 | committing retry | no duplicate items/gold | `trade.test.ts` |
+| zone_transfer_during_trade | `CAVE_ENTER` while open trade | Transfer cancels open trade | cave/trade | 2048 | n/a | trade cancelled; inventories valid | `trade.test.ts` |
+| malformed_json | Broken JSON body | `parseClientMessage` | unknown 8/10 ticks | 2048 | n/a | `malformed_json` | `protocol.test.ts`, `security.test.ts`, `fuzz.test.ts` |
+| unknown_fields | Extra JSON keys | Strict allowlists | per opcode | 2048 | n/a | `unknown_field:*` | `protocol.test.ts`, `security.test.ts`, `fuzz.test.ts` |
+| unknown_opcode | Opcode 99/grant 50 | `isClientOpcode` | unknown 8/10 ticks | 2048 | n/a | `unknown_opcode` | `protocol.test.ts`, `security.test.ts`, `fuzz.test.ts` |
+| oversized_payload | Huge JSON | 2048-byte cap | 24 msgs/tick | 2048 | n/a | `payload_too_large` | `protocol.test.ts`, `security.test.ts`, `fuzz.test.ts` |
+| nan | NaN axes/amounts | `typeof number && isFinite` | input/trade | 2048 | n/a | `invalid_input` / `invalid_amount` | `protocol.test.ts`, `security.test.ts`, `fuzz.test.ts` |
+| infinity | `1e999` / Infinity | `isFinite` | input/trade | 2048 | n/a | `invalid_input` / `invalid_amount` | `protocol.test.ts`, `security.test.ts`, `fuzz.test.ts` |
+| wrong_protocol_version | `protocolVersion != 1` | Checked first | resync/any | 2048 | n/a | `protocol_mismatch` | `protocol.test.ts`, `match.test.ts`, `compatibility.test.ts`, `fuzz.test.ts` |
+| wrong_content_hash | Mismatched catalog hash | Optional hash must match | resync/join | 2048 | n/a | `content_mismatch` | `protocol.test.ts`, `compatibility.test.ts`, `fuzz.test.ts` |
+| resync_abuse | Flood `RESYNC_REQUEST` | resync 2/10 ticks | resync 2/10 ticks | 2048 | n/a | `rate_limited` | `security.test.ts` |
+| chat_abuse | Flood/markup/oversize chat | JSON `{message}`; Label no BBCode; 200 chars | chat 4/2s | 200 chars | n/a | `rate_limited` / `message_too_long` / `invalid_payload` | `chat.test.ts`, `security.test.ts` |
+
+Additional Prompt 18–33 rows (equipment spoof, quest skip, fabricated NPC, GM, maintenance, save version) remain covered by the tests listed in prior phases and in [TEST_CATALOG.md](TEST_CATALOG.md).
+
 ## Client local storage
 
 The Godot client must not write canonical inventory, equipment, quest, currency, progression, party, cave, location, trade, health, or position records to `user://` or other local files. `AppState` is in-memory presentation/session flags only. Persistence is Nakama storage and wallet, written by the server. Session tokens (never passwords) may be cached in `user://session_cache.json` for refresh. Email reauthentication cannot use a stored password: refresh, then a visible `session_expired` if the refresh token is dead. Device reauthentication remains available only for debug device-auth sessions.
@@ -132,7 +206,7 @@ Debug Alice/Bob/machine device identities are gated by `OS.is_debug_build()` (te
 
 Password-recovery email is out of Foundation v1. For this small private release, an operator resets the account from the Nakama console (local defaults `admin` / `password` on `http://127.0.0.1:7351`): locate the user, change or disable the login, and tell the player to register again if the email must be reused. Do not store raw passwords in project storage or logs.
 
-Debug-only `--e2e-slice` opens two real sessions and sends ordinary intentions. It is compiled out of usefulness in release builds (`OS.is_debug_build()` plus an explicit flag). GdUnit `client/tests/app/e2e_hooks_test.gd` requires the flag. `scripts/test-e2e` drives the live journey. It must not call storage, wallet, or match APIs that a player client cannot call, and it must not skip match validation.
+Debug-only `--e2e-slice` opens two real sessions and `--cert-five` opens five. Both send ordinary intentions. They are compiled out of usefulness in release builds (`OS.is_debug_build()` plus an explicit flag). GdUnit `client/tests/app/e2e_hooks_test.gd` requires the flags. `scripts/test-e2e` and `scripts/test-cert-journey` drive the live journeys. They must not call storage, wallet, or match APIs that a player client cannot call, and they must not skip match validation.
 
 ## Logging
 
@@ -143,50 +217,4 @@ Structured logs may include opcode, rejection reason, user ID, match ID, and `re
 **Attack:** A debug Godot build, HUD checkbox, or `--dev-user` flag grants items, gold, teleport, or cave entry.
 
 **Defense:** `gm_command` requires a server allowlist object with `enabled: true` and a matching user id, custom id, or email. Default allowlist is disabled. The debug GM panel only sends the RPC. Failed authorization is `gm_disabled` / `unauthorized` and is audited.
-
-## Attack mapping
-
-Every expected attack maps to a validation rule, an automated test, and a safe server response:
-
-| Attack | Rule | Test | Response |
-| --- | --- | --- | --- |
-| Position spoofing | `INPUT` is axes+seq only; `x`/`y` are `stat_injection` | `server/tests/security.test.ts`, `protocol.test.ts`, `movement.test.ts` | `SYSTEM_MESSAGE` `stat_injection:x`; pose unchanged |
-| Speed hacking | Server dt and `moveSpeed`; extra axis magnitude clamped | `movement.test.ts`, `security.test.ts` | Applied speed matches a unit vector |
-| Damage spoofing | `ATTACK`/`USE_ABILITY` are intentions; outcome keys rejected | `combat.test.ts`, `ability.test.ts`, `protocol.test.ts`, `security.test.ts` | `stat_injection:damage`; HP uses server attack |
-| Ability injection / locked use | Server catalog + unlock list; hotbar is not ownership | `ability.test.ts`, `protocol.test.ts` | `ability_locked` / `stat_injection:*` |
-| Hostile player targeting | Other living players are friendly; PvP off | `ability.test.ts`, `combat_pipeline.test.ts` | `pvp_disabled`; damaging effects no-op on other players |
-| Duplicate combat apply | Pipeline `eventId` plus attack `requestId` | `combat.test.ts`, `combat_pipeline.test.ts` | Replay; HP unchanged |
-| Cooldown bypassing | Server individual + global cooldown clocks | `combat.test.ts`, `ability.test.ts`, `security.test.ts` | `ACTION_RESULT` `on_cooldown` / `on_global_cooldown` |
-| XP injection | No client XP amount; `xp`/`level`/`currentXp` rejected | `progression.test.ts`, `protocol.test.ts`, `xp_hooks.test.ts` | `stat_injection:xp`; progression unchanged |
-| Attribute overspend / unknown / negative | Server validates catalog, class, unspent points | `progression.test.ts` | `insufficient_points` / `unknown_attribute` / `invalid_amount` |
-| Item injection | No grant opcode; `instanceId` on `PICKUP` rejected; storage `permissionWrite: 0` | `protocol.test.ts`, `inventory.test.ts`, `security.test.ts`, `gm.test.ts` | `unknown_opcode` / `stat_injection:instanceId`; GM grants require allowlist |
-| Equipment spoofing | Own instance, equippable `main_hand`, server derived attack | `equipment.test.ts`, `security.test.ts` | `unowned` / `not_equippable` / `stat_injection:attack` |
-| Duplicate pickup | First success despawns loot; same `requestId` replays | `inventory.test.ts`, `security.test.ts` | Second apply `ok` without a second grant |
-| Duplicate reward | `requestId` idempotency on pickup, equip, quest, vendor, inn, allocate; XP `eventId` | `inventory.test.ts`, `quest.test.ts`, `quest_reward.test.ts`, `vendor.test.ts`, `inn.test.ts`, `progression.test.ts`, `security.test.ts` | Replay `ok`/`accepted`; no second mutate |
-| Quest skipping | Turn-in requires accepted stage, NPC, range, items | `quest_reward.test.ts`, `security.test.ts` | `invalid_id` / `incomplete_objective`; gold unchanged |
-| Client quest progress | `status` / `questComplete` / `gold` rejected | `protocol.test.ts`, `security.test.ts` | `unknown_field` / `stat_injection:questComplete` |
-| Vendor price spoof | Client `price` / `gold` rejected; server catalog prices | `vendor.test.ts`, `protocol.test.ts` | `unknown_field:price` / `stat_injection:gold`; gold unchanged |
-| Inn health/gold spoof | Client health/gold rejected; server heal and bind | `inn.test.ts`, `protocol.test.ts` | `stat_injection:gold`; bind unchanged on reject |
-| Fake cave transfer | Ticket validation; client cannot nominate destination | `cave.test.ts`, `inn.test.ts`, `protocol.test.ts` | `ticket_reused` / `ticket_expired` / `ticket_wrong_character` / `already_elsewhere`; still one presence |
-| Trade duplication / unowned offer | Server locks, revision accept, atomic commit or recover | `trade.test.ts`, `protocol.test.ts`, `trade_service_test.gd` | `unowned_item` / `not_tradeable` / `item_locked` / `revision_mismatch` / replay; no second grant |
-| Fabricated NPC interaction | Server range and live health | `interaction.test.ts` | `out_of_range` / `invalid_target` / `player_dead` |
-| Invalid target IDs | Match entity + content indexes | `combat.test.ts`, `combat_pipeline.test.ts`, `targeting.test.ts`, `inventory.test.ts`, `interaction.test.ts`, `security.test.ts` | `invalid_target` / `invalid_id`; match continues |
-| Oversized payloads | 2048-byte client match cap; 24 messages/tick | `protocol.test.ts`, `security.test.ts` | `payload_too_large` / `rate_limited` |
-| Chat injection | Before-hook JSON `{message}` or `{message, partyId}`; Label render, no BBCode; party membership | `chat.test.ts`, `chat_client_test.gd`, `security.test.ts` | `message_too_long` / `invalid_payload` / `not_party_member` / `invalid_channel`; markup is plain text |
-| Forged party membership | Server party record + revision cache; client member lists rejected | `party.test.ts`, `protocol.test.ts`, `party_service_test.gd` | `stat_injection:members`; match ignores client lists |
-| Nominated group credit/loot | Server eligibility and assignment only | `party_credit_loot.test.ts`, `protocol.test.ts` | `stat_injection:creditUserIds`; one death `eventId` |
-| Protocol-version mismatch | Envelope version checked first | `protocol.test.ts`, `match.test.ts` | `protocol_mismatch`; no apply |
-| Client/content too old or new | Handshake + join `clientVersion` / hash | `compatibility.test.ts`, `handshake_test.gd` | `client_too_old` / `client_too_new` / `content_mismatch`; no world |
-| Join during maintenance | `rejectJoins` + find/cave RPCs | `maintenance.test.ts`, `handshake_test.gd` | `server_maintenance`; reconnect still allowed |
-| Production registration / device auth | Authenticate before-hooks | `auth_hooks.test.ts` | `registration_disabled` / `device_auth_disabled` |
-| Accidental production restore | Overwrite token + dataReset policy | `recovery.test.ts` | Script refuses without `OVERWRITE-PRODUCTION` |
-| Character stat injection | Bootstrap/create accept name and classId only | `character.test.ts`, `character_lifecycle.test.ts` | `stat_injection`; `permissionWrite: 0` |
-| Foreign character select | Ticket and roster ownership | `character_lifecycle.test.ts`, `match.test.ts` | `selection_foreign` / `character_missing` |
-| Expired or reused selection ticket | TTL 300 s; invalidate on join | `character_lifecycle.test.ts` | `selection_expired` / `selection_invalidated` |
-| Forged save version | Server detects storage version; client fields rejected | `migration.test.ts`, `character.test.ts` | `stat_injection` / `unsupported_future_version`; no reset |
-| Stale movement sequence | `seq <= lastProcessedSeq` ignored | `movement.test.ts`, `security.test.ts` | Pose unchanged |
-| Excessive movement / resync | Per-player `actionRates` in match state | `security.test.ts` | `rate_limited`; extra seq/full states dropped |
-| Dead-player actions | Health checked before move/attack/interact/loot/equip/ability; `RELEASE_RESPAWN` is the exception | `combat.test.ts`, `combat_pipeline.test.ts`, `interaction.test.ts`, `inventory.test.ts`, `equipment.test.ts`, `security.test.ts` | `player_dead`; no mutate |
-| Forged GM command | Server allowlist; client debug UI is not authority | `gm.test.ts`, `gm_service_test.gd` | `gm_disabled` / `unauthorized`; audit written |
-| Malformed JSON / unknown opcode / unknown fields / NaN / missing fields | Strict `parseClientMessage` | `protocol.test.ts`, `match.test.ts`, `security.test.ts` fixtures | `SYSTEM_MESSAGE`; match does not crash |
 

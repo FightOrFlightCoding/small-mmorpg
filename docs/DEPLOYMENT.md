@@ -12,6 +12,9 @@ Versions stay in [DEPENDENCIES.md](DEPENDENCIES.md): Godot **4.7.1**, Node **20.
 | --- | --- |
 | Server type check | `powershell -File scripts/server-typecheck.ps1` |
 | Server tests | `powershell -File scripts/test-server.ps1` |
+| Capacity report | `powershell -File scripts/test-capacity.ps1` |
+| Soak (short / 1h) | `powershell -File scripts/test-soak.ps1` / `-DurationSec 3600` |
+| Five-client journey | `powershell -File scripts/test-cert-journey.ps1` |
 | Server bundle | `powershell -File scripts/server-build.ps1` |
 | Content validation | `powershell -File scripts/content-validate.ps1` |
 | Content bundle | `powershell -File scripts/content-build.ps1` |

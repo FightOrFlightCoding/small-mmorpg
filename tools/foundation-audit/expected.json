@@ -245,6 +245,7 @@
       "server/src/main.ts",
       "server/src/nakama/starter_zone_match.ts",
       "server/src/nakama/character_lifecycle_deps.ts",
+      "server/src/domain/cert_load.ts",
       "server/src/rpcs/cave.ts",
       "client/scripts/content/content_catalog.gd",
       "client/scripts/chat/zone_chat.gd",
@@ -258,6 +259,7 @@
     "npc.elder": [
       "client/scripts/content/content_catalog.gd",
       "client/scripts/e2e/slice_journey.gd",
+      "client/scripts/e2e/cert_journey.gd",
       "client/content/dialogue_map.json",
       "client/content/dialogue/npc.elder.dialogue",
       "client/content/asset_manifest.json"
@@ -287,6 +289,7 @@
     "quest.slime_problem": [
       "client/scripts/content/content_catalog.gd",
       "client/scripts/e2e/slice_journey.gd",
+      "client/scripts/e2e/cert_journey.gd",
       "client/content/dialogue/npc.elder.dialogue",
       "server/src/domain/match_loop.ts"
     ],

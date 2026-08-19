@@ -525,6 +525,17 @@ test("skill-point unlock persists on the progression record", () => {
   assert.equal(replay.progression.unspentSkillPoints, 1);
 });
 
+test("skill-point unlock rejects overspend", () => {
+  const progression = initializeProgression(catalog, CLASS_ID);
+  ensureAbilityOwnership(progression, [MELEE], MELEE);
+  progression.unspentSkillPoints = 0;
+  const definition = abilityDefinitionsFromContent(content.abilities)[BUFF];
+  const denied = unlockAbility(progression, definition, ["vanguard"], CLASS_ID, "req-unlock-overspend", 10);
+  assert.equal(denied.ok, false);
+  assert.equal(denied.code, "insufficient_points");
+  assert.equal(denied.progression.unlockedAbilityIds.indexOf(BUFF), -1);
+});
+
 test("hotbar assignment rejects locked abilities", () => {
   const progression = initializeProgression(catalog, CLASS_ID);
   ensureAbilityOwnership(progression, [MELEE], MELEE);

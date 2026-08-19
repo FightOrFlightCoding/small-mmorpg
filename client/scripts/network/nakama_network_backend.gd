@@ -47,7 +47,7 @@ func authenticate_email(email: String, password: String, username: String = "", 
 	_device_id = ""
 	_ensure_client()
 	var session: NakamaSession = await _client.authenticate_email_async(email, password, username, create, null)
-	return _store_session(session, "invalid_credentials")
+	return _store_session(session, "invalid_credentials", create)
 
 
 func restore_cached_session() -> Dictionary:
@@ -309,12 +309,12 @@ func _from_chat_exception(exception: NakamaException, fallback_code: String, fal
 	return mapped
 
 
-func _store_session(session: NakamaSession, fallback_code: String) -> Dictionary:
+func _store_session(session: NakamaSession, fallback_code: String, create_account: bool = false) -> Dictionary:
 	if session == null or session.is_exception():
 		var exception: NakamaException = null
 		if session != null:
 			exception = session.get_exception()
-		return _from_exception(exception, fallback_code, "Could not sign in to Nakama.")
+		return _from_exception(exception, fallback_code, "Could not sign in to Nakama.", create_account)
 	_session = session
 	SessionCache.save(
 		session.token,
@@ -407,7 +407,7 @@ func _map_ops_codes(mapped: Dictionary) -> Dictionary:
 	return mapped
 
 
-func _from_exception(exception: NakamaException, fallback_code: String, fallback_message: String) -> Dictionary:
+func _from_exception(exception: NakamaException, fallback_code: String, fallback_message: String, create_account: bool = false) -> Dictionary:
 	if exception == null:
 		return _fail(fallback_code, fallback_message)
 	var message := exception.message
@@ -418,23 +418,23 @@ func _from_exception(exception: NakamaException, fallback_code: String, fallback
 	if exception.grpc_status_code == 16 or exception.status_code == 401:
 		if fallback_code == "invalid_credentials":
 			code = "invalid_credentials"
-			message = "Email or password is incorrect."
+			message = AuthPrivacy.public_login_failure_message()
 		else:
 			code = "session_expired"
 			message = "The session expired. Sign in again."
+	elif lowered.contains("rate_limited"):
+		code = "rate_limited"
+		message = "Too many sign-in attempts. Wait and try again."
 	elif lowered.contains("registration_disabled"):
 		code = "registration_disabled"
 		message = "New account registration is disabled on this server."
 	elif lowered.contains("device_auth_disabled"):
 		code = "device_auth_disabled"
 		message = "Device authentication is disabled on this server."
-	elif fallback_code == "invalid_credentials" and (lowered.contains("invalid") or lowered.contains("already in use") or lowered.contains("exists")):
-		if lowered.contains("exists") or lowered.contains("already"):
-			code = "email_taken"
-			message = "That email is already registered."
-		else:
-			code = "invalid_credentials"
-			message = "Email or password is incorrect."
+	elif fallback_code == "invalid_credentials":
+		var sanitized: Dictionary = AuthPrivacy.sanitize_auth_failure(create_account, exception.message)
+		code = String(sanitized.get("code", "invalid_credentials"))
+		message = String(sanitized.get("message", AuthPrivacy.public_login_failure_message()))
 	elif _looks_like_missing_rpc(message):
 		code = "rpc_missing"
 		message = "Nakama is running an old runtime. Rebuild and restart with powershell -File scripts/backend-up.ps1."

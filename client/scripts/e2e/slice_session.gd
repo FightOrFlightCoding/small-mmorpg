@@ -16,12 +16,16 @@ var user_id: String = ""
 var username: String = ""
 var match_id: String = ""
 var character_id: String = ""
+var character_name: String = ""
 var selection_ticket: String = ""
 var view: Dictionary = {}
 var seq: int = 0
 var last_action: Dictionary = {}
 var last_interaction: Dictionary = {}
 var last_system_code: String = ""
+var last_trade: Dictionary = {}
+var party_id: String = ""
+var chat_channel_id: String = ""
 var got_full_state: bool = false
 var fail_reason: String = ""
 
@@ -56,10 +60,10 @@ func authenticate(device_id: String, account_username: String) -> bool:
 	return true
 
 
-func bootstrap(character_name: String) -> bool:
+func bootstrap(display_name: String) -> bool:
 	var rpc_result: Dictionary = await backend.rpc(
 		BOOTSTRAP_RPC,
-		JSON.stringify({"name": character_name})
+		JSON.stringify({"name": display_name})
 	)
 	if not bool(rpc_result.get("ok", false)):
 		return _fail("bootstrap:%s" % String(rpc_result.get("code", "failed")))
@@ -68,9 +72,10 @@ func bootstrap(character_name: String) -> bool:
 		return _fail("bootstrap:malformed")
 	if String((parsed as Dictionary).get("characterId", "")).is_empty():
 		return _fail("bootstrap:missing_character")
-	if String((parsed as Dictionary).get("name", "")) != character_name:
+	if String((parsed as Dictionary).get("name", "")) != display_name:
 		return _fail("bootstrap:name")
 	character_id = String((parsed as Dictionary).get("characterId", ""))
+	character_name = display_name
 	return true
 
 
@@ -134,16 +139,40 @@ func send_input(axis: Vector2) -> void:
 
 
 func walk_to(target: Vector2, arrive_px: float, timeout_sec: float) -> bool:
+	if not await wait_until(func() -> bool: return self_pos() != Vector2.ZERO, 3.0):
+		return _fail("missing_self_pose")
+	seq = MatchProtocol.next_input_seq(seq, int(view.get("ack_seq", 0)))
 	var deadline := Time.get_ticks_msec() + int(timeout_sec * 1000.0)
+	var last_pos := self_pos()
+	var stuck_ticks := 0
 	while Time.get_ticks_msec() < deadline:
 		var pos := self_pos()
 		if pos.distance_to(target) <= arrive_px:
 			await send_input(Vector2.ZERO)
 			await tree.create_timer(INPUT_INTERVAL_SEC).timeout
 			return true
-		await send_input(MoveIntent.normalize_axes(target - pos))
+		var axis := MoveIntent.normalize_axes(target - pos)
+		if last_pos.distance_to(pos) < 0.75:
+			stuck_ticks += 1
+			if stuck_ticks >= 6:
+				if int(stuck_ticks / 8) % 2 == 0:
+					axis = Vector2(-axis.y, axis.x)
+				else:
+					axis = Vector2(axis.y, -axis.x)
+		else:
+			stuck_ticks = 0
+		last_pos = pos
+		await send_input(axis)
 		await tree.create_timer(INPUT_INTERVAL_SEC).timeout
-	return _fail("walk_timeout")
+	return _fail("walk_timeout pos=%s target=%s" % [str(self_pos()), str(target)])
+
+
+func nudge(axis: Vector2, duration_sec: float) -> void:
+	var deadline := Time.get_ticks_msec() + int(duration_sec * 1000.0)
+	while Time.get_ticks_msec() < deadline:
+		await send_input(MoveIntent.normalize_axes(axis))
+		await tree.create_timer(INPUT_INTERVAL_SEC).timeout
+	await send_input(Vector2.ZERO)
 
 
 func interact(target_id: String) -> Dictionary:
@@ -316,6 +345,151 @@ func _on_match_state(opcode: int, payload: String) -> void:
 	if opcode == MatchProtocol.SERVER_SYSTEM_MESSAGE:
 		var sys: Dictionary = MatchProtocol.parse_system_message(payload)
 		last_system_code = String(sys.get("code", ""))
+		return
+	if opcode == MatchProtocol.SERVER_TRADE_STATE:
+		var trade_parsed: Dictionary = MatchProtocol.parse_trade_state(payload)
+		if bool(trade_parsed.get("ok", false)):
+			var trade_value: Variant = trade_parsed.get("trade", {})
+			if typeof(trade_value) == TYPE_DICTIONARY:
+				last_trade = trade_value
+
+
+func instance_type() -> String:
+	var inst: Variant = view.get("instance", {})
+	if typeof(inst) == TYPE_DICTIONARY:
+		return String((inst as Dictionary).get("type", "public_world"))
+	return "public_world"
+
+
+func living_boss() -> Dictionary:
+	for entry in view.get("enemies", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var enemy: Dictionary = entry
+		var enemy_id := String(enemy.get("enemyId", ""))
+		if enemy_id != "test.enemy.cave_boss":
+			continue
+		if enemy.has("alive") and not bool(enemy["alive"]):
+			continue
+		if int(enemy.get("health", 0)) <= 0:
+			continue
+		return enemy
+	return {}
+
+
+func rpc_json(rpc_id: String, body: Dictionary) -> Dictionary:
+	var rpc_result: Dictionary = await backend.rpc(rpc_id, JSON.stringify(body))
+	if not bool(rpc_result.get("ok", false)):
+		return {"ok": false, "code": String(rpc_result.get("code", "rpc_failed"))}
+	var parsed: Variant = JSON.parse_string(String(rpc_result.get("payload", "")))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {"ok": false, "code": "malformed"}
+	var data: Dictionary = parsed
+	if data.has("ok") and not bool(data["ok"]):
+		return {"ok": false, "code": String(data.get("code", "failed")), "payload": data}
+	return {"ok": true, "payload": data, "code": String(data.get("code", "ok"))}
+
+
+func create_party() -> Dictionary:
+	var result: Dictionary = await rpc_json("party_create", {
+		"characterId": character_id,
+		"requestId": MatchProtocol.new_request_id(),
+	})
+	if bool(result.get("ok", false)):
+		var payload: Dictionary = result.get("payload", {})
+		var party: Variant = payload.get("party", {})
+		if typeof(party) == TYPE_DICTIONARY:
+			party_id = String((party as Dictionary).get("partyId", ""))
+	return result
+
+
+func invite_party(target_name: String) -> Dictionary:
+	return await rpc_json("party_invite", {
+		"characterId": character_id,
+		"targetName": target_name,
+		"requestId": MatchProtocol.new_request_id(),
+	})
+
+
+func accept_party(p_party_id: String) -> Dictionary:
+	var result: Dictionary = await rpc_json("party_accept", {
+		"characterId": character_id,
+		"partyId": p_party_id,
+		"requestId": MatchProtocol.new_request_id(),
+	})
+	if bool(result.get("ok", false)):
+		party_id = p_party_id
+	return result
+
+
+func join_zone_chat() -> bool:
+	var joined: Dictionary = await backend.join_chat(ZoneChat.ROOM_NAME, ZoneChat.CHANNEL_TYPE_ROOM, false, false)
+	if not bool(joined.get("ok", false)):
+		return _fail("chat_join:%s" % String(joined.get("code", "failed")))
+	chat_channel_id = String(joined.get("channel_id", ""))
+	return not chat_channel_id.is_empty()
+
+
+func send_zone_chat(text: String) -> bool:
+	if chat_channel_id.is_empty():
+		if not await join_zone_chat():
+			return false
+	var sent: Dictionary = await backend.send_chat_message(chat_channel_id, ZoneChat.payload(text))
+	if not bool(sent.get("ok", false)):
+		return _fail("chat_send:%s" % String(sent.get("code", "failed")))
+	return true
+
+
+func begin_transfer(action: Dictionary) -> bool:
+	var ticket_id := String(action.get("ticket_id", ""))
+	var destination := String(action.get("destination_match_id", ""))
+	if ticket_id.is_empty() or destination.is_empty():
+		return _fail("transfer:missing_ticket")
+	got_full_state = false
+	view = {}
+	seq = 0
+	await backend.leave_match()
+	match_id = ""
+	var join_result: Dictionary = await backend.join_match(
+		destination,
+		MatchProtocol.join_metadata(ContentRegistry.get_content_hash(), "", ticket_id)
+	)
+	if not bool(join_result.get("ok", false)):
+		return _fail("transfer_join:%s" % String(join_result.get("code", "failed")))
+	match_id = String(join_result.get("match_id", destination))
+	if not await wait_until(func() -> bool: return got_full_state, FULL_STATE_TIMEOUT_SEC):
+		return _fail("transfer_full_state")
+	seq = MatchProtocol.next_input_seq(seq, int(view.get("ack_seq", 0)))
+	return true
+
+
+func enter_cave(npc_id: String) -> bool:
+	return await _transfer_action(MatchProtocol.CLIENT_CAVE_ENTER, npc_id, "cave_enter")
+
+
+func exit_cave(npc_id: String) -> bool:
+	return await _transfer_action(MatchProtocol.CLIENT_CAVE_EXIT, npc_id, "cave_exit")
+
+
+func _transfer_action(opcode: int, npc_id: String, label_prefix: String) -> bool:
+	var attempts := 0
+	while attempts < 10:
+		var action: Dictionary = await send_action(opcode, {"npcId": npc_id})
+		if bool(action.get("result_ok", false)):
+			return await begin_transfer(action)
+		var code := String(action.get("code", "failed"))
+		if code == "instance_not_ready" or code == "rate_limited" or code == "out_of_range":
+			attempts += 1
+			await tree.create_timer(0.4).timeout
+			continue
+		return _fail("%s:%s" % [label_prefix, code])
+	return _fail("%s:timeout" % label_prefix)
+
+
+func reconnect() -> bool:
+	await leave_zone()
+	await tree.create_timer(0.4).timeout
+	return await join_zone()
 
 
 func _fail(reason: String) -> bool:

@@ -54,3 +54,6 @@ credentials.json
 # Database dumps (restore drills write here)
 backups/*
 !backups/.gitkeep
+
+# Certification reports
+reports/

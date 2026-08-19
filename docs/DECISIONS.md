@@ -471,3 +471,15 @@ Windows release export is `scripts/export-client-release.ps1` (preset `Windows D
 
 Content hash after this phase: `985e5073b1e51f52205f73f85c65982f63454ed87ca4142765fd17a97692b7bc`.
 
+## 2026-08-19 — Security, abuse, failure, load, and soak certification
+
+The issued Prompt 34 hardens and measures the accepted foundation. It does not add gameplay, opcodes, `SAVE_SCHEMA_VERSION` 2, or a new content hash. Public-world `MATCH_MAX_PLAYERS` stays **8**; the capacity scenario simulates 20 characters with `createStarterZoneState` extras `maxPlayers: 20`. Cave cap stays 5. Prompt 18 village/slime poses stay frozen.
+
+Match rate buckets are split: inventory (destroy/split/move), equip, quest, vendor, cave, and trade are no longer shared. Session rates for auth, chat, and mutating party RPCs live in a lexical replace-whole-map engine so Nakama's frozen-object VM can update counters. Chat send times are not stored in a mutated process-global object. `party_get_state` is not rate-limited.
+
+Headless bots extend `SliceSession` and use ordinary RPCs and match opcodes. `--cert-five` is debug-only. Live Nakama/Postgres restart is `scripts/test-failure.ps1 -Live` and is not part of the default domain path; `scripts/test-all` still runs domain failure coverage via `scripts/test-server`.
+
+The standard soak is 200 ticks. Manual certification is `powershell -File scripts/test-soak.ps1 -DurationSec 3600`.
+
+Content hash after this phase: `985e5073b1e51f52205f73f85c65982f63454ed87ca4142765fd17a97692b7bc`.
+

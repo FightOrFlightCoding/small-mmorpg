@@ -1,10 +1,10 @@
 import { PARTY_CHAT_PREFIX, partyIdFromChatRoom } from "./party";
+import { CHAT_RATE_MAX, CHAT_RATE_WINDOW_MS } from "./rate_limit";
 
 export const STARTER_ZONE_CHAT_ROOM = "zone.starter";
 export const MAX_CHAT_MESSAGE_CHARS = 200;
 export const CHANNEL_TYPE_ROOM = 1;
-export const CHAT_RATE_WINDOW_MS = 2000;
-export const CHAT_RATE_MAX = 4;
+export { CHAT_RATE_MAX, CHAT_RATE_WINDOW_MS };
 
 export interface ChatPayload {
   message: string;

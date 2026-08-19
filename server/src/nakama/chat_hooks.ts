@@ -1,8 +1,8 @@
-import { filterChannelJoin, filterChannelMessageSend, parseChatPayload } from "../domain/chat";
+import { filterChannelJoin, filterChannelMessageSend } from "../domain/chat";
+import { consumeSessionRate } from "../domain/rate_limit";
 import { accountOwnsPartyMembership } from "../domain/party";
 import { nakamaPartyRepository } from "./party_store";
-
-const partyChatSends: { [userId: string]: number[] } = {};
+import { incrementCounter } from "../domain/ops_metrics";
 
 export function beforeChannelMessageSend(
   ctx: nkruntime.Context,
@@ -12,27 +12,15 @@ export function beforeChannelMessageSend(
 ): nkruntime.EnvelopeChannelMessageSend {
   try {
     const userId = ctx.userId !== undefined ? ctx.userId : "";
-    let parsedPartyId = "";
-    try {
-      const parsed = parseChatPayload(envelope.channelMessageSend.content);
-      parsedPartyId = parsed.partyId !== undefined ? parsed.partyId : "";
-    } catch {
-      parsedPartyId = "";
+    if (!consumeSessionRate("chat", userId, Date.now())) {
+      incrementCounter("rejectedActions");
+      throw new Error("rate_limited");
     }
-    const options =
-      parsedPartyId.length > 0
-        ? {
-            isPartyMember: function (partyId: string) {
-              return accountIsPartyMember(nk, userId, partyId);
-            },
-            nowMs: Date.now(),
-            recentSendTimes: partyChatSends[userId] !== undefined ? partyChatSends[userId] : [],
-          }
-        : undefined;
-    const filtered = filterChannelMessageSend(envelope, options);
-    if (parsedPartyId.length > 0 && options !== undefined && options.recentSendTimes !== undefined) {
-      partyChatSends[userId] = options.recentSendTimes;
-    }
+    const filtered = filterChannelMessageSend(envelope, {
+      isPartyMember: function (partyId: string) {
+        return accountIsPartyMember(nk, userId, partyId);
+      },
+    });
     return filtered;
   } catch (error) {
     const reason = error instanceof Error ? error.message : "invalid_payload";

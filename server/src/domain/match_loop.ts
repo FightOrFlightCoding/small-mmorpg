@@ -160,6 +160,9 @@ export interface MatchLoopResult {
   rejections: RejectedAction[];
   transfers: CaveTransferIntent[];
   caveCompletionChanged: boolean;
+  inboundBytes: number;
+  parsedMessages: number;
+  persistOpCount: number;
 }
 
 export interface IncomingMatchData {
@@ -193,12 +196,14 @@ export function applyMatchLoop(
   const extraCheckpoints: PositionCheckpoint[] = [];
   const combatEvents: CombatEvent[] = [];
   const transfers: CaveTransferIntent[] = [];
+  let inboundBytes = 0;
   expireStaleTransfers(next, tick);
   const makeId = newId !== undefined ? newId : sequentialIdFactory(tick);
   reconcileAllEquipment(next, persistEquipmentByUser);
 
   for (let i = 0; i < messages.length; i++) {
     const incoming = messages[i];
+    inboundBytes += incoming.raw.length;
     const seen = messagesThisTick[incoming.userId] !== undefined ? messagesThisTick[incoming.userId] : 0;
     if (seen >= MAX_MESSAGES_PER_PLAYER_PER_TICK) {
       notifyRateLimited(incoming.userId, "unknown", tick, outbound, rejections, rateNotified);
@@ -368,6 +373,16 @@ export function applyMatchLoop(
     rejections: rejections,
     transfers: transfers,
     caveCompletionChanged: caveCompletionChanged,
+    inboundBytes: inboundBytes,
+    parsedMessages: messages.length,
+    persistOpCount:
+      persistQuests.length +
+      persistInventories.length +
+      persistEquipment.length +
+      persistProgression.length +
+      persistRewards.length +
+      persistCheckpoints.length +
+      persistTrades.length,
   };
 }
 

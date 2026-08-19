@@ -119,7 +119,7 @@ powershell -File scripts/test-all.ps1
 bash scripts/test-all.sh
 ```
 
-`test-all` fails with a nonzero exit status if any step fails. It runs setup, content tests + hash check, the Prompt 18 freeze audit (`scripts/test-audit.ps1`), server tests, client GdUnit, then the headless two-client journey (`scripts/test-e2e.ps1`). The e2e driver starts Nakama if needed.
+`test-all` fails with a nonzero exit status if any step fails. It runs setup, content tests + hash check, the Prompt 18 freeze audit (`scripts/test-audit.ps1`), server tests, client GdUnit, the headless two-client journey (`scripts/test-e2e.ps1`), domain capacity and soak reports, and the five-client certification journey. The e2e drivers start Nakama if needed.
 
 | Script | What it runs |
 | --- | --- |
@@ -128,6 +128,10 @@ bash scripts/test-all.sh
 | `scripts/test-server` | Nakama runtime domain tests |
 | `scripts/test-client` | Godot import, `SHELL_LOGIN`, GdUnit4 `res://tests` |
 | `scripts/test-e2e` | Debug-only headless Alice+Bob journey against live Nakama |
+| `scripts/test-capacity` | Domain capacity report (`reports/capacity.cert.json`) |
+| `scripts/test-soak` | Short soak report; `-DurationSec 3600` for manual certification |
+| `scripts/test-cert-journey` | Debug-only five-client journey `CERT_FIVE_OK` |
+| `scripts/test-failure` | Domain failure tests; `-Live` restarts Nakama/Postgres |
 | `scripts/migrate-status` / `dry-run` / `apply` / `verify` | Save-schema tooling (fixture or local Nakama). See [docs/MIGRATIONS.md](docs/MIGRATIONS.md) |
 | `scripts/server-build` | Rollup bundle `server/build/index.js` |
 | `scripts/content` | Project-owned content CLI (`validate`, `build`, `diff`, `references`, `unused`, `new`, `copy`, `migrate`, `package`) |

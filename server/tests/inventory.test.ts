@@ -5,10 +5,12 @@ import { applyMatchLoop } from "../src/domain/match_loop";
 import {
   INVENTORY_CAPACITY,
   STARTER_ITEM_ID,
+  acceptItemFailureCode,
   addOrStackItem,
   applyDestroyItem,
   applyMoveItem,
   applySplitStack,
+  emptyInventory,
   initializeInventory,
   itemDefinitionsFromContent,
   setItemLock,
@@ -269,6 +271,21 @@ test("slime gel stacks into an existing instance", () => {
     assert.equal(gels[0].quantity, 2);
     assert.equal(gels[0].instanceId, "gel-first");
   }
+});
+
+test("grants never overflow maxStack and reject when capacity cannot hold the remainder", () => {
+  const gel = content.items["item.slime_gel"];
+  const empty = emptyInventory();
+  assert.equal(acceptItemFailureCode(empty, "item.slime_gel", 500, gel), "inventory_full");
+  assert.equal(acceptItemFailureCode(empty, "item.slime_gel", 400, gel), "");
+  const stacked = addOrStackItem(empty, "item.slime_gel", 400, "gel-bulk", gel);
+  let total = 0;
+  for (let i = 0; i < stacked.items.length; i++) {
+    assert.ok(stacked.items[i].quantity <= gel.maxStack);
+    total += stacked.items[i].quantity;
+  }
+  assert.equal(total, 400);
+  assert.equal(acceptItemFailureCode(stacked, "item.slime_gel", 1, gel), "inventory_full");
 });
 
 test("duplicate pickup requestId does not grant twice", () => {

@@ -397,3 +397,68 @@ test("rejection logs include user, action, reason, and tick without secrets", ()
   assert.equal(line.indexOf("password"), -1);
   assert.equal(line.indexOf("eyJ"), -1);
 });
+
+test("inventory, equipment, vendor, quest, cave, and trade use separate rate buckets", () => {
+  const state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", 240, 384));
+  const inventoryFlood: { opcode: number; raw: string; userId: string }[] = [];
+  for (let i = 0; i < ACTION_LIMITS.inventory + 1; i++) {
+    inventoryFlood.push({
+      opcode: ClientOpcode.DESTROY_ITEM,
+      raw: envelope({ instanceId: "missing", requestId: "req-inv-" + String(i).padStart(2, "0") }),
+      userId: "user-alice",
+    });
+  }
+  const inventory = applyMatchLoop(state, 1, contentHash, inventoryFlood);
+  assert.ok(inventory.rejections.some((row) => row.action === "inventory" && row.code === "rate_limited"));
+
+  const equipFlood: { opcode: number; raw: string; userId: string }[] = [];
+  for (let i = 0; i < ACTION_LIMITS.equip; i++) {
+    equipFlood.push({
+      opcode: ClientOpcode.EQUIP,
+      raw: envelope({ slot: "main_hand", requestId: "req-eq-" + String(i).padStart(2, "0") }),
+      userId: "user-alice",
+    });
+  }
+  const equip = applyMatchLoop(state, 1, contentHash, equipFlood);
+  assert.equal(equip.rejections.some((row) => row.action === "equip" && row.code === "rate_limited"), false);
+
+  const vendorFlood: { opcode: number; raw: string; userId: string }[] = [];
+  for (let i = 0; i < ACTION_LIMITS.vendor + 1; i++) {
+    vendorFlood.push({
+      opcode: ClientOpcode.VENDOR_BUY,
+      raw: envelope({ npcId: "npc.test_vendor", itemId: "item.test_potion", requestId: "req-ven-" + String(i).padStart(2, "0") }),
+      userId: "user-alice",
+    });
+  }
+  const vendor = applyMatchLoop(state, 2, contentHash, vendorFlood);
+  assert.ok(vendor.rejections.some((row) => row.action === "vendor" && row.code === "rate_limited"));
+
+  const quest = applyMatchLoop(state, 2, contentHash, [
+    {
+      opcode: ClientOpcode.QUEST_ACCEPT,
+      raw: envelope({ questId: "quest.slime_problem", requestId: "req-quest-sep1" }),
+      userId: "user-alice",
+    },
+  ]);
+  assert.equal(quest.rejections.some((row) => row.action === "quest" && row.code === "rate_limited"), false);
+
+  const caveFlood: { opcode: number; raw: string; userId: string }[] = [];
+  for (let i = 0; i < ACTION_LIMITS.cave + 1; i++) {
+    caveFlood.push({
+      opcode: ClientOpcode.CAVE_ENTER,
+      raw: envelope({ npcId: "npc.test_cave_portal", requestId: "req-cave-" + String(i).padStart(2, "0") }),
+      userId: "user-alice",
+    });
+  }
+  const cave = applyMatchLoop(state, 3, contentHash, caveFlood);
+  assert.ok(cave.rejections.some((row) => row.action === "cave" && row.code === "rate_limited"));
+
+  const trade = applyMatchLoop(state, 3, contentHash, [
+    {
+      opcode: ClientOpcode.TRADE_INVITE,
+      raw: envelope({ targetId: "user-bob", requestId: "req-trade-sep1" }),
+      userId: "user-alice",
+    },
+  ]);
+  assert.equal(trade.rejections.some((row) => row.action === "trade" && row.code === "rate_limited"), false);
+});

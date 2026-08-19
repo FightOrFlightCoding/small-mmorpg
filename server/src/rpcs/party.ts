@@ -3,6 +3,7 @@ import { readRoster } from "../nakama/roster_store";
 import { readNameReservation } from "../nakama/name_reservation_store";
 import { nakamaPartyRepository } from "../nakama/party_store";
 import { readStarterZoneMatchId } from "../nakama/starter_zone_registry";
+import { consumeSessionRate } from "../domain/rate_limit";
 import { canonicalCharacterName } from "../domain/character_name";
 import {
   acceptPartyInvite,
@@ -164,6 +165,10 @@ function runPartyRpc(
 ): string {
   try {
     const userId = requireUser(ctx);
+    if (action !== "party_get_state" && !consumeSessionRate("party", userId, Date.now())) {
+      logger.info("party rpc=%s user_id=%s code=%s", action, userId, "rate_limited");
+      return JSON.stringify({ ok: false, code: "rate_limited" });
+    }
     const data = parsePartyRpcPayload(payload, allowedKeys, requireRequestId);
     const actor = actorFromOwnedCharacter(nk, userId, String(data.characterId));
     const requestId = typeof data.requestId === "string" ? data.requestId : "req-getst";
