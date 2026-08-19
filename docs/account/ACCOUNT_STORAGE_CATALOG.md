@@ -42,19 +42,22 @@ Later phases should keep the same verify-after-index rule on `account_profile`. 
 
 | Collection | Key | Index | Value | Write |
 | --- | --- | --- | --- | --- |
-| `account_profile` | `email_index` | `account_profile_email_hmac` on field `hmac` | `{ hmac, userId, verifiedAt }` | 0 |
+| `account_profile` | `email_index` | `account_profile_email_hmac` on field `hmac` | `{ hmac, userId, verifiedAt, status, createdAt, acceptedTermsVersion, acceptedPrivacyVersion, acceptedAt }` | 0 |
 | `auth_challenge` | `c_<challenge_id>` | `auth_challenge_lookup` on `email_lookup_hash`, `purpose` | Challenge metadata + `secret_hash` only | 0 |
 
-Challenge objects are owned by the system user. Raw codes never appear in storage or logs. Hosted confirm pages and the later Godot UI both consume the same hashed secret.
+Challenge objects are owned by the system user. Raw codes never appear in storage or logs. Hosted confirm pages and the Godot verification scene consume the same hashed secret.
+
+Unverified cleanup may delete the Nakama account and the `email_index` object so the HMAC is reusable.
 
 ## Client local files
 
 | Path | Allowed | Forbidden |
 | --- | --- | --- |
-| `user://session_cache.json` | access token, refresh token, user id, username, auth mode, device id | password, codes, server keys |
+| `user://session_cache.json` | Device-debug access/refresh tokens, user id, username, auth mode, device id | password, codes, server keys, **email product refresh tokens** |
+| `user://remember_email.json` | Remembered email string only | password, tokens, codes |
 | `user://client_settings.json` | keybinds, volume, scale, window | email/password/tokens/tickets |
 
-Secure OS credential storage for refresh tokens is **not** implemented. Refresh tokens currently persist in `user://` on every platform. Later phases must hide “Stay Signed In” when a platform store is unverified.
+`CredentialStore` is the Stay Signed In interface. It reports unavailable; Stay Signed In is hidden. Plaintext refresh tokens in `user://` for email product sessions are prohibited.
 
 ## Client-writable Nakama fields
 

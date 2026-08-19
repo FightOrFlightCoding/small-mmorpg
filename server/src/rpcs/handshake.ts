@@ -1,6 +1,7 @@
 import { requireAuthenticatedUserId } from "../domain/character";
 import { evaluateHandshake, handshakeOkResponse, parseHandshakePayload } from "../domain/handshake";
 import { formatOpsLog } from "../domain/ops_metrics";
+import { rpcFailureCode, rpcFailurePayload } from "../domain/rpc_error";
 import { contentHash, packageVersion } from "../generated/content";
 import { readEffectiveMaintenance, readEnvironment } from "../nakama/ops_store";
 
@@ -12,8 +13,8 @@ export function rpcSessionHandshake(
   nk: nkruntime.Nakama,
   payload: string,
 ): string {
-  const userId = requireAuthenticatedUserId(ctx.userId);
   try {
+    const userId = requireAuthenticatedUserId(ctx.userId);
     const request = parseHandshakePayload(payload);
     const env = readEnvironment(ctx);
     const maintenance = readEffectiveMaintenance(nk, env, ctx.env);
@@ -29,13 +30,16 @@ export function rpcSessionHandshake(
     const gate = evaluateHandshake(request, expected);
     if (!gate.ok) {
       logger.info(formatOpsLog("authentication_failure", { user_id: userId, reason: gate.code }));
-      throw new Error(gate.code);
+      return rpcFailurePayload(gate.code);
     }
     logger.info(formatOpsLog("session_handshake", { user_id: userId, environment: env.name, client_version: request.clientVersion }));
     return JSON.stringify(handshakeOkResponse(expected));
   } catch (error) {
-    const message = error instanceof Error ? error.message : "internal_error";
-    logger.info(formatOpsLog("authentication_failure", { user_id: userId, reason: message }));
-    throw error instanceof Error ? error : new Error(message);
+    const message = rpcFailureCode(error);
+    logger.info(formatOpsLog("authentication_failure", {
+      user_id: ctx.userId !== undefined ? ctx.userId : "",
+      reason: message,
+    }));
+    return rpcFailurePayload(message);
   }
 }

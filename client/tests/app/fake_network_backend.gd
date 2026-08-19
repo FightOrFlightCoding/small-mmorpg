@@ -36,6 +36,7 @@ var last_create_account: bool = false
 var last_rpc_id: String = ""
 var last_rpc_payload: String = ""
 var authenticate_calls: int = 0
+var import_calls: int = 0
 var refresh_calls: int = 0
 var socket_calls: int = 0
 var socket_closed_emits: int = 0
@@ -107,6 +108,17 @@ func authenticate_email(email: String, _password: String, p_username: String, cr
 	socket_is_connected = false
 	if not p_username.is_empty():
 		username = p_username
+	return {"ok": true, "user_id": user_id, "username": username}
+
+
+func import_session(_token: String, _refresh_token: String, p_user_id: String, p_username: String) -> Dictionary:
+	import_calls += 1
+	if not p_user_id.is_empty():
+		user_id = p_user_id
+	if not p_username.is_empty():
+		username = p_username
+	session_expired = false
+	socket_is_connected = false
 	return {"ok": true, "user_id": user_id, "username": username}
 
 

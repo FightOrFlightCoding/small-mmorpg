@@ -14,6 +14,7 @@ import { cancelTrade, type TradeRecord } from "../domain/trade";
 import { clearLocksByLockId, initializeInventoryFromStacks, itemDefinitionsFromContent, INVENTORY_CAPACITY, type PlayerInventory } from "../domain/inventory";
 import { TX_REASON_ADMIN_GRANT, TX_REASON_EQUIPMENT, TX_REASON_LOOT } from "../domain/transaction";
 import { validateJoinAttempt } from "../domain/join_validation";
+import { assertPlayableAccount } from "./playable_account";
 import { applyMatchLoop, snapshotForOthers, type IncomingMatchData, type EquipmentPersist, type InventoryPersist, type MatchLoopResult } from "../domain/match_loop";
 import { PLAYER_RESPAWN_DELAY_SEC } from "../domain/combat";
 import { questDefinitionsFromContent } from "../domain/quest";
@@ -194,6 +195,12 @@ export function matchJoinAttempt(
   metadata: { [key: string]: any },
 ): { state: StarterMatchRuntimeState; accept: boolean; rejectMessage?: string } {
   state = hydrateRuntime(state);
+  const accountGate = assertPlayableAccount(nk, presence.userId);
+  if (!accountGate.ok) {
+    logger.info(formatOpsLog("match_join_rejected", { user_id: presence.userId, reason: accountGate.code }));
+    incrementCounter("rejectedActions");
+    return { state: persistable(state), accept: false, rejectMessage: accountGate.code };
+  }
   const meta: { [key: string]: string } = {};
   const keys = Object.keys(dict(metadata));
   for (let i = 0; i < keys.length; i++) {

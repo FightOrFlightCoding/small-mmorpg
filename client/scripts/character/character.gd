@@ -13,6 +13,8 @@ extends "res://scripts/ui/shell_page.gd"
 @onready var _stats_label: Label = $Center/VBox/StatsValue
 @onready var _continue_button: Button = $Center/VBox/ContinueButton
 @onready var _logout_button: Button = $Center/VBox/LogoutButton
+@onready var _logout_all_password: LineEdit = $Center/VBox/LogoutAllPassword
+@onready var _logout_all_button: Button = $Center/VBox/LogoutAllButton
 
 var _pending_delete_id: String = ""
 var _class_ids: PackedStringArray = PackedStringArray()
@@ -22,6 +24,8 @@ func _ready() -> void:
 	super._ready()
 	_continue_button.pressed.connect(_on_continue_pressed)
 	_logout_button.pressed.connect(_on_logout_pressed)
+	_logout_all_button.pressed.connect(_on_logout_all_pressed)
+	_logout_all_password.secret = true
 	_create_button.pressed.connect(_on_create_pressed)
 	_select_button.pressed.connect(_on_select_pressed)
 	_delete_button.pressed.connect(_on_delete_pressed)
@@ -246,3 +250,7 @@ func _on_continue_pressed() -> void:
 
 func _on_logout_pressed() -> void:
 	GameService.request_logout()
+
+
+func _on_logout_all_pressed() -> void:
+	GameService.request_logout_all(_logout_all_password.text)

@@ -50,6 +50,15 @@ func authenticate_email(email: String, password: String, username: String = "", 
 	return _store_session(session, "invalid_credentials", create)
 
 
+func import_session(token: String, refresh_token: String, _user_id: String, _username: String) -> Dictionary:
+	_auth_mode = SessionCache.AUTH_MODE_EMAIL
+	_device_id = ""
+	_ensure_client()
+	_client.auto_refresh = false
+	var session := NakamaSession.new(token, false, refresh_token)
+	return _store_session(session, "session_expired")
+
+
 func restore_cached_session() -> Dictionary:
 	var cached := SessionCache.load_cache()
 	if cached.is_empty():
@@ -108,8 +117,22 @@ func rpc(id: String, payload: String) -> Dictionary:
 		return _fail("unauthenticated", "Sign-in is required.")
 	var result: NakamaAPI.ApiRpc = await _client.rpc_async(_session, id, payload)
 	if result.is_exception():
-		return _map_ops_codes(_map_save_incompatible(_from_exception(result.get_exception(), "rpc_failed", "The server rejected the request.")))
-	return {"ok": true, "payload": String(result.payload)}
+		return AccountErrors.sanitize_public_rpc(
+			_map_ops_codes(_map_save_incompatible(_from_exception(result.get_exception(), "rpc_failed", "The server rejected the request.")))
+		)
+	var rpc_body := String(result.payload)
+	var parsed: Variant = JSON.parse_string(rpc_body)
+	if typeof(parsed) == TYPE_DICTIONARY:
+		var data: Dictionary = parsed
+		if data.has("ok") and not bool(data.get("ok", true)):
+			var code := String(data.get("code", "rpc_failed"))
+			var message := String(data.get("message", code))
+			if message.is_empty():
+				message = code
+			return AccountErrors.sanitize_public_rpc(
+				_map_ops_codes(_map_save_incompatible({"ok": false, "code": code, "message": message}))
+			)
+	return {"ok": true, "payload": rpc_body}
 
 
 func join_match(match_id: String, metadata: Dictionary) -> Dictionary:
@@ -306,7 +329,7 @@ func _from_chat_exception(exception: NakamaException, fallback_code: String, fal
 	elif lowered.contains("invalid_channel"):
 		mapped["code"] = "invalid_channel"
 		mapped["message"] = "Could not join zone chat."
-	return mapped
+	return AccountErrors.sanitize_public_rpc(mapped)
 
 
 func _store_session(session: NakamaSession, fallback_code: String, create_account: bool = false) -> Dictionary:
@@ -316,14 +339,15 @@ func _store_session(session: NakamaSession, fallback_code: String, create_accoun
 			exception = session.get_exception()
 		return _from_exception(exception, fallback_code, "Could not sign in to Nakama.", create_account)
 	_session = session
-	SessionCache.save(
-		session.token,
-		session.refresh_token,
-		session.user_id,
-		session.username,
-		_auth_mode,
-		_device_id
-	)
+	if _auth_mode == SessionCache.AUTH_MODE_DEVICE:
+		SessionCache.save(
+			session.token,
+			session.refresh_token,
+			session.user_id,
+			session.username,
+			_auth_mode,
+			_device_id
+		)
 	return {
 		"ok": true,
 		"user_id": session.user_id,
@@ -363,7 +387,7 @@ func _from_join_exception(exception: NakamaException) -> Dictionary:
 		mapped["code"] = "character_deleted"
 	else:
 		mapped = _map_save_incompatible(mapped)
-	return mapped
+	return AccountErrors.sanitize_public_rpc(mapped)
 
 
 func _map_save_incompatible(mapped: Dictionary) -> Dictionary:
@@ -429,7 +453,7 @@ func _from_exception(exception: NakamaException, fallback_code: String, fallback
 	var code := fallback_code
 	var lowered := exception.message.to_lower()
 	if exception.grpc_status_code == 16 or exception.status_code == 401:
-		var domain := _rpc_domain_code_from_message(exception.message)
+		var domain := AccountErrors.extract_rpc_domain_code(exception.message)
 		if fallback_code == "invalid_credentials":
 			code = "invalid_credentials"
 			message = AuthPrivacy.public_login_failure_message()
@@ -458,40 +482,6 @@ func _from_exception(exception: NakamaException, fallback_code: String, fallback
 		code = "network_unreachable"
 		message = "Cannot reach Nakama at 127.0.0.1:7350. Start it with powershell -File scripts/backend-up.ps1."
 	return _fail(code, message)
-
-
-func _rpc_domain_code_from_message(message: String) -> String:
-	var trimmed := message.strip_edges()
-	if trimmed.begins_with("unknown_field:") or trimmed.begins_with("stat_injection:"):
-		return trimmed
-	var known := PackedStringArray([
-		"already_in_party",
-		"character_missing",
-		"duplicate_invite",
-		"duplicate_request",
-		"invite_expired",
-		"invite_missing",
-		"invite_pending",
-		"invalid_credentials",
-		"invalid_id",
-		"invalid_request_id",
-		"invalid_target",
-		"malformed_json",
-		"not_in_party",
-		"not_leader",
-		"not_member",
-		"party_failed",
-		"party_full",
-		"party_missing",
-		"rate_limited",
-		"revision_mismatch",
-		"selection_foreign",
-		"stale_revision",
-		"unauthenticated",
-	])
-	if known.has(trimmed):
-		return trimmed
-	return ""
 
 
 func _looks_like_missing_rpc(message: String) -> bool:

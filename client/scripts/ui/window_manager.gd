@@ -8,6 +8,7 @@ signal focus_changed(window_id: String)
 
 const LOGIN := "login"
 const REGISTER := "register"
+const VERIFY := "verify"
 const CHARACTER_LIST := "character_list"
 const CHARACTER_CREATE := "character_create"
 const CLASS_SELECT := "class_select"

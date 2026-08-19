@@ -55,16 +55,26 @@ func request_authenticate(device_id: String = "", dev_user: String = "") -> void
 	await NetworkService.authenticate_device(resolved_id, username)
 
 
-func request_register(email: String, password: String, confirm: String) -> void:
+func request_register(
+	email: String,
+	password: String,
+	confirm: String,
+	accept_terms: bool = true,
+	accept_privacy: bool = true
+) -> void:
 	if AppState.has_fatal_error:
 		return
 	if password != confirm:
-		AppState.report_recoverable("password_mismatch", "Password confirmation does not match.")
+		AppState.report_recoverable("password_mismatch", AccountErrors.message_for("password_mismatch"))
 		return
 	if email.strip_edges().is_empty() or password.is_empty():
 		AppState.report_recoverable("invalid_credentials", "Email and password are required.")
 		return
-	await NetworkService.authenticate_email(email.strip_edges(), password, _username_from_email(email), true)
+	var result := await AccountService.register_account(email, password, confirm, accept_terms, accept_privacy)
+	if not bool(result.get("ok", false)):
+		AppState.report_recoverable(String(result.get("code", "AUTH_VALIDATION")), String(result.get("message", AccountErrors.message_for("AUTH_VALIDATION"))))
+		return
+	SceneRouter.transition_to(SceneRouter.SCENE_VERIFY)
 
 
 func request_login_email(email: String, password: String) -> void:
@@ -73,7 +83,43 @@ func request_login_email(email: String, password: String) -> void:
 	if email.strip_edges().is_empty() or password.is_empty():
 		AppState.report_recoverable("invalid_credentials", "Email and password are required.")
 		return
-	await NetworkService.authenticate_email(email.strip_edges(), password, "", false)
+	var result := await AccountService.login(email, password)
+	var code := String(result.get("code", ""))
+	if code == "EMAIL_VERIFICATION_REQUIRED":
+		AppState.report_recoverable(code, AccountErrors.message_for(code))
+		SceneRouter.transition_to(SceneRouter.SCENE_VERIFY)
+		return
+	if code == "AUTH_ACCOUNT_DISABLED":
+		AppState.report_recoverable(code, AccountErrors.message_for(code))
+		SceneRouter.transition_to(SceneRouter.SCENE_ACCOUNT_DISABLED)
+		return
+	if code == "AUTH_UNAVAILABLE":
+		AppState.report_recoverable(code, AccountErrors.message_for(code))
+		SceneRouter.transition_to(SceneRouter.SCENE_SERVER_UNAVAILABLE)
+		return
+	if code == "AUTH_INVALID_CREDENTIALS":
+		AppState.report_recoverable("invalid_credentials", AccountErrors.message_for("invalid_credentials"))
+		return
+	if not bool(result.get("ok", false)):
+		AppState.report_recoverable(code if not code.is_empty() else "invalid_credentials", String(result.get("message", AccountErrors.message_for("invalid_credentials"))))
+		return
+	await NetworkService.import_session(
+		String(result.get("token", "")),
+		String(result.get("refresh_token", "")),
+		String(result.get("user_id", "")),
+		String(result.get("username", ""))
+	)
+
+
+func request_verify_email(code: String) -> void:
+	if AppState.has_fatal_error:
+		return
+	var result := await AccountService.verify_email(code)
+	if not bool(result.get("ok", false)):
+		AppState.report_recoverable(String(result.get("code", "AUTH_INVALID_CHALLENGE")), String(result.get("message", AccountErrors.message_for("AUTH_INVALID_CHALLENGE"))))
+		return
+	AppState.report_recoverable("email_verified", "Email verified. You can sign in.")
+	SceneRouter.transition_to(SceneRouter.SCENE_LOGIN)
 
 
 func try_restore_session() -> void:
@@ -142,10 +188,24 @@ func request_resync() -> bool:
 
 func request_logout() -> void:
 	enter_world_after_bootstrap = false
+	await NetworkService.depart_gameplay()
+	await AccountService.logout_current()
+	await NetworkService.logout()
+
+
+func request_logout_all(password: String) -> void:
+	enter_world_after_bootstrap = false
+	var result := await AccountService.logout_all(password)
+	if not bool(result.get("ok", false)):
+		AppState.report_recoverable(String(result.get("code", "AUTH_FORBIDDEN")), String(result.get("message", AccountErrors.message_for("AUTH_FORBIDDEN"))))
+		return
 	await NetworkService.logout()
 
 
 func cancel_reconnect() -> void:
+	enter_world_after_bootstrap = false
+	await NetworkService.depart_gameplay()
+	await AccountService.logout_current()
 	await NetworkService.cancel_reconnect()
 
 
@@ -168,17 +228,3 @@ func _on_logged_out() -> void:
 		SceneRouter.transition_to(SceneRouter.SCENE_LOGIN)
 
 
-func _username_from_email(email: String) -> String:
-	var local := email.strip_edges().get_slice("@", 0).to_lower()
-	var cleaned := ""
-	for i in local.length():
-		var ch := local.substr(i, 1)
-		if ch >= "a" and ch <= "z":
-			cleaned += ch
-		elif ch >= "0" and ch <= "9":
-			cleaned += ch
-	if cleaned.length() < 3:
-		return "player"
-	if cleaned.length() > 32:
-		cleaned = cleaned.substr(0, 32)
-	return cleaned

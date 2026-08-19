@@ -11,6 +11,23 @@ import { generateChallengeCode, hashChallengeSecret, normalizeChallengeCode } fr
 import { FakeNakama } from "./fake_nakama";
 
 const PASSWORD = "correct horse staple";
+const CLIENT_VERSION = "1.0.0";
+
+function registerPayload(email: string, extra: { [key: string]: unknown } = {}) {
+  return {
+    email: email,
+    password: PASSWORD,
+    password_confirmation: PASSWORD,
+    accepted_terms_version: "1",
+    accepted_privacy_version: "1",
+    client_version: CLIENT_VERSION,
+    ...extra,
+  };
+}
+
+function loginPayload(email: string, password = PASSWORD) {
+  return { email: email, password: password, client_version: CLIENT_VERSION };
+}
 
 function testConfig() {
   return loadGatewayConfig({
@@ -32,11 +49,15 @@ function extractCode(text: string): string {
 }
 
 async function build() {
+  return buildWith(testConfig());
+}
+
+async function buildWith(config: ReturnType<typeof testConfig>) {
   const nakama = new FakeNakama();
   const email = new MemoryEmailProvider();
   const logger = createGatewayLogger(false);
   const app = createGatewayApp({
-    config: testConfig(),
+    config: config,
     logger: logger,
     email: email,
     nakama: nakama,
@@ -119,7 +140,7 @@ test("per-IP rate-limit foundation returns AUTH_RATE_LIMITED", async () => {
     const response = await app.inject({
       method: "POST",
       url: "/v1/auth/login",
-      payload: { email: "rate@example.com", password: PASSWORD },
+      payload: { email: "rate@example.com", password: PASSWORD, client_version: CLIENT_VERSION },
     });
     if (response.statusCode === 429) {
       limited += 1;
@@ -134,7 +155,7 @@ test("register authenticates against Nakama, emails a code, and verify is single
   const registered = await app.inject({
     method: "POST",
     url: "/v1/auth/register",
-    payload: { email: "Player+Tag@Example.com", password: PASSWORD },
+    payload: registerPayload("Player+Tag@Example.com"),
   });
   assert.equal(registered.statusCode, 200);
   assert.equal(nakama.users.has("player+tag@example.com"), true);
@@ -144,26 +165,26 @@ test("register authenticates against Nakama, emails a code, and verify is single
   const challengeId = Array.from(nakama.challenges.records.keys())[0];
   const first = await app.inject({
     method: "POST",
-    url: "/v1/auth/verify-email",
+    url: "/v1/auth/verify/confirm",
     payload: { challenge_id: challengeId, code: code },
   });
   assert.equal(first.statusCode, 200);
   const again = await app.inject({
     method: "POST",
-    url: "/v1/auth/verify-email",
+    url: "/v1/auth/verify/confirm",
     payload: { challenge_id: challengeId, code: code },
   });
   assert.equal(again.statusCode, 200);
   const wrong = await app.inject({
     method: "POST",
-    url: "/v1/auth/verify-email",
+    url: "/v1/auth/verify/confirm",
     payload: { challenge_id: challengeId, code: "AAAA-BBBB-CCCC-DDDD" },
   });
   assert.equal(wrong.statusCode, 401);
   const login = await app.inject({
     method: "POST",
     url: "/v1/auth/login",
-    payload: { email: "player+tag@example.com", password: PASSWORD },
+    payload: loginPayload("player+tag@example.com"),
   });
   assert.equal(login.statusCode, 200);
   assert.equal(JSON.parse(login.body).user_id, "user-1");
@@ -176,7 +197,7 @@ test("email provider failure does not corrupt a created account", async () => {
   const registered = await app.inject({
     method: "POST",
     url: "/v1/auth/register",
-    payload: { email: "keep@example.com", password: PASSWORD },
+    payload: registerPayload("keep@example.com"),
   });
   assert.equal(registered.statusCode, 200);
   assert.equal(nakama.users.has("keep@example.com"), true);
@@ -267,7 +288,7 @@ test("per-email-hash rate-limit foundation returns AUTH_RATE_LIMITED", async () 
     const response = await app.inject({
       method: "POST",
       url: "/v1/auth/register",
-      payload: { email: "hashlimit@example.com", password: PASSWORD },
+      payload: registerPayload("hashlimit@example.com"),
     });
     if (response.statusCode === 429) {
       limited += 1;
@@ -282,7 +303,7 @@ test("wrong codes lock a challenge after the attempt limit; plaintext is never s
   const registered = await app.inject({
     method: "POST",
     url: "/v1/auth/register",
-    payload: { email: "lock@example.com", password: PASSWORD },
+    payload: registerPayload("lock@example.com"),
   });
   assert.equal(registered.statusCode, 200);
   const code = extractCode(email.sent[0].text);
@@ -295,14 +316,14 @@ test("wrong codes lock a challenge after the attempt limit; plaintext is never s
   for (let i = 0; i < 5; i++) {
     const response = await app.inject({
       method: "POST",
-      url: "/v1/auth/verify-email",
+      url: "/v1/auth/verify/confirm",
       payload: { challenge_id: challengeId, code: "AAAA-BBBB-CCCC-DDDD" },
     });
     assert.equal(response.statusCode, 401);
   }
   const real = await app.inject({
     method: "POST",
-    url: "/v1/auth/verify-email",
+    url: "/v1/auth/verify/confirm",
     payload: { challenge_id: challengeId, code: code },
   });
   assert.equal(real.statusCode, 401);
@@ -328,13 +349,13 @@ test("idempotency keys replay the first response", async () => {
     method: "POST",
     url: "/v1/auth/register",
     headers: { "idempotency-key": "idem-1" },
-    payload: { email: "idem@example.com", password: PASSWORD },
+    payload: registerPayload("idem@example.com"),
   });
   const second = await app.inject({
     method: "POST",
     url: "/v1/auth/register",
     headers: { "idempotency-key": "idem-1" },
-    payload: { email: "other@example.com", password: PASSWORD },
+    payload: registerPayload("other@example.com"),
   });
   assert.equal(first.statusCode, 200);
   assert.equal(second.statusCode, first.statusCode);
@@ -350,3 +371,160 @@ test("readiness requires both Nakama and email health", async () => {
   assert.equal(JSON.parse(ready.body).email, false);
   await app.close();
 });
+
+test("register rejects invalid email, weak password, mismatch, and missing legal acceptance", async () => {
+  const { app } = await build();
+  const invalidEmail = await app.inject({ method: "POST", url: "/v1/auth/register", payload: registerPayload("not-an-email") });
+  assert.equal(invalidEmail.statusCode, 400);
+  const weak = await app.inject({ method: "POST", url: "/v1/auth/register", payload: registerPayload("weak@example.com", { password: "short", password_confirmation: "short" }) });
+  assert.equal(weak.statusCode, 400);
+  const mismatch = await app.inject({ method: "POST", url: "/v1/auth/register", payload: registerPayload("mis@example.com", { password_confirmation: "other password 15" }) });
+  assert.equal(mismatch.statusCode, 400);
+  const legal = await app.inject({ method: "POST", url: "/v1/auth/register", payload: registerPayload("legal@example.com", { accepted_terms_version: "" }) });
+  assert.equal(legal.statusCode, 400);
+  await app.close();
+});
+
+test("duplicate and concurrent registration do not create a second account", async () => {
+  const { app, nakama } = await build();
+  const first = await app.inject({ method: "POST", url: "/v1/auth/register", payload: registerPayload("dup@example.com") });
+  const second = await app.inject({ method: "POST", url: "/v1/auth/register", payload: registerPayload("dup@example.com") });
+  const concurrent = await Promise.all([
+    app.inject({ method: "POST", url: "/v1/auth/register", payload: registerPayload("race@example.com") }),
+    app.inject({ method: "POST", url: "/v1/auth/register", payload: registerPayload("race@example.com") }),
+  ]);
+  assert.equal(first.statusCode, 200);
+  assert.equal(second.statusCode, 409);
+  assert.equal(JSON.parse(second.body).code, "AUTH_REGISTRATION_FAILED");
+  assert.equal(nakama.users.size, 2);
+  const created = concurrent.filter((response) => response.statusCode === 200).length;
+  const rejected = concurrent.filter((response) => response.statusCode === 409).length;
+  assert.equal(created, 1);
+  assert.equal(rejected, 1);
+  await app.close();
+});
+
+test("unverified login is EMAIL_VERIFICATION_REQUIRED after valid credentials", async () => {
+  const { app } = await build();
+  await app.inject({ method: "POST", url: "/v1/auth/register", payload: registerPayload("pending@example.com") });
+  const login = await app.inject({ method: "POST", url: "/v1/auth/login", payload: loginPayload("pending@example.com") });
+  assert.equal(login.statusCode, 403);
+  assert.equal(JSON.parse(login.body).code, "EMAIL_VERIFICATION_REQUIRED");
+  const wrong = await app.inject({ method: "POST", url: "/v1/auth/login", payload: loginPayload("pending@example.com", "wrong password 15x") });
+  assert.equal(wrong.statusCode, 401);
+  assert.equal(JSON.parse(wrong.body).code, "AUTH_INVALID_CREDENTIALS");
+  await app.close();
+});
+
+test("disabled accounts are rejected after credentials succeed", async () => {
+  const { app, nakama, email } = await build();
+  await app.inject({ method: "POST", url: "/v1/auth/register", payload: registerPayload("off@example.com") });
+  const code = extractCode(email.sent[0].text);
+  const challengeId = Array.from(nakama.challenges.records.keys())[0];
+  await app.inject({ method: "POST", url: "/v1/auth/verify/confirm", payload: { challenge_id: challengeId, code: code } });
+  nakama.disable("off@example.com");
+  const login = await app.inject({ method: "POST", url: "/v1/auth/login", payload: loginPayload("off@example.com") });
+  assert.equal(login.statusCode, 403);
+  assert.equal(JSON.parse(login.body).code, "AUTH_ACCOUNT_DISABLED");
+  await app.close();
+});
+
+test("deleting accounts are rejected after credentials succeed", async () => {
+  const { app, nakama, email } = await build();
+  await app.inject({ method: "POST", url: "/v1/auth/register", payload: registerPayload("gone@example.com") });
+  const code = extractCode(email.sent[0].text);
+  const challengeId = Array.from(nakama.challenges.records.keys())[0];
+  await app.inject({ method: "POST", url: "/v1/auth/verify/confirm", payload: { challenge_id: challengeId, code: code } });
+  const userId = Array.from(nakama.profiles.keys())[0];
+  const profile = nakama.profiles.get(userId);
+  assert.ok(profile);
+  profile.status = "DELETING";
+  const login = await app.inject({ method: "POST", url: "/v1/auth/login", payload: loginPayload("gone@example.com") });
+  assert.equal(login.statusCode, 403);
+  assert.equal(JSON.parse(login.body).code, "AUTH_ACCOUNT_DELETING");
+  await app.close();
+});
+
+test("session refresh, revoked refresh, current logout, and logout-all work", async () => {
+  const { app, nakama, email } = await build();
+  await app.inject({ method: "POST", url: "/v1/auth/register", payload: registerPayload("sess@example.com") });
+  const code = extractCode(email.sent[0].text);
+  const challengeId = Array.from(nakama.challenges.records.keys())[0];
+  await app.inject({ method: "POST", url: "/v1/auth/verify/confirm", payload: { challenge_id: challengeId, code: code } });
+  const first = await app.inject({ method: "POST", url: "/v1/auth/login", payload: loginPayload("sess@example.com") });
+  const firstBody = JSON.parse(first.body);
+  const second = await app.inject({ method: "POST", url: "/v1/auth/login", payload: loginPayload("sess@example.com") });
+  const secondBody = JSON.parse(second.body);
+  const refreshed = await app.inject({
+    method: "POST",
+    url: "/v1/auth/refresh",
+    payload: { refresh_token: firstBody.refresh_token, client_version: CLIENT_VERSION },
+  });
+  assert.equal(refreshed.statusCode, 200);
+  const revoked = await app.inject({
+    method: "POST",
+    url: "/v1/auth/refresh",
+    payload: { refresh_token: firstBody.refresh_token, client_version: CLIENT_VERSION },
+  });
+  assert.equal(revoked.statusCode, 401);
+  const current = await app.inject({
+    method: "POST",
+    url: "/v1/auth/logout",
+    headers: { authorization: "Bearer " + JSON.parse(refreshed.body).token },
+    payload: { refresh_token: JSON.parse(refreshed.body).refresh_token },
+  });
+  assert.equal(current.statusCode, 200);
+  const all = await app.inject({
+    method: "POST",
+    url: "/v1/auth/logout-all",
+    headers: { authorization: "Bearer " + secondBody.token },
+    payload: { password: PASSWORD },
+  });
+  assert.equal(all.statusCode, 200);
+  const afterAll = await app.inject({
+    method: "POST",
+    url: "/v1/auth/refresh",
+    payload: { refresh_token: secondBody.refresh_token, client_version: CLIENT_VERSION },
+  });
+  assert.equal(afterAll.statusCode, 401);
+  const status = await app.inject({
+    method: "GET",
+    url: "/v1/account/status",
+    headers: { authorization: "Bearer " + secondBody.token },
+  });
+  assert.equal(status.statusCode, 403);
+  await app.close();
+});
+
+test("CLOSED and INVITE_ONLY registration modes are enforced", async () => {
+  const closedConfig = testConfig();
+  closedConfig.registrationMode = "CLOSED";
+  const inviteConfig = testConfig();
+  inviteConfig.registrationMode = "INVITE_ONLY";
+  inviteConfig.registrationAllowlist = ["allowed@example.com"];
+  const closed = await buildWith(closedConfig);
+  const invite = await buildWith(inviteConfig);
+  const closedRes = await closed.app.inject({ method: "POST", url: "/v1/auth/register", payload: registerPayload("nope@example.com") });
+  assert.equal(closedRes.statusCode, 403);
+  const denied = await invite.app.inject({ method: "POST", url: "/v1/auth/register", payload: registerPayload("nope@example.com") });
+  assert.equal(denied.statusCode, 403);
+  const allowed = await invite.app.inject({ method: "POST", url: "/v1/auth/register", payload: registerPayload("allowed@example.com") });
+  assert.equal(allowed.statusCode, 200);
+  await closed.app.close();
+  await invite.app.close();
+});
+
+test("unverified cleanup releases the email after retention", async () => {
+  const { app, nakama } = await build();
+  await app.inject({ method: "POST", url: "/v1/auth/register", payload: registerPayload("old@example.com") });
+  const userId = Array.from(nakama.profiles.keys())[0];
+  const profile = nakama.profiles.get(userId);
+  assert.ok(profile);
+  profile.createdAt = 1;
+  const purged = await nakama.rpc("purge_unverified", { user_id: userId, retention_ms: 10 }, "req", 100000);
+  assert.equal(purged.data.purged, true);
+  const again = await app.inject({ method: "POST", url: "/v1/auth/register", payload: registerPayload("old@example.com") });
+  assert.equal(again.statusCode, 200);
+  await app.close();
+});
+

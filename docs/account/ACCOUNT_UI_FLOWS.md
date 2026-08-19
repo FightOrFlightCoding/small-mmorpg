@@ -1,43 +1,53 @@
 # Account UI flows
 
-Current Godot shell vs the professional lifecycle UI. ACCT-02 does not change Godot scenes. Gateway-hosted `/v1/confirm` pages exist for email links; the client still authenticates directly to Nakama.
+ACCT-03 Godot shell for the normal account entry lifecycle. Gateway-hosted `/v1/confirm` pages remain for email links. Product email login goes through `AccountService` and the auth gateway. Debug Alice/Bob/device buttons remain, hidden in release.
 
-## Login / register (`scenes/login`, `login.gd`)
+## Login (`scenes/login/login.tscn`)
 
-- Email and password `LineEdit`s; password and confirm use `secret = true`. No show/hide toggle. Pasting is whatever Godot allows (not blocked).
-- Register requires matching confirm. Client `strip_edges` on email only; password is not trimmed or case-folded.
+- Email, password, show/hide, Caps Lock hint where typing looks shifted, Remember Email, Login, Register, Forgot Password, Forgot Which Email?, server status, version, loading, field/global errors.
+- Stay Signed In is hidden (`CredentialStore` unavailable).
 - Debug: Alice, Bob, this machine (hidden in release).
-- Hint: password recovery is administrator-assisted.
-- Success → character scene. Failure → recoverable dialog with sanitized copy.
-- Cached session restore on ready.
+- Forgot Password calls `POST /v1/auth/password-reset/request` with generic copy.
+- Forgot Which Email? explains that support cannot reveal whether an address is registered.
+- Success (verified) → import Nakama session → character scene.
+- Unverified credentials → Email Verification.
+- Disabled → Account Disabled.
+- Gateway down → Server Unavailable.
 
-Missing vs target: 15–128 advisory strength, common-password list, remembered email (optional), Stay Signed In bound to a verified OS store, verification-pending screen, support contact.
+## Registration (`scenes/login/register.tscn`)
+
+- Email, password, confirm, show/hide, 15–128 guidance, live strength, Terms and Privacy checkboxes **unchecked** by default, placeholder document links, Register, Back to Login, field errors.
+- Success → Email Verification. Duplicate email uses the generic “We could not create this account…” copy.
+
+## Email verification (`scenes/login/verify.tscn`)
+
+- Explanation, code field with paste, Verify, Resend with countdown, Change email (registration), Back to Login, delivery-delay copy.
+- Success → Login.
+
+## Server Unavailable / Account Disabled
+
+- Retry/back to Login. Disabled accounts cannot enter character select.
 
 ## Character select (`scenes/character`, `character.gd`)
 
-- List, name field (max 16), class `OptionButton` from content, Create / Select / Delete / Restore / Continue / Logout.
-- Delete: click twice on the same id (no typed name, no lease check).
-- Soft-deleted rows remain in the list (restore button). No “Recently Deleted” section and no 7-day copy.
-- Continue requires a selection ticket then `find_or_create_starter_zone`.
-- Logout returns to Login (current session only).
-- No Account Settings, no account delete, no Play disabled-for-lease countdown.
-
-Classes shown are catalog ids (`test.class.*`), not warrior/marksman/mage cards.
+- Unchanged roster UX plus **Log out all sessions** with current-password confirmation.
+- Logout current still returns to Login.
+- Unverified/disabled/deleting accounts never reach this scene through the email path; RPCs still enforce the playable-account guard.
 
 ## World HUD
 
-- Logout → leave match (“Leaving…”) → Login. Not Return to Character Select.
+- Logout current → leave match → Login.
 - Settings persist non-credential preferences.
 - Debug GM panel does not grant account authority.
 
-## Target flows (later phases; do not implement here)
+## Later phases (do not implement here)
 
-1. Register → check email → pending verification → login still limited.
-2. Character Select with five slots, class cards, Recently Deleted, typed-name delete, restore.
-3. Play disabled while server reports an active-character lease; countdown from **server expiry**, not local 10 s.
-4. In-game: Return to Character Select (acked) vs Logout current vs Quit (link-dead unless already departed).
-5. Account Settings: logout all, export, delete (password + email code + `DELETE ACCOUNT` + warning).
+1. Character Select with five slots, class cards, Recently Deleted, typed-name delete.
+2. Play disabled while the server reports an active-character lease.
+3. In-game Return to Character Select vs Quit as distinct server-acked operations.
+4. Account Settings: export, delete (password + email code + `DELETE ACCOUNT`).
+5. Stay Signed In after OS credential-store certification on editor, exported Windows, and exported Linux.
 
-## Error display rules (already intended)
+## Error display rules
 
 Show localized friendly text. Never show stack traces, SQL, internal RPC names, storage collections, provider errors, tokens, or server keys. Password-reset and forgotten-email must not reveal whether the address exists.

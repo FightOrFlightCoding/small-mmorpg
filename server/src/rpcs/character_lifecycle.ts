@@ -1,4 +1,6 @@
 import { characterLifecycleDeps } from "../nakama/character_lifecycle_deps";
+import { requirePlayableUser } from "../nakama/playable_account";
+import { rpcFailureCode, rpcFailurePayload } from "../domain/rpc_error";
 import {
   handleCharacterBootstrapViaRoster,
   handleCharacterCreate,
@@ -8,10 +10,10 @@ import {
   handleCharacterSoftDelete,
 } from "../domain/character_lifecycle";
 
-function rpcError(logger: nkruntime.Logger, userId: string | undefined, action: string, error: unknown): never {
-  const message = error instanceof Error ? error.message : "internal_error";
+function rpcError(logger: nkruntime.Logger, userId: string | undefined, action: string, error: unknown): string {
+  const message = rpcFailureCode(error);
   logger.error("%s rejected user_id=%s action=%s reason=%s", action, userId !== undefined ? userId : "", action, message);
-  throw error instanceof Error ? error : new Error(message);
+  return rpcFailurePayload(message);
 }
 
 export function rpcCharacterBootstrap(
@@ -21,10 +23,11 @@ export function rpcCharacterBootstrap(
   payload: string,
 ): string {
   try {
-    const response = handleCharacterBootstrapViaRoster(ctx.userId, ctx.username, payload, characterLifecycleDeps(nk));
+    const userId = requirePlayableUser(ctx, nk);
+    const response = handleCharacterBootstrapViaRoster(userId, ctx.username, payload, characterLifecycleDeps(nk));
     logger.info(
       "character_bootstrap ok user_id=%s character_id=%s created=%s",
-      ctx.userId,
+      userId,
       response.characterId,
       String(response.created),
     );
@@ -41,7 +44,8 @@ export function rpcCharacterList(
   _payload: string,
 ): string {
   try {
-    return JSON.stringify(handleCharacterList(ctx.userId, characterLifecycleDeps(nk)));
+    const userId = requirePlayableUser(ctx, nk);
+    return JSON.stringify(handleCharacterList(userId, characterLifecycleDeps(nk)));
   } catch (error) {
     return rpcError(logger, ctx.userId, "character_list", error);
   }
@@ -54,8 +58,9 @@ export function rpcCharacterCreate(
   payload: string,
 ): string {
   try {
-    const response = handleCharacterCreate(ctx.userId, payload, characterLifecycleDeps(nk));
-    logger.info("character_create ok user_id=%s character_id=%s", ctx.userId, response.characterId);
+    const userId = requirePlayableUser(ctx, nk);
+    const response = handleCharacterCreate(userId, payload, characterLifecycleDeps(nk));
+    logger.info("character_create ok user_id=%s character_id=%s", userId, response.characterId);
     return JSON.stringify(response);
   } catch (error) {
     return rpcError(logger, ctx.userId, "character_create", error);
@@ -69,8 +74,9 @@ export function rpcCharacterSelect(
   payload: string,
 ): string {
   try {
-    const response = handleCharacterSelect(ctx.userId, payload, characterLifecycleDeps(nk));
-    logger.info("character_select ok user_id=%s character_id=%s", ctx.userId, response.characterId);
+    const userId = requirePlayableUser(ctx, nk);
+    const response = handleCharacterSelect(userId, payload, characterLifecycleDeps(nk));
+    logger.info("character_select ok user_id=%s character_id=%s", userId, response.characterId);
     return JSON.stringify(response);
   } catch (error) {
     return rpcError(logger, ctx.userId, "character_select", error);
@@ -84,7 +90,8 @@ export function rpcCharacterSoftDelete(
   payload: string,
 ): string {
   try {
-    return JSON.stringify(handleCharacterSoftDelete(ctx.userId, payload, characterLifecycleDeps(nk)));
+    const userId = requirePlayableUser(ctx, nk);
+    return JSON.stringify(handleCharacterSoftDelete(userId, payload, characterLifecycleDeps(nk)));
   } catch (error) {
     return rpcError(logger, ctx.userId, "character_soft_delete", error);
   }
@@ -97,7 +104,8 @@ export function rpcCharacterRestore(
   payload: string,
 ): string {
   try {
-    return JSON.stringify(handleCharacterRestore(ctx.userId, payload, characterLifecycleDeps(nk)));
+    const userId = requirePlayableUser(ctx, nk);
+    return JSON.stringify(handleCharacterRestore(userId, payload, characterLifecycleDeps(nk)));
   } catch (error) {
     return rpcError(logger, ctx.userId, "character_restore", error);
   }

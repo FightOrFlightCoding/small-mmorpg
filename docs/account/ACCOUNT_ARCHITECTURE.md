@@ -1,6 +1,6 @@
 # Account architecture
 
-ACCT-01 audit of the **existing** account and character path. Player-visible behavior is unchanged. Target distribution lifecycle is mapped here so later phases extend these modules instead of adding a second auth service or character model.
+ACCT-01 catalogued the existing account and character path. ACCT-03 implements public register, verify, login, refresh, and logout on that path. There is still one Nakama identity and one character model.
 
 Related: [ACCOUNT_STATE_MACHINE.md](ACCOUNT_STATE_MACHINE.md), [CHARACTER_STATE_MACHINE.md](CHARACTER_STATE_MACHINE.md), [AUTH_API_CATALOG.md](AUTH_API_CATALOG.md), [ACCOUNT_STORAGE_CATALOG.md](ACCOUNT_STORAGE_CATALOG.md), [ACCOUNT_THREAT_MODEL.md](ACCOUNT_THREAT_MODEL.md), [ACCOUNT_UI_FLOWS.md](ACCOUNT_UI_FLOWS.md), [EMAIL_DELIVERY_ARCHITECTURE.md](EMAIL_DELIVERY_ARCHITECTURE.md), [NAKAMA_COMPATIBILITY_RESULTS.md](NAKAMA_COMPATIBILITY_RESULTS.md), [../STORAGE_CATALOG.md](../STORAGE_CATALOG.md), [../SECURITY_MODEL.md](../SECURITY_MODEL.md).
 
@@ -8,23 +8,26 @@ Pinned versions: Nakama server **3.40.0**, `nakama-runtime` **1.47.0**, Nakama G
 
 ## Current implementation (as shipped)
 
-Accounts are Nakama built-in email/password identities. Debug builds also use device authentication (`DevIdentity` Alice/Bob/machine). There is no project-owned account row, no email verification gate, and no HMAC email index in production player storage.
+Accounts are Nakama built-in email/password identities plus a project `account_profile`. Public email register/login/verify/refresh/logout go through `auth-gateway/`. Debug builds also use device authentication (`DevIdentity` Alice/Bob/machine) which remains playable without an email profile. Email accounts must be `ACTIVE` and verified before character or match operations.
 
-A player session is a Nakama JWT plus refresh token. The Godot client keeps those tokens in memory and may write them to `user://session_cache.json` (never a password). Gameplay requires a character selection ticket (TTL 300 s) and then a `starter_zone` match join.
+A player session is a Nakama JWT plus refresh token returned by the gateway. The Godot `AccountService` keeps those tokens in memory. Device-debug sessions may still use `user://session_cache.json` (never a password). Email Stay Signed In is not enabled. Gameplay requires a character selection ticket (TTL 300 s) and then a `starter_zone` match join.
 
 ## Godot authentication services
 
 | Module | Path | Role |
 | --- | --- | --- |
-| `GameService` | `client/scripts/game/game_service.gd` | Register, email login, debug device login, logout, character orchestration |
-| `NetworkService` | `client/scripts/network/network_service.gd` | Session, socket, RPCs, reconnect, logout |
-| `NakamaNetworkBackend` | `client/scripts/network/nakama_network_backend.gd` | Thin SDK: `authenticate_email_async`, `authenticate_device_async`, `session_refresh_async`, `session_logout_async` |
-| `SessionCache` | `client/scripts/network/session_cache.gd` | `user://session_cache.json` tokens only; rejects caches that contain password keys |
-| `AuthPrivacy` | `client/scripts/network/auth_privacy.gd` | Maps login failures to `invalid_credentials` / registration `email_taken` |
+| `GameService` | `client/scripts/game/game_service.gd` | Orchestrates register/login/verify/logout onto AccountService and device auth onto NetworkService |
+| `AccountService` | `client/scripts/account/account_service.gd` | Public gateway HTTP, account status, access/refresh tokens, bounded refresh, logout/logout-all. Does not own character gameplay |
+| `NetworkService` | `client/scripts/network/network_service.gd` | Nakama session import, socket, RPCs, reconnect, current-session logout |
+| `NakamaNetworkBackend` | `client/scripts/network/nakama_network_backend.gd` | Thin SDK: device auth, `import_session` from gateway tokens, socket, RPCs. Email product login does not call `authenticate_email_async` |
+| `SessionCache` | `client/scripts/network/session_cache.gd` | Device-debug token cache only. Email refresh tokens are not written to `user://` |
+| `RememberEmailStore` | `client/scripts/account/remember_email_store.gd` | Optional remembered email only |
+| `CredentialStore` | `client/scripts/account/credential_store.gd` | Stay Signed In interface; unavailable until OS stores are certified. Hidden in UI |
+| `AuthPrivacy` / `AccountErrors` | `client/scripts/network/auth_privacy.gd`, `client/scripts/account/account_errors.gd` | Login sanitization and gateway/gameplay account error copy |
 | `DevIdentity` | `client/scripts/network/dev_identity.gd` | Debug Alice/Bob/machine device ids; gated by `OS.is_debug_build()` |
 | `LocalSettingsStore` | `client/scripts/ui/local_settings_store.gd` | UI preferences; refuses credential/token keys |
 
-There is no second client HTTP stack. E2E drivers call `NakamaNetworkBackend` directly so they can open two identities.
+There is no second character model. E2E drivers still call `NakamaNetworkBackend` device auth so they can open two identities. Product email login uses the gateway, then `import_session`.
 
 ## Nakama client creation
 
@@ -32,11 +35,11 @@ There is no second client HTTP stack. E2E drivers call `NakamaNetworkBackend` di
 
 ## Session caching and logout
 
-- Restore: load cache → `session_refresh_async`. Email sessions cannot reauthenticate without a stored password; a dead refresh token is `session_expired`.
+- Restore: device-debug cache → `session_refresh_async`. Email sessions refresh through `POST /v1/auth/refresh` with bounded retry and jitter; a dead refresh token returns to Login (no infinite loop, no device reauth).
 - Device sessions may reauthenticate with the cached device id (debug only).
-- Logout: leave match if needed, `session_logout_async` with **current** access and refresh tokens, clear cache, return to Login.
-- The SDK comment allows logout-all when the body is empty. The Godot wrapper always sends the current token pair, so the shipped client does **not** logout-all. Live proof: empty token strings after waiting until the next Unix second.
-- There is no distinct “Return to Character Select”, “Logout All Sessions”, or server-acknowledged “Quit Game” operation. Window close is not a proven safe departure.
+- Logout current: leave match if needed, gateway `POST /v1/auth/logout` when an email session exists, Nakama `session_logout_async` for the current pair, clear in-memory tokens, return to Login.
+- Logout all: character-select password confirmation (or recent JWT `iat`) → gateway `POST /v1/auth/logout-all` → Nakama empty-token logout-all → security email. Account and character data are preserved.
+- Stay Signed In is hidden. `CredentialStore` is present but reports unavailable.
 
 ## Character bootstrap, storage, and selection
 
@@ -70,13 +73,17 @@ See [AUTH_API_CATALOG.md](AUTH_API_CATALOG.md). Hooks: `registerBeforeAuthentica
 
 Development-gated `acct_compat_probe` is an ACCT-01 test seam, not a player API. Internal `auth_gateway` is HTTP-key plus HMAC assertion only.
 
-## Auth gateway (ACCT-02)
+## Auth gateway (ACCT-02 / ACCT-03)
 
-`auth-gateway/` is the trusted public boundary for registration, verification, recovery, email-change, and account deletion. It holds the Nakama server key, runtime HTTP key, email provider key, email HMAC pepper, and challenge HMAC secret. The Godot client must never receive those values and is **not** switched onto the gateway in this phase (gameplay still authenticates to Nakama directly).
+`auth-gateway/` is the trusted public boundary for registration, verification, login, refresh, logout, recovery, email-change, and account deletion. It holds the Nakama server key, runtime HTTP key, email provider key, email HMAC pepper, and challenge HMAC secret. The Godot `AccountService` talks to versioned `/v1/auth/*` routes; it never receives those secrets.
 
-Challenges live in Nakama storage (`auth_challenge` / `c_<id>` on the system user). Only HMAC hashes of codes are stored. New challenges invalidate older unused challenges for the same email-hash and purpose.
+Challenges live in Nakama storage (`auth_challenge` / `c_<id>` on the system user). Only HMAC hashes of codes are stored. New challenges invalidate older unused challenges for the same email-hash and purpose. Verification TTL is `AUTH_VERIFICATION_TTL_MS` (default 30 minutes).
 
-Email lookup for recovery uses `account_profile` / `email_index` (`{ hmac, userId, verifiedAt }`, `permissionWrite: 0`) and index `account_profile_email_hmac`. Do not reuse `account_compat`.
+Email lookup uses `account_profile` / `email_index` (`hmac`, `userId`, `verifiedAt`, `status`, legal-version fields, `createdAt`, `acceptedAt`; `permissionWrite: 0`) and index `account_profile_email_hmac`. Do not reuse `account_compat`. Unverified cleanup is the HMAC-gated `purge_unverified` op (default seven-day retention), invoked opportunistically on duplicate register.
+
+Public registration policy is `AUTH_REGISTRATION_MODE` (`OPEN` / `INVITE_ONLY` / `CLOSED`) on the gateway. `INVITE_ONLY` is an env allowlist of canonical emails (no invitation-code system). When the gateway is `OPEN`, Nakama email create must also be allowed or register fails at authenticate.
+
+`requirePlayableUser` / `evaluatePlayableAccount` is the single gameplay guard: `ACTIVE`, `verifiedAt > 0`, not disabled, not deleting. Device accounts with no email and no profile remain playable.
 
 ## Client-writable account fields
 
@@ -100,18 +107,18 @@ Do not delete these in this phase.
 | [PROTOCOL_CATALOG.md](../PROTOCOL_CATALOG.md) previously said authenticate hooks were not registered | Corrected; hooks are registered |
 | Server `auth_privacy.ts` vs client `auth_privacy.gd` | Same sanitization policy, two languages |
 | `character_bootstrap` vs `character_create` | Bootstrap is the Prompt 18 wrapper; create is the roster path. Keep both |
-| Logout vs leave vs reconnect cancel | One client method does leave + current-session logout + Login. Later phases must split the five departure operations |
+| Logout vs leave vs reconnect cancel | Earlier notes disagreed (revoke first vs leave first). Resolved: leave chats/match (`NetworkService.depart_gameplay`) while tokens are still valid, then `AccountService.logout_current` (gateway revoke), then Nakama session logout → Login. Logout-all is a character-select action (password or recent JWT `iat`) that revokes every session only after the password/iat check succeeds; a failed check keeps the local session. Reconnect cancel uses leave + current-session logout. Return to Character Select and Quit Game remain later |
 | Party `connectionState` vs match grace vs online bool | Do not overload; later phases add explicit presence states |
 | Content classes `test.class.vanguard` / `arcanist` / `warden` vs target `class.warrior` / `marksman` / `mage` | Data-defined; do not retarget in ACCT-01 |
 | Slot limit 3 vs target 5 | `CHARACTER_SLOT_LIMIT` stays 3 until a later phase |
-| Client email `strip_edges` only vs project canonical lowercase | Nakama lowercases on authenticate; later phases must use `canonicalizeEmail` everywhere |
+| Email canonicalization | Gateway `canonicalizeEmail` (trim, lowercase, max 254) is authoritative. Godot trims before POST. Nakama also lowercases on authenticate. Plus-tags and dots stay distinct |
 
 ## Mapping existing code to the target lifecycle
 
-Later phases must migrate these modules, not replace them:
+Later phases must extend these modules, not replace them:
 
-- Account identity: Nakama email auth + `auth_hooks.ts` + `email.ts`.
+- Account identity: `auth-gateway` + Nakama email auth + `auth_hooks.ts` + `account_profile`.
 - Character: `character_lifecycle.ts`, `character_roster.ts`, `character_name.ts`, `character_ticket.ts`.
 - Persistence: existing `player/*` collections and wallet.
-- Sessions: `SessionCache` + Nakama session logout/refresh.
-- Lookup: `hmac.ts` + storage index pattern proven on `account_compat`. Production lookup is `account_profile` / `email_index` via `auth_gateway`.
+- Sessions: email access/refresh tokens live in `AccountService` memory. Device-debug sessions may use `SessionCache`. Logout current leaves the match before revoking tokens.
+- Lookup: production lookup is `account_profile` / `email_index` via `auth_gateway`. `acct_compat` remains a development-gated proof seam.

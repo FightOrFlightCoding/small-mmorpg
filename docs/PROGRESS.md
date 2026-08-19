@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Public authentication gateway and email infrastructure (ACCT-02)**.
+Last accepted phase: **Registration, email verification, login, session refresh, and logout (ACCT-03)**.
 
 Current phase: none.
 
@@ -733,7 +733,7 @@ Not a new phase. Proof/cert quest turn-in now passes the NPC id (Elder was alrea
 
 Documentation and compatibility proofs only. Player-visible login, character select, world, slots, classes, disconnect grace, and logout UI are unchanged. No second authentication service or character model. No dependency upgrades. No custom SQL on Nakama auth tables.
 
-Catalogs live under [docs/account/](account/ACCOUNT_ARCHITECTURE.md). Live proofs against pinned **Nakama 3.40.0** / **nakama-runtime 1.47.0** are in [docs/account/NAKAMA_COMPATIBILITY_RESULTS.md](account/NAKAMA_COMPATIBILITY_RESULTS.md). Later phases must use those sequences.
+Catalogs live under [docs/account/](account/ACCOUNT_ARCHITECTURE.md), including [ACCOUNT_STATE_MACHINE.md](account/ACCOUNT_STATE_MACHINE.md). Live proofs against pinned **Nakama 3.40.0** / **nakama-runtime 1.47.0** are in [docs/account/NAKAMA_COMPATIBILITY_RESULTS.md](account/NAKAMA_COMPATIBILITY_RESULTS.md). Later phases must use those sequences.
 
 Development-gated RPC `acct_compat_probe` and storage index `acct_compat_email_hmac` exist for proofs. The Godot client does not call the probe. Production `developmentToolsEnabled` is false.
 
@@ -791,5 +791,39 @@ powershell -File scripts/test-client.ps1
 ```
 
 Inspect local mail at http://127.0.0.1:8025 after `POST http://127.0.0.1:8787/v1/auth/register`.
+
+## Registration, email verification, login, session refresh, and logout acceptance (ACCT-03, 2026-08-19)
+
+Normal account entry lifecycle. No new gameplay systems. No custom SQL. No ORM. Prompt 18 village/slime behavior unchanged. Stay Signed In is **not** enabled. Debug Alice/Bob device auth remains playable without an email profile. Account states are [ACCOUNT_STATE_MACHINE.md](account/ACCOUNT_STATE_MACHINE.md).
+
+Public Godot email register/login/verify/refresh/logout goes through `AccountService` and versioned `/v1/auth/*` routes. `requirePlayableUser` is the single gameplay guard on character RPCs, match discovery/join, chat, party, and GM. Duplicate email is generic `AUTH_REGISTRATION_FAILED`. `EMAIL_VERIFICATION_REQUIRED` is returned only after valid credentials, without tokens.
+
+Nakama 3.40.0 attaches a JavaScript stack to every thrown runtime value. Domain RPC failures therefore **return** `{ ok: false, code }` JSON (HTTP 200) instead of throwing. Live unverified `character_list` and session `auth_gateway` rejects contain no `stackTrace` / `index.js`. Logout current leaves chats/match while tokens are valid, then revokes.
+
+| Gate | Result |
+| --- | --- |
+| Content | hash `4eeb205a3748b3cd71053bcc217cb017ae69f1f1d4753238ca4c03da9cce35c1` (unchanged) |
+| Audit | `FOUNDATION_AUDIT_OK` (29 storage records, 31 client opcodes, 15 server opcodes, 26 rpcs) |
+| Server hermetic | 481 passed, 13 skipped (live suites off), `tsc --noEmit` via `scripts/test-server.ps1` |
+| Auth gateway hermetic | 28/28 (`scripts/test-auth-gateway.ps1 -SkipLive`) |
+| Auth gateway live | 2/2 HTTP-key ping + session reject as HTTP 200 JSON; 1/1 unverified `character_list` HTTP 200 `{ok:false,code:email_verification_required}` with no stack |
+| Client GdUnit | 237/237, 0 orphans, `SHELL_LOGIN` |
+| Gameplay smoke | `scripts/backend-up.ps1` Alice/Bob bootstrap + starter zone after the rebuilt runtime |
+| Live email path | Register 200; duplicate 409 `AUTH_REGISTRATION_FAILED`; unverified login 403 without tokens; `character_list` HTTP 200 `email_verification_required` without `stackTrace`; Mailpit `Verify your Vibecode email`; verify confirm 200; login ACTIVE with tokens; character create; logout-all 200 after the next Unix second; revoked refresh 401; roster preserved (`liveCount=1`); current logout 200; `Your Vibecode email is verified` and `A Vibecode session was signed out` captured |
+
+Limitations: Stay Signed In remains hidden (`CredentialStore` unavailable; no email refresh tokens in `user://`). Unverified cleanup is the seven-day policy plus HMAC-gated `purge_unverified`, invoked opportunistically on duplicate register (no periodic sweep of every stale account). Fastify 5.6.1 still reports npm-audit findings (`trustProxy: false`; this process does not use `sendWebStream`). Nakama session blacklist uses strict `<` on the token `iat` second, so logout-all immediately after login can leave that second's refresh token valid until the next Unix second.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-auth-gateway.ps1 -SkipLive
+powershell -File scripts/backend-up.ps1
+powershell -File scripts/test-auth-gateway.ps1
+powershell -File scripts/test-client.ps1
+```
+
+Inspect local mail at http://127.0.0.1:8025. Product email UI is login / register / verify / server-unavailable / account-disabled.
 
 

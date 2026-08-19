@@ -2,7 +2,7 @@
 
 Every authentication, session, account, and character lifecycle endpoint the project uses. HTTP paths are Nakama 3.40.0. RPCs are registered in `server/src/main.ts`.
 
-Player-visible error copy today is a domain `code` plus message, not yet the full `{ ok, code, message_key, request_id, retry_after_seconds, field_errors }` envelope on **gameplay** RPCs. The auth gateway already returns that envelope. Later Godot login must adopt it without leaking stack traces, SQL, RPC names, storage collections, tokens, or whether a reset email exists.
+Player-visible error copy is a domain `code` plus message. The auth gateway returns `{ ok, code, message_key, request_id, retry_after_seconds, field_errors }`. Gameplay RPCs still use Nakama's RPC channel. Domain failures are returned as `{ ok: false, code }` JSON (HTTP 200) because Nakama attaches a stack to every thrown JavaScript value. Godot maps that envelope through `AccountErrors` without leaking stack traces, SQL, RPC names, storage collections, tokens, or whether a reset email exists.
 
 ## Nakama HTTP (client / tests)
 
@@ -53,16 +53,22 @@ Do not use `nk.sqlExec` / `sqlQuery` to change credentials. Do not use Node `cry
 
 ## Auth gateway HTTP (public boundary)
 
-The Godot client is **not** wired to these routes in ACCT-02. Staging/production must use HTTPS. Local Compose publishes `http://127.0.0.1:8787`. Secrets (Nakama server key, HTTP key, SendGrid key, HMAC peppers) stay in the gateway process.
+Godot `AccountService` uses these routes for product email entry. Staging/production must use HTTPS. Local Compose publishes `http://127.0.0.1:8787`. Secrets (Nakama server key, HTTP key, SendGrid key, HMAC peppers) stay in the gateway process.
+
+Canonical ACCT-03 routes; ACCT-02 aliases remain:
 
 | Operation | Method | Path | Notes |
 | --- | --- | --- | --- |
 | Health | GET | `/health` | Process liveness |
 | Ready | GET | `/ready` | `{ ok, nakama, email }` |
-| Register | POST | `/v1/auth/register` | Nakama `create=true`, HMAC index, verification challenge. Email failure does not delete the account |
-| Login | POST | `/v1/auth/login` | Nakama `create=false`; collapses unknown/wrong password |
-| Verify email | POST | `/v1/auth/verify-email` | `{ challenge_id, code }` |
-| Resend verification | POST | `/v1/auth/resend-verification` | Generic success |
+| Register | POST | `/v1/auth/register` | Canonicalize email, password policy, legal versions, registration mode, Nakama `create=true` with a random username, HMAC index, `PENDING_VERIFICATION`, verification challenge. Duplicate email is generic `AUTH_REGISTRATION_FAILED`. Email failure does not delete the account |
+| Request verification | POST | `/v1/auth/verify/request` | Alias: `/v1/auth/resend-verification`. Generic success; rate-limited |
+| Confirm verification | POST | `/v1/auth/verify/confirm` | Alias: `/v1/auth/verify-email`. `{ challenge_id, code }` or `{ email, code }`. Sets `ACTIVE`, `verified_at`, confirmation email |
+| Login | POST | `/v1/auth/login` | Nakama `create=false`; unknown/wrong password collapsed; `EMAIL_VERIFICATION_REQUIRED` only after valid credentials (no tokens); client-version gate |
+| Refresh | POST | `/v1/auth/refresh` | `{ refresh_token }`; revoked/expired → 401 |
+| Logout current | POST | `/v1/auth/logout` | Bearer + optional refresh; revokes that pair |
+| Logout all | POST | `/v1/auth/logout-all` | Bearer; password unless JWT `iat` is within `AUTH_LOGOUT_ALL_RECENT_MS`; security email |
+| Account status | GET | `/v1/account/status` | Bearer; safe status, no internal metadata dump |
 | Password reset request | POST | `/v1/auth/password-reset/request` | Generic success; HMAC lookup |
 | Password reset confirm | POST | `/v1/auth/password-reset/confirm` | Consume + `linkEmail` same address |
 | Email-change request | POST | `/v1/auth/email-change/request` | Bearer session; notice to old address |
@@ -95,7 +101,7 @@ No `registerAfterAuthenticate*`. Unknown authenticate types are not registered.
 | `acct_compat_probe` | session + `developmentToolsEnabled` | **No** |
 | `auth_gateway` | HTTP key **and** HMAC assertion | **No.** Ordinary session JWT is `gateway_rpc_forbidden` |
 
-Every gameplay join and privileged RPC today checks `ctx.userId` and match tickets. They do **not** check a project account status. Later phases must add that check without adding a second character model.
+Every gameplay join and privileged RPC checks `ctx.userId` and, for email accounts, `requirePlayableUser` (`ACTIVE`, verified, not disabled, not deleting). Handshake, ops, `acct_compat_probe`, and `auth_gateway` are not gated. Device accounts with no email and no profile remain playable.
 
 ## Match join
 
@@ -106,11 +112,11 @@ Metadata allowed: `protocolVersion`, `contentHash`, `clientVersion`, `selectionT
 | User intent | Current client behavior |
 | --- | --- |
 | Return to Character Select | Not implemented as a distinct server-acked departure |
-| Logout current session | `GameService.request_logout` → leave + `session_logout_async` current tokens + Login |
-| Logout all sessions | Not exposed |
+| Logout current session | `GameService.request_logout` → leave chats/match → gateway `/v1/auth/logout` when email → Nakama current-token logout → Login |
+| Logout all sessions | Character-select password confirm → `POST /v1/auth/logout-all` → Login. Account and characters preserved |
 | Quit Game | Ordinary window close; **not** a proven safe departure |
 | Unexpected disconnect | Reconnect overlay; 5s/60s grace; not 10s `LINK_DEAD` |
 
 ## Error sanitization
 
-Login `create=false` always maps to `invalid_credentials` (“Email or password is incorrect.”). Registration duplicate email is `email_taken`. Do not distinguish unknown email vs bad password on login or on future password-reset requests.
+Login `create=false` always maps to `invalid_credentials` (“Email or password is incorrect.”). Registration duplicate email is generic `AUTH_REGISTRATION_FAILED` (“We could not create this account…”). Do not distinguish unknown email vs bad password on login or on password-reset requests. Do not reveal whether a duplicate-register account is verified.

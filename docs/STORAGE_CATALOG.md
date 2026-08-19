@@ -512,7 +512,7 @@ Value: `{ schemaVersion, characterId, requestId, reasonType, reasonId, goldDelta
 
 | Field             | Value |
 | ----------------- | --- |
-| Purpose           | Production HMAC email lookup for the auth gateway. Value is `{ hmac, userId, verifiedAt }` only. |
+| Purpose           | Production HMAC email lookup and account status for the auth gateway. Value is `{ hmac, userId, verifiedAt, status, createdAt, acceptedTermsVersion, acceptedPrivacyVersion, acceptedAt }`. Legacy `{ hmac, userId, verifiedAt }` rows infer PENDING vs ACTIVE from `verifiedAt`. |
 | Owner             | Server `auth_gateway` |
 | Scope             | Account-scoped |
 | `permissionRead`  | 0 |
@@ -520,7 +520,7 @@ Value: `{ schemaVersion, characterId, requestId, reasonType, reasonId, goldDelta
 | Schema version    | absent (not a player-save kind) |
 | Creation          | Gateway register / email replace |
 | Read              | `storageRead` after three-argument `storageIndexList` on index `account_profile_email_hmac` |
-| Update            | Overwrite hmac / `verifiedAt` |
+| Update            | Overwrite hmac / `verifiedAt` / `status` / legal versions. `purge_unverified` may delete the object and the Nakama account. |
 | Deletion          | Recorded account delete |
 | Client access     | No |
 

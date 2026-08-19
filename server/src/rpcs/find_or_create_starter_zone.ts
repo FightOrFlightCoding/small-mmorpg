@@ -1,4 +1,4 @@
-import { requireAuthenticatedUserId } from "../domain/character";
+import { requirePlayableUser } from "../nakama/playable_account";
 import { PROTOCOL_VERSION } from "../domain/protocol";
 import { STARTER_ZONE_ID } from "../domain/match_state";
 import { PUBLIC_WORLD_INSTANCE_ID, PUBLIC_WORLD_INSTANCE_TYPE, publicWorldLocation, type ActiveLocation } from "../domain/instance";
@@ -15,6 +15,7 @@ import {
 } from "../domain/cave";
 import { readEnvironment, rejectIfGameplayClosed } from "../nakama/ops_store";
 import { formatOpsLog, incrementCounter } from "../domain/ops_metrics";
+import { rpcFailureCode, rpcFailurePayload } from "../domain/rpc_error";
 
 export const FIND_OR_CREATE_STARTER_ZONE_RPC_ID = "find_or_create_starter_zone";
 
@@ -45,7 +46,7 @@ export function rpcFindOrCreateStarterZone(
   payload: string,
 ): string {
   try {
-    const userId = requireAuthenticatedUserId(ctx.userId);
+    const userId = requirePlayableUser(ctx, nk);
     parseFindOrCreatePayload(payload);
     let reconnectingCave = false;
     let staleCaveLocation: ActiveLocation | null = null;
@@ -112,13 +113,13 @@ export function rpcFindOrCreateStarterZone(
       contentHash: contentHash,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "internal_error";
+    const message = rpcFailureCode(error);
     logger.error(formatOpsLog("zone_transfer", {
       user_id: ctx.userId !== undefined ? ctx.userId : "",
       action: "find_or_create_starter_zone",
       reason: message,
     }));
     incrementCounter("transferFailures");
-    throw error;
+    return rpcFailurePayload(message);
   }
 }

@@ -17,6 +17,18 @@ Each environment also has its own `contentVersion`, `serverVersion`, `minClientV
 
 Local Compose (`infra/docker-compose.yml` + `infra/nakama/local.yml`) sets the local preset and also starts Mailpit plus the auth gateway (`http://127.0.0.1:8787`, Mailpit UI `http://127.0.0.1:8025`). The isolated test stack is `infra/docker-compose.automated-test.yml` (Nakama on host ports 7450/7451, gateway 8788, Mailpit UI 8125). Staging and production Compose files are **examples** (`infra/docker-compose.staging.example.yml`, `infra/docker-compose.production.example.yml`). Copy them on the host and fill gitignored `infra/.env.staging` / `infra/.env.production` from the committed `infra/.env.*.example` templates. Staging/production gateway processes require HTTPS public URLs and production email/HMAC secrets.
 
+Gateway registration policy is independent of Nakama `VIBECODE_REGISTRATION` but both must allow create when the public mode is `OPEN`:
+
+| Variable | Role |
+| --- | --- |
+| `AUTH_REGISTRATION_MODE` | `OPEN` / `INVITE_ONLY` / `CLOSED` (production example is `CLOSED`) |
+| `AUTH_REGISTRATION_ALLOWLIST` | Comma-separated canonical emails when `INVITE_ONLY` |
+| `AUTH_TERMS_VERSION` / `AUTH_PRIVACY_VERSION` | Required accepted document versions |
+| `AUTH_MIN_CLIENT_VERSION` / `AUTH_MAX_CLIENT_VERSION` | Gateway client-version gate (currently `1.0.0`) |
+| `AUTH_VERIFICATION_TTL_MS` | Verification challenge TTL (default 30 minutes) |
+| `AUTH_UNVERIFIED_RETENTION_MS` | Unverified purge retention (default seven days) |
+| `AUTH_LOGOUT_ALL_RECENT_MS` | Skip password on logout-all when JWT `iat` is this recent (default five minutes) |
+
 No production secret may be committed. `tools/foundation-audit` fails if `infra/.env`, `infra/.env.local`, `infra/.env.automated_test`, `infra/.env.staging`, or `infra/.env.production` is tracked.
 
 `scripts/backend-volume-destroy` and local restore refuse `staging` and `production`, and they refuse any environment whose `dataReset` is `forbidden`.

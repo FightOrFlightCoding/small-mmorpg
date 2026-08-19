@@ -95,5 +95,14 @@ text = "Continue"
 layout_mode = 2
 text = "Log out"
 
+[node name="LogoutAllPassword" type="LineEdit" parent="Center/VBox"]
+layout_mode = 2
+placeholder_text = "Current password (logout all sessions)"
+secret = true
+
+[node name="LogoutAllButton" type="Button" parent="Center/VBox"]
+layout_mode = 2
+text = "Log out all sessions"
+
 [node name="ErrorDialog" parent="." instance=ExtResource("2_error")]
 [node name="LoadingOverlay" parent="." instance=ExtResource("3_loading")]

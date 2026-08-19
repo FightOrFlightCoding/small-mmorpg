@@ -37,6 +37,7 @@ import { nakamaCaveRepository } from "./nakama/cave_store";
 import { environmentFromRuntime, parseBoolEnv } from "./domain/environment";
 import { applyAndStoreMaintenance, readEffectiveMaintenance } from "./nakama/ops_store";
 import { formatOpsLog, snapshotCounters } from "./domain/ops_metrics";
+import { rpcFailureCode, rpcFailurePayload } from "./domain/rpc_error";
 
 function rpcVibecodeHealth(
   ctx: nkruntime.Context,
@@ -59,9 +60,9 @@ function rpcVibecodeHealth(
       }),
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "internal_error";
+    const message = rpcFailureCode(error);
     logger.error("vibecode_health rejected reason=%s", message);
-    throw error;
+    return rpcFailurePayload(message);
   }
 }
 

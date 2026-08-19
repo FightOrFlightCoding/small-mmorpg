@@ -200,11 +200,11 @@ Additional Prompt 18–33 rows (equipment spoof, quest skip, fabricated NPC, GM,
 
 ## Client local storage
 
-The Godot client must not write canonical inventory, equipment, quest, currency, progression, party, cave, location, trade, health, or position records to `user://` or other local files. `AppState` is in-memory presentation/session flags only. Persistence is Nakama storage and wallet, written by the server. Session tokens (never passwords) may be cached in `user://session_cache.json` for refresh. Email reauthentication cannot use a stored password: refresh, then a visible `session_expired` if the refresh token is dead. Device reauthentication remains available only for debug device-auth sessions.
+The Godot client must not write canonical inventory, equipment, quest, currency, progression, party, cave, location, trade, health, or position records to `user://` or other local files. `AppState` is in-memory presentation/session flags only. Persistence is Nakama storage and wallet, written by the server. Device-debug session tokens (never passwords) may be cached in `user://session_cache.json`. Email product sessions keep access and refresh tokens in memory and refresh through `POST /v1/auth/refresh`; a dead refresh token returns to Login. Remember Email may store the address only.
 
 Debug Alice/Bob/machine device identities are gated by `OS.is_debug_build()` (tests may set `DevIdentity.force_release_config`). Release builds expose email registration and login only.
 
-Password-recovery email is served by the auth gateway (Mailpit locally, SendGrid in staging/production). Godot login is not on that gateway yet, so the in-game hint may still say administrator-assisted until a later UI phase. Operators can still use the Nakama console. Do not store raw passwords in project storage or logs.
+Password-recovery email is served by the auth gateway (Mailpit locally, SendGrid in staging/production). The login scene Forgot Password calls `POST /v1/auth/password-reset/request`. Operators can still use the Nakama console. Do not store raw passwords in project storage or logs.
 
 Debug-only `--e2e-slice` opens two real sessions and `--cert-five` opens five. Both send ordinary intentions. They are compiled out of usefulness in release builds (`OS.is_debug_build()` plus an explicit flag). GdUnit `client/tests/app/e2e_hooks_test.gd` requires the flags. `scripts/test-e2e` and `scripts/test-cert-journey` drive the live journeys. They must not call storage, wallet, or match APIs that a player client cannot call, and they must not skip match validation.
 

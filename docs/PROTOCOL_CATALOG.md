@@ -27,6 +27,8 @@ Notifications: **none** registered.
 | Errors | `malformed_json`, `unknown_field` |
 | Tests | `server/tests/health.test.ts`, `scripts/backend-verify` |
 
+Email accounts must pass `requirePlayableUser` (`ACTIVE`, verified, not disabled, not deleting) before character, cave, party, GM, match discovery, match join, and chat. Device accounts with no email and no profile remain playable. Domain character-lifecycle unit tests do not load the profile gate; Nakama adapters do.
+
 ### `character_bootstrap`
 
 | Field | Value |
@@ -39,7 +41,7 @@ Notifications: **none** registered.
 | Rate limit | None in-app |
 | Payload | Strict keys; stats/position `stat_injection` |
 | Idempotency | Existing live character returned unchanged |
-| Errors | `unauthenticated`, `malformed_json`, `invalid_name`, `stat_injection`, `unknown_field`, `name_taken`, `slot_limit` |
+| Errors | `unauthenticated`, `malformed_json`, `invalid_name`, `stat_injection`, `unknown_field`, `name_taken`, `slot_limit`, `email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted` |
 | Tests | `server/tests/character.test.ts`, `character_lifecycle.test.ts`, `client/tests/app/auth_flow_test.gd` |
 
 ### `character_list`
@@ -49,7 +51,7 @@ Notifications: **none** registered.
 | Request | `{}` |
 | Response | `{ slotLimit, liveCount, characters[] }` |
 | Authority | Server roster |
-| Errors | `unauthenticated` |
+| Errors | `unauthenticated`, `email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted` |
 | Tests | `character_lifecycle.test.ts`, `auth_flow_test.gd` |
 
 ### `character_create`
@@ -59,7 +61,7 @@ Notifications: **none** registered.
 | Request | `{ name, classId }` |
 | Response | `{ characterId, name, canonicalName, classId, created: true }` |
 | Authority | Server name policy, class catalog, slot limit 3, canonical reservation |
-| Errors | `invalid_name`, `invalid_class`, `name_taken`, `slot_limit`, `stat_injection` |
+| Errors | `invalid_name`, `invalid_class`, `name_taken`, `slot_limit`, `stat_injection`, `email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted` |
 | Tests | `character_lifecycle.test.ts` |
 
 ### `character_select`
@@ -69,7 +71,7 @@ Notifications: **none** registered.
 | Request | `{ characterId }` |
 | Response | `{ ticketId, characterId, accountUserId, expiresAt, name, classId }` |
 | Authority | Ownership, not deleted, replaces the account's previous ticket |
-| Errors | `character_missing`, `character_deleted`, `selection_foreign` |
+| Errors | `character_missing`, `character_deleted`, `selection_foreign`, `email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted` |
 | Tests | `character_lifecycle.test.ts` |
 
 ### `character_soft_delete` / `character_restore`
@@ -93,14 +95,13 @@ Notifications: **none** registered.
 | Rate limit | None in-app |
 | Payload | Empty object |
 | Idempotency | Concurrent public-world callers converge on one match id |
-| Errors | `unauthenticated`, `malformed_json`, `unknown_field` |
-| Tests | `server/tests/starter_zone_registry.test.ts`, `server/tests/cave.test.ts`, `client/tests/app/zone_join_test.gd` |
+| Errors | `unauthenticated`, `malformed_json`, `unknown_field`, `email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted` |
 
 ### Party RPCs
 
 Authenticated session RPCs. Canonical party state is server-owned (`PartyService` + storage). Clients send owned `characterId`, optional `revision`, and `requestId`. They never send member lists or credit/loot recipients (`stat_injection:members` and related keys). Invite by display name uses the name reservation; domain tests may pass a `PartyActor` directly.
 
-Shared errors: `unauthenticated`, `malformed_json`, `unknown_field`, `stat_injection`, `invalid_id`, `invalid_request_id`, `character_missing`, `selection_foreign`, `already_in_party`, `party_full`, `not_leader`, `not_member`, `invite_missing`, `invite_expired`, `invalid_target`, `revision_mismatch`, `party_missing`.
+Shared errors: `unauthenticated`, `malformed_json`, `unknown_field`, `stat_injection`, `invalid_id`, `invalid_request_id`, `character_missing`, `selection_foreign`, `already_in_party`, `party_full`, `not_leader`, `not_member`, `invite_missing`, `invite_expired`, `invalid_target`, `revision_mismatch`, `party_missing`, `email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted`.
 
 | RPC | Request keys | Authority |
 | --- | --- | --- |
@@ -120,7 +121,7 @@ Successful mutating RPCs `matchSignal` the starter-zone match so the in-memory p
 
 Authenticated session RPCs. They validate selection and eligibility and allocate or look up an owned cave. They do **not** issue transfer tickets. Tickets are issued from the match loop after `CAVE_ENTER` / `CAVE_EXIT`.
 
-Shared errors: `unauthenticated`, `malformed_json`, `unknown_field`, `selection_required`, `character_missing`, `invalid_origin`, `already_transferring`, `player_dead`, `invalid_target`, `out_of_range`, `invalid_service`, `not_party_member`, `content_mismatch`, `instance_not_ready`.
+Shared errors: `unauthenticated`, `malformed_json`, `unknown_field`, `selection_required`, `character_missing`, `invalid_origin`, `already_transferring`, `player_dead`, `invalid_target`, `out_of_range`, `invalid_service`, `not_party_member`, `content_mismatch`, `instance_not_ready`, `email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted`.
 
 | RPC | Request keys | Authority |
 | --- | --- | --- |
@@ -142,7 +143,7 @@ Tests: `server/tests/cave.test.ts`.
 | Rate limit | None in-app |
 | Payload | Strict keys; `reason` required (max 240, no `token=`) |
 | Idempotency | Command `requestId`; XP grants use `gm:<requestId>` |
-| Errors | `unauthenticated`, `gm_disabled`, `unauthorized`, `malformed_json`, `unknown_field`, `unknown_command`, `reason_required`, `character_missing`, plus per-command codes |
+| Errors | `unauthenticated`, `gm_disabled`, `unauthorized`, `malformed_json`, `unknown_field`, `unknown_command`, `reason_required`, `character_missing`, `email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted`, plus per-command codes |
 | Tests | `server/tests/gm.test.ts`, `client/tests/app/gm_service_test.gd` |
 
 Commands: `inspect_character`, `teleport_character`, `repair_invalid_location`, `grant_test_item`, `remove_test_item`, `grant_test_gold`, `grant_test_xp`, `reset_attribute_allocation`, `reset_skill_allocation`, `set_quest_state`, `reset_quest`, `spawn_enemy`, `kill_enemy`, `open_cave`, `inspect_party`, `cancel_trade`, `view_recent_transaction_audit`. Not match opcodes. `open_cave` may issue a transfer ticket (GM exception to Prompt 29 match-loop tickets). Every call writes `gm_audit`.
@@ -197,7 +198,7 @@ Commands: `inspect_character`, `teleport_character`, `repair_invalid_location`, 
 | Field | Value |
 | --- | --- |
 | Direction | Auth gateway → server HTTP RPC |
-| Request | `{ assertion, op, ... }` where `op` is `ping` / `put_email_index` / `lookup_email` / `mark_verified` / `challenge_put` / `challenge_get` / `challenge_consume` / `replace_password` / `replace_email` / `delete_account`. `assertion` is `{ request_id, timestamp, nonce, operation, payload_hash, signature }` |
+| Request | `{ assertion, op, ... }` where `op` is `ping` / `put_email_index` / `lookup_email` / `get_profile` / `mark_verified` / `challenge_put` / `challenge_get` / `challenge_find` / `challenge_consume` / `purge_unverified` / `replace_password` / `replace_email` / `delete_account`. `assertion` is `{ request_id, timestamp, nonce, operation, payload_hash, signature }` |
 | Authority | Nakama HTTP key **and** HMAC assertion using `VIBECODE_GATEWAY_HMAC_SECRET`. Session JWT is `gateway_rpc_forbidden`. Timestamp skew 60s; nonce replay cache 4096 |
 | Auth | HTTP key. Not a player UI |
 | Storage | `account_profile` / `email_index`, `auth_challenge` / `c_<id>`, `permissionWrite: 0`, hashes only |
@@ -561,7 +562,7 @@ No client rate limit. Occupied matches send **102** every tick.
 | 114 | `PARTY_EVENT` | `partyId`, `eventType`, optional `systemMessage` / loot assignment | `party.test.ts`, `party_credit_loot.test.ts` |
 | 115 | `TRADE_STATE` | canonical trade: ids, state, revision, offers, goldOffers, acceptances, expiresAt | `trade.test.ts`, `trade_service_test.gd` |
 
-`FULL_STATE` may include optional `party` for the recipient and optional `instance` (`type`, `instanceId`, `zoneTemplateId`, `completionState`, `bossAlive`, owners). Snapshots do not carry party membership. Join metadata: `{ protocolVersion, contentHash }` strings plus `selectionTicket` or `transferTicket`. Mismatch → join reject / fatal client error. Transfer join rejects `ticket_reused`, `ticket_expired`, `ticket_wrong_character`, `ticket_wrong_destination`, `still_in_origin`, `already_elsewhere`.
+`FULL_STATE` may include optional `party` for the recipient and optional `instance` (`type`, `instanceId`, `zoneTemplateId`, `completionState`, `bossAlive`, owners). Snapshots do not carry party membership. Join metadata: `{ protocolVersion, contentHash }` strings plus `selectionTicket` or `transferTicket`. Mismatch → join reject / fatal client error. Transfer join rejects `ticket_reused`, `ticket_expired`, `ticket_wrong_character`, `ticket_wrong_destination`, `still_in_origin`, `already_elsewhere`. Email accounts that are not playable are rejected at `matchJoinAttempt` (`email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted`).
 
 ## Realtime hooks
 
@@ -572,9 +573,9 @@ No client rate limit. Occupied matches send **102** every tick.
 | Direction | Client chat send → server |
 | Request | Nakama envelope; content JSON `{ message, partyId? }` |
 | Response | Same envelope with trimmed message, or throw |
-| Auth | Session + channel membership. `partyId` requires current party membership. |
+| Auth | Session + channel membership. `partyId` requires current party membership. Email accounts must be playable. |
 | Limits | 1–200 characters; no extra JSON keys besides `partyId`. Party sends: 4 per 2 s (process-local). Zone chat stays stateless. |
-| Errors | `empty_message`, `message_too_long`, `malformed_json`, `invalid_payload`, `not_party_member`, `rate_limited` |
+| Errors | `empty_message`, `message_too_long`, `malformed_json`, `invalid_payload`, `not_party_member`, `rate_limited`, `email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted` |
 | Tests | `chat.test.ts`, `chat_client_test.gd`, `security.test.ts` |
 
 ### `ChannelJoin` before
@@ -582,7 +583,7 @@ No client rate limit. Occupied matches send **102** every tick.
 | Field | Value |
 | --- | --- |
 | Request | Room type `1`, target `zone.starter` or `party.<partyId>` for current members |
-| Errors | `invalid_channel` |
+| Errors | `invalid_channel`, `email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted` |
 | Tests | `chat.test.ts` |
 
 No `registerRtAfter`. No group/DM channels. Party chat messages never drive gameplay state.

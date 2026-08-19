@@ -1,4 +1,5 @@
-import { requireAuthenticatedUserId } from "../domain/character";
+import { requirePlayableUser } from "../nakama/playable_account";
+import { rpcFailureCode, rpcFailurePayload } from "../domain/rpc_error";
 import {
   applyGmToMatch,
   isGmAuthorized,
@@ -54,47 +55,51 @@ export function rpcGmCommand(
   nk: nkruntime.Nakama,
   payload: string,
 ): string {
-  const userId = requireAuthenticatedUserId(ctx.userId);
-  let request: GmCommandRequest;
   try {
-    request = parseGmCommandPayload(payload);
+    const userId = requirePlayableUser(ctx, nk);
+    let request: GmCommandRequest;
+    try {
+      request = parseGmCommandPayload(payload);
+    } catch (error) {
+      const message = rpcFailureCode(error);
+      logger.info("gm_command rejected user_id=%s reason=%s", userId, message);
+      return rpcFailurePayload(message);
+    }
+    const allowlist = readGmAllowlist(nk);
+    const account = gmAccountFromNakama(userId, nk.accountGetId(userId));
+    if (!isGmAuthorized(allowlist, account)) {
+      const code = allowlist.enabled === true ? "unauthorized" : "gm_disabled";
+      recordAudit(nk, userId, request, Date.now(), code, nk.uuidv4());
+      logger.info("gm_command rejected user_id=%s reason=%s", userId, code);
+      return rpcFailurePayload(code);
+    }
+    const nowMs = Date.now();
+    const auditId = nk.uuidv4();
+    try {
+      const outcome = dispatchGm(nk, logger, userId, request, nowMs);
+      recordAudit(nk, userId, request, nowMs, outcome.code, auditId);
+      logger.info(
+        "gm_command user_id=%s character_id=%s command=%s code=%s",
+        userId,
+        request.characterId,
+        request.command,
+        outcome.code,
+      );
+      return JSON.stringify({
+        ok: outcome.ok,
+        code: outcome.code,
+        command: request.command,
+        characterId: request.characterId,
+        result: outcome.result,
+      });
+    } catch (error) {
+      const message = rpcFailureCode(error);
+      recordAudit(nk, userId, request, nowMs, message, auditId);
+      logger.info("gm_command rejected user_id=%s reason=%s", userId, message);
+      return rpcFailurePayload(message);
+    }
   } catch (error) {
-    const message = error instanceof Error ? error.message : "malformed_json";
-    logger.info("gm_command rejected user_id=%s reason=%s", userId, message);
-    throw error instanceof Error ? error : new Error(message);
-  }
-  const allowlist = readGmAllowlist(nk);
-  const account = gmAccountFromNakama(userId, nk.accountGetId(userId));
-  if (!isGmAuthorized(allowlist, account)) {
-    const code = allowlist.enabled === true ? "unauthorized" : "gm_disabled";
-    recordAudit(nk, userId, request, Date.now(), code, nk.uuidv4());
-    logger.info("gm_command rejected user_id=%s reason=%s", userId, code);
-    throw new Error(code);
-  }
-  const nowMs = Date.now();
-  const auditId = nk.uuidv4();
-  try {
-    const outcome = dispatchGm(nk, logger, userId, request, nowMs);
-    recordAudit(nk, userId, request, nowMs, outcome.code, auditId);
-    logger.info(
-      "gm_command user_id=%s character_id=%s command=%s code=%s",
-      userId,
-      request.characterId,
-      request.command,
-      outcome.code,
-    );
-    return JSON.stringify({
-      ok: outcome.ok,
-      code: outcome.code,
-      command: request.command,
-      characterId: request.characterId,
-      result: outcome.result,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "internal_error";
-    recordAudit(nk, userId, request, nowMs, message, auditId);
-    logger.info("gm_command rejected user_id=%s reason=%s", userId, message);
-    throw error instanceof Error ? error : new Error(message);
+    return rpcFailurePayload(error);
   }
 }
 

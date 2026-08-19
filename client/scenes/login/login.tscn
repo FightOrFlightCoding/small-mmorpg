@@ -33,7 +33,7 @@ grow_vertical = 2
 [node name="VBox" type="VBoxContainer" parent="Center"]
 custom_minimum_size = Vector2(640, 0)
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 10
 
 [node name="Title" type="Label" parent="Center/VBox"]
 layout_mode = 2
@@ -54,19 +54,47 @@ text = "Requires local Nakama at 127.0.0.1:7350."
 horizontal_alignment = 1
 autowrap_mode = 3
 
+[node name="VersionLabel" type="Label" parent="Center/VBox"]
+layout_mode = 2
+text = "Version 1.0.0"
+horizontal_alignment = 1
+
 [node name="EmailEdit" type="LineEdit" parent="Center/VBox"]
 layout_mode = 2
 placeholder_text = "Email"
 
-[node name="PasswordEdit" type="LineEdit" parent="Center/VBox"]
+[node name="PasswordRow" type="HBoxContainer" parent="Center/VBox"]
 layout_mode = 2
+
+[node name="PasswordEdit" type="LineEdit" parent="Center/VBox/PasswordRow"]
+layout_mode = 2
+size_flags_horizontal = 3
 placeholder_text = "Password"
 secret = true
 
-[node name="ConfirmEdit" type="LineEdit" parent="Center/VBox"]
+[node name="ShowPasswordButton" type="Button" parent="Center/VBox/PasswordRow"]
 layout_mode = 2
-placeholder_text = "Confirm password (register)"
-secret = true
+text = "Show"
+
+[node name="CapsLockLabel" type="Label" parent="Center/VBox"]
+visible = false
+layout_mode = 2
+text = "Caps Lock may be on."
+horizontal_alignment = 1
+
+[node name="RememberEmail" type="CheckBox" parent="Center/VBox"]
+layout_mode = 2
+text = "Remember Email"
+
+[node name="StaySignedIn" type="CheckBox" parent="Center/VBox"]
+visible = false
+layout_mode = 2
+text = "Stay Signed In"
+
+[node name="GlobalError" type="Label" parent="Center/VBox"]
+layout_mode = 2
+horizontal_alignment = 1
+autowrap_mode = 3
 
 [node name="LoginButton" type="Button" parent="Center/VBox"]
 layout_mode = 2
@@ -75,6 +103,14 @@ text = "Log in"
 [node name="RegisterButton" type="Button" parent="Center/VBox"]
 layout_mode = 2
 text = "Register"
+
+[node name="ForgotPasswordButton" type="Button" parent="Center/VBox"]
+layout_mode = 2
+text = "Forgot Password"
+
+[node name="ForgotEmailButton" type="Button" parent="Center/VBox"]
+layout_mode = 2
+text = "Forgot Which Email?"
 
 [node name="AliceButton" type="Button" parent="Center/VBox"]
 layout_mode = 2

@@ -1,0 +1,128 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/login/register.gd" id="1_register"]
+[ext_resource type="PackedScene" path="res://scenes/shared/error_dialog.tscn" id="2_error"]
+[ext_resource type="PackedScene" path="res://scenes/shared/loading_overlay.tscn" id="3_loading"]
+
+[node name="Register" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_register")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0784314, 0.0901961, 0.109804, 1)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="Center"]
+custom_minimum_size = Vector2(640, 0)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="Center/VBox"]
+layout_mode = 2
+text = "Register"
+horizontal_alignment = 1
+
+[node name="EmailEdit" type="LineEdit" parent="Center/VBox"]
+layout_mode = 2
+placeholder_text = "Email"
+
+[node name="EmailError" type="Label" parent="Center/VBox"]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="PasswordRow" type="HBoxContainer" parent="Center/VBox"]
+layout_mode = 2
+
+[node name="PasswordEdit" type="LineEdit" parent="Center/VBox/PasswordRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Password"
+secret = true
+
+[node name="ShowPasswordButton" type="Button" parent="Center/VBox/PasswordRow"]
+layout_mode = 2
+text = "Show"
+
+[node name="ConfirmRow" type="HBoxContainer" parent="Center/VBox"]
+layout_mode = 2
+
+[node name="ConfirmEdit" type="LineEdit" parent="Center/VBox/ConfirmRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Confirm password"
+secret = true
+
+[node name="ShowConfirmButton" type="Button" parent="Center/VBox/ConfirmRow"]
+layout_mode = 2
+text = "Show"
+
+[node name="PasswordGuidance" type="Label" parent="Center/VBox"]
+layout_mode = 2
+text = "Passwords must be 15–128 characters and must not be a common password."
+autowrap_mode = 3
+
+[node name="StrengthLabel" type="Label" parent="Center/VBox"]
+layout_mode = 2
+text = "Use 15–128 characters. Avoid common passwords."
+autowrap_mode = 3
+
+[node name="PasswordError" type="Label" parent="Center/VBox"]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="ConfirmError" type="Label" parent="Center/VBox"]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="TermsCheck" type="CheckBox" parent="Center/VBox"]
+layout_mode = 2
+text = "I accept the Terms of Service"
+
+[node name="PrivacyCheck" type="CheckBox" parent="Center/VBox"]
+layout_mode = 2
+text = "I accept the Privacy Policy"
+
+[node name="TermsLink" type="LinkButton" parent="Center/VBox"]
+layout_mode = 2
+text = "Terms of Service (placeholder)"
+
+[node name="PrivacyLink" type="LinkButton" parent="Center/VBox"]
+layout_mode = 2
+text = "Privacy Policy (placeholder)"
+
+[node name="LegalError" type="Label" parent="Center/VBox"]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="GlobalError" type="Label" parent="Center/VBox"]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="RegisterButton" type="Button" parent="Center/VBox"]
+layout_mode = 2
+text = "Register"
+
+[node name="BackButton" type="Button" parent="Center/VBox"]
+layout_mode = 2
+text = "Back to Login"
+
+[node name="ErrorDialog" parent="." instance=ExtResource("2_error")]
+[node name="LoadingOverlay" parent="." instance=ExtResource("3_loading")]

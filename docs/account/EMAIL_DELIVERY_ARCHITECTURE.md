@@ -29,9 +29,10 @@ Every template is plain text plus minimal HTML. None include passwords, access t
 | `email_change_old_notice` | Notify the previous address (no code) |
 | `account_deletion_confirmation` | Confirm deletion |
 | `account_deleted` | After recorded delete |
-| `suspicious_session_invalidation` | Session revocation notice |
+| `email_verified` | After successful verification |
+| `suspicious_session_invalidation` | Session revocation / logout-all notice |
 
-Bodies include expiry time and a support address. Codes are grouped base32 (`XXXX-XXXX-XXXX-XXXX`). Confirmation links point at the gateway-hosted `/v1/confirm` page. The Godot UI (later phase) can also accept the code manually.
+Bodies include expiry time and a support address. Codes are grouped base32 (`XXXX-XXXX-XXXX-XXXX`). Confirmation links point at the gateway-hosted `/v1/confirm` page. The Godot verification scene can also accept the code manually.
 
 ## Failure handling
 
@@ -43,8 +44,8 @@ Password-reset and resend responses are identical for unknown and known addresse
 
 1. Start the stack: `powershell -File scripts/backend-up.ps1`
 2. Open Mailpit at [http://127.0.0.1:8025](http://127.0.0.1:8025)
-3. Register through `POST http://127.0.0.1:8787/v1/auth/register`
-4. Read the captured message. Enter the code via `POST /v1/auth/verify-email` or the hosted confirm page.
+3. Register through `POST http://127.0.0.1:8787/v1/auth/register` or the Godot registration scene
+4. Read the captured message. Enter the code via `POST /v1/auth/verify/confirm`, the hosted confirm page, or the Godot verification scene.
 
 Do not put production SendGrid keys in Compose files or git.
 

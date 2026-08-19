@@ -1,4 +1,4 @@
-import { requireAuthenticatedUserId } from "../domain/character";
+import { requirePlayableUser } from "../nakama/playable_account";
 import {
   associateCharacterWithCave,
   canJoinOwnedCave,
@@ -27,6 +27,7 @@ import { readActiveLocation } from "../nakama/location_store";
 import { findOrCreateStarterZoneMatch } from "../nakama/starter_zone_registry";
 import { readEnvironment, rejectIfGameplayClosed } from "../nakama/ops_store";
 import { formatOpsLog, incrementCounter } from "../domain/ops_metrics";
+import { rpcFailureCode, rpcFailurePayload } from "../domain/rpc_error";
 
 export const REQUEST_CAVE_ENTRY_RPC_ID = "request_cave_entry";
 export const FIND_OR_CREATE_OWNED_CAVE_RPC_ID = "find_or_create_owned_cave";
@@ -130,7 +131,7 @@ export function rpcFindOrCreateOwnedCave(
   payload: string,
 ): string {
   try {
-    const userId = requireAuthenticatedUserId(ctx.userId);
+    const userId = requirePlayableUser(ctx, nk);
     parseEmptyOrNpcPayload(payload);
     const character = selectedCharacter(nk, userId);
     const location = readActiveLocation(nk, userId, character.characterId);
@@ -153,10 +154,10 @@ export function rpcFindOrCreateOwnedCave(
       contentHash: contentHash,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "internal_error";
+    const message = rpcFailureCode(error);
     logger.error("find_or_create_owned_cave rejected user_id=%s reason=%s", ctx.userId !== undefined ? ctx.userId : "", message);
     incrementCounter("transferFailures");
-    throw error instanceof Error ? error : new Error(message);
+    return rpcFailurePayload(message);
   }
 }
 
@@ -167,7 +168,7 @@ export function rpcRequestCaveEntry(
   payload: string,
 ): string {
   try {
-    const userId = requireAuthenticatedUserId(ctx.userId);
+    const userId = requirePlayableUser(ctx, nk);
     const parsed = parseEmptyOrNpcPayload(payload);
     rejectIfGameplayClosed(nk, readEnvironment(ctx), ctx.env, false);
     const character = selectedCharacter(nk, userId);
@@ -211,9 +212,9 @@ export function rpcRequestCaveEntry(
       contentHash: contentHash,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "internal_error";
+    const message = rpcFailureCode(error);
     logger.error("request_cave_entry rejected user_id=%s reason=%s", ctx.userId !== undefined ? ctx.userId : "", message);
-    throw error instanceof Error ? error : new Error(message);
+    return rpcFailurePayload(message);
   }
 }
 
@@ -224,7 +225,7 @@ export function rpcRequestCaveExit(
   payload: string,
 ): string {
   try {
-    const userId = requireAuthenticatedUserId(ctx.userId);
+    const userId = requirePlayableUser(ctx, nk);
     const parsed = parseEmptyOrNpcPayload(payload);
     const character = selectedCharacter(nk, userId);
     const location = readActiveLocation(nk, userId, character.characterId);
@@ -260,9 +261,9 @@ export function rpcRequestCaveExit(
       contentHash: contentHash,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "internal_error";
+    const message = rpcFailureCode(error);
     logger.error("request_cave_exit rejected user_id=%s reason=%s", ctx.userId !== undefined ? ctx.userId : "", message);
-    throw error instanceof Error ? error : new Error(message);
+    return rpcFailurePayload(message);
   }
 }
 

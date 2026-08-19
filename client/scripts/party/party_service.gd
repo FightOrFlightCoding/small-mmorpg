@@ -325,6 +325,8 @@ func _join_party_room(party_id: String) -> void:
 
 
 func _message_for_code(code: String) -> String:
+	if AccountErrors.is_account_gate(code):
+		return AccountErrors.message_for(code)
 	if code == "party_missing":
 		return "That party is no longer available."
 	if code == "not_in_party":

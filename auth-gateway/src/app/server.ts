@@ -8,11 +8,18 @@ import { confirmPage, parsePurpose, resultPage } from "../http/pages";
 import { GatewayRateLimits } from "../rate_limits/memory";
 import { canonicalizeEmail } from "../validation/email";
 import { validatePassword } from "../validation/password";
+import { evaluateClientVersion } from "../validation/client_version";
 import { generateChallengeCode, generateChallengeId, hashChallengeSecret, emailLookupHash } from "../challenges/codes";
 import type { AuthChallengePurpose } from "../challenges/types";
 import type { EmailProvider, EmailTemplateId } from "../email/templates";
 import { renderEmail } from "../email/templates";
-import type { GatewayRpcResult, NakamaBridge } from "../nakama/client";
+import { accessTokenIssuedAt, type GatewayRpcResult, type NakamaBridge } from "../nakama/client";
+import {
+  evaluateLegalAcceptance,
+  evaluateRegistrationAccess,
+  generateInternalUsername,
+} from "../domain/registration";
+import { randomBytes } from "node:crypto";
 
 export interface GatewayDeps {
   config: GatewayConfig;
@@ -157,6 +164,7 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
         purpose: input.purpose,
         account_user_id: input.userId,
         request_id: input.requestId,
+        ttl_ms: deps.config.verificationTtlMs,
       },
       input.requestId,
       deps.now(),
@@ -225,7 +233,9 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
     }
     const userId = typeof consumed.data.account_user_id === "string" ? consumed.data.account_user_id : "";
     if (input.purpose === "EMAIL_VERIFICATION" && userId.length > 0) {
-      await deps.nakama.rpc("mark_verified", { user_id: userId }, input.requestId, deps.now());
+      const marked = await deps.nakama.rpc("mark_verified", { user_id: userId }, input.requestId, deps.now());
+      const email = typeof marked.data.email === "string" ? marked.data.email : "";
+      await sendNotice(email, "email_verified", input.requestId);
     }
     if (input.purpose === "PASSWORD_RESET" && userId.length > 0 && input.password !== undefined) {
       const replaced = await deps.nakama.rpc(
@@ -261,6 +271,84 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
     return { ok: true, idempotent: consumed.data.idempotent === true, reason: "" };
   }
 
+  function clientVersionError(requestId: string, reply: FastifyReply, body: { [key: string]: unknown }): boolean {
+    const version = evaluateClientVersion(body.client_version, deps.config.minClientVersion, deps.config.maxClientVersion);
+    if (!version.ok) {
+      sendError(reply, requestId, "AUTH_CLIENT_VERSION", "auth.error.client_version");
+      return false;
+    }
+    return true;
+  }
+
+  async function maybeResendVerification(email: string, userId: string, requestId: string): Promise<void> {
+    const hash = emailLookupHash(deps.config.emailHmacPepper, email);
+    const limited = deps.rates.emailHash.consume("verify:" + hash, deps.now());
+    if (!limited.allowed) {
+      return;
+    }
+    await issueChallenge({
+      purpose: "EMAIL_VERIFICATION",
+      email: email,
+      userId: userId,
+      requestId: requestId,
+      templateId: "verify_email",
+    });
+  }
+
+  async function handleVerifyConfirm(request: FastifyRequest, reply: FastifyReply) {
+    const requestId = requestIdOf(request);
+    const body = asObject(request.body);
+    let challengeId = typeof body.challenge_id === "string" ? body.challenge_id : "";
+    const code = typeof body.code === "string" ? body.code : "";
+    if (challengeId.length === 0 && typeof body.email === "string") {
+      const email = canonicalizeEmail(body.email);
+      if (email.ok) {
+        const hash = emailLookupHash(deps.config.emailHmacPepper, email.canonical);
+        const found = await deps.nakama.rpc(
+          "challenge_find",
+          { hmac: hash, purpose: "EMAIL_VERIFICATION" },
+          requestId,
+          deps.now(),
+        );
+        if (typeof found.data.challenge_id === "string") {
+          challengeId = found.data.challenge_id;
+        }
+      }
+    }
+    if (challengeId.length === 0 || code.length === 0) {
+      return sendError(reply, requestId, "AUTH_INVALID_CHALLENGE", "auth.error.invalid_challenge");
+    }
+    const finished = await finishChallenge({
+      purpose: "EMAIL_VERIFICATION",
+      challengeId: challengeId,
+      code: code,
+      requestId: requestId,
+    });
+    if (!finished.ok) {
+      return sendError(reply, requestId, "AUTH_INVALID_CHALLENGE", "auth.error.invalid_challenge");
+    }
+    return reply.send({ ok: true, request_id: requestId, verified: true, idempotent: finished.idempotent });
+  }
+
+  async function handleVerifyRequest(request: FastifyRequest, reply: FastifyReply) {
+    const requestId = requestIdOf(request);
+    if (!enforceIp(request, reply, requestId)) {
+      return;
+    }
+    const body = asObject(request.body);
+    const email = canonicalizeEmail(body.email);
+    if (!email.ok) {
+      return reply.send({ ok: true, request_id: requestId });
+    }
+    const hash = emailLookupHash(deps.config.emailHmacPepper, email.canonical);
+    const lookup = await deps.nakama.rpc("lookup_email", { hmac: hash }, requestId, deps.now());
+    const decision = lookup.data.decision as { ok?: boolean; userId?: string } | undefined;
+    if (decision !== undefined && decision.ok === true && typeof decision.userId === "string") {
+      await maybeResendVerification(email.canonical, decision.userId, requestId);
+    }
+    return reply.send({ ok: true, request_id: requestId });
+  }
+
   app.get("/health", async () => ({ ok: true, service: "auth-gateway" }));
   app.get("/ready", async () => {
     const nakama = await deps.nakama.health();
@@ -274,30 +362,127 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
       return;
     }
     const body = asObject(request.body);
+    if (!clientVersionError(requestId, reply, body)) {
+      return;
+    }
     const email = canonicalizeEmail(body.email);
     const password = validatePassword(body.password);
-    if (!email.ok || !password.ok) {
-      return sendError(reply, requestId, "AUTH_VALIDATION", "auth.error.validation", 0, {
-        email: email.ok ? "" : "invalid",
-        password: password.ok ? "" : "invalid",
-      });
+    const confirmation = typeof body.password_confirmation === "string" ? body.password_confirmation : "";
+    const fieldErrors: { [field: string]: string } = {};
+    if (!email.ok) {
+      fieldErrors.email = "invalid";
+    }
+    if (!password.ok) {
+      fieldErrors.password = password.ok ? "" : "invalid";
+    }
+    if (password.ok && confirmation !== String(body.password)) {
+      fieldErrors.password_confirmation = "mismatch";
+    }
+    const legal = evaluateLegalAcceptance({
+      acceptedTermsVersion: body.accepted_terms_version,
+      acceptedPrivacyVersion: body.accepted_privacy_version,
+      currentTermsVersion: deps.config.termsVersion,
+      currentPrivacyVersion: deps.config.privacyVersion,
+    });
+    if (!legal.ok) {
+      const keys = Object.keys(legal.fieldErrors);
+      for (let i = 0; i < keys.length; i++) {
+        fieldErrors[keys[i]] = legal.fieldErrors[keys[i]];
+      }
+    }
+    if (Object.keys(fieldErrors).length > 0) {
+      return sendError(reply, requestId, "AUTH_VALIDATION", "auth.error.validation", 0, fieldErrors);
+    }
+    if (!email.ok) {
+      return sendError(reply, requestId, "AUTH_VALIDATION", "auth.error.validation", 0, { email: "invalid" });
+    }
+    const access = evaluateRegistrationAccess(deps.config.registrationMode, email.canonical, deps.config.registrationAllowlist);
+    if (!access.ok) {
+      return sendError(reply, requestId, access.code, "auth.error.registration_closed");
     }
     const hash = emailLookupHash(deps.config.emailHmacPepper, email.canonical);
     const emailLimit = deps.rates.emailHash.consume("register:" + hash, deps.now());
     if (!emailLimit.allowed) {
       return sendError(reply, requestId, "AUTH_RATE_LIMITED", "auth.error.rate_limited", emailLimit.retryAfterSeconds);
     }
-    const created = await deps.nakama.authenticateEmail(email.canonical, String(body.password), true);
-    if (!created.ok) {
-      const taken = created.message.toLowerCase().indexOf("exists") !== -1 || created.message.toLowerCase().indexOf("already") !== -1;
-      return sendError(
-        reply,
+    const existing = await deps.nakama.rpc("lookup_email", { hmac: hash }, requestId, deps.now());
+    let existingDecision = existing.data.decision as { ok?: boolean; userId?: string } | undefined;
+    if (existingDecision !== undefined && existingDecision.ok === true) {
+      await deps.nakama.rpc(
+        "purge_unverified",
+        { hmac: hash, retention_ms: deps.config.unverifiedRetentionMs },
         requestId,
-        taken ? "AUTH_EMAIL_TAKEN" : "AUTH_INVALID_CREDENTIALS",
-        taken ? "auth.error.email_taken" : "auth.error.invalid_credentials",
+        deps.now(),
+      );
+      const again = await deps.nakama.rpc("lookup_email", { hmac: hash }, requestId, deps.now());
+      existingDecision = again.data.decision as { ok?: boolean; userId?: string } | undefined;
+      const profile = again.data.profile as { status?: string } | null | undefined;
+      if (existingDecision !== undefined && existingDecision.ok === true && typeof existingDecision.userId === "string") {
+        if (profile !== undefined && profile !== null && profile.status === "PENDING_VERIFICATION") {
+          await maybeResendVerification(email.canonical, existingDecision.userId, requestId);
+        }
+        return sendError(reply, requestId, "AUTH_REGISTRATION_FAILED", "auth.error.registration_failed");
+      }
+    }
+    let created = await deps.nakama.authenticateEmail(
+      email.canonical,
+      String(body.password),
+      true,
+      generateInternalUsername(() => randomBytes(16).toString("hex")),
+    );
+    if (!created.ok && created.message.toLowerCase().indexOf("username") !== -1) {
+      created = await deps.nakama.authenticateEmail(
+        email.canonical,
+        String(body.password),
+        true,
+        generateInternalUsername(() => randomBytes(16).toString("hex")),
       );
     }
-    await deps.nakama.rpc("put_email_index", { user_id: created.userId, hmac: hash }, requestId, deps.now());
+    if (!created.ok) {
+      const taken = created.message.toLowerCase().indexOf("exists") !== -1 || created.message.toLowerCase().indexOf("already") !== -1;
+      if (taken) {
+        await deps.nakama.rpc(
+          "purge_unverified",
+          { hmac: hash, retention_ms: deps.config.unverifiedRetentionMs },
+          requestId,
+          deps.now(),
+        );
+        const again = await deps.nakama.rpc("lookup_email", { hmac: hash }, requestId, deps.now());
+        const decision = again.data.decision as { ok?: boolean; userId?: string } | undefined;
+        const profile = again.data.profile as { status?: string } | null | undefined;
+        if (decision !== undefined && decision.ok === true && typeof decision.userId === "string") {
+          if (profile !== undefined && profile !== null && profile.status === "PENDING_VERIFICATION") {
+            await maybeResendVerification(email.canonical, decision.userId, requestId);
+          }
+          return sendError(reply, requestId, "AUTH_REGISTRATION_FAILED", "auth.error.registration_failed");
+        }
+        created = await deps.nakama.authenticateEmail(
+          email.canonical,
+          String(body.password),
+          true,
+          generateInternalUsername(() => randomBytes(16).toString("hex")),
+        );
+        if (!created.ok) {
+          return sendError(reply, requestId, "AUTH_REGISTRATION_FAILED", "auth.error.registration_failed");
+        }
+      } else {
+        return sendError(reply, requestId, "AUTH_UNAVAILABLE", "auth.error.unavailable");
+      }
+    }
+    await deps.nakama.rpc(
+      "put_email_index",
+      {
+        user_id: created.userId,
+        hmac: hash,
+        status: "PENDING_VERIFICATION",
+        terms_version: deps.config.termsVersion,
+        privacy_version: deps.config.privacyVersion,
+        created_at: deps.now(),
+        accepted_at: deps.now(),
+      },
+      requestId,
+      deps.now(),
+    );
     const challenge = await issueChallenge({
       purpose: "EMAIL_VERIFICATION",
       email: email.canonical,
@@ -317,58 +502,146 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
       return;
     }
     const body = asObject(request.body);
+    if (!clientVersionError(requestId, reply, body)) {
+      return;
+    }
     const email = canonicalizeEmail(body.email);
     if (!email.ok || typeof body.password !== "string") {
       return sendError(reply, requestId, "AUTH_INVALID_CREDENTIALS", "auth.error.invalid_credentials");
     }
     const result = await deps.nakama.authenticateEmail(email.canonical, body.password, false);
     if (!result.ok) {
+      const lowered = result.message.toLowerCase();
+      if (lowered.indexOf("disabled") !== -1) {
+        return sendError(reply, requestId, "AUTH_ACCOUNT_DISABLED", "auth.error.account_disabled");
+      }
       return sendError(reply, requestId, "AUTH_INVALID_CREDENTIALS", "auth.error.invalid_credentials");
     }
-    return reply.send({ ok: true, request_id: requestId, user_id: result.userId, token: result.token, refresh_token: result.refreshToken });
-  });
-
-  app.post("/v1/auth/verify-email", async (request, reply) => {
-    const requestId = requestIdOf(request);
-    const body = asObject(request.body);
-    if (typeof body.challenge_id !== "string" || typeof body.code !== "string") {
-      return sendError(reply, requestId, "AUTH_INVALID_CHALLENGE", "auth.error.invalid_challenge");
+    const hash = emailLookupHash(deps.config.emailHmacPepper, email.canonical);
+    const lookup = await deps.nakama.rpc("lookup_email", { hmac: hash }, requestId, deps.now());
+    const profile = lookup.data.profile as { status?: string; verifiedAt?: number } | null | undefined;
+    const account = await deps.nakama.getAccount(result.token);
+    if (account.disableTime > 0) {
+      return sendError(reply, requestId, "AUTH_ACCOUNT_DISABLED", "auth.error.account_disabled");
     }
-    const finished = await finishChallenge({
-      purpose: "EMAIL_VERIFICATION",
-      challengeId: body.challenge_id,
-      code: body.code,
-      requestId: requestId,
+    const status = profile !== undefined && profile !== null && typeof profile.status === "string" ? profile.status : "PENDING_VERIFICATION";
+    if (status === "DISABLED") {
+      return sendError(reply, requestId, "AUTH_ACCOUNT_DISABLED", "auth.error.account_disabled");
+    }
+    if (status === "DELETION_PENDING" || status === "DELETING" || status === "DELETED") {
+      return sendError(reply, requestId, "AUTH_ACCOUNT_DELETING", "auth.error.account_deleting");
+    }
+    if (status !== "ACTIVE" || profile === undefined || profile === null || !(profile.verifiedAt !== undefined && profile.verifiedAt > 0)) {
+      return sendError(reply, requestId, "EMAIL_VERIFICATION_REQUIRED", "auth.error.verification_required");
+    }
+    return reply.send({
+      ok: true,
+      request_id: requestId,
+      user_id: result.userId,
+      username: result.username,
+      token: result.token,
+      refresh_token: result.refreshToken,
+      account_status: "ACTIVE",
+      verified: true,
     });
-    if (!finished.ok) {
-      return sendError(reply, requestId, "AUTH_INVALID_CHALLENGE", "auth.error.invalid_challenge");
-    }
-    return reply.send({ ok: true, request_id: requestId, verified: true, idempotent: finished.idempotent });
   });
 
-  app.post("/v1/auth/resend-verification", async (request, reply) => {
+  app.post("/v1/auth/verify/confirm", handleVerifyConfirm);
+  app.post("/v1/auth/verify-email", handleVerifyConfirm);
+  app.post("/v1/auth/verify/request", handleVerifyRequest);
+  app.post("/v1/auth/resend-verification", handleVerifyRequest);
+
+  app.post("/v1/auth/refresh", async (request, reply) => {
     const requestId = requestIdOf(request);
     if (!enforceIp(request, reply, requestId)) {
       return;
     }
     const body = asObject(request.body);
-    const email = canonicalizeEmail(body.email);
-    if (!email.ok) {
-      return reply.send({ ok: true, request_id: requestId });
+    if (!clientVersionError(requestId, reply, body)) {
+      return;
     }
-    const hash = emailLookupHash(deps.config.emailHmacPepper, email.canonical);
-    const lookup = await deps.nakama.rpc("lookup_email", { hmac: hash }, requestId, deps.now());
-    const decision = lookup.data.decision as { ok?: boolean; userId?: string } | undefined;
-    if (decision !== undefined && decision.ok === true && typeof decision.userId === "string") {
-      await issueChallenge({
-        purpose: "EMAIL_VERIFICATION",
-        email: email.canonical,
-        userId: decision.userId,
-        requestId: requestId,
-        templateId: "verify_email",
-      });
+    const refreshToken = typeof body.refresh_token === "string" ? body.refresh_token : "";
+    if (refreshToken.length === 0) {
+      return sendError(reply, requestId, "AUTH_INVALID_CREDENTIALS", "auth.error.session_expired");
     }
+    const refreshed = await deps.nakama.refreshSession(refreshToken);
+    if (!refreshed.ok) {
+      return sendError(reply, requestId, "AUTH_INVALID_CREDENTIALS", "auth.error.session_expired");
+    }
+    return reply.send({
+      ok: true,
+      request_id: requestId,
+      user_id: refreshed.userId,
+      username: refreshed.username,
+      token: refreshed.token,
+      refresh_token: refreshed.refreshToken,
+      account_status: "ACTIVE",
+    });
+  });
+
+  app.post("/v1/auth/logout", async (request, reply) => {
+    const requestId = requestIdOf(request);
+    const body = asObject(request.body);
+    const access = bearer(request);
+    const refreshToken = typeof body.refresh_token === "string" ? body.refresh_token : "";
+    if (access.length === 0) {
+      return sendError(reply, requestId, "AUTH_FORBIDDEN", "auth.error.forbidden");
+    }
+    await deps.nakama.logout(access, refreshToken);
     return reply.send({ ok: true, request_id: requestId });
+  });
+
+  app.post("/v1/auth/logout-all", async (request, reply) => {
+    const requestId = requestIdOf(request);
+    if (!enforceIp(request, reply, requestId)) {
+      return;
+    }
+    const access = bearer(request);
+    if (access.length === 0) {
+      return sendError(reply, requestId, "AUTH_FORBIDDEN", "auth.error.forbidden");
+    }
+    const account = await deps.nakama.getAccount(access);
+    if (!account.ok) {
+      return sendError(reply, requestId, "AUTH_FORBIDDEN", "auth.error.forbidden");
+    }
+    const body = asObject(request.body);
+    const issuedAt = accessTokenIssuedAt(access);
+    const recent = issuedAt > 0 && deps.now() - issuedAt <= deps.config.logoutAllRecentAuthMs;
+    if (!recent) {
+      if (typeof body.password !== "string" || account.email.length === 0) {
+        return sendError(reply, requestId, "AUTH_FORBIDDEN", "auth.error.forbidden");
+      }
+      const proved = await deps.nakama.authenticateEmail(account.email, body.password, false);
+      if (!proved.ok) {
+        return sendError(reply, requestId, "AUTH_INVALID_CREDENTIALS", "auth.error.invalid_credentials");
+      }
+    }
+    await deps.nakama.logoutAll(access);
+    await sendNotice(account.email, "suspicious_session_invalidation", requestId);
+    return reply.send({ ok: true, request_id: requestId, logged_out_all: true });
+  });
+
+  app.get("/v1/account/status", async (request, reply) => {
+    const requestId = requestIdOf(request);
+    const access = bearer(request);
+    if (access.length === 0) {
+      return sendError(reply, requestId, "AUTH_FORBIDDEN", "auth.error.forbidden");
+    }
+    const account = await deps.nakama.getAccount(access);
+    if (!account.ok) {
+      return sendError(reply, requestId, "AUTH_FORBIDDEN", "auth.error.forbidden");
+    }
+    const profile = await deps.nakama.rpc("get_profile", { user_id: account.userId }, requestId, deps.now());
+    const status = typeof profile.data.status === "string" ? profile.data.status : "PENDING_VERIFICATION";
+    const verifiedAt = typeof profile.data.verifiedAt === "number" ? profile.data.verifiedAt : 0;
+    return reply.send({
+      ok: true,
+      request_id: requestId,
+      user_id: account.userId,
+      username: account.username,
+      account_status: account.disableTime > 0 ? "DISABLED" : status,
+      verified: verifiedAt > 0 && status === "ACTIVE",
+    });
   });
 
   app.post("/v1/auth/password-reset/request", async (request, reply) => {

@@ -1,3 +1,6 @@
+import { parseAllowlist, parseRegistrationMode, type RegistrationMode } from "../domain/registration";
+import { canonicalizeEmail } from "../validation/email";
+
 export type GatewayEnvironment = "local" | "automated_test" | "staging" | "production";
 export type EmailProviderName = "memory" | "mailpit" | "sendgrid";
 
@@ -21,6 +24,15 @@ export interface GatewayConfig {
   emailHmacPepper: string;
   gatewayHmacSecret: string;
   challengeHmacSecret: string;
+  registrationMode: RegistrationMode;
+  registrationAllowlist: string[];
+  termsVersion: string;
+  privacyVersion: string;
+  minClientVersion: string;
+  maxClientVersion: string;
+  verificationTtlMs: number;
+  unverifiedRetentionMs: number;
+  logoutAllRecentAuthMs: number;
 }
 
 export class ConfigError extends Error {
@@ -80,6 +92,15 @@ export function loadGatewayConfig(env: NodeJS.ProcessEnv = process.env): Gateway
     emailHmacPepper: read("VIBECODE_EMAIL_HMAC_PEPPER", "local-email-hmac-pepper-not-production"),
     gatewayHmacSecret: read("VIBECODE_GATEWAY_HMAC_SECRET", "local-gateway-hmac-secret-not-production"),
     challengeHmacSecret: read("VIBECODE_CHALLENGE_HMAC_SECRET", "local-challenge-hmac-secret-not-production"),
+    registrationMode: parseRegistrationMode(read("AUTH_REGISTRATION_MODE", "OPEN")),
+    registrationAllowlist: parseAllowlist(read("AUTH_REGISTRATION_ALLOWLIST"), canonicalizeEmail),
+    termsVersion: read("AUTH_TERMS_VERSION", "1"),
+    privacyVersion: read("AUTH_PRIVACY_VERSION", "1"),
+    minClientVersion: read("AUTH_MIN_CLIENT_VERSION", "1.0.0"),
+    maxClientVersion: read("AUTH_MAX_CLIENT_VERSION", "1.0.0"),
+    verificationTtlMs: parseInt(read("AUTH_VERIFICATION_TTL_MS", String(30 * 60 * 1000)), 10),
+    unverifiedRetentionMs: parseInt(read("AUTH_UNVERIFIED_RETENTION_MS", String(7 * 24 * 60 * 60 * 1000)), 10),
+    logoutAllRecentAuthMs: parseInt(read("AUTH_LOGOUT_ALL_RECENT_MS", String(5 * 60 * 1000)), 10),
   };
   validateGatewayConfig(config);
   return config;

@@ -37,6 +37,11 @@ try {
 	if ($LASTEXITCODE -ne 0) {
 		throw "auth gateway live tests failed: $LASTEXITCODE"
 	}
+	$env:ACCT_RPC_LIVE = "1"
+	node --test dist-test/tests/rpc_error.live.test.js
+	if ($LASTEXITCODE -ne 0) {
+		throw "RPC error live tests failed: $LASTEXITCODE"
+	}
 }
 finally {
 	Pop-Location

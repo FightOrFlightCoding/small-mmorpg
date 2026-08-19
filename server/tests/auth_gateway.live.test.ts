@@ -55,6 +55,15 @@ test("live session invocation of auth_gateway is rejected", OPTIONS, async () =>
   assert.equal(created.ok, true, errorMessage(created.body));
   const session = sessionFromAuth(created.body);
   const response = await rpcJson(session.token, "auth_gateway", { op: "ping" });
-  assert.equal(response.ok, false);
-  assert.match(errorMessage(response.body).toLowerCase(), /gateway_rpc_forbidden|forbidden|unauthenticated/);
+  assert.equal(response.status, 200, response.text);
+  const blob = response.text + " " + JSON.stringify(response.body);
+  assert.equal(blob.toLowerCase().includes("stacktrace"), false, blob);
+  assert.equal(blob.includes("index.js"), false, blob);
+  const body = response.body as { ok?: boolean; code?: string; payload?: string };
+  let data: { ok?: boolean; code?: string } = body;
+  if (typeof body.payload === "string") {
+    data = JSON.parse(body.payload) as { ok?: boolean; code?: string };
+  }
+  assert.equal(data.ok, false);
+  assert.equal(data.code, "gateway_rpc_forbidden");
 });

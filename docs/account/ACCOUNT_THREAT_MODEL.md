@@ -1,6 +1,6 @@
 # Account threat model
 
-ACCT-02 adds the public auth gateway, hashed challenges, and HMAC email lookup on `account_profile`. Verification is **not** yet a gameplay gate. Godot login UI is unchanged.
+ACCT-03 puts Godot product email login on the auth gateway and gates gameplay on verified `ACTIVE` accounts. Challenges remain hashed. Email lookup uses `account_profile`. Debug device auth (Alice/Bob) remains playable without an email profile.
 
 ## Assets
 
@@ -9,7 +9,7 @@ ACCT-02 adds the public auth gateway, hashed challenges, and HMAC email lookup o
 - Character names and roster
 - Inventory, equipment, gold, quests, progression
 - Party, trade, cave ownership, location
-- Future verification/reset/deletion codes
+- Verification/reset/deletion codes (hashed at rest)
 - Email HMAC pepper
 
 ## Adversaries
@@ -29,52 +29,50 @@ ACCT-02 adds the public auth gateway, hashed challenges, and HMAC email lookup o
 - Server-authoritative simulation; client intentions only
 - `permissionWrite: 0` on canonical collections
 - Login errors collapsed to `invalid_credentials`
-- Auth rate limit 5 / 10 s
-- Production registration closed via env
+- Auth rate limit 5 / 10 s (Nakama hook) plus gateway per-IP and per-email-hash limits
+- Production registration closed via Nakama env and gateway `AUTH_REGISTRATION_MODE=CLOSED`
 - Device auth disabled in staging/production presets
 - Selection tickets TTL 300 s, consumed on join; never join by `characterId`
 - `already_in_match` / `already_elsewhere`
-- Session cache refuses password keys; settings store refuses credential keys
+- Session cache refuses password keys; Remember Email refuses token/password keys; settings store refuses credential keys
 - Structured logs without tokens/passwords
 - GM allowlist default disabled
 - Compatibility HMAC lookup rejects missing, multiple, stale, and mismatched hits
-
-## Controls added in ACCT-02
-
 - Auth gateway holds Nakama and mail secrets; they are not shipped to Godot
 - Staging/production gateway requires HTTPS public URLs and non-default secrets
 - Internal RPC `auth_gateway` rejects session JWT (`gateway_rpc_forbidden`) and requires a signed assertion
 - Challenges store HMAC only; single-use, expiry, attempt limit, sibling invalidation, idempotent consume
 - Password-reset and resend HTTP responses do not reveal account existence
+- Duplicate register does not reveal whether the address is verified
 - Email provider failure after register does not delete the Nakama user
 - Hosted confirm pages: no third-party scripts, `referrer-policy: no-referrer`, generic errors
-- Per-IP and per-email-hash rate-limit foundations
-- Gateway password policy 15–128 with a small common-password list (gameplay login still uses Nakama minimum until Godot is wired)
+- Gateway password policy 15–128 with a small common-password list
+- `requirePlayableUser` rejects unverified, disabled, and deleting email accounts on character RPCs, match discovery/join, chat, party, and GM
+- Login returns `EMAIL_VERIFICATION_REQUIRED` only after valid credentials, without tokens
+- Logout-all revokes every session after password or recent `iat` and sends a security email
+- Email product refresh tokens are not written to `user://`
 
 ## Gaps the later lifecycle must close
 
 | Risk | Gap today |
 | --- | --- |
-| Unverified play | No `PENDING_VERIFICATION` gate on character/match/RPCs (mail exists; join is not gated) |
-| Weak passwords | Gateway enforces 15–128; Godot login is not on the gateway yet |
-| Email enumeration via reset | Gateway reset/resend always return the same success envelope |
-| Refresh token on disk | `user://session_cache.json` is not an OS credential store |
-| Compiled server key | Godot debug client still contains `defaultkey` for gameplay; the gateway also holds it and must not echo it |
-| Logout-all | Not in the UI; HTTP `POST /v2/session/logout` with empty token strings is proven. Callers must wait until the next Unix second after issuing tokens |
+| Refresh token on disk for Stay Signed In | OS credential store is an interface only; Stay Signed In is hidden |
+| Compiled server key | Godot debug client still contains `defaultkey` for gameplay/device auth; the gateway also holds it and must not echo it |
 | 10 s link-dead | 5 s / 60 s grace; snapshots omit disconnected players immediately |
 | Active-character lease | Match-local only |
-| Account delete | Gateway deletion confirm exists; Godot UI and `DELETING` resume state remain later |
+| Account delete UI | Gateway deletion confirm exists; Godot delete flow and `DELETING` resume remain later |
+| Unverified sweep | Policy + `purge_unverified` + opportunistic duplicate-register purge; no periodic cron of every stale account |
 | HMAC pepper | Local Compose uses `local-*-not-production`; staging/production must replace via gitignored env |
 | Client `PUT /v2/account` | Unhooked |
 | Storage writes from a raw HTTP client | No `beforeStorageWrite`; rely on `permissionWrite: 0` |
 | Password in URLs / logs | Client does not put passwords in URLs today; keep that invariant |
 | Export over-share | `accountExportId` includes Nakama collections; product export must filter and add project fields |
 
-## Abuse cases mapped to later APIs
+## Abuse cases mapped to APIs
 
-- Register: canonicalize email, uniqueness, password policy, verification challenge.
-- Login: canonicalize, `create=false`, sanitized errors, rate limit.
+- Register: canonicalize email, uniqueness, password policy, legal versions, verification challenge, generic duplicate copy.
+- Login: canonicalize, `create=false`, sanitized errors, client-version gate, verification required only after proof.
 - Reset / forgotten email: HMAC lookup + re-read; same response whether missing or present.
 - Change password / email: only the proven Nakama link/unlink sequence; logout-all if policy requires.
-- Delete: authenticated `ACTIVE`, no lease, password + email one-time + typed confirmation + idempotency; `accountDeleteId(id, true)`.
+- Delete: authenticated `ACTIVE`, no lease, password + email one-time + typed confirmation + idempotency; `accountDeleteId(id, true)` (Godot UI later).
 - Lookup: never store raw email in a publicly readable index.

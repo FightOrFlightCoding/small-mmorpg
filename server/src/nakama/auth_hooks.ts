@@ -1,6 +1,7 @@
 import { consumeSessionRate, authRateKey } from "../domain/rate_limit";
 import { environmentFromRuntime, parseBoolEnv, type EnvironmentConfig } from "../domain/environment";
 import { formatOpsLog, incrementCounter } from "../domain/ops_metrics";
+import { throwRpcFailure } from "../domain/rpc_error";
 
 export function beforeAuthenticateEmail(
   ctx: nkruntime.Context,
@@ -14,12 +15,12 @@ export function beforeAuthenticateEmail(
   if (!consumeSessionRate("auth", authRateKey("email", email), Date.now())) {
     incrementCounter("rejectedActions");
     logger.info(formatOpsLog("authentication_failure", { reason: "rate_limited", environment: env.name }));
-    throw new Error("rate_limited");
+    throwRpcFailure("rate_limited");
   }
   if (data.create === true && env.accountRegistration !== "open") {
     incrementCounter("rejectedActions");
     logger.info(formatOpsLog("authentication_failure", { reason: "registration_disabled", environment: env.name }));
-    throw new Error("registration_disabled");
+    throwRpcFailure("registration_disabled");
   }
   return data;
 }
@@ -35,12 +36,12 @@ export function beforeAuthenticateDevice(
   if (!consumeSessionRate("auth", authRateKey("device", deviceId), Date.now())) {
     incrementCounter("rejectedActions");
     logger.info(formatOpsLog("authentication_failure", { reason: "rate_limited", environment: env.name }));
-    throw new Error("rate_limited");
+    throwRpcFailure("rate_limited");
   }
   if (!env.deviceAuthEnabled) {
     incrementCounter("rejectedActions");
     logger.info(formatOpsLog("authentication_failure", { reason: "device_auth_disabled", environment: env.name }));
-    throw new Error("device_auth_disabled");
+    throwRpcFailure("device_auth_disabled");
   }
   return data;
 }

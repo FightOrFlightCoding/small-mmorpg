@@ -259,7 +259,7 @@ Canonical player storage (`character`, `inventory`, `equipment`, `quests`, `wall
 
 ## 2026-08-16 — Real authentication, character slots, and class selection
 
-Email-and-password registration and login are the supported account path. The client confirms the password on register, caches session tokens (never passwords) in `user://session_cache.json`, refreshes, and shows `session_expired` when email refresh fails. Debug device identities (Alice, Bob, machine unique id) remain only when `OS.is_debug_build()` is true and `DevIdentity.force_release_config` is false.
+Email-and-password registration and login are the supported account path. Product email sessions go through the auth gateway and `AccountService`; refresh tokens for email are not written to `user://`. Debug device identities (Alice, Bob, machine unique id) remain only when `OS.is_debug_build()` is true and `DevIdentity.force_release_config` is false. Device-debug sessions may still use `user://session_cache.json` (never a password).
 
 An account may have three live characters. Server RPCs `character_list`, `character_create`, `character_select`, `character_soft_delete`, and `character_restore` own the roster. Names go through one validator (`character_name.ts`): trim, length 3–16, ASCII letters/digits plus single spaces/hyphens/apostrophes, no leading/trailing separator, no repeated spaces. Canonical names are reserved on system-owned `names` objects; concurrent creates of the same canonical name leave one winner and `name_taken` for the loser. The UI does not copy that regex.
 
@@ -533,7 +533,7 @@ A development-gated RPC `acct_compat_probe` and storage index `acct_compat_email
 
 Canonical email and HMAC helpers live in `server/src/domain/email.ts` and `hmac.ts` (pure JS; Nakama JS cannot use Node `crypto`). They are not yet wired into authenticate hooks.
 
-Target account/character/presence states, 5 slots, `class.warrior` / `class.marksman` / `class.mage`, 10-second LINK_DEAD, verification as a **gameplay gate**, and OS credential storage remain later phases. Current live slot limit stays **3**. Disconnect grace stays **5s** public / **60s** cave and party.
+Target 5 slots, `class.warrior` / `class.marksman` / `class.mage`, 10-second LINK_DEAD, and OS credential storage remain later phases. Verification is a **gameplay gate** as of ACCT-03. Current live slot limit stays **3**. Disconnect grace stays **5s** public / **60s** cave and party.
 
 ## 2026-08-19 — ACCT-02 public authentication gateway and email infrastructure
 
@@ -546,4 +546,22 @@ Nakama 3.40.0 HTTP-key RPC context has empty `userId`/`sessionId`, which is dist
 Challenges are Nakama storage (`auth_challenge` / `c_<id>`), hashes only, single-use, expiring, attempt-limited. Email lookup for recovery uses `account_profile` / `email_index`, not the ACCT-01 `account_compat` seam. Password replace stays same-email `nk.linkEmail`. Email replace stays the proven temp-device sequence. Recorded delete is `nk.accountDeleteId(id, true)`. Email provider failure after register does not delete the account.
 
 Node for the gateway is the repository pin **20.20.2**. Fastify is exact **5.6.1**. No ORM and no custom SQL.
+
+## 2026-08-19 — ACCT-03 registration, verification, login, refresh, and logout
+
+Public Godot email entry uses `AccountService` and versioned gateway routes. Nakama `create=true` remains allowed when the gateway is `OPEN`; the gateway is the public registration policy (`OPEN` / `INVITE_ONLY` / `CLOSED`). `INVITE_ONLY` is an env allowlist of canonical emails. There is no invitation-code system.
+
+Internal Nakama usernames are random (`u` + 32 hex), not the email local part. Duplicate registration returns generic `AUTH_REGISTRATION_FAILED` copy and may silently resend verification when the existing account is still pending. It does not reveal verified vs unverified.
+
+Login with `create=false` still collapses unknown email and wrong password to one invalid-credentials error. `EMAIL_VERIFICATION_REQUIRED` is returned only after credentials succeed. Unverified email logins do not receive tokens. Disabled and deleting accounts are distinct 403s after credentials succeed.
+
+`evaluatePlayableAccount` / `requirePlayableUser` is the single gameplay guard on character RPCs, selection tickets, match discovery, match join, chat, party RPCs, and GM. Trade opcodes run only after join. Device/debug accounts with no email and no profile remain playable so Alice/Bob and e2e keep working. Email accounts with no profile are treated as unverified.
+
+Unverified cleanup is a seven-day default policy (`AUTH_UNVERIFIED_RETENTION_MS`). The HMAC-gated `purge_unverified` op is idempotent. The gateway invokes it opportunistically on duplicate register. There is no Nakama cron sweep.
+
+Stay Signed In is **not** enabled. `CredentialStore` exists as an interface and reports unavailable. Remember Email stores the address only. Email refresh tokens stay in memory.
+
+Logout-all requires the current password unless the access-token `iat` is within `AUTH_LOGOUT_ALL_RECENT_MS` (default five minutes). It revokes every Nakama session and sends `suspicious_session_invalidation`. A failed logout-all does not clear the local session. Logout current leaves the match before revoking tokens.
+
+Nakama 3.40.0 attaches a JavaScript stack to **every** thrown runtime value, including primitive strings (`stackTrace` plus `index.js` frames). RPC adapters therefore **return** `{ ok: false, code }` JSON instead of throwing. `throwRpcFailure` remains only for before-hooks that have no return channel. Godot still sanitizes leftover traces through `AccountErrors.sanitize_public_rpc`.
 

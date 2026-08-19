@@ -16,6 +16,7 @@ import {
   type EmailIndexRecord,
 } from "../domain/account_compat";
 import { environmentFromRuntime } from "../domain/environment";
+import { rpcFailurePayload } from "../domain/rpc_error";
 
 const ALLOWED_KEYS = ["op", "hmac"];
 
@@ -123,6 +124,19 @@ function readIndexRecord(nk: nkruntime.Nakama, userId: string): EmailIndexRecord
 }
 
 export function rpcAcctCompatProbe(
+  ctx: nkruntime.Context,
+  logger: nkruntime.Logger,
+  nk: nkruntime.Nakama,
+  payload: string,
+): string {
+  try {
+    return runAcctCompatProbe(ctx, logger, nk, payload);
+  } catch (error) {
+    return rpcFailurePayload(error);
+  }
+}
+
+function runAcctCompatProbe(
   ctx: nkruntime.Context,
   logger: nkruntime.Logger,
   nk: nkruntime.Nakama,

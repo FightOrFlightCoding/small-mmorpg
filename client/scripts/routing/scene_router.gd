@@ -6,12 +6,20 @@ signal scene_changed(scene_id: String)
 
 const SCENE_BOOT: String = "boot"
 const SCENE_LOGIN: String = "login"
+const SCENE_REGISTER: String = "register"
+const SCENE_VERIFY: String = "verify"
+const SCENE_SERVER_UNAVAILABLE: String = "server_unavailable"
+const SCENE_ACCOUNT_DISABLED: String = "account_disabled"
 const SCENE_CHARACTER: String = "character"
 const SCENE_WORLD: String = "world"
 
 const SCENE_PATHS: Dictionary = {
 	SCENE_BOOT: "res://scenes/boot/boot.tscn",
 	SCENE_LOGIN: "res://scenes/login/login.tscn",
+	SCENE_REGISTER: "res://scenes/login/register.tscn",
+	SCENE_VERIFY: "res://scenes/login/verify.tscn",
+	SCENE_SERVER_UNAVAILABLE: "res://scenes/login/server_unavailable.tscn",
+	SCENE_ACCOUNT_DISABLED: "res://scenes/login/account_disabled.tscn",
 	SCENE_CHARACTER: "res://scenes/character/character.tscn",
 	SCENE_WORLD: "res://scenes/world/world.tscn",
 }
@@ -41,7 +49,7 @@ func can_transition_to(scene_id: String) -> bool:
 			and AppState.has_character
 			and AppState.has_zone_state
 		)
-	if scene_id == SCENE_LOGIN:
+	if scene_id == SCENE_LOGIN or scene_id == SCENE_REGISTER or scene_id == SCENE_VERIFY or scene_id == SCENE_SERVER_UNAVAILABLE or scene_id == SCENE_ACCOUNT_DISABLED:
 		return AppState.content_ready and not AppState.has_fatal_error
 	return true
 

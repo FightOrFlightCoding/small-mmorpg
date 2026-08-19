@@ -12,6 +12,10 @@ func before_test() -> void:
 func test_scene_paths_resolve() -> void:
 	assert_str(SceneRouter.scene_path(SceneRouter.SCENE_BOOT)).is_equal("res://scenes/boot/boot.tscn")
 	assert_str(SceneRouter.scene_path(SceneRouter.SCENE_LOGIN)).is_equal("res://scenes/login/login.tscn")
+	assert_str(SceneRouter.scene_path(SceneRouter.SCENE_REGISTER)).is_equal("res://scenes/login/register.tscn")
+	assert_str(SceneRouter.scene_path(SceneRouter.SCENE_VERIFY)).is_equal("res://scenes/login/verify.tscn")
+	assert_str(SceneRouter.scene_path(SceneRouter.SCENE_SERVER_UNAVAILABLE)).is_equal("res://scenes/login/server_unavailable.tscn")
+	assert_str(SceneRouter.scene_path(SceneRouter.SCENE_ACCOUNT_DISABLED)).is_equal("res://scenes/login/account_disabled.tscn")
 	assert_str(SceneRouter.scene_path(SceneRouter.SCENE_CHARACTER)).is_equal("res://scenes/character/character.tscn")
 	assert_str(SceneRouter.scene_path(SceneRouter.SCENE_WORLD)).is_equal("res://scenes/world/world.tscn")
 	assert_str(SceneRouter.scene_path("unknown")).is_equal("")

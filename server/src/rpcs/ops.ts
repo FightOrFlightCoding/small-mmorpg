@@ -2,6 +2,7 @@ import { requireAuthenticatedUserId } from "../domain/character";
 import { isGmAuthorized, type GmAccount } from "../domain/gm";
 import { parseMaintenancePayload } from "../domain/maintenance";
 import { formatOpsLog, snapshotCounters } from "../domain/ops_metrics";
+import { rpcFailurePayload } from "../domain/rpc_error";
 import { PROTOCOL_VERSION } from "../domain/protocol";
 import { contentHash, packageVersion } from "../generated/content";
 import { readGmAllowlist } from "../nakama/gm_store";
@@ -40,12 +41,13 @@ export function rpcOpsStatus(
   nk: nkruntime.Nakama,
   payload: string,
 ): string {
-  const userId = requireAuthenticatedUserId(ctx.userId);
-  parseEmptyOpsPayload(payload);
-  const env = readEnvironment(ctx);
-  const maintenance = readEffectiveMaintenance(nk, env, ctx.env);
-  logger.info(formatOpsLog("ops_status", { user_id: userId, environment: env.name }));
-  return JSON.stringify({
+  try {
+    const userId = requireAuthenticatedUserId(ctx.userId);
+    parseEmptyOpsPayload(payload);
+    const env = readEnvironment(ctx);
+    const maintenance = readEffectiveMaintenance(nk, env, ctx.env);
+    logger.info(formatOpsLog("ops_status", { user_id: userId, environment: env.name }));
+    return JSON.stringify({
     ok: true,
     environment: env.name,
     serverVersion: env.serverVersion,
@@ -69,6 +71,9 @@ export function rpcOpsStatus(
     },
     counters: snapshotCounters(),
   });
+  } catch (error) {
+    return rpcFailurePayload(error);
+  }
 }
 
 export function rpcOpsSetMaintenance(
@@ -77,6 +82,7 @@ export function rpcOpsSetMaintenance(
   nk: nkruntime.Nakama,
   payload: string,
 ): string {
+  try {
   const userId = requireAuthenticatedUserId(ctx.userId);
   const patch = parseMaintenancePayload(payload);
   const allowlist = readGmAllowlist(nk);
@@ -100,6 +106,9 @@ export function rpcOpsSetMaintenance(
     code: "ok",
     maintenance: next,
   });
+  } catch (error) {
+    return rpcFailurePayload(error);
+  }
 }
 
 function gmAccountFromNakama(userId: string, account: nkruntime.Account): GmAccount {

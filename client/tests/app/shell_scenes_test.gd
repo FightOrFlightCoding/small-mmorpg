@@ -13,6 +13,10 @@ func test_all_shell_scenes_instantiate() -> void:
 	var paths: PackedStringArray = PackedStringArray([
 		"res://scenes/boot/boot.tscn",
 		"res://scenes/login/login.tscn",
+		"res://scenes/login/register.tscn",
+		"res://scenes/login/verify.tscn",
+		"res://scenes/login/server_unavailable.tscn",
+		"res://scenes/login/account_disabled.tscn",
 		"res://scenes/character/character.tscn",
 		"res://scenes/world/world.tscn",
 		"res://scenes/world/player_avatar.tscn",

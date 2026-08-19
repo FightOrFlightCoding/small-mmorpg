@@ -12,6 +12,7 @@ import {
 } from "../domain/account_profile";
 import { hmacIndexQuery, hmacIndexQueryQuoted, type EmailIndexRecord } from "../domain/account_compat";
 import { type EmailLookupDecision } from "../domain/account_compat";
+import type { AccountStatus } from "../domain/account_status";
 
 function recordsFromListed(listed: unknown): EmailIndexRecord[] {
   const objects = listedStorageObjects(listed);
@@ -30,19 +31,53 @@ export function writeAccountProfile(
   userId: string,
   hmac: string,
   verifiedAt: number,
+  extras?: {
+    status?: AccountStatus;
+    createdAt?: number;
+    acceptedTermsVersion?: string;
+    acceptedPrivacyVersion?: string;
+    acceptedAt?: number;
+  },
 ): AccountProfileRecord {
-  const value = accountProfileWriteValue(userId, hmac, verifiedAt);
+  const existing = readAccountProfile(nk, userId);
+  const merged = accountProfileWriteValue(userId, hmac, verifiedAt, {
+    status: extras !== undefined && extras.status !== undefined ? extras.status : existing !== null ? existing.status : undefined,
+    createdAt:
+      extras !== undefined && extras.createdAt !== undefined
+        ? extras.createdAt
+        : existing !== null
+          ? existing.createdAt
+          : 0,
+    acceptedTermsVersion:
+      extras !== undefined && extras.acceptedTermsVersion !== undefined
+        ? extras.acceptedTermsVersion
+        : existing !== null
+          ? existing.acceptedTermsVersion
+          : "",
+    acceptedPrivacyVersion:
+      extras !== undefined && extras.acceptedPrivacyVersion !== undefined
+        ? extras.acceptedPrivacyVersion
+        : existing !== null
+          ? existing.acceptedPrivacyVersion
+          : "",
+    acceptedAt:
+      extras !== undefined && extras.acceptedAt !== undefined
+        ? extras.acceptedAt
+        : existing !== null
+          ? existing.acceptedAt
+          : 0,
+  });
   nk.storageWrite([
     {
       collection: ACCOUNT_PROFILE_COLLECTION,
       key: ACCOUNT_PROFILE_KEY,
       userId: userId,
-      value: value,
+      value: merged,
       permissionRead: ACCOUNT_PROFILE_PERMISSION_READ,
       permissionWrite: ACCOUNT_PROFILE_PERMISSION_WRITE,
     },
   ]);
-  return value;
+  return merged;
 }
 
 export function readAccountProfile(nk: nkruntime.Nakama, userId: string): AccountProfileRecord | null {
@@ -53,6 +88,10 @@ export function readAccountProfile(nk: nkruntime.Nakama, userId: string): Accoun
     return null;
   }
   return parseAccountProfileValue(objects[0].value, objects[0].userId);
+}
+
+export function deleteAccountProfile(nk: nkruntime.Nakama, userId: string): void {
+  nk.storageDelete([{ collection: ACCOUNT_PROFILE_COLLECTION, key: ACCOUNT_PROFILE_KEY, userId: userId }]);
 }
 
 export function lookupAccountProfileByHmac(

@@ -1,5 +1,6 @@
 import { releaseCaveOwnershipForDisbandedParty } from "./cave_ownership";
 import { REQUEST_ID_PATTERN } from "./protocol";
+import { ACCOUNT_GATE_CODES } from "./account_status";
 
 export const MAX_PARTY_SIZE = 5;
 export const PARTY_SCHEMA_VERSION = 1;
@@ -179,6 +180,7 @@ const PARTY_DOMAIN_FAILURE_CODES = [
   "selection_foreign",
   "stale_revision",
   "unauthenticated",
+  ...ACCOUNT_GATE_CODES,
 ];
 
 export function partyDomainFailureCode(message: string): string {

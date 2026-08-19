@@ -105,6 +105,26 @@ func authenticate_email(email: String, password: String, username: String = "", 
 	await _finish_auth(auth, username)
 
 
+func import_session(token: String, refresh_token: String, p_user_id: String, p_username: String) -> void:
+	if not _auth_rate_allows():
+		return
+	last_auth_attempted = true
+	_device_id = ""
+	_email = AccountService.pending_email
+	_username = p_username
+	_auth_mode = SessionCache.AUTH_MODE_EMAIL
+	authentication_started.emit()
+	AppState.notify_loading_started("auth")
+	if not _backend().has_method("import_session"):
+		_fail_auth({"code": "authentication_failed", "message": "Session import is unavailable."})
+		return
+	var auth: Dictionary = await _backend().import_session(token, refresh_token, p_user_id, p_username)
+	if not bool(auth.get("ok", false)):
+		_fail_auth(auth)
+		return
+	await _finish_auth(auth, p_username)
+
+
 func restore_cached_session() -> bool:
 	var cached := SessionCache.load_cache()
 	if cached.is_empty():
@@ -1167,7 +1187,31 @@ func ensure_session() -> bool:
 	var show_loading := not AppState.is_reconnecting
 	if show_loading:
 		AppState.notify_loading_started("session")
-	var refreshed: Dictionary = await _backend().refresh_session()
+	var refreshed: Dictionary = {}
+	if _auth_mode == SessionCache.AUTH_MODE_EMAIL:
+		refreshed = await AccountService.refresh_session()
+		if bool(refreshed.get("ok", false)) and _backend().has_method("import_session"):
+			var imported: Dictionary = await _backend().import_session(
+				AccountService.access_token,
+				AccountService.refresh_token,
+				AccountService.user_id,
+				AccountService.username
+			)
+			if bool(imported.get("ok", false)):
+				if show_loading:
+					AppState.notify_loading_completed("session")
+				return true
+		socket_connected = false
+		match_id = ""
+		zone_chat_id = ""
+		AppState.notify_logged_out()
+		AppState.report_recoverable("session_expired", AccountErrors.message_for("session_expired"))
+		if String(refreshed.get("code", "")) == "AUTH_UNAVAILABLE":
+			SceneRouter.transition_to(SceneRouter.SCENE_SERVER_UNAVAILABLE)
+		if show_loading:
+			AppState.notify_loading_completed("session")
+		return false
+	refreshed = await _backend().refresh_session()
 	if bool(refreshed.get("ok", false)):
 		if show_loading:
 			AppState.notify_loading_completed("session")
@@ -1217,16 +1261,25 @@ func ensure_session() -> bool:
 	return true
 
 
-func logout() -> void:
+func depart_gameplay() -> void:
 	_intentional_disconnect = true
 	_reconnect_cancelled = true
 	if AppState.is_reconnecting:
 		AppState.notify_reconnecting(false)
-	AppState.notify_loading_started("logout")
 	await leave_zone_chat()
 	await leave_party_chat()
-	if _backend().has_method("leave_match"):
+	if not match_id.is_empty() and _backend().has_method("leave_match"):
 		await _backend().leave_match()
+	match_id = ""
+	zone_chat_id = ""
+	party_chat_id = ""
+	party_chat_party_id = ""
+	_got_full_state = false
+
+
+func logout() -> void:
+	AppState.notify_loading_started("logout")
+	await depart_gameplay()
 	await _backend().logout()
 	socket_connected = false
 	match_id = ""
@@ -1276,6 +1329,7 @@ func reset_for_tests() -> void:
 	_auth_blocked_until_ms = 0
 	DevIdentity.force_release_config = false
 	SessionCache.clear()
+	AccountService.reset_for_tests()
 
 
 func _backend() -> RefCounted:
@@ -1573,8 +1627,11 @@ func _note_auth_success() -> void:
 
 
 func _fail_character(result: Dictionary) -> void:
-	var code := String(result.get("code", "rpc_failed"))
-	var message := String(result.get("message", "Could not load the character."))
+	var mapped := AccountErrors.sanitize_public_rpc(result.duplicate(true))
+	var code := String(mapped.get("code", "rpc_failed"))
+	var message := String(mapped.get("message", "Could not load the character."))
+	if AccountErrors.is_account_gate(code):
+		message = AccountErrors.message_for(code, message)
 	if MatchProtocol.is_compatibility_code(code):
 		AppState.report_fatal_compatibility(code, message)
 	else:
@@ -1584,8 +1641,11 @@ func _fail_character(result: Dictionary) -> void:
 
 
 func _fail_zone(result: Dictionary) -> void:
-	var code := String(result.get("code", "join_failed"))
-	var message := String(result.get("message", "Could not join the starter zone."))
+	var mapped := AccountErrors.sanitize_public_rpc(result.duplicate(true))
+	var code := String(mapped.get("code", "join_failed"))
+	var message := String(mapped.get("message", "Could not join the starter zone."))
+	if AccountErrors.is_account_gate(code):
+		message = AccountErrors.message_for(code, message)
 	if MatchProtocol.is_compatibility_code(code):
 		AppState.report_fatal_compatibility(code, message)
 	elif MatchProtocol.is_maintenance_code(code):

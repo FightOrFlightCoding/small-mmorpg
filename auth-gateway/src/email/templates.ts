@@ -1,5 +1,6 @@
 export type EmailTemplateId =
   | "verify_email"
+  | "email_verified"
   | "password_reset"
   | "password_changed"
   | "email_change_confirmation"
@@ -41,6 +42,7 @@ export function renderEmail(input: EmailSendInput): EmailMessage {
   const linkLine = input.confirmUrl !== undefined ? "Or open: " + input.confirmUrl + "\n" : "";
   const subjects: { [id in EmailTemplateId]: string } = {
     verify_email: "Verify your Vibecode email",
+    email_verified: "Your Vibecode email is verified",
     password_reset: "Reset your Vibecode password",
     password_changed: "Your Vibecode password changed",
     email_change_confirmation: "Confirm your new Vibecode email",
@@ -51,6 +53,7 @@ export function renderEmail(input: EmailSendInput): EmailMessage {
   };
   const intro: { [id in EmailTemplateId]: string } = {
     verify_email: "Confirm this email address to continue creating your account.",
+    email_verified: "This email address is verified. You can sign in and create a character.",
     password_reset: "A password reset was requested for this email.",
     password_changed: "The password on this account was changed. If this was not you, contact support.",
     email_change_confirmation: "Confirm the new email address for this account.",

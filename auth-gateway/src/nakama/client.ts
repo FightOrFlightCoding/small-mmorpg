@@ -6,6 +6,7 @@ export interface NakamaAuthResult {
   ok: boolean;
   status: number;
   userId: string;
+  username: string;
   token: string;
   refreshToken: string;
   message: string;
@@ -20,8 +21,11 @@ export interface GatewayRpcResult {
 
 export interface NakamaBridge {
   health(): Promise<boolean>;
-  authenticateEmail(email: string, password: string, create: boolean): Promise<NakamaAuthResult>;
-  getAccount(token: string): Promise<{ ok: boolean; userId: string; email: string }>;
+  authenticateEmail(email: string, password: string, create: boolean, username?: string): Promise<NakamaAuthResult>;
+  refreshSession(refreshToken: string): Promise<NakamaAuthResult>;
+  logout(accessToken: string, refreshToken: string): Promise<{ ok: boolean }>;
+  logoutAll(accessToken: string): Promise<{ ok: boolean }>;
+  getAccount(token: string): Promise<{ ok: boolean; userId: string; email: string; username: string; disableTime: number }>;
   rpc(op: string, fields: { [key: string]: unknown }, requestId: string, nowMs: number): Promise<GatewayRpcResult>;
 }
 
@@ -49,7 +53,11 @@ export class NakamaGatewayClient implements NakamaBridge {
     }
   }
 
-  async authenticateEmail(email: string, password: string, create: boolean): Promise<NakamaAuthResult> {
+  async authenticateEmail(email: string, password: string, create: boolean, username?: string): Promise<NakamaAuthResult> {
+    const body: { [key: string]: unknown } = { email: email, password: password };
+    if (username !== undefined && username.length > 0) {
+      body.username = username;
+    }
     const response = await this.fetchImpl(
       this.config.nakamaHttpUrl + "/v2/account/authenticate/email?create=" + String(create),
       {
@@ -58,49 +66,67 @@ export class NakamaGatewayClient implements NakamaBridge {
           Authorization: "Basic " + Buffer.from(this.config.nakamaServerKey + ":").toString("base64"),
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email: email, password: password }),
+        body: JSON.stringify(body),
       },
     );
-    const text = await response.text();
-    let parsed: { token?: string; refresh_token?: string; message?: string; error?: string } = {};
-    try {
-      parsed = JSON.parse(text) as typeof parsed;
-    } catch {
-      parsed = { message: text };
-    }
-    if (!response.ok || typeof parsed.token !== "string") {
-      return {
-        ok: false,
-        status: response.status,
-        userId: "",
-        token: "",
-        refreshToken: "",
-        message: typeof parsed.message === "string" ? parsed.message : typeof parsed.error === "string" ? parsed.error : text,
-      };
-    }
-    return {
-      ok: true,
-      status: response.status,
-      userId: userIdFromToken(parsed.token),
-      token: parsed.token,
-      refreshToken: typeof parsed.refresh_token === "string" ? parsed.refresh_token : "",
-      message: "",
-    };
+    return parseAuthResponse(response);
   }
 
-  async getAccount(token: string): Promise<{ ok: boolean; userId: string; email: string }> {
+  async refreshSession(refreshToken: string): Promise<NakamaAuthResult> {
+    const response = await this.fetchImpl(this.config.nakamaHttpUrl + "/v2/account/session/refresh", {
+      method: "POST",
+      headers: {
+        Authorization: "Basic " + Buffer.from(this.config.nakamaServerKey + ":").toString("base64"),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ token: refreshToken }),
+    });
+    return parseAuthResponse(response);
+  }
+
+  async logout(accessToken: string, refreshToken: string): Promise<{ ok: boolean }> {
+    const response = await this.fetchImpl(this.config.nakamaHttpUrl + "/v2/session/logout", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + accessToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ token: accessToken, refresh_token: refreshToken }),
+    });
+    return { ok: response.ok || response.status === 401 };
+  }
+
+  async logoutAll(accessToken: string): Promise<{ ok: boolean }> {
+    const response = await this.fetchImpl(this.config.nakamaHttpUrl + "/v2/session/logout", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + accessToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ token: "", refresh_token: "" }),
+    });
+    return { ok: response.ok || response.status === 401 };
+  }
+
+  async getAccount(token: string): Promise<{ ok: boolean; userId: string; email: string; username: string; disableTime: number }> {
     const response = await this.fetchImpl(this.config.nakamaHttpUrl + "/v2/account", {
       method: "GET",
       headers: { Authorization: "Bearer " + token },
     });
     if (!response.ok) {
-      return { ok: false, userId: "", email: "" };
+      return { ok: false, userId: "", email: "", username: "", disableTime: 0 };
     }
-    const body = (await response.json()) as { user?: { id?: string }; email?: string };
+    const body = (await response.json()) as {
+      user?: { id?: string; username?: string };
+      email?: string;
+      disable_time?: number;
+    };
     return {
       ok: true,
       userId: body.user !== undefined && typeof body.user.id === "string" ? body.user.id : "",
       email: typeof body.email === "string" ? body.email : "",
+      username: body.user !== undefined && typeof body.user.username === "string" ? body.user.username : "",
+      disableTime: typeof body.disable_time === "number" ? body.disable_time : 0,
     };
   }
 
@@ -144,11 +170,59 @@ export class NakamaGatewayClient implements NakamaBridge {
   }
 }
 
+async function parseAuthResponse(response: Response): Promise<NakamaAuthResult> {
+  const text = await response.text();
+  let parsed: { token?: string; refresh_token?: string; message?: string; error?: string } = {};
+  try {
+    parsed = JSON.parse(text) as typeof parsed;
+  } catch {
+    parsed = { message: text };
+  }
+  if (!response.ok || typeof parsed.token !== "string") {
+    return {
+      ok: false,
+      status: response.status,
+      userId: "",
+      username: "",
+      token: "",
+      refreshToken: "",
+      message: typeof parsed.message === "string" ? parsed.message : typeof parsed.error === "string" ? parsed.error : text,
+    };
+  }
+  return {
+    ok: true,
+    status: response.status,
+    userId: userIdFromToken(parsed.token),
+    username: usernameFromToken(parsed.token),
+    token: parsed.token,
+    refreshToken: typeof parsed.refresh_token === "string" ? parsed.refresh_token : "",
+    message: "",
+  };
+}
+
 function userIdFromToken(token: string): string {
+  const payload = jwtPayload(token);
+  return typeof payload.uid === "string" ? payload.uid : "";
+}
+
+function usernameFromToken(token: string): string {
+  const payload = jwtPayload(token);
+  return typeof payload.usn === "string" ? payload.usn : "";
+}
+
+function jwtPayload(token: string): { uid?: string; usn?: string; iat?: number } {
   const parts = token.split(".");
   if (parts.length < 2) {
-    return "";
+    return {};
   }
-  const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8")) as { uid?: string };
-  return typeof payload.uid === "string" ? payload.uid : "";
+  try {
+    return JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8")) as { uid?: string; usn?: string; iat?: number };
+  } catch {
+    return {};
+  }
+}
+
+export function accessTokenIssuedAt(token: string): number {
+  const payload = jwtPayload(token);
+  return typeof payload.iat === "number" ? payload.iat * 1000 : 0;
 }

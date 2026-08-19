@@ -53,10 +53,10 @@ test("auth_gateway rejects ordinary session invocation", () => {
     userId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
     sessionId: "session-1",
   } as nkruntime.Context;
-  assert.throws(
-    () => rpcAuthGateway(ctx, fakeLogger(), fakeNk(), JSON.stringify({ op: "ping" })),
-    /gateway_rpc_forbidden/,
-  );
+  assert.deepEqual(JSON.parse(rpcAuthGateway(ctx, fakeLogger(), fakeNk(), JSON.stringify({ op: "ping" }))), {
+    ok: false,
+    code: "gateway_rpc_forbidden",
+  });
 });
 
 test("auth_gateway rejects a signed ping from a session even when the assertion is valid", () => {
@@ -68,7 +68,10 @@ test("auth_gateway rejects a signed ping from a session even when the assertion 
     userId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
     sessionId: "session-1",
   } as nkruntime.Context;
-  assert.throws(() => rpcAuthGateway(ctx, fakeLogger(), fakeNk(), signedPing(Date.now())), /gateway_rpc_forbidden/);
+  assert.deepEqual(JSON.parse(rpcAuthGateway(ctx, fakeLogger(), fakeNk(), signedPing(Date.now()))), {
+    ok: false,
+    code: "gateway_rpc_forbidden",
+  });
 });
 
 test("auth_gateway rejects HTTP-key calls without a signed assertion", () => {
@@ -78,7 +81,10 @@ test("auth_gateway rejects HTTP-key calls without a signed assertion", () => {
     node: "local",
     version: "3.40.0",
   } as nkruntime.Context;
-  assert.throws(() => rpcAuthGateway(ctx, fakeLogger(), fakeNk(), JSON.stringify({ op: "ping" })), /missing_assertion/);
+  assert.deepEqual(JSON.parse(rpcAuthGateway(ctx, fakeLogger(), fakeNk(), JSON.stringify({ op: "ping" }))), {
+    ok: false,
+    code: "missing_assertion",
+  });
 });
 
 test("auth_gateway accepts HTTP-key ping with a valid assertion", () => {

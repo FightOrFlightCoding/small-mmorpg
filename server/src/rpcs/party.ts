@@ -5,6 +5,8 @@ import { nakamaPartyRepository } from "../nakama/party_store";
 import { readStarterZoneMatchId } from "../nakama/starter_zone_registry";
 import { consumeSessionRate } from "../domain/rate_limit";
 import { canonicalCharacterName } from "../domain/character_name";
+import { requirePlayableUser } from "../nakama/playable_account";
+import { rpcFailureCode } from "../domain/rpc_error";
 import {
   acceptPartyInvite,
   createParty,
@@ -28,11 +30,8 @@ function failPayload(code: string): PartyOpResult {
   return { ok: false, code: code };
 }
 
-function requireUser(ctx: nkruntime.Context): string {
-  if (typeof ctx.userId !== "string" || ctx.userId.length === 0) {
-    throw new Error("unauthenticated");
-  }
-  return ctx.userId;
+function requireUser(ctx: nkruntime.Context, nk: nkruntime.Nakama): string {
+  return requirePlayableUser(ctx, nk);
 }
 
 function actorFromOwnedCharacter(nk: nkruntime.Nakama, userId: string, characterId: string): PartyActor {
@@ -162,7 +161,7 @@ function runPartyRpc(
   apply: (actor: PartyActor, data: { [key: string]: unknown }, nowMs: number, requestId: string) => PartyOpResult,
 ): string {
   try {
-    const userId = requireUser(ctx);
+    const userId = requireUser(ctx, nk);
     if (action !== "party_get_state" && !consumeSessionRate("party", userId, Date.now())) {
       logger.info("party rpc=%s user_id=%s code=%s", action, userId, "rate_limited");
       return JSON.stringify({ ok: false, code: "rate_limited" });
@@ -177,7 +176,7 @@ function runPartyRpc(
     logger.info("party rpc=%s user_id=%s code=%s", action, userId, result.code);
     return encodeResult(result, actor);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "internal_error";
+    const message = rpcFailureCode(error);
     const domainCode = partyDomainFailureCode(message);
     if (domainCode.length > 0) {
       logger.info("party rpc=%s user_id=%s code=%s", action, ctx.userId !== undefined ? ctx.userId : "", domainCode);
