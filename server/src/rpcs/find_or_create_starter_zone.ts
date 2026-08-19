@@ -1,12 +1,18 @@
 import { requireAuthenticatedUserId } from "../domain/character";
 import { PROTOCOL_VERSION } from "../domain/protocol";
 import { STARTER_ZONE_ID } from "../domain/match_state";
-import { PUBLIC_WORLD_INSTANCE_ID, PUBLIC_WORLD_INSTANCE_TYPE } from "../domain/instance";
+import { PUBLIC_WORLD_INSTANCE_ID, PUBLIC_WORLD_INSTANCE_TYPE, publicWorldLocation, type ActiveLocation } from "../domain/instance";
 import { findOrCreateStarterZoneMatch } from "../nakama/starter_zone_registry";
 import { contentHash } from "../generated/content";
 import { readSelection } from "../nakama/selection_store";
-import { readActiveLocation } from "../nakama/location_store";
-import { nakamaCaveRepository } from "../nakama/cave_store";
+import { readActiveLocation, writeActiveLocation } from "../nakama/location_store";
+import { accountCaveRepository, nakamaCaveRepository } from "../nakama/cave_store";
+import { nakamaPartyRepository } from "../nakama/party_store";
+import {
+  chooseReconnectMatch,
+  clearCharacterCaveAssociation,
+  resolvePartyForActor,
+} from "../domain/cave";
 import { readEnvironment, rejectIfGameplayClosed } from "../nakama/ops_store";
 import { formatOpsLog, incrementCounter } from "../domain/ops_metrics";
 
@@ -42,16 +48,27 @@ export function rpcFindOrCreateStarterZone(
     const userId = requireAuthenticatedUserId(ctx.userId);
     parseFindOrCreatePayload(payload);
     let reconnectingCave = false;
+    let staleCaveLocation: ActiveLocation | null = null;
     const selected = readSelection(nk, userId);
     if (selected !== null && selected.characterId.length > 0) {
       const location = readActiveLocation(nk, userId, selected.characterId);
       if (location !== null && location.instanceType === "party_cave") {
         const cave = nakamaCaveRepository(nk).getCave(location.instanceId);
-        if (
+        const caveMatchRunning =
           cave !== null &&
           cave.lifecycleState !== "expired" &&
           cave.lifecycleState !== "terminated" &&
-          nk.matchGet(cave.matchId) !== null
+          nk.matchGet(cave.matchId) !== null;
+        const party = resolvePartyForActor(nakamaPartyRepository(nk), userId, selected.characterId);
+        if (
+          chooseReconnectMatch({
+            locationInstanceType: location.instanceType,
+            cave: cave,
+            caveMatchRunning: caveMatchRunning,
+            characterId: selected.characterId,
+            party: party,
+          }) === "cave" &&
+          cave !== null
         ) {
           reconnectingCave = true;
           logger.info(formatOpsLog("zone_transfer", { user_id: userId, action: "reconnect_cave", match_id: cave.matchId }));
@@ -64,10 +81,27 @@ export function rpcFindOrCreateStarterZone(
             contentHash: contentHash,
           });
         }
+        staleCaveLocation = location;
+        const instanceId = cave !== null ? cave.instanceId : location.instanceId;
+        clearCharacterCaveAssociation(accountCaveRepository(nk, userId), selected.characterId, instanceId);
       }
     }
     rejectIfGameplayClosed(nk, readEnvironment(ctx), ctx.env, reconnectingCave);
     const matchId = findOrCreateStarterZoneMatch(nk, logger);
+    if (staleCaveLocation !== null && selected !== null) {
+      writeActiveLocation(
+        nk,
+        publicWorldLocation(
+          matchId,
+          selected.characterId,
+          userId,
+          staleCaveLocation.position.x,
+          staleCaveLocation.position.y,
+          Date.now(),
+        ),
+      );
+      logger.info(formatOpsLog("zone_transfer", { user_id: userId, action: "cave_reconnect_fallback", match_id: matchId }));
+    }
     logger.info(formatOpsLog("zone_transfer", { user_id: userId, action: "find_or_create_starter_zone", match_id: matchId }));
     return JSON.stringify({
       matchId: matchId,

@@ -18,6 +18,7 @@ var socket_ok: bool = true
 var rpc_ok: bool = true
 var rpc_code: String = "rpc_failed"
 var rpc_message: String = "The server rejected the request."
+var rpc_fail_remaining: int = 0
 var handshake_ok: bool = true
 var handshake_code: String = "ok"
 var handshake_message: String = ""
@@ -157,6 +158,9 @@ func rpc(id: String, payload: String) -> Dictionary:
 			body["code"] = "server_maintenance"
 			body["message"] = handshake_message if not handshake_message.is_empty() else "The server is in maintenance. Gameplay joins are paused."
 		return {"ok": true, "payload": JSON.stringify(body)}
+	if rpc_fail_remaining > 0 and id.begins_with("party_"):
+		rpc_fail_remaining -= 1
+		return {"ok": false, "code": rpc_code, "message": rpc_message}
 	if not rpc_ok:
 		return {"ok": false, "code": rpc_code, "message": rpc_message}
 	if id == MatchProtocol.FIND_OR_CREATE_STARTER_ZONE_RPC:

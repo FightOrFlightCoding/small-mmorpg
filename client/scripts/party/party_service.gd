@@ -103,7 +103,18 @@ func request_invite(target_name: String) -> void:
 		party_notice.emit("The party is full (max 5).")
 		party_changed.emit()
 		return
-	var extra := {"characterId": _character_id(), "targetName": target_name.strip_edges()}
+	var trimmed := target_name.strip_edges()
+	if trimmed.is_empty():
+		last_error = "invalid_target"
+		party_notice.emit("Type the other character's exact name, then Invite.")
+		party_changed.emit()
+		return
+	if trimmed.to_lower() == _display_name().to_lower():
+		last_error = "invalid_target"
+		party_notice.emit("You cannot invite yourself.")
+		party_changed.emit()
+		return
+	var extra := {"characterId": _character_id(), "targetName": trimmed}
 	if party.has("revision"):
 		extra["revision"] = int(party["revision"])
 	NetworkService.rpc_party(PARTY_INVITE_RPC, _payload(extra))
@@ -130,16 +141,38 @@ func request_leave() -> void:
 
 
 func request_kick(character_id: String) -> void:
+	var target := character_id.strip_edges()
+	if target.is_empty():
+		last_error = "invalid_target"
+		party_notice.emit("Select a party member, then Kick.")
+		party_changed.emit()
+		return
+	if target == _character_id():
+		last_error = "invalid_target"
+		party_notice.emit("You cannot kick yourself. Leave or Disband.")
+		party_changed.emit()
+		return
 	NetworkService.rpc_party(
 		PARTY_KICK_RPC,
-		_payload({"characterId": _character_id(), "targetCharacterId": character_id})
+		_payload({"characterId": _character_id(), "targetCharacterId": target})
 	)
 
 
 func request_promote(character_id: String) -> void:
+	var target := character_id.strip_edges()
+	if target.is_empty():
+		last_error = "invalid_target"
+		party_notice.emit("Select a party member, then Promote.")
+		party_changed.emit()
+		return
+	if target == _character_id():
+		last_error = "invalid_target"
+		party_notice.emit("That member is already the party leader.")
+		party_changed.emit()
+		return
 	NetworkService.rpc_party(
 		PARTY_PROMOTE_RPC,
-		_payload({"characterId": _character_id(), "targetCharacterId": character_id})
+		_payload({"characterId": _character_id(), "targetCharacterId": target})
 	)
 
 
@@ -158,7 +191,27 @@ func _payload(extra: Dictionary) -> Dictionary:
 
 
 func _character_id() -> String:
-	return String(AppState.character_view.get("character_id", ""))
+	var from_view := String(AppState.character_view.get("character_id", AppState.character_view.get("characterId", "")))
+	if not from_view.is_empty():
+		return from_view
+	var self_id := String(AppState.zone_view.get("self_id", AppState.user_id))
+	for entry in AppState.zone_view.get("players", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var record: Dictionary = entry
+		if String(record.get("userId", record.get("user_id", ""))) != self_id:
+			continue
+		var found := String(record.get("characterId", record.get("character_id", "")))
+		if not found.is_empty():
+			return found
+	return ""
+
+
+func _display_name() -> String:
+	var named := String(AppState.character_view.get("name", ""))
+	if not named.is_empty():
+		return named
+	return String(party.get("displayName", ""))
 
 
 func _on_zone_state_updated() -> void:
@@ -285,7 +338,7 @@ func _message_for_code(code: String) -> String:
 	if code == "already_in_party":
 		return "That character is already in a party."
 	if code == "session_expired" or code == "unauthenticated":
-		return "The session expired. Sign in again."
+		return "The party request failed. Try again."
 	if code == "invalid_credentials":
 		return "The party request failed. Try again."
 	if code == "party_chat_join_failed":
@@ -300,6 +353,14 @@ func _message_for_code(code: String) -> String:
 		return "That character already has a pending invite."
 	if code == "stale_revision" or code == "revision_mismatch":
 		return "Party state changed. Try again."
-	if code.is_empty():
-		return "The party request failed."
+	if code == "rate_limited":
+		return "Too many party actions. Wait a moment, then try again."
+	if code == "invalid_id" or code == "character_missing" or code == "selection_foreign":
+		return "This character cannot do that party action."
+	if code == "not_member":
+		return "That player is not in the party."
+	if code == "malformed_json" or code == "invalid_request_id" or code == "duplicate_request":
+		return "The party request failed. Try again."
+	if code == "party_failed" or code == "rpc_failed" or code.is_empty():
+		return "The party request failed. Try again."
 	return code

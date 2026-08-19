@@ -13,6 +13,7 @@ var last_result: String = ""
 var _seen_revision: int = -1
 var _character_id: String = ""
 var _pending_trade: bool = false
+var _last_handled_request_id: String = ""
 
 
 func _ready() -> void:
@@ -31,6 +32,7 @@ func reset() -> void:
 	last_result = ""
 	_seen_revision = -1
 	_pending_trade = false
+	_last_handled_request_id = ""
 	trade_changed.emit()
 
 
@@ -162,6 +164,7 @@ func _on_action_result(payload: Dictionary) -> void:
 		return
 	if not result_trade_id.is_empty() and not trade_id().is_empty() and result_trade_id != trade_id():
 		return
+	_last_handled_request_id = String(payload.get("request_id", ""))
 	last_error = code
 	_pending_trade = false
 	trade_notice.emit(message_for_code(code))
@@ -179,6 +182,35 @@ func _local_character_id() -> String:
 	if not _character_id.is_empty():
 		return _character_id
 	return String(AppState.character_view.get("character_id", ""))
+
+
+func took_action_result(request_id: String) -> bool:
+	return not request_id.is_empty() and request_id == _last_handled_request_id
+
+
+func is_invitee() -> bool:
+	return _is_invitee()
+
+
+func other_display_name() -> String:
+	var local_id := _local_character_id()
+	for key in ["participantA", "participantB"]:
+		var value: Variant = trade.get(key, {})
+		if typeof(value) != TYPE_DICTIONARY:
+			continue
+		var row: Dictionary = value
+		if String(row.get("characterId", "")) == local_id:
+			continue
+		var named := String(row.get("displayName", ""))
+		if not named.is_empty():
+			return named
+	return "the other player"
+
+
+func is_trade_failure_code(code: String) -> bool:
+	if code.is_empty():
+		return false
+	return message_for_code(code) != code
 
 
 func message_for_code(code: String) -> String:

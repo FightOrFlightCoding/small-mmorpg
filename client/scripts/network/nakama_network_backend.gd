@@ -335,9 +335,22 @@ func _from_join_exception(exception: NakamaException) -> Dictionary:
 	var mapped: Dictionary = _from_exception(exception, "join_failed", "Could not join the starter zone.")
 	mapped = _map_ops_codes(mapped)
 	var message := String(mapped.get("message", "")).to_lower()
-	if String(mapped.get("code", "")) == "join_failed" and message.contains("already_in_match"):
+	var join_code := String(mapped.get("code", "")).to_lower()
+	if join_code == "join_failed" and message.contains("already_in_match"):
 		mapped["code"] = "already_in_match"
 		mapped["message"] = "This account is already in the starter zone. Sign in as Alice in one window and Bob in the other."
+	elif join_code == "not_party_member" or message.contains("not_party_member"):
+		mapped["code"] = "not_party_member"
+		mapped["message"] = "Could not rejoin that party cave. Dismiss, then Continue to enter the public world."
+	elif join_code == "not_cave_owner" or message.contains("not_cave_owner"):
+		mapped["code"] = "not_cave_owner"
+		mapped["message"] = "That cave belongs to someone else. Dismiss, then Continue to enter the public world."
+	elif join_code == "cave_expired" or message.contains("cave_expired"):
+		mapped["code"] = "cave_expired"
+		mapped["message"] = "That cave is no longer available. Dismiss, then Continue to enter the public world."
+	elif join_code == "already_elsewhere" or message.contains("already_elsewhere"):
+		mapped["code"] = "already_elsewhere"
+		mapped["message"] = "This character is still in another instance. Dismiss, then Continue."
 	elif message.contains("match_full"):
 		mapped["code"] = "match_full"
 	elif message.contains("selection_expired"):
@@ -416,9 +429,12 @@ func _from_exception(exception: NakamaException, fallback_code: String, fallback
 	var code := fallback_code
 	var lowered := exception.message.to_lower()
 	if exception.grpc_status_code == 16 or exception.status_code == 401:
+		var domain := _rpc_domain_code_from_message(exception.message)
 		if fallback_code == "invalid_credentials":
 			code = "invalid_credentials"
 			message = AuthPrivacy.public_login_failure_message()
+		elif not domain.is_empty():
+			code = domain
 		else:
 			code = "session_expired"
 			message = "The session expired. Sign in again."
@@ -442,6 +458,40 @@ func _from_exception(exception: NakamaException, fallback_code: String, fallback
 		code = "network_unreachable"
 		message = "Cannot reach Nakama at 127.0.0.1:7350. Start it with powershell -File scripts/backend-up.ps1."
 	return _fail(code, message)
+
+
+func _rpc_domain_code_from_message(message: String) -> String:
+	var trimmed := message.strip_edges()
+	if trimmed.begins_with("unknown_field:") or trimmed.begins_with("stat_injection:"):
+		return trimmed
+	var known := PackedStringArray([
+		"already_in_party",
+		"character_missing",
+		"duplicate_invite",
+		"duplicate_request",
+		"invite_expired",
+		"invite_missing",
+		"invite_pending",
+		"invalid_credentials",
+		"invalid_id",
+		"invalid_request_id",
+		"invalid_target",
+		"malformed_json",
+		"not_in_party",
+		"not_leader",
+		"not_member",
+		"party_failed",
+		"party_full",
+		"party_missing",
+		"rate_limited",
+		"revision_mismatch",
+		"selection_foreign",
+		"stale_revision",
+		"unauthenticated",
+	])
+	if known.has(trimmed):
+		return trimmed
+	return ""
 
 
 func _looks_like_missing_rpc(message: String) -> bool:

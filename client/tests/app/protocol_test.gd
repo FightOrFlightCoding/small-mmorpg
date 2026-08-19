@@ -149,3 +149,30 @@ func test_parse_progression_state() -> void:
 	assert_bool(bool(parsed["ok"])).is_true()
 	assert_int(int((parsed["progression"] as Dictionary).get("level", 0))).is_equal(2)
 	assert_int(int((parsed["progression"] as Dictionary).get("unspentSkillPoints", 0))).is_equal(1)
+
+
+func test_parse_party_state_keeps_ok_false_without_message() -> void:
+	var parsed: Dictionary = MatchProtocol.parse_party_state(
+		JSON.stringify({"ok": false, "code": "not_leader"})
+	)
+	assert_bool(bool(parsed["ok"])).is_false()
+	assert_str(String(parsed.get("code", ""))).is_equal("not_leader")
+	assert_str(String(parsed.get("message", ""))).is_not_empty()
+
+
+func test_parse_party_event_keeps_ok_false_without_message() -> void:
+	var parsed: Dictionary = MatchProtocol.parse_party_event(
+		JSON.stringify({"ok": false, "code": "not_leader"})
+	)
+	assert_bool(bool(parsed["ok"])).is_false()
+	assert_str(String(parsed.get("code", ""))).is_equal("not_leader")
+	assert_str(String(parsed.get("message", ""))).is_not_empty()
+
+
+func test_parse_trade_state_keeps_ok_false_without_message() -> void:
+	var parsed: Dictionary = MatchProtocol.parse_trade_state(
+		JSON.stringify({"ok": false, "code": "out_of_range"})
+	)
+	assert_bool(bool(parsed["ok"])).is_false()
+	assert_str(String(parsed.get("code", ""))).is_equal("out_of_range")
+	assert_str(String(parsed.get("message", ""))).is_not_empty()

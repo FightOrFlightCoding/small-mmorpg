@@ -211,6 +211,27 @@ export function canJoinOwnedCave(input: {
   return { ok: false, code: "not_cave_owner" };
 }
 
+export function chooseReconnectMatch(input: {
+  locationInstanceType: string;
+  cave: CaveRecord | null;
+  caveMatchRunning: boolean;
+  characterId: string;
+  party: PartyRecord | null;
+}): "cave" | "public_world" {
+  if (input.locationInstanceType !== "party_cave") {
+    return "public_world";
+  }
+  if (input.cave === null || !input.caveMatchRunning) {
+    return "public_world";
+  }
+  const allowed = canJoinOwnedCave({
+    characterId: input.characterId,
+    record: input.cave,
+    party: input.party,
+  });
+  return allowed.ok ? "cave" : "public_world";
+}
+
 export function findOrCreateOwnedCave(
   repo: CaveRepository,
   factory: CaveMatchFactory,

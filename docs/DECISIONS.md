@@ -507,3 +507,17 @@ Cave boss `respawnDelay` **0** remains test-content behavior, not a defect. Prod
 
 Not a new gameplay phase. Server trade range stays `TRADE_RANGE_PX = 80`. Party invite still requires an existing party and the leader. Client Nearby now lists only in-range players, trade/party failures show readable copy, and `NetDebugOverlay.protocol_version` no longer references `MatchProtocol` at member-init so editor/GdUnit boot does not fail to parse `prediction_test.gd`.
 
+## 2026-08-19 — Party RPC failures stay on the party HUD
+
+Not a new gameplay phase. Prompt 28 party RPCs (`party_create` through `party_get_state`) remain HTTP, while the match uses the realtime socket. A live socket therefore does not prove the HTTP JWT is usable.
+
+Party domain failures return `{ ok: false, code }` JSON and must not be rethrown as Nakama HTTP errors. The Godot adapter maps RPC `401` / gRPC `16` to `session_expired` unless the exception message is an exact gameplay domain code (or email-login `invalid_credentials`). Party buttons never open the recoverable ErrorDialog: the client refreshes the session and retries once, then shows a party notice (`party_failed` or the domain code). Kick/Promote require a selected other member; Invite still requires Create plus the leader and rejects the local character name.
+
+## 2026-08-19 — Cave reconnect without party membership
+
+Not a new gameplay phase. After both members log out, the party can disband while the cave match is still in empty grace. Continue must not return that cave match id: `matchJoinAttempt` would reject `not_party_member` and character select would stick on `join_failed`. `find_or_create_starter_zone` reconnects to a live owned cave only when `canJoinOwnedCave` still allows it; otherwise it clears the cave association, rewrites canonical location to the public world (so join is not `already_elsewhere`), and returns the public match. A leftover join reject still maps to readable Continue-again copy instead of raw `not_party_member`.
+
+## 2026-08-19 — Trade failures stay on the trade HUD
+
+Not a new gameplay phase. Server trade range stays `TRADE_RANGE_PX = 80`. Trade is match opcodes, not HTTP RPCs. Failed `ACTION_RESULT` / `TRADE_STATE` stay on the trade panel (notice + Error line). Nearby lists every living same-match player with distance; Invite still refuses out-of-range locally and the match still enforces 80 px. Invitee copy uses Accept invite / Decline; the inviter sees a waiting status.
+

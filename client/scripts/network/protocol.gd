@@ -344,7 +344,11 @@ static func parse_ability_state(raw: String) -> Dictionary:
 
 static func parse_party_state(raw: String) -> Dictionary:
 	var parsed: Dictionary = _parse_object(raw)
-	if parsed.has("ok") and not bool(parsed["ok"]) and parsed.has("message"):
+	if parsed.has("ok") and not bool(parsed["ok"]):
+		if not parsed.has("code"):
+			parsed["code"] = "party_state_failed"
+		if not parsed.has("message"):
+			parsed["message"] = "The party request failed."
 		return parsed
 	if not _version_ok(parsed):
 		return _fail("protocol_mismatch", "The party-state protocol version does not match this client.")
@@ -362,7 +366,11 @@ static func parse_party_state(raw: String) -> Dictionary:
 
 static func parse_party_event(raw: String) -> Dictionary:
 	var parsed: Dictionary = _parse_object(raw)
-	if parsed.has("ok") and not bool(parsed["ok"]) and parsed.has("message"):
+	if parsed.has("ok") and not bool(parsed["ok"]):
+		if not parsed.has("code"):
+			parsed["code"] = "party_event_failed"
+		if not parsed.has("message"):
+			parsed["message"] = "The party event failed."
 		return parsed
 	if not _version_ok(parsed):
 		return _fail("protocol_mismatch", "The party-event protocol version does not match this client.")
@@ -380,7 +388,11 @@ static func parse_party_event(raw: String) -> Dictionary:
 
 static func parse_trade_state(raw: String) -> Dictionary:
 	var parsed: Dictionary = _parse_object(raw)
-	if parsed.has("ok") and not bool(parsed["ok"]) and parsed.has("message"):
+	if parsed.has("ok") and not bool(parsed["ok"]):
+		if not parsed.has("code"):
+			parsed["code"] = "trade_state_failed"
+		if not parsed.has("message"):
+			parsed["message"] = "The trade request failed."
 		return parsed
 	if not _version_ok(parsed):
 		return _fail("protocol_mismatch", "The trade-state protocol version does not match this client.")

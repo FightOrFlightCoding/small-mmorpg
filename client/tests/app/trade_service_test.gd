@@ -161,3 +161,27 @@ func test_hud_invite_blocks_out_of_range_before_send() -> void:
 	assert_int(fake.last_send_opcode).is_not_equal(MatchProtocol.CLIENT_TRADE_INVITE)
 	var notice: Label = hud.get_node("Root/Notice")
 	assert_str(notice.text).contains("80")
+
+
+func test_trade_failures_do_not_open_the_error_dialog() -> void:
+	_fake()
+	AppState.last_error_code = ""
+	AppState.last_error_message = ""
+	TradeService.request_invite("user-bob")
+	TradeService._on_action_result({
+		"ok": false,
+		"result_ok": false,
+		"code": "out_of_range",
+		"request_id": "r-trade-1",
+	})
+	assert_str(AppState.last_error_code).is_equal("")
+	assert_str(TradeService.last_error).is_equal("out_of_range")
+	assert_bool(TradeService.took_action_result("r-trade-1")).is_true()
+	TradeService.reset_for_tests()
+	AppState.last_error_code = ""
+	NetworkService._on_match_state(
+		MatchProtocol.SERVER_TRADE_STATE,
+		JSON.stringify({"ok": false, "code": "already_trading"}),
+	)
+	assert_str(AppState.last_error_code).is_equal("")
+	assert_str(TradeService.last_error).is_equal("already_trading")

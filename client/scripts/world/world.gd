@@ -621,6 +621,8 @@ func _on_action_result(payload: Dictionary) -> void:
 	var code := String(payload.get("code", "action_failed"))
 	if code == "not_implemented":
 		return
+	if TradeService.took_action_result(request_id) or not String(payload.get("trade_id", "")).is_empty():
+		return
 	if code == "not_party_member" or code == "not_cave_owner" or code == "already_transferring" or code == "cave_expired" or code == "cave_already_associated" or code == "invalid_origin" or code == "instance_not_ready" or code == "content_mismatch":
 		AppState.report_recoverable(code, _cave_message(code))
 		return

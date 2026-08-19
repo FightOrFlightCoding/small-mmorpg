@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   applyCaveWipeIfNeeded,
   canJoinOwnedCave,
+  chooseReconnectMatch,
   evaluateCaveEntry,
   evaluateCaveExit,
   expireCave,
@@ -22,7 +23,7 @@ import {
   type TransferTicketRepository,
 } from "../src/domain/transfer";
 import { evaluateJoinPresence } from "../src/domain/location";
-import { caveLocation, publicWorldLocation, type CaveRecord } from "../src/domain/instance";
+import { caveLocation, emptyCaveRecord, publicWorldLocation, type CaveRecord } from "../src/domain/instance";
 import { applyPlayerLeave, applyPlayerTransfer } from "../src/domain/persistence";
 import { applyMatchLoop } from "../src/domain/match_loop";
 import {
@@ -206,6 +207,69 @@ test("party members share one cave instance and non-members are denied", () => {
   });
   assert.equal(outsider.ok, false);
   assert.equal(outsider.code, "not_party_member");
+});
+
+test("cave reconnect stays on a live party cave while the character is a member", () => {
+  const cave = emptyCaveRecord({
+    instanceId: "cave-1",
+    matchId: "match-cave-1",
+    ownerPartyId: "p_one",
+    contentVersion: "hash",
+    nowMs: 1000,
+    emptyTimeoutMs: 60000,
+  });
+  assert.equal(
+    chooseReconnectMatch({
+      locationInstanceType: "party_cave",
+      cave: cave,
+      caveMatchRunning: true,
+      characterId: "char-alice",
+      party: partyOf("p_one", ["char-alice", "char-bob"]),
+    }),
+    "cave",
+  );
+});
+
+test("cave reconnect falls back to the public world when the party is gone", () => {
+  const cave = emptyCaveRecord({
+    instanceId: "cave-1",
+    matchId: "match-cave-1",
+    ownerPartyId: "p_one",
+    contentVersion: "hash",
+    nowMs: 1000,
+    emptyTimeoutMs: 60000,
+  });
+  assert.equal(
+    chooseReconnectMatch({
+      locationInstanceType: "party_cave",
+      cave: cave,
+      caveMatchRunning: true,
+      characterId: "char-alice",
+      party: null,
+    }),
+    "public_world",
+  );
+});
+
+test("cave reconnect falls back to the public world when the cave match is gone", () => {
+  const cave = emptyCaveRecord({
+    instanceId: "cave-1",
+    matchId: "match-cave-1",
+    ownerPartyId: "p_one",
+    contentVersion: "hash",
+    nowMs: 1000,
+    emptyTimeoutMs: 60000,
+  });
+  assert.equal(
+    chooseReconnectMatch({
+      locationInstanceType: "party_cave",
+      cave: cave,
+      caveMatchRunning: false,
+      characterId: "char-alice",
+      party: partyOf("p_one", ["char-alice"]),
+    }),
+    "public_world",
+  );
 });
 
 test("concurrent owner-index writes keep a single cave", () => {

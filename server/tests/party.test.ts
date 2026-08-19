@@ -208,7 +208,9 @@ test("party domain failure codes stay in the RPC payload", () => {
   assert.equal(partyDomainFailureCode("character_missing"), "character_missing");
   assert.equal(partyDomainFailureCode("malformed_json"), "malformed_json");
   assert.equal(partyDomainFailureCode("stat_injection:members"), "stat_injection:members");
-  assert.equal(partyDomainFailureCode("unauthenticated"), "");
+  assert.equal(partyDomainFailureCode("unauthenticated"), "unauthenticated");
+  assert.equal(partyDomainFailureCode("selection_foreign"), "selection_foreign");
+  assert.equal(partyDomainFailureCode("party_failed"), "party_failed");
 });
 
 test("accountOwnsPartyMembership matches the account not the character name", () => {
@@ -274,6 +276,24 @@ test("ghost members are pruned and disband does not steal another party index", 
   assert.equal(disbanded.deleted, true);
   assert.equal(getPartyState(repo, bob, 1200).party?.partyId, "p_two");
   assert.equal(getPartyState(repo, bob, 1200).party?.members.length, 1);
+});
+
+test("self invite kick and promote are invalid_target", () => {
+  const repo = memoryPartyRepository();
+  const alice = actor("a", "Alice");
+  createParty(repo, alice, 1000, "p_one", req(60));
+  const selfInvite = inviteToParty(repo, alice, alice, 1000, req(61));
+  assert.equal(selfInvite.ok, false);
+  assert.equal(selfInvite.code, "invalid_target");
+  const selfKick = kickPartyMember(repo, alice, alice.characterId, 1000, req(62));
+  assert.equal(selfKick.ok, false);
+  assert.equal(selfKick.code, "invalid_target");
+  const emptyKick = kickPartyMember(repo, alice, "", 1000, req(63));
+  assert.equal(emptyKick.ok, false);
+  assert.equal(emptyKick.code, "invalid_target");
+  const selfPromote = promotePartyLeader(repo, alice, alice.characterId, 1000, req(64));
+  assert.equal(selfPromote.ok, false);
+  assert.equal(selfPromote.code, "invalid_target");
 });
 
 test("match cache does not keep a character in two parties", () => {

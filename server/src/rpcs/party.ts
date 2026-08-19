@@ -24,10 +24,8 @@ import {
   type PartyOpResult,
 } from "../domain/party";
 
-function rpcError(logger: nkruntime.Logger, userId: string | undefined, action: string, error: unknown): never {
-  const message = error instanceof Error ? error.message : "internal_error";
-  logger.error("%s rejected user_id=%s action=%s reason=%s", action, userId !== undefined ? userId : "", action, message);
-  throw error instanceof Error ? error : new Error(message);
+function failPayload(code: string): PartyOpResult {
+  return { ok: false, code: code };
 }
 
 function requireUser(ctx: nkruntime.Context): string {
@@ -185,7 +183,14 @@ function runPartyRpc(
       logger.info("party rpc=%s user_id=%s code=%s", action, ctx.userId !== undefined ? ctx.userId : "", domainCode);
       return JSON.stringify({ ok: false, code: domainCode });
     }
-    return rpcError(logger, ctx.userId, action, error);
+    logger.error(
+      "%s rejected user_id=%s action=%s reason=%s",
+      action,
+      ctx.userId !== undefined ? ctx.userId : "",
+      action,
+      message,
+    );
+    return JSON.stringify({ ok: false, code: "party_failed" });
   }
 }
 
@@ -246,7 +251,7 @@ export function rpcPartyAccept(
     true,
     function (actor, data, nowMs, requestId) {
       if (typeof data.partyId !== "string" || data.partyId.length === 0) {
-        throw new Error("invalid_id");
+        return failPayload("invalid_id");
       }
       return acceptPartyInvite(nakamaPartyRepository(nk), actor, data.partyId, nowMs, requestId, optionalRevision(data));
     },
@@ -269,7 +274,7 @@ export function rpcPartyDecline(
     true,
     function (actor, data, nowMs, requestId) {
       if (typeof data.partyId !== "string" || data.partyId.length === 0) {
-        throw new Error("invalid_id");
+        return failPayload("invalid_id");
       }
       return declinePartyInvite(nakamaPartyRepository(nk), actor, data.partyId, nowMs, requestId);
     },
@@ -312,7 +317,7 @@ export function rpcPartyKick(
     true,
     function (actor, data, nowMs, requestId) {
       if (typeof data.targetCharacterId !== "string" || data.targetCharacterId.length === 0) {
-        throw new Error("invalid_target");
+        return failPayload("invalid_target");
       }
       return kickPartyMember(
         nakamaPartyRepository(nk),
@@ -342,7 +347,7 @@ export function rpcPartyPromote(
     true,
     function (actor, data, nowMs, requestId) {
       if (typeof data.targetCharacterId !== "string" || data.targetCharacterId.length === 0) {
-        throw new Error("invalid_target");
+        return failPayload("invalid_target");
       }
       return promotePartyLeader(
         nakamaPartyRepository(nk),

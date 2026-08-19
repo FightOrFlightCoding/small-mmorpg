@@ -151,7 +151,7 @@ func test_trade_invite_resolves_nearby_character_name() -> void:
 	assert_str(name_edit.text).is_equal("Bob")
 
 
-func test_trade_nearby_lists_only_players_in_range() -> void:
+func test_trade_nearby_lists_far_players_with_distance() -> void:
 	var hud: WorldHud = auto_free(preload("res://scenes/world/world_hud.tscn").instantiate())
 	add_child(hud)
 	await get_tree().process_frame
@@ -165,12 +165,40 @@ func test_trade_nearby_lists_only_players_in_range() -> void:
 	hud.refresh(state, PackedStringArray(["Alice", "Bob"]))
 	var nearby: OptionButton = hud.find_child("Nearby", true, false)
 	assert_object(nearby).is_not_null()
-	assert_int(nearby.item_count).is_equal(1)
+	assert_int(nearby.item_count).is_equal(2)
 	assert_str(nearby.get_item_text(0)).is_equal("Nearby players")
+	assert_str(nearby.get_item_text(1)).contains("Bob")
+	assert_str(nearby.get_item_text(1)).contains("walk closer")
+	assert_str(nearby.get_item_metadata(1)).is_equal("user-bob")
 	var name_edit: LineEdit = hud.find_child("TradeName", true, false)
 	assert_str(name_edit.text).is_equal("")
 	var hint: Label = hud.find_child("Hint", true, false)
 	assert_str(hint.text).contains("80")
+
+
+func test_trade_invitee_hud_labels_accept_invite() -> void:
+	var hud: WorldHud = auto_free(preload("res://scenes/world/world_hud.tscn").instantiate())
+	add_child(hud)
+	await get_tree().process_frame
+	AppState.character_view = {"character_id": "char-a", "name": "Alice"}
+	TradeService.apply_trade({
+		"tradeId": "trade-1",
+		"state": "inviting",
+		"revision": 0,
+		"participantA": {"characterId": "char-b", "displayName": "Bob"},
+		"participantB": {"characterId": "char-a", "displayName": "Alice"},
+	})
+	hud.refresh_trade()
+	var status: Label = hud.find_child("TradeStatus", true, false)
+	assert_object(status).is_not_null()
+	assert_str(status.text).contains("Trade invite from Bob")
+	var accept: Button = hud.find_child("TradeAcceptButton", true, false)
+	assert_object(accept).is_not_null()
+	assert_str(accept.text).is_equal("Accept invite")
+	assert_bool(accept.visible).is_true()
+	var decline: Button = hud.find_child("TradeDeclineButton", true, false)
+	assert_object(decline).is_not_null()
+	assert_bool(decline.visible).is_true()
 
 
 func test_party_invite_prompts_to_create_first() -> void:

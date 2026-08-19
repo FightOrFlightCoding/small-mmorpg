@@ -925,35 +925,46 @@ func _rpc_gm(rpc_id: String, payload: Dictionary) -> void:
 
 
 func _rpc_party(rpc_id: String, payload: Dictionary) -> void:
+	# Party buttons must never open the recoverable login modal. Refresh the HTTP
+	# token if needed, then keep failures on the party HUD even while the match socket is live.
 	if _backend().is_session_expired():
-		var session_ok := await ensure_session()
-		if not session_ok:
-			party_state_received.emit({"ok": false, "code": "session_expired"})
-			return
+		var refreshed_first: Dictionary = await _backend().refresh_session()
+		if not bool(refreshed_first.get("ok", false)) and not _device_id.is_empty():
+			await _backend().authenticate_device(_device_id, _username)
 	var encoded := JSON.stringify(payload)
 	var result: Dictionary = await _backend().rpc(rpc_id, encoded)
 	if not bool(result.get("ok", false)):
 		var auth_code := String(result.get("code", "rpc_failed"))
 		if auth_code == "session_expired" or auth_code == "unauthenticated":
-			if await ensure_session():
+			var refreshed: Dictionary = await _backend().refresh_session()
+			if bool(refreshed.get("ok", false)):
 				result = await _backend().rpc(rpc_id, encoded)
+			elif not _device_id.is_empty():
+				var reauth: Dictionary = await _backend().authenticate_device(_device_id, _username)
+				if bool(reauth.get("ok", false)):
+					result = await _backend().rpc(rpc_id, encoded)
 	if not bool(result.get("ok", false)):
 		var code := String(result.get("code", "rpc_failed"))
 		var message := String(result.get("message", "The party request failed."))
 		var domain := _party_rpc_failure_code(code, message)
-		if code == "session_expired" or code == "unauthenticated":
-			AppState.report_recoverable("session_expired", message)
-			party_state_received.emit({"ok": false, "code": "session_expired"})
-			return
 		if domain.is_empty():
-			party_state_received.emit({"ok": false, "code": code})
-		else:
-			party_state_received.emit({"ok": false, "code": domain})
+			domain = code if not code.is_empty() else "party_failed"
+		_emit_party_rpc_failure(domain, message)
 		return
-	var parsed: Variant = JSON.parse_string(String(result.get("payload", "")))
+	var raw := String(result.get("payload", ""))
+	if raw.is_empty():
+		return
+	var parsed: Variant = JSON.parse_string(raw)
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return
 	party_state_received.emit(parsed)
+
+
+func _emit_party_rpc_failure(code: String, _message: String) -> void:
+	var hud_code := code
+	if hud_code == "session_expired" or hud_code == "unauthenticated" or hud_code == "rpc_failed" or hud_code.is_empty():
+		hud_code = "party_failed"
+	party_state_received.emit({"ok": false, "code": hud_code})
 
 
 func join_party_chat(party_id: String) -> bool:
@@ -1480,21 +1491,33 @@ func _on_match_state(opcode: int, payload: String) -> void:
 	if opcode == MatchProtocol.SERVER_PARTY_STATE:
 		var party_state: Dictionary = MatchProtocol.parse_party_state(payload)
 		if not bool(party_state.get("ok", false)):
-			AppState.report_recoverable(String(party_state.get("code", "party_state_failed")), String(party_state.get("message", "Party state was invalid.")))
+			var party_code := String(party_state.get("code", "party_state_failed"))
+			if MatchProtocol.is_compatibility_code(party_code):
+				AppState.report_fatal_compatibility(party_code, String(party_state.get("message", "Party state was invalid.")))
+				return
+			party_state_received.emit(party_state)
 			return
 		party_state_received.emit(party_state)
 		return
 	if opcode == MatchProtocol.SERVER_PARTY_EVENT:
 		var party_event: Dictionary = MatchProtocol.parse_party_event(payload)
 		if not bool(party_event.get("ok", false)):
-			AppState.report_recoverable(String(party_event.get("code", "party_event_failed")), String(party_event.get("message", "Party event was invalid.")))
+			var event_code := String(party_event.get("code", "party_event_failed"))
+			if MatchProtocol.is_compatibility_code(event_code):
+				AppState.report_fatal_compatibility(event_code, String(party_event.get("message", "Party event was invalid.")))
+				return
+			party_event_received.emit(party_event)
 			return
 		party_event_received.emit(party_event)
 		return
 	if opcode == MatchProtocol.SERVER_TRADE_STATE:
 		var trade_state: Dictionary = MatchProtocol.parse_trade_state(payload)
 		if not bool(trade_state.get("ok", false)):
-			AppState.report_recoverable(String(trade_state.get("code", "trade_state_failed")), String(trade_state.get("message", "Trade state was invalid.")))
+			var trade_code := String(trade_state.get("code", "trade_state_failed"))
+			if MatchProtocol.is_compatibility_code(trade_code):
+				AppState.report_fatal_compatibility(trade_code, String(trade_state.get("message", "Trade state was invalid.")))
+				return
+			trade_state_received.emit(trade_state)
 			return
 		trade_state_received.emit(trade_state)
 		return
@@ -1600,21 +1623,29 @@ func _character_view(data: Dictionary) -> Dictionary:
 
 
 func _party_rpc_failure_code(code: String, message: String) -> String:
+	if code == "session_expired" or code == "unauthenticated" or code == "rpc_failed":
+		return "party_failed"
 	var known := PackedStringArray([
 		"already_in_party",
+		"character_missing",
 		"duplicate_invite",
+		"duplicate_request",
 		"invite_expired",
 		"invite_missing",
 		"invite_pending",
 		"invalid_id",
 		"invalid_request_id",
 		"invalid_target",
+		"malformed_json",
 		"not_in_party",
 		"not_leader",
 		"not_member",
+		"party_failed",
 		"party_full",
 		"party_missing",
+		"rate_limited",
 		"revision_mismatch",
+		"selection_foreign",
 		"stale_revision",
 	])
 	if known.has(code):

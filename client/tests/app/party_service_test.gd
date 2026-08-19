@@ -114,6 +114,8 @@ func test_party_chat_payload_includes_party_id_and_stays_plain_text() -> void:
 	assert_str(disband.text).is_equal("Disband")
 	assert_bool(disband.visible).is_true()
 	assert_bool(disband.disabled).is_false()
+	assert_bool(hud.get_node("Root/LeftColumn/Party/Margin/Scroll/VBox/ActionRow/KickButton").disabled).is_true()
+	assert_bool(hud.get_node("Root/LeftColumn/Party/Margin/Scroll/VBox/ActionRow/PromoteButton").disabled).is_true()
 	assert_bool(hud.get_node("Root/LeftColumn/Party/Margin/Scroll/VBox/ActionRow/CreateButton").visible).is_false()
 	PartyService.apply_party({
 		"partyId": "p_one",
@@ -183,6 +185,17 @@ func test_party_rpc_login_error_does_not_open_the_credentials_modal() -> void:
 	assert_str(AppState.last_error_message).is_not_equal("Email or password is incorrect.")
 
 
+func test_party_domain_payload_stays_on_the_hud() -> void:
+	var fake := _fake()
+	fake.rpc_payload = JSON.stringify({"ok": false, "code": "not_leader"})
+	AppState.last_error_code = ""
+	PartyService.request_kick("char-b")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_str(AppState.last_error_code).is_equal("")
+	assert_str(PartyService.last_error).is_equal("not_leader")
+
+
 func test_party_chat_join_failure_does_not_open_the_error_dialog() -> void:
 	var fake := _fake()
 	fake.join_chat_ok = false
@@ -198,3 +211,92 @@ func test_party_chat_join_failure_does_not_open_the_error_dialog() -> void:
 	await get_tree().process_frame
 	assert_str(AppState.last_error_code).is_not_equal("invalid_channel")
 	assert_str(PartyService.last_error).is_equal("party_chat_join_failed")
+
+
+func test_party_session_expired_while_in_match_stays_on_the_hud() -> void:
+	var fake := _fake()
+	fake.socket_is_connected = true
+	fake.rpc_ok = false
+	fake.rpc_code = "session_expired"
+	fake.rpc_message = "The session expired. Sign in again."
+	NetworkService.match_id = "match-starter-shared"
+	AppState.last_error_code = ""
+	AppState.last_error_message = ""
+	PartyService.request_leave()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_int(fake.refresh_calls).is_greater_equal(1)
+	assert_str(AppState.last_error_code).is_not_equal("session_expired")
+	assert_str(PartyService.last_error).is_equal("party_failed")
+
+
+func test_party_session_expired_without_a_match_still_stays_on_the_hud() -> void:
+	var fake := _fake()
+	fake.rpc_ok = false
+	fake.rpc_code = "session_expired"
+	fake.rpc_message = "The session expired. Sign in again."
+	AppState.last_error_code = ""
+	PartyService.request_disband()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_str(AppState.last_error_code).is_not_equal("session_expired")
+	assert_str(PartyService.last_error).is_equal("party_failed")
+
+
+func test_party_session_expired_retries_after_refresh() -> void:
+	var fake := _fake()
+	fake.socket_is_connected = true
+	fake.rpc_fail_remaining = 1
+	fake.rpc_code = "session_expired"
+	fake.rpc_message = "The session expired. Sign in again."
+	fake.rpc_payload = JSON.stringify({
+		"ok": true,
+		"code": "ok",
+		"party": {
+			"partyId": "p_retry",
+			"leaderCharacterId": "char-a",
+			"members": [{"characterId": "char-a", "displayName": "Alice", "isLeader": true}],
+		},
+	})
+	NetworkService.match_id = "match-starter-shared"
+	AppState.last_error_code = ""
+	PartyService.request_create()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_int(fake.refresh_calls).is_equal(1)
+	assert_str(AppState.last_error_code).is_equal("")
+	assert_str(String(PartyService.party.get("partyId", ""))).is_equal("p_retry")
+
+
+func test_kick_and_promote_require_a_selected_member() -> void:
+	PartyService.apply_party({
+		"partyId": "p_one",
+		"leaderCharacterId": "char-a",
+		"members": [{"characterId": "char-a", "displayName": "Alice", "isLeader": true}],
+	})
+	var fake := _fake()
+	PartyService.request_kick("")
+	assert_str(fake.last_rpc_id).is_not_equal("party_kick")
+	assert_str(PartyService.last_error).is_equal("invalid_target")
+	PartyService.request_promote("char-a")
+	assert_str(fake.last_rpc_id).is_not_equal("party_promote")
+	PartyService.request_invite("Alice")
+	assert_str(fake.last_rpc_id).is_not_equal("party_invite")
+	var hud: WorldHud = auto_free(preload("res://scenes/world/world_hud.tscn").instantiate())
+	add_child(hud)
+	await get_tree().process_frame
+	hud.refresh_party()
+	hud._on_party_kick()
+	assert_str(hud.get_node("Root/Notice").text).contains("Select a party member")
+	assert_bool(hud.get_node("Root/LeftColumn/Party/Margin/Scroll/VBox/ActionRow/KickButton").disabled).is_true()
+	PartyService.apply_party({
+		"partyId": "p_one",
+		"leaderCharacterId": "char-a",
+		"members": [
+			{"characterId": "char-a", "displayName": "Alice", "isLeader": true},
+			{"characterId": "char-b", "displayName": "Bob", "isLeader": false},
+		],
+	})
+	hud.refresh_party()
+	assert_bool(hud.get_node("Root/LeftColumn/Party/Margin/Scroll/VBox/ActionRow/KickButton").disabled).is_false()
+	assert_bool(hud.get_node("Root/LeftColumn/Party/Margin/Scroll/VBox/ActionRow/PromoteButton").disabled).is_false()

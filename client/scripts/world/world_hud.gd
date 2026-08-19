@@ -88,6 +88,8 @@ var _trade_hint: Label
 var _trade_nearby: OptionButton
 var _trade_name: LineEdit
 var _trade_invite: Button
+var _trade_accept: Button
+var _trade_decline: Button
 var _trade_session: VBoxContainer
 var _trade_nearby_fingerprint: String = ""
 var _last_player_target_id: String = ""
@@ -314,15 +316,16 @@ func refresh_party() -> void:
 			_party_members.add_item(line)
 			_party_members.set_item_metadata(_party_members.item_count - 1, String(member.get("characterId", "")))
 	var leader := PartyService.is_leader()
+	var can_manage_members := leader and PartyService.member_count() >= 2
 	if _party_create != null:
 		_party_create.disabled = true
 		_party_create.visible = false
 	if _party_leave != null:
 		_party_leave.disabled = false
 	if _party_kick != null:
-		_party_kick.disabled = not leader
+		_party_kick.disabled = not can_manage_members
 	if _party_promote != null:
-		_party_promote.disabled = not leader
+		_party_promote.disabled = not can_manage_members
 	if _party_disband != null:
 		_party_disband.visible = true
 		_party_disband.disabled = not leader
@@ -1001,7 +1004,7 @@ func _build_trade_panel() -> void:
 	_trade_hint = Label.new()
 	_trade_hint.name = "Hint"
 	_trade_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_trade_hint.text = "Must be within 80 pixels and out of combat. Type a name, pick Nearby, or click them. Not the Party box."
+	_trade_hint.text = "Nearby lists everyone in this match with distance. Invite still requires 80 pixels and no combat. Not the Party box."
 	vbox.add_child(_trade_hint)
 	_trade_nearby = OptionButton.new()
 	_trade_nearby.name = "Nearby"
@@ -1023,6 +1026,7 @@ func _build_trade_panel() -> void:
 	_trade_invite.pressed.connect(_on_trade_invite)
 	invite_row.add_child(_trade_invite)
 	_trade_status = Label.new()
+	_trade_status.name = "TradeStatus"
 	_trade_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(_trade_status)
 	_trade_session = VBoxContainer.new()
@@ -1075,14 +1079,16 @@ func _build_trade_panel() -> void:
 	offer_row.add_child(offer)
 	var action_row := HBoxContainer.new()
 	_trade_session.add_child(action_row)
-	var accept := Button.new()
-	accept.text = "Accept"
-	accept.pressed.connect(_on_trade_accept)
-	action_row.add_child(accept)
-	var decline := Button.new()
-	decline.text = "Decline"
-	decline.pressed.connect(_on_trade_decline)
-	action_row.add_child(decline)
+	_trade_accept = Button.new()
+	_trade_accept.name = "TradeAcceptButton"
+	_trade_accept.text = "Accept trade"
+	_trade_accept.pressed.connect(_on_trade_accept)
+	action_row.add_child(_trade_accept)
+	_trade_decline = Button.new()
+	_trade_decline.name = "TradeDeclineButton"
+	_trade_decline.text = "Decline"
+	_trade_decline.pressed.connect(_on_trade_decline)
+	action_row.add_child(_trade_decline)
 	var cancel := Button.new()
 	cancel.text = "Cancel"
 	cancel.pressed.connect(_on_trade_cancel)
@@ -1112,8 +1118,20 @@ func refresh_trade() -> void:
 	if _trade_warning != null:
 		_trade_warning.visible = TradeService.offer_changed
 	_layout_trade_panel()
-	if not TradeService.is_trading() and String(TradeService.trade.get("state", "")).is_empty():
-		_trade_status.text = "No active trade."
+	var trade_state := String(TradeService.trade.get("state", ""))
+	if _trade_invite != null:
+		_trade_invite.disabled = TradeService.is_trading()
+	if _trade_accept != null:
+		if trade_state == "inviting":
+			_trade_accept.text = "Accept invite"
+			_trade_accept.visible = TradeService.is_invitee()
+		else:
+			_trade_accept.text = "Accept trade"
+			_trade_accept.visible = trade_state == "open"
+	if _trade_decline != null:
+		_trade_decline.visible = trade_state == "inviting" and TradeService.is_invitee()
+	if not TradeService.is_trading() and trade_state.is_empty():
+		_trade_status.text = "No active trade. Pick Nearby (distance shown), walk within 80 pixels, then Invite."
 		if _trade_session != null:
 			_trade_session.visible = false
 		if _trade_mine != null:
@@ -1123,8 +1141,14 @@ func refresh_trade() -> void:
 		return
 	if _trade_session != null:
 		_trade_session.visible = true
-	var state := String(TradeService.trade.get("state", ""))
-	_trade_status.text = "Trade %s  revision %s" % [state, str(TradeService.revision())]
+	if trade_state == "inviting":
+		if TradeService.is_invitee():
+			_trade_status.text = "Trade invite from %s. Accept invite or Decline." % TradeService.other_display_name()
+		else:
+			_trade_status.text = "Waiting for %s to accept the invite." % TradeService.other_display_name()
+		_fill_trade_offers()
+		return
+	_trade_status.text = "Trade %s  revision %s" % [trade_state, str(TradeService.revision())]
 	_fill_trade_offers()
 
 
@@ -1227,8 +1251,12 @@ func _refresh_trade_nearby(state: Dictionary) -> void:
 	var self_id := String(state.get("self_id", ""))
 	var self_record := _player_record(self_id, state)
 	var ids: PackedStringArray = PackedStringArray()
+	var labels: PackedStringArray = PackedStringArray()
 	var names: PackedStringArray = PackedStringArray()
+	var in_range_ids: PackedStringArray = PackedStringArray()
 	var others := 0
+	var nearest_name := ""
+	var nearest_dist := 0.0
 	for entry in state.get("players", []):
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
@@ -1241,14 +1269,30 @@ func _refresh_trade_nearby(state: Dictionary) -> void:
 		if int(record.get("health", 1)) <= 0:
 			continue
 		others += 1
-		if not self_record.is_empty() and not _in_trade_range(self_record, record):
-			continue
 		var named := String(record.get("name", ""))
 		if named.is_empty():
 			named = user_id
+		var in_range := true
+		var dist := 0.0
+		if not self_record.is_empty():
+			dist = _player_position(self_record).distance_to(_player_position(record))
+			in_range = dist <= TRADE_RANGE_PX
+			if nearest_name.is_empty() or dist < nearest_dist:
+				nearest_name = named
+				nearest_dist = dist
+		var label := named
+		if self_record.is_empty():
+			label = named
+		elif in_range:
+			label = "%s (in range)" % named
+		else:
+			label = "%s (%s px, walk closer)" % [named, str(roundi(dist))]
 		ids.append(user_id)
+		labels.append(label)
 		names.append(named)
-	var fingerprint := "%s#%d" % [",".join(ids), others]
+		if in_range:
+			in_range_ids.append(user_id)
+	var fingerprint := "%s#%d" % [",".join(labels), others]
 	if fingerprint == _trade_nearby_fingerprint and _trade_nearby.item_count == ids.size() + 1:
 		return
 	var keep := _last_player_target_id
@@ -1257,21 +1301,30 @@ func _refresh_trade_nearby(state: Dictionary) -> void:
 	_trade_nearby.add_item("Nearby players")
 	_trade_nearby.set_item_metadata(0, "")
 	for i in range(ids.size()):
-		_trade_nearby.add_item(names[i])
+		_trade_nearby.add_item(labels[i])
 		_trade_nearby.set_item_metadata(i + 1, ids[i])
 	if ids.is_empty():
-		if _trade_hint != null and others > 0:
-			_trade_hint.text = "Nobody in trade range. Walk within 80 pixels, then Invite."
-		return
-	if ids.size() == 1:
-		_trade_nearby.select(1)
-		_last_player_target_id = ids[0]
-		if _trade_name != null and _trade_name.text.strip_edges().is_empty():
-			_trade_name.text = names[0]
 		if _trade_hint != null:
-			_trade_hint.text = "Selected %s. Stay within 80 pixels and out of combat, then Invite." % names[0]
+			if others > 0:
+				_trade_hint.text = "Nobody nearby is alive to trade."
+			else:
+				_trade_hint.text = "No other players in this match. Trade is same-match only."
 		return
-	_select_nearby_user(keep)
+	if not keep.is_empty():
+		_select_nearby_user(keep)
+	elif in_range_ids.size() == 1:
+		var pick := in_range_ids[0]
+		var pick_index := ids.find(pick)
+		if pick_index >= 0:
+			_trade_nearby.select(pick_index + 1)
+			_last_player_target_id = pick
+			if _trade_name != null and _trade_name.text.strip_edges().is_empty():
+				_trade_name.text = names[pick_index]
+			if _trade_hint != null:
+				_trade_hint.text = "Selected %s. Stay within 80 pixels and out of combat, then Invite." % names[pick_index]
+		return
+	if in_range_ids.is_empty() and _trade_hint != null:
+		_trade_hint.text = "%s is %s px away. Walk within 80 pixels, then Invite." % [nearest_name, str(roundi(nearest_dist))]
 
 
 func _select_nearby_user(user_id: String) -> void:
@@ -1329,11 +1382,21 @@ func select_player_for_trade(user_id: String, display_name: String = "") -> void
 	if user_id.is_empty():
 		return
 	_last_player_target_id = user_id
-	if _trade_name != null and not display_name.is_empty():
-		_trade_name.text = display_name
+	var named := display_name
+	if named.is_empty() or named.contains(" px") or named.contains("in range"):
+		var record := _player_record(user_id, AppState.zone_view)
+		named = String(record.get("name", ""))
+		if named.is_empty():
+			named = display_name if not display_name.is_empty() else user_id
+	if _trade_name != null and not named.is_empty():
+		_trade_name.text = named
 	_select_nearby_user(user_id)
-	if _trade_hint != null and not display_name.is_empty():
-		_trade_hint.text = "Selected %s. Stay within 80 pixels and out of combat, then Invite." % display_name
+	if _trade_hint != null and not named.is_empty():
+		var blocked := _trade_invite_block_reason(user_id)
+		if not blocked.is_empty():
+			_trade_hint.text = "Selected %s. %s" % [named, blocked]
+		else:
+			_trade_hint.text = "Selected %s. Stay within 80 pixels and out of combat, then Invite." % named
 
 
 func _on_trade_nearby_selected(index: int) -> void:
@@ -1420,11 +1483,25 @@ func _on_party_leave() -> void:
 
 
 func _on_party_kick() -> void:
-	PartyService.request_kick(_selected_party_character_id())
+	var target_id := _selected_party_character_id()
+	if target_id.is_empty():
+		show_notice("Select a party member, then Kick.")
+		return
+	if target_id == String(AppState.character_view.get("character_id", AppState.character_view.get("characterId", ""))):
+		show_notice("You cannot kick yourself. Leave or Disband.")
+		return
+	PartyService.request_kick(target_id)
 
 
 func _on_party_promote() -> void:
-	PartyService.request_promote(_selected_party_character_id())
+	var target_id := _selected_party_character_id()
+	if target_id.is_empty():
+		show_notice("Select a party member, then Promote.")
+		return
+	if target_id == String(AppState.character_view.get("character_id", AppState.character_view.get("characterId", ""))):
+		show_notice("That member is already the party leader.")
+		return
+	PartyService.request_promote(target_id)
 
 
 func _on_party_disband() -> void:
@@ -1443,6 +1520,10 @@ func _on_party_invite() -> void:
 		named = _party_invite_name.text.strip_edges()
 	if named.is_empty():
 		show_notice("Type the other character's exact name, then Invite.")
+		return
+	var self_name := String(AppState.character_view.get("name", "")).strip_edges()
+	if not self_name.is_empty() and named.to_lower() == self_name.to_lower():
+		show_notice("You cannot invite yourself.")
 		return
 	PartyService.request_invite(named)
 

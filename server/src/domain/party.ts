@@ -171,10 +171,14 @@ const PARTY_DOMAIN_FAILURE_CODES = [
   "not_in_party",
   "not_leader",
   "not_member",
+  "party_failed",
   "party_full",
   "party_missing",
+  "rate_limited",
   "revision_mismatch",
+  "selection_foreign",
   "stale_revision",
+  "unauthenticated",
 ];
 
 export function partyDomainFailureCode(message: string): string {
