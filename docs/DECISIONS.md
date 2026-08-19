@@ -483,3 +483,13 @@ The standard soak is 200 ticks. Manual certification is `powershell -File script
 
 Content hash after this phase: `985e5073b1e51f52205f73f85c65982f63454ed87ca4142765fd17a97692b7bc`.
 
+## 2026-08-19 — Final content-ready foundation certification
+
+The issued Prompt 35 proves the stack is ready for original content and assets. It does not add opcodes, storage record types, persistence permissions, transaction mechanisms, world-lifecycle changes, or `SAVE_SCHEMA_VERSION` 2. Protocol version stays **1**. Prompt 18 village/slime poses stay frozen.
+
+Content-only pack (production, new `contentHash`): `test.class.warden`, `test.ability.cert_strike`, `item.cert_mail`, `enemy.cert_scout`, `loot.cert_scout`, `npc.cert_quartermaster`, `quest.cert_scout`, `vendor.cert_quartermaster`, `spawn.starter.cert_scout`, plus `zone.starter` placements (quartermaster 720,640; scout 1080,140). Asset replacements are `client/content/asset_manifest.json` only (plus `client/assets/audio/cert_hit.wav` as the hit stream). Five-client `--cert-five` covers two classes, vendor sell, inn bind, armor, party chat, in-cave reconnect, allocate/unlock, item-and-gold trade, logout, Nakama/Postgres restart, and `--cert-five-resume`. Cave boss placement `respawnDelay` is **0**, so the live enemy does not stay dead; the cert driver records the first HP wrap as the single defeat. Existing-save fixtures: `p18-alice`, `p20-v1-alice`, `p21-class-alice`, `current-v1-alice`.
+
+Suggested tag `foundation-v1` is not created until the working tree is clean and the user approves.
+
+Content hash after this phase: `4eeb205a3748b3cd71053bcc217cb017ae69f1f1d4753238ca4c03da9cce35c1`.
+

@@ -1,0 +1,14 @@
+{
+  "id": "vendor.cert_quartermaster",
+  "kind": "vendor",
+  "displayName": "Cert Quartermaster",
+  "stock": [
+    {
+      "itemId": "item.cert_mail",
+      "buyPrice": 5,
+      "classRequirements": [],
+      "levelRequirement": 0
+    }
+  ],
+  "sellMultiplier": 0.5
+}

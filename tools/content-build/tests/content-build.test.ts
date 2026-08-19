@@ -313,6 +313,15 @@ test("production payload includes the content-only proof chain and excludes the 
   assert.ok(production.lootTables["loot.proof_critter"]);
   assert.ok(production.npcs["npc.proof_giver"]);
   assert.ok(production.quests["quest.proof_errand"]);
+  assert.ok(production.classes["test.class.warden"]);
+  assert.ok(production.abilities["test.ability.cert_strike"]);
+  assert.ok(production.items["item.cert_mail"]);
+  assert.ok(production.enemies["enemy.cert_scout"]);
+  assert.ok(production.lootTables["loot.cert_scout"]);
+  assert.ok(production.npcs["npc.cert_quartermaster"]);
+  assert.ok(production.quests["quest.cert_scout"]);
+  assert.ok(production.vendors["vendor.cert_quartermaster"]);
+  assert.ok(production.spawns["spawn.starter.cert_scout"]);
   assert.equal(production.zones["test.zone.systems_lab"], undefined);
   assert.equal(production.npcs["npc.lab_keeper"], undefined);
   const withDev = validateDocuments(SCHEMA_DIR, loadValid(), { includeDevelopment: true });

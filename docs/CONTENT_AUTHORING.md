@@ -67,6 +67,8 @@ CSV import/export is optional and only for tabular kinds: `level_curve`, `vendor
 
 Do not hand-edit generated catalogs.
 
+A worked content-only example is the Prompt 35 cert pack (`quest.cert_scout` and friends). Short loop: [CONTENT_CREATION_QUICKSTART.md](CONTENT_CREATION_QUICKSTART.md).
+
 ## Systems lab
 
 `test.zone.systems_lab` is `developmentOnly`. Production generate omits it. Load it with `content build --include-dev`, then enter via an authorized `gm_command` `open_cave` (default template is the lab when that zone exists in the catalog). The lab is a manual exercise area for classes, level-up, attributes, skill unlock, abilities, status effects, equipment, melee/ranged/caster/boss enemies, quest objective types, vendor, inn, party, cave entry, and trade. It does **not** replace automated tests.

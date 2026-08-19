@@ -6,6 +6,7 @@
   "dialogue.npc.test_cave_portal": "res://content/dialogue/npc.test_cave_portal.dialogue",
   "dialogue.npc.test_cave_exit": "res://content/dialogue/npc.test_cave_exit.dialogue",
   "dialogue.npc.proof_giver": "res://content/dialogue/npc.proof_giver.dialogue",
+  "dialogue.npc.cert_quartermaster": "res://content/dialogue/npc.cert_quartermaster.dialogue",
   "dialogue.npc.lab_keeper": "res://content/dialogue/npc.lab_keeper.dialogue",
   "dialogue.npc.lab_vendor": "res://content/dialogue/npc.lab_vendor.dialogue",
   "dialogue.npc.lab_inn": "res://content/dialogue/npc.lab_inn.dialogue",

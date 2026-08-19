@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Security, abuse, failure, load, and soak certification**.
+Last accepted phase: **Final content-ready foundation certification**.
 
 Current phase: none.
 
@@ -688,6 +688,41 @@ powershell -File scripts/test-e2e.ps1
 powershell -File scripts/test-capacity.ps1
 powershell -File scripts/test-soak.ps1
 powershell -File scripts/test-cert-journey.ps1
+```
+
+## Final content-ready foundation certification acceptance (2026-08-19)
+
+No gameplay systems, opcodes, storage record types, persistence permissions, transaction mechanisms, or world-lifecycle changes were added. Protocol version and `SAVE_SCHEMA_VERSION` stay **1**. Prompt 18 elder **160,320** and slime **960,400** stay frozen. Suggested tag **`foundation-v1`** is not created until the working tree is clean and the user approves.
+
+The content-only mini-pack (`test.class.warden`, `test.ability.cert_strike`, `item.cert_mail`, `enemy.cert_scout`, `loot.cert_scout`, `npc.cert_quartermaster`, `quest.cert_scout`, `vendor.cert_quartermaster`, `spawn.starter.cert_scout`) completes `quest.cert_scout` through existing opcodes. Asset-manifest replacements cover character, enemy, NPC, item icon, ability icon, world tile, and SFX without gameplay-script edits. Existing-save fixtures `p18-alice`, `p20-v1-alice`, `p21-class-alice`, and `current-v1-alice` dry-run to schema 1 with gold **25** and a single completed slime quest.
+
+Headless `--cert-five` (stamp `1787139186964`) used five accounts (three `test.class.vanguard`, two `test.class.arcanist`): shared world, zone and party chat, Slime Problem, combat, loot, vendor buy/sell, inn rest/bind, `item.cert_mail` equip, party of five, one cave, in-cave reconnect, one boss credit (first HP wrap; cave `respawnDelay` is 0), attribute allocate, `test.ability.small_heal` unlock, cave exit, item-and-gold trade, logout, Nakama and Postgres restart, `--cert-five-resume` with persistent quest/gold/item. Prompt 18 `E2E_SLICE_OK` still holds.
+
+| Gate | Result |
+| --- | --- |
+| Content | 23/23, hash `4eeb205a3748b3cd71053bcc217cb017ae69f1f1d4753238ca4c03da9cce35c1` |
+| Audit | `FOUNDATION_AUDIT_OK` (26 storage records, 31 client opcodes, 15 server opcodes, 24 rpcs) |
+| Server | 446/446, `tsc --noEmit` clean |
+| Client GdUnit | 204/204, 0 orphans, `SHELL_LOGIN` |
+| Capacity | `reports/capacity.cert.json`: 20 public-world characters + 2×5 cave instances, cave cleanup ok, 0 ghosts |
+| Soak | `reports/soak.cert.json`: 200 ticks, 4 bots, 0 errors, gold unchanged, no ghosts/locks/live trades/parties. Manual: `powershell -File scripts/test-soak.ps1 -DurationSec 3600` |
+| E2E | `E2E_SLICE_OK` against live Nakama 3.40.0 |
+| Five-client | `CERT_FIVE_OK` then backend restart then `CERT_FIVE_RESUME_OK` |
+| Backup | dump `nakama` → `nakama_restore_drill`, 20 public tables |
+| Existing saves | all four fixtures dry-run ok, gold 25, no duplicated slime quest or iron sword |
+| Release export | `scripts/export-client-release.ps1` is the command; this workstation lacked Godot 4.7.1 Windows templates (`windows_release_x86_64.exe`) |
+
+Clean checkout commands: [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md). Certificate summary: [FOUNDATION_READY.md](FOUNDATION_READY.md).
+
+Reproduction:
+
+```powershell
+powershell -File scripts/setup.ps1
+powershell -File scripts/content-validate.ps1
+powershell -File scripts/content-build.ps1
+powershell -File scripts/server-build.ps1
+powershell -File scripts/dev-up.ps1
+powershell -File scripts/test-all.ps1
 ```
 
 

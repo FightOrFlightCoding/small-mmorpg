@@ -88,11 +88,12 @@ test("alice and bob appear in the same full state", () => {
   assert.equal(body.players.length, 2);
   assert.equal(body.players[0].userId, "user-alice");
   assert.equal(body.players[1].userId, "user-bob");
-  assert.equal(body.npcs.length, 6);
+  assert.equal(body.npcs.length, 7);
   assert.equal(body.npcs[0].npcId, "npc.elder");
-  assert.equal(body.enemies.length, 2);
+  assert.equal(body.enemies.length, 3);
   assert.equal(body.enemies[0].enemyId, "enemy.green_slime");
   assert.equal(body.enemies[1].enemyId, "enemy.proof_critter");
+  assert.equal(body.enemies[2].enemyId, "enemy.cert_scout");
   assert.deepEqual(body.loot, []);
   assert.deepEqual(body.quests, []);
   assert.equal(playerCount(state), 2);

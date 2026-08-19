@@ -1,0 +1,13 @@
+{
+  "id": "test.class.warden",
+  "kind": "class",
+  "displayName": "Test Warden",
+  "visualAssetSetId": "visual.class_warden",
+  "progressionId": "test.progression.warden",
+  "startingEquipment": [
+    { "itemId": "item.training_sword", "quantity": 1 }
+  ],
+  "startingAbilities": ["test.ability.basic_melee", "test.ability.cert_strike"],
+  "allowedEquipmentTags": ["main_hand", "off_hand", "head", "chest", "legs", "feet"],
+  "tags": ["warden", "melee"]
+}

@@ -15,8 +15,17 @@ Invoke-RepoScript "server-typecheck.ps1"
 Write-Host "== server tests (includes migrations + compatibility) =="
 Invoke-RepoScript "test-server.ps1"
 Write-Host "== migration fixture dry-run / apply / verify =="
+$fixtures = @(
+	"server/tests/fixtures/saves/p18-alice.json",
+	"server/tests/fixtures/saves/p20-v1-alice.json",
+	"server/tests/fixtures/saves/p21-class-alice.json",
+	"server/tests/fixtures/saves/current-v1-alice.json"
+)
+foreach ($fixture in $fixtures) {
+	Write-Host "-- $fixture --"
+	Invoke-RepoScript "migrate-dry-run.ps1" -ArgumentList @("--fixture", $fixture)
+}
 $temp = Join-Path $env:TEMP "p18-alice.v1.json"
-Invoke-RepoScript "migrate-dry-run.ps1" -ArgumentList @("--fixture", "server/tests/fixtures/saves/p18-alice.json")
 Invoke-RepoScript "migrate-apply.ps1" -ArgumentList @("--fixture", "server/tests/fixtures/saves/p18-alice.json", "--out", $temp)
 Invoke-RepoScript "migrate-verify.ps1" -ArgumentList @("--fixture", $temp)
 if (-not $SkipClient) {

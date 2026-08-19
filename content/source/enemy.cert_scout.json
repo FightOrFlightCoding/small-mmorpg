@@ -1,0 +1,23 @@
+{
+  "id": "enemy.cert_scout",
+  "kind": "enemy",
+  "displayName": "Cert Scout",
+  "displayNameKey": "enemy.cert_scout.name",
+  "visualId": "visual.enemy_cert_scout",
+  "level": 1,
+  "maxHealth": 6,
+  "damage": 1,
+  "defense": 0,
+  "moveSpeed": 18,
+  "aggroRadius": 32,
+  "attackRange": 24,
+  "attackCooldown": 2,
+  "leashRadius": 64,
+  "respawnDelay": 12,
+  "abilityLoadout": [],
+  "aiProfileId": "test.ai.melee",
+  "xpReward": 2,
+  "lootTableId": "loot.cert_scout",
+  "collisionProfileId": "collision.enemy_default",
+  "tags": ["cert", "wildlife"]
+}

@@ -48,4 +48,10 @@ test("generated server content is importable without filesystem access", () => {
   assert.ok(content.items["item.proof_token"]);
   assert.ok(content.enemies["enemy.proof_critter"]);
   assert.ok(content.quests["quest.proof_errand"]);
+  assert.ok(content.classes["test.class.warden"]);
+  assert.ok(content.abilities["test.ability.cert_strike"]);
+  assert.ok(content.items["item.cert_mail"]);
+  assert.ok(content.enemies["enemy.cert_scout"]);
+  assert.ok(content.quests["quest.cert_scout"]);
+  assert.ok(content.vendors["vendor.cert_quartermaster"]);
 });

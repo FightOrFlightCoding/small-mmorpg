@@ -1,0 +1,32 @@
+~ start
+if QuestService.is_completed("quest.cert_scout")
+	=> completed
+elif QuestService.is_ready("quest.cert_scout")
+	=> ready
+elif QuestService.is_accepted("quest.cert_scout")
+	=> in_progress
+else
+	Quartermaster: A scout is camping the north-east ridge. Drive it off.
+	- I will handle the scout.
+		do QuestService.request_accept("quest.cert_scout")
+		Quartermaster: Stay off the slime pond. The ridge is enough.
+		=> END
+	- Not now.
+		Quartermaster: The ridge can wait.
+		=> END
+
+~ in_progress
+Quartermaster: The scout is still on the ridge.
+=> END
+
+~ ready
+Quartermaster: That scout is down. I will close the errand.
+- Turn in the scout report.
+	do QuestService.request_turn_in("quest.cert_scout")
+	=> END
+- Keep hunting.
+	=> END
+
+~ completed
+Quartermaster: The cert errand is done. Mail is still for sale.
+=> END

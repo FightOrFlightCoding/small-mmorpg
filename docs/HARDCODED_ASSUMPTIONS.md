@@ -40,7 +40,7 @@ Classification:
 | `client/content/dialogue_map.json`, `npc.elder.dialogue` | Temporary Prompt 18 assumption |
 | `client/content/asset_manifest.json` visual set | Temporary Prompt 18 assumption |
 | `client/scripts/content/content_catalog.gd` `REQUIRED_IDS` | Architectural hard-coding requiring later removal |
-| `client/scripts/e2e/slice_journey.gd` | Test fixture |
+| `client/scripts/e2e/slice_journey.gd`, `cert_journey.gd` | Test fixture |
 | Tests | Test fixture |
 
 ### `enemy.green_slime`
@@ -49,7 +49,7 @@ Classification:
 | --- | --- |
 | Source + generated catalog, zone enemy spawn | Correct content reference |
 | `content_catalog.gd` `REQUIRED_IDS` | Architectural hard-coding requiring later removal |
-| `slice_journey.gd` / `slice_session.gd` | Test fixture |
+| `slice_journey.gd` / `slice_session.gd` / `cert_journey.gd` | Test fixture |
 | `client/content/asset_manifest.json` visual set | Temporary Prompt 18 assumption |
 | Tests | Test fixture |
 
@@ -62,6 +62,7 @@ Match code spawns enemies from zone content (`enemyDefinitionsFromContent`) rath
 | Source + generated catalog | Correct content reference |
 | `server/src/domain/inventory.ts` `STARTER_ITEM_ID` | Architectural hard-coding requiring later removal |
 | `content_catalog.gd` `REQUIRED_IDS` | Architectural hard-coding requiring later removal |
+| `client/scripts/e2e/cert_journey.gd` | Test fixture |
 | `client/content/asset_manifest.json` item icons | Temporary Prompt 18 assumption |
 | Tests | Test fixture |
 
@@ -95,7 +96,7 @@ Turn-in apply already uses quest definition rewards from content, not a second h
 | Player AABB 12 px | `PLAYER_HALF_EXTENT` | Temporary Prompt 18 assumption |
 | Dialogue example balloon path | `DialoguePresenter.BALLOON_SCENE` | Temporary Prompt 18 assumption |
 | Movement fallback bounds 16,16,1248×736 | `movement_sim.gd` defaults | Temporary Prompt 18 assumption |
-| Max level / XP / attributes are content-defined | `level_curve` / `class_progression` catalogs | Temporary test curve (`maxLevel` 5). Ability unlock still later |
+| Max level / XP / attributes are content-defined | `level_curve` / `class_progression` catalogs | Temporary test curve (`maxLevel` 5). Ability unlock is Prompt 24. |
 | Item categories are content fields (`weapon`, `armor`, `consumable`, `quest`, `material`, `miscellaneous`) | item schema + runtime validation | Prompt 23. Protocol does not enumerate item definition ids. |
 | World dimensions from `zone.starter` JSON | Correct content for the slice; runtime still assumes that one zone | Architectural hard-coding requiring later removal |
 | Systems lab zone id `test.zone.systems_lab` | `server/src/domain/gm.ts` `SYSTEMS_LAB_ZONE_ID`; `client/content/asset_manifest.json` tileset map | Development-only template. Production generate omits it. GM `open_cave` prefers it only when present in the running catalog. |

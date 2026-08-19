@@ -1,0 +1,98 @@
+{
+  "userId": "user-alice",
+  "gold": 25,
+  "character": {
+    "schemaVersion": 1,
+    "createdAt": 1700000000000,
+    "updatedAt": 1700000000000,
+    "characterId": "char-alice",
+    "accountUserId": "user-alice",
+    "name": "Alice",
+    "canonicalName": "alice",
+    "classId": "test.class.vanguard",
+    "contentId": "player.base",
+    "zoneId": "zone.starter",
+    "position": { "x": 512, "y": 384 },
+    "lastPlayedAt": 1700000000000,
+    "deletedAt": 0,
+    "bindX": 200,
+    "bindY": 640,
+    "bindZoneId": "zone.starter"
+  },
+  "inventory": {
+    "schemaVersion": 1,
+    "createdAt": 1700000000000,
+    "updatedAt": 1700000000000,
+    "capacity": 20,
+    "items": [
+      {
+        "instanceId": "inst-sword",
+        "itemId": "item.training_sword",
+        "quantity": 1,
+        "createdAt": 0,
+        "sourceType": "starter",
+        "sourceId": "player.base",
+        "metadata": {},
+        "lockReason": "",
+        "lockId": "",
+        "slotIndex": 0
+      },
+      {
+        "instanceId": "inst-iron",
+        "itemId": "item.iron_sword",
+        "quantity": 1,
+        "createdAt": 0,
+        "sourceType": "quest",
+        "sourceId": "quest.slime_problem",
+        "metadata": {},
+        "lockReason": "",
+        "lockId": "",
+        "slotIndex": 1
+      }
+    ],
+    "pickupByRequestId": {},
+    "mutationByRequestId": {}
+  },
+  "equipment": {
+    "schemaVersion": 1,
+    "createdAt": 1700000000000,
+    "updatedAt": 1700000000000,
+    "slots": {
+      "main_hand": "inst-iron",
+      "off_hand": "",
+      "head": "",
+      "chest": "",
+      "legs": "",
+      "feet": ""
+    },
+    "equipByRequestId": {}
+  },
+  "quests": {
+    "schemaVersion": 1,
+    "createdAt": 1700000000000,
+    "updatedAt": 1700000000000,
+    "quests": [
+      {
+        "questId": "quest.slime_problem",
+        "status": "completed",
+        "objectives": [{ "type": "acquire_item", "itemId": "item.slime_gel", "current": 1, "required": 1 }]
+      }
+    ],
+    "acceptByRequestId": { "req-accept": "accepted" },
+    "turnInByRequestId": { "req-turnin": "ok" }
+  },
+  "progression": {
+    "schemaVersion": 1,
+    "createdAt": 1700000000000,
+    "updatedAt": 1700000000000,
+    "level": 2,
+    "currentXp": 20,
+    "lifetimeXp": 70,
+    "allocatedAttributes": { "test.attribute.might": 1 },
+    "unspentAttributePoints": 0,
+    "unspentSkillPoints": 1,
+    "unlockedAbilityIds": ["test.ability.basic_melee"],
+    "xpByEventId": {},
+    "allocateByRequestId": {}
+  }
+}

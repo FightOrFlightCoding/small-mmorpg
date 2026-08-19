@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "985e5073b1e51f52205f73f85c65982f63454ed87ca4142765fd17a97692b7bc";
+export const contentHash = "4eeb205a3748b3cd71053bcc217cb017ae69f1f1d4753238ca4c03da9cce35c1";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = ["npc.lab_exit","npc.lab_inn","npc.lab_keeper","npc.lab_trainer","npc.lab_vendor","quest.lab_tour","spawn.lab.boss","spawn.lab.caster","spawn.lab.melee","spawn.lab.ranged","test.zone.systems_lab","vendor.lab_general"] as const;
 export const content = {
@@ -146,6 +146,55 @@ export const content = {
       "movementInterruptsCast": false,
       "prerequisites": [],
       "range": 36,
+      "relationFilter": "hostile",
+      "requiredClassTags": [],
+      "requiredLevel": 1,
+      "resourceCosts": [],
+      "skillPointCost": 0,
+      "soundAssetId": "visual.ability_melee_sound",
+      "targetMode": "entity"
+    },
+    "test.ability.cert_strike": {
+      "animationAssetId": "visual.ability_melee",
+      "areaRadius": 0,
+      "areaShape": "none",
+      "castTime": 0,
+      "channelTime": 0,
+      "damageInterruptsCast": false,
+      "descriptionKey": "ability.cert_strike.desc",
+      "displayName": "Cert Strike",
+      "displayNameKey": "ability.cert_strike.name",
+      "effects": [
+        {
+          "duration": 0,
+          "id": "hit",
+          "magnitude": {
+            "kind": "constant",
+            "value": 5
+          },
+          "maxStacks": 1,
+          "refreshPolicy": "refresh",
+          "removalReason": "expired",
+          "source": "caster",
+          "stackPolicy": "replace",
+          "tags": [
+            "physical"
+          ],
+          "target": "primary",
+          "tickInterval": 0,
+          "type": "direct_damage"
+        }
+      ],
+      "globalCooldown": 0.7,
+      "iconAssetId": "visual.ability_cert_strike_icon",
+      "id": "test.ability.cert_strike",
+      "individualCooldown": 0.8,
+      "kind": "ability",
+      "maxRank": 1,
+      "minimumRange": 0,
+      "movementInterruptsCast": false,
+      "prerequisites": [],
+      "range": 40,
       "relationFilter": "hostile",
       "requiredClassTags": [],
       "requiredLevel": 1,
@@ -674,6 +723,44 @@ export const content = {
         "test.resource.health": 100,
         "test.resource.mana": 20
       }
+    },
+    "test.progression.warden": {
+      "allowedAttributeIds": [
+        "test.attribute.might",
+        "test.attribute.vitality",
+        "test.attribute.focus"
+      ],
+      "attributeGrowth": {
+        "test.attribute.focus": 0,
+        "test.attribute.might": 0,
+        "test.attribute.vitality": 1
+      },
+      "attributePointRules": {
+        "pointsAtCreate": 0
+      },
+      "classId": "test.class.warden",
+      "id": "test.progression.warden",
+      "kind": "class_progression",
+      "levelCurveId": "test.curve.standard",
+      "resourceGrowth": {
+        "test.resource.health": 6,
+        "test.resource.mana": 0
+      },
+      "skillPointRules": {
+        "pointsAtCreate": 0
+      },
+      "startingAttributes": {
+        "test.attribute.focus": 2,
+        "test.attribute.might": 5,
+        "test.attribute.vitality": 7
+      },
+      "startingDerived": {
+        "test.stat.attack": 4
+      },
+      "startingResources": {
+        "test.resource.health": 110,
+        "test.resource.mana": 16
+      }
     }
   },
   "classes": {
@@ -733,6 +820,35 @@ export const content = {
         "melee"
       ],
       "visualAssetSetId": "visual.class_vanguard"
+    },
+    "test.class.warden": {
+      "allowedEquipmentTags": [
+        "main_hand",
+        "off_hand",
+        "head",
+        "chest",
+        "legs",
+        "feet"
+      ],
+      "displayName": "Test Warden",
+      "id": "test.class.warden",
+      "kind": "class",
+      "progressionId": "test.progression.warden",
+      "startingAbilities": [
+        "test.ability.basic_melee",
+        "test.ability.cert_strike"
+      ],
+      "startingEquipment": [
+        {
+          "itemId": "item.training_sword",
+          "quantity": 1
+        }
+      ],
+      "tags": [
+        "warden",
+        "melee"
+      ],
+      "visualAssetSetId": "visual.class_warden"
     }
   },
   "derivedStats": {
@@ -870,6 +986,32 @@ export const content = {
     }
   },
   "enemies": {
+    "enemy.cert_scout": {
+      "abilityLoadout": [],
+      "aggroRadius": 32,
+      "aiProfileId": "test.ai.melee",
+      "attackCooldown": 2,
+      "attackRange": 24,
+      "collisionProfileId": "collision.enemy_default",
+      "damage": 1,
+      "defense": 0,
+      "displayName": "Cert Scout",
+      "displayNameKey": "enemy.cert_scout.name",
+      "id": "enemy.cert_scout",
+      "kind": "enemy",
+      "leashRadius": 64,
+      "level": 1,
+      "lootTableId": "loot.cert_scout",
+      "maxHealth": 6,
+      "moveSpeed": 18,
+      "respawnDelay": 12,
+      "tags": [
+        "cert",
+        "wildlife"
+      ],
+      "visualId": "visual.enemy_cert_scout",
+      "xpReward": 2
+    },
     "enemy.green_slime": {
       "abilityLoadout": [],
       "aggroRadius": 128,
@@ -1112,6 +1254,35 @@ export const content = {
     }
   },
   "items": {
+    "item.cert_mail": {
+      "attackBonus": 0,
+      "category": "armor",
+      "classRequirements": [],
+      "descriptionKey": "item.cert_mail.desc",
+      "destroyable": true,
+      "displayName": "Cert Mail",
+      "displayNameKey": "item.cert_mail.name",
+      "equipSlot": "chest",
+      "equipmentSlotTags": [
+        "chest"
+      ],
+      "iconAssetId": "visual.item_cert_mail",
+      "id": "item.cert_mail",
+      "kind": "item",
+      "levelRequirement": 0,
+      "maxStack": 1,
+      "sellValue": 2,
+      "statModifiers": [
+        {
+          "amount": 4,
+          "statId": "test.stat.max_health"
+        }
+      ],
+      "tradeable": true,
+      "uniquePolicy": "none",
+      "visualId": "visual.item_cert_mail",
+      "worldAssetId": "visual.item_cert_mail"
+    },
     "item.iron_sword": {
       "attackBonus": 5,
       "category": "weapon",
@@ -1387,6 +1558,21 @@ export const content = {
     }
   },
   "lootTables": {
+    "loot.cert_scout": {
+      "displayName": "Cert Scout",
+      "entries": [
+        {
+          "chance": 1,
+          "guaranteed": true,
+          "itemDefinitionId": "item.cert_mail",
+          "maximumQuantity": 1,
+          "minimumQuantity": 1
+        }
+      ],
+      "id": "loot.cert_scout",
+      "kind": "loot_table",
+      "ownershipPolicy": "ground_free"
+    },
     "loot.empty": {
       "displayName": "Empty",
       "entries": [],
@@ -1530,6 +1716,41 @@ export const content = {
     }
   },
   "npcs": {
+    "npc.cert_quartermaster": {
+      "dialogueId": "dialogue.npc.cert_quartermaster",
+      "displayName": "Cert Quartermaster",
+      "displayNameKey": "npc.cert_quartermaster.name",
+      "id": "npc.cert_quartermaster",
+      "interactionRange": 48,
+      "kind": "npc",
+      "position": {
+        "x": 720,
+        "y": 640
+      },
+      "services": [
+        {
+          "type": "dialogue"
+        },
+        {
+          "questIds": [
+            "quest.cert_scout"
+          ],
+          "type": "quest_offer"
+        },
+        {
+          "questIds": [
+            "quest.cert_scout"
+          ],
+          "type": "quest_turn_in"
+        },
+        {
+          "type": "vendor",
+          "vendorId": "vendor.cert_quartermaster"
+        }
+      ],
+      "visualId": "visual.npc_cert_quartermaster",
+      "zoneId": "zone.starter"
+    },
     "npc.elder": {
       "dialogueId": "dialogue.npc.elder",
       "displayName": "Elder",
@@ -1760,6 +1981,33 @@ export const content = {
     "visualId": "visual.player"
   },
   "quests": {
+    "quest.cert_scout": {
+      "acceptNpcId": "npc.cert_quartermaster",
+      "category": "side",
+      "completeOnce": true,
+      "consume": [],
+      "displayName": "Cert Scout",
+      "id": "quest.cert_scout",
+      "kind": "quest",
+      "objectives": [
+        {
+          "enemyId": "enemy.cert_scout",
+          "enemyTags": [
+            "cert"
+          ],
+          "partyCreditPolicy": "solo",
+          "quantity": 1,
+          "type": "kill_enemy",
+          "zoneId": "zone.starter"
+        }
+      ],
+      "rewards": {
+        "gold": 4,
+        "items": [],
+        "xp": 3
+      },
+      "turnInNpcId": "npc.cert_quartermaster"
+    },
     "quest.proof_errand": {
       "acceptNpcId": "npc.proof_giver",
       "category": "side",
@@ -2140,6 +2388,18 @@ export const content = {
       "y": 640,
       "zoneId": "zone.starter"
     },
+    "spawn.starter.cert_scout": {
+      "activationPolicy": "always",
+      "enemyId": "enemy.cert_scout",
+      "groupId": "group.starter_cert",
+      "id": "spawn.starter.cert_scout",
+      "kind": "spawn",
+      "respawnDelay": 12,
+      "spawnCount": 1,
+      "x": 1080,
+      "y": 140,
+      "zoneId": "zone.starter"
+    },
     "spawn.starter.green_slime": {
       "activationPolicy": "always",
       "enemyId": "enemy.green_slime",
@@ -2202,6 +2462,20 @@ export const content = {
     }
   },
   "vendors": {
+    "vendor.cert_quartermaster": {
+      "displayName": "Cert Quartermaster",
+      "id": "vendor.cert_quartermaster",
+      "kind": "vendor",
+      "sellMultiplier": 0.5,
+      "stock": [
+        {
+          "buyPrice": 5,
+          "classRequirements": [],
+          "itemId": "item.cert_mail",
+          "levelRequirement": 0
+        }
+      ]
+    },
     "vendor.test_general": {
       "displayName": "Test General Goods",
       "id": "vendor.test_general",
@@ -2348,6 +2622,12 @@ export const content = {
           "spawnId": "spawn.starter.proof_critter",
           "x": 1184,
           "y": 700
+        },
+        {
+          "enemyId": "enemy.cert_scout",
+          "spawnId": "spawn.starter.cert_scout",
+          "x": 1080,
+          "y": 140
         }
       ],
       "height": 768,
@@ -2382,6 +2662,11 @@ export const content = {
         {
           "npcId": "npc.proof_giver",
           "x": 600,
+          "y": 640
+        },
+        {
+          "npcId": "npc.cert_quartermaster",
+          "x": 720,
           "y": 640
         }
       ],

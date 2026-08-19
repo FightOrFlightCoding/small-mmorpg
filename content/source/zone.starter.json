@@ -40,6 +40,11 @@
       "npcId": "npc.proof_giver",
       "x": 600,
       "y": 640
+    },
+    {
+      "npcId": "npc.cert_quartermaster",
+      "x": 720,
+      "y": 640
     }
   ],
   "enemies": [
@@ -54,6 +59,12 @@
       "x": 1184,
       "y": 700,
       "spawnId": "spawn.starter.proof_critter"
+    },
+    {
+      "enemyId": "enemy.cert_scout",
+      "x": 1080,
+      "y": 140,
+      "spawnId": "spawn.starter.cert_scout"
     }
   ],
   "walkableBounds": {

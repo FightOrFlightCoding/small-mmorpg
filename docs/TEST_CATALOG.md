@@ -1,6 +1,6 @@
 # Test catalog
 
-Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, Prompt 24 ability coverage, Prompt 25 combat-pipeline coverage, Prompt 26 enemy/spawn/AI/loot/boss coverage, Prompt 27 NPC/quest/vendor/inn coverage, Prompt 28 party/chat/group-credit/loot coverage, Prompt 29 public-world/cave/transfer/reconnect coverage, Prompt 30 nearby trade coverage, Prompt 31 UI/settings/asset-contract coverage, Prompt 32 content-CLI / systems-lab / GM coverage, Prompt 33 environment / handshake / maintenance / backup-restore coverage, and Prompt 34 security / fuzz / rate-limit / capacity / soak / five-client certification. Do not weaken these tests.
+Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, Prompt 24 ability coverage, Prompt 25 combat-pipeline coverage, Prompt 26 enemy/spawn/AI/loot/boss coverage, Prompt 27 NPC/quest/vendor/inn coverage, Prompt 28 party/chat/group-credit/loot coverage, Prompt 29 public-world/cave/transfer/reconnect coverage, Prompt 30 nearby trade coverage, Prompt 31 UI/settings/asset-contract coverage, Prompt 32 content-CLI / systems-lab / GM coverage, Prompt 33 environment / handshake / maintenance / backup-restore coverage, Prompt 34 security / fuzz / rate-limit / capacity / soak / five-client certification, and Prompt 35 existing-save / content-only / asset-manifest / five-client resume certification. Do not weaken these tests.
 
 Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDATION_BASELINE.md).
 
@@ -15,9 +15,9 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `scripts/test-e2e` | Live two-client journey `E2E_SLICE_OK` |
 | `scripts/test-capacity` | Domain capacity report: 20 public-world characters + cave instances |
 | `scripts/test-soak` | Short automated soak; `-DurationSec 3600` for manual certification |
-| `scripts/test-cert-journey` | Live five-client journey `CERT_FIVE_OK` |
+| `scripts/test-cert-journey` | Live five-client journey `CERT_FIVE_OK`, backend restart, `CERT_FIVE_RESUME_OK` |
 | `scripts/test-failure` | Domain failure tests; `-Live` restarts Nakama/Postgres in a disposable stack |
-| `scripts/test-all` | setup + content, audit, server, client, e2e, capacity, soak, five-client |
+| `scripts/test-all` | setup + content, audit, server, client, e2e, capacity, soak, five-client, backup |
 | `scripts/test-backup` | Dump local `nakama`, restore into `nakama_restore_drill`, verify table counts |
 | `scripts/verify-release` | Content, audit, server, migrations, client, backup drill |
 
@@ -92,7 +92,9 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `fuzz.test.ts` | Deterministic malformed corpus; no crash or gold/item mutate | |
 | `session_rate.test.ts` | Auth/chat/party session windows | |
 | `cert_load.test.ts` | Capacity 20+caves report; short soak cleanup | |
-| `cert_failure.test.ts` | Disconnect, delayed/duplicate messages, cave terminate, stale presence, transfer leave, trade recover | | |
+| `cert_failure.test.ts` | Disconnect, delayed/duplicate messages, cave terminate, stale presence, transfer leave, trade recover | |
+| `cert_content.test.ts` | Content-only cert pack present; `quest.cert_scout` accept/kill/turn-in; vendor buy `item.cert_mail` | |
+| `existing_save_cert.test.ts` | Prompt 18, p20, p21, and current fixtures keep quest, gear, gold, pose; second migrate does not duplicate | |
 
 ## Client GdUnit (`client/tests`)
 
@@ -123,7 +125,8 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `gm_service_test.gd` | `gm_command` RPC intention; local gold unchanged; debug flag is not authority | |
 | `handshake_test.gd` | Session handshake; fatal version/content mismatch; maintenance login without world entry | |
 | `auth_privacy_test.gd` | Login does not leak whether an email exists | |
-| `e2e_hooks_test.gd` | `--e2e-slice` and `--cert-five` required | VS-T10 helper |
+| `e2e_hooks_test.gd` | `--e2e-slice`, `--cert-five`, and `--cert-five-resume` required | VS-T10 helper |
+| `asset_cert_test.gd` | Asset-manifest replacements for character, enemy, NPC, item icon, ability icon, tileset, SFX | |
 
 `fake_network_backend.gd` is a test double, not a suite.
 
@@ -132,7 +135,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | Driver | Coverage | VS |
 | --- | --- | --- |
 | `client/scripts/e2e/slice_journey.gd` | Full two-identity loop | VS-T10, VS-M1–M3, M5 analog |
-| `client/scripts/e2e/cert_journey.gd` | Five-identity auth, join, combat, loot, quest, vendor, party, chat, cave, boss, trade, reconnect | |
+| `client/scripts/e2e/cert_journey.gd` | Five-identity auth, two classes, combat, loot, quest, vendor buy/sell, inn, armor, party, zone/party chat, cave reconnect, boss, allocate/unlock, item-and-gold trade, logout, resume | |
 
 ## Prompt 19 audit
 

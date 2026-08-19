@@ -22,9 +22,12 @@ func test_cert_five_flag_is_required() -> void:
 	assert_bool(CertJourney.cmdline_enabled(PackedStringArray())).is_false()
 	assert_bool(CertJourney.cmdline_enabled(PackedStringArray(["--e2e-slice"]))).is_false()
 	assert_bool(CertJourney.cmdline_enabled(PackedStringArray([CertJourney.FLAG]))).is_true()
+	assert_bool(CertJourney.cmdline_resume(PackedStringArray([CertJourney.FLAG]))).is_false()
+	assert_bool(CertJourney.cmdline_resume(PackedStringArray([CertJourney.FLAG_RESUME]))).is_true()
 	assert_bool(CertJourney.can_run(PackedStringArray(["--e2e-slice"]))).is_false()
 	if OS.is_debug_build():
 		assert_bool(CertJourney.can_run(PackedStringArray([CertJourney.FLAG]))).is_true()
+		assert_bool(CertJourney.can_run(PackedStringArray([CertJourney.FLAG_RESUME]))).is_true()
 
 
 func test_approach_point_stays_off_the_target() -> void:

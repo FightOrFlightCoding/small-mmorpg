@@ -5,7 +5,7 @@
     "visual_set.player.base": {
       "kind": "character",
       "contentId": "player.base",
-      "spriteVisualId": "visual.player",
+      "spriteVisualId": "visual.class_vanguard",
       "directionCount": 4,
       "frameSize": [24, 24],
       "pivot": [12, 18],
@@ -39,6 +39,22 @@
       "kind": "character",
       "contentId": "test.class.arcanist",
       "spriteVisualId": "visual.class_arcanist",
+      "directionCount": 4,
+      "frameSize": [24, 24],
+      "pivot": [12, 18],
+      "foot": [12, 24],
+      "animations": {
+        "idle": { "frames": [0, 0], "fps": 4, "loop": true },
+        "walk": { "frames": [0, 3], "fps": 8, "loop": true }
+      },
+      "collisionFootprint": { "width": 24, "height": 24 },
+      "equipmentAnchors": { "main_hand": [18, 14] },
+      "fallbackVisualId": "visual.player"
+    },
+    "visual_set.test.class.warden": {
+      "kind": "character",
+      "contentId": "test.class.warden",
+      "spriteVisualId": "visual.class_warden",
       "directionCount": 4,
       "frameSize": [24, 24],
       "pivot": [12, 18],
@@ -148,9 +164,16 @@
     "visual_set.npc.proof_giver": {
       "kind": "npc",
       "contentId": "npc.proof_giver",
-      "spriteVisualId": "visual.npc_proof_giver",
+      "spriteVisualId": "visual.npc_herald",
       "directionCount": 4,
       "fallbackVisualId": "visual.npc_proof_giver"
+    },
+    "visual_set.npc.cert_quartermaster": {
+      "kind": "npc",
+      "contentId": "npc.cert_quartermaster",
+      "spriteVisualId": "visual.npc_cert_quartermaster",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.npc_cert_quartermaster"
     },
     "visual_set.npc.lab_keeper": {
       "kind": "npc",
@@ -190,15 +213,22 @@
     "visual_set.enemy.proof_critter": {
       "kind": "enemy",
       "contentId": "enemy.proof_critter",
-      "spriteVisualId": "visual.enemy_proof_critter",
+      "spriteVisualId": "visual.enemy_test_melee",
       "directionCount": 4,
       "fallbackVisualId": "visual.enemy_proof_critter"
+    },
+    "visual_set.enemy.cert_scout": {
+      "kind": "enemy",
+      "contentId": "enemy.cert_scout",
+      "spriteVisualId": "visual.enemy_cert_scout",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.enemy_cert_scout"
     }
   },
   "tilesets": {
     "zone.starter": "visual.zone_starter",
     "zone.cave": "visual.zone_cave",
-    "test.zone.systems_lab": "visual.zone_systems_lab"
+    "test.zone.systems_lab": "visual.zone_starter"
   },
   "icons": {
     "item": {
@@ -211,12 +241,14 @@
       "item.cloth": "visual.item_cloth",
       "item.potion": "visual.item_potion",
       "item.pebble": "visual.item_pebble",
-      "item.proof_token": "visual.item_proof_token"
+      "item.proof_token": "visual.item_potion",
+      "item.cert_mail": "visual.item_cert_mail"
     },
     "ability": {
       "test.ability.basic_melee": "visual.ability_melee_icon",
       "test.ability.ranged_bolt": "visual.ability_bolt_icon",
-      "test.ability.small_heal": "visual.ability_heal_icon",
+      "test.ability.small_heal": "visual.ability_buff_icon",
+      "test.ability.cert_strike": "visual.ability_cert_strike_icon",
       "test.ability.power_buff": "visual.ability_buff_icon",
       "test.ability.damage_over_time": "visual.ability_dot_icon"
     },
@@ -237,7 +269,7 @@
     "audio.ui.click": { "stream": "", "bus": "UI" },
     "audio.ui.error": { "stream": "", "bus": "UI" },
     "audio.world.step": { "stream": "", "bus": "Effects" },
-    "audio.world.hit": { "stream": "", "bus": "Effects" },
+    "audio.world.hit": { "stream": "res://assets/audio/cert_hit.wav", "bus": "Effects" },
     "audio.music.starter": { "stream": "", "bus": "Music" },
     "audio.music.cave": { "stream": "", "bus": "Music" }
   }

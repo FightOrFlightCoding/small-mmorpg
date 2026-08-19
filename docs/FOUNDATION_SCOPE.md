@@ -23,13 +23,13 @@ A later phase may implement a Required-for-Foundation-v1 row only when that phas
 | One public village-and-fields world | Existing and accepted (Prompt 29) | One `public_world` match using template `zone.starter`. No public-world sharding in v1. |
 | Party-owned cave instances | Existing and accepted (Prompt 29) | Private `party_cave` matches (`zone.cave`). One solo character or one party. Shared instance for members entering together. |
 | Maximum party size of five | Existing and accepted (Prompt 28) | Temporary parties cap at 5. Public match cap remains 8 unrelated players. |
-| Data-defined character classes | Existing and accepted (Prompt 21) | Temporary test classes in content; selection is immutable. XP and attribute allocation are Prompt 22. Ability unlock remains later. |
+| Data-defined character classes | Existing and accepted (Prompt 21) | Temporary test classes in content; selection is immutable. XP and attribute allocation are Prompt 22. Ability unlock is Prompt 24. |
 | Level and experience progression | Existing and accepted (Prompt 22) | Content level curves; server XP from trusted events; client never submits amounts. |
 | Optional attribute-point allocation | Existing and accepted (Prompt 22) | `ALLOCATE_ATTRIBUTES`; class `allowedAttributeIds`; recalculated derived stats. |
-| Optional skill-point allocation | Required for Foundation v1 | Unspent skill points persist and display (Prompt 22). Ability unlock and spend remain later. |
-| Unlocked abilities and hotbar validity | Required for Foundation v1 | Absent. Combat is one auto-attack. |
+| Optional skill-point allocation | Existing and accepted (Prompt 24) | Unspent skill points persist (Prompt 22). Ability unlock and hotbar spend are Prompt 24. |
+| Unlocked abilities and hotbar validity | Existing and accepted (Prompt 24) | Data-defined abilities, skill-point unlock, eight-slot hotbar. Combat is not limited to one auto-attack. |
 | Server-authoritative target-based PvE combat | Existing and accepted | Slice combat: `ATTACK` with `targetId` + `requestId`; server damage, cooldown, death, respawn. Foundation v1 must keep server authority while generalizing beyond one slime. |
-| Casts, resources, and status effects | Required for Foundation v1 | Absent. Health exists; no mana/resource pool or status pipeline. |
+| Casts, resources, and status effects | Existing and accepted (Prompt 24) | Server timing, resource costs, and the effect engine. PvP remains off. |
 | NPC dialogue | Existing and accepted (Prompt 27) | Dialogue after server `INTERACTION_RESULT`. Conditions read server-approved quest/class/level state. Scripts do not mutate canonical state. |
 | NPC services (beyond dialogue) | Existing and accepted (Prompt 27, cave exit Prompt 29) | Content services: dialogue, quest_offer, quest_turn_in, vendor, inn, healer, cave_entrance, cave_exit. One NPC type; no elder/merchant/innkeeper classes. |
 | Quests | Existing and accepted (Prompt 27) | Generic engine: categories, stages, reusable objectives, prerequisites, non-repeatable unless test-configured. Prompt 18 slime quest is content on that engine. |
@@ -58,6 +58,7 @@ A later phase may implement a Required-for-Foundation-v1 row only when that phas
 | Systems lab | Existing and accepted (Prompt 32) | `test.zone.systems_lab` is development-only. Does not replace automated tests. |
 | Developer / GM tools | Existing and accepted (Prompt 32) | Server allowlist + audited `gm_command`. Client debug UI is not authority. |
 | Environments, deployment, backups, recovery | Existing and accepted (Prompt 33) | Distinct local/test/staging/production policy. Handshake, maintenance, documented backup restore drill. Not enterprise infra. |
+| Content-ready certification | Existing and accepted (Prompt 35) | Clean-checkout commands, existing-save fixtures, five-client journey, content-only pack, asset-manifest replacements. No new gameplay systems. |
 
 ## Game content (not systems)
 

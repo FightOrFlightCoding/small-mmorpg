@@ -1,7 +1,7 @@
 {
   "protocolVersion": 1,
   "contentSchemaVersion": 1,
-  "contentHash": "985e5073b1e51f52205f73f85c65982f63454ed87ca4142765fd17a97692b7bc",
+  "contentHash": "4eeb205a3748b3cd71053bcc217cb017ae69f1f1d4753238ca4c03da9cce35c1",
   "exactDependencies": {
     "server/package.json:typescript": "5.8.3",
     "server/package.json:nakama-runtime": "github:heroiclabs/nakama-common#v1.47.0",
@@ -136,8 +136,10 @@
   ],
   "walletCurrencies": ["gold"],
   "productionContentFiles": [
+    "enemy.cert_scout.json",
     "enemy.green_slime.json",
     "enemy.proof_critter.json",
+    "item.cert_mail.json",
     "item.iron_sword.json",
     "item.proof_token.json",
     "item.slime_gel.json",
@@ -148,6 +150,7 @@
     "item.test_relic_blade.json",
     "item.test_vanguard_mail.json",
     "item.training_sword.json",
+    "loot.cert_scout.json",
     "loot.empty.json",
     "loot.green_slime.json",
     "loot.proof_critter.json",
@@ -157,6 +160,7 @@
     "loot.test_melee.json",
     "loot.test_ranged.json",
     "loot.test_weighted.json",
+    "npc.cert_quartermaster.json",
     "npc.elder.json",
     "npc.lab_exit.json",
     "npc.lab_inn.json",
@@ -170,6 +174,7 @@
     "npc.test_innkeeper.json",
     "npc.test_vendor.json",
     "player.base.json",
+    "quest.cert_scout.json",
     "quest.lab_tour.json",
     "quest.proof_errand.json",
     "quest.slime_problem.json",
@@ -195,6 +200,7 @@
     "spawn.lab.ranged.json",
     "spawn.starter.boss_add.json",
     "spawn.starter.cave_boss.json",
+    "spawn.starter.cert_scout.json",
     "spawn.starter.green_slime.json",
     "spawn.starter.proof_critter.json",
     "spawn.starter.test_caster.json",
@@ -203,6 +209,7 @@
     "test.ability.basic_melee.json",
     "test.ability.boss_nova.json",
     "test.ability.boss_smash.json",
+    "test.ability.cert_strike.json",
     "test.ability.damage_over_time.json",
     "test.ability.enemy_bolt.json",
     "test.ability.enemy_cast.json",
@@ -219,6 +226,7 @@
     "test.attribute.vitality.json",
     "test.class.arcanist.json",
     "test.class.vanguard.json",
+    "test.class.warden.json",
     "test.curve.standard.json",
     "test.enemy.caster.json",
     "test.enemy.cave_boss.json",
@@ -226,12 +234,14 @@
     "test.enemy.ranged.json",
     "test.progression.arcanist.json",
     "test.progression.vanguard.json",
+    "test.progression.warden.json",
     "test.resource.health.json",
     "test.resource.mana.json",
     "test.stat.attack.json",
     "test.stat.max_health.json",
     "test.stat.max_mana.json",
     "test.zone.systems_lab.json",
+    "vendor.cert_quartermaster.json",
     "vendor.lab_general.json",
     "vendor.test_general.json",
     "zone.cave.json",
@@ -273,6 +283,7 @@
     "item.training_sword": [
       "server/src/domain/inventory.ts",
       "client/scripts/content/content_catalog.gd",
+      "client/scripts/e2e/cert_journey.gd",
       "client/content/asset_manifest.json"
     ],
     "item.slime_gel": [
@@ -284,6 +295,7 @@
     "item.iron_sword": [
       "client/scripts/content/content_catalog.gd",
       "client/scripts/e2e/slice_journey.gd",
+      "client/scripts/e2e/cert_journey.gd",
       "client/content/asset_manifest.json"
     ],
     "quest.slime_problem": [

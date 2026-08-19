@@ -12,6 +12,7 @@ The Godot 4.7.1 client registers or logs in with email and password, lists up to
 4. [docs/VERTICAL_SLICE.md](docs/VERTICAL_SLICE.md)
 5. [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md)
 6. After the slice: [docs/FOUNDATION_SCOPE.md](docs/FOUNDATION_SCOPE.md)
+7. Content-ready: [docs/FOUNDATION_READY.md](docs/FOUNDATION_READY.md)
 
 ## Prerequisites
 
@@ -119,7 +120,7 @@ powershell -File scripts/test-all.ps1
 bash scripts/test-all.sh
 ```
 
-`test-all` fails with a nonzero exit status if any step fails. It runs setup, content tests + hash check, the Prompt 18 freeze audit (`scripts/test-audit.ps1`), server tests, client GdUnit, the headless two-client journey (`scripts/test-e2e.ps1`), domain capacity and soak reports, and the five-client certification journey. The e2e drivers start Nakama if needed.
+`test-all` fails with a nonzero exit status if any step fails. It runs setup, content tests + hash check, the Prompt 18 freeze audit (`scripts/test-audit.ps1`), server tests, client GdUnit, the headless two-client journey (`scripts/test-e2e.ps1`), domain capacity and soak reports, the five-client certification journey (including backend restart and resume), and the backup restore drill. The e2e drivers start Nakama if needed.
 
 | Script | What it runs |
 | --- | --- |
@@ -130,7 +131,7 @@ bash scripts/test-all.sh
 | `scripts/test-e2e` | Debug-only headless Alice+Bob journey against live Nakama |
 | `scripts/test-capacity` | Domain capacity report (`reports/capacity.cert.json`) |
 | `scripts/test-soak` | Short soak report; `-DurationSec 3600` for manual certification |
-| `scripts/test-cert-journey` | Debug-only five-client journey `CERT_FIVE_OK` |
+| `scripts/test-cert-journey` | Debug-only five-client journey `CERT_FIVE_OK` then `CERT_FIVE_RESUME_OK` |
 | `scripts/test-failure` | Domain failure tests; `-Live` restarts Nakama/Postgres |
 | `scripts/migrate-status` / `dry-run` / `apply` / `verify` | Save-schema tooling (fixture or local Nakama). See [docs/MIGRATIONS.md](docs/MIGRATIONS.md) |
 | `scripts/server-build` | Rollup bundle `server/build/index.js` |
@@ -186,19 +187,21 @@ Recorded in [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md):
 
 Do not modify `client/addons/`. Godot may rewrite GLoot `images/*.svg.import`; do not commit those engine rewrites.
 
-## Known vertical-slice limitations
+## Known limitations
 
-This repository implements [docs/VERTICAL_SLICE.md](docs/VERTICAL_SLICE.md) plus accepted Foundation phases. It does **not** include extra overworlds, guilds, parties, trading, auction houses, crafting, PvP, monetization, procedural generation, or open-world streaming.
+This repository implements [docs/VERTICAL_SLICE.md](docs/VERTICAL_SLICE.md) plus accepted Foundation phases through Prompt 35. Binding list: [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md).
+
+It does **not** include extra overworlds, guilds, auction houses, crafting, PvP, monetization, procedural generation, or open-world streaming. Temporary parties (max 5) and nearby same-match trading **are** included.
 
 Other limits:
 
-- One shared `zone.starter` match, maximum 8 players, empty-match shutdown after 30 seconds.
+- One shared `zone.starter` match, maximum 8 players, empty-match shutdown after 30 seconds. Party caves cap at 5.
 - Up to three live characters per account; one selected character in the match.
 - Temporary test class ids; final class art is not required.
 - Health is not persisted. After reconnect grace (5 seconds) or a new match, HP is full `player.base.maxHealth`.
-- Ground loot, slime AI, and cooldowns reset with the match.
+- Ground loot, enemy AI, and cooldowns reset with the match.
 - Device auth and Nakama local keys are for development, not production identity or secrets management.
-- Chat is the `zone.starter` room only (200 character plain text).
+- Zone chat is the `zone.starter` room (200 character plain text); party members also have `party.<id>`.
 - No password-recovery email. Operators assist through the Nakama console.
 
 ## Layout
