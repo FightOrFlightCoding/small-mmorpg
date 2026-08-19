@@ -143,7 +143,7 @@ size_flags_vertical = 3
 
 [node name="Status" type="Label" parent="Root/LeftColumn/Party/Margin/Scroll/VBox"]
 layout_mode = 2
-text = "No party. Max 5."
+text = "No party. Create first, then type their character name to Invite."
 autowrap_mode = 3
 
 [node name="InviteRow" type="HBoxContainer" parent="Root/LeftColumn/Party/Margin/Scroll/VBox"]
@@ -152,7 +152,7 @@ layout_mode = 2
 [node name="InviteName" type="LineEdit" parent="Root/LeftColumn/Party/Margin/Scroll/VBox/InviteRow"]
 layout_mode = 2
 size_flags_horizontal = 3
-placeholder_text = "Character name"
+placeholder_text = "Exact character name"
 max_length = 24
 
 [node name="InviteButton" type="Button" parent="Root/LeftColumn/Party/Margin/Scroll/VBox/InviteRow"]

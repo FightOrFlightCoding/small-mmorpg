@@ -129,3 +129,35 @@ func test_hud_invite_uses_typed_character_name() -> void:
 	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_TRADE_INVITE)
 	var payload: Dictionary = JSON.parse_string(fake.last_send_payload)
 	assert_str(String(payload.get("targetId", ""))).is_equal("user-bob")
+
+
+func test_trade_error_codes_are_readable() -> void:
+	assert_str(TradeService.message_for_code("out_of_range")).contains("80")
+	assert_str(TradeService.message_for_code("in_combat")).contains("combat")
+	_fake()
+	TradeService.request_invite("user-bob")
+	TradeService._on_action_result({"ok": false, "code": "out_of_range"})
+	assert_str(TradeService.last_error).is_equal("out_of_range")
+
+
+func test_hud_invite_blocks_out_of_range_before_send() -> void:
+	var fake := _fake()
+	var hud: WorldHud = auto_free(preload("res://scenes/world/world_hud.tscn").instantiate())
+	add_child(hud)
+	await get_tree().process_frame
+	var state := {
+		"self_id": "user-alice",
+		"players": [
+			{"userId": "user-alice", "name": "Alice", "health": 10, "x": 0, "y": 0},
+			{"userId": "user-bob", "name": "Bob", "health": 10, "x": 400, "y": 0},
+		],
+	}
+	AppState.zone_view = state
+	hud.refresh(state, PackedStringArray(["Alice", "Bob"]))
+	var name_edit: LineEdit = hud.find_child("TradeName", true, false)
+	name_edit.text = "Bob"
+	hud._on_trade_invite()
+	await get_tree().process_frame
+	assert_int(fake.last_send_opcode).is_not_equal(MatchProtocol.CLIENT_TRADE_INVITE)
+	var notice: Label = hud.get_node("Root/Notice")
+	assert_str(notice.text).contains("80")

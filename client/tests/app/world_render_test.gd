@@ -8,6 +8,7 @@ func before_test() -> void:
 	AppState.reset_for_tests()
 	NetworkService.reset_for_tests()
 	TradeService.reset_for_tests()
+	PartyService.reset_for_tests()
 	assert_bool(ContentRegistry.load_bundle()).is_true()
 	ContentRegistry.visuals.load_map()
 
@@ -148,3 +149,34 @@ func test_trade_invite_resolves_nearby_character_name() -> void:
 	var name_edit: LineEdit = hud.find_child("TradeName", true, false)
 	assert_object(name_edit).is_not_null()
 	assert_str(name_edit.text).is_equal("Bob")
+
+
+func test_trade_nearby_lists_only_players_in_range() -> void:
+	var hud: WorldHud = auto_free(preload("res://scenes/world/world_hud.tscn").instantiate())
+	add_child(hud)
+	await get_tree().process_frame
+	var state := {
+		"self_id": "user-alice",
+		"players": [
+			{"userId": "user-alice", "name": "Alice", "health": 10, "x": 0, "y": 0},
+			{"userId": "user-bob", "name": "Bob", "health": 10, "x": 400, "y": 0},
+		],
+	}
+	hud.refresh(state, PackedStringArray(["Alice", "Bob"]))
+	var nearby: OptionButton = hud.find_child("Nearby", true, false)
+	assert_object(nearby).is_not_null()
+	assert_int(nearby.item_count).is_equal(1)
+	assert_str(nearby.get_item_text(0)).is_equal("Nearby players")
+	var name_edit: LineEdit = hud.find_child("TradeName", true, false)
+	assert_str(name_edit.text).is_equal("")
+	var hint: Label = hud.find_child("Hint", true, false)
+	assert_str(hint.text).contains("80")
+
+
+func test_party_invite_prompts_to_create_first() -> void:
+	var hud: WorldHud = auto_free(preload("res://scenes/world/world_hud.tscn").instantiate())
+	add_child(hud)
+	await get_tree().process_frame
+	hud._on_party_invite()
+	var notice: Label = hud.get_node("Root/Notice")
+	assert_str(notice.text).contains("Create a party first")

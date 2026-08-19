@@ -2,6 +2,9 @@ extends GdUnitTestSuite
 
 ## EquipmentService mirrors server equipment and sends instance id plus slot only.
 
+# Force MatchProtocol to load before GdUnit scans this suite during editor boot.
+const _PROTOCOL := preload("res://scripts/network/protocol.gd")
+
 
 func before_test() -> void:
 	SceneRouter.reset_for_tests()
@@ -21,7 +24,7 @@ func test_equip_sends_instance_id_slot_and_request_id_only() -> void:
 	var request_id := EquipmentService.request_equip("inst-sword", "main_hand")
 	await get_tree().process_frame
 	assert_str(request_id).is_not_empty()
-	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_EQUIP)
+	assert_int(fake.last_send_opcode).is_equal(_PROTOCOL.CLIENT_EQUIP)
 	var payload: Dictionary = JSON.parse_string(fake.last_send_payload)
 	assert_str(String(payload.get("instanceId", ""))).is_equal("inst-sword")
 	assert_str(String(payload.get("slot", ""))).is_equal("main_hand")
@@ -53,7 +56,7 @@ func test_equipment_state_updates_attack_only_from_server() -> void:
 	NetworkService.match_id = "match-starter-shared"
 	NetworkService._connect_match_signals()
 	NetworkService.backend.match_state_received.emit(
-		MatchProtocol.SERVER_EQUIPMENT_STATE,
+		_PROTOCOL.SERVER_EQUIPMENT_STATE,
 		JSON.stringify({
 			"protocolVersion": 1,
 			"contentHash": ContentRegistry.get_content_hash(),
@@ -72,7 +75,7 @@ func test_full_state_equipment_restores_the_slot() -> void:
 		"capacity": 20,
 		"items": [{"instanceId": "inst-sword", "itemId": "item.training_sword", "quantity": 1, "metadata": {}}],
 	})
-	var parsed: Dictionary = MatchProtocol.parse_full_state(JSON.stringify({
+	var parsed: Dictionary = _PROTOCOL.parse_full_state(JSON.stringify({
 		"protocolVersion": 1,
 		"contentHash": ContentRegistry.get_content_hash(),
 		"tick": 4,

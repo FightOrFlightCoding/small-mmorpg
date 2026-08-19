@@ -503,3 +503,7 @@ Not a new gameplay phase. After Prompt 35, three accidental defects were repaire
 
 Cave boss `respawnDelay` **0** remains test-content behavior, not a defect. Product exclusions in [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) stay excluded. Godot 4.7.1 Windows export templates are a workstation install (`scripts/install-export-templates.ps1`). Headless export uses the non-console editor binary because the console binary can `STATUS_ACCESS_VIOLATION` after `savepack`; a produced `small-mmorpg.exe` is treated as success.
 
+## 2026-08-19 — Trade/party invite presentation
+
+Not a new gameplay phase. Server trade range stays `TRADE_RANGE_PX = 80`. Party invite still requires an existing party and the leader. Client Nearby now lists only in-range players, trade/party failures show readable copy, and `NetDebugOverlay.protocol_version` no longer references `MatchProtocol` at member-init so editor/GdUnit boot does not fail to parse `prediction_test.gd`.
+

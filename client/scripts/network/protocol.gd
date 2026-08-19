@@ -13,6 +13,8 @@ const SNAPSHOT_RATE_HZ: float = 10.0
 const SNAPSHOT_TIMEOUT_SEC: float = 2.0
 const INTERP_DELAY_TICKS: float = 1.0
 const SNAP_THRESHOLD_PX: float = 24.0
+## Presentation copy of server `TRADE_RANGE_PX`. The match still enforces range.
+const TRADE_RANGE_PX: float = 80.0
 
 const CLIENT_INPUT: int = 1
 const CLIENT_INTERACT: int = 2

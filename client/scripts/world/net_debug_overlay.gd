@@ -12,7 +12,8 @@ var last_sent_seq: int = 0
 var last_ack_seq: int = 0
 var prediction_error: float = 0.0
 var snapshot_depth: int = 0
-var protocol_version: int = MatchProtocol.VERSION
+# Literal default so this script parses before MatchProtocol is registered (editor/GdUnit boot).
+var protocol_version: int = 1
 var content_hash_prefix: String = ""
 
 @onready var _label: Label = $Root/Panel/Label

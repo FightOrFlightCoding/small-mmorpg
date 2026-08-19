@@ -33,6 +33,7 @@ var _ping_ema_ms: float = 0.0
 var _frame_ms: float = 0.0
 var _ground_preview: Polygon2D
 var _rendered_zone_id: String = ""
+const FRIENDLY_SELECT_RADIUS_PX: float = 56.0
 
 
 func _ready() -> void:
@@ -461,7 +462,7 @@ func try_select_friendly_player() -> bool:
 	var self_id := String(AppState.zone_view.get("self_id", _entities.local_server_id))
 	var best_id := ""
 	var best_name := ""
-	var best_distance := 36.0
+	var best_distance := FRIENDLY_SELECT_RADIUS_PX
 	for entry in AppState.zone_view.get("players", []):
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue

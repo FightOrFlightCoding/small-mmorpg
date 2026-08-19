@@ -71,6 +71,7 @@ func test_join_metadata_carries_selection_ticket_not_character_id() -> void:
 	assert_float(MatchProtocol.INTERP_DELAY_TICKS).is_equal(1.0)
 	assert_float(SnapshotBuffer.INTERP_DELAY_TICKS).is_equal(MatchProtocol.INTERP_DELAY_TICKS)
 	assert_float(MatchProtocol.SNAP_THRESHOLD_PX).is_equal(24.0)
+	assert_float(MatchProtocol.TRADE_RANGE_PX).is_equal(80.0)
 	assert_str(MatchProtocol.FIND_OR_CREATE_STARTER_ZONE_RPC).is_equal("find_or_create_starter_zone")
 
 

@@ -142,7 +142,7 @@ func request_cancel() -> void:
 func _on_trade_state(payload: Dictionary) -> void:
 	if not bool(payload.get("ok", false)):
 		last_error = String(payload.get("code", "trade_failed"))
-		trade_notice.emit(last_error)
+		trade_notice.emit(message_for_code(last_error))
 		trade_changed.emit()
 		return
 	var body: Variant = payload.get("trade", {})
@@ -164,7 +164,7 @@ func _on_action_result(payload: Dictionary) -> void:
 		return
 	last_error = code
 	_pending_trade = false
-	trade_notice.emit(code)
+	trade_notice.emit(message_for_code(code))
 	trade_changed.emit()
 
 
@@ -179,3 +179,55 @@ func _local_character_id() -> String:
 	if not _character_id.is_empty():
 		return _character_id
 	return String(AppState.character_view.get("character_id", ""))
+
+
+func message_for_code(code: String) -> String:
+	if code == "out_of_range":
+		return "Walk next to them (within 80 pixels), then Invite."
+	if code == "invalid_target":
+		return "No nearby character matches that name."
+	if code == "already_trading":
+		return "One of you is already in a trade."
+	if code == "not_in_match":
+		return "They are not in this match."
+	if code == "player_dead":
+		return "You both have to be alive to trade."
+	if code == "already_transferring":
+		return "Finish the zone transfer before trading."
+	if code == "in_combat":
+		return "Leave combat first (a few seconds after the last hit), then Invite."
+	if code == "casting":
+		return "Finish casting before trading."
+	if code == "trade_restricted":
+		return "A status effect is blocking trade."
+	if code == "invite_expired":
+		return "That trade invite expired."
+	if code == "trade_expired":
+		return "The trade session expired."
+	if code == "disconnected":
+		return "A trader disconnected."
+	if code == "unowned_item":
+		return "That item is not in your bags."
+	if code == "item_equipped":
+		return "Unequip the item before offering it."
+	if code == "item_locked":
+		return "That item is locked."
+	if code == "not_tradeable":
+		return "That item cannot be traded."
+	if code == "invalid_amount":
+		return "That gold or item amount is not valid."
+	if code == "insufficient_gold":
+		return "Not enough gold for that offer."
+	if code == "revision_mismatch":
+		return "The trade changed. Review it and accept again."
+	if code == "trade_cancelled":
+		return "The trade was cancelled."
+	if code == "already_completed":
+		return "That trade already completed."
+	if code == "invalid_id":
+		return "That trade action is not valid."
+	if code == "zone_transfer":
+		return "Finish the zone transfer before trading."
+	if code.is_empty() or code == "trade_failed":
+		return "The trade request failed."
+	return code

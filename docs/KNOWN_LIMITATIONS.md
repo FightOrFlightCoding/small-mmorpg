@@ -63,3 +63,6 @@ Not in this repository’s foundation track:
 - A Windows desktop export (`scripts/export-client-release.ps1`) needs Godot **4.7.1** export templates installed on the workstation. The templates are not in this repository. Install with `scripts/install-export-templates.ps1` or Editor → Manage Export Templates. Headless export uses the non-console Godot binary. Godot 4.7.1 may print ObjectDB leaks or even `STATUS_ACCESS_VIOLATION` after `savepack` completes; the script treats a produced `small-mmorpg.exe` as success.
 - A debug GM panel never grants authority; `gm_command` is server-allowlisted and default-disabled.
 - UI never writes canonical inventory, equipment, quest, gold, or progression storage.
+- Direct trade range is **80 pixels** and both players must be alive, in the same match, and out of combat (about **5 seconds** after the last hit). The Nearby list is in-range only.
+- Party Invite is leader-only after **Create**. The other player’s exact character name is required; they must be online in this process.
+- Editor Play can print GdUnit test-script parse errors and “port already in use” while extra Godot windows are open. Reloading the project after one editor instance is enough. “Embedded window can't be resized” is the Godot 4.7 editor, not the game.
