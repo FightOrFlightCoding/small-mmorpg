@@ -23,6 +23,7 @@ import {
   nameReservationConflict,
   nameReservationHeldByCharacter,
   reservationWrite,
+  RESERVATION_RELEASED,
   validateCharacterName,
   type NameReservation,
 } from "./character_name";
@@ -164,6 +165,7 @@ export interface CharacterSelectResponse {
 export interface CharacterNameAvailableResponse {
   available: boolean;
   canonicalName: string;
+  reason?: string;
 }
 
 export interface CharacterLifecycleDeps {
@@ -461,6 +463,9 @@ export function createCharacterRecord(
   if (!canCreateCharacter(liveCharacterCount(records))) {
     throw new Error("slot_limit");
   }
+  if (nameHeldByOwnDeletedCharacter(userId, validated.canonicalName, deps)) {
+    throw new Error("name_held_deleted");
+  }
   const characterId = deps.newId();
   const token = deps.newReservationToken();
   reserveCanonicalName(validated.canonicalName, characterId, userId, token, deps);
@@ -508,12 +513,27 @@ export function reserveCanonicalName(
   }
 }
 
+function nameHeldByOwnDeletedCharacter(userId: string, canonicalName: string, deps: CharacterLifecycleDeps): boolean {
+  const existing = deps.readReservation(canonicalName);
+  if (existing === null || existing.reservationState === RESERVATION_RELEASED) {
+    return false;
+  }
+  if (existing.accountUserId !== userId) {
+    return false;
+  }
+  const record = deps.readCharacter(userId, existing.characterId);
+  if (record === null) {
+    return false;
+  }
+  return isDeleted(record.deletedAt) || record.status === CHARACTER_STATUS_SOFT_DELETED;
+}
+
 export function handleCharacterNameAvailable(
   userId: string | undefined,
   payload: string,
   deps: CharacterLifecycleDeps,
 ): CharacterNameAvailableResponse {
-  requireAuthenticatedUserId(userId);
+  const authenticatedUserId = requireAuthenticatedUserId(userId);
   const data = parseObjectPayload(payload, NAME_CHECK_ALLOWED_KEYS, []);
   const name = firstString(data, ["displayName", "display_name", "name"]);
   if (name === null) {
@@ -524,7 +544,10 @@ export function handleCharacterNameAvailable(
     throw new Error(validated.reason);
   }
   const existing = deps.readReservation(validated.canonicalName);
-  const available = existing === null || existing.reservationState === "RELEASED";
+  if (nameHeldByOwnDeletedCharacter(authenticatedUserId, validated.canonicalName, deps)) {
+    return { available: false, canonicalName: validated.canonicalName, reason: "name_held_deleted" };
+  }
+  const available = existing === null || existing.reservationState === RESERVATION_RELEASED;
   return { available: available, canonicalName: validated.canonicalName };
 }
 

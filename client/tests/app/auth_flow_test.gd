@@ -172,7 +172,8 @@ func test_login_hint_wraps_and_offers_named_identities() -> void:
 	assert_str(page.get_node("Center/VBox/RegisterButton").text).is_equal("Register")
 	assert_str(page.get_node("Center/VBox/ForgotEmailButton").text).is_equal("Forgot which email you used?")
 	assert_bool(String(page.get_node("Center/VBox/ServerHint").text).contains("127.0.0.1:7350")).is_true()
-	assert_bool(String(page.get_node("Center/VBox/ServerHint").text).contains("127.0.0.1:8025")).is_true()
+	assert_bool(String(page.get_node("Center/VBox/ServerHint").text).contains("127.0.0.1:8025")).is_false()
+	assert_bool(String(page.get_node("Center/VBox/ServerHint").text).contains("Mailpit")).is_false()
 	assert_bool(NetworkService.last_auth_attempted).is_false()
 
 
@@ -340,14 +341,14 @@ func test_unverified_login_goes_to_verify() -> void:
 	assert_str(SceneRouter.current_scene_id).is_equal(SceneRouter.SCENE_VERIFY)
 
 
-func test_local_verify_screen_points_at_mailpit() -> void:
+func test_local_verify_screen_points_at_inbox() -> void:
 	AccountService.pending_email = "player@example.com"
 	var page: Control = auto_free(preload("res://scenes/login/verify.tscn").instantiate())
 	add_child(page)
 	await get_tree().process_frame
-	assert_bool(String(page.get_node("Center/VBox/DeliveryDelay").text).contains("127.0.0.1:8025")).is_true()
-	assert_bool(page.get_node("Center/VBox/InboxButton").visible).is_true()
-	assert_str(page.get_node("Center/VBox/InboxButton").text).is_equal("Open local inbox")
+	assert_bool(String(page.get_node("Center/VBox/DeliveryDelay").text).contains("junk")).is_true()
+	assert_bool(String(page.get_node("Center/VBox/DeliveryDelay").text).contains("127.0.0.1:8025")).is_false()
+	assert_bool(page.get_node("Center/VBox/InboxButton").visible).is_false()
 
 
 func test_disabled_account_scene() -> void:
@@ -428,7 +429,8 @@ func test_register_checkboxes_are_not_preselected() -> void:
 	assert_bool(page.get_node("Center/VBox/TermsCheck").button_pressed).is_false()
 	assert_bool(page.get_node("Center/VBox/PrivacyCheck").button_pressed).is_false()
 	assert_bool(page.get_node("Center/VBox/MailHint").visible).is_true()
-	assert_bool(String(page.get_node("Center/VBox/MailHint").text).contains("127.0.0.1:8025")).is_true()
+	assert_bool(String(page.get_node("Center/VBox/MailHint").text).contains("email")).is_true()
+	assert_bool(String(page.get_node("Center/VBox/MailHint").text).contains("127.0.0.1:8025")).is_false()
 	assert_bool(AccountService.stay_signed_in_available()).is_false()
 
 

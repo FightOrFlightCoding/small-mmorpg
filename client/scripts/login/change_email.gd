@@ -8,6 +8,7 @@ extends "res://scripts/ui/shell_page.gd"
 @onready var _back: Button = $Center/VBox/BackButton
 
 var _busy: bool = false
+var _cooldown: EmailCodeCooldown
 
 
 func _ready() -> void:
@@ -17,6 +18,10 @@ func _ready() -> void:
 	_submit.pressed.connect(_on_submit)
 	_back.pressed.connect(func() -> void: SceneRouter.transition_to(SceneRouter.SCENE_CHARACTER))
 	_show_current.pressed.connect(func() -> void: _toggle(_current, _show_current))
+	_cooldown = EmailCodeCooldown.new()
+	add_child(_cooldown)
+	_cooldown.add_button(_submit, "Send confirmation")
+	_cooldown.resume_after_send(false)
 	_current.grab_focus()
 
 
@@ -26,11 +31,14 @@ func _toggle(edit: LineEdit, button: Button) -> void:
 
 
 func _on_submit() -> void:
-	if _busy:
+	if _cooldown.is_blocking():
 		return
 	_busy = true
-	_submit.disabled = true
+	_cooldown.set_busy(true)
 	await GameService.request_email_change(_current.text, _email_edit.text)
+	if not is_inside_tree():
+		return
 	_status.text = AccountService.last_message
 	_busy = false
-	_submit.disabled = false
+	_cooldown.set_busy(false)
+	_cooldown.apply()

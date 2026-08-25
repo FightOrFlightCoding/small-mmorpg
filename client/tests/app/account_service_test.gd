@@ -47,12 +47,13 @@ func test_rpc_stack_traces_are_not_shown() -> void:
 	assert_bool(String(unknown.get("message", "")).contains("index.js")).is_false()
 
 
-func test_local_gateway_uses_mailpit_capture() -> void:
-	assert_bool(AccountService.uses_local_mail_capture()).is_true()
-	assert_str(AccountService.LOCAL_MAILPIT_URL).is_equal("http://127.0.0.1:8025")
-	assert_bool(AccountService.local_mail_capture_copy().contains("Mailpit")).is_true()
-	AccountService.gateway_url = "https://auth.example.com"
+func test_local_gateway_sends_real_inbox_copy() -> void:
+	assert_bool(AccountService.uses_local_gateway()).is_true()
 	assert_bool(AccountService.uses_local_mail_capture()).is_false()
+	assert_bool(AccountService.inbox_delivery_copy().contains("junk")).is_true()
+	assert_bool(AccountService.inbox_delivery_copy().contains("Mailpit")).is_false()
+	AccountService.gateway_url = "https://auth.example.com"
+	assert_bool(AccountService.uses_local_gateway()).is_false()
 	AccountService.gateway_url = AccountService.DEFAULT_GATEWAY_URL
 
 
@@ -133,6 +134,18 @@ func test_forgot_password_copy_does_not_enumerate_accounts() -> void:
 	assert_bool(status.text.contains("registered")).is_false()
 
 
+func test_forgot_password_starts_send_cooldown() -> void:
+	var page: Control = auto_free(preload("res://scenes/login/forgot_password.tscn").instantiate())
+	add_child(page)
+	await get_tree().process_frame
+	(page.get_node("Center/VBox/EmailEdit") as LineEdit).text = "anyone@example.com"
+	await page._on_submit()
+	var resend := page.get_node("Center/VBox/ResendButton") as Button
+	assert_bool(resend.disabled).is_true()
+	assert_bool(resend.text.contains("s)")).is_true()
+	assert_int(AccountService.email_code_cooldown_remaining()).is_greater_equal(1)
+
+
 func test_change_password_and_email_use_canonical_paths() -> void:
 	var account := AccountService.backend as FakeAccountBackend
 	await AccountService.login("alice@example.com", "secret-pass-15x")
@@ -187,4 +200,20 @@ func test_delete_confirm_button_is_click_only() -> void:
 	(page.get_node("Center/VBox/PhraseEdit") as LineEdit).text_changed.emit("DELETE ACCOUNT")
 	await get_tree().process_frame
 	assert_bool(confirm.disabled).is_false()
+
+
+func test_delete_phrase_without_space_keeps_button_disabled() -> void:
+	var page: Control = auto_free(preload("res://scenes/login/account_delete.tscn").instantiate())
+	add_child(page)
+	await get_tree().process_frame
+	var confirm := page.get_node("Center/VBox/ConfirmButton") as Button
+	(page.get_node("Center/VBox/PasswordRow/PasswordEdit") as LineEdit).text = "secret-pass-15x"
+	(page.get_node("Center/VBox/PasswordRow/PasswordEdit") as LineEdit).text_changed.emit("secret-pass-15x")
+	(page.get_node("Center/VBox/CodeEdit") as LineEdit).text = "AAAA-BBBB-CCCC-DDDD"
+	(page.get_node("Center/VBox/CodeEdit") as LineEdit).text_changed.emit("AAAA-BBBB-CCCC-DDDD")
+	(page.get_node("Center/VBox/PhraseEdit") as LineEdit).text = "DELETEACCOUNT"
+	(page.get_node("Center/VBox/PhraseEdit") as LineEdit).text_changed.emit("DELETEACCOUNT")
+	await get_tree().process_frame
+	assert_bool(confirm.disabled).is_true()
+	assert_bool(String(page.get_node("Center/VBox/PhraseHint").text).contains("space")).is_true()
 

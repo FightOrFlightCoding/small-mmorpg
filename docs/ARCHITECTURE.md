@@ -140,7 +140,7 @@ Third-party libraries are implementation details. Game code talks to project-own
 | `GmService` | none | Debug-only `gm_command` RPC intention plus required reason. Never grants locally. Not a gameplay authority. |
 | `Test runner scripts` | GdUnit4 6.2.0 | Client unit/scene tests |
 | `SliceJourney` / `SliceSession` | Nakama Godot SDK via `NakamaNetworkBackend` | Debug-only headless two-identity journey (`--e2e-slice`). Sends the same intentions as the graphical client. Unavailable in release builds. Not a gameplay authority. |
-| Auth gateway (`auth-gateway/`) | Fastify 5.6.1, Mailpit, SendGrid | Trusted public boundary for register/verify/login/refresh/logout/reset/email-change/delete. Holds Nakama and mail secrets. Not a gameplay authority. Godot `AccountService` calls versioned `/v1/auth/*` routes. |
+| Auth gateway (`auth-gateway/`) | Fastify 5.6.1, SendGrid (Mailpit on automated-test Compose only) | Trusted public boundary for register/verify/login/refresh/logout/reset/email-change/delete. Holds Nakama and mail secrets. Not a gameplay authority. Godot `AccountService` calls versioned `/v1/auth/*` routes. |
 
 Do not call addon APIs from feature scenes except through these adapters. Do not edit files under `client/addons/`. See [THIRD_PARTY.md](THIRD_PARTY.md).
 

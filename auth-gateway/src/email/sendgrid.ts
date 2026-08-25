@@ -10,7 +10,7 @@ export class SendGridEmailProvider implements EmailProvider {
   ) {}
 
   async health(): Promise<boolean> {
-    return this.apiKey.length > 0;
+    return this.apiKey.length > 0 && !sendgridFromUnusable(this.from);
   }
 
   async send(message: EmailMessage): Promise<{ ok: true } | { ok: false; reason: string }> {
@@ -23,7 +23,7 @@ export class SendGridEmailProvider implements EmailProvider {
         },
         body: JSON.stringify({
           personalizations: [{ to: [{ email: extractAddress(message.to) }] }],
-          from: { email: extractAddress(this.from) },
+          from: parseFromHeader(this.from),
           subject: message.subject,
           content: [
             { type: "text/plain", value: message.text },
@@ -41,7 +41,28 @@ export class SendGridEmailProvider implements EmailProvider {
   }
 }
 
+export function parseFromHeader(value: string): { email: string; name?: string } {
+  const match = value.match(/^(.*?)<([^>]+)>\s*$/);
+  if (match !== null) {
+    const name = match[1].trim();
+    const email = match[2].trim();
+    if (name.length > 0) {
+      return { email: email, name: name };
+    }
+    return { email: email };
+  }
+  return { email: value.trim() };
+}
+
 function extractAddress(value: string): string {
-  const match = value.match(/<([^>]+)>/);
-  return match !== null ? match[1] : value;
+  return parseFromHeader(value).email;
+}
+
+function sendgridFromUnusable(value: string): boolean {
+  const address = extractAddress(value).toLowerCase();
+  if (address.length === 0 || address.indexOf("@") <= 0) {
+    return true;
+  }
+  const domain = address.substring(address.indexOf("@") + 1);
+  return domain === "localhost" || domain.endsWith(".localhost") || address.indexOf("replace_me") !== -1;
 }

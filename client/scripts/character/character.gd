@@ -545,6 +545,8 @@ func _check_name_availability() -> void:
 		return
 	if bool(result.get("available", false)):
 		_name_avail.text = "Looks available. Creation is the authoritative reservation."
+	elif String(result.get("reason", "")) == "name_held_deleted":
+		_name_avail.text = AccountErrors.message_for("CHARACTER_NAME_HELD_DELETED")
 	else:
 		_name_avail.text = "That name may already be taken. Creation is the authoritative reservation."
 

@@ -130,6 +130,43 @@ test("production refuses to start without HTTPS and secrets", () => {
   );
 });
 
+test("local SendGrid refuses to start without a verified from address and API key", () => {
+  assert.throws(
+    () =>
+      loadGatewayConfig({
+        AUTH_GATEWAY_ENV: "local",
+        EMAIL_PROVIDER: "sendgrid",
+        NAKAMA_HTTP_URL: "http://127.0.0.1:7350",
+        NAKAMA_SERVER_KEY: "defaultkey",
+        NAKAMA_HTTP_KEY: "defaulthttpkey",
+        VIBECODE_EMAIL_HMAC_PEPPER: "local-email-hmac-pepper-not-production",
+        VIBECODE_GATEWAY_HMAC_SECRET: "local-gateway-hmac-secret-not-production",
+        VIBECODE_CHALLENGE_HMAC_SECRET: "local-challenge-hmac-secret-not-production",
+      }),
+    (error: unknown) =>
+      error instanceof ConfigError &&
+      error.missing.indexOf("SENDGRID_API_KEY") !== -1 &&
+      error.missing.indexOf("EMAIL_FROM") !== -1,
+  );
+});
+
+test("local SendGrid starts with a verified from address and API key", () => {
+  const config = loadGatewayConfig({
+    AUTH_GATEWAY_ENV: "local",
+    EMAIL_PROVIDER: "sendgrid",
+    SENDGRID_API_KEY: "sg-test-key-not-empty",
+    EMAIL_FROM: "Vibecode <no-reply@example.com>",
+    NAKAMA_HTTP_URL: "http://127.0.0.1:7350",
+    NAKAMA_SERVER_KEY: "defaultkey",
+    NAKAMA_HTTP_KEY: "defaulthttpkey",
+    VIBECODE_EMAIL_HMAC_PEPPER: "local-email-hmac-pepper-not-production",
+    VIBECODE_GATEWAY_HMAC_SECRET: "local-gateway-hmac-secret-not-production",
+    VIBECODE_CHALLENGE_HMAC_SECRET: "local-challenge-hmac-secret-not-production",
+  });
+  assert.equal(config.emailProvider, "sendgrid");
+  assert.equal(config.sendgridApiKey, "sg-test-key-not-empty");
+});
+
 test("invalid JSON and oversized bodies are rejected with the project envelope", async () => {
   const { app } = await build();
   const invalid = await app.inject({

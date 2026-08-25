@@ -66,7 +66,7 @@ func configure(next_kind: Kind, title: String, placeholder: String = "") -> void
 			edit.secret = not _show_secret
 		Kind.CODE:
 			ShellTheme.style_field(edit, "text")
-			edit.secret = false
+			CodeFormatter.configure_edit(edit)
 			if not edit.gui_input.is_connected(_on_code_gui_input):
 				edit.gui_input.connect(_on_code_gui_input)
 		_:
@@ -108,11 +108,8 @@ func _on_toggle() -> void:
 
 
 func _on_code_gui_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and event.ctrl_pressed and event.keycode == KEY_V:
-		var pasted := DisplayServer.clipboard_get().strip_edges()
-		if not pasted.is_empty():
-			edit.text = CodeFormatter.grouped(pasted)
-			value_changed.emit(CodeFormatter.normalize(edit.text))
+	if CodeFormatter.handle_gui_paste(edit, event):
+		value_changed.emit(CodeFormatter.normalize(edit.text))
 
 
 func _set_accessible(title: String) -> void:

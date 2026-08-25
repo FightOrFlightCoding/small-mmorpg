@@ -10,9 +10,9 @@ const CLIENT_VERSION := "1.0.0"
 const TERMS_VERSION := "1"
 const PRIVACY_VERSION := "1"
 const DEFAULT_GATEWAY_URL := "http://127.0.0.1:8787"
-const LOCAL_MAILPIT_URL := "http://127.0.0.1:8025"
 const REFRESH_MAX_ATTEMPTS := 3
 const REFRESH_LEAD_SEC := 60
+const EMAIL_CODE_COOLDOWN_SEC := 30
 
 var backend: RefCounted
 var auto_probe: bool = true
@@ -45,6 +45,7 @@ var _http_busy: bool = false
 var _refresh_in_progress: bool = false
 var _refresh_gave_up: bool = false
 var _refresh_timer: Timer
+var _email_code_cooldown_until_ms: int = 0
 
 
 func _ready() -> void:
@@ -77,6 +78,7 @@ func reset_for_tests() -> void:
 	pending_email_change = ""
 	pending_email_change_password = ""
 	credential_store = CredentialStore.new()
+	_email_code_cooldown_until_ms = 0
 	_http_busy = false
 	_refresh_in_progress = false
 	_refresh_gave_up = false
@@ -86,6 +88,28 @@ func reset_for_tests() -> void:
 
 func stay_signed_in_available() -> bool:
 	return CredentialStore.STAY_SIGNED_IN_ENABLED and credential_store != null and credential_store.is_available()
+
+
+func begin_email_code_cooldown(seconds: int = EMAIL_CODE_COOLDOWN_SEC) -> void:
+	_email_code_cooldown_until_ms = Time.get_ticks_msec() + maxi(seconds, 1) * 1000
+
+
+func email_code_cooldown_remaining() -> int:
+	if _email_code_cooldown_until_ms <= 0:
+		return 0
+	var left_ms := _email_code_cooldown_until_ms - Time.get_ticks_msec()
+	if left_ms <= 0:
+		_email_code_cooldown_until_ms = 0
+		return 0
+	return int(ceili(float(left_ms) / 1000.0))
+
+
+func _note_email_code_send(result: Dictionary) -> void:
+	if bool(result.get("ok", false)):
+		begin_email_code_cooldown(EMAIL_CODE_COOLDOWN_SEC)
+		return
+	if AccountErrors.canonicalize(String(result.get("code", ""))) == "AUTH_RATE_LIMITED":
+		begin_email_code_cooldown(maxi(last_retry_after_seconds, 1))
 
 
 func apply_runtime_gateway_url(args: PackedStringArray = PackedStringArray()) -> void:
@@ -104,18 +128,24 @@ func apply_runtime_gateway_url(args: PackedStringArray = PackedStringArray()) ->
 
 
 func shows_local_operator_hints() -> bool:
-	return DevIdentity.development_auth_allowed() and uses_local_mail_capture()
+	return DevIdentity.development_auth_allowed() and uses_local_gateway()
 
 
-func uses_local_mail_capture() -> bool:
+func uses_local_gateway() -> bool:
 	var lowered := gateway_url.to_lower()
 	return lowered.contains("127.0.0.1") or lowered.contains("localhost")
 
 
-func local_mail_capture_copy() -> String:
-	if shows_local_operator_hints():
-		return "Local development captures mail in Mailpit at %s. It is not sent to Gmail or other inboxes. Open that page and paste the code here. Codes expire after a short time." % LOCAL_MAILPIT_URL
+func uses_local_mail_capture() -> bool:
+	return false
+
+
+func inbox_delivery_copy() -> String:
 	return "Email can take a few minutes. Check junk folders. The code expires after a short time."
+
+
+func local_mail_capture_copy() -> String:
+	return inbox_delivery_copy()
 
 
 func probe_ready() -> bool:
@@ -163,6 +193,7 @@ func register_account(
 		pending_email = email.strip_edges()
 		account_status = "PENDING_VERIFICATION"
 		account_status_changed.emit(account_status)
+		_note_email_code_send(result)
 		return result
 	if String(result.get("code", "")) == "AUTH_REGISTRATION_FAILED":
 		pending_email = email.strip_edges()
@@ -195,7 +226,7 @@ func verify_email(code: String) -> Dictionary:
 	_clear_last_error()
 	var body := {
 		"email": pending_email,
-		"code": code.strip_edges(),
+		"code": CodeFormatter.normalize(code),
 		"client_version": CLIENT_VERSION,
 	}
 	return await _request("POST", "/v1/auth/verify/confirm", body, "")
@@ -207,14 +238,18 @@ func request_verification(email: String = "") -> Dictionary:
 	if target.is_empty():
 		target = pending_email
 	var body := {"email": target, "client_version": CLIENT_VERSION}
-	return await _request("POST", "/v1/auth/verify/request", body, "")
+	var result := await _request("POST", "/v1/auth/verify/request", body, "")
+	_note_email_code_send(result)
+	return result
 
 
 func request_password_reset(email: String) -> Dictionary:
 	_clear_last_error()
 	pending_reset_email = email.strip_edges()
 	var body := {"email": pending_reset_email, "client_version": CLIENT_VERSION}
-	return await _request("POST", "/v1/auth/password/reset/request", body, "")
+	var result := await _request("POST", "/v1/auth/password/reset/request", body, "")
+	_note_email_code_send(result)
+	return result
 
 
 func confirm_password_reset(code: String, new_password: String, confirm: String) -> Dictionary:
@@ -224,7 +259,7 @@ func confirm_password_reset(code: String, new_password: String, confirm: String)
 	var key := _idempotency_key()
 	var body := {
 		"email": pending_reset_email,
-		"reset_challenge": code.strip_edges(),
+		"reset_challenge": CodeFormatter.normalize(code),
 		"new_password": new_password,
 		"new_password_confirmation": confirm,
 		"client_version": CLIENT_VERSION,
@@ -274,6 +309,7 @@ func request_email_change(current_password: String, new_email: String) -> Dictio
 	if bool(result.get("ok", false)):
 		pending_email_change = new_email.strip_edges()
 		pending_email_change_password = current_password
+	_note_email_code_send(result)
 	return result
 
 
@@ -282,7 +318,7 @@ func confirm_email_change(code: String) -> Dictionary:
 	var key := _idempotency_key()
 	var body := {
 		"new_email": pending_email_change,
-		"email_change_challenge": code.strip_edges(),
+		"email_change_challenge": CodeFormatter.normalize(code),
 		"password": pending_email_change_password,
 		"client_version": CLIENT_VERSION,
 		"idempotency_key": key,
@@ -336,7 +372,9 @@ func request_account_deletion(password: String) -> Dictionary:
 	if deletion_idempotency_key.is_empty():
 		deletion_idempotency_key = _idempotency_key()
 	var body := {"password": password, "client_version": CLIENT_VERSION, "idempotency_key": deletion_idempotency_key}
-	return await _request("POST", "/v1/account/delete/request", body, access_token, deletion_idempotency_key)
+	var result := await _request("POST", "/v1/account/delete/request", body, access_token, deletion_idempotency_key)
+	_note_email_code_send(result)
+	return result
 
 
 func confirm_account_deletion(password: String, code: String, phrase: String) -> Dictionary:
@@ -349,7 +387,7 @@ func confirm_account_deletion(password: String, code: String, phrase: String) ->
 		deletion_idempotency_key = _idempotency_key()
 	var body := {
 		"password": password,
-		"code": code.strip_edges(),
+		"code": CodeFormatter.normalize(code),
 		"phrase": phrase,
 		"client_version": CLIENT_VERSION,
 		"idempotency_key": deletion_idempotency_key,

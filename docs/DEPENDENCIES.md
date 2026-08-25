@@ -165,28 +165,28 @@ Upgrade policy for every row: **locked**. A later phase may change a pin only by
 | Executes on | Separate Node process. Not bundled into Nakama |
 | Upgrade policy | Locked |
 
-## Mailpit (local email capture)
+## Mailpit (automated-test email capture)
 
 | Field | Value |
 | --- | --- |
-| Purpose | Local SMTP capture for verification and recovery mail |
+| Purpose | Isolated SMTP capture for automated-test Compose only |
 | Version | v1.30.7 |
 | Official source | Docker `axllent/mailpit:v1.30.7` |
 | License | MIT |
-| Installation | `infra/docker-compose.yml` service `mailpit`. UI http://127.0.0.1:8025 , SMTP 1025 |
-| Executes on | Local / automated_test only |
+| Installation | `infra/docker-compose.automated-test.yml` service `mailpit`. UI http://127.0.0.1:8125 , SMTP 1125 |
+| Executes on | `automated_test` Compose only |
 | Upgrade policy | Locked |
 
-## SendGrid (staging/production email)
+## SendGrid (player email)
 
 | Field | Value |
 | --- | --- |
-| Purpose | Production `EmailProvider` adapter over HTTPS `POST /v3/mail/send` |
+| Purpose | `EmailProvider` adapter over HTTPS `POST /v3/mail/send` for verification, recovery, email-change, and deletion mail |
 | Version | HTTP API v3 (no SDK) |
 | Official source | https://docs.sendgrid.com/api-reference/mail-send/mail-send |
 | License | SendGrid terms; adapter is project-owned |
-| Installation | `SENDGRID_API_KEY` in gitignored env. No npm package |
-| Executes on | Auth gateway in staging/production |
+| Installation | `SENDGRID_API_KEY` in gitignored env (`infra/.env.local`, staging, production). No npm package |
+| Executes on | Auth gateway in local Compose, staging, and production |
 | Upgrade policy | Locked |
 
 ## Rollup + Babel (Nakama JS bundle)

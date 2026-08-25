@@ -99,11 +99,15 @@ function checkDockerPins() {
     fail(`server/Dockerfile does not pin ${expected.dockerImages.nodeBuilder}`);
   }
   const localCompose = read("infra/docker-compose.yml");
+  const testCompose = read("infra/docker-compose.automated-test.yml");
   if (!dockerfile.includes("heroiclabs/nakama:3.40.0") && !localCompose.includes("vibecode-nakama:3.40.0")) {
     fail("Nakama 3.40.0 image pin missing from Docker files");
   }
-  if (!localCompose.includes(expected.dockerImages.mailpit)) {
-    fail(`infra/docker-compose.yml does not pin ${expected.dockerImages.mailpit}`);
+  if (!testCompose.includes(expected.dockerImages.mailpit)) {
+    fail(`infra/docker-compose.automated-test.yml does not pin ${expected.dockerImages.mailpit}`);
+  }
+  if (!localCompose.includes("EMAIL_PROVIDER: sendgrid")) {
+    fail("infra/docker-compose.yml must send player mail through SendGrid");
   }
   const gatewayDocker = read("auth-gateway/Dockerfile");
   if (!gatewayDocker.includes("node:20.20.2")) {

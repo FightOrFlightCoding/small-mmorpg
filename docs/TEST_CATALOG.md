@@ -136,9 +136,9 @@ Reproduction: `powershell -File scripts/test-auth-gateway.ps1`
 | `content_registry_test.gd` | catalog IDs, hash | VS-T8 |
 | `error_state_test.gd` | visible errors, no hang | VS-M4 |
 | `scene_router_test.gd` / `shell_scenes_test.gd` | boot/login/register/verify/unavailable/disabled/forgot-password/reset/change-password/change-email/forgot-email/account-delete/deleted/character/world | VS-T8 |
-| `auth_flow_test.gd` | gateway email register/login/verify routing, invalid credentials, session refresh, logout/logout-all, unverified gameplay reject, release-gated device auth, tickets, password reset without auto-login, password change, email change, slot limit 5, local Mailpit verify copy | VS-M4 |
+| `auth_flow_test.gd` | gateway email register/login/verify routing, invalid credentials, session refresh, logout/logout-all, unverified gameplay reject, release-gated device auth, tickets, password reset without auto-login, password change, email change, slot limit 5, inbox delivery copy | VS-M4 |
 | `character_select_ui_test.gd` | five slot positions, three production class cards, Create / Recently Deleted / Account Settings, export/delete copy, hidden user id, link-dead countdown disables Play | |
-| `account_service_test.gd` | error mapping including unknown `Reference: <request ID>`, RPC stack sanitization, password strength, credential store unavailable, remember-email, revoked refresh does not loop, failed logout-all keeps the session, reset confirm has no tokens, forgotten-email reveals no address, canonical change-password/email/export/delete paths, click-only delete confirm, local Mailpit capture | |
+| `account_service_test.gd` | error mapping including unknown `Reference: <request ID>`, RPC stack sanitization, password strength, credential store unavailable, remember-email, revoked refresh does not loop, failed logout-all keeps the session, reset confirm has no tokens, forgotten-email reveals no address, canonical change-password/email/export/delete paths, click-only delete confirm, inbox delivery copy | |
 | `account_ux_test.gd` | keyboard/tab order, loading and double-submit, back navigation, session-expired/verification transitions, five character cards, full-slot restore, link-dead copy, account-delete click-only, unknown error mapping, server-unavailable, email-provider delay, no duplicate `connect_once` | |
 | `dev_identity_test.gd` | Alice/Bob ids | |
 | `protocol_test.gd` | client opcodes match | VS-T9 |
@@ -162,7 +162,7 @@ Reproduction: `powershell -File scripts/test-auth-gateway.ps1`
 | `auth_privacy_test.gd` | Login does not leak whether an email exists | |
 | `e2e_hooks_test.gd` | `--e2e-slice`, `--cert-five`, and `--cert-five-resume` required | VS-T10 helper |
 | `asset_cert_test.gd` | Asset-manifest replacements for character, enemy, NPC, item icon, ability icon, tileset, SFX | |
-| `account_release_audit_test.gd` | Release hides Alice/Bob, Mailpit, local gateway URL; `--gateway-url=` override | |
+| `account_release_audit_test.gd` | Release hides Alice/Bob and local gateway URL; debug local copy does not mention Mailpit; `--gateway-url=` override | |
 
 `fake_network_backend.gd` is a test double, not a suite.
 

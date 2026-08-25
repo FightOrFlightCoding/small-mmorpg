@@ -1,7 +1,5 @@
 extends "res://scripts/ui/shell_page.gd"
 
-const RESEND_SECONDS := 30
-
 @onready var _explanation: Label = $Center/VBox/Explanation
 @onready var _code_edit: LineEdit = $Center/VBox/CodeEdit
 @onready var _status: Label = $Center/VBox/StatusLabel
@@ -9,17 +7,16 @@ const RESEND_SECONDS := 30
 @onready var _resend: Button = $Center/VBox/ResendButton
 @onready var _back: Button = $Center/VBox/BackButton
 
-var _resend_left: int = 0
-var _countdown: Timer
 var _busy: bool = false
 var _done: bool = false
+var _cooldown: EmailCodeCooldown
 
 
 func _ready() -> void:
 	super._ready()
 	WindowManager.open(WindowManager.EMAIL_CHANGE_VERIFY)
 	_explanation.text = "%s Your current email stays active until you confirm. Pasting is supported. Codes expire after a short time." % EmailMask.explain_destination(AccountService.pending_email_change, "the new address")
-	_code_edit.placeholder_text = "XXX XXX"
+	CodeFormatter.configure_edit(_code_edit)
 	ShellTheme.style_field(_code_edit, "text")
 	ShellTheme.style_primary(_submit)
 	ShellTheme.style_secondary(_resend)
@@ -30,20 +27,15 @@ func _ready() -> void:
 	_code_edit.gui_input.connect(_on_code_gui_input)
 	_code_edit.text_changed.connect(func(_value: String) -> void: CodeFormatter.apply_to_edit(_code_edit))
 	_code_edit.text_submitted.connect(func(_value: String) -> void: _on_submit())
-	_countdown = Timer.new()
-	_countdown.one_shot = false
-	_countdown.wait_time = 1.0
-	_countdown.timeout.connect(_on_tick)
-	add_child(_countdown)
-	_start_resend_wait()
+	_cooldown = EmailCodeCooldown.new()
+	add_child(_cooldown)
+	_cooldown.add_button(_resend, "Resend")
+	_cooldown.resume_after_send(true)
 	_code_edit.grab_focus()
 
 
 func _on_code_gui_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and event.ctrl_pressed and event.keycode == KEY_V:
-		var pasted := DisplayServer.clipboard_get().strip_edges()
-		if not pasted.is_empty():
-			_code_edit.text = CodeFormatter.grouped(pasted)
+	CodeFormatter.handle_gui_paste(_code_edit, event)
 
 
 func _on_submit() -> void:
@@ -70,28 +62,13 @@ func _on_submit() -> void:
 
 
 func _on_resend() -> void:
-	if _resend_left > 0 or _busy or AccountService.pending_email_change_password.is_empty():
+	if _cooldown.is_blocking() or AccountService.pending_email_change_password.is_empty():
 		return
-	_busy = true
-	_resend.disabled = true
+	_cooldown.set_busy(true)
 	await AccountService.request_email_change(AccountService.pending_email_change_password, AccountService.pending_email_change)
-	_status.text = "If that request was accepted, we sent another code to the new address."
-	_busy = false
-	_start_resend_wait()
-
-
-func _start_resend_wait() -> void:
-	_resend_left = RESEND_SECONDS
-	_resend.disabled = true
-	_resend.text = "Resend (%ss)" % str(_resend_left)
-	_countdown.start()
-
-
-func _on_tick() -> void:
-	_resend_left -= 1
-	if _resend_left <= 0:
-		_countdown.stop()
-		_resend.disabled = false
-		_resend.text = "Resend"
-		return
-	_resend.text = "Resend (%ss)" % str(_resend_left)
+	if AccountErrors.canonicalize(AccountService.last_code) == "AUTH_RATE_LIMITED":
+		_status.text = AccountErrors.message_for("AUTH_RATE_LIMITED")
+	else:
+		_status.text = "If that request was accepted, we sent another code to the new address."
+	_cooldown.set_busy(false)
+	_cooldown.apply()

@@ -65,7 +65,7 @@ Related: [ACCOUNT_ARCHITECTURE.md](ACCOUNT_ARCHITECTURE.md), [AUTH_API_CATALOG.m
 - Forgotten-email UI and `/v1/account/forgot-email` never reveal or mask an email. Internal `/v1/support/lookup` is secret-gated, logged, and email-free
 - No public email-reveal endpoint
 - Account deletion is a 7-phase saga keyed by user id; backup replay never matches on email
-- Release presentation hides Alice/Bob, Mailpit, and local gateway URLs
+- Release presentation hides Alice/Bob and local gateway URLs
 
 ## Remaining accepted limitations
 

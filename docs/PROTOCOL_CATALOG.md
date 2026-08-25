@@ -63,7 +63,7 @@ Catalog row fields: `characterId`, `displayName`, `name`, `canonicalName`, `clas
 | Request | `{ name` or `displayName`, `classId`, optional `idempotencyKey` }`. Snake_case aliases accepted. |
 | Response | Safe character summary plus `created: true` |
 | Authority | Verified/active account, live count < 5, class catalog, name policy, atomic canonical reservation, server-generated id, one-time starter inventory/equipment/progression/quests/location |
-| Errors | `invalid_name`, `invalid_class`, `name_taken`, `slot_limit`, `stat_injection`, `unknown_field`, `email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted` |
+| Errors | `invalid_name`, `invalid_class`, `name_taken`, `name_held_deleted`, `slot_limit`, `stat_injection`, `unknown_field`, `email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted` |
 | Tests | `character_lifecycle.test.ts` |
 
 The client must not submit character id, level, stats, skills, gold, items, position, or quest state.

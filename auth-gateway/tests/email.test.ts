@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { SendGridEmailProvider } from "../src/email/sendgrid";
+import { SendGridEmailProvider, parseFromHeader } from "../src/email/sendgrid";
 import { MemoryEmailProvider } from "../src/email/memory";
 import { renderEmail } from "../src/email/templates";
 
@@ -38,4 +38,18 @@ test("SendGrid adapter treats HTTP 202 as success", async () => {
   const provider = new SendGridEmailProvider("sg-test", "Vibecode <no-reply@example.com>", async () => new Response("", { status: 202 }));
   const sent = await provider.send(message);
   assert.equal(sent.ok, true);
+});
+
+test("SendGrid adapter sends a named from header", async () => {
+  let body = "";
+  const provider = new SendGridEmailProvider("sg-test", "Vibecode <no-reply@example.com>", async (_url, init) => {
+    body = typeof init?.body === "string" ? init.body : "";
+    return new Response("", { status: 202 });
+  });
+  const sent = await provider.send(message);
+  assert.equal(sent.ok, true);
+  const parsed = JSON.parse(body) as { from: { email: string; name?: string } };
+  assert.equal(parsed.from.email, "no-reply@example.com");
+  assert.equal(parsed.from.name, "Vibecode");
+  assert.deepEqual(parseFromHeader("player@example.com"), { email: "player@example.com" });
 });

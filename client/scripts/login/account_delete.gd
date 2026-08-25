@@ -7,11 +7,13 @@ const CONFIRM_PHRASE := "DELETE ACCOUNT"
 @onready var _send_code: Button = $Center/VBox/SendCodeButton
 @onready var _code: LineEdit = $Center/VBox/CodeEdit
 @onready var _phrase: LineEdit = $Center/VBox/PhraseEdit
+@onready var _phrase_hint: Label = $Center/VBox/PhraseHint
 @onready var _status: Label = $Center/VBox/StatusLabel
 @onready var _confirm: Button = $Center/VBox/ConfirmButton
 @onready var _back: Button = $Center/VBox/BackButton
 
 var _busy: bool = false
+var _cooldown: EmailCodeCooldown
 
 
 func _ready() -> void:
@@ -33,6 +35,12 @@ func _ready() -> void:
 	_password.text_changed.connect(func(_value: String) -> void: _refresh_confirm())
 	_code.text_changed.connect(func(_value: String) -> void: _refresh_confirm())
 	_phrase.text_changed.connect(func(_value: String) -> void: _refresh_confirm())
+	_phrase.placeholder_text = CONFIRM_PHRASE
+	_phrase_hint.text = _phrase_guidance()
+	_cooldown = EmailCodeCooldown.new()
+	add_child(_cooldown)
+	_cooldown.add_button(_send_code, "Send confirmation code")
+	_cooldown.resume_after_send(false)
 	_password.grab_focus()
 
 
@@ -42,6 +50,7 @@ func _toggle(edit: LineEdit, button: Button) -> void:
 
 
 func _refresh_confirm() -> void:
+	_phrase_hint.text = _phrase_guidance()
 	_confirm.disabled = (
 		_busy
 		or _password.text.is_empty()
@@ -50,19 +59,34 @@ func _refresh_confirm() -> void:
 	)
 
 
+func _phrase_guidance() -> String:
+	var typed := _phrase.text
+	if typed == CONFIRM_PHRASE:
+		return "Phrase matches."
+	var compact := typed.replace(" ", "").replace("\t", "")
+	if compact.to_upper() == "DELETEACCOUNT" and typed.find(" ") < 0:
+		return "Include the space: type DELETE ACCOUNT, not DELETEACCOUNT."
+	if typed.to_lower() == "delete account":
+		return "Use capital letters: DELETE ACCOUNT."
+	return "Type DELETE ACCOUNT exactly, including the space between the two words."
+
+
 func _on_send_code() -> void:
-	if _busy:
+	if _cooldown.is_blocking():
 		return
 	_busy = true
-	_send_code.disabled = true
+	_cooldown.set_busy(true)
 	_refresh_confirm()
 	var result := await GameService.request_account_deletion(_password.text)
 	if bool(result.get("ok", false)):
 		_status.text = "A confirmation code was sent to your email. It expires in 15 minutes."
+	elif AccountErrors.canonicalize(AccountService.last_code) == "AUTH_RATE_LIMITED":
+		_status.text = AccountErrors.message_for("AUTH_RATE_LIMITED")
 	else:
 		_status.text = AccountService.last_message
 	_busy = false
-	_send_code.disabled = false
+	_cooldown.set_busy(false)
+	_cooldown.apply()
 	_refresh_confirm()
 
 

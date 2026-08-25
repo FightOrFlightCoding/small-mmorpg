@@ -26,7 +26,7 @@ if (-not (Test-Path (Join-Path $gateway "node_modules"))) {
 Invoke-Native -FilePath "npm" -ArgumentList @("run", "build") -WorkingDirectory $gateway -FailMessage "auth-gateway build failed"
 
 if ($StartStack) {
-	Write-Host "== 5-9. PostgreSQL, Nakama, Mailpit, auth gateway, migrations =="
+	Write-Host "== 5-9. PostgreSQL, Nakama, SendGrid auth gateway, migrations =="
 	Invoke-RepoScript "backend-up.ps1"
 } else {
 	Write-Host "Skipping live stack. Start with: powershell -File scripts/backend-up.ps1"

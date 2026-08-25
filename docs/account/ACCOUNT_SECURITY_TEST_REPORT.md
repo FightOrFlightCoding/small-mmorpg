@@ -2,7 +2,7 @@
 
 ACCT-09 results. Binding matrix: `server/src/domain/account_security_catalog.ts` (**85** threats). Failure map: `server/src/domain/account_failure_catalog.ts` (**15**). Rate limits: `auth-gateway/src/rate_limits/catalog.ts` and `server/src/domain/account_rate_catalog.ts`. Readiness: [ACCOUNT_LIFECYCLE_READY.md](ACCOUNT_LIFECYCLE_READY.md).
 
-Gate date: **2026-08-25**. Suggested tag (not created): **`account-character-lifecycle-v1`**.
+Gate date: **2026-08-25**. Release tag: **`account-character-lifecycle-v1`**.
 
 ## Commands run
 

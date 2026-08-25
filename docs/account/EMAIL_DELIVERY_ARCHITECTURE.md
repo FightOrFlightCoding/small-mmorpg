@@ -11,10 +11,13 @@ Related: [AUTH_API_CATALOG.md](AUTH_API_CATALOG.md), [ACCOUNT_ARCHITECTURE.md](A
 | Environment | Provider | Configuration |
 | --- | --- | --- |
 | Automated tests | In-memory fake | `EMAIL_PROVIDER=memory` |
-| Local / automated_test Compose | Mailpit SMTP capture | `axllent/mailpit:v1.30.7`, SMTP `1025`, UI `8025` |
+| Automated-test Compose | Mailpit SMTP capture | `axllent/mailpit:v1.30.7`, SMTP `1025`, UI host `8125` |
+| Local Compose | SendGrid HTTP | `EMAIL_PROVIDER=sendgrid`, gitignored `infra/.env.local` (`SENDGRID_API_KEY`, verified `EMAIL_FROM`) |
 | Staging / production | SendGrid HTTP | `EMAIL_PROVIDER=sendgrid` and `SENDGRID_API_KEY` (gitignored) |
 
-Staging and production refuse to start if the public base URL is not `https://`, if Nakama keys are the local defaults, if the provider is not SendGrid, or if HMAC secrets still contain `not-production`.
+Local, staging, and production refuse to start SendGrid with an empty API key or a localhost / `REPLACE_ME` from-address. Staging and production also refuse to start if the public base URL is not `https://`, if Nakama keys are the local defaults, if the provider is not SendGrid, or if HMAC secrets still contain `not-production`.
+
+Any valid player email can receive mail. SendGrid must accept the **from** address (single-sender verification or an authenticated domain).
 
 ## Templates
 
@@ -34,7 +37,7 @@ Every template is plain text plus minimal HTML. None include passwords, access t
 | `email_verified` | After successful verification |
 | `suspicious_session_invalidation` | Session revocation / logout-all notice |
 
-Bodies include expiry time and a support address. Codes are grouped base32 (`XXXX-XXXX-XXXX-XXXX`). Confirmation links point at the gateway-hosted `/v1/confirm` page. The Godot verification scene can also accept the code manually.
+Bodies include expiry time and a support address. Codes are grouped base32 (`XXXX-XXXX-XXXX-XXXX`). Confirmation links point at the gateway-hosted `/v1/confirm` page. On local Compose that URL is `http://127.0.0.1:8787`, which only works on this machine; the Godot verification, reset, email-change, and deletion screens accept the code directly.
 
 ## Failure handling
 
@@ -44,12 +47,12 @@ Password-reset and resend responses are identical for unknown and known addresse
 
 ## Local inspection
 
-1. Start the stack: `powershell -File scripts/backend-up.ps1`
-2. Open Mailpit at [http://127.0.0.1:8025](http://127.0.0.1:8025)
+1. Copy `infra/.env.local.example` to `infra/.env.local`. Set `SENDGRID_API_KEY` and a SendGrid-verified `EMAIL_FROM`.
+2. Start the stack: `powershell -File scripts/backend-up.ps1`
 3. Register through `POST http://127.0.0.1:8787/v1/auth/register` or the Godot registration scene
-4. Read the captured message. Enter the code via `POST /v1/auth/verify/confirm`, the hosted confirm page, or the Godot verification scene.
+4. Open the real inbox (and junk). Enter the code via `POST /v1/auth/verify/confirm`, the hosted confirm page on this machine, or the Godot verification scene.
 
-Do not put production SendGrid keys in Compose files or git.
+Do not put SendGrid keys in Compose files or git.
 
 ## Logging
 

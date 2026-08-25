@@ -102,7 +102,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `account_status.ts` / `account_gate.ts` / `unverified_cleanup.ts` / `internal_username.ts` | S | Account statuses, playable-account policy, unverified purge policy, random Nakama usernames | none | none | `account_profile` snapshots | no | no | no |
 | `nakama/playable_account.ts` | A | Load profile + Nakama disable/delete times; `requirePlayableUser` | none | none | domain gate + `account_profile_store` | no | character/find/party/gm/match/chat | no |
 | `gateway_assertion.ts` / `auth_challenge.ts` / `account_profile.ts` / `account_deletion.ts` / `account_export.ts` / `rpcs/auth_gateway.ts` | S/A | Gateway HMAC assertion, challenge state machine, production email HMAC profile, export filter, deletion fence/saga, internal `auth_gateway` RPC (`get_profile`, `purge_unverified`, `challenge_find`, `replace_password`, `replace_email`, `support_snapshot`, `export_account`, `delete_request` / `confirm` / `status` / `resume`) | in-memory nonce cache | `account_profile`, `auth_challenge`, `account_deletion` | `nk.hmacSha256Hash`, `nk.linkEmail`, `nk.linkDevice`, `nk.accountExportId`, `nk.accountDeleteId` | yes | `auth_gateway` | no |
-| `auth-gateway/` | I | Public auth HTTP, Mailpit/SendGrid, hosted confirm pages, in-memory export download cache | in-memory rate limits + idempotency + export TTL | none (persists via RPC) | Nakama HTTP + `auth_gateway` | via Nakama | HTTPS (staging/prod) | no |
+| `auth-gateway/` | I | Public auth HTTP, SendGrid (Mailpit on automated-test Compose only), hosted confirm pages, in-memory export download cache | in-memory rate limits + idempotency + export TTL | none (persists via RPC) | Nakama HTTP + `auth_gateway` | via Nakama | HTTPS (staging/prod) | no |
 | `nakama/auth_hooks.ts` / `environment.ts` | A/S | Registration and device-auth policy from env presets | none | none | compiled presets + `ctx.env` | no | Authenticate* before hooks | no |
 | `cert_load.ts` / `cli/cert.ts` | S/T | Capacity/soak measurement (default public cap stays 8; capacity uses `maxPlayers: 20` extras) | none | none | match_loop | no | no | no |
 | `recovery.ts` | S | Documented recovery procedures and overwrite tokens | none | none | none | no | no | no |
@@ -113,7 +113,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `server/src/domain/save_schema.ts` / `migration.ts` / `save_load.ts` | S | Save envelope, v0→v1 registry, load | none | none | storage parsers | serialize + migrate | no | no |
 | `wallet_ref.ts` / `wallet_ref_store.ts` | S/A | Versioned gold pointer, not the balance | none | Nakama storage | save_schema | yes | no | pointer only |
 | `server/src/cli/migrate.ts` | T | status / dry-run / apply / verify | none | Node http/fs | domain migration | fixture or console | no | no |
-| `infra/` Compose + env JSON + `local.yml` | I | Postgres + Nakama + Mailpit + auth gateway; four environment presets | volumes per environment | Docker | none | Nakama’s tables only | no | no |
+| `infra/` Compose + env JSON + `local.yml` | I | Postgres + Nakama + auth gateway; Mailpit on automated-test Compose only; four environment presets | volumes per environment | Docker | none | Nakama’s tables only | no | no |
 | GdUnit tests / `scripts/` | T | Run suites | none | GdUnit4, Node, Docker | repo | no | no | no |
 
 ## Ambiguous or duplicated ownership

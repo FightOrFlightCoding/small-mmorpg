@@ -49,8 +49,8 @@ export class ConfigError extends Error {
   }
 }
 
-function read(name: string, fallback = ""): string {
-  const value = process.env[name];
+function read(env: NodeJS.ProcessEnv, name: string, fallback = ""): string {
+  const value = env[name];
   return typeof value === "string" ? value : fallback;
 }
 
@@ -65,7 +65,17 @@ function parseProvider(raw: string, env: GatewayEnvironment): EmailProviderName 
   if (raw === "memory" || raw === "mailpit" || raw === "sendgrid") {
     return raw;
   }
-  return env === "local" || env === "automated_test" ? "mailpit" : "sendgrid";
+  return env === "automated_test" ? "mailpit" : "sendgrid";
+}
+
+function sendgridFromUnusable(value: string): boolean {
+  const match = value.match(/<([^>]+)>/);
+  const address = (match !== null ? match[1] : value).trim().toLowerCase();
+  if (address.length === 0 || address.indexOf("@") <= 0) {
+    return true;
+  }
+  const domain = address.substring(address.indexOf("@") + 1);
+  return domain === "localhost" || domain.endsWith(".localhost") || address.indexOf("replace_me") !== -1;
 }
 
 export function loadGatewayConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig {
@@ -80,12 +90,12 @@ export function loadGatewayConfig(env: NodeJS.ProcessEnv = process.env): Gateway
     requestBodyLimit: 8192,
     requestTimeoutMs: 10000,
     nakamaHttpUrl: env.NAKAMA_HTTP_URL !== undefined ? env.NAKAMA_HTTP_URL : "http://127.0.0.1:7350",
-    nakamaServerKey: read("NAKAMA_SERVER_KEY", "defaultkey"),
-    nakamaHttpKey: read("NAKAMA_HTTP_KEY", "defaulthttpkey"),
+    nakamaServerKey: read(env, "NAKAMA_SERVER_KEY", "defaultkey"),
+    nakamaHttpKey: read(env, "NAKAMA_HTTP_KEY", "defaulthttpkey"),
     emailProvider: provider,
     smtpHost: env.SMTP_HOST !== undefined ? env.SMTP_HOST : "127.0.0.1",
     smtpPort: parseInt(env.SMTP_PORT !== undefined ? env.SMTP_PORT : "1025", 10),
-    sendgridApiKey: read("SENDGRID_API_KEY"),
+    sendgridApiKey: read(env, "SENDGRID_API_KEY"),
     emailHealthUrl:
       env.EMAIL_HEALTH_URL !== undefined
         ? env.EMAIL_HEALTH_URL
@@ -94,18 +104,18 @@ export function loadGatewayConfig(env: NodeJS.ProcessEnv = process.env): Gateway
           : "",
     emailFrom: env.EMAIL_FROM !== undefined ? env.EMAIL_FROM : "Vibecode <no-reply@localhost>",
     supportEmail: env.EMAIL_SUPPORT_ADDRESS !== undefined ? env.EMAIL_SUPPORT_ADDRESS : "support@localhost",
-    emailHmacPepper: read("VIBECODE_EMAIL_HMAC_PEPPER", "local-email-hmac-pepper-not-production"),
-    gatewayHmacSecret: read("VIBECODE_GATEWAY_HMAC_SECRET", "local-gateway-hmac-secret-not-production"),
-    challengeHmacSecret: read("VIBECODE_CHALLENGE_HMAC_SECRET", "local-challenge-hmac-secret-not-production"),
-    registrationMode: parseRegistrationMode(read("AUTH_REGISTRATION_MODE", "OPEN")),
-    registrationAllowlist: parseAllowlist(read("AUTH_REGISTRATION_ALLOWLIST"), canonicalizeEmail),
-    termsVersion: read("AUTH_TERMS_VERSION", "1"),
-    privacyVersion: read("AUTH_PRIVACY_VERSION", "1"),
-    minClientVersion: read("AUTH_MIN_CLIENT_VERSION", "1.0.0"),
-    maxClientVersion: read("AUTH_MAX_CLIENT_VERSION", "1.0.0"),
-    verificationTtlMs: parseInt(read("AUTH_VERIFICATION_TTL_MS", String(30 * 60 * 1000)), 10),
-    unverifiedRetentionMs: parseInt(read("AUTH_UNVERIFIED_RETENTION_MS", String(7 * 24 * 60 * 60 * 1000)), 10),
-    logoutAllRecentAuthMs: parseInt(read("AUTH_LOGOUT_ALL_RECENT_MS", String(5 * 60 * 1000)), 10),
+    emailHmacPepper: read(env, "VIBECODE_EMAIL_HMAC_PEPPER", "local-email-hmac-pepper-not-production"),
+    gatewayHmacSecret: read(env, "VIBECODE_GATEWAY_HMAC_SECRET", "local-gateway-hmac-secret-not-production"),
+    challengeHmacSecret: read(env, "VIBECODE_CHALLENGE_HMAC_SECRET", "local-challenge-hmac-secret-not-production"),
+    registrationMode: parseRegistrationMode(read(env, "AUTH_REGISTRATION_MODE", "OPEN")),
+    registrationAllowlist: parseAllowlist(read(env, "AUTH_REGISTRATION_ALLOWLIST"), canonicalizeEmail),
+    termsVersion: read(env, "AUTH_TERMS_VERSION", "1"),
+    privacyVersion: read(env, "AUTH_PRIVACY_VERSION", "1"),
+    minClientVersion: read(env, "AUTH_MIN_CLIENT_VERSION", "1.0.0"),
+    maxClientVersion: read(env, "AUTH_MAX_CLIENT_VERSION", "1.0.0"),
+    verificationTtlMs: parseInt(read(env, "AUTH_VERIFICATION_TTL_MS", String(30 * 60 * 1000)), 10),
+    unverifiedRetentionMs: parseInt(read(env, "AUTH_UNVERIFIED_RETENTION_MS", String(7 * 24 * 60 * 60 * 1000)), 10),
+    logoutAllRecentAuthMs: parseInt(read(env, "AUTH_LOGOUT_ALL_RECENT_MS", String(5 * 60 * 1000)), 10),
     passwordResetTtlMs: parseInt(env.AUTH_PASSWORD_RESET_TTL_MS !== undefined ? env.AUTH_PASSWORD_RESET_TTL_MS : String(15 * 60 * 1000), 10),
     emailChangeTtlMs: parseInt(env.AUTH_EMAIL_CHANGE_TTL_MS !== undefined ? env.AUTH_EMAIL_CHANGE_TTL_MS : String(15 * 60 * 1000), 10),
     sensitiveRecentMs: parseInt(env.AUTH_SENSITIVE_RECENT_MS !== undefined ? env.AUTH_SENSITIVE_RECENT_MS : String(15 * 60 * 1000), 10),
@@ -164,6 +174,14 @@ export function validateGatewayConfig(config: GatewayConfig): void {
     }
     if (config.supportLookupSecret.length < 16 || config.supportLookupSecret.indexOf("not-production") !== -1) {
       missing.push("AUTH_SUPPORT_LOOKUP_SECRET");
+    }
+  }
+  if (config.emailProvider === "sendgrid") {
+    if (config.sendgridApiKey.length === 0) {
+      missing.push("SENDGRID_API_KEY");
+    }
+    if (sendgridFromUnusable(config.emailFrom)) {
+      missing.push("EMAIL_FROM");
     }
   }
   if (missing.length > 0) {

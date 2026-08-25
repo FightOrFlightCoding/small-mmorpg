@@ -8,7 +8,7 @@ ACCT-08 wraps accepted account and character operations in a project-owned desig
 
 - Autofocus email, Enter advances email → password → submit, explicit tab order, show/hide password, Caps Lock hint, Remember Email, Login loading spinner, Register, Forgot Password, **Forgot which email you used?**, server banners (maintenance, client update, email delay), version in debug builds, rate-limit countdown, field/global errors.
 - Invalid credentials keep the email and clear the password. Generic copy only.
-- Debug local Compose server hint includes Mailpit (`http://127.0.0.1:8025`); verification mail is not delivered to Gmail. Release hides Mailpit, Alice/Bob, and the local gateway URL.
+- Debug local Compose server hint includes the local gateway and Nakama ports. Verification and recovery codes are sent to the email the player entered. Release hides Alice/Bob and the local gateway URL.
 - Stay Signed In is hidden (`CredentialStore` unavailable).
 - Debug: Alice, Bob, this machine (hidden in release).
 - Forgot Password opens Forgot Password Request. The gateway call is `POST /v1/auth/password/reset/request` with generic copy whether or not the address exists.
@@ -22,24 +22,24 @@ ACCT-08 wraps accepted account and character operations in a project-owned desig
 
 - Live local email syntax guidance, password guidance/confirm/visibility/strength, Terms and Privacy checkboxes **unchecked** by default, placeholder document links, field errors, form error summary, Register, Back to Login.
 - Does not claim success until the server confirms. Duplicate email uses the generic “We could not create this account…” copy.
-- Debug local Compose: Mailpit capture note (`http://127.0.0.1:8025`, not Gmail). Hidden in release.
+- Always shows inbox delivery copy. Codes are sent to the address entered.
 - Success → Email Verification. Duplicate email uses the generic “We could not create this account…” copy.
 
 ## Email verification (`scenes/login/verify.tscn`)
 
-- Explanation with a partially masked address only after the player supplied that email, one code field with paste and grouped formatting, Verify, Resend with countdown, expiry copy, Change email (registration), Back to Login, delivery-delay copy, email-provider outage banner.
+- Explanation with a partially masked address only after the player supplied that email, one code field with paste and `XXXX-XXXX-XXXX-XXXX` grouping matching the email, Verify, Resend with a **30-second** countdown on the button, expiry copy, Change email (registration), Back to Login, delivery-delay copy, email-provider outage banner. Gateway `verification_request` remains 5 per 10 minutes (generic 200).
 - Back never skips to Character Select.
-- Local Compose captures mail in Mailpit (`http://127.0.0.1:8025`). The verify screen says so and offers **Open local inbox**. Codes are not delivered to Gmail.
+- Local Compose sends mail through SendGrid to the real inbox. The verify screen tells the player to check junk folders. There is no Mailpit “Open local inbox” control.
 - Success → Login.
 
 ## Forgot Password Request (`scenes/login/forgot_password.tscn`)
 
-- Email, submit, resend, continue to code entry, back to Login, loading, duplicate-submit disabled.
+- Email, submit, resend, continue to code entry, back to Login, loading, duplicate-submit disabled. Submit and Resend share a **30-second** cooldown shown on the buttons after a send. Rate-limited responses show wait copy instead of the generic success line.
 - Success copy is always *If an account exists for that email, password-reset instructions have been sent.* plus 15-minute expiry guidance. The screen does not say whether the address is registered.
 
 ## Password Reset Code Entry (`scenes/login/password_reset_code.tscn`)
 
-- Code field with paste, continue, resend with countdown, expiry guidance, back to Forgot Password.
+- Code field with paste, continue, resend with a **30-second** countdown, expiry guidance, back to Forgot Password.
 
 ## New Password (`scenes/login/password_reset_new.tscn`)
 
@@ -58,12 +58,12 @@ ACCT-08 wraps accepted account and character operations in a project-owned desig
 
 ## Change Email (`scenes/login/change_email.tscn`)
 
-- Requires an authenticated session. Current password, proposed new email, loading, back to Character Select.
+- Requires an authenticated session. Current password, proposed new email, loading, back to Character Select. Send confirmation uses the same **30-second** cooldown if the player returns to this screen.
 - Success opens Email Change Verification. The old email stays active until confirm.
 
 ## Email Change Verification (`scenes/login/email_change_verify.tscn`)
 
-- Code with paste, resend countdown, expiry copy, back navigation.
+- Code with paste, resend with a **30-second** countdown, expiry copy, back navigation.
 - Confirm does not auto-login. Success copy tells the player to sign in with the new address.
 
 ## Forgot Which Email Help (`scenes/login/forgot_email.tscn`)
@@ -90,7 +90,7 @@ ACCT-08 wraps accepted account and character operations in a project-owned desig
 ## Delete Account (`scenes/login/account_delete.tscn`)
 
 - Irreversible warning covering five slots, live and recently deleted characters, inventory, equipment, gold, quests, settings, and parties. No restore. The email may later register a blank account.
-- Current password, send confirmation code, email code, exact phrase `DELETE ACCOUNT`.
+- Current password, send confirmation code with a **30-second** cooldown on the button, email code, exact phrase `DELETE ACCOUNT` (two words, with a space). The screen shows a live hint if the space is missing.
 - Confirm is click-only (`FOCUS_CLICK`); Enter does not confirm. The button stays disabled until password, code, and phrase are valid.
 - Success opens Account Deleted. Incomplete sagas show resume copy; the same idempotency key continues the job.
 

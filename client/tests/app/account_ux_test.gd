@@ -26,6 +26,7 @@ func after_test() -> void:
 func test_unknown_error_mapping_uses_request_id() -> void:
 	assert_str(AccountErrors.message_for("AUTH_INVALID_CREDENTIALS")).is_equal("Email or password is incorrect.")
 	assert_str(AccountErrors.message_for("CHARACTER_SLOTS_FULL")).contains("five")
+	assert_str(AccountErrors.message_for("CHARACTER_NAME_HELD_DELETED")).contains("Recently Deleted")
 	assert_str(AccountErrors.display_for("AUTH_RATE_LIMITED")).is_equal(AccountErrors.message_for("AUTH_RATE_LIMITED"))
 	var unknown := AccountErrors.display_for("SOME_INTERNAL_PANIC", "req-123")
 	assert_str(unknown).contains("Something went wrong.")
@@ -34,13 +35,47 @@ func test_unknown_error_mapping_uses_request_id() -> void:
 	assert_bool(AccountErrors.display_for("nope", "").contains("Something went wrong.")).is_true()
 
 
+func test_email_code_cooldown_disables_send_buttons() -> void:
+	AccountService.begin_email_code_cooldown(30)
+	assert_int(AccountService.email_code_cooldown_remaining()).is_greater_equal(1)
+	var verify: Control = auto_free(preload("res://scenes/login/verify.tscn").instantiate())
+	add_child(verify)
+	await await_idle_frame()
+	var resend := verify.get_node("Center/VBox/ResendButton") as Button
+	assert_bool(resend.disabled).is_true()
+	assert_bool(resend.text.contains("s)")).is_true()
+	var forgot: Control = auto_free(preload("res://scenes/login/forgot_password.tscn").instantiate())
+	add_child(forgot)
+	await await_idle_frame()
+	assert_bool((forgot.get_node("Center/VBox/ResendButton") as Button).disabled).is_true()
+	var delete_page: Control = auto_free(preload("res://scenes/login/account_delete.tscn").instantiate())
+	add_child(delete_page)
+	await await_idle_frame()
+	assert_bool((delete_page.get_node("Center/VBox/SendCodeButton") as Button).disabled).is_true()
+	AccountService.reset_for_tests()
+	AccountService.backend = FakeAccountBackend.new()
+	assert_int(AccountService.email_code_cooldown_remaining()).is_equal(0)
+
+
 func test_code_formatter_and_email_mask() -> void:
 	assert_str(CodeFormatter.normalize("ab c-12")).is_equal("ABC12")
-	assert_str(CodeFormatter.grouped("abcdef")).is_equal("ABC DEF")
+	assert_str(CodeFormatter.grouped("abcdef")).is_equal("ABCD-EF")
+	assert_str(CodeFormatter.grouped("KQNQ-XAFW-ASS6-47JB")).is_equal("KQNQ-XAFW-ASS6-47JB")
+	assert_str(CodeFormatter.grouped("kqnq xafw ass6 47jb")).is_equal("KQNQ-XAFW-ASS6-47JB")
+	assert_str(CodeFormatter.grouped("KQN QXA FWA SS6 47J B")).is_equal("KQNQ-XAFW-ASS6-47JB")
+	assert_str(CodeFormatter.normalize("KQNQ-XAFW-ASS6-47JB")).is_equal("KQNQXAFWASS647JB")
+	assert_str(CodeFormatter.normalize("KQNQXAFWASS647JBKQNQXAFWASS647JB")).is_equal("KQNQXAFWASS647JB")
 	assert_str(EmailMask.mask("player@example.com")).is_equal("p***@example.com")
 	assert_str(EmailMask.mask("")).is_equal("")
 	assert_bool(bool(EmailSyntax.guidance("not-an-email").get("ok", true))).is_false()
 	assert_bool(bool(EmailSyntax.guidance("name@example.com").get("ok", false))).is_true()
+	var code_edit := LineEdit.new()
+	auto_free(code_edit)
+	add_child(code_edit)
+	code_edit.text = "KQNQ-XAFW-ASS6-47JBKQNQ-XAFW-ASS6-47JB"
+	CodeFormatter.apply_to_edit(code_edit)
+	assert_str(code_edit.text).is_equal("KQNQ-XAFW-ASS6-47JB")
+	assert_int(code_edit.max_length).is_equal(CodeFormatter.DISPLAY_LENGTH)
 
 
 func test_class_cards_are_distinguishable_without_color_only() -> void:

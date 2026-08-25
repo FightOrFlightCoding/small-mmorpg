@@ -47,10 +47,11 @@ autowrap_mode = 3
 
 [node name="DeliveryDelay" type="Label" parent="Center/VBox"]
 layout_mode = 2
-text = "Local development captures mail in Mailpit. It is not sent to Gmail."
+text = "Email can take a few minutes. Check junk folders. The code expires after a short time."
 autowrap_mode = 3
 
 [node name="InboxButton" type="Button" parent="Center/VBox"]
+visible = false
 layout_mode = 2
 text = "Open local inbox"
 

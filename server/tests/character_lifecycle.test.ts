@@ -423,6 +423,18 @@ test("delete requires exact name, rejects gameplay lease, and frees a slot", () 
   assert.equal(handleCharacterList("user-a", mem).liveCount, 1);
 });
 
+test("soft-deleted names stay reserved and tell the owner to restore", () => {
+  const mem = new MemoryLifecycle();
+  mem.ids = ["c1", "c2"];
+  handleCharacterCreate("user-a", createPayload("One", "class.warrior"), mem);
+  handleCharacterDeleteRequest("user-a", deletePayload("c1", "One"), mem);
+  assert.throws(() => handleCharacterCreate("user-a", createPayload("One", "class.mage"), mem), /name_held_deleted/);
+  assert.throws(() => handleCharacterCreate("user-b", createPayload("One", "class.mage"), mem), /name_taken/);
+  const check = handleCharacterNameAvailable("user-a", JSON.stringify({ displayName: "One" }), mem);
+  assert.equal(check.available, false);
+  assert.equal(check.reason, "name_held_deleted");
+});
+
 test("restore requires a free slot and keeps progression inventory", () => {
   const mem = new MemoryLifecycle();
   mem.ids = ["c1", "c2", "c3", "c4", "c5", "c6"];

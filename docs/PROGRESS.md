@@ -4,6 +4,8 @@ Last accepted phase: **Security, failure, distribution, and final lifecycle cert
 
 Current phase: none.
 
+Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
+
 The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
 
 ## Phase 0 acceptance (2026-08-15)
@@ -962,7 +964,7 @@ No new account features. Named gateway and Nakama rate limits, safe account audi
 
 Documents: [account/ACCOUNT_LIFECYCLE_READY.md](account/ACCOUNT_LIFECYCLE_READY.md), [account/PLAYER_ACCOUNT_GUIDE.md](account/PLAYER_ACCOUNT_GUIDE.md), [account/SUPPORT_RECOVERY_RUNBOOK.md](account/SUPPORT_RECOVERY_RUNBOOK.md), [account/EMAIL_DELIVERY_RUNBOOK.md](account/EMAIL_DELIVERY_RUNBOOK.md), [account/ACCOUNT_DELETION_RUNBOOK.md](account/ACCOUNT_DELETION_RUNBOOK.md), [account/SESSION_AND_LEASE_RUNBOOK.md](account/SESSION_AND_LEASE_RUNBOOK.md), [account/ACCOUNT_SECURITY_TEST_REPORT.md](account/ACCOUNT_SECURITY_TEST_REPORT.md).
 
-Limitations: Stay Signed In remains hidden. Link-dead starts at disconnect **detection**. Live five-email Mailpit world play and a new release `.exe` were not rebuilt in this run. Suggested tag `account-character-lifecycle-v1` — do not create until the working tree is clean and the user approves.
+Limitations: Stay Signed In remains hidden. Link-dead starts at disconnect **detection**. Live five-email Mailpit world play and a new release `.exe` were not rebuilt in this run. Release tag `account-character-lifecycle-v1`.
 
 Reproduction:
 

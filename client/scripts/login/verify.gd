@@ -1,7 +1,5 @@
 extends "res://scripts/ui/shell_page.gd"
 
-const RESEND_SECONDS := 30
-
 @onready var _explanation: Label = $Center/VBox/Explanation
 @onready var _delay: Label = $Center/VBox/DeliveryDelay
 @onready var _inbox_button: Button = $Center/VBox/InboxButton
@@ -13,12 +11,11 @@ const RESEND_SECONDS := 30
 @onready var _back_button: Button = $Center/VBox/BackButton
 @onready var _vbox: VBoxContainer = $Center/VBox
 
-var _resend_left: int = 0
-var _countdown: Timer
 var _busy: bool = false
 var _banner: UxStatusBanner
 var _expiry: Label
 var _spinner: UxSpinner
+var _cooldown: EmailCodeCooldown
 
 
 func _ready() -> void:
@@ -29,11 +26,10 @@ func _ready() -> void:
 	ShellTheme.style_secondary(_change_email)
 	ShellTheme.style_secondary(_back_button)
 	_explanation.text = "%s Enter it here. Pasting is supported." % EmailMask.explain_destination(AccountService.pending_email)
-	_delay.text = AccountService.local_mail_capture_copy()
-	_inbox_button.visible = AccountService.shows_local_operator_hints()
+	_delay.text = AccountService.inbox_delivery_copy()
+	_inbox_button.visible = false
 	_inbox_button.pressed.connect(_on_inbox_pressed)
-	_code_edit.placeholder_text = "XXX XXX"
-	_code_edit.secret = false
+	CodeFormatter.configure_edit(_code_edit)
 	_verify_button.pressed.connect(_on_verify_pressed)
 	_resend_button.pressed.connect(_on_resend_pressed)
 	_change_email.pressed.connect(func() -> void: SceneRouter.transition_to(SceneRouter.SCENE_REGISTER))
@@ -54,24 +50,19 @@ func _ready() -> void:
 	_vbox.add_child(_spinner)
 	if not AccountService.last_email_provider_ok:
 		_banner.show_message("Email sending is delayed or unavailable. You can still enter a code if you already received one.", UxStatusBanner.Tone.WARNING)
-	_countdown = Timer.new()
-	_countdown.one_shot = false
-	_countdown.wait_time = 1.0
-	_countdown.timeout.connect(_on_tick)
-	add_child(_countdown)
-	_start_resend_wait()
+	_cooldown = EmailCodeCooldown.new()
+	add_child(_cooldown)
+	_cooldown.add_button(_resend_button, "Resend")
+	_cooldown.resume_after_send(true)
 	_code_edit.grab_focus()
 
 
 func _on_inbox_pressed() -> void:
-	OS.shell_open(AccountService.LOCAL_MAILPIT_URL)
+	pass
 
 
 func _on_code_gui_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and event.ctrl_pressed and event.keycode == KEY_V:
-		var pasted := DisplayServer.clipboard_get().strip_edges()
-		if not pasted.is_empty():
-			_code_edit.text = CodeFormatter.grouped(pasted)
+	CodeFormatter.handle_gui_paste(_code_edit, event)
 
 
 func _on_verify_pressed() -> void:
@@ -91,29 +82,13 @@ func _on_verify_pressed() -> void:
 
 
 func _on_resend_pressed() -> void:
-	if _resend_left > 0 or _busy:
+	if _cooldown.is_blocking():
 		return
-	_resend_button.disabled = true
+	_cooldown.set_busy(true)
 	await AccountService.request_verification()
 	if not AccountService.last_email_provider_ok:
 		AppState.report_recoverable("EMAIL_DELIVERY_DELAYED", AccountErrors.message_for("EMAIL_DELIVERY_DELAYED"))
 	else:
 		AppState.report_recoverable("verification_resent", "If that email is unverified, we sent another code.")
-	_start_resend_wait()
-
-
-func _start_resend_wait() -> void:
-	_resend_left = RESEND_SECONDS
-	_resend_button.disabled = true
-	_resend_button.text = "Resend (%ss)" % str(_resend_left)
-	_countdown.start()
-
-
-func _on_tick() -> void:
-	_resend_left -= 1
-	if _resend_left <= 0:
-		_countdown.stop()
-		_resend_button.disabled = false
-		_resend_button.text = "Resend"
-		return
-	_resend_button.text = "Resend (%ss)" % str(_resend_left)
+	_cooldown.set_busy(false)
+	_cooldown.apply()

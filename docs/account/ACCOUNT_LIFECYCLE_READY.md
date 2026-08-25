@@ -4,7 +4,7 @@ ACCT-09 certification that the email-account and character lifecycle is secure, 
 
 Related: [ACCOUNT_SECURITY_TEST_REPORT.md](ACCOUNT_SECURITY_TEST_REPORT.md), [PLAYER_ACCOUNT_GUIDE.md](PLAYER_ACCOUNT_GUIDE.md), [SUPPORT_RECOVERY_RUNBOOK.md](SUPPORT_RECOVERY_RUNBOOK.md), [EMAIL_DELIVERY_RUNBOOK.md](EMAIL_DELIVERY_RUNBOOK.md), [ACCOUNT_DELETION_RUNBOOK.md](ACCOUNT_DELETION_RUNBOOK.md), [SESSION_AND_LEASE_RUNBOOK.md](SESSION_AND_LEASE_RUNBOOK.md), [ACCOUNT_THREAT_MODEL.md](ACCOUNT_THREAT_MODEL.md), [../PROGRESS.md](../PROGRESS.md).
 
-Suggested release tag (do not create until the working tree is clean and the user approves): **`account-character-lifecycle-v1`**.
+Release tag: **`account-character-lifecycle-v1`**.
 
 ## Versions
 
@@ -21,7 +21,7 @@ Suggested release tag (do not create until the working tree is clean and the use
 | Auth challenge | `schemaVersion` **1** |
 | API | Gateway `/v1/*`; Nakama HTTP `/v2/*`; **29** RPCs frozen |
 
-Email provider: tests use in-memory; local Compose uses Mailpit `v1.30.7`; staging/production require SendGrid HTTPS (`EMAIL_PROVIDER=sendgrid`).
+Email provider: tests use in-memory; local Compose uses SendGrid (`infra/.env.local`); automated-test Compose may use Mailpit `v1.30.7`; staging/production require SendGrid HTTPS (`EMAIL_PROVIDER=sendgrid`).
 
 ## Accepted lifecycle features
 
@@ -77,7 +77,7 @@ Recorded from the ACCT-09 gate run (2026-08-25).
 
 **Pass (hermetic).** Five independent gateway accounts register with unique emails, receive verification mail in the memory provider, verify, and log in. Duplicate email is `AUTH_REGISTRATION_FAILED` (409). Character proofs are the existing five-slot / three-class / sixth-rejected / name-uniqueness suite. World entry, Character Select return, and logout/login again are covered by `auth_flow_test.gd`, `zone_join_test.gd`, and `gameplay_lease.test.ts`.
 
-Live five-email Mailpit world play with a second observer watching a 10 s avatar after Alt+F4 was **not** re-executed as a graphical session in this phase. Equivalent state is proven by `gameplay_lease.test.ts` (no movement, PvE can damage, Play disabled, countdown, entry after release, no duplicate snapshot avatars) and `persistence.test.ts` (no session rebind).
+Live five-email inbox world play with a second observer watching a 10 s avatar after Alt+F4 was **not** re-executed as a graphical session in this phase. Equivalent state is proven by `gameplay_lease.test.ts` (no movement, PvE can damage, Play disabled, countdown, entry after release, no duplicate snapshot avatars) and `persistence.test.ts` (no session rebind).
 
 ## Email-reuse result
 
@@ -89,13 +89,15 @@ Live five-email Mailpit world play with a second observer watching a 10 s avatar
 
 ## Release-export result
 
-Release packaging command: `powershell -File scripts/export-client-release.ps1`. Requires Godot **4.7.1** export templates (`scripts/install-export-templates.ps1`). Runtime gateway URL is `--gateway-url=https://…` or `VIBECODE_AUTH_GATEWAY_URL`. Debug Alice/Bob and Mailpit copy are hidden when `OS.is_debug_build()` is false. This ACCT-09 run did **not** produce a new `client/exports/windows/small-mmorpg.exe` (templates are workstation-local).
+Release packaging command: `powershell -File scripts/export-client-release.ps1`. Requires Godot **4.7.1** export templates (`scripts/install-export-templates.ps1`). Runtime gateway URL is `--gateway-url=https://…` or `VIBECODE_AUTH_GATEWAY_URL`. Debug Alice/Bob are hidden when `OS.is_debug_build()` is false. This ACCT-09 run did **not** produce a new `client/exports/windows/small-mmorpg.exe` (templates are workstation-local).
 
 ## Clean checkout
 
 Every command is listed in [ACCOUNT_SECURITY_TEST_REPORT.md](ACCOUNT_SECURITY_TEST_REPORT.md) and `scripts/test-account-lifecycle.ps1`.
 
 ```powershell
+Copy-Item infra/.env.local.example infra/.env.local
+# Set SENDGRID_API_KEY and a SendGrid-verified EMAIL_FROM, then:
 powershell -File scripts/setup.ps1
 powershell -File scripts/content-build.ps1
 powershell -File scripts/server-build.ps1
@@ -115,6 +117,6 @@ Hermetic-only (no Docker): `powershell -File scripts/test-account-lifecycle.ps1`
 - Link-dead clock starts at Nakama **detection**, not window-close time (15 s ping / 25 s pong wait).
 - Nakama SDK `defaultkey` remains in `client/addons/com.heroiclabs.nakama` for debug/device auth.
 - Production registration stays **CLOSED** until operators open it.
-- Graphical five-email Mailpit play and live Postgres restart (`scripts/test-failure.ps1 -Live`) remain operator drills.
+- Graphical five-email inbox play and live Postgres restart (`scripts/test-failure.ps1 -Live`) remain operator drills.
 
 Foundation v1 exclusions in [../KNOWN_LIMITATIONS.md](../KNOWN_LIMITATIONS.md) still apply.

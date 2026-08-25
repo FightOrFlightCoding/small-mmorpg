@@ -82,7 +82,7 @@ func _ready() -> void:
 		_hint.text = "Use email and password, or sign in as Alice in one Play window and Bob in the other."
 		_sign_in_button.text = "Sign in with this machine"
 	if AccountService.shows_local_operator_hints():
-		_server_hint.text = "Auth gateway 127.0.0.1:8787. Nakama must be running at 127.0.0.1:7350 (scripts/backend-up.ps1). Local verification mail is captured at http://127.0.0.1:8025 and is not delivered to Gmail."
+		_server_hint.text = "Auth gateway 127.0.0.1:8787. Nakama must be running at 127.0.0.1:7350 (scripts/backend-up.ps1). Verification and recovery codes are sent to the email you enter."
 	else:
 		_server_hint.text = "Sign in with your email and password. If the account service is unavailable, wait and try again."
 	if not AppState.content_ready:

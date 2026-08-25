@@ -427,6 +427,7 @@ func check_character_name(display_name: String) -> Dictionary:
 		"ok": true,
 		"available": bool(data.get("available", false)),
 		"canonicalName": String(data.get("canonicalName", "")),
+		"reason": String(data.get("reason", "")),
 	}
 
 

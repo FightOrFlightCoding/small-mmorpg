@@ -49,8 +49,9 @@ func test_gateway_url_override_from_args() -> void:
 	assert_bool(AccountService.uses_local_mail_capture()).is_false()
 
 
-func test_debug_still_shows_local_mail_capture() -> void:
+func test_debug_local_gateway_does_not_mention_mailpit() -> void:
 	DevIdentity.force_release_config = false
 	AccountService.gateway_url = AccountService.DEFAULT_GATEWAY_URL
 	assert_bool(AccountService.shows_local_operator_hints()).is_true()
-	assert_bool(AccountService.local_mail_capture_copy().contains("Mailpit")).is_true()
+	assert_bool(AccountService.inbox_delivery_copy().contains("Mailpit")).is_false()
+	assert_bool(AccountService.inbox_delivery_copy().contains("8025")).is_false()

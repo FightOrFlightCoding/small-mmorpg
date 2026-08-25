@@ -625,5 +625,13 @@ Client-only presentation. `ShellTheme` / `Ux*` components wrap accepted lifecycl
 
 ## 2026-08-25 — ACCT-09 security, failure, distribution, and lifecycle certification
 
-No new player-facing account features. The 85-row threat matrix (`account_security_catalog.ts`) maps every listed abuse to validation, named rate limit, idempotency, expected error, automated test, and audit event. Gateway `ACCOUNT_RATE_POLICIES` plus Nakama character session windows are the rate-limit catalog; 429 retry copy does not reveal account existence; failed public requests never permanently lock an account. Safe `account_audit` events cover registration through deletion and leases. Release presentation hides Alice/Bob, Mailpit, and local gateway URLs; `--gateway-url=` / `VIBECODE_AUTH_GATEWAY_URL` set the packaged HTTPS endpoint. Five-account, deletion isolation, and backup-replay-by-user-id are proven hermetically. Graphical Mailpit play and a new Windows export remain operator steps. Suggested tag `account-character-lifecycle-v1` is not created until the tree is clean and the user approves.
+No new player-facing account features. The 85-row threat matrix (`account_security_catalog.ts`) maps every listed abuse to validation, named rate limit, idempotency, expected error, automated test, and audit event. Gateway `ACCOUNT_RATE_POLICIES` plus Nakama character session windows are the rate-limit catalog; 429 retry copy does not reveal account existence; failed public requests never permanently lock an account. Safe `account_audit` events cover registration through deletion and leases. Release presentation hides Alice/Bob, Mailpit, and local operator URLs; `--gateway-url=` / `VIBECODE_AUTH_GATEWAY_URL` set the packaged HTTPS endpoint. Five-account, deletion isolation, and backup-replay-by-user-id are proven hermetically. Graphical Mailpit play and a new Windows export remain operator steps. Release tag `account-character-lifecycle-v1`.
+
+## 2026-08-25 — Local Compose delivers account mail through SendGrid
+
+Player-facing codes (verification, password reset, email change, deletion) go to the address the player typed. Local Compose no longer runs Mailpit. The auth gateway uses `EMAIL_PROVIDER=sendgrid` and gitignored `infra/.env.local` (`SENDGRID_API_KEY`, a SendGrid-verified `EMAIL_FROM`). The Godot client tells players to check the inbox and junk folder; debug builds no longer mention Mailpit or `127.0.0.1:8025`.
+
+Mailpit `v1.30.7` remains on `infra/docker-compose.automated-test.yml` so hermetic live tests can inspect mail without a provider key. Unit tests still use `EMAIL_PROVIDER=memory`. Staging/production SendGrid rules are unchanged.
+
+`scripts/backend-up.ps1` refuses to start without a real key and a non-localhost from-address. Do not commit `infra/.env.local`.
 
