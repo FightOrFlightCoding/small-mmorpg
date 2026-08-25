@@ -8,10 +8,11 @@ Rules for every coding agent working on this repository. Recover project constra
 2. Read `docs/PROGRESS.md` and identify the last accepted phase.
 3. Read `docs/ARCHITECTURE.md`, `docs/VERTICAL_SLICE.md`, `docs/SECURITY_MODEL.md`, and `docs/DECISIONS.md`.
 4. After Prompt 18, also read `docs/FOUNDATION_SCOPE.md`, `docs/FOUNDATION_BASELINE.md`, and any catalog in `docs/` named by the current phase.
-5. Read any other `docs/` file relevant to the requested phase.
-6. Inspect the repository. Do not rebuild systems that already exist. Do not duplicate services, models, or protocols.
-7. Run the currently documented baseline tests, if any exist for the accepted phases.
-8. Implement only the requested phase. Do not continue into a later phase.
+5. When the current phase is PROG-*, also read `docs/design/rpg-progression-design-v1.0.md`, `docs/design/progression-interpretations.md`, `docs/design/progression-implementation-addendum.md`, and `docs/progression/`.
+6. Read any other `docs/` file relevant to the requested phase.
+7. Inspect the repository. Do not rebuild systems that already exist. Do not duplicate services, models, or protocols.
+8. Run the currently documented baseline tests, if any exist for the accepted phases.
+9. Implement only the requested phase. Do not continue into a later phase.
 
 ## Locked stack
 
@@ -91,4 +92,4 @@ Record necessary assumptions in `docs/DECISIONS.md`.
 | `auth-gateway/` | Project-owned public authentication HTTP service (Fastify). Holds Nakama and mail secrets. Not bundled into the Godot client. |
 | `scripts/` | Repeatable developer and CI commands, including `scripts/content.ps1` (`validate` / `build` / `diff` / `references` / `unused` / `new` / `copy` / `migrate` / `package`) and backup/export/verify scripts in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). |
 | `tools/` | Content CLI (`tools/content-build`) and Prompt 18 freeze audit (`tools/foundation-audit`). |
-| `docs/` | Binding project contract, including Foundation catalogs and [CONTENT_AUTHORING.md](docs/CONTENT_AUTHORING.md). |
+| `docs/` | Binding project contract, including Foundation catalogs, [CONTENT_AUTHORING.md](docs/CONTENT_AUTHORING.md), and after PROG-01 the progression contract under [docs/progression/](docs/progression/) plus [docs/design/rpg-progression-design-v1.0.md](docs/design/rpg-progression-design-v1.0.md). |

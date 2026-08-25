@@ -1,6 +1,6 @@
 # Test catalog
 
-Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, Prompt 24 ability coverage, Prompt 25 combat-pipeline coverage, Prompt 26 enemy/spawn/AI/loot/boss coverage, Prompt 27 NPC/quest/vendor/inn coverage, Prompt 28 party/chat/group-credit/loot coverage, Prompt 29 public-world/cave/transfer/reconnect coverage, Prompt 30 nearby trade coverage, Prompt 31 UI/settings/asset-contract coverage, Prompt 32 content-CLI / systems-lab / GM coverage, Prompt 33 environment / handshake / maintenance / backup-restore coverage, Prompt 34 security / fuzz / rate-limit / capacity / soak / five-client certification, Prompt 35 existing-save / content-only / asset-manifest / five-client resume certification, and ACCT-09 account lifecycle security / failure / distribution certification. Do not weaken these tests.
+Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, Prompt 24 ability coverage, Prompt 25 combat-pipeline coverage, Prompt 26 enemy/spawn/AI/loot/boss coverage, Prompt 27 NPC/quest/vendor/inn coverage, Prompt 28 party/chat/group-credit/loot coverage, Prompt 29 public-world/cave/transfer/reconnect coverage, Prompt 30 nearby trade coverage, Prompt 31 UI/settings/asset-contract coverage, Prompt 32 content-CLI / systems-lab / GM coverage, Prompt 33 environment / handshake / maintenance / backup-restore coverage, Prompt 34 security / fuzz / rate-limit / capacity / soak / five-client certification, Prompt 35 existing-save / content-only / asset-manifest / five-client resume certification, ACCT-09 account lifecycle security / failure / distribution certification, and PROG-01 canonical progression design audit. Do not weaken these tests.
 
 Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDATION_BASELINE.md).
 
@@ -20,6 +20,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `scripts/test-account-compat` | Domain account helpers plus live Nakama 3.40.0 lifecycle proofs (starts the stack if needed) |
 | `scripts/test-auth-gateway` | Auth-gateway hermetic suite; live HTTP-key ping when Nakama is up |
 | `scripts/test-account-lifecycle` | ACCT-09 hermetic lifecycle gate (setup, content, server/gateway builds, server + gateway + client tests). `-StartStack` / `-ExportRelease` / `-LiveFailure` optional |
+| `scripts/test-progression-design` | PROG-01 canonical design markdown + contract docs + live three-class snapshot |
 | `scripts/test-all` | setup + content, audit, server, client, e2e, capacity, soak, five-client, backup |
 | `scripts/test-backup` | Dump local `nakama`, restore into `nakama_restore_drill`, verify table counts |
 | `scripts/verify-release` | Content, audit, server, migrations, client, backup drill |
@@ -80,6 +81,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `chat.test.ts` | RT hooks | |
 | `content.test.ts` | generated catalog shape | VS-T8 analog |
 | `progression.test.ts` | XP thresholds, multi-level, max level, duplicate event, allocate, derived-stat order, equipment/effect hooks, Prompt 18 migrate, reconnect FULL_STATE | |
+| `progression_design_audit.test.ts` | Canonical design file present; four classes / eight branches / 34+6 budgets / 11100 XP / trees / Frenzy passive; catalog IDs; live three-class snapshot | |
 | `ability.test.ts` | locked use, valid melee, ATTACK wrapper, range, PvP, relation, resource, ICD/GCD, duplicate request, movement/damage interrupt, cancel, heal, DoT, stack policies, expiration, unlock, hotbar, reconnect clears casts, null magnitude scale, catalog strip/rebind | |
 | `party.test.ts` | create, invite, accept, decline, expired invite, party full, already in party, leave, kick, promote, leader disconnect, grace reconnect, all-absent disband, forged membership, duplicate requestId, create-declines-pending, accept-leaves-current, ghost-member prune, match-cache eviction | |
 | `party_credit_loot.test.ts` | group kill XP, out-of-range member, group quest credit, personal loot, server-assigned loot, duplicate death event | |

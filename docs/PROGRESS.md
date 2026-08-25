@@ -1,12 +1,12 @@
 # Progress
 
-Last accepted phase: **Security, failure, distribution, and final lifecycle certification (ACCT-09)**.
+Last accepted phase: **PROG-01 — Canonical Design Audit and Implementation Contract**.
 
 Current phase: none.
 
-Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
+Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
 
 ## Phase 0 acceptance (2026-08-15)
 
@@ -970,5 +970,27 @@ Reproduction:
 
 ```powershell
 powershell -File scripts/test-account-lifecycle.ps1
+```
+
+## PROG-01 canonical design audit and implementation contract (2026-08-25)
+
+No player-visible behavior change. The canonical design is in the repo at [design/rpg-progression-design-v1.0.md](design/rpg-progression-design-v1.0.md). Contract docs under [progression/](progression/) map every canonical value, the live Foundation progression owners, storage/protocol, migration needs, and conflicts (three classes vs four, 5-cap vs 10, 8-slot hotbar vs 4, mana on physical classes, Might/Vitality/Focus vs eight stats). Frenzy is recorded as a passive that does not occupy a hotbar slot. No second progression/ability/hotbar stack. No new dependency. No content JSON or match gameplay change. `SAVE_SCHEMA_VERSION` stays 1. Content hash unchanged.
+
+| Gate | Result |
+| --- | --- |
+| Design audit | 10/10 (`scripts/test-progression-design.ps1`) |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (29 RPCs, 34 storage records, 32 client opcodes) |
+| Server hermetic | 543 passed, 13 skipped (live suites off), including 10 new design-audit tests; `tsc --noEmit` |
+| Client GdUnit | 276/276, 0 orphans, `SHELL_LOGIN` |
+
+Limitations: Live content still has three production classes and level cap 5. Manual Prompt 18 world play was not re-run; no gameplay code or content changed. Implementation-addendum has no new balance numbers.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-progression-design.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
 ```
 

@@ -635,3 +635,7 @@ Mailpit `v1.30.7` remains on `infra/docker-compose.automated-test.yml` so hermet
 
 `scripts/backend-up.ps1` refuses to start without a real key and a non-localhost from-address. Do not commit `infra/.env.local`.
 
+## 2026-08-25 — PROG-01 canonical progression audit
+
+No player-visible behavior change. The Vibecode 1–10 progression design is stored at `docs/design/rpg-progression-design-v1.0.md`. PROG-01 maps that document onto the accepted Foundation systems (`progression.ts`, `stats.ts`, `ability.ts`, `effects.ts`, `xp_hooks.ts`, class content) without implementing a second progression stack. Frenzy is recorded as a passive that does not occupy a hotbar slot. Implementation-added numbers belong in `docs/design/progression-implementation-addendum.md` (none in this phase). Live three-class / 5-cap / 8-slot conflicts stay documented until a later PROG phase.
+

@@ -54,6 +54,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `effects.ts` | S | Structured effect handlers (damage, heal, resource, modifier, periodic, stun, root) | match effect lists | none | combat_pipeline, stats | no | COMBAT_EVENT | no |
 | `stats.ts` | S | Deterministic derived-stat pipeline | none | none | equipment modifiers | no | no | no |
 | `progression.ts` / `progression_store.ts` (domain) | S | XP, levels, allocation, serialize progression | none | none | stats.ts | serialize only | no | no |
+| `progression_design_audit.ts` | S (tests only) | Parse canonical design markdown; catalog IDs. Not a second progression implementation. Do not import from the match runtime. | none | none | none | no | no | no |
 | `xp_hooks.ts` | S | Trusted XP grant interface from kill/quest events | none | none | progression.ts via match loop | no | no | no |
 | `interaction.ts` | S | NPC existence, zone, per-NPC range, optional service gate | none | none | none | no | INTERACTION_RESULT | no |
 | `npc.ts` | S | NPC definition lookup and service list | none | none | none | no | no | no |
