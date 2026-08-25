@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/effect_definition.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "kind", "displayNameKey", "effect"],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "effect_definition" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "displayNameKey": { "type": "string", "minLength": 1 },
+    "descriptionKey": { "type": "string", "minLength": 1 },
+    "ownerAbilityId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "effect": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/abilityEffect" },
+    "classification": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentClassification" },
+    "compileTimeAddition": { "type": "boolean" },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+  }
+}

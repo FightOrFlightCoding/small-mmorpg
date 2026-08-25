@@ -1,0 +1,94 @@
+{
+  "id": "class.mystic",
+  "kind": "class",
+  "displayName": "Mystic",
+  "shortDescription": "Support caster. Canonical roster data only; not selectable yet.",
+  "displayNameKey": "class.mystic.display_name",
+  "shortDescriptionKey": "class.mystic.short_description",
+  "longDescriptionKey": "class.mystic.long_description",
+  "descriptionKey": "class.mystic.long_description",
+  "roleSummaryKey": "class.mystic.role_summary",
+  "placeholderIconAssetId": "visual.class_mystic",
+  "placeholderVisualSetId": "visual.class_mystic",
+  "placeholderThemeKey": "theme.class.mystic",
+  "selectOrder": 4,
+  "visualAssetSetId": "visual.class_mystic",
+  "visualSetId": "visual.class_mystic",
+  "rosterSelectable": false,
+  "progressionId": "progression.mystic",
+  "levelCurveId": "test.curve.standard",
+  "canonicalLevelCurveId": "curve.vibecode.l10",
+  "startingAttributes": {
+    "test.attribute.might": 2,
+    "test.attribute.vitality": 4,
+    "test.attribute.focus": 7
+  },
+  "startingResources": {
+    "test.resource.health": 80,
+    "test.resource.mana": 60
+  },
+  "attributePointPolicy": {
+    "pointsAtCreate": 0
+  },
+  "skillPointPolicy": {
+    "pointsAtCreate": 0
+  },
+  "startingEquipment": [
+    {
+      "itemId": "item.training_sword",
+      "quantity": 1
+    }
+  ],
+  "startingAbilities": [
+    "test.ability.basic_melee",
+    "test.ability.ranged_bolt"
+  ],
+  "allowedEquipmentTags": [
+    "main_hand",
+    "head",
+    "chest",
+    "legs",
+    "feet"
+  ],
+  "tags": [
+    "mystic",
+    "caster"
+  ],
+  "baseStats": {
+    "stat.strength": 2,
+    "stat.agility": 4,
+    "stat.intelligence": 6,
+    "stat.spirit": 8,
+    "stat.vitality": 5,
+    "stat.precision": 3,
+    "stat.haste": 3,
+    "stat.endurance": 3
+  },
+  "automaticGrowth": {
+    "stat.strength": 0,
+    "stat.agility": 0,
+    "stat.intelligence": 2,
+    "stat.spirit": 2,
+    "stat.vitality": 1,
+    "stat.precision": 0,
+    "stat.haste": 0,
+    "stat.endurance": 1
+  },
+  "autoAssignTemplate": {
+    "amounts": {
+      "stat.intelligence": 1,
+      "stat.spirit": 1,
+      "stat.vitality": 1
+    },
+    "classification": "compile-time-addition",
+    "compileTimeAddition": true
+  },
+  "resourceType": "test.resource.mana",
+  "autoAttackId": "ability.mystic.auto_attack",
+  "basicAbilityId": "ability.mystic.fateweave",
+  "classTreeId": "tree.mystic.class",
+  "branchIds": [
+    "branch.mystic.charms",
+    "branch.mystic.curses"
+  ]
+}

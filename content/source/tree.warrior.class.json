@@ -1,0 +1,16 @@
+{
+  "id": "tree.warrior.class",
+  "kind": "talent_tree",
+  "displayName": "tree.warrior.class",
+  "displayNameKey": "tree.warrior.class.display_name",
+  "descriptionKey": "tree.warrior.class.description",
+  "treeKind": "class",
+  "ownerId": "class.warrior",
+  "pointsAvailable": 2,
+  "nodeIds": [
+    "talent.warrior.heavy_strike_r2",
+    "talent.warrior.conditioning",
+    "talent.warrior.weapon_mastery"
+  ],
+  "classification": "canonical"
+}

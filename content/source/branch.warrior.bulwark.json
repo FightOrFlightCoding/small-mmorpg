@@ -1,0 +1,17 @@
+{
+  "id": "branch.warrior.bulwark",
+  "kind": "branch_definition",
+  "classId": "class.warrior",
+  "displayName": "Bulwark",
+  "displayNameKey": "branch.warrior.bulwark.display_name",
+  "descriptionKey": "branch.warrior.bulwark.description",
+  "roleKey": "branch.warrior.bulwark.role",
+  "signatureAbilityId": "ability.warrior.challenge",
+  "capstoneAbilityId": "ability.warrior.unbreakable",
+  "branchTreeId": "tree.warrior.bulwark",
+  "recommendedBuildIds": [
+    "build.bulwark.fortress",
+    "build.bulwark.warlord"
+  ],
+  "classification": "canonical"
+}

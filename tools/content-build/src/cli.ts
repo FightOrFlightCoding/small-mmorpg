@@ -329,6 +329,17 @@ function countDefs(payload: ContentPayload): number {
     Object.keys(payload.classProgressions).length +
     Object.keys(payload.equipmentSlots).length +
     Object.keys(payload.abilities).length +
+    Object.keys(payload.stats).length +
+    Object.keys(payload.branches).length +
+    Object.keys(payload.progressionTimelines).length +
+    Object.keys(payload.autoAttacks).length +
+    Object.keys(payload.effectDefinitions).length +
+    Object.keys(payload.talentTrees).length +
+    Object.keys(payload.talentNodes).length +
+    Object.keys(payload.referenceBuilds).length +
+    Object.keys(payload.enemyScalingProfiles).length +
+    Object.keys(payload.xpRewards).length +
+    Object.keys(payload.equipmentModifierCategories).length +
     Object.keys(payload.aiProfiles).length +
     Object.keys(payload.lootTables).length +
     Object.keys(payload.spawns).length +

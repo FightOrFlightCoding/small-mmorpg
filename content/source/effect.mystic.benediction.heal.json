@@ -1,0 +1,32 @@
+{
+  "id": "effect.mystic.benediction.heal",
+  "kind": "effect_definition",
+  "displayName": "heal",
+  "displayNameKey": "effect.mystic.benediction.heal.display_name",
+  "descriptionKey": "effect.mystic.benediction.heal.description",
+  "ownerAbilityId": "ability.mystic.benediction",
+  "effect": {
+    "id": "heal",
+    "type": "direct_heal",
+    "source": "caster",
+    "target": "area",
+    "magnitude": {
+      "kind": "constant",
+      "value": 0
+    },
+    "duration": 0,
+    "tickInterval": 0,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "heal",
+      "capstone"
+    ],
+    "school": "heal",
+    "healthPercent": 0.3
+  },
+  "classification": "compile-time-addition",
+  "compileTimeAddition": true
+}

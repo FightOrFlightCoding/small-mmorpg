@@ -49,6 +49,11 @@ const CLASSES: { [id: string]: ClassDefinition } = {
     id: "class.mage",
     startingEquipment: [{ itemId: "item.training_sword", quantity: 1 }],
   },
+  "class.mystic": {
+    id: "class.mystic",
+    startingEquipment: [{ itemId: "item.training_sword", quantity: 1 }],
+    rosterSelectable: false,
+  },
   "fixture.class.alpha": {
     id: "fixture.class.alpha",
     startingEquipment: [{ itemId: "item.training_sword", quantity: 1 }],
@@ -223,6 +228,10 @@ test("invalid names and classes are rejected", () => {
   assert.throws(() => handleCharacterCreate("user-a", createPayload("ab", "fixture.class.alpha"), mem), /invalid_name/);
   assert.throws(
     () => handleCharacterCreate("user-a", createPayload("Alice", "fixture.class.missing"), mem),
+    /invalid_class/,
+  );
+  assert.throws(
+    () => handleCharacterCreate("user-a", createPayload("Mystic", "class.mystic"), mem),
     /invalid_class/,
   );
 });

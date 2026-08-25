@@ -1,0 +1,70 @@
+{
+  "id": "ability.mystic.wither",
+  "kind": "ability",
+  "displayName": "Wither",
+  "displayNameKey": "ability.mystic.wither.display_name",
+  "descriptionKey": "ability.mystic.wither.description",
+  "targetMode": "entity",
+  "relationFilter": "hostile",
+  "range": 180,
+  "minimumRange": 0,
+  "areaShape": "none",
+  "areaRadius": 0,
+  "castTime": 1.5,
+  "channelTime": 0,
+  "globalCooldown": 0,
+  "individualCooldown": 0,
+  "resourceCosts": [
+    {
+      "resourceId": "test.resource.mana",
+      "amount": 14
+    }
+  ],
+  "movementInterruptsCast": true,
+  "damageInterruptsCast": false,
+  "requiredLevel": 5,
+  "requiredClassTags": [
+    "class.mystic"
+  ],
+  "prerequisites": [],
+  "effects": [
+    {
+      "id": "dot",
+      "type": "periodic_damage",
+      "source": "caster",
+      "target": "primary",
+      "magnitude": {
+        "kind": "stat_id",
+        "statId": "stat.intelligence",
+        "value": 4.5,
+        "scale": 0.01
+      },
+      "duration": 8,
+      "tickInterval": 1,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "dot",
+        "wither"
+      ],
+      "school": "spell"
+    }
+  ],
+  "effectIds": [
+    "effect.mystic.wither.dot"
+  ],
+  "animationAssetId": "visual.ability_dot",
+  "iconAssetId": "visual.ability_dot_icon",
+  "soundAssetId": "visual.ability_dot_sound",
+  "skillPointCost": 0,
+  "maxRank": 1,
+  "runtimeEnabled": false,
+  "abilityCategory": "signature",
+  "ownerClassId": "class.mystic",
+  "school": "spell",
+  "classification": "canonical",
+  "compileTimeAddition": false,
+  "ownerBranchId": "branch.mystic.curses"
+}

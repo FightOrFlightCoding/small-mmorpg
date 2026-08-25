@@ -1,0 +1,68 @@
+{
+  "id": "ability.mystic.blessing",
+  "kind": "ability",
+  "displayName": "Blessing",
+  "displayNameKey": "ability.mystic.blessing.display_name",
+  "descriptionKey": "ability.mystic.blessing.description",
+  "targetMode": "self",
+  "relationFilter": "friendly",
+  "range": 80,
+  "minimumRange": 0,
+  "areaShape": "circle",
+  "areaRadius": 80,
+  "castTime": 0,
+  "channelTime": 0,
+  "globalCooldown": 0,
+  "individualCooldown": 20,
+  "resourceCosts": [
+    {
+      "resourceId": "test.resource.mana",
+      "amount": 25
+    }
+  ],
+  "movementInterruptsCast": false,
+  "damageInterruptsCast": false,
+  "requiredLevel": 5,
+  "requiredClassTags": [
+    "class.mystic"
+  ],
+  "prerequisites": [],
+  "effects": [
+    {
+      "id": "buff",
+      "type": "timed_stat_modifier",
+      "source": "caster",
+      "target": "area",
+      "magnitude": {
+        "kind": "constant",
+        "value": 0.1
+      },
+      "duration": 10,
+      "tickInterval": 0,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "buff"
+      ],
+      "school": "none",
+      "statChannel": "damage_dealt"
+    }
+  ],
+  "effectIds": [
+    "effect.mystic.blessing.buff"
+  ],
+  "animationAssetId": "visual.ability_buff",
+  "iconAssetId": "visual.ability_buff_icon",
+  "soundAssetId": "visual.ability_buff_sound",
+  "skillPointCost": 0,
+  "maxRank": 1,
+  "runtimeEnabled": false,
+  "abilityCategory": "tree_active",
+  "ownerClassId": "class.mystic",
+  "school": "heal",
+  "classification": "compile-time-addition",
+  "compileTimeAddition": true,
+  "ownerBranchId": "branch.mystic.charms"
+}

@@ -639,3 +639,9 @@ Mailpit `v1.30.7` remains on `infra/docker-compose.automated-test.yml` so hermet
 
 No player-visible behavior change. The Vibecode 1–10 progression design is stored at `docs/design/rpg-progression-design-v1.0.md`. PROG-01 maps that document onto the accepted Foundation systems (`progression.ts`, `stats.ts`, `ability.ts`, `effects.ts`, `xp_hooks.ts`, class content) without implementing a second progression stack. Frenzy is recorded as a passive that does not occupy a hotbar slot. Implementation-added numbers belong in `docs/design/progression-implementation-addendum.md` (none in this phase). Live three-class / 5-cap / 8-slot conflicts stay documented until a later PROG phase.
 
+## 2026-08-25 — PROG-02 canonical shared content schemas
+
+Canonical 1–10 progression is authored as JSON in the existing `tools/content-build` pipeline (no second stack, no Godot `.tres` as source). Schema names from the phase prompt map onto kinds: `class` / `ability` / `level_curve` are extended; new kinds include `stat_definition`, `branch_definition`, `progression_timeline`, `auto_attack_definition`, `effect_definition`, `talent_tree`, `talent_node`, `reference_build`, `enemy_scaling_profile`, `xp_reward`, and `equipment_modifier_category`. Source uses project camelCase.
+
+`class.mystic` is in the catalog with `rosterSelectable: false` so Character Select stays three cards. Canonical `ability.*` combat rows and auto-attacks have `runtimeEnabled: false` and are omitted from the live ability map. Physical classes use `resource.none` for the canonical resource field; live `startingResources` still include mana. Changing a numerical content value does not require combat source edits. Geometry omitted by the design is ledgered in `docs/design/progression-implementation-addendum.md`. Protocol code stays class-id-agnostic; talent nodes are data, not opcode special cases.
+

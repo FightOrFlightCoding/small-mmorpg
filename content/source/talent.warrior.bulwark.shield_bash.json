@@ -1,0 +1,13 @@
+{
+  "id": "talent.warrior.bulwark.shield_bash",
+  "kind": "talent_node",
+  "displayName": "Shield Bash",
+  "displayNameKey": "talent.warrior.bulwark.shield_bash.display_name",
+  "descriptionKey": "talent.warrior.bulwark.shield_bash.description",
+  "treeId": "tree.warrior.bulwark",
+  "tier": 2,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "grantsActiveAbilityId": "ability.warrior.shield_bash"
+}

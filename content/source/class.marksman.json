@@ -30,5 +30,39 @@
   ],
   "startingAbilities": ["test.ability.basic_melee", "test.ability.ranged_bolt"],
   "allowedEquipmentTags": ["main_hand", "head", "chest", "legs", "feet"],
-  "tags": ["marksman", "ranged", "provisional"]
+  "tags": ["marksman", "ranged", "provisional"],
+  "descriptionKey": "class.marksman.long_description",
+  "rosterSelectable": true,
+  "visualSetId": "visual.class_marksman",
+  "canonicalLevelCurveId": "curve.vibecode.l10",
+  "baseStats": {
+    "stat.strength": 4,
+    "stat.agility": 9,
+    "stat.intelligence": 3,
+    "stat.spirit": 3,
+    "stat.vitality": 6,
+    "stat.precision": 3,
+    "stat.haste": 3,
+    "stat.endurance": 3
+  },
+  "automaticGrowth": {
+    "stat.strength": 0,
+    "stat.agility": 3,
+    "stat.intelligence": 0,
+    "stat.spirit": 0,
+    "stat.vitality": 1,
+    "stat.precision": 1,
+    "stat.haste": 1,
+    "stat.endurance": 0
+  },
+  "autoAssignTemplate": {
+    "amounts": { "stat.agility": 2, "stat.precision": 1 },
+    "classification": "compile-time-addition",
+    "compileTimeAddition": true
+  },
+  "resourceType": "resource.none",
+  "autoAttackId": "ability.marksman.auto_attack",
+  "basicAbilityId": "ability.marksman.aimed_shot",
+  "classTreeId": "tree.marksman.class",
+  "branchIds": ["branch.marksman.sniper", "branch.marksman.skirmisher"]
 }

@@ -1,0 +1,15 @@
+{
+  "id": "stat.haste",
+  "kind": "stat_definition",
+  "displayName": "Haste",
+  "displayNameKey": "stat.haste.display_name",
+  "descriptionKey": "stat.haste.description",
+  "abbreviation": "HST",
+  "perPointEffects": [
+    {
+      "type": "haste_percent",
+      "perPoint": 0.01
+    }
+  ],
+  "classification": "canonical"
+}

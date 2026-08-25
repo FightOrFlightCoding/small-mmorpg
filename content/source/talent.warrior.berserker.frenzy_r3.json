@@ -1,0 +1,34 @@
+{
+  "id": "talent.warrior.berserker.frenzy_r3",
+  "kind": "talent_node",
+  "displayName": "Frenzy R3",
+  "displayNameKey": "talent.warrior.berserker.frenzy_r3.display_name",
+  "descriptionKey": "talent.warrior.berserker.frenzy_r3.description",
+  "treeId": "tree.warrior.berserker",
+  "tier": 2,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "compile-time-addition",
+  "prerequisites": [
+    {
+      "nodeId": "talent.warrior.berserker.frenzy_r2",
+      "minRank": 1
+    }
+  ],
+  "rankReplacement": {
+    "nodeId": "talent.warrior.berserker.frenzy_r2",
+    "abilityId": "ability.warrior.frenzy"
+  },
+  "compileTimeAddition": true,
+  "abilityModifications": [
+    {
+      "abilityId": "ability.warrior.frenzy",
+      "modifiers": [
+        {
+          "type": "frenzy_per_stack_percent",
+          "value": 0.07
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "talent.warrior.conditioning",
+  "kind": "talent_node",
+  "displayName": "Conditioning",
+  "displayNameKey": "talent.warrior.conditioning.display_name",
+  "descriptionKey": "talent.warrior.conditioning.description",
+  "treeId": "tree.warrior.class",
+  "tier": 1,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "max_hp_flat",
+      "value": 30
+    }
+  ]
+}

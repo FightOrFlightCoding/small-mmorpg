@@ -1,0 +1,23 @@
+{
+  "id": "talent.marksman.sniper.snipe_r2",
+  "kind": "talent_node",
+  "displayName": "Snipe R2",
+  "displayNameKey": "talent.marksman.sniper.snipe_r2.display_name",
+  "descriptionKey": "talent.marksman.sniper.snipe_r2.description",
+  "treeId": "tree.marksman.sniper",
+  "tier": 1,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "abilityModifications": [
+    {
+      "abilityId": "ability.marksman.snipe",
+      "modifiers": [
+        {
+          "type": "ability_damage_percent",
+          "value": 0.25
+        }
+      ]
+    }
+  ]
+}

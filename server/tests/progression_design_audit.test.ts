@@ -147,18 +147,26 @@ test("design markdown tables parse", () => {
   assert.equal(tables.length >= 12, true);
 });
 
-test("live catalog snapshot still has the pre-progression three-class foundation (conflicts, not yet the design)", () => {
+test("live catalog snapshot keeps foundation gameplay while canonical four-class content is data-only", () => {
   const classIds = Object.keys(content.classes);
   const production: string[] = [];
+  const selectable: string[] = [];
   for (let i = 0; i < classIds.length; i++) {
     if (classIds[i].indexOf("class.") === 0) {
       production.push(classIds[i]);
+      const row = content.classes[classIds[i] as keyof typeof content.classes] as { rosterSelectable?: boolean };
+      if (row.rosterSelectable !== false) {
+        selectable.push(classIds[i]);
+      }
     }
   }
   production.sort();
-  assert.deepEqual(production, ["class.mage", "class.marksman", "class.warrior"]);
-  assert.equal(Object.prototype.hasOwnProperty.call(content.classes, "class.mystic"), false);
+  selectable.sort();
+  assert.deepEqual(production, ["class.mage", "class.marksman", "class.mystic", "class.warrior"]);
+  assert.deepEqual(selectable, ["class.mage", "class.marksman", "class.warrior"]);
+  assert.equal(content.classes["class.mystic"].rosterSelectable, false);
   assert.equal(content.levelCurves["test.curve.standard"].maxLevel, 5);
+  assert.equal(content.levelCurves["curve.vibecode.l10"].maxLevel, 10);
   const xp = content.levelCurves["test.curve.standard"].xpRequired;
   let sum = 0;
   for (let i = 0; i < xp.length; i++) {
@@ -168,7 +176,8 @@ test("live catalog snapshot still has the pre-progression three-class foundation
   assert.equal(HOTBAR_SIZE, 8);
   assert.equal(content.classes["class.warrior"].startingResources["test.resource.mana"], 20);
   assert.equal(content.classes["class.marksman"].startingResources["test.resource.mana"], 30);
-  assert.equal(Object.prototype.hasOwnProperty.call(content.attributes, "stat.strength"), false);
+  assert.ok(Object.prototype.hasOwnProperty.call(content.stats, "stat.strength"));
+  assert.equal(content.abilities["ability.warrior.heavy_strike"].runtimeEnabled, false);
   const conflicts = readRepoFile("docs/progression/CURRENT_CONFLICTS.md");
   assert.equal(conflicts.indexOf("class.mystic") >= 0, true);
   assert.equal(conflicts.indexOf("HOTBAR_SIZE") >= 0, true);

@@ -1,0 +1,18 @@
+{
+  "id": "talent.mystic.curses.dark_bargain",
+  "kind": "talent_node",
+  "displayName": "Dark Bargain",
+  "displayNameKey": "talent.mystic.curses.dark_bargain.display_name",
+  "descriptionKey": "talent.mystic.curses.dark_bargain.description",
+  "treeId": "tree.mystic.curses",
+  "tier": 1,
+  "maxRank": 2,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "mana_cost_percent",
+      "value": -0.1
+    }
+  ]
+}

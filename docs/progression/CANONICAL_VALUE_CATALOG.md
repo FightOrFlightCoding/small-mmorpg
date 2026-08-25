@@ -9,7 +9,7 @@ Classification:
 - **canonical** — conversation-canon / audit-verified in §§1–13 and §15.
 - **compile-time-addition** — §14 (and auto-assign templates, which §14 names).
 
-Intended content files use the existing JSON pipeline (`content/source/<id>.json`), not Godot `.tres`. Those files are **not** created in PROG-01.
+Intended content files use the existing JSON pipeline (`content/source/<id>.json`), not Godot `.tres`. PROG-02 created those files.
 
 Every catalog id appears in the [ID index](#id-index). Intended tests for later phases are named even when the file does not exist yet.
 

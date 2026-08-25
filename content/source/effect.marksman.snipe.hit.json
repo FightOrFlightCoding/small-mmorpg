@@ -1,0 +1,32 @@
+{
+  "id": "effect.marksman.snipe.hit",
+  "kind": "effect_definition",
+  "displayName": "hit",
+  "displayNameKey": "effect.marksman.snipe.hit.display_name",
+  "descriptionKey": "effect.marksman.snipe.hit.description",
+  "ownerAbilityId": "ability.marksman.snipe",
+  "effect": {
+    "id": "hit",
+    "type": "direct_damage",
+    "source": "caster",
+    "target": "primary",
+    "magnitude": {
+      "kind": "stat_id",
+      "statId": "stat.agility",
+      "value": 45,
+      "scale": 0.01
+    },
+    "duration": 0,
+    "tickInterval": 0,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "ranged"
+    ],
+    "school": "ranged"
+  },
+  "classification": "canonical",
+  "compileTimeAddition": false
+}

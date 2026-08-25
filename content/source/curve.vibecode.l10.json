@@ -1,0 +1,39 @@
+{
+  "id": "curve.vibecode.l10",
+  "kind": "level_curve",
+  "maxLevel": 10,
+  "xpRequired": [
+    100,
+    280,
+    520,
+    800,
+    1120,
+    1470,
+    1850,
+    2260,
+    2700
+  ],
+  "attributePointsPerLevel": [
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3
+  ],
+  "skillPointsPerLevel": [
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+  ],
+  "automaticUnlocks": []
+}

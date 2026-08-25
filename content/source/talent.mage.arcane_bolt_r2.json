@@ -1,0 +1,23 @@
+{
+  "id": "talent.mage.arcane_bolt_r2",
+  "kind": "talent_node",
+  "displayName": "Arcane Bolt R2",
+  "displayNameKey": "talent.mage.arcane_bolt_r2.display_name",
+  "descriptionKey": "talent.mage.arcane_bolt_r2.description",
+  "treeId": "tree.mage.class",
+  "tier": 1,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "abilityModifications": [
+    {
+      "abilityId": "ability.mage.arcane_bolt",
+      "modifiers": [
+        {
+          "type": "ability_damage_percent",
+          "value": 0.25
+        }
+      ]
+    }
+  ]
+}

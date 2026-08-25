@@ -151,7 +151,13 @@ func ability_definition(ability_id: String) -> Dictionary:
 
 
 func catalog_ability_ids() -> PackedStringArray:
-	return ContentRegistry.ids_of_kind("ability")
+	var result := PackedStringArray()
+	for id in ContentRegistry.ids_of_kind("ability"):
+		var definition: Dictionary = ContentRegistry.get_by_id(id)
+		if definition.get("runtimeEnabled", true) == false:
+			continue
+		result.append(id)
+	return result
 
 
 func resource_cost_text(ability_id: String) -> String:

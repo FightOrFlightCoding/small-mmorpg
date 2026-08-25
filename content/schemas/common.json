@@ -94,6 +94,136 @@
         "scale": { "type": "number" }
       }
     },
+    "contentClassification": {
+      "type": "string",
+      "enum": ["canonical", "compile-time-addition"]
+    },
+    "effectCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "target_relation",
+            "target_health_percent",
+            "target_has_tag",
+            "source_has_tag",
+            "shield_event",
+            "standing_still",
+            "no_enemy_in_range",
+            "effect_active",
+            "resource_percent"
+          ]
+        },
+        "relation": {
+          "type": "string",
+          "enum": ["hostile", "friendly", "self", "any"]
+        },
+        "comparison": {
+          "type": "string",
+          "enum": ["below", "above", "at_or_below", "at_or_above"]
+        },
+        "value": { "type": "number" },
+        "tag": { "type": "string", "minLength": 1 },
+        "effectId": { "$ref": "#/$defs/contentId" },
+        "event": {
+          "type": "string",
+          "enum": ["break", "expire"]
+        },
+        "range": { "$ref": "#/$defs/nonNegativeNumber" },
+        "duration": { "$ref": "#/$defs/nonNegativeNumber" }
+      }
+    },
+    "talentPrerequisite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeId", "minRank"],
+      "properties": {
+        "nodeId": { "$ref": "#/$defs/contentId" },
+        "minRank": { "$ref": "#/$defs/positiveInteger" }
+      }
+    },
+    "talentModifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "ability_damage_percent",
+            "ability_heal_percent",
+            "ability_absorb_percent",
+            "ability_duration",
+            "ability_cast_time",
+            "ability_channel_time",
+            "ability_cooldown",
+            "ability_range_percent",
+            "ability_radius_percent",
+            "ability_mana_cost_percent",
+            "ability_hit_count",
+            "ability_stun_duration",
+            "ability_root_duration",
+            "ability_slow_duration",
+            "ability_slow_percent",
+            "ability_crit_chance_flat",
+            "max_hp_flat",
+            "max_hp_percent",
+            "auto_attack_damage_percent",
+            "damage_reduction_percent",
+            "damage_dealt_percent",
+            "damage_taken_percent",
+            "reflect_melee_percent",
+            "cooldown_recovery_percent",
+            "crit_damage_flat",
+            "crit_chance_flat",
+            "move_speed_percent",
+            "mana_cost_percent",
+            "mana_regen_flat",
+            "heal_done_percent",
+            "attack_speed_percent",
+            "frenzy_max_stacks",
+            "frenzy_per_stack_percent",
+            "grant_ability",
+            "on_shield_break_heal_percent",
+            "dot_tick_rate_percent",
+            "lifesteal_percent",
+            "mana_refund_percent_of_max",
+            "propagate_effect"
+          ]
+        },
+        "abilityId": { "$ref": "#/$defs/contentId" },
+        "value": { "type": "number" },
+        "grantsAbilityId": { "$ref": "#/$defs/contentId" },
+        "effectId": { "$ref": "#/$defs/contentId" }
+      }
+    },
+    "statMap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stat.strength",
+        "stat.agility",
+        "stat.intelligence",
+        "stat.spirit",
+        "stat.vitality",
+        "stat.precision",
+        "stat.haste",
+        "stat.endurance"
+      ],
+      "properties": {
+        "stat.strength": { "type": "number" },
+        "stat.agility": { "type": "number" },
+        "stat.intelligence": { "type": "number" },
+        "stat.spirit": { "type": "number" },
+        "stat.vitality": { "type": "number" },
+        "stat.precision": { "type": "number" },
+        "stat.haste": { "type": "number" },
+        "stat.endurance": { "type": "number" }
+      }
+    },
     "abilityEffect": {
       "type": "object",
       "additionalProperties": false,
@@ -123,7 +253,17 @@
             "periodic_damage",
             "periodic_heal",
             "stun",
-            "root"
+            "root",
+            "taunt",
+            "interrupt",
+            "slow",
+            "shield",
+            "movement",
+            "reflect_damage",
+            "propagate_effect",
+            "cooldown_reset_on_kill",
+            "guaranteed_crit",
+            "passive_stacker"
           ]
         },
         "source": {
@@ -158,7 +298,35 @@
         "resourceRole": {
           "type": "string",
           "enum": ["health", "mana", "generic"]
-        }
+        },
+        "school": {
+          "type": "string",
+          "enum": ["melee", "ranged", "spell", "heal", "none"]
+        },
+        "delay": { "$ref": "#/$defs/nonNegativeNumber" },
+        "hitCount": { "$ref": "#/$defs/positiveInteger" },
+        "independentCrit": { "type": "boolean" },
+        "guaranteedCrit": { "type": "boolean" },
+        "cooldownResetOnKill": { "type": "boolean" },
+        "reflectFraction": { "type": "number" },
+        "movementKind": {
+          "type": "string",
+          "enum": ["leap", "dash"]
+        },
+        "movementDistance": { "$ref": "#/$defs/nonNegativeNumber" },
+        "propagateOn": {
+          "type": "string",
+          "enum": ["death", "shield_break", "shield_expire"]
+        },
+        "propagateEffectId": { "$ref": "#/$defs/contentId" },
+        "shieldBreakHealRatio": { "type": "number" },
+        "healthPercent": { "type": "number" },
+        "conditions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/effectCondition" }
+        },
+        "classification": { "$ref": "#/$defs/contentClassification" },
+        "compileTimeAddition": { "type": "boolean" }
       }
     },
     "lootTableEntry": {

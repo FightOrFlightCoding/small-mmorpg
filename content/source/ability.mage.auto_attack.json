@@ -1,0 +1,47 @@
+{
+  "id": "ability.mage.auto_attack",
+  "kind": "auto_attack_definition",
+  "displayName": "Mage Auto Attack",
+  "displayNameKey": "ability.mage.auto_attack.display_name",
+  "descriptionKey": "ability.mage.auto_attack.description",
+  "ownerClassId": "class.mage",
+  "baseDamage": 6,
+  "interval": 2,
+  "scalingStatId": "stat.intelligence",
+  "school": "spell",
+  "range": 180,
+  "targetMode": "entity",
+  "relationFilter": "hostile",
+  "runtimeEnabled": false,
+  "effects": [
+    {
+      "id": "hit",
+      "type": "direct_damage",
+      "source": "caster",
+      "target": "primary",
+      "magnitude": {
+        "kind": "stat_id",
+        "statId": "stat.intelligence",
+        "value": 6,
+        "scale": 0.01
+      },
+      "duration": 0,
+      "tickInterval": 0,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "spell"
+      ],
+      "school": "spell"
+    }
+  ],
+  "effectIds": [
+    "effect.mage.auto_attack.hit"
+  ],
+  "animationAssetId": "visual.ability_bolt",
+  "iconAssetId": "visual.ability_bolt_icon",
+  "soundAssetId": "visual.ability_bolt_sound",
+  "classification": "canonical"
+}

@@ -1,0 +1,13 @@
+{
+  "id": "talent.mystic.curses.evil_eye",
+  "kind": "talent_node",
+  "displayName": "Evil Eye",
+  "displayNameKey": "talent.mystic.curses.evil_eye.display_name",
+  "descriptionKey": "talent.mystic.curses.evil_eye.description",
+  "treeId": "tree.mystic.curses",
+  "tier": 2,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "grantsActiveAbilityId": "ability.mystic.evil_eye"
+}

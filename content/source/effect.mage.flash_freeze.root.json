@@ -1,0 +1,31 @@
+{
+  "id": "effect.mage.flash_freeze.root",
+  "kind": "effect_definition",
+  "displayName": "root",
+  "displayNameKey": "effect.mage.flash_freeze.root.display_name",
+  "descriptionKey": "effect.mage.flash_freeze.root.description",
+  "ownerAbilityId": "ability.mage.flash_freeze",
+  "effect": {
+    "id": "root",
+    "type": "root",
+    "source": "caster",
+    "target": "area",
+    "magnitude": {
+      "kind": "constant",
+      "value": 0
+    },
+    "duration": 2,
+    "tickInterval": 0,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "root",
+      "frost"
+    ],
+    "school": "spell"
+  },
+  "classification": "compile-time-addition",
+  "compileTimeAddition": true
+}

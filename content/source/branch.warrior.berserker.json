@@ -1,0 +1,17 @@
+{
+  "id": "branch.warrior.berserker",
+  "kind": "branch_definition",
+  "classId": "class.warrior",
+  "displayName": "Berserker",
+  "displayNameKey": "branch.warrior.berserker.display_name",
+  "descriptionKey": "branch.warrior.berserker.description",
+  "roleKey": "branch.warrior.berserker.role",
+  "signatureAbilityId": "ability.warrior.frenzy",
+  "capstoneAbilityId": "ability.warrior.berserk",
+  "branchTreeId": "tree.warrior.berserker",
+  "recommendedBuildIds": [
+    "build.berserker.executioner",
+    "build.berserker.hurricane"
+  ],
+  "classification": "canonical"
+}

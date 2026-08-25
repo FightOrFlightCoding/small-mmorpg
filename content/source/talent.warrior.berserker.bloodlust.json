@@ -1,0 +1,28 @@
+{
+  "id": "talent.warrior.berserker.bloodlust",
+  "kind": "talent_node",
+  "displayName": "Bloodlust",
+  "displayNameKey": "talent.warrior.berserker.bloodlust.display_name",
+  "descriptionKey": "talent.warrior.berserker.bloodlust.description",
+  "treeId": "tree.warrior.berserker",
+  "tier": 2,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "conditionalModifiers": [
+    {
+      "conditions": [
+        {
+          "type": "effect_active",
+          "tag": "frenzy"
+        }
+      ],
+      "modifiers": [
+        {
+          "type": "crit_damage_flat",
+          "value": 0.15
+        }
+      ]
+    }
+  ]
+}

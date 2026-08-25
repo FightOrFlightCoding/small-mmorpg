@@ -1,0 +1,20 @@
+{
+  "id": "stat.spirit",
+  "kind": "stat_definition",
+  "displayName": "Spirit",
+  "displayNameKey": "stat.spirit.display_name",
+  "descriptionKey": "stat.spirit.description",
+  "abbreviation": "SPI",
+  "perPointEffects": [
+    {
+      "type": "heal_percent",
+      "perPoint": 0.01
+    },
+    {
+      "type": "mana_regen_per_sec",
+      "perPoint": 0.2,
+      "castersOnly": true
+    }
+  ],
+  "classification": "canonical"
+}

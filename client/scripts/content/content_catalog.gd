@@ -21,6 +21,17 @@ const REQUIRED_KEYS := [
 	"classProgressions",
 	"equipmentSlots",
 	"abilities",
+	"stats",
+	"branches",
+	"progressionTimelines",
+	"autoAttacks",
+	"effectDefinitions",
+	"talentTrees",
+	"talentNodes",
+	"referenceBuilds",
+	"enemyScalingProfiles",
+	"xpRewards",
+	"equipmentModifierCategories",
 	"aiProfiles",
 	"lootTables",
 	"spawns",
@@ -107,6 +118,28 @@ func parse_text(text: String) -> bool:
 	if not _index_catalog(data["equipmentSlots"], "equipment_slot"):
 		return false
 	if not _index_catalog(data["abilities"], "ability"):
+		return false
+	if not _index_catalog(data["stats"], "stat_definition"):
+		return false
+	if not _index_catalog(data["branches"], "branch_definition"):
+		return false
+	if not _index_catalog(data["progressionTimelines"], "progression_timeline"):
+		return false
+	if not _index_catalog(data["autoAttacks"], "auto_attack_definition"):
+		return false
+	if not _index_catalog(data["effectDefinitions"], "effect_definition"):
+		return false
+	if not _index_catalog(data["talentTrees"], "talent_tree"):
+		return false
+	if not _index_catalog(data["talentNodes"], "talent_node"):
+		return false
+	if not _index_catalog(data["referenceBuilds"], "reference_build"):
+		return false
+	if not _index_catalog(data["enemyScalingProfiles"], "enemy_scaling_profile"):
+		return false
+	if not _index_catalog(data["xpRewards"], "xp_reward"):
+		return false
+	if not _index_catalog(data["equipmentModifierCategories"], "equipment_modifier_category"):
 		return false
 	if not _index_catalog(data["aiProfiles"], "ai_profile"):
 		return false

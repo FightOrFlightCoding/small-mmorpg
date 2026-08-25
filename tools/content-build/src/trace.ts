@@ -202,6 +202,33 @@ export function outboundRefs(payload: ContentPayload, id: string): string[] {
   if (classDef) {
     refs.push(classDef.visualAssetSetId);
     refs.push(classDef.progressionId);
+    if (classDef.visualSetId !== undefined) {
+      refs.push(classDef.visualSetId);
+    }
+    if (classDef.resourceType !== undefined) {
+      refs.push(classDef.resourceType);
+    }
+    if (classDef.autoAttackId !== undefined) {
+      refs.push(classDef.autoAttackId);
+    }
+    if (classDef.basicAbilityId !== undefined) {
+      refs.push(classDef.basicAbilityId);
+    }
+    if (classDef.classTreeId !== undefined) {
+      refs.push(classDef.classTreeId);
+    }
+    if (classDef.canonicalLevelCurveId !== undefined) {
+      refs.push(classDef.canonicalLevelCurveId);
+    }
+    const branchIds = classDef.branchIds !== undefined ? classDef.branchIds : [];
+    for (let b = 0; b < branchIds.length; b++) {
+      refs.push(branchIds[b]);
+    }
+    pushMapKeys(refs, classDef.baseStats);
+    pushMapKeys(refs, classDef.automaticGrowth);
+    if (classDef.autoAssignTemplate !== undefined) {
+      pushMapKeys(refs, classDef.autoAssignTemplate.amounts);
+    }
     for (let i = 0; i < classDef.startingEquipment.length; i++) {
       refs.push(classDef.startingEquipment[i].itemId);
     }
@@ -226,6 +253,20 @@ export function outboundRefs(payload: ContentPayload, id: string): string[] {
       if (statId !== undefined) {
         refs.push(statId);
       }
+      const propagate = ability.effects[e].propagateEffectId;
+      if (propagate !== undefined) {
+        refs.push(propagate);
+      }
+    }
+    const effectIds = ability.effectIds !== undefined ? ability.effectIds : [];
+    for (let i = 0; i < effectIds.length; i++) {
+      refs.push(effectIds[i]);
+    }
+    if (ability.ownerClassId !== undefined) {
+      refs.push(ability.ownerClassId);
+    }
+    if (ability.ownerBranchId !== undefined) {
+      refs.push(ability.ownerBranchId);
     }
     return refs;
   }
@@ -265,6 +306,108 @@ export function outboundRefs(payload: ContentPayload, id: string): string[] {
     }
     return refs;
   }
+  const stat = payload.stats[id];
+  if (stat) {
+    return refs;
+  }
+  const branch = payload.branches[id];
+  if (branch) {
+    refs.push(branch.classId);
+    refs.push(branch.signatureAbilityId);
+    refs.push(branch.capstoneAbilityId);
+    refs.push(branch.branchTreeId);
+    for (let i = 0; i < branch.recommendedBuildIds.length; i++) {
+      refs.push(branch.recommendedBuildIds[i]);
+    }
+    return refs;
+  }
+  const timeline = payload.progressionTimelines[id];
+  if (timeline) {
+    refs.push(timeline.levelCurveId);
+    return refs;
+  }
+  const autoAttack = payload.autoAttacks[id];
+  if (autoAttack) {
+    refs.push(autoAttack.ownerClassId);
+    refs.push(autoAttack.scalingStatId);
+    refs.push(autoAttack.animationAssetId);
+    refs.push(autoAttack.iconAssetId);
+    refs.push(autoAttack.soundAssetId);
+    for (let e = 0; e < autoAttack.effects.length; e++) {
+      const sid = autoAttack.effects[e].magnitude.statId;
+      if (sid !== undefined) {
+        refs.push(sid);
+      }
+    }
+    const effectIds = autoAttack.effectIds !== undefined ? autoAttack.effectIds : [];
+    for (let i = 0; i < effectIds.length; i++) {
+      refs.push(effectIds[i]);
+    }
+    return refs;
+  }
+  const effectDef = payload.effectDefinitions[id];
+  if (effectDef) {
+    if (effectDef.ownerAbilityId !== undefined) {
+      refs.push(effectDef.ownerAbilityId);
+    }
+    const sid = effectDef.effect.magnitude.statId;
+    if (sid !== undefined) {
+      refs.push(sid);
+    }
+    if (effectDef.effect.propagateEffectId !== undefined) {
+      refs.push(effectDef.effect.propagateEffectId);
+    }
+    return refs;
+  }
+  const tree = payload.talentTrees[id];
+  if (tree) {
+    refs.push(tree.ownerId);
+    for (let n = 0; n < tree.nodeIds.length; n++) {
+      refs.push(tree.nodeIds[n]);
+    }
+    return refs;
+  }
+  const node = payload.talentNodes[id];
+  if (node) {
+    refs.push(node.treeId);
+    const prereq = node.prerequisites !== undefined ? node.prerequisites : [];
+    for (let p = 0; p < prereq.length; p++) {
+      refs.push(prereq[p].nodeId);
+    }
+    if (node.rankReplacement !== undefined) {
+      if (node.rankReplacement.nodeId !== undefined) {
+        refs.push(node.rankReplacement.nodeId);
+      }
+      if (node.rankReplacement.abilityId !== undefined) {
+        refs.push(node.rankReplacement.abilityId);
+      }
+    }
+    if (node.grantsActiveAbilityId !== undefined) {
+      refs.push(node.grantsActiveAbilityId);
+    }
+    const mods = node.abilityModifications !== undefined ? node.abilityModifications : [];
+    for (let m = 0; m < mods.length; m++) {
+      refs.push(mods[m].abilityId);
+    }
+    return refs;
+  }
+  const build = payload.referenceBuilds[id];
+  if (build) {
+    refs.push(build.branchId);
+    for (let s = 0; s < build.statPriority.length; s++) {
+      refs.push(build.statPriority[s]);
+    }
+    const paired = build.pairedNodeIds !== undefined ? build.pairedNodeIds : [];
+    for (let p = 0; p < paired.length; p++) {
+      refs.push(paired[p]);
+    }
+    return refs;
+  }
+  const category = payload.equipmentModifierCategories[id];
+  if (category) {
+    refs.push(category.statId);
+    return refs;
+  }
   const derived = payload.derivedStats[id];
   if (derived) {
     for (let c = 0; c < derived.components.length; c++) {
@@ -293,7 +436,10 @@ function questObjectivesForTrace(quest: QuestDef): NonNullable<QuestDef["objecti
   return quest.objectives !== undefined ? quest.objectives : [];
 }
 
-function pushMapKeys(refs: string[], map: Record<string, number>): void {
+function pushMapKeys(refs: string[], map: Record<string, number> | undefined): void {
+  if (map === undefined) {
+    return;
+  }
   const keys = Object.keys(map);
   for (let i = 0; i < keys.length; i++) {
     refs.push(keys[i]);

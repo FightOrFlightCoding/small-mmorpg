@@ -1,0 +1,47 @@
+{
+  "id": "ability.warrior.auto_attack",
+  "kind": "auto_attack_definition",
+  "displayName": "Warrior Auto Attack",
+  "displayNameKey": "ability.warrior.auto_attack.display_name",
+  "descriptionKey": "ability.warrior.auto_attack.description",
+  "ownerClassId": "class.warrior",
+  "baseDamage": 12,
+  "interval": 2,
+  "scalingStatId": "stat.strength",
+  "school": "melee",
+  "range": 40,
+  "targetMode": "entity",
+  "relationFilter": "hostile",
+  "runtimeEnabled": false,
+  "effects": [
+    {
+      "id": "hit",
+      "type": "direct_damage",
+      "source": "caster",
+      "target": "primary",
+      "magnitude": {
+        "kind": "stat_id",
+        "statId": "stat.strength",
+        "value": 12,
+        "scale": 0.01
+      },
+      "duration": 0,
+      "tickInterval": 0,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "melee"
+      ],
+      "school": "melee"
+    }
+  ],
+  "effectIds": [
+    "effect.warrior.auto_attack.hit"
+  ],
+  "animationAssetId": "visual.ability_melee",
+  "iconAssetId": "visual.ability_melee_icon",
+  "soundAssetId": "visual.ability_melee_sound",
+  "classification": "canonical"
+}

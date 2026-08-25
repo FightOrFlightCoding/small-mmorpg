@@ -1,0 +1,30 @@
+{
+  "id": "effect.mage.meteor.always_crit",
+  "kind": "effect_definition",
+  "displayName": "always_crit",
+  "displayNameKey": "effect.mage.meteor.always_crit.display_name",
+  "descriptionKey": "effect.mage.meteor.always_crit.description",
+  "ownerAbilityId": "ability.mage.meteor",
+  "effect": {
+    "id": "always_crit",
+    "type": "guaranteed_crit",
+    "source": "caster",
+    "target": "primary",
+    "magnitude": {
+      "kind": "constant",
+      "value": 0
+    },
+    "duration": 0,
+    "tickInterval": 0,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "crit"
+    ],
+    "school": "spell"
+  },
+  "classification": "canonical",
+  "compileTimeAddition": false
+}

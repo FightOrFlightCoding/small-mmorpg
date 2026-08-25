@@ -1,0 +1,34 @@
+{
+  "id": "effect.mystic.malediction.wither",
+  "kind": "effect_definition",
+  "displayName": "wither",
+  "displayNameKey": "effect.mystic.malediction.wither.display_name",
+  "descriptionKey": "effect.mystic.malediction.wither.description",
+  "ownerAbilityId": "ability.mystic.malediction",
+  "effect": {
+    "id": "wither",
+    "type": "periodic_damage",
+    "source": "caster",
+    "target": "area",
+    "magnitude": {
+      "kind": "stat_id",
+      "statId": "stat.intelligence",
+      "value": 4.5,
+      "scale": 0.01
+    },
+    "duration": 8,
+    "tickInterval": 1,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "dot",
+      "wither",
+      "capstone"
+    ],
+    "school": "spell"
+  },
+  "classification": "compile-time-addition",
+  "compileTimeAddition": true
+}

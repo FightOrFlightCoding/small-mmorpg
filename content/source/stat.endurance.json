@@ -1,0 +1,15 @@
+{
+  "id": "stat.endurance",
+  "kind": "stat_definition",
+  "displayName": "Endurance",
+  "displayNameKey": "stat.endurance.display_name",
+  "descriptionKey": "stat.endurance.description",
+  "abbreviation": "END",
+  "perPointEffects": [
+    {
+      "type": "damage_reduction_percent",
+      "perPoint": 0.5
+    }
+  ],
+  "classification": "canonical"
+}

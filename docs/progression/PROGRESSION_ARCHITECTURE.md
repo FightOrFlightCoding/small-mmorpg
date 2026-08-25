@@ -1,6 +1,6 @@
 # Progression architecture (PROG-01)
 
-Documentation-only contract. No player-visible behavior changes in this phase.
+Documentation-only contract through PROG-01. PROG-02 adds canonical content JSON and generated bundles without enabling new player-visible combat.
 
 Canonical numbers: [rpg-progression-design-v1.0.md](../design/rpg-progression-design-v1.0.md).  
 Readings: [progression-interpretations.md](../design/progression-interpretations.md).  
@@ -8,9 +8,9 @@ Undocumented implementation numbers: [progression-implementation-addendum.md](..
 
 ## Last accepted phase and ownership
 
-Last accepted phase: **ACCT-09** (account lifecycle certification). Foundation v1 / Prompt 35 remains accepted. Prompt 18 village/slime behavior remains frozen.
+Last accepted phase: **PROG-02** (canonical shared content schemas). Foundation v1 / Prompt 35 / ACCT-09 remain accepted. Prompt 18 village/slime behavior remains frozen.
 
-PROG-01 does **not** replace the accepted progression, ability, effect, hotbar, or statistics systems. Later phases extend the owners below.
+PROG-02 authors canonical progression as content only. It does **not** replace the accepted progression, ability, effect, hotbar, or statistics systems. Later phases extend the owners below.
 
 | Concern | Owner | Extend, do not duplicate |
 | --- | --- | --- |

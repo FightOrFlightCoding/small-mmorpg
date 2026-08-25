@@ -1,0 +1,10 @@
+{
+  "id": "mod.stat.agility",
+  "kind": "equipment_modifier_category",
+  "displayName": "Agility",
+  "displayNameKey": "mod.stat.agility.display_name",
+  "descriptionKey": "mod.stat.agility.description",
+  "statId": "stat.agility",
+  "channel": "stat.agility",
+  "classification": "canonical"
+}

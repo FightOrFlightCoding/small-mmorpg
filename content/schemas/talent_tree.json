@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/talent_tree.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "displayNameKey",
+    "treeKind",
+    "ownerId",
+    "pointsAvailable",
+    "nodeIds"
+  ],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "talent_tree" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "displayNameKey": { "type": "string", "minLength": 1 },
+    "descriptionKey": { "type": "string", "minLength": 1 },
+    "treeKind": {
+      "type": "string",
+      "enum": ["class", "branch"]
+    },
+    "ownerId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "pointsAvailable": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
+    "maxActiveGrants": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
+    "tierGates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tier", "minPointsSpent"],
+        "properties": {
+          "tier": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+          "minLevel": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+          "minPointsSpent": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" }
+        }
+      }
+    },
+    "nodeIds": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+    },
+    "classification": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentClassification" },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+  }
+}

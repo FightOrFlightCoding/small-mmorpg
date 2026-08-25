@@ -14,6 +14,17 @@ const ROOT_KINDS: { [kind: string]: boolean } = {
   level_curve: true,
   ai_profile: true,
   class_progression: true,
+  stat_definition: true,
+  branch_definition: true,
+  progression_timeline: true,
+  auto_attack_definition: true,
+  effect_definition: true,
+  talent_tree: true,
+  talent_node: true,
+  reference_build: true,
+  enemy_scaling_profile: true,
+  xp_reward: true,
+  equipment_modifier_category: true,
 };
 
 export interface UnusedReport {
@@ -63,6 +74,39 @@ export function kindOf(payload: ContentPayload, id: string): string {
   }
   if (payload.abilities[id]) {
     return "ability";
+  }
+  if (payload.stats[id]) {
+    return "stat_definition";
+  }
+  if (payload.branches[id]) {
+    return "branch_definition";
+  }
+  if (payload.progressionTimelines[id]) {
+    return "progression_timeline";
+  }
+  if (payload.autoAttacks[id]) {
+    return "auto_attack_definition";
+  }
+  if (payload.effectDefinitions[id]) {
+    return "effect_definition";
+  }
+  if (payload.talentTrees[id]) {
+    return "talent_tree";
+  }
+  if (payload.talentNodes[id]) {
+    return "talent_node";
+  }
+  if (payload.referenceBuilds[id]) {
+    return "reference_build";
+  }
+  if (payload.enemyScalingProfiles[id]) {
+    return "enemy_scaling_profile";
+  }
+  if (payload.xpRewards[id]) {
+    return "xp_reward";
+  }
+  if (payload.equipmentModifierCategories[id]) {
+    return "equipment_modifier_category";
   }
   if (payload.aiProfiles[id]) {
     return "ai_profile";

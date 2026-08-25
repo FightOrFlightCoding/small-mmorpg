@@ -1,0 +1,23 @@
+{
+  "id": "talent.mage.frost.deep_chill",
+  "kind": "talent_node",
+  "displayName": "Deep Chill",
+  "displayNameKey": "talent.mage.frost.deep_chill.display_name",
+  "descriptionKey": "talent.mage.frost.deep_chill.description",
+  "treeId": "tree.mage.frost",
+  "tier": 1,
+  "maxRank": 2,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "abilityModifications": [
+    {
+      "abilityId": "ability.mage.ice_bolt",
+      "modifiers": [
+        {
+          "type": "ability_slow_duration",
+          "value": 1
+        }
+      ]
+    }
+  ]
+}

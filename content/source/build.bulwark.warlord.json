@@ -1,0 +1,17 @@
+{
+  "id": "build.bulwark.warlord",
+  "kind": "reference_build",
+  "displayName": "Warlord",
+  "displayNameKey": "build.bulwark.warlord.display_name",
+  "descriptionKey": "build.bulwark.warlord.description",
+  "branchId": "branch.warrior.bulwark",
+  "statPriority": [
+    "stat.vitality",
+    "stat.strength"
+  ],
+  "identityKey": "build.bulwark.warlord.identity",
+  "pairedNodeIds": [
+    "talent.warrior.bulwark.punishment"
+  ],
+  "classification": "canonical"
+}

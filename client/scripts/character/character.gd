@@ -178,6 +178,8 @@ func _fill_classes() -> void:
 		if not String(id).begins_with("class."):
 			continue
 		var record: Dictionary = ContentRegistry.get_by_id(id)
+		if record.get("rosterSelectable", true) == false:
+			continue
 		rows.append({"id": String(id), "order": int(record.get("selectOrder", 99)), "name": String(record.get("displayName", id))})
 	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		if int(a.get("order", 99)) == int(b.get("order", 99)):

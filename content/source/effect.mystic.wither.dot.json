@@ -1,0 +1,33 @@
+{
+  "id": "effect.mystic.wither.dot",
+  "kind": "effect_definition",
+  "displayName": "dot",
+  "displayNameKey": "effect.mystic.wither.dot.display_name",
+  "descriptionKey": "effect.mystic.wither.dot.description",
+  "ownerAbilityId": "ability.mystic.wither",
+  "effect": {
+    "id": "dot",
+    "type": "periodic_damage",
+    "source": "caster",
+    "target": "primary",
+    "magnitude": {
+      "kind": "stat_id",
+      "statId": "stat.intelligence",
+      "value": 4.5,
+      "scale": 0.01
+    },
+    "duration": 8,
+    "tickInterval": 1,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "dot",
+      "wither"
+    ],
+    "school": "spell"
+  },
+  "classification": "canonical",
+  "compileTimeAddition": false
+}

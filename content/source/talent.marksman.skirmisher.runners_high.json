@@ -1,0 +1,18 @@
+{
+  "id": "talent.marksman.skirmisher.runners_high",
+  "kind": "talent_node",
+  "displayName": "Runner's High",
+  "displayNameKey": "talent.marksman.skirmisher.runners_high.display_name",
+  "descriptionKey": "talent.marksman.skirmisher.runners_high.description",
+  "treeId": "tree.marksman.skirmisher",
+  "tier": 3,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "cooldown_recovery_percent",
+      "value": 0.15
+    }
+  ]
+}

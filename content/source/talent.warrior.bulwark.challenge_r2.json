@@ -1,0 +1,30 @@
+{
+  "id": "talent.warrior.bulwark.challenge_r2",
+  "kind": "talent_node",
+  "displayName": "Challenge R2",
+  "displayNameKey": "talent.warrior.bulwark.challenge_r2.display_name",
+  "descriptionKey": "talent.warrior.bulwark.challenge_r2.description",
+  "treeId": "tree.warrior.bulwark",
+  "tier": 1,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "rankReplacement": {
+    "abilityId": "ability.warrior.challenge"
+  },
+  "abilityModifications": [
+    {
+      "abilityId": "ability.warrior.challenge",
+      "modifiers": [
+        {
+          "type": "ability_duration",
+          "value": 6
+        },
+        {
+          "type": "damage_reduction_percent",
+          "value": 0.25
+        }
+      ]
+    }
+  ]
+}

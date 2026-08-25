@@ -1,0 +1,32 @@
+{
+  "id": "effect.mystic.protective_charm.shield",
+  "kind": "effect_definition",
+  "displayName": "shield",
+  "displayNameKey": "effect.mystic.protective_charm.shield.display_name",
+  "descriptionKey": "effect.mystic.protective_charm.shield.description",
+  "ownerAbilityId": "ability.mystic.protective_charm",
+  "effect": {
+    "id": "shield",
+    "type": "shield",
+    "source": "caster",
+    "target": "primary",
+    "magnitude": {
+      "kind": "stat_id",
+      "statId": "stat.spirit",
+      "value": 40,
+      "scale": 0.01
+    },
+    "duration": 6,
+    "tickInterval": 0,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "shield"
+    ],
+    "school": "heal"
+  },
+  "classification": "canonical",
+  "compileTimeAddition": false
+}

@@ -1,0 +1,63 @@
+{
+  "id": "ability.warrior.frenzy",
+  "kind": "ability",
+  "displayName": "Frenzy",
+  "displayNameKey": "ability.warrior.frenzy.display_name",
+  "descriptionKey": "ability.warrior.frenzy.description",
+  "targetMode": "self",
+  "relationFilter": "self",
+  "range": 0,
+  "minimumRange": 0,
+  "areaShape": "none",
+  "areaRadius": 0,
+  "castTime": 0,
+  "channelTime": 0,
+  "globalCooldown": 0,
+  "individualCooldown": 0,
+  "resourceCosts": [],
+  "movementInterruptsCast": false,
+  "damageInterruptsCast": false,
+  "requiredLevel": 1,
+  "requiredClassTags": [
+    "class.warrior"
+  ],
+  "prerequisites": [],
+  "effects": [
+    {
+      "id": "stacks",
+      "type": "passive_stacker",
+      "source": "caster",
+      "target": "self",
+      "magnitude": {
+        "kind": "constant",
+        "value": 0.05
+      },
+      "duration": 5,
+      "tickInterval": 0,
+      "stackPolicy": "stack",
+      "maxStacks": 3,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "frenzy",
+        "passive"
+      ],
+      "school": "none"
+    }
+  ],
+  "effectIds": [
+    "effect.warrior.frenzy.stacks"
+  ],
+  "animationAssetId": "visual.ability_buff",
+  "iconAssetId": "visual.ability_buff_icon",
+  "soundAssetId": "visual.ability_buff_sound",
+  "skillPointCost": 0,
+  "maxRank": 1,
+  "runtimeEnabled": false,
+  "abilityCategory": "passive",
+  "ownerClassId": "class.warrior",
+  "school": "none",
+  "classification": "canonical",
+  "compileTimeAddition": false,
+  "ownerBranchId": "branch.warrior.berserker"
+}

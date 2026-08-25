@@ -10,12 +10,17 @@ import type {
   AbilityDef,
   AiProfileDef,
   AttributeDef,
+  AutoAttackDefinitionDef,
   BossPhaseDef,
+  BranchDefinitionDef,
   ClassDef,
   ClassProgressionDef,
   ContentPayload,
   DerivedStatDef,
+  EffectDefinitionDef,
   EnemyDef,
+  EnemyScalingProfileDef,
+  EquipmentModifierCategoryDef,
   EquipmentSlotDef,
   ItemDef,
   ItemStack,
@@ -23,13 +28,20 @@ import type {
   LootTableDef,
   NpcDef,
   PlayerDef,
+  ProgressionTimelineDef,
   QuestDef,
+  ReferenceBuildDef,
   ResourceDef,
   SourceDocument,
   SpawnDef,
+  StatDefinitionDef,
+  TalentNodeDef,
+  TalentTreeDef,
   VendorDef,
+  XpRewardDef,
   ZoneDef,
 } from "./types";
+import { checkCanonicalProgression } from "./canonical_validate";
 
 export interface AssetIndex {
   visualIds: { [id: string]: boolean };
@@ -114,10 +126,34 @@ export function validateDocuments(
   const classProgressions = asKindMap<ClassProgressionDef>(allDocs, "class_progression");
   const equipmentSlots = asKindMap<EquipmentSlotDef>(allDocs, "equipment_slot");
   const abilities = asKindMap<AbilityDef>(allDocs, "ability");
+  const stats = asKindMap<StatDefinitionDef>(allDocs, "stat_definition");
+  const branches = asKindMap<BranchDefinitionDef>(allDocs, "branch_definition");
+  const progressionTimelines = asKindMap<ProgressionTimelineDef>(allDocs, "progression_timeline");
+  const autoAttacks = asKindMap<AutoAttackDefinitionDef>(allDocs, "auto_attack_definition");
+  const effectDefinitions = asKindMap<EffectDefinitionDef>(allDocs, "effect_definition");
+  const talentTrees = asKindMap<TalentTreeDef>(allDocs, "talent_tree");
+  const talentNodes = asKindMap<TalentNodeDef>(allDocs, "talent_node");
+  const referenceBuilds = asKindMap<ReferenceBuildDef>(allDocs, "reference_build");
+  const enemyScalingProfiles = asKindMap<EnemyScalingProfileDef>(allDocs, "enemy_scaling_profile");
+  const xpRewards = asKindMap<XpRewardDef>(allDocs, "xp_reward");
+  const equipmentModifierCategories = asKindMap<EquipmentModifierCategoryDef>(allDocs, "equipment_modifier_category");
   const aiProfiles = asKindMap<AiProfileDef>(allDocs, "ai_profile");
   const lootTables = asKindMap<LootTableDef>(allDocs, "loot_table");
   const spawns = asKindMap<SpawnDef>(allDocs, "spawn");
   const vendors = asKindMap<VendorDef>(allDocs, "vendor");
+  const extras: CanonicalMaps = {
+    stats,
+    branches,
+    progressionTimelines,
+    autoAttacks,
+    effectDefinitions,
+    talentTrees,
+    talentNodes,
+    referenceBuilds,
+    enemyScalingProfiles,
+    xpRewards,
+    equipmentModifierCategories,
+  };
   const fullPayload = payloadFromParts(
     playerAll,
     items,
@@ -137,6 +173,7 @@ export function validateDocuments(
     lootTables,
     spawns,
     vendors,
+    extras,
   );
   const assets = options.assets;
 
@@ -180,12 +217,14 @@ export function validateDocuments(
   for (let i = 0; i < zoneIds.length; i++) {
     checkZone(zones[zoneIds[i]], npcs, enemies, spawns, issues, assets);
   }
-  checkClasses(classes, items, classProgressions, slotTags, abilities, issues, assets);
+  checkClasses(classes, items, classProgressions, slotTags, abilities, autoAttacks, talentTrees, branches, resources, issues, assets);
   checkProgressionCatalog(attributes, resources, derivedStats, levelCurves, classProgressions, classes, issues);
-  checkAbilities(abilities, resources, derivedStats, classes, issues, assets);
+  checkAbilities(abilities, resources, derivedStats, stats, classes, issues, assets);
+  checkAutoAttackAssets(autoAttacks, issues, assets);
   checkCyclicPrerequisites(quests, abilities, issues);
   checkDevelopmentLeakage(documents, fullPayload, issues);
   checkOrphanedDefinitions(fullPayload, issues);
+  checkCanonicalProgression(fullPayload, issues);
 
   if (issues.length > 0) {
     throw new ContentValidationError(uniqueIssues(issues));
@@ -216,7 +255,34 @@ export function validateDocuments(
     asKindMap<LootTableDef>(selected, "loot_table"),
     asKindMap<SpawnDef>(selected, "spawn"),
     asKindMap<VendorDef>(selected, "vendor"),
+    {
+      stats: asKindMap<StatDefinitionDef>(selected, "stat_definition"),
+      branches: asKindMap<BranchDefinitionDef>(selected, "branch_definition"),
+      progressionTimelines: asKindMap<ProgressionTimelineDef>(selected, "progression_timeline"),
+      autoAttacks: asKindMap<AutoAttackDefinitionDef>(selected, "auto_attack_definition"),
+      effectDefinitions: asKindMap<EffectDefinitionDef>(selected, "effect_definition"),
+      talentTrees: asKindMap<TalentTreeDef>(selected, "talent_tree"),
+      talentNodes: asKindMap<TalentNodeDef>(selected, "talent_node"),
+      referenceBuilds: asKindMap<ReferenceBuildDef>(selected, "reference_build"),
+      enemyScalingProfiles: asKindMap<EnemyScalingProfileDef>(selected, "enemy_scaling_profile"),
+      xpRewards: asKindMap<XpRewardDef>(selected, "xp_reward"),
+      equipmentModifierCategories: asKindMap<EquipmentModifierCategoryDef>(selected, "equipment_modifier_category"),
+    },
   );
+}
+
+interface CanonicalMaps {
+  stats: Record<string, StatDefinitionDef>;
+  branches: Record<string, BranchDefinitionDef>;
+  progressionTimelines: Record<string, ProgressionTimelineDef>;
+  autoAttacks: Record<string, AutoAttackDefinitionDef>;
+  effectDefinitions: Record<string, EffectDefinitionDef>;
+  talentTrees: Record<string, TalentTreeDef>;
+  talentNodes: Record<string, TalentNodeDef>;
+  referenceBuilds: Record<string, ReferenceBuildDef>;
+  enemyScalingProfiles: Record<string, EnemyScalingProfileDef>;
+  xpRewards: Record<string, XpRewardDef>;
+  equipmentModifierCategories: Record<string, EquipmentModifierCategoryDef>;
 }
 
 function payloadFromParts(
@@ -238,6 +304,7 @@ function payloadFromParts(
   lootTables: Record<string, LootTableDef>,
   spawns: Record<string, SpawnDef>,
   vendors: Record<string, VendorDef>,
+  extras: CanonicalMaps,
 ): ContentPayload {
   return {
     player: player as PlayerDef,
@@ -254,6 +321,17 @@ function payloadFromParts(
     classProgressions,
     equipmentSlots,
     abilities,
+    stats: extras.stats,
+    branches: extras.branches,
+    progressionTimelines: extras.progressionTimelines,
+    autoAttacks: extras.autoAttacks,
+    effectDefinitions: extras.effectDefinitions,
+    talentTrees: extras.talentTrees,
+    talentNodes: extras.talentNodes,
+    referenceBuilds: extras.referenceBuilds,
+    enemyScalingProfiles: extras.enemyScalingProfiles,
+    xpRewards: extras.xpRewards,
+    equipmentModifierCategories: extras.equipmentModifierCategories,
     aiProfiles,
     lootTables,
     spawns,
@@ -767,6 +845,10 @@ function checkClasses(
   progressions: Record<string, ClassProgressionDef>,
   slotTags: readonly string[],
   abilities: Record<string, AbilityDef>,
+  autoAttacks: Record<string, AutoAttackDefinitionDef>,
+  talentTrees: Record<string, TalentTreeDef>,
+  branches: Record<string, BranchDefinitionDef>,
+  resources: Record<string, ResourceDef>,
   issues: ContentIssue[],
   assets: AssetIndex | undefined,
 ): void {
@@ -786,6 +868,27 @@ function checkClasses(
     for (let a = 0; a < def.startingAbilities.length; a++) {
       if (!abilities[def.startingAbilities[a]]) {
         issues.push(issue("missing_reference:" + def.startingAbilities[a]));
+      }
+    }
+    if (def.autoAttackId !== undefined && !autoAttacks[def.autoAttackId] && !abilities[def.autoAttackId]) {
+      issues.push(issue("missing_reference:" + def.autoAttackId));
+    }
+    if (def.basicAbilityId !== undefined && !abilities[def.basicAbilityId]) {
+      issues.push(issue("missing_reference:" + def.basicAbilityId));
+    }
+    if (def.classTreeId !== undefined && !talentTrees[def.classTreeId]) {
+      issues.push(issue("missing_reference:" + def.classTreeId));
+    }
+    if (def.resourceType !== undefined && !resources[def.resourceType]) {
+      issues.push(issue("missing_reference:" + def.resourceType));
+    }
+    if (def.visualSetId !== undefined) {
+      checkVisual(def.visualSetId, issues, assets);
+    }
+    const branchIds = def.branchIds !== undefined ? def.branchIds : [];
+    for (let b = 0; b < branchIds.length; b++) {
+      if (!branches[branchIds[b]]) {
+        issues.push(issue("missing_reference:" + branchIds[b]));
       }
     }
     if (!progressions[def.progressionId]) {
@@ -928,6 +1031,7 @@ function checkAbilities(
   abilities: Record<string, AbilityDef>,
   resources: Record<string, ResourceDef>,
   derivedStats: Record<string, DerivedStatDef>,
+  stats: Record<string, StatDefinitionDef>,
   classes: Record<string, ClassDef>,
   issues: ContentIssue[],
   assets: AssetIndex | undefined,
@@ -954,6 +1058,15 @@ function checkAbilities(
     if (ability.areaShape === "circle" && ability.areaRadius <= 0) {
       issues.push(issue("invalid_range:areaRadius"));
     }
+    if ((ability.areaShape === "cone" || ability.areaShape === "ground") && ability.areaRadius <= 0) {
+      issues.push(issue("invalid_range:areaRadius"));
+    }
+    if (ability.areaShape === "cone" && (ability.coneAngleDegrees === undefined || ability.coneAngleDegrees <= 0)) {
+      issues.push(issue("invalid_range:coneAngleDegrees"));
+    }
+    if (ability.areaShape === "line" && (ability.lineLength === undefined || ability.lineLength <= 0)) {
+      issues.push(issue("invalid_range:lineLength"));
+    }
     for (let r = 0; r < ability.resourceCosts.length; r++) {
       if (!resources[ability.resourceCosts[r].resourceId]) {
         issues.push(issue("missing_reference:" + ability.resourceCosts[r].resourceId));
@@ -971,14 +1084,29 @@ function checkAbilities(
       }
     }
     for (let e = 0; e < ability.effects.length; e++) {
-      checkAbilityEffect(ability.effects[e], derivedStats, issues);
+      checkAbilityEffect(ability.effects[e], derivedStats, stats, issues);
     }
+  }
+}
+
+function checkAutoAttackAssets(
+  autoAttacks: Record<string, AutoAttackDefinitionDef>,
+  issues: ContentIssue[],
+  assets: AssetIndex | undefined,
+): void {
+  const ids = Object.keys(autoAttacks);
+  for (let i = 0; i < ids.length; i++) {
+    const attack = autoAttacks[ids[i]];
+    checkVisual(attack.animationAssetId, issues, assets);
+    checkVisual(attack.iconAssetId, issues, assets);
+    checkVisual(attack.soundAssetId, issues, assets);
   }
 }
 
 function checkAbilityEffect(
   effect: AbilityDef["effects"][number],
   derivedStats: Record<string, DerivedStatDef>,
+  stats: Record<string, StatDefinitionDef>,
   issues: ContentIssue[],
 ): void {
   const formula = effect.magnitude;
@@ -986,7 +1114,10 @@ function checkAbilityEffect(
     issues.push(issue("missing_field:value"));
   }
   if (formula.kind === "stat_id") {
-    if (formula.statId === undefined || !derivedStats[formula.statId]) {
+    if (
+      formula.statId === undefined ||
+      (!derivedStats[formula.statId] && !stats[formula.statId])
+    ) {
       issues.push(issue("missing_reference:" + (formula.statId !== undefined ? formula.statId : "statId")));
     }
   }

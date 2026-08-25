@@ -1,0 +1,32 @@
+{
+  "id": "effect.marksman.arrowstorm.bleeds",
+  "kind": "effect_definition",
+  "displayName": "bleeds",
+  "displayNameKey": "effect.marksman.arrowstorm.bleeds.display_name",
+  "descriptionKey": "effect.marksman.arrowstorm.bleeds.description",
+  "ownerAbilityId": "ability.marksman.arrowstorm",
+  "effect": {
+    "id": "bleeds",
+    "type": "timed_stat_modifier",
+    "source": "caster",
+    "target": "self",
+    "magnitude": {
+      "kind": "constant",
+      "value": 1
+    },
+    "duration": 8,
+    "tickInterval": 0,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "buff",
+      "capstone"
+    ],
+    "school": "none",
+    "statChannel": "bleed_tick_rate"
+  },
+  "classification": "canonical",
+  "compileTimeAddition": false
+}

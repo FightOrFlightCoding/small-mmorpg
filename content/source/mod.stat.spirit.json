@@ -1,0 +1,10 @@
+{
+  "id": "mod.stat.spirit",
+  "kind": "equipment_modifier_category",
+  "displayName": "Spirit",
+  "displayNameKey": "mod.stat.spirit.display_name",
+  "descriptionKey": "mod.stat.spirit.description",
+  "statId": "stat.spirit",
+  "channel": "stat.spirit",
+  "classification": "canonical"
+}

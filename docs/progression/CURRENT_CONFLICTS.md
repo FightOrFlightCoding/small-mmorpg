@@ -1,6 +1,6 @@
 # Current progression conflicts
 
-PROG-01 documents conflicts only. **No code or content in this phase resolves them.**
+PROG-02 represents the canonical roster in content. **Live combat, XP, and Character Select still follow Foundation v1.** Enabling the new numbers is a later PROG phase.
 
 Canonical target: [rpg-progression-design-v1.0.md](../design/rpg-progression-design-v1.0.md).  
 Live ownership: [PROGRESSION_ARCHITECTURE.md](PROGRESSION_ARCHITECTURE.md).
@@ -9,17 +9,18 @@ Live ownership: [PROGRESSION_ARCHITECTURE.md](PROGRESSION_ARCHITECTURE.md).
 
 | Live | Design |
 | --- | --- |
-| Production `class.warrior`, `class.marksman`, `class.mage` | Same three ids **plus** `class.mystic` |
-| Character Select iterates `class.*` (three cards) | Four classes |
+| Catalog has `class.warrior`, `class.marksman`, `class.mage`, and `class.mystic` (`rosterSelectable: false`) | Four classes, all selectable |
+| Character Select still shows **three** cards (skips non-selectable) | Four cards |
+| Create rejects `class.mystic` | Mystic is a playable roster class |
 | Test classes `test.class.vanguard\|warden\|arcanist` remain for cert | Unchanged test-only ids; not the design roster |
 
-Class ids that already match (`class.warrior` / `mage` / `marksman`) must be **extended**, not renamed.
+Class ids that already match (`class.warrior` / `mage` / `marksman`) were **extended**, not renamed. Mystic exists as data only.
 
 ## Stat IDs
 
 | Live | Design |
 | --- | --- |
-| `test.attribute.might`, `test.attribute.vitality`, `test.attribute.focus` | `stat.strength`, `stat.agility`, `stat.intelligence`, `stat.spirit`, `stat.precision`, `stat.haste`, `stat.vitality`, `stat.endurance` |
+| Combat still uses `test.attribute.might`, `test.attribute.vitality`, `test.attribute.focus` | Eight `stat.*` definitions exist in the catalog but are not evaluated yet (`stat.strength` … `stat.endurance`) |
 | HP ≈ starting resource + vitality×5 | `HP_max = 30 + 10 * VIT` |
 | Mana ≈ starting resource + focus×8 for all classes | `Mana_max = 20 + 4 * INT` casters only |
 | Derived `test.stat.attack` from might | Melee/ranged/spell hits from STR/AGI/INT |
@@ -31,7 +32,7 @@ Live `test.attribute.vitality` is **not** design `stat.vitality`.
 
 | Live | Design |
 | --- | --- |
-| `test.curve.standard` **maxLevel 5** | Cap **10** |
+| Live classes still join with `test.curve.standard` **maxLevel 5** | Cap **10** (`curve.vibecode.l10` is catalogued, unused) |
 | `xpRequired` `[50, 75, 100, 150]` sum **375** | `[100, 280, 520, 800, 1120, 1470, 1850, 2260, 2700]` sum **11100** |
 | +1 attribute and +1 skill per level-up | +6 automatic and +3 free; skill points only at the timeline |
 | Kill XP = content `xpReward` (slime **10**) | `KillXP = 8 + 2 * enemy_level` |
@@ -41,7 +42,7 @@ Live `test.attribute.vitality` is **not** design `stat.vitality`.
 
 | Live | Design |
 | --- | --- |
-| Warrior starting mana **20**, Marksman **30**, Mage **60** | Warrior/Marksman **no mana**; Mage/Mystic mana pool |
+| Warrior starting mana **20**, Marksman **30**, Mage **60**. Canonical `resourceType` is `resource.none` for physical classes and `test.resource.mana` for casters; live bars still use `startingResources`. | Warrior/Marksman **no mana**; Mage/Mystic mana pool |
 | Inn rest restores resources including mana | Physical classes have no bar |
 
 ## Haste
@@ -86,7 +87,7 @@ Live equipment feeds `stats.ts` channels (`attack`, `max_health`, `max_mana`, pe
 
 | Live | Design |
 | --- | --- |
-| No talent trees | Class 3-pick-2; branch 8/9 |
+| Talent trees exist in the catalog; no spend/unlock runtime | Class 3-pick-2; branch 8/9 |
 | GM `reset_attribute_allocation` / `reset_skill_allocation` | Trainer NPC, gold **50 × level**, refunds free stats, skill points, **and branch** |
 | `npc.lab_trainer` exists as development-only dialogue | Player respec is not implemented |
 

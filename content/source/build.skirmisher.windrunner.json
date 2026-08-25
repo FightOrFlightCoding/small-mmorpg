@@ -1,0 +1,19 @@
+{
+  "id": "build.skirmisher.windrunner",
+  "kind": "reference_build",
+  "displayName": "Windrunner",
+  "displayNameKey": "build.skirmisher.windrunner.display_name",
+  "descriptionKey": "build.skirmisher.windrunner.description",
+  "branchId": "branch.marksman.skirmisher",
+  "statPriority": [
+    "stat.agility",
+    "stat.haste",
+    "stat.vitality"
+  ],
+  "identityKey": "build.skirmisher.windrunner.identity",
+  "pairedNodeIds": [
+    "talent.marksman.skirmisher.runners_high",
+    "talent.marksman.skirmisher.serrated_arrows"
+  ],
+  "classification": "canonical"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "stat.strength",
+  "kind": "stat_definition",
+  "displayName": "Strength",
+  "displayNameKey": "stat.strength.display_name",
+  "descriptionKey": "stat.strength.description",
+  "abbreviation": "STR",
+  "perPointEffects": [
+    {
+      "type": "melee_damage_percent",
+      "perPoint": 0.01
+    },
+    {
+      "type": "crit_damage_percent",
+      "perPoint": 0.01
+    }
+  ],
+  "classification": "canonical"
+}

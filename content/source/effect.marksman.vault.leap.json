@@ -1,0 +1,32 @@
+{
+  "id": "effect.marksman.vault.leap",
+  "kind": "effect_definition",
+  "displayName": "leap",
+  "displayNameKey": "effect.marksman.vault.leap.display_name",
+  "descriptionKey": "effect.marksman.vault.leap.description",
+  "ownerAbilityId": "ability.marksman.vault",
+  "effect": {
+    "id": "leap",
+    "type": "movement",
+    "source": "caster",
+    "target": "self",
+    "magnitude": {
+      "kind": "constant",
+      "value": 0
+    },
+    "duration": 0,
+    "tickInterval": 0,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "mobility"
+    ],
+    "school": "none",
+    "movementKind": "leap",
+    "movementDistance": 80
+  },
+  "classification": "canonical",
+  "compileTimeAddition": false
+}

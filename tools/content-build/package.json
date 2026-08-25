@@ -20,7 +20,8 @@
     "migrate": "tsc -p tsconfig.json && node dist/src/cli.js migrate",
     "package": "tsc -p tsconfig.json && node dist/src/cli.js package",
     "csv-export": "tsc -p tsconfig.json && node dist/src/cli.js csv-export",
-    "csv-import": "tsc -p tsconfig.json && node dist/src/cli.js csv-import"
+    "csv-import": "tsc -p tsconfig.json && node dist/src/cli.js csv-import",
+    "write-canonical": "tsc -p tsconfig.json && node dist/src/write_canonical.js"
   },
   "devDependencies": {
     "@types/node": "^20.17.0",

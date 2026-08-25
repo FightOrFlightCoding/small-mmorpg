@@ -1,0 +1,18 @@
+{
+  "id": "talent.marksman.deadly_aim",
+  "kind": "talent_node",
+  "displayName": "Deadly Aim",
+  "displayNameKey": "talent.marksman.deadly_aim.display_name",
+  "descriptionKey": "talent.marksman.deadly_aim.description",
+  "treeId": "tree.marksman.class",
+  "tier": 1,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "crit_damage_flat",
+      "value": 0.1
+    }
+  ]
+}

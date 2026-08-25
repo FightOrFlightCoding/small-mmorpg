@@ -1,0 +1,13 @@
+{
+  "id": "talent.marksman.sniper.piercing_shot",
+  "kind": "talent_node",
+  "displayName": "Piercing Shot",
+  "displayNameKey": "talent.marksman.sniper.piercing_shot.display_name",
+  "descriptionKey": "talent.marksman.sniper.piercing_shot.description",
+  "treeId": "tree.marksman.sniper",
+  "tier": 2,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "grantsActiveAbilityId": "ability.marksman.piercing_shot"
+}

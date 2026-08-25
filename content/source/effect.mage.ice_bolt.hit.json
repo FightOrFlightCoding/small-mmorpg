@@ -1,0 +1,33 @@
+{
+  "id": "effect.mage.ice_bolt.hit",
+  "kind": "effect_definition",
+  "displayName": "hit",
+  "displayNameKey": "effect.mage.ice_bolt.hit.display_name",
+  "descriptionKey": "effect.mage.ice_bolt.hit.description",
+  "ownerAbilityId": "ability.mage.ice_bolt",
+  "effect": {
+    "id": "hit",
+    "type": "direct_damage",
+    "source": "caster",
+    "target": "primary",
+    "magnitude": {
+      "kind": "stat_id",
+      "statId": "stat.intelligence",
+      "value": 24,
+      "scale": 0.01
+    },
+    "duration": 0,
+    "tickInterval": 0,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "spell",
+      "frost"
+    ],
+    "school": "spell"
+  },
+  "classification": "canonical",
+  "compileTimeAddition": false
+}

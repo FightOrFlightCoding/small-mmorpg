@@ -1,0 +1,18 @@
+{
+  "id": "build.sniper.deadeye",
+  "kind": "reference_build",
+  "displayName": "Deadeye",
+  "displayNameKey": "build.sniper.deadeye.display_name",
+  "descriptionKey": "build.sniper.deadeye.description",
+  "branchId": "branch.marksman.sniper",
+  "statPriority": [
+    "stat.agility",
+    "stat.precision"
+  ],
+  "identityKey": "build.sniper.deadeye.identity",
+  "pairedNodeIds": [
+    "talent.marksman.sniper.weak_spot",
+    "talent.marksman.sniper.killer_instinct"
+  ],
+  "classification": "canonical"
+}

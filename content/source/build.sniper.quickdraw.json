@@ -1,0 +1,17 @@
+{
+  "id": "build.sniper.quickdraw",
+  "kind": "reference_build",
+  "displayName": "Quickdraw",
+  "displayNameKey": "build.sniper.quickdraw.display_name",
+  "descriptionKey": "build.sniper.quickdraw.description",
+  "branchId": "branch.marksman.sniper",
+  "statPriority": [
+    "stat.agility",
+    "stat.haste"
+  ],
+  "identityKey": "build.sniper.quickdraw.identity",
+  "pairedNodeIds": [
+    "talent.marksman.sniper.steady_hands"
+  ],
+  "classification": "canonical"
+}

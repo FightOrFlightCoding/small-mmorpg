@@ -1,0 +1,18 @@
+{
+  "id": "talent.warrior.berserker.relentless",
+  "kind": "talent_node",
+  "displayName": "Relentless",
+  "displayNameKey": "talent.warrior.berserker.relentless.display_name",
+  "descriptionKey": "talent.warrior.berserker.relentless.description",
+  "treeId": "tree.warrior.berserker",
+  "tier": 1,
+  "maxRank": 2,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "cooldown_recovery_percent",
+      "value": 0.1
+    }
+  ]
+}

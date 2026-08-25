@@ -27,7 +27,34 @@
     "placeholderThemeKey": { "type": "string", "minLength": 1 },
     "selectOrder": { "type": "integer", "minimum": 1 },
     "visualAssetSetId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "visualSetId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
     "legacyMigrationDefault": { "type": "boolean" },
+    "rosterSelectable": { "type": "boolean" },
+    "descriptionKey": { "type": "string", "minLength": 1 },
+    "baseStats": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/statMap" },
+    "automaticGrowth": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/statMap" },
+    "autoAssignTemplate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["amounts"],
+      "properties": {
+        "amounts": {
+          "type": "object",
+          "additionalProperties": { "type": "number" }
+        },
+        "classification": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentClassification" },
+        "compileTimeAddition": { "type": "boolean" }
+      }
+    },
+    "resourceType": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "autoAttackId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "basicAbilityId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "classTreeId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "branchIds": {
+      "type": "array",
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+    },
+    "canonicalLevelCurveId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
     "progressionId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
     "levelCurveId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
     "startingAttributes": {

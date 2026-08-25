@@ -19,6 +19,17 @@ export const KIND_PREFIX: Record<string, string> = {
   class_progression: "test.progression",
   equipment_slot: "slot",
   ability: "test.ability",
+  stat_definition: "stat",
+  branch_definition: "branch",
+  progression_timeline: "timeline",
+  auto_attack_definition: "ability",
+  effect_definition: "effect",
+  talent_tree: "tree",
+  talent_node: "talent",
+  reference_build: "build",
+  enemy_scaling_profile: "enemy.scaling",
+  xp_reward: "xp.reward",
+  equipment_modifier_category: "mod.stat",
   ai_profile: "test.ai",
   loot_table: "loot",
   spawn: "spawn",
@@ -50,6 +61,15 @@ export function prefixMatches(kind: string, id: string, prefix: string | undefin
     return true;
   }
   if (kind === "class_progression" && id.indexOf("progression.") === 0) {
+    return true;
+  }
+  if (kind === "ability" && id.indexOf("ability.") === 0) {
+    return true;
+  }
+  if (kind === "level_curve" && id.indexOf("curve.") === 0) {
+    return true;
+  }
+  if (kind === "resource" && id.indexOf("resource.") === 0) {
     return true;
   }
   return kind === "zone" && id.indexOf("test.zone.") === 0;

@@ -51,6 +51,8 @@ test("generated server content is importable without filesystem access", () => {
   assert.ok(content.classes["class.warrior"]);
   assert.ok(content.classes["class.marksman"]);
   assert.ok(content.classes["class.mage"]);
+  assert.ok(content.classes["class.mystic"]);
+  assert.equal(content.classes["class.mystic"].rosterSelectable, false);
   assert.ok(content.classes["test.class.warden"]);
   assert.ok(content.abilities["test.ability.cert_strike"]);
   assert.ok(content.items["item.cert_mail"]);

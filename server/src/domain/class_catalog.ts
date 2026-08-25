@@ -8,6 +8,7 @@ export interface ClassDefinition {
   startingEquipment: ClassItemStack[];
   allowedEquipmentTags?: string[];
   legacyMigrationDefault?: boolean;
+  rosterSelectable?: boolean;
 }
 
 export function sortedClassIds(classes: { [id: string]: ClassDefinition }): string[] {
@@ -18,6 +19,14 @@ export function sortedClassIds(classes: { [id: string]: ClassDefinition }): stri
 
 export function classExists(classes: { [id: string]: ClassDefinition }, classId: string): boolean {
   return classes[classId] !== undefined;
+}
+
+export function isRosterSelectable(classes: { [id: string]: ClassDefinition }, classId: string): boolean {
+  const def = classes[classId];
+  if (def === undefined) {
+    return false;
+  }
+  return def.rosterSelectable !== false;
 }
 
 export function migrationDefaultClassId(classes: { [id: string]: ClassDefinition }): string {
@@ -51,6 +60,7 @@ export function classDefinitionsFromContent(classes: {
     startingEquipment: ReadonlyArray<{ itemId: string; quantity: number }>;
     allowedEquipmentTags?: ReadonlyArray<string>;
     legacyMigrationDefault?: boolean;
+    rosterSelectable?: boolean;
   };
 }): { [id: string]: ClassDefinition } {
   const mapped: { [id: string]: ClassDefinition } = {};
@@ -65,6 +75,9 @@ export function classDefinitionsFromContent(classes: {
     const mappedDef: ClassDefinition = { id: def.id, startingEquipment: startingEquipment };
     if (def.legacyMigrationDefault === true) {
       mappedDef.legacyMigrationDefault = true;
+    }
+    if (def.rosterSelectable === false) {
+      mappedDef.rosterSelectable = false;
     }
     if (def.allowedEquipmentTags !== undefined) {
       const tags: string[] = [];

@@ -26,6 +26,8 @@ Equivalent npm scripts live in `tools/content-build`. `content build` and `conte
 
 `content new <type>` writes schema-valid starter templates. It does not invent final names, balance, or prose. Types: `class`, `attribute`, `resource`, `level_curve`, `ability`, `effect`, `item`, `equipment_slot`, `enemy`, `ai_profile`, `spawn`, `loot_table`, `npc`, `dialogue_reference`, `quest`, `vendor`, `inn_service`, `zone`, `cave_template`, `asset_manifest_entry`.
 
+Canonical 1–10 progression kinds (`stat_definition`, `branch_definition`, `progression_timeline`, `auto_attack_definition`, `effect_definition`, `talent_tree`, `talent_node`, `reference_build`, `enemy_scaling_profile`, `xp_reward`, `equipment_modifier_category`) are authored as `content/source/<id>.json` like every other kind. `npm run write-canonical` in `tools/content-build` regenerates those documents from `canonical_documents.ts`. Do not treat generated Godot `.tres` files as source.
+
 CSV import/export is optional and only for tabular kinds: `level_curve`, `vendor_stock`, `enemy_stats`, `loot_entries`. Round-trip is deterministic. JSON remains canonical.
 
 ## Validation
@@ -46,6 +48,7 @@ CSV import/export is optional and only for tabular kinds: `level_curve`, `vendor
 - Development-content leakage into production definitions
 - Orphaned NPC, quest, and enemy definitions
 - Unsupported schema versions
+- Canonical progression checks (cross-references, base/growth/auto-assign totals, point-slot counts, talent rank chains, tiers, ability ownership, resource compatibility, physical-class mana exclusion, caster mana, max branch actives, alliterative branch names, localization keys, duplicate IDs, unsupported effect types, negative timings, invalid cooldowns, missing canonical values, compile-time-addition tags)
 
 ## Reference graph
 

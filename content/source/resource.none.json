@@ -1,0 +1,8 @@
+{
+  "id": "resource.none",
+  "kind": "resource",
+  "displayName": "None",
+  "displayNameKey": "resource.none.display_name",
+  "descriptionKey": "resource.none.description",
+  "role": "generic"
+}

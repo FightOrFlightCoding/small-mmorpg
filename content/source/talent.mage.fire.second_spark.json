@@ -1,0 +1,18 @@
+{
+  "id": "talent.mage.fire.second_spark",
+  "kind": "talent_node",
+  "displayName": "Second Spark",
+  "displayNameKey": "talent.mage.fire.second_spark.display_name",
+  "descriptionKey": "talent.mage.fire.second_spark.description",
+  "treeId": "tree.mage.fire",
+  "tier": 3,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "mana_refund_percent_of_max",
+      "value": 0.08
+    }
+  ]
+}

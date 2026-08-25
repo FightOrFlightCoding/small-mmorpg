@@ -1,6 +1,6 @@
 # Progression test plan
 
-PROG-01 adds a design-source audit only. Existing Foundation/ACCT suites must keep passing unchanged.
+PROG-02 adds canonical content schemas and generated bundles without enabling new gameplay. Existing Foundation/ACCT suites must keep passing. The PROG-01 design-source audit still runs.
 
 Related: [TEST_CATALOG.md](../TEST_CATALOG.md), [CANONICAL_VALUE_CATALOG.md](CANONICAL_VALUE_CATALOG.md).
 
@@ -63,4 +63,4 @@ Existing tests that must not be weakened: `progression.test.ts`, `xp_hooks.test.
 
 ## Live snapshot (passing now, expected to change later)
 
-The audit currently asserts production `class.*` ids are still warrior/marksman/mage, curve maxLevel 5, XP sum 375, `HOTBAR_SIZE` 8, physical classes still have mana. That is conflict documentation, not the design end state. The implementing phase updates this snapshot when live content matches the design.
+The audit currently asserts production `class.*` ids are warrior/marksman/mage/**mystic** with mystic `rosterSelectable: false`, live curve maxLevel 5, XP sum 375, `HOTBAR_SIZE` 8, physical classes still have mana on `startingResources`, and canonical abilities have `runtimeEnabled: false`. That is conflict documentation, not the design end state. Later PROG phases update this snapshot when live combat matches the design.

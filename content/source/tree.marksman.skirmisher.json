@@ -1,0 +1,38 @@
+{
+  "id": "tree.marksman.skirmisher",
+  "kind": "talent_tree",
+  "displayName": "tree.marksman.skirmisher",
+  "displayNameKey": "tree.marksman.skirmisher.display_name",
+  "descriptionKey": "tree.marksman.skirmisher.description",
+  "treeKind": "branch",
+  "ownerId": "branch.marksman.skirmisher",
+  "pointsAvailable": 6,
+  "nodeIds": [
+    "talent.marksman.skirmisher.barrage_r2",
+    "talent.marksman.skirmisher.serrated_arrows",
+    "talent.marksman.skirmisher.nimble",
+    "talent.marksman.skirmisher.barrage_r3",
+    "talent.marksman.skirmisher.vault",
+    "talent.marksman.skirmisher.twist_the_knife",
+    "talent.marksman.skirmisher.runners_high",
+    "talent.marksman.skirmisher.vault_r2"
+  ],
+  "classification": "canonical",
+  "maxActiveGrants": 1,
+  "tierGates": [
+    {
+      "tier": 1,
+      "minLevel": 5,
+      "minPointsSpent": 0
+    },
+    {
+      "tier": 2,
+      "minPointsSpent": 2
+    },
+    {
+      "tier": 3,
+      "minLevel": 9,
+      "minPointsSpent": 4
+    }
+  ]
+}

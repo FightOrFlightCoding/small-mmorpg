@@ -1,0 +1,16 @@
+{
+  "id": "tree.mystic.class",
+  "kind": "talent_tree",
+  "displayName": "tree.mystic.class",
+  "displayNameKey": "tree.mystic.class.display_name",
+  "descriptionKey": "tree.mystic.class.description",
+  "treeKind": "class",
+  "ownerId": "class.mystic",
+  "pointsAvailable": 2,
+  "nodeIds": [
+    "talent.mystic.fateweave_r2",
+    "talent.mystic.compassion",
+    "talent.mystic.malice"
+  ],
+  "classification": "canonical"
+}

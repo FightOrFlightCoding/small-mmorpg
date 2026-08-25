@@ -28,6 +28,17 @@ export function collectDefinitionIds(payload: ContentPayload): string[] {
   pushKeys(ids, payload.classProgressions);
   pushKeys(ids, payload.equipmentSlots);
   pushKeys(ids, payload.abilities);
+  pushKeys(ids, payload.stats);
+  pushKeys(ids, payload.branches);
+  pushKeys(ids, payload.progressionTimelines);
+  pushKeys(ids, payload.autoAttacks);
+  pushKeys(ids, payload.effectDefinitions);
+  pushKeys(ids, payload.talentTrees);
+  pushKeys(ids, payload.talentNodes);
+  pushKeys(ids, payload.referenceBuilds);
+  pushKeys(ids, payload.enemyScalingProfiles);
+  pushKeys(ids, payload.xpRewards);
+  pushKeys(ids, payload.equipmentModifierCategories);
   pushKeys(ids, payload.aiProfiles);
   pushKeys(ids, payload.lootTables);
   pushKeys(ids, payload.spawns);
@@ -78,6 +89,39 @@ export function definitionById(payload: ContentPayload, id: string): unknown | u
   }
   if (payload.abilities[id]) {
     return payload.abilities[id];
+  }
+  if (payload.stats[id]) {
+    return payload.stats[id];
+  }
+  if (payload.branches[id]) {
+    return payload.branches[id];
+  }
+  if (payload.progressionTimelines[id]) {
+    return payload.progressionTimelines[id];
+  }
+  if (payload.autoAttacks[id]) {
+    return payload.autoAttacks[id];
+  }
+  if (payload.effectDefinitions[id]) {
+    return payload.effectDefinitions[id];
+  }
+  if (payload.talentTrees[id]) {
+    return payload.talentTrees[id];
+  }
+  if (payload.talentNodes[id]) {
+    return payload.talentNodes[id];
+  }
+  if (payload.referenceBuilds[id]) {
+    return payload.referenceBuilds[id];
+  }
+  if (payload.enemyScalingProfiles[id]) {
+    return payload.enemyScalingProfiles[id];
+  }
+  if (payload.xpRewards[id]) {
+    return payload.xpRewards[id];
+  }
+  if (payload.equipmentModifierCategories[id]) {
+    return payload.equipmentModifierCategories[id];
   }
   if (payload.aiProfiles[id]) {
     return payload.aiProfiles[id];

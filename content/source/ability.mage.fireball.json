@@ -1,0 +1,70 @@
+{
+  "id": "ability.mage.fireball",
+  "kind": "ability",
+  "displayName": "Fireball",
+  "displayNameKey": "ability.mage.fireball.display_name",
+  "descriptionKey": "ability.mage.fireball.description",
+  "targetMode": "entity",
+  "relationFilter": "hostile",
+  "range": 180,
+  "minimumRange": 0,
+  "areaShape": "none",
+  "areaRadius": 0,
+  "castTime": 2.5,
+  "channelTime": 0,
+  "globalCooldown": 0,
+  "individualCooldown": 0,
+  "resourceCosts": [
+    {
+      "resourceId": "test.resource.mana",
+      "amount": 20
+    }
+  ],
+  "movementInterruptsCast": true,
+  "damageInterruptsCast": false,
+  "requiredLevel": 5,
+  "requiredClassTags": [
+    "class.mage"
+  ],
+  "prerequisites": [],
+  "effects": [
+    {
+      "id": "hit",
+      "type": "direct_damage",
+      "source": "caster",
+      "target": "primary",
+      "magnitude": {
+        "kind": "stat_id",
+        "statId": "stat.intelligence",
+        "value": 34,
+        "scale": 0.01
+      },
+      "duration": 0,
+      "tickInterval": 0,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "spell",
+        "fire"
+      ],
+      "school": "spell"
+    }
+  ],
+  "effectIds": [
+    "effect.mage.fireball.hit"
+  ],
+  "animationAssetId": "visual.ability_bolt",
+  "iconAssetId": "visual.ability_bolt_icon",
+  "soundAssetId": "visual.ability_bolt_sound",
+  "skillPointCost": 0,
+  "maxRank": 1,
+  "runtimeEnabled": false,
+  "abilityCategory": "signature",
+  "ownerClassId": "class.mage",
+  "school": "spell",
+  "classification": "canonical",
+  "compileTimeAddition": false,
+  "ownerBranchId": "branch.mage.fire"
+}

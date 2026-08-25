@@ -1,0 +1,18 @@
+{
+  "id": "talent.mystic.charms.devotion",
+  "kind": "talent_node",
+  "displayName": "Devotion",
+  "displayNameKey": "talent.mystic.charms.devotion.display_name",
+  "descriptionKey": "talent.mystic.charms.devotion.description",
+  "treeId": "tree.mystic.charms",
+  "tier": 1,
+  "maxRank": 2,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "heal_done_percent",
+      "value": 0.08
+    }
+  ]
+}

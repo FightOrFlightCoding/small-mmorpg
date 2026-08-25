@@ -1,0 +1,64 @@
+{
+  "id": "ability.warrior.unbreakable",
+  "kind": "ability",
+  "displayName": "Unbreakable",
+  "displayNameKey": "ability.warrior.unbreakable.display_name",
+  "descriptionKey": "ability.warrior.unbreakable.description",
+  "targetMode": "self",
+  "relationFilter": "self",
+  "range": 0,
+  "minimumRange": 0,
+  "areaShape": "none",
+  "areaRadius": 0,
+  "castTime": 0,
+  "channelTime": 0,
+  "globalCooldown": 0,
+  "individualCooldown": 90,
+  "resourceCosts": [],
+  "movementInterruptsCast": false,
+  "damageInterruptsCast": false,
+  "requiredLevel": 10,
+  "requiredClassTags": [
+    "class.warrior"
+  ],
+  "prerequisites": [],
+  "effects": [
+    {
+      "id": "dr",
+      "type": "timed_stat_modifier",
+      "source": "caster",
+      "target": "self",
+      "magnitude": {
+        "kind": "constant",
+        "value": 0.5
+      },
+      "duration": 8,
+      "tickInterval": 0,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "buff",
+        "capstone"
+      ],
+      "school": "none",
+      "statChannel": "damage_reduction"
+    }
+  ],
+  "effectIds": [
+    "effect.warrior.unbreakable.dr"
+  ],
+  "animationAssetId": "visual.ability_buff",
+  "iconAssetId": "visual.ability_buff_icon",
+  "soundAssetId": "visual.ability_buff_sound",
+  "skillPointCost": 0,
+  "maxRank": 1,
+  "runtimeEnabled": false,
+  "abilityCategory": "capstone",
+  "ownerClassId": "class.warrior",
+  "school": "none",
+  "classification": "canonical",
+  "compileTimeAddition": false,
+  "ownerBranchId": "branch.warrior.bulwark"
+}

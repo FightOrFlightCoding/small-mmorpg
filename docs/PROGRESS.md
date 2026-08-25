@@ -1,10 +1,10 @@
 # Progress
 
-Last accepted phase: **PROG-01 — Canonical Design Audit and Implementation Contract**.
+Last accepted phase: **PROG-02 — Canonical Shared Content Schemas and Generated Bundles**.
 
 Current phase: none.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
 
@@ -988,6 +988,35 @@ Limitations: Live content still has three production classes and level cap 5. Ma
 Reproduction:
 
 ```powershell
+powershell -File scripts/test-progression-design.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+```
+
+## PROG-02 canonical shared content schemas and generated bundles (2026-08-25)
+
+Complete data representation of the Vibecode 1–10 progression design without enabling new combat. The existing `tools/content-build` pipeline gained schemas and kinds for stats, branches, timeline, auto-attacks, effect definitions, talent trees/nodes, reference builds, enemy scaling, XP rewards, and equipment modifier categories. Canonical abilities, auto-attacks, trees, and `class.mystic` are in `content/source/`. Client and server generated catalogs share content hash `8c56593b927213002912b60560dbe149868407ddac501e88019b0c9ba364fa1f`. Optional Godot `.tres` files under `client/content/generated/` are conveniences, not source.
+
+`class.mystic` has `rosterSelectable: false`; Character Select remains three cards; create rejects mystic. Canonical `ability.*` rows have `runtimeEnabled: false` and are omitted from the live ability map. Live classes still join with `test.curve.standard` (cap 5), Might/Vitality/Focus, and physical-class mana on `startingResources`. Prompt 18 village/slime behavior is unchanged. No class-specific ID is hard-coded into protocol code.
+
+| Gate | Result |
+| --- | --- |
+| Content validate/build | pass; client/server hashes match |
+| Content-build tests | 24/24 (`scripts/test-content.ps1`) |
+| Design audit | 10/10 (`scripts/test-progression-design.ps1`) |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (29 RPCs, 34 storage records, 32 client opcodes) |
+| Server hermetic | 543 passed, 13 skipped (live suites off); `tsc` via server test script |
+| Client GdUnit | 276/276, 0 orphans, `SHELL_LOGIN` |
+
+Limitations: Canonical combat is catalog-only. Mystic is not playable. Geometry omitted by the design is ledgered in [design/progression-implementation-addendum.md](design/progression-implementation-addendum.md). Manual Prompt 18 world play was not re-run; live village/slime behavior was not changed.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/content.ps1 validate
+powershell -File scripts/test-content.ps1
+powershell -File scripts/content-build.ps1
 powershell -File scripts/test-progression-design.ps1
 powershell -File scripts/test-audit.ps1
 powershell -File scripts/test-server.ps1

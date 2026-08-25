@@ -1,0 +1,23 @@
+{
+  "id": "talent.marksman.skirmisher.serrated_arrows",
+  "kind": "talent_node",
+  "displayName": "Serrated Arrows",
+  "displayNameKey": "talent.marksman.skirmisher.serrated_arrows.display_name",
+  "descriptionKey": "talent.marksman.skirmisher.serrated_arrows.description",
+  "treeId": "tree.marksman.skirmisher",
+  "tier": 1,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "abilityModifications": [
+    {
+      "abilityId": "ability.marksman.barrage",
+      "modifiers": [
+        {
+          "type": "ability_damage_percent",
+          "value": 0.2
+        }
+      ]
+    }
+  ]
+}

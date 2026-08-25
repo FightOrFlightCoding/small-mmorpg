@@ -1,0 +1,33 @@
+{
+  "id": "talent.marksman.sniper.snipe_r3",
+  "kind": "talent_node",
+  "displayName": "Snipe R3",
+  "displayNameKey": "talent.marksman.sniper.snipe_r3.display_name",
+  "descriptionKey": "talent.marksman.sniper.snipe_r3.description",
+  "treeId": "tree.marksman.sniper",
+  "tier": 2,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "prerequisites": [
+    {
+      "nodeId": "talent.marksman.sniper.snipe_r2",
+      "minRank": 1
+    }
+  ],
+  "rankReplacement": {
+    "nodeId": "talent.marksman.sniper.snipe_r2",
+    "abilityId": "ability.marksman.snipe"
+  },
+  "abilityModifications": [
+    {
+      "abilityId": "ability.marksman.snipe",
+      "modifiers": [
+        {
+          "type": "ability_crit_chance_flat",
+          "value": 0.15
+        }
+      ]
+    }
+  ]
+}

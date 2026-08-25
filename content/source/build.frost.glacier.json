@@ -1,0 +1,18 @@
+{
+  "id": "build.frost.glacier",
+  "kind": "reference_build",
+  "displayName": "Glacier",
+  "displayNameKey": "build.frost.glacier.display_name",
+  "descriptionKey": "build.frost.glacier.description",
+  "branchId": "branch.mage.frost",
+  "statPriority": [
+    "stat.intelligence",
+    "stat.endurance"
+  ],
+  "identityKey": "build.frost.glacier.identity",
+  "pairedNodeIds": [
+    "talent.mage.frost.numbing_cold",
+    "talent.mage.frost.rimeguard"
+  ],
+  "classification": "canonical"
+}

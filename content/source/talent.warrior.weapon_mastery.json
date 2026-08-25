@@ -1,0 +1,18 @@
+{
+  "id": "talent.warrior.weapon_mastery",
+  "kind": "talent_node",
+  "displayName": "Weapon Mastery",
+  "displayNameKey": "talent.warrior.weapon_mastery.display_name",
+  "descriptionKey": "talent.warrior.weapon_mastery.description",
+  "treeId": "tree.warrior.class",
+  "tier": 1,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "auto_attack_damage_percent",
+      "value": 0.08
+    }
+  ]
+}

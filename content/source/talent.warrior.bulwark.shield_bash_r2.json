@@ -1,0 +1,33 @@
+{
+  "id": "talent.warrior.bulwark.shield_bash_r2",
+  "kind": "talent_node",
+  "displayName": "Shield Bash R2",
+  "displayNameKey": "talent.warrior.bulwark.shield_bash_r2.display_name",
+  "descriptionKey": "talent.warrior.bulwark.shield_bash_r2.description",
+  "treeId": "tree.warrior.bulwark",
+  "tier": 3,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "prerequisites": [
+    {
+      "nodeId": "talent.warrior.bulwark.shield_bash",
+      "minRank": 1
+    }
+  ],
+  "rankReplacement": {
+    "nodeId": "talent.warrior.bulwark.shield_bash",
+    "abilityId": "ability.warrior.shield_bash"
+  },
+  "abilityModifications": [
+    {
+      "abilityId": "ability.warrior.shield_bash",
+      "modifiers": [
+        {
+          "type": "ability_stun_duration",
+          "value": 2
+        }
+      ]
+    }
+  ]
+}

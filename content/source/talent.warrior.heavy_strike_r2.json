@@ -1,0 +1,23 @@
+{
+  "id": "talent.warrior.heavy_strike_r2",
+  "kind": "talent_node",
+  "displayName": "Heavy Strike R2",
+  "displayNameKey": "talent.warrior.heavy_strike_r2.display_name",
+  "descriptionKey": "talent.warrior.heavy_strike_r2.description",
+  "treeId": "tree.warrior.class",
+  "tier": 1,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "abilityModifications": [
+    {
+      "abilityId": "ability.warrior.heavy_strike",
+      "modifiers": [
+        {
+          "type": "ability_damage_percent",
+          "value": 0.25
+        }
+      ]
+    }
+  ]
+}

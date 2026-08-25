@@ -1,0 +1,28 @@
+{
+  "id": "talent.marksman.sniper.killer_instinct",
+  "kind": "talent_node",
+  "displayName": "Killer Instinct",
+  "displayNameKey": "talent.marksman.sniper.killer_instinct.display_name",
+  "descriptionKey": "talent.marksman.sniper.killer_instinct.description",
+  "treeId": "tree.marksman.sniper",
+  "tier": 2,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "conditionalModifiers": [
+    {
+      "conditions": [
+        {
+          "type": "no_enemy_in_range",
+          "range": 40
+        }
+      ],
+      "modifiers": [
+        {
+          "type": "crit_damage_flat",
+          "value": 0.15
+        }
+      ]
+    }
+  ]
+}

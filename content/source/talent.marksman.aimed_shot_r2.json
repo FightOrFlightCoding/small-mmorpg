@@ -1,0 +1,23 @@
+{
+  "id": "talent.marksman.aimed_shot_r2",
+  "kind": "talent_node",
+  "displayName": "Aimed Shot R2",
+  "displayNameKey": "talent.marksman.aimed_shot_r2.display_name",
+  "descriptionKey": "talent.marksman.aimed_shot_r2.description",
+  "treeId": "tree.marksman.class",
+  "tier": 1,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "abilityModifications": [
+    {
+      "abilityId": "ability.marksman.aimed_shot",
+      "modifiers": [
+        {
+          "type": "ability_damage_percent",
+          "value": 0.25
+        }
+      ]
+    }
+  ]
+}

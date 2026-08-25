@@ -1,0 +1,30 @@
+{
+  "id": "talent.warrior.berserker.slaughter",
+  "kind": "talent_node",
+  "displayName": "Slaughter",
+  "displayNameKey": "talent.warrior.berserker.slaughter.display_name",
+  "descriptionKey": "talent.warrior.berserker.slaughter.description",
+  "treeId": "tree.warrior.berserker",
+  "tier": 1,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "conditionalModifiers": [
+    {
+      "conditions": [
+        {
+          "type": "target_health_percent",
+          "comparison": "below",
+          "value": 30
+        }
+      ],
+      "modifiers": [
+        {
+          "type": "ability_damage_percent",
+          "abilityId": "ability.warrior.heavy_strike",
+          "value": 0.3
+        }
+      ]
+    }
+  ]
+}

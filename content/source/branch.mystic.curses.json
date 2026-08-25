@@ -1,0 +1,17 @@
+{
+  "id": "branch.mystic.curses",
+  "kind": "branch_definition",
+  "classId": "class.mystic",
+  "displayName": "Curses",
+  "displayNameKey": "branch.mystic.curses.display_name",
+  "descriptionKey": "branch.mystic.curses.description",
+  "roleKey": "branch.mystic.curses.role",
+  "signatureAbilityId": "ability.mystic.wither",
+  "capstoneAbilityId": "ability.mystic.malediction",
+  "branchTreeId": "tree.mystic.curses",
+  "recommendedBuildIds": [
+    "build.curses.plaguebringer",
+    "build.curses.leech"
+  ],
+  "classification": "canonical"
+}

@@ -1,0 +1,18 @@
+{
+  "id": "talent.mage.frost.numbing_cold",
+  "kind": "talent_node",
+  "displayName": "Numbing Cold",
+  "displayNameKey": "talent.mage.frost.numbing_cold.display_name",
+  "descriptionKey": "talent.mage.frost.numbing_cold.description",
+  "treeId": "tree.mage.frost",
+  "tier": 1,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "damage_dealt_percent",
+      "value": -0.1
+    }
+  ]
+}

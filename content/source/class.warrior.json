@@ -31,5 +31,39 @@
   ],
   "startingAbilities": ["test.ability.basic_melee"],
   "allowedEquipmentTags": ["main_hand", "off_hand", "head", "chest", "legs", "feet"],
-  "tags": ["warrior", "melee", "provisional"]
+  "tags": ["warrior", "melee", "provisional"],
+  "descriptionKey": "class.warrior.long_description",
+  "rosterSelectable": true,
+  "visualSetId": "visual.class_warrior",
+  "canonicalLevelCurveId": "curve.vibecode.l10",
+  "baseStats": {
+    "stat.strength": 8,
+    "stat.agility": 4,
+    "stat.intelligence": 2,
+    "stat.spirit": 3,
+    "stat.vitality": 8,
+    "stat.precision": 3,
+    "stat.haste": 3,
+    "stat.endurance": 3
+  },
+  "automaticGrowth": {
+    "stat.strength": 3,
+    "stat.agility": 0,
+    "stat.intelligence": 0,
+    "stat.spirit": 0,
+    "stat.vitality": 2,
+    "stat.precision": 0,
+    "stat.haste": 0,
+    "stat.endurance": 1
+  },
+  "autoAssignTemplate": {
+    "amounts": { "stat.strength": 2, "stat.vitality": 1 },
+    "classification": "compile-time-addition",
+    "compileTimeAddition": true
+  },
+  "resourceType": "resource.none",
+  "autoAttackId": "ability.warrior.auto_attack",
+  "basicAbilityId": "ability.warrior.heavy_strike",
+  "classTreeId": "tree.warrior.class",
+  "branchIds": ["branch.warrior.bulwark", "branch.warrior.berserker"]
 }

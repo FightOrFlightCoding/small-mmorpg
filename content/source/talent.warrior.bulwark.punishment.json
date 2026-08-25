@@ -1,0 +1,40 @@
+{
+  "id": "talent.warrior.bulwark.punishment",
+  "kind": "talent_node",
+  "displayName": "Punishment",
+  "displayNameKey": "talent.warrior.bulwark.punishment.display_name",
+  "descriptionKey": "talent.warrior.bulwark.punishment.description",
+  "treeId": "tree.warrior.bulwark",
+  "tier": 2,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "abilityModifications": [
+    {
+      "abilityId": "ability.warrior.heavy_strike",
+      "modifiers": [
+        {
+          "type": "ability_damage_percent",
+          "value": 0.25
+        }
+      ]
+    }
+  ],
+  "conditionalModifiers": [
+    {
+      "conditions": [
+        {
+          "type": "target_has_tag",
+          "tag": "taunt"
+        }
+      ],
+      "modifiers": [
+        {
+          "type": "ability_damage_percent",
+          "abilityId": "ability.warrior.heavy_strike",
+          "value": 0.25
+        }
+      ]
+    }
+  ]
+}

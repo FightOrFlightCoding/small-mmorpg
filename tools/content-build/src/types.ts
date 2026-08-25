@@ -315,6 +315,22 @@ export interface ClassDef {
   startingAbilities: string[];
   allowedEquipmentTags: string[];
   tags?: string[];
+  rosterSelectable?: boolean;
+  descriptionKey?: string;
+  visualSetId?: string;
+  baseStats?: Record<string, number>;
+  automaticGrowth?: Record<string, number>;
+  autoAssignTemplate?: {
+    amounts: Record<string, number>;
+    classification?: "canonical" | "compile-time-addition";
+    compileTimeAddition?: boolean;
+  };
+  resourceType?: string;
+  autoAttackId?: string;
+  basicAbilityId?: string;
+  classTreeId?: string;
+  branchIds?: string[];
+  canonicalLevelCurveId?: string;
 }
 
 export interface AttributeDef {
@@ -327,6 +343,8 @@ export interface ResourceDef {
   id: string;
   kind: "resource";
   displayName: string;
+  displayNameKey?: string;
+  descriptionKey?: string;
   role: "health" | "mana" | "generic";
 }
 
@@ -392,6 +410,35 @@ export interface MagnitudeFormula {
   scale?: number;
 }
 
+export interface EffectConditionDef {
+  type:
+    | "target_relation"
+    | "target_health_percent"
+    | "target_has_tag"
+    | "source_has_tag"
+    | "shield_event"
+    | "standing_still"
+    | "no_enemy_in_range"
+    | "effect_active"
+    | "resource_percent";
+  relation?: "hostile" | "friendly" | "self" | "any";
+  comparison?: "below" | "above" | "at_or_below" | "at_or_above";
+  value?: number;
+  tag?: string;
+  effectId?: string;
+  event?: "break" | "expire";
+  range?: number;
+  duration?: number;
+}
+
+export interface TalentModifierDef {
+  type: string;
+  abilityId?: string;
+  value?: number;
+  grantsAbilityId?: string;
+  effectId?: string;
+}
+
 export interface AbilityEffectDef {
   id: string;
   type:
@@ -402,7 +449,17 @@ export interface AbilityEffectDef {
     | "periodic_damage"
     | "periodic_heal"
     | "stun"
-    | "root";
+    | "root"
+    | "taunt"
+    | "interrupt"
+    | "slow"
+    | "shield"
+    | "movement"
+    | "reflect_damage"
+    | "propagate_effect"
+    | "cooldown_reset_on_kill"
+    | "guaranteed_crit"
+    | "passive_stacker";
   source: "caster";
   target: "primary" | "area" | "self";
   magnitude: MagnitudeFormula;
@@ -415,6 +472,22 @@ export interface AbilityEffectDef {
   tags: string[];
   statChannel?: string;
   resourceRole?: "health" | "mana" | "generic";
+  school?: "melee" | "ranged" | "spell" | "heal" | "none";
+  delay?: number;
+  hitCount?: number;
+  independentCrit?: boolean;
+  guaranteedCrit?: boolean;
+  cooldownResetOnKill?: boolean;
+  reflectFraction?: number;
+  movementKind?: "leap" | "dash";
+  movementDistance?: number;
+  propagateOn?: "death" | "shield_break" | "shield_expire";
+  propagateEffectId?: string;
+  shieldBreakHealRatio?: number;
+  healthPercent?: number;
+  conditions?: EffectConditionDef[];
+  classification?: "canonical" | "compile-time-addition";
+  compileTimeAddition?: boolean;
 }
 
 export interface AbilityDef {
@@ -427,7 +500,7 @@ export interface AbilityDef {
   relationFilter: "self" | "friendly" | "hostile" | "any";
   range: number;
   minimumRange: number;
-  areaShape: "none" | "circle";
+  areaShape: "none" | "circle" | "cone" | "line" | "ground";
   areaRadius: number;
   castTime: number;
   channelTime: number;
@@ -445,6 +518,203 @@ export interface AbilityDef {
   soundAssetId: string;
   skillPointCost?: number;
   maxRank?: number;
+  runtimeEnabled?: boolean;
+  abilityCategory?: "auto_attack" | "basic" | "signature" | "capstone" | "tree_active" | "passive";
+  ownerClassId?: string;
+  ownerBranchId?: string;
+  school?: "melee" | "ranged" | "spell" | "heal" | "none";
+  hitCount?: number;
+  independentCrit?: boolean;
+  delay?: number;
+  coneAngleDegrees?: number;
+  lineWidth?: number;
+  lineLength?: number;
+  effectIds?: string[];
+  classification?: "canonical" | "compile-time-addition";
+  compileTimeAddition?: boolean;
+}
+
+export interface StatDefinitionDef {
+  id: string;
+  kind: "stat_definition";
+  displayName: string;
+  displayNameKey: string;
+  descriptionKey: string;
+  abbreviation: string;
+  perPointEffects: Array<{
+    type: string;
+    perPoint: number;
+    castersOnly?: boolean;
+  }>;
+  classification?: "canonical" | "compile-time-addition";
+}
+
+export interface BranchDefinitionDef {
+  id: string;
+  kind: "branch_definition";
+  classId: string;
+  displayName: string;
+  displayNameKey: string;
+  descriptionKey?: string;
+  roleKey: string;
+  signatureAbilityId: string;
+  capstoneAbilityId: string;
+  branchTreeId: string;
+  recommendedBuildIds: string[];
+  classification?: "canonical" | "compile-time-addition";
+}
+
+export interface ProgressionTimelineDef {
+  id: string;
+  kind: "progression_timeline";
+  displayName?: string;
+  displayNameKey: string;
+  descriptionKey?: string;
+  levelCurveId: string;
+  automaticGrowthPerLevel: number;
+  freePointsPerLevel: number;
+  classPoints: number;
+  branchPoints: number;
+  tierGates: Array<{ tier: number; minLevel?: number; minPointsSpent: number }>;
+  unlocks: Array<{
+    level: number;
+    grant: "auto_attack" | "basic_ability" | "class_point" | "branch_unlock" | "branch_point" | "capstone";
+  }>;
+  classification?: "canonical" | "compile-time-addition";
+}
+
+export interface AutoAttackDefinitionDef {
+  id: string;
+  kind: "auto_attack_definition";
+  displayName: string;
+  displayNameKey: string;
+  descriptionKey: string;
+  ownerClassId: string;
+  baseDamage: number;
+  interval: number;
+  scalingStatId: string;
+  school: "melee" | "ranged" | "spell" | "heal" | "none";
+  range: number;
+  targetMode?: "self" | "entity" | "ground_point";
+  relationFilter?: "self" | "friendly" | "hostile" | "any";
+  runtimeEnabled?: boolean;
+  effects: AbilityEffectDef[];
+  effectIds?: string[];
+  animationAssetId: string;
+  iconAssetId: string;
+  soundAssetId: string;
+  classification?: "canonical" | "compile-time-addition";
+  compileTimeAddition?: boolean;
+}
+
+export interface EffectDefinitionDef {
+  id: string;
+  kind: "effect_definition";
+  displayName?: string;
+  displayNameKey: string;
+  descriptionKey?: string;
+  ownerAbilityId?: string;
+  effect: AbilityEffectDef;
+  classification?: "canonical" | "compile-time-addition";
+  compileTimeAddition?: boolean;
+}
+
+export interface TalentTreeDef {
+  id: string;
+  kind: "talent_tree";
+  displayName?: string;
+  displayNameKey: string;
+  descriptionKey?: string;
+  treeKind: "class" | "branch";
+  ownerId: string;
+  pointsAvailable: number;
+  maxActiveGrants?: number;
+  tierGates?: Array<{ tier: number; minLevel?: number; minPointsSpent: number }>;
+  nodeIds: string[];
+  classification?: "canonical" | "compile-time-addition";
+}
+
+export interface TalentNodeDef {
+  id: string;
+  kind: "talent_node";
+  displayName: string;
+  displayNameKey: string;
+  descriptionKey: string;
+  treeId: string;
+  tier: number;
+  maxRank: number;
+  pointCostPerRank: number;
+  prerequisites?: Array<{ nodeId: string; minRank: number }>;
+  rankReplacement?: { nodeId?: string; abilityId?: string };
+  unlockEffects?: AbilityEffectDef[];
+  abilityModifications?: Array<{
+    abilityId: string;
+    rank?: number;
+    modifiers: TalentModifierDef[];
+  }>;
+  passiveModifiers?: TalentModifierDef[];
+  conditionalModifiers?: Array<{
+    conditions: EffectConditionDef[];
+    modifiers: TalentModifierDef[];
+  }>;
+  grantsActiveAbilityId?: string;
+  classification?: "canonical" | "compile-time-addition";
+  compileTimeAddition?: boolean;
+}
+
+export interface ReferenceBuildDef {
+  id: string;
+  kind: "reference_build";
+  displayName: string;
+  displayNameKey: string;
+  descriptionKey?: string;
+  branchId: string;
+  statPriority: string[];
+  identityKey: string;
+  pairedNodeIds?: string[];
+  classification?: "canonical" | "compile-time-addition";
+}
+
+export interface EnemyScalingProfileDef {
+  id: string;
+  kind: "enemy_scaling_profile";
+  displayName?: string;
+  displayNameKey: string;
+  descriptionKey?: string;
+  hpIntercept: number;
+  hpPerLevel: number;
+  damageIntercept: number;
+  damagePerLevel: number;
+  swingInterval: number;
+  killXpIntercept: number;
+  killXpPerLevel: number;
+  hpMultiplier: number;
+  damageMultiplier: number;
+  killXpMultiplier: number;
+  classification?: "canonical" | "compile-time-addition";
+  compileTimeAddition?: boolean;
+}
+
+export interface XpRewardDef {
+  id: string;
+  kind: "xp_reward";
+  displayName?: string;
+  displayNameKey: string;
+  descriptionKey?: string;
+  formula: { kind: "kill_xp_linear"; intercept: number; perLevel: number };
+  inUse?: boolean;
+  classification?: "canonical" | "compile-time-addition";
+}
+
+export interface EquipmentModifierCategoryDef {
+  id: string;
+  kind: "equipment_modifier_category";
+  displayName?: string;
+  displayNameKey: string;
+  descriptionKey?: string;
+  statId: string;
+  channel: string;
+  classification?: "canonical" | "compile-time-addition";
 }
 
 export interface ContentPayload {
@@ -462,6 +732,17 @@ export interface ContentPayload {
   classProgressions: Record<string, ClassProgressionDef>;
   equipmentSlots: Record<string, EquipmentSlotDef>;
   abilities: Record<string, AbilityDef>;
+  stats: Record<string, StatDefinitionDef>;
+  branches: Record<string, BranchDefinitionDef>;
+  progressionTimelines: Record<string, ProgressionTimelineDef>;
+  autoAttacks: Record<string, AutoAttackDefinitionDef>;
+  effectDefinitions: Record<string, EffectDefinitionDef>;
+  talentTrees: Record<string, TalentTreeDef>;
+  talentNodes: Record<string, TalentNodeDef>;
+  referenceBuilds: Record<string, ReferenceBuildDef>;
+  enemyScalingProfiles: Record<string, EnemyScalingProfileDef>;
+  xpRewards: Record<string, XpRewardDef>;
+  equipmentModifierCategories: Record<string, EquipmentModifierCategoryDef>;
   aiProfiles: Record<string, AiProfileDef>;
   lootTables: Record<string, LootTableDef>;
   spawns: Record<string, SpawnDef>;

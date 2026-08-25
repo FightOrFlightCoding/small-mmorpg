@@ -1,6 +1,6 @@
 # Test catalog
 
-Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, Prompt 24 ability coverage, Prompt 25 combat-pipeline coverage, Prompt 26 enemy/spawn/AI/loot/boss coverage, Prompt 27 NPC/quest/vendor/inn coverage, Prompt 28 party/chat/group-credit/loot coverage, Prompt 29 public-world/cave/transfer/reconnect coverage, Prompt 30 nearby trade coverage, Prompt 31 UI/settings/asset-contract coverage, Prompt 32 content-CLI / systems-lab / GM coverage, Prompt 33 environment / handshake / maintenance / backup-restore coverage, Prompt 34 security / fuzz / rate-limit / capacity / soak / five-client certification, Prompt 35 existing-save / content-only / asset-manifest / five-client resume certification, ACCT-09 account lifecycle security / failure / distribution certification, and PROG-01 canonical progression design audit. Do not weaken these tests.
+Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, Prompt 24 ability coverage, Prompt 25 combat-pipeline coverage, Prompt 26 enemy/spawn/AI/loot/boss coverage, Prompt 27 NPC/quest/vendor/inn coverage, Prompt 28 party/chat/group-credit/loot coverage, Prompt 29 public-world/cave/transfer/reconnect coverage, Prompt 30 nearby trade coverage, Prompt 31 UI/settings/asset-contract coverage, Prompt 32 content-CLI / systems-lab / GM coverage, Prompt 33 environment / handshake / maintenance / backup-restore coverage, Prompt 34 security / fuzz / rate-limit / capacity / soak / five-client certification, Prompt 35 existing-save / content-only / asset-manifest / five-client resume certification, ACCT-09 account lifecycle security / failure / distribution certification, PROG-01 canonical progression design audit, and PROG-02 canonical shared content schemas. Do not weaken these tests.
 
 Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDATION_BASELINE.md).
 
@@ -20,7 +20,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `scripts/test-account-compat` | Domain account helpers plus live Nakama 3.40.0 lifecycle proofs (starts the stack if needed) |
 | `scripts/test-auth-gateway` | Auth-gateway hermetic suite; live HTTP-key ping when Nakama is up |
 | `scripts/test-account-lifecycle` | ACCT-09 hermetic lifecycle gate (setup, content, server/gateway builds, server + gateway + client tests). `-StartStack` / `-ExportRelease` / `-LiveFailure` optional |
-| `scripts/test-progression-design` | PROG-01 canonical design markdown + contract docs + live three-class snapshot |
+| `scripts/test-progression-design` | Canonical design markdown + contract docs + live snapshot (four `class.*` ids, mystic not selectable) |
 | `scripts/test-all` | setup + content, audit, server, client, e2e, capacity, soak, five-client, backup |
 | `scripts/test-backup` | Dump local `nakama`, restore into `nakama_restore_drill`, verify table counts |
 | `scripts/verify-release` | Content, audit, server, migrations, client, backup drill |
@@ -44,6 +44,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | definition schema version | mismatched per-kind version rejected |
 | templates / copy / unused / CSV | `content new` schema-valid starters; copy; unused leather cap; CSV round-trip |
 | leakage / cycles / missing assets | development leakage, cyclic prerequisites, missing visual ids |
+| canonical base-array total | `base_array_total:class.warrior` when §6 base stats do not sum to 34 |
 
 ## Server (`server/tests`)
 
@@ -73,7 +74,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `security.test.ts` | mapped attacks, rate limits | VS-T1–T6, T9 |
 | `match.test.ts` | join, empty shutdown, FULL_STATE | VS-T9 |
 | `character.test.ts` | bootstrap wrapper, `permissionWrite: 0` | |
-| `character_lifecycle.test.ts` | create warrior/marksman/mage, five slots, sixth rejected, invalid class/name, case-insensitive and concurrent `name_taken`, duplicate create, foreign/soft-deleted select, ticket expiry/replay, delete/lease/restore/purge, Prompt 18 migrate, starter init once | |
+| `character_lifecycle.test.ts` | create warrior/marksman/mage, mystic `rosterSelectable` rejected, five slots, sixth rejected, invalid class/name, case-insensitive and concurrent `name_taken`, duplicate create, foreign/soft-deleted select, ticket expiry/replay, delete/lease/restore/purge, Prompt 18 migrate, starter init once | |
 | `gameplay_lease.test.ts` | exclusive acquire, concurrent second acquire, two sessions, second character blocked, ENTERING timeout, stale missing match, link-dead timestamps, no movement, despawn boundary, emptyTicks after expire, Nakama ping/pong detection window, safe leave, combat reject, join reject, catalog countdown, Play disabled, entry after release, no duplicate snapshot avatars | |
 | `starter_zone_registry.test.ts` | canonical match id | |
 | `persistence.test.ts` | checkpoints, link-dead avatar, no session rebind, seq reset, Nakama null maps/extras on tick 0 | VS-M5 automated analog |
@@ -81,7 +82,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `chat.test.ts` | RT hooks | |
 | `content.test.ts` | generated catalog shape | VS-T8 analog |
 | `progression.test.ts` | XP thresholds, multi-level, max level, duplicate event, allocate, derived-stat order, equipment/effect hooks, Prompt 18 migrate, reconnect FULL_STATE | |
-| `progression_design_audit.test.ts` | Canonical design file present; four classes / eight branches / 34+6 budgets / 11100 XP / trees / Frenzy passive; catalog IDs; live three-class snapshot | |
+| `progression_design_audit.test.ts` | Canonical design file present; four classes / eight branches / 34+6 budgets / 11100 XP / trees / Frenzy passive; catalog IDs; live snapshot (mystic present, not selectable; cap 5 / hotbar 8) | |
 | `ability.test.ts` | locked use, valid melee, ATTACK wrapper, range, PvP, relation, resource, ICD/GCD, duplicate request, movement/damage interrupt, cancel, heal, DoT, stack policies, expiration, unlock, hotbar, reconnect clears casts, null magnitude scale, catalog strip/rebind | |
 | `party.test.ts` | create, invite, accept, decline, expired invite, party full, already in party, leave, kick, promote, leader disconnect, grace reconnect, all-absent disband, forged membership, duplicate requestId, create-declines-pending, accept-leaves-current, ghost-member prune, match-cache eviction | |
 | `party_credit_loot.test.ts` | group kill XP, out-of-range member, group quest credit, personal loot, server-assigned loot, duplicate death event | |

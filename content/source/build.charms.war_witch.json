@@ -1,0 +1,17 @@
+{
+  "id": "build.charms.war_witch",
+  "kind": "reference_build",
+  "displayName": "War Witch",
+  "displayNameKey": "build.charms.war_witch.display_name",
+  "descriptionKey": "build.charms.war_witch.description",
+  "branchId": "branch.mystic.charms",
+  "statPriority": [
+    "stat.spirit",
+    "stat.intelligence"
+  ],
+  "identityKey": "build.charms.war_witch.identity",
+  "pairedNodeIds": [
+    "talent.mystic.charms.battle_blessing"
+  ],
+  "classification": "canonical"
+}

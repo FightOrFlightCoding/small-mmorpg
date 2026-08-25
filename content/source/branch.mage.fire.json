@@ -1,0 +1,17 @@
+{
+  "id": "branch.mage.fire",
+  "kind": "branch_definition",
+  "classId": "class.mage",
+  "displayName": "Fire",
+  "displayNameKey": "branch.mage.fire.display_name",
+  "descriptionKey": "branch.mage.fire.description",
+  "roleKey": "branch.mage.fire.role",
+  "signatureAbilityId": "ability.mage.fireball",
+  "capstoneAbilityId": "ability.mage.meteor",
+  "branchTreeId": "tree.mage.fire",
+  "recommendedBuildIds": [
+    "build.fire.meteor",
+    "build.fire.flamethrower"
+  ],
+  "classification": "canonical"
+}

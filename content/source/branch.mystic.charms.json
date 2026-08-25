@@ -1,0 +1,17 @@
+{
+  "id": "branch.mystic.charms",
+  "kind": "branch_definition",
+  "classId": "class.mystic",
+  "displayName": "Charms",
+  "displayNameKey": "branch.mystic.charms.display_name",
+  "descriptionKey": "branch.mystic.charms.description",
+  "roleKey": "branch.mystic.charms.role",
+  "signatureAbilityId": "ability.mystic.protective_charm",
+  "capstoneAbilityId": "ability.mystic.benediction",
+  "branchTreeId": "tree.mystic.charms",
+  "recommendedBuildIds": [
+    "build.charms.battle_medic",
+    "build.charms.war_witch"
+  ],
+  "classification": "canonical"
+}

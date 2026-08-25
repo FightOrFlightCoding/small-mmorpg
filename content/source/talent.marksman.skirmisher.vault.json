@@ -1,0 +1,13 @@
+{
+  "id": "talent.marksman.skirmisher.vault",
+  "kind": "talent_node",
+  "displayName": "Vault",
+  "displayNameKey": "talent.marksman.skirmisher.vault.display_name",
+  "descriptionKey": "talent.marksman.skirmisher.vault.description",
+  "treeId": "tree.marksman.skirmisher",
+  "tier": 2,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "grantsActiveAbilityId": "ability.marksman.vault"
+}

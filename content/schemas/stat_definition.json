@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/stat_definition.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "displayName",
+    "displayNameKey",
+    "descriptionKey",
+    "abbreviation",
+    "perPointEffects"
+  ],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "stat_definition" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "displayNameKey": { "type": "string", "minLength": 1 },
+    "descriptionKey": { "type": "string", "minLength": 1 },
+    "abbreviation": { "type": "string", "minLength": 1 },
+    "perPointEffects": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "perPoint"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "melee_damage_percent",
+              "ranged_damage_percent",
+              "spell_damage_percent",
+              "heal_percent",
+              "crit_damage_percent",
+              "crit_chance_percent",
+              "max_mana_flat",
+              "mana_regen_per_sec",
+              "haste_percent",
+              "max_hp_flat",
+              "damage_reduction_percent"
+            ]
+          },
+          "perPoint": { "type": "number" },
+          "castersOnly": { "type": "boolean" }
+        }
+      }
+    },
+    "classification": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentClassification" },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+  }
+}

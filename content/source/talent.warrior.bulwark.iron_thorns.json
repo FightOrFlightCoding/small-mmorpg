@@ -1,0 +1,18 @@
+{
+  "id": "talent.warrior.bulwark.iron_thorns",
+  "kind": "talent_node",
+  "displayName": "Iron Thorns",
+  "displayNameKey": "talent.warrior.bulwark.iron_thorns.display_name",
+  "descriptionKey": "talent.warrior.bulwark.iron_thorns.description",
+  "treeId": "tree.warrior.bulwark",
+  "tier": 1,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "reflect_melee_percent",
+      "value": 0.15
+    }
+  ]
+}

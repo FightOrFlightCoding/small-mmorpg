@@ -1,0 +1,31 @@
+{
+  "id": "effect.mystic.blessing.buff",
+  "kind": "effect_definition",
+  "displayName": "buff",
+  "displayNameKey": "effect.mystic.blessing.buff.display_name",
+  "descriptionKey": "effect.mystic.blessing.buff.description",
+  "ownerAbilityId": "ability.mystic.blessing",
+  "effect": {
+    "id": "buff",
+    "type": "timed_stat_modifier",
+    "source": "caster",
+    "target": "area",
+    "magnitude": {
+      "kind": "constant",
+      "value": 0.1
+    },
+    "duration": 10,
+    "tickInterval": 0,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "buff"
+    ],
+    "school": "none",
+    "statChannel": "damage_dealt"
+  },
+  "classification": "compile-time-addition",
+  "compileTimeAddition": true
+}

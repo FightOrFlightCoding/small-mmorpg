@@ -115,8 +115,15 @@ test("valid source documents compile to a payload", () => {
   assert.ok(Object.keys(payload.levelCurves).length >= 1);
   assert.ok(Object.keys(payload.classProgressions).length >= 2);
   assert.ok(Object.keys(payload.equipmentSlots).length >= 6);
-  assert.ok(Object.keys(payload.abilities).length >= 5);
+    assert.ok(Object.keys(payload.abilities).length >= 5);
   assert.equal(payload.abilities["test.ability.basic_melee"].targetMode, "entity");
+  assert.equal(payload.stats["stat.strength"].abbreviation, "STR");
+  assert.equal(payload.classes["class.mystic"].rosterSelectable, false);
+  assert.equal(payload.classes["class.warrior"].baseStats?.["stat.strength"], 8);
+  assert.equal(payload.levelCurves["curve.vibecode.l10"].maxLevel, 10);
+  assert.equal(payload.autoAttacks["ability.warrior.auto_attack"].runtimeEnabled, false);
+  assert.equal(payload.abilities["ability.warrior.heavy_strike"].runtimeEnabled, false);
+  assert.equal(Object.keys(payload.referenceBuilds).length, 16);
   assert.equal(payload.items["item.training_sword"].category, "weapon");
   assert.equal(payload.items["item.slime_gel"].destroyable, false);
   assert.equal(typeof payload.enemies["enemy.green_slime"].xpReward, "number");
@@ -417,6 +424,15 @@ test("production definitions may not reference development-only ids", () => {
   });
   const codes = codesOf(() => validateDocuments(SCHEMA_DIR, docs));
   assert.ok(codes.some((code) => code.indexOf("development_content_leakage:") === 0));
+});
+
+test("canonical progression source rejects a broken base-array total", () => {
+  const docs = clone(loadValid());
+  const warrior = find(docs, "class.warrior");
+  const base = warrior["baseStats"] as Record<string, number>;
+  base["stat.strength"] = 99;
+  const codes = codesOf(() => validateDocuments(SCHEMA_DIR, docs));
+  assert.ok(codes.indexOf("base_array_total:class.warrior") !== -1);
 });
 
 test("missing client assets are rejected when an asset index is supplied", () => {

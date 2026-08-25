@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/xp_reward.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "kind", "displayNameKey", "formula"],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "xp_reward" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "displayNameKey": { "type": "string", "minLength": 1 },
+    "descriptionKey": { "type": "string", "minLength": 1 },
+    "formula": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "intercept", "perLevel"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["kill_xp_linear"]
+        },
+        "intercept": { "type": "number" },
+        "perLevel": { "type": "number" }
+      }
+    },
+    "inUse": { "type": "boolean" },
+    "classification": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentClassification" },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+  }
+}

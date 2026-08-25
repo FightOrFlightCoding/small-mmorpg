@@ -1,0 +1,28 @@
+{
+  "id": "talent.warrior.berserker.bloodthirst",
+  "kind": "talent_node",
+  "displayName": "Bloodthirst",
+  "displayNameKey": "talent.warrior.berserker.bloodthirst.display_name",
+  "descriptionKey": "talent.warrior.berserker.bloodthirst.description",
+  "treeId": "tree.warrior.berserker",
+  "tier": 3,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "conditionalModifiers": [
+    {
+      "conditions": [
+        {
+          "type": "effect_active",
+          "tag": "frenzy"
+        }
+      ],
+      "modifiers": [
+        {
+          "type": "lifesteal_percent",
+          "value": 0.04
+        }
+      ]
+    }
+  ]
+}

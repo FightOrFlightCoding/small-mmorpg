@@ -1,0 +1,18 @@
+{
+  "id": "talent.mage.volatility",
+  "kind": "talent_node",
+  "displayName": "Volatility",
+  "displayNameKey": "talent.mage.volatility.display_name",
+  "descriptionKey": "talent.mage.volatility.description",
+  "treeId": "tree.mage.class",
+  "tier": 1,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "crit_damage_flat",
+      "value": 0.1
+    }
+  ]
+}

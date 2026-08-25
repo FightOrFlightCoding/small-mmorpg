@@ -1,0 +1,31 @@
+{
+  "id": "effect.mystic.malediction.spread",
+  "kind": "effect_definition",
+  "displayName": "spread",
+  "displayNameKey": "effect.mystic.malediction.spread.display_name",
+  "descriptionKey": "effect.mystic.malediction.spread.description",
+  "ownerAbilityId": "ability.mystic.malediction",
+  "effect": {
+    "id": "spread",
+    "type": "propagate_effect",
+    "source": "caster",
+    "target": "primary",
+    "magnitude": {
+      "kind": "constant",
+      "value": 0
+    },
+    "duration": 0,
+    "tickInterval": 0,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "propagate"
+    ],
+    "school": "spell",
+    "propagateOn": "death"
+  },
+  "classification": "compile-time-addition",
+  "compileTimeAddition": true
+}

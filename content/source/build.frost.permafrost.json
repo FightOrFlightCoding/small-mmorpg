@@ -1,0 +1,17 @@
+{
+  "id": "build.frost.permafrost",
+  "kind": "reference_build",
+  "displayName": "Permafrost",
+  "displayNameKey": "build.frost.permafrost.display_name",
+  "descriptionKey": "build.frost.permafrost.description",
+  "branchId": "branch.mage.frost",
+  "statPriority": [
+    "stat.intelligence",
+    "stat.haste"
+  ],
+  "identityKey": "build.frost.permafrost.identity",
+  "pairedNodeIds": [
+    "talent.mage.frost.deep_chill"
+  ],
+  "classification": "canonical"
+}

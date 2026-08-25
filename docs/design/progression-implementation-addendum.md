@@ -1,6 +1,6 @@
 # Progression implementation addendum
 
-Ledger for values that implementation needs but the canonical design does not specify. PROG-01 adds **no new gameplay values**. Later phases must fill a row here before putting an undocumented number into source.
+Ledger for values that implementation needs but the canonical design does not specify. PROG-01 added **no new gameplay values**. PROG-02 recorded schema-required geometry below. Later phases must fill a row here before putting an undocumented number into source.
 
 Do not change §14 compile-time additions merely because they are labeled tunable. Implement those first as written.
 
@@ -37,4 +37,17 @@ None of the rows above are license to retune §9 / §14.
 
 ## Additions
 
-_None in PROG-01._
+### PROG-02
+
+Geometry the schemas require but the design omits. These numbers are **not** canonical design data. They are unused at runtime until a later phase enables the abilities. Reuse existing project values where possible (`project.ability.range.melee` = 40, `test.ability.ranged_bolt` range = 180, `zone.starter` tileSize = 16).
+
+| Stable ID | Value | Purpose | Reason it was required | Affects balance | Tests using it | Canonical design data |
+| --- | --- | --- | --- | --- | --- | --- |
+| `project.ability.range.ranged` | `180` (`test.ability.ranged_bolt`) | Canonical ranged/spell range when design omits units | Schema requires range | yes, if later enabled | `tools/content-build/tests/content-build.test.ts` | no |
+| `project.ability.range.snipe` | `234` (`180 * 1.3`) | Snipe +30% range from §9.2 | Design gives percent, not absolute range | yes, if later enabled | same | no |
+| `project.ability.aoe.radius` | `40` (project melee range) | Whirlwind, Challenge, Flash Freeze, Meteor, party auras fallback radius | Design says melee/nearby without px | yes, if later enabled | same | no |
+| `project.ability.cone.angle_deg` | `60` | Flame Wave cone width | Schema requires cone angle; design omits it | yes, if later enabled | same | no |
+| `project.ability.line.length` | `180` | Piercing Shot line length | Design omits line length; match ranged range | yes, if later enabled | same | no |
+| `project.ability.line.width` | `16` (`zone.starter` tileSize) | Piercing Shot line width | Schema completeness | no until enabled | same | no |
+| `project.ability.vault.distance_px` | `80` (`5 * tileSize 16`) | Vault ~5m mapped onto 16px tiles | Design meters; world is tiled pixels | yes, if later enabled | same | no |
+| `project.ability.party.radius` | `80` (`5 * tileSize 16`) | Blessing/Benediction/Malediction nearby allies/enemies | Design omits party radius | yes, if later enabled | same | no |

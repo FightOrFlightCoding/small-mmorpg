@@ -1,0 +1,17 @@
+{
+  "id": "branch.marksman.sniper",
+  "kind": "branch_definition",
+  "classId": "class.marksman",
+  "displayName": "Sniper",
+  "displayNameKey": "branch.marksman.sniper.display_name",
+  "descriptionKey": "branch.marksman.sniper.description",
+  "roleKey": "branch.marksman.sniper.role",
+  "signatureAbilityId": "ability.marksman.snipe",
+  "capstoneAbilityId": "ability.marksman.coup_de_grace",
+  "branchTreeId": "tree.marksman.sniper",
+  "recommendedBuildIds": [
+    "build.sniper.deadeye",
+    "build.sniper.quickdraw"
+  ],
+  "classification": "canonical"
+}

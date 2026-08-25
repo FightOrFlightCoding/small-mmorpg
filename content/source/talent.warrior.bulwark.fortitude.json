@@ -1,0 +1,18 @@
+{
+  "id": "talent.warrior.bulwark.fortitude",
+  "kind": "talent_node",
+  "displayName": "Fortitude",
+  "displayNameKey": "talent.warrior.bulwark.fortitude.display_name",
+  "descriptionKey": "talent.warrior.bulwark.fortitude.description",
+  "treeId": "tree.warrior.bulwark",
+  "tier": 1,
+  "maxRank": 2,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "max_hp_percent",
+      "value": 0.05
+    }
+  ]
+}

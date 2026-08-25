@@ -1,0 +1,22 @@
+{
+  "id": "talent.warrior.berserker.reckless",
+  "kind": "talent_node",
+  "displayName": "Reckless",
+  "displayNameKey": "talent.warrior.berserker.reckless.display_name",
+  "descriptionKey": "talent.warrior.berserker.reckless.description",
+  "treeId": "tree.warrior.berserker",
+  "tier": 3,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "damage_dealt_percent",
+      "value": 0.1
+    },
+    {
+      "type": "damage_taken_percent",
+      "value": 0.05
+    }
+  ]
+}

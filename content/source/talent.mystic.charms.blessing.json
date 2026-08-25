@@ -1,0 +1,13 @@
+{
+  "id": "talent.mystic.charms.blessing",
+  "kind": "talent_node",
+  "displayName": "Blessing",
+  "displayNameKey": "talent.mystic.charms.blessing.display_name",
+  "descriptionKey": "talent.mystic.charms.blessing.description",
+  "treeId": "tree.mystic.charms",
+  "tier": 2,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "grantsActiveAbilityId": "ability.mystic.blessing"
+}

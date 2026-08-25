@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { writeOutputs, buildPackage, toContentBundle } from "./emit";
+import { writeGeneratedConveniences } from "./emit_report";
 import { loadSourceDocuments } from "./load";
 import { defaultManifestPath, loadPackageManifest, type ContentPackageManifest } from "./registry";
 import type { ContentBundle, ContentPackage } from "./types";
@@ -60,5 +61,10 @@ export function generateContent(options: GenerateOptions): ContentBundle {
   const pkg = compileContentPackage(resolved);
   const bundle = toContentBundle(pkg);
   writeOutputs(resolved.serverOut, resolved.clientOut, bundle);
+  writeGeneratedConveniences(
+    bundle,
+    join(resolved.root, "content", "reports", "canonical-progression.md"),
+    join(resolved.root, "client", "content", "generated"),
+  );
   return bundle;
 }

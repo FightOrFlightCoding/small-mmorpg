@@ -1,0 +1,23 @@
+{
+  "id": "talent.mystic.compassion",
+  "kind": "talent_node",
+  "displayName": "Compassion",
+  "displayNameKey": "talent.mystic.compassion.display_name",
+  "descriptionKey": "talent.mystic.compassion.description",
+  "treeId": "tree.mystic.class",
+  "tier": 1,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "abilityModifications": [
+    {
+      "abilityId": "ability.mystic.fateweave",
+      "modifiers": [
+        {
+          "type": "ability_heal_percent",
+          "value": 0.2
+        }
+      ]
+    }
+  ]
+}

@@ -132,11 +132,15 @@ export function abilityDefinitionsFromContent(abilities: {
     soundAssetId: string;
     skillPointCost?: number;
     maxRank?: number;
+    runtimeEnabled?: boolean;
   };
 }): { [id: string]: AbilityDefinition } {
   const map: { [id: string]: AbilityDefinition } = {};
   const ids = Object.keys(abilities);
   for (let i = 0; i < ids.length; i++) {
+    if (abilities[ids[i]].runtimeEnabled === false) {
+      continue;
+    }
     map[ids[i]] = copyAbility(abilities[ids[i]]);
   }
   return map;

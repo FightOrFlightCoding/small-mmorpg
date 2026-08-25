@@ -1,0 +1,32 @@
+{
+  "id": "talent.marksman.sniper.snipers_nest",
+  "kind": "talent_node",
+  "displayName": "Sniper's Nest",
+  "displayNameKey": "talent.marksman.sniper.snipers_nest.display_name",
+  "descriptionKey": "talent.marksman.sniper.snipers_nest.description",
+  "treeId": "tree.marksman.sniper",
+  "tier": 3,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "conditionalModifiers": [
+    {
+      "conditions": [
+        {
+          "type": "standing_still",
+          "duration": 2
+        }
+      ],
+      "modifiers": [
+        {
+          "type": "damage_dealt_percent",
+          "value": 0.1
+        },
+        {
+          "type": "cooldown_recovery_percent",
+          "value": 0.25
+        }
+      ]
+    }
+  ]
+}

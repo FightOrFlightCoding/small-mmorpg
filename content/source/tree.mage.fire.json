@@ -1,0 +1,38 @@
+{
+  "id": "tree.mage.fire",
+  "kind": "talent_tree",
+  "displayName": "tree.mage.fire",
+  "displayNameKey": "tree.mage.fire.display_name",
+  "descriptionKey": "tree.mage.fire.description",
+  "treeKind": "branch",
+  "ownerId": "branch.mage.fire",
+  "pointsAvailable": 6,
+  "nodeIds": [
+    "talent.mage.fire.fireball_r2",
+    "talent.mage.fire.afterburn",
+    "talent.mage.fire.kindled_mind",
+    "talent.mage.fire.fireball_r3",
+    "talent.mage.fire.flame_wave",
+    "talent.mage.fire.detonation",
+    "talent.mage.fire.second_spark",
+    "talent.mage.fire.flame_wave_r2"
+  ],
+  "classification": "canonical",
+  "maxActiveGrants": 1,
+  "tierGates": [
+    {
+      "tier": 1,
+      "minLevel": 5,
+      "minPointsSpent": 0
+    },
+    {
+      "tier": 2,
+      "minPointsSpent": 2
+    },
+    {
+      "tier": 3,
+      "minLevel": 9,
+      "minPointsSpent": 4
+    }
+  ]
+}

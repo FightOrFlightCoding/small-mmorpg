@@ -1,0 +1,18 @@
+{
+  "id": "build.charms.battle_medic",
+  "kind": "reference_build",
+  "displayName": "Battle Medic",
+  "displayNameKey": "build.charms.battle_medic.display_name",
+  "descriptionKey": "build.charms.battle_medic.description",
+  "branchId": "branch.mystic.charms",
+  "statPriority": [
+    "stat.spirit",
+    "stat.vitality"
+  ],
+  "identityKey": "build.charms.battle_medic.identity",
+  "pairedNodeIds": [
+    "talent.mystic.charms.devotion",
+    "talent.mystic.charms.mending_ward"
+  ],
+  "classification": "canonical"
+}

@@ -1,4 +1,4 @@
-# Canonical design-data audit (PROG-01). Does not change gameplay content.
+# Canonical design-data audit plus PROG-02 live catalog snapshot. Does not enable new gameplay.
 $ErrorActionPreference = "Stop"
 . "$PSScriptRoot\_common.ps1"
 $RepoRoot = Get-RepoRoot

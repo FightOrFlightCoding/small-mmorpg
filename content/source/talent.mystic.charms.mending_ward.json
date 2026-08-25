@@ -1,0 +1,23 @@
+{
+  "id": "talent.mystic.charms.mending_ward",
+  "kind": "talent_node",
+  "displayName": "Mending Ward",
+  "displayNameKey": "talent.mystic.charms.mending_ward.display_name",
+  "descriptionKey": "talent.mystic.charms.mending_ward.description",
+  "treeId": "tree.mystic.charms",
+  "tier": 2,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "abilityModifications": [
+    {
+      "abilityId": "ability.mystic.protective_charm",
+      "modifiers": [
+        {
+          "type": "ability_heal_percent",
+          "value": 0.02
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "talent.mage.frost.winter_harvest",
+  "kind": "talent_node",
+  "displayName": "Winter Harvest",
+  "displayNameKey": "talent.mage.frost.winter_harvest.display_name",
+  "descriptionKey": "talent.mage.frost.winter_harvest.description",
+  "treeId": "tree.mage.frost",
+  "tier": 3,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "mana_regen_flat",
+      "value": 0.5
+    }
+  ]
+}

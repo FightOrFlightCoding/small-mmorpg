@@ -1,0 +1,88 @@
+{
+  "id": "ability.marksman.coup_de_grace",
+  "kind": "ability",
+  "displayName": "Coup de Grâce",
+  "displayNameKey": "ability.marksman.coup_de_grace.display_name",
+  "descriptionKey": "ability.marksman.coup_de_grace.description",
+  "targetMode": "entity",
+  "relationFilter": "hostile",
+  "range": 180,
+  "minimumRange": 0,
+  "areaShape": "none",
+  "areaRadius": 0,
+  "castTime": 0,
+  "channelTime": 0,
+  "globalCooldown": 0,
+  "individualCooldown": 60,
+  "resourceCosts": [],
+  "movementInterruptsCast": false,
+  "damageInterruptsCast": false,
+  "requiredLevel": 10,
+  "requiredClassTags": [
+    "class.marksman"
+  ],
+  "prerequisites": [],
+  "effects": [
+    {
+      "id": "hit",
+      "type": "direct_damage",
+      "source": "caster",
+      "target": "primary",
+      "magnitude": {
+        "kind": "stat_id",
+        "statId": "stat.agility",
+        "value": 70,
+        "scale": 0.01
+      },
+      "duration": 0,
+      "tickInterval": 0,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "ranged",
+        "capstone"
+      ],
+      "school": "ranged",
+      "guaranteedCrit": true,
+      "cooldownResetOnKill": true
+    },
+    {
+      "id": "reset",
+      "type": "cooldown_reset_on_kill",
+      "source": "caster",
+      "target": "primary",
+      "magnitude": {
+        "kind": "constant",
+        "value": 0
+      },
+      "duration": 0,
+      "tickInterval": 0,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "reset"
+      ],
+      "school": "ranged"
+    }
+  ],
+  "effectIds": [
+    "effect.marksman.coup_de_grace.hit",
+    "effect.marksman.coup_de_grace.reset"
+  ],
+  "animationAssetId": "visual.ability_bolt",
+  "iconAssetId": "visual.ability_bolt_icon",
+  "soundAssetId": "visual.ability_bolt_sound",
+  "skillPointCost": 0,
+  "maxRank": 1,
+  "runtimeEnabled": false,
+  "abilityCategory": "capstone",
+  "ownerClassId": "class.marksman",
+  "school": "ranged",
+  "classification": "canonical",
+  "compileTimeAddition": false,
+  "ownerBranchId": "branch.marksman.sniper"
+}

@@ -1,0 +1,68 @@
+{
+  "id": "ability.mystic.evil_eye",
+  "kind": "ability",
+  "displayName": "Evil Eye",
+  "displayNameKey": "ability.mystic.evil_eye.display_name",
+  "descriptionKey": "ability.mystic.evil_eye.description",
+  "targetMode": "entity",
+  "relationFilter": "hostile",
+  "range": 180,
+  "minimumRange": 0,
+  "areaShape": "none",
+  "areaRadius": 0,
+  "castTime": 0,
+  "channelTime": 0,
+  "globalCooldown": 0,
+  "individualCooldown": 12,
+  "resourceCosts": [
+    {
+      "resourceId": "test.resource.mana",
+      "amount": 15
+    }
+  ],
+  "movementInterruptsCast": false,
+  "damageInterruptsCast": false,
+  "requiredLevel": 5,
+  "requiredClassTags": [
+    "class.mystic"
+  ],
+  "prerequisites": [],
+  "effects": [
+    {
+      "id": "taken",
+      "type": "timed_stat_modifier",
+      "source": "caster",
+      "target": "primary",
+      "magnitude": {
+        "kind": "constant",
+        "value": 0.15
+      },
+      "duration": 8,
+      "tickInterval": 0,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "debuff"
+      ],
+      "school": "none",
+      "statChannel": "damage_taken"
+    }
+  ],
+  "effectIds": [
+    "effect.mystic.evil_eye.taken"
+  ],
+  "animationAssetId": "visual.ability_dot",
+  "iconAssetId": "visual.ability_dot_icon",
+  "soundAssetId": "visual.ability_dot_sound",
+  "skillPointCost": 0,
+  "maxRank": 1,
+  "runtimeEnabled": false,
+  "abilityCategory": "tree_active",
+  "ownerClassId": "class.mystic",
+  "school": "spell",
+  "classification": "compile-time-addition",
+  "compileTimeAddition": true,
+  "ownerBranchId": "branch.mystic.curses"
+}

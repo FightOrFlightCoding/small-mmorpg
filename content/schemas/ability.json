@@ -48,7 +48,7 @@
     "minimumRange": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
     "areaShape": {
       "type": "string",
-      "enum": ["none", "circle"]
+      "enum": ["none", "circle", "cone", "line", "ground"]
     },
     "areaRadius": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
     "castTime": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
@@ -80,6 +80,29 @@
     "soundAssetId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
     "skillPointCost": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
     "maxRank": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+    "runtimeEnabled": { "type": "boolean" },
+    "abilityCategory": {
+      "type": "string",
+      "enum": ["auto_attack", "basic", "signature", "capstone", "tree_active", "passive"]
+    },
+    "ownerClassId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "ownerBranchId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "school": {
+      "type": "string",
+      "enum": ["melee", "ranged", "spell", "heal", "none"]
+    },
+    "hitCount": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+    "independentCrit": { "type": "boolean" },
+    "delay": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "coneAngleDegrees": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "lineWidth": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "lineLength": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "effectIds": {
+      "type": "array",
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+    },
+    "classification": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentClassification" },
+    "compileTimeAddition": { "type": "boolean" },
     "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
     "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
   }

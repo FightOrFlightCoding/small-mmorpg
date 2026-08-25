@@ -1,0 +1,17 @@
+{
+  "id": "branch.mage.frost",
+  "kind": "branch_definition",
+  "classId": "class.mage",
+  "displayName": "Frost",
+  "displayNameKey": "branch.mage.frost.display_name",
+  "descriptionKey": "branch.mage.frost.description",
+  "roleKey": "branch.mage.frost.role",
+  "signatureAbilityId": "ability.mage.ice_bolt",
+  "capstoneAbilityId": "ability.mage.absolute_zero",
+  "branchTreeId": "tree.mage.frost",
+  "recommendedBuildIds": [
+    "build.frost.glacier",
+    "build.frost.permafrost"
+  ],
+  "classification": "canonical"
+}

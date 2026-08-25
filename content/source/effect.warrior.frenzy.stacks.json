@@ -1,0 +1,31 @@
+{
+  "id": "effect.warrior.frenzy.stacks",
+  "kind": "effect_definition",
+  "displayName": "stacks",
+  "displayNameKey": "effect.warrior.frenzy.stacks.display_name",
+  "descriptionKey": "effect.warrior.frenzy.stacks.description",
+  "ownerAbilityId": "ability.warrior.frenzy",
+  "effect": {
+    "id": "stacks",
+    "type": "passive_stacker",
+    "source": "caster",
+    "target": "self",
+    "magnitude": {
+      "kind": "constant",
+      "value": 0.05
+    },
+    "duration": 5,
+    "tickInterval": 0,
+    "stackPolicy": "stack",
+    "maxStacks": 3,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "frenzy",
+      "passive"
+    ],
+    "school": "none"
+  },
+  "classification": "canonical",
+  "compileTimeAddition": false
+}

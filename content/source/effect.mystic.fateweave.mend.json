@@ -1,0 +1,39 @@
+{
+  "id": "effect.mystic.fateweave.mend",
+  "kind": "effect_definition",
+  "displayName": "mend",
+  "displayNameKey": "effect.mystic.fateweave.mend.display_name",
+  "descriptionKey": "effect.mystic.fateweave.mend.description",
+  "ownerAbilityId": "ability.mystic.fateweave",
+  "effect": {
+    "id": "mend",
+    "type": "direct_heal",
+    "source": "caster",
+    "target": "primary",
+    "magnitude": {
+      "kind": "stat_id",
+      "statId": "stat.spirit",
+      "value": 22,
+      "scale": 0.01
+    },
+    "duration": 0,
+    "tickInterval": 0,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "heal",
+      "mend"
+    ],
+    "school": "heal",
+    "conditions": [
+      {
+        "type": "target_relation",
+        "relation": "friendly"
+      }
+    ]
+  },
+  "classification": "canonical",
+  "compileTimeAddition": false
+}

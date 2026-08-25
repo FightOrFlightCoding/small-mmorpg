@@ -44,7 +44,7 @@ import {
   SELECTION_TICKET_TTL_MS,
   type SelectionTicket,
 } from "./character_ticket";
-import { classExists, migrationDefaultClassId, type ClassDefinition } from "./class_catalog";
+import { classExists, isRosterSelectable, migrationDefaultClassId, type ClassDefinition } from "./class_catalog";
 import {
   accountLeaseBlocksDelete,
   accountLeaseBlocksOtherCharacter,
@@ -455,7 +455,7 @@ export function createCharacterRecord(
   if (!validated.ok) {
     throw new Error(validated.reason);
   }
-  if (!classExists(deps.classes, classId)) {
+  if (!classExists(deps.classes, classId) || !isRosterSelectable(deps.classes, classId)) {
     throw new Error("invalid_class");
   }
   purgeExpiredCharacters(userId, deps);

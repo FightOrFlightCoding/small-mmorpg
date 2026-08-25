@@ -1,0 +1,18 @@
+{
+  "id": "talent.mage.ward",
+  "kind": "talent_node",
+  "displayName": "Ward",
+  "displayNameKey": "talent.mage.ward.display_name",
+  "descriptionKey": "talent.mage.ward.description",
+  "treeId": "tree.mage.class",
+  "tier": 1,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "damage_reduction_percent",
+      "value": 0.05
+    }
+  ]
+}

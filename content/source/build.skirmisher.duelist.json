@@ -1,0 +1,17 @@
+{
+  "id": "build.skirmisher.duelist",
+  "kind": "reference_build",
+  "displayName": "Duelist",
+  "displayNameKey": "build.skirmisher.duelist.display_name",
+  "descriptionKey": "build.skirmisher.duelist.description",
+  "branchId": "branch.marksman.skirmisher",
+  "statPriority": [
+    "stat.agility",
+    "stat.precision"
+  ],
+  "identityKey": "build.skirmisher.duelist.identity",
+  "pairedNodeIds": [
+    "talent.marksman.skirmisher.twist_the_knife"
+  ],
+  "classification": "canonical"
+}

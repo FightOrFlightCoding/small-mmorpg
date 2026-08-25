@@ -1,0 +1,33 @@
+{
+  "id": "talent.mystic.charms.protective_charm_r3",
+  "kind": "talent_node",
+  "displayName": "Protective Charm R3",
+  "displayNameKey": "talent.mystic.charms.protective_charm_r3.display_name",
+  "descriptionKey": "talent.mystic.charms.protective_charm_r3.description",
+  "treeId": "tree.mystic.charms",
+  "tier": 2,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "prerequisites": [
+    {
+      "nodeId": "talent.mystic.charms.protective_charm_r2",
+      "minRank": 1
+    }
+  ],
+  "rankReplacement": {
+    "nodeId": "talent.mystic.charms.protective_charm_r2",
+    "abilityId": "ability.mystic.protective_charm"
+  },
+  "abilityModifications": [
+    {
+      "abilityId": "ability.mystic.protective_charm",
+      "modifiers": [
+        {
+          "type": "on_shield_break_heal_percent",
+          "value": 0.15
+        }
+      ]
+    }
+  ]
+}

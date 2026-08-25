@@ -1,0 +1,105 @@
+{
+  "id": "ability.mystic.fateweave",
+  "kind": "ability",
+  "displayName": "Fateweave",
+  "displayNameKey": "ability.mystic.fateweave.display_name",
+  "descriptionKey": "ability.mystic.fateweave.description",
+  "targetMode": "entity",
+  "relationFilter": "any",
+  "range": 180,
+  "minimumRange": 0,
+  "areaShape": "none",
+  "areaRadius": 0,
+  "castTime": 1.8,
+  "channelTime": 0,
+  "globalCooldown": 0,
+  "individualCooldown": 0,
+  "resourceCosts": [
+    {
+      "resourceId": "test.resource.mana",
+      "amount": 12
+    }
+  ],
+  "movementInterruptsCast": true,
+  "damageInterruptsCast": false,
+  "requiredLevel": 2,
+  "requiredClassTags": [
+    "class.mystic"
+  ],
+  "prerequisites": [],
+  "effects": [
+    {
+      "id": "harm",
+      "type": "direct_damage",
+      "source": "caster",
+      "target": "primary",
+      "magnitude": {
+        "kind": "stat_id",
+        "statId": "stat.intelligence",
+        "value": 20,
+        "scale": 0.01
+      },
+      "duration": 0,
+      "tickInterval": 0,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "spell",
+        "harm"
+      ],
+      "school": "spell",
+      "conditions": [
+        {
+          "type": "target_relation",
+          "relation": "hostile"
+        }
+      ]
+    },
+    {
+      "id": "mend",
+      "type": "direct_heal",
+      "source": "caster",
+      "target": "primary",
+      "magnitude": {
+        "kind": "stat_id",
+        "statId": "stat.spirit",
+        "value": 22,
+        "scale": 0.01
+      },
+      "duration": 0,
+      "tickInterval": 0,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "heal",
+        "mend"
+      ],
+      "school": "heal",
+      "conditions": [
+        {
+          "type": "target_relation",
+          "relation": "friendly"
+        }
+      ]
+    }
+  ],
+  "effectIds": [
+    "effect.mystic.fateweave.harm",
+    "effect.mystic.fateweave.mend"
+  ],
+  "animationAssetId": "visual.ability_bolt",
+  "iconAssetId": "visual.ability_bolt_icon",
+  "soundAssetId": "visual.ability_bolt_sound",
+  "skillPointCost": 0,
+  "maxRank": 1,
+  "runtimeEnabled": false,
+  "abilityCategory": "basic",
+  "ownerClassId": "class.mystic",
+  "school": "spell",
+  "classification": "canonical",
+  "compileTimeAddition": false
+}

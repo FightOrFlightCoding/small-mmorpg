@@ -1,0 +1,19 @@
+{
+  "id": "enemy.scaling.elite",
+  "kind": "enemy_scaling_profile",
+  "displayName": "Elite",
+  "displayNameKey": "enemy.scaling.elite.display_name",
+  "descriptionKey": "enemy.scaling.elite.description",
+  "hpIntercept": 40,
+  "hpPerLevel": 8,
+  "damageIntercept": 2,
+  "damagePerLevel": 0.5,
+  "swingInterval": 2,
+  "killXpIntercept": 8,
+  "killXpPerLevel": 2,
+  "hpMultiplier": 3,
+  "damageMultiplier": 2,
+  "killXpMultiplier": 3,
+  "classification": "compile-time-addition",
+  "compileTimeAddition": true
+}
