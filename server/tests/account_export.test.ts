@@ -78,3 +78,35 @@ test("assembled export includes project records and excludes hmac", () => {
   assert.equal(isSecretExportKey("passwordHash"), true);
   assert.equal(ACCOUNT_EXPORT_TTL_MS, 300000);
 });
+
+test("assembled export keeps canonical progression fields", () => {
+  const payload = assembleAccountExport({
+    accountUserId: "user-old",
+    exportedAt: 50,
+    characters: [
+      {
+        characterId: "c1",
+        name: "Scout",
+        classId: "class.warrior",
+        progression: {
+          progressionSchemaVersion: 2,
+          classId: "class.warrior",
+          branchId: "",
+          level: 1,
+          xpIntoLevel: 0,
+          lifetimeXp: 0,
+          freeStatAllocations: {},
+          purchasedClassNodeIds: [],
+          purchasedBranchNodeRanks: {},
+          autoAssignEnabled: false,
+          hotbarAssignments: [],
+        },
+      },
+    ],
+  });
+  const characters = payload.characters as Array<{ progression: { [key: string]: unknown } }>;
+  assert.equal(characters[0].progression.classId, "class.warrior");
+  assert.equal(characters[0].progression.progressionSchemaVersion, 2);
+  assert.equal(characters[0].progression.level, 1);
+  assert.equal(exportContainsSecrets(payload), false);
+});

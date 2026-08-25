@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 
-## Five-slot Character Select, three class cards, Recently Deleted.
+## Five-slot Character Select, four class cards, Recently Deleted.
 
 
 func before_test() -> void:
@@ -19,7 +19,7 @@ func after_test() -> void:
 	WindowManager.reset_for_tests()
 
 
-func test_five_slots_and_three_production_class_cards() -> void:
+func test_five_slots_and_four_production_class_cards() -> void:
 	var fake := FakeNetworkBackend.new()
 	NetworkService.backend = fake
 	AppState.is_authenticated = true
@@ -28,7 +28,7 @@ func test_five_slots_and_three_production_class_cards() -> void:
 	await await_idle_frame()
 	await await_idle_frame()
 	var class_row: Node = scene.get_node("Root/VBox/CreatePanel/ClassRow")
-	assert_int(class_row.get_child_count()).is_equal(3)
+	assert_int(class_row.get_child_count()).is_equal(4)
 	var names := PackedStringArray()
 	for child in class_row.get_children():
 		if child is Button:
@@ -36,6 +36,7 @@ func test_five_slots_and_three_production_class_cards() -> void:
 	assert_bool(names.has("class.warrior")).is_true()
 	assert_bool(names.has("class.marksman")).is_true()
 	assert_bool(names.has("class.mage")).is_true()
+	assert_bool(names.has("class.mystic")).is_true()
 	var slot_row: Node = scene.get_node("Root/VBox/SelectPanel/SlotRow")
 	assert_int(slot_row.get_child_count()).is_equal(5)
 	assert_str(String(scene.get_node("Root/VBox/SelectPanel/NavRow/CreateButton").text)).is_equal("Create Character")

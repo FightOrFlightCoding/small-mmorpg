@@ -51,3 +51,13 @@ Geometry the schemas require but the design omits. These numbers are **not** can
 | `project.ability.line.width` | `16` (`zone.starter` tileSize) | Piercing Shot line width | Schema completeness | no until enabled | same | no |
 | `project.ability.vault.distance_px` | `80` (`5 * tileSize 16`) | Vault ~5m mapped onto 16px tiles | Design meters; world is tiled pixels | yes, if later enabled | same | no |
 | `project.ability.party.radius` | `80` (`5 * tileSize 16`) | Blessing/Benediction/Malediction nearby allies/enemies | Design omits party radius | yes, if later enabled | same | no |
+
+### PROG-03
+
+Project defaults required to persist the canonical progression record. These numbers are **not** canonical design data.
+
+| Stable ID | Value | Purpose | Reason it was required | Affects balance | Tests using it | Canonical design data |
+| --- | --- | --- | --- | --- | --- | --- |
+| `project.progression.schema_version` | `2` (`progressionSchemaVersion`; `SAVE_SCHEMA_VERSION` stays `1`) | Distinguish canonical progression fields from Foundation v1 blobs | Design field `schema_version` without a numeric value | no | `server/tests/canonical_progression.test.ts` | no |
+| `project.progression.auto_assign_default` | `false` (`CANONICAL_AUTO_ASSIGN_DEFAULT`) | New and migrated characters start with auto-assign off | Design does not specify the create-time default | no | same | no |
+

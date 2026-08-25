@@ -63,7 +63,7 @@ import { tryAcquireEnteringLease, readGameplayLease, writeGameplayLease } from "
 import { liveGameplayLease, markLeaseLeaving, serverInstanceIdentifier, LINK_DEAD_MS } from "../domain/gameplay_lease";
 import { readSelection, writeSelection } from "./selection_store";
 import { catalogFromContent, syncCombatStatsFromPipeline } from "../domain/stats";
-import { initializeProgression } from "../domain/progression";
+import { initializeProgression, migrateToCanonicalProgression } from "../domain/progression";
 import { abilityDefinitionsFromContent, prepareJoinedPlayerAbilities, startingAbilitiesForClass } from "../domain/ability";
 import { spawnDefinitionsFromContent } from "../domain/spawn_controller";
 import { aiProfilesFromContent } from "../domain/threat";
@@ -1581,18 +1581,22 @@ function loadPlayerProgression(
   character: { characterId: string; classId?: string },
 ) {
   const existing = readProgression(nk, userId, character.characterId);
-  if (existing !== null) {
-    return { progression: existing, created: false };
-  }
   const classId = character.classId !== undefined ? character.classId : "";
   const catalog = catalogFromContent(content);
-  const progression = initializeProgression(catalog, classId);
   const now = Date.now();
-  progression.schemaVersion = SAVE_SCHEMA_VERSION;
-  progression.createdAt = now;
-  progression.updatedAt = now;
-  writeProgressionOnce(nk, userId, progression, character.characterId);
-  return { progression: progression, created: true };
+  const ensured = migrateToCanonicalProgression(existing, classId, now, catalog);
+  ensured.progression.schemaVersion = SAVE_SCHEMA_VERSION;
+  if (existing === null) {
+    ensured.progression.createdAt = now;
+    ensured.progression.updatedAt = now;
+    writeProgressionOnce(nk, userId, ensured.progression, character.characterId);
+    return { progression: ensured.progression, created: true };
+  }
+  if (ensured.changed) {
+    ensured.progression.updatedAt = now;
+    writeProgression(nk, userId, ensured.progression, character.characterId);
+  }
+  return { progression: ensured.progression, created: false };
 }
 
 function applyJoinDerived(zone: StarterZoneState, player: MatchPlayer): void {

@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "8c56593b927213002912b60560dbe149868407ddac501e88019b0c9ba364fa1f";
+export const contentHash = "3b57502b4a197972c970420cd7b2a5a74955311b5840be0b4d184843c24e3320";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = ["npc.lab_exit","npc.lab_inn","npc.lab_keeper","npc.lab_trainer","npc.lab_vendor","quest.lab_tour","spawn.lab.boss","spawn.lab.caster","spawn.lab.melee","spawn.lab.ranged","test.zone.systems_lab","vendor.lab_general"] as const;
 export const content = {
@@ -3188,8 +3188,7 @@ export const content = {
       "kind": "class_progression",
       "levelCurveId": "test.curve.standard",
       "resourceGrowth": {
-        "test.resource.health": 4,
-        "test.resource.mana": 2
+        "test.resource.health": 4
       },
       "skillPointRules": {
         "pointsAtCreate": 0
@@ -3203,8 +3202,7 @@ export const content = {
         "test.stat.attack": 3
       },
       "startingResources": {
-        "test.resource.health": 90,
-        "test.resource.mana": 30
+        "test.resource.health": 90
       }
     },
     "progression.mystic": {
@@ -3264,8 +3262,7 @@ export const content = {
       "kind": "class_progression",
       "levelCurveId": "test.curve.standard",
       "resourceGrowth": {
-        "test.resource.health": 5,
-        "test.resource.mana": 0
+        "test.resource.health": 5
       },
       "skillPointRules": {
         "pointsAtCreate": 0
@@ -3279,8 +3276,7 @@ export const content = {
         "test.stat.attack": 4
       },
       "startingResources": {
-        "test.resource.health": 100,
-        "test.resource.mana": 20
+        "test.resource.health": 100
       }
     },
     "test.progression.arcanist": {
@@ -3576,8 +3572,7 @@ export const content = {
         }
       ],
       "startingResources": {
-        "test.resource.health": 90,
-        "test.resource.mana": 30
+        "test.resource.health": 90
       },
       "tags": [
         "marksman",
@@ -3648,17 +3643,14 @@ export const content = {
       "progressionId": "progression.mystic",
       "resourceType": "test.resource.mana",
       "roleSummaryKey": "class.mystic.role_summary",
-      "rosterSelectable": false,
+      "rosterSelectable": true,
       "selectOrder": 4,
-      "shortDescription": "Support caster. Canonical roster data only; not selectable yet.",
+      "shortDescription": "Support, healing, buffs, debuffs, and curses. Mana-based caster.",
       "shortDescriptionKey": "class.mystic.short_description",
       "skillPointPolicy": {
         "pointsAtCreate": 0
       },
-      "startingAbilities": [
-        "test.ability.basic_melee",
-        "test.ability.ranged_bolt"
-      ],
+      "startingAbilities": [],
       "startingAttributes": {
         "test.attribute.focus": 7,
         "test.attribute.might": 2,
@@ -3765,8 +3757,7 @@ export const content = {
         }
       ],
       "startingResources": {
-        "test.resource.health": 100,
-        "test.resource.mana": 20
+        "test.resource.health": 100
       },
       "tags": [
         "warrior",

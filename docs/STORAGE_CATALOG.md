@@ -223,17 +223,17 @@ Value: `{ schemaVersion, createdAt, updatedAt, currencies: ["gold"] }`.
 | Scope             | Account-scoped; key `progression_<compactCharacterId>`                                                     |
 | `permissionRead`  | 1                                                                                                          |
 | `permissionWrite` | 0                                                                                                          |
-| Schema version    | 1 (`schemaVersion` envelope plus `progressionSchemaVersion`)                                               |
-| Creation          | Join initializes level 1, 0 XP, class `pointsAtCreate`, class `startingAbilities` when the blob is missing |
-| Read              | `matchJoin`                                                                                                |
-| Update            | Kill credit, quest XP, admin domain grant, attribute allocation, ability unlock, hotbar assignment, request-id prune |
+| Schema version    | 1 (`schemaVersion` envelope) plus `progressionSchemaVersion` **2**                                 |
+| Creation          | Character create initializes canonical level 1, 0 XP, empty free/class/branch purchases. Missing blobs on join/list/export initialize then persist. |
+| Read              | `character_list`, `matchJoin`, account export, support snapshot                                                                                                |
+| Update            | Kill credit, quest XP, admin domain grant, attribute allocation, ability unlock, hotbar assignment, request-id prune; canonical migrate on load |
 | Concurrency       | OCC `storageWriteRetry`                                                                                    |
-| Migration         | Missing is not join-fatal: initialize and persist once. Present v0 → v1 on load                            |
-| Deletion          | None (character soft-delete leaves the blob)                                                               |
+| Migration         | v1 → canonical v2 on load (class/level/XP preserved). Missing is not join-fatal. Present v0 → v1 save envelope still applies |
+| Deletion          | Soft-delete leaves the blob; character purge and account deletion remove it                                |
 | Client access     | Mirror via `FULL_STATE.progression` / `PROGRESSION_STATE`. Client never sends XP amounts.                  |
 
 
-Value: `{ schemaVersion, createdAt, updatedAt, level, currentXp, lifetimeXp, allocatedAttributes, unspentAttributePoints, unspentSkillPoints, unlockedAbilityIds, hotbar?, abilityRanks?, assignHotbarByRequestId?, unlockAbilityByRequestId?, hotbarRequestTicks?, unlockRequestTicks?, progressionSchemaVersion, xpByEventId, allocateByRequestId, xpEventTicks?, allocateRequestTicks? }`. Allocations are never negative. Client hotbar state is not proof of ownership.
+Value: `{ schemaVersion, createdAt, updatedAt, level, currentXp, lifetimeXp, allocatedAttributes, unspentAttributePoints, unspentSkillPoints, unlockedAbilityIds, hotbar?, abilityRanks?, assignHotbarByRequestId?, unlockAbilityByRequestId?, hotbarRequestTicks?, unlockRequestTicks?, progressionSchemaVersion, xpByEventId, allocateByRequestId, xpEventTicks?, allocateRequestTicks?, classId, branchId, xpIntoLevel, freeStatAllocations, purchasedClassNodeIds, purchasedBranchNodeRanks, autoAssignEnabled, hotbarAssignments }`. Allocations are never negative. Point balances and derived stats are calculated, not trusted from the client. Client hotbar state is not proof of ownership.
 
 ## `match` / `starter_zone`
 

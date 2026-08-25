@@ -20,8 +20,7 @@
     "test.attribute.focus": 4
   },
   "startingResources": {
-    "test.resource.health": 90,
-    "test.resource.mana": 30
+    "test.resource.health": 90
   },
   "attributePointPolicy": { "pointsAtCreate": 0 },
   "skillPointPolicy": { "pointsAtCreate": 0 },

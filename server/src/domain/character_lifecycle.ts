@@ -55,6 +55,8 @@ import {
 } from "./gameplay_lease";
 import { publicWorldLocation, type ActiveLocation } from "./instance";
 import type { CharacterProgression } from "./progression";
+import { migrateToCanonicalProgression } from "./progression";
+import type { ProgressionCatalog } from "./stats";
 import {
   emptyPurgeJob,
   PURGE_STEPS,
@@ -121,6 +123,24 @@ const STAT_INJECTION_KEYS = [
   "unspentAttributePoints",
   "unspentSkillPoints",
   "allocatedAttributes",
+  "xpIntoLevel",
+  "branchId",
+  "freeStatAllocations",
+  "purchasedClassNodeIds",
+  "purchasedBranchNodeRanks",
+  "autoAssignEnabled",
+  "hotbarAssignments",
+  "classPoints",
+  "branchPoints",
+  "abilities",
+  "startingAbilities",
+  "startingEquipment",
+  "equipment",
+  "inventory",
+  "unlockedAbilityIds",
+  "hotbar",
+  "mana",
+  "currentHealth",
 ];
 
 export interface CharacterCreateRequest {
@@ -195,6 +215,8 @@ export interface CharacterLifecycleDeps {
   writeLocation?: (userId: string, location: ActiveLocation) => void;
   logLeaseRepair?: (userId: string, matchId: string, reason: string) => void;
   readProgression?: (userId: string, characterId: string) => CharacterProgression | null;
+  writeProgression?: (userId: string, characterId: string, progression: CharacterProgression) => void;
+  progressionCatalog?: ProgressionCatalog;
   readLocation?: (userId: string, characterId: string) => ActiveLocation | null;
   readIdempotency?: (userId: string, operation: string, key: string) => { [key: string]: unknown } | null;
   writeIdempotency?: (userId: string, operation: string, key: string, result: { [key: string]: unknown }) => void;
@@ -211,20 +233,38 @@ export function characterListEntry(record: StoredCharacter, accountUserId: strin
   const lease = deps !== undefined && deps.readLease !== undefined ? deps.readLease(accountUserId) : null;
   const location =
     deps !== undefined && deps.readLocation !== undefined ? deps.readLocation(accountUserId, record.characterId) : null;
-  const progression =
-    deps !== undefined && deps.readProgression !== undefined ? deps.readProgression(accountUserId, record.characterId) : null;
+  const progression = loadCanonicalProgressionForCharacter(record, accountUserId, deps);
   const selection = deps !== undefined ? deps.readSelection(accountUserId) : null;
   return characterCatalogEntry({
     record: record,
     accountUserId: accountUserId,
     nowMs: nowMs,
-    level: catalogLevel(progression !== undefined ? progression : null),
+    level: catalogLevel(progression),
+    branchId: progression !== null ? progression.branchId : "",
     location: location !== undefined ? location : null,
     lease: lease !== undefined ? lease : null,
     maintenance: deps !== undefined && deps.maintenanceEnabled !== undefined ? deps.maintenanceEnabled() : false,
     contentCompatible: deps !== undefined && deps.contentCompatible !== undefined ? deps.contentCompatible() : true,
     selectionPendingCharacterId: selection !== null && !selection.invalidated ? selection.characterId : "",
   });
+}
+
+function loadCanonicalProgressionForCharacter(
+  record: StoredCharacter,
+  accountUserId: string,
+  deps?: CharacterLifecycleDeps,
+): CharacterProgression | null {
+  if (deps === undefined || deps.readProgression === undefined) {
+    return null;
+  }
+  const stored = deps.readProgression(accountUserId, record.characterId);
+  const classId = record.classId !== undefined ? record.classId : "";
+  const nowMs = deps.nowMs();
+  const ensured = migrateToCanonicalProgression(stored, classId, nowMs, deps.progressionCatalog);
+  if (ensured.changed && deps.writeProgression !== undefined) {
+    deps.writeProgression(accountUserId, record.characterId, ensured.progression);
+  }
+  return ensured.progression;
 }
 
 export function migrateLegacyCharacterIntoRoster(userId: string, deps: CharacterLifecycleDeps): CharacterRoster {

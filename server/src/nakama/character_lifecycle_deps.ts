@@ -8,7 +8,7 @@ import { publicWorldLocation } from "../domain/instance";
 import { initializeProgression } from "../domain/progression";
 import { emptyQuestLog } from "../domain/quest";
 import { SAVE_SCHEMA_VERSION } from "../domain/save_schema";
-import type { ProgressionCatalog } from "../domain/stats";
+import { catalogFromContent } from "../domain/stats";
 import type { PurgeStep } from "../domain/character_purge";
 import { acquireGameplayLease, markLeaseLinkDead, markLeaseOnline } from "../domain/gameplay_lease";
 import { readGameplayLease, writeGameplayLease, deleteGameplayLease, matchStillExists } from "./gameplay_lease_store";
@@ -20,7 +20,7 @@ import { deleteNameReservation, readNameReservation, writeNameReservation } from
 import { readQuests, writeQuestsOnce } from "./quest_store";
 import { readRoster, writeRoster } from "./roster_store";
 import { readSelection, writeSelection } from "./selection_store";
-import { readProgression, writeProgressionOnce } from "./progression_store";
+import { readProgression, writeProgression, writeProgressionOnce } from "./progression_store";
 import { readCharacterIdempotency, writeCharacterIdempotencyOnce } from "./character_idempotency_store";
 import { deletePurgeJob, readPurgeJob, writePurgeAudit, writePurgeJob } from "./character_purge_store";
 import { deletePlayerObject } from "./player_storage";
@@ -117,6 +117,10 @@ export function characterLifecycleDeps(
     readProgression: function (userId: string, characterId: string) {
       return readProgression(nk, userId, characterId);
     },
+    writeProgression: function (userId: string, characterId: string, progression) {
+      writeProgression(nk, userId, progression, characterId);
+    },
+    progressionCatalog: catalogFromContent(content),
     readLocation: function (userId: string, characterId: string) {
       return readActiveLocation(nk, userId, characterId);
     },
@@ -189,7 +193,7 @@ function initializeNewGameplay(nk: nkruntime.Nakama, userId: string, record: Sto
   quests.createdAt = now;
   quests.updatedAt = now;
   writeQuestsOnce(nk, userId, quests, record.characterId);
-  const progression = initializeProgression(content as unknown as ProgressionCatalog, classId);
+  const progression = initializeProgression(catalogFromContent(content), classId);
   progression.schemaVersion = SAVE_SCHEMA_VERSION;
   progression.createdAt = now;
   progression.updatedAt = now;

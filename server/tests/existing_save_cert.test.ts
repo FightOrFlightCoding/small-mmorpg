@@ -4,6 +4,11 @@ import { join } from "node:path";
 import test from "node:test";
 import { migrateAccount, migrateRecord } from "../src/domain/migration";
 import { SAVE_SCHEMA_VERSION } from "../src/domain/save_schema";
+import { migrateToCanonicalProgression } from "../src/domain/progression";
+import { storedProgressionFromValue } from "../src/domain/progression_store";
+import { catalogFromContent } from "../src/domain/stats";
+import { content } from "../src/generated/content";
+import { CANONICAL_PROGRESSION_SCHEMA_VERSION } from "../src/domain/canonical_progression";
 
 interface SaveFixture {
   userId: string;
@@ -138,7 +143,7 @@ test("migrating the same save twice does not duplicate items, gold, or quests", 
   }
 });
 
-test("current progression blob stays at schema 1 without losing allocated points", () => {
+test("current progression blob stays at save schema 1 without losing allocated points", () => {
   const fixture = loadFixture("current-v1-alice.json");
   assert.ok(fixture.progression);
   const first = migrateRecord("progression", fixture.progression, true);
@@ -150,4 +155,32 @@ test("current progression blob stays at schema 1 without losing allocated points
   const second = migrateRecord("progression", first.value, true);
   assert.equal(second.ok, true);
   assert.equal(second.changed, false);
+});
+
+test("v1 progression migrates to canonical schema 2 without resetting class level or xp", () => {
+  const fixture = loadFixture("current-v1-alice.json");
+  assert.ok(fixture.progression);
+  const parsed = storedProgressionFromValue(fixture.progression);
+  assert.notEqual(parsed, null);
+  if (parsed === null) {
+    return;
+  }
+  const classId =
+    typeof fixture.character.classId === "string" && fixture.character.classId.length > 0
+      ? fixture.character.classId
+      : "class.warrior";
+  const migrated = migrateToCanonicalProgression(parsed, classId, 1_700_000_000_000, catalogFromContent(content));
+  assert.equal(migrated.changed, true);
+  assert.equal(migrated.progression.progressionSchemaVersion, CANONICAL_PROGRESSION_SCHEMA_VERSION);
+  assert.equal(migrated.progression.classId, "test.class.vanguard");
+  assert.notEqual(migrated.progression.classId, "class.mystic");
+  assert.equal(migrated.progression.level, 2);
+  assert.equal(migrated.progression.lifetimeXp, 70);
+  assert.equal(migrated.progression.xpIntoLevel, 20);
+  assert.equal(migrated.progression.allocatedAttributes["test.attribute.might"], 1);
+  assert.deepEqual(migrated.progression.unlockedAbilityIds, ["test.ability.basic_melee"]);
+  assert.deepEqual(migrated.progression.purchasedClassNodeIds, []);
+  assert.equal(migrated.progression.branchId, "");
+  const replay = migrateToCanonicalProgression(migrated.progression, classId, 1_700_000_000_001, catalogFromContent(content));
+  assert.equal(replay.changed, false);
 });

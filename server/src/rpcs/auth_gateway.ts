@@ -22,6 +22,7 @@ import { isDeleted } from "../domain/character_roster";
 import { canonicalCharacterName } from "../domain/character_name";
 import { readRoster } from "../nakama/roster_store";
 import { readCharacter } from "../nakama/character_store";
+import { readProgression } from "../nakama/progression_store";
 import { readActiveLocation } from "../nakama/location_store";
 import { readNameReservation } from "../nakama/name_reservation_store";
 import { supportRecoveryId } from "../domain/account_export";
@@ -577,6 +578,7 @@ function supportSnapshot(nk: nkruntime.Nakama, userIdInput: string, characterNam
     disableTime = 0;
   }
   const names: string[] = [];
+  const characters: { [key: string]: unknown }[] = [];
   const roster = readRoster(nk, userId);
   if (roster !== null) {
     for (let i = 0; i < roster.characterIds.length; i++) {
@@ -585,6 +587,16 @@ function supportSnapshot(nk: nkruntime.Nakama, userIdInput: string, characterNam
         continue;
       }
       names.push(character.name);
+      const progression = readProgression(nk, userId, character.characterId);
+      characters.push({
+        characterId: character.characterId,
+        name: character.name,
+        classId: character.classId !== undefined ? character.classId : "",
+        level: progression !== null ? progression.level : 1,
+        branchId: progression !== null ? progression.branchId : "",
+        progressionSchemaVersion: progression !== null ? progression.progressionSchemaVersion : 0,
+        status: character.status !== undefined ? character.status : "",
+      });
     }
   }
   return {
@@ -595,6 +607,8 @@ function supportSnapshot(nk: nkruntime.Nakama, userIdInput: string, characterNam
     verified: profile !== null && profile.verifiedAt > 0,
     disableTime: disableTime,
     character_names: names,
+    characters: characters,
+    supportRecoveryId: supportRecoveryId(userId),
   };
 }
 

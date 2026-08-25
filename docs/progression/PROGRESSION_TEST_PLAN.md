@@ -1,6 +1,6 @@
 # Progression test plan
 
-PROG-02 adds canonical content schemas and generated bundles without enabling new gameplay. Existing Foundation/ACCT suites must keep passing. The PROG-01 design-source audit still runs.
+PROG-03 adds four-class character creation and canonical progression-state migration without enabling level gains, talent spend, or new combat. Existing Foundation/ACCT suites must keep passing. The PROG-01 design-source audit still runs.
 
 Related: [TEST_CATALOG.md](../TEST_CATALOG.md), [CANONICAL_VALUE_CATALOG.md](CANONICAL_VALUE_CATALOG.md).
 
@@ -8,11 +8,11 @@ Related: [TEST_CATALOG.md](../TEST_CATALOG.md), [CANONICAL_VALUE_CATALOG.md](CAN
 
 | Command | Proves |
 | --- | --- |
-| `powershell -File scripts/test-progression-design.ps1` | Canonical markdown invariants + contract docs + live three-class snapshot |
-| `powershell -File scripts/test-server.ps1` | Same audit plus the accepted server domain suite |
-| `powershell -File scripts/test-client.ps1` | Accepted GdUnit suite (unchanged) |
+| `powershell -File scripts/test-progression-design.ps1` | Canonical markdown invariants + contract docs + live four-class snapshot |
+| `powershell -File scripts/test-server.ps1` | Same audit plus the accepted server domain suite, including `canonical_progression.test.ts` |
+| `powershell -File scripts/test-client.ps1` | GdUnit suite (four class cards, mystic presentation) |
 
-`server/tests/progression_design_audit.test.ts` is the only new automated suite in PROG-01.
+`server/tests/progression_design_audit.test.ts` remains the design-source audit. `server/tests/canonical_progression.test.ts` and `server/tests/character_lifecycle.test.ts` cover PROG-03 create/migrate/lifecycle.
 
 ## Audit targets (design source — passing now)
 
@@ -35,7 +35,7 @@ Related: [TEST_CATALOG.md](../TEST_CATALOG.md), [CANONICAL_VALUE_CATALOG.md](CAN
 
 ## Planned later regression tests
 
-These files are **named now**. They must not be treated as existing in PROG-01 except `progression_design_audit.test.ts`.
+These files are **named now**. They must not be treated as existing in PROG-01 except `progression_design_audit.test.ts`. PROG-03 implemented create/migrate coverage in `character_lifecycle.test.ts` and `canonical_progression.test.ts` without enabling the later combat files.
 
 | File | Covers |
 | --- | --- |
@@ -61,6 +61,6 @@ These files are **named now**. They must not be treated as existing in PROG-01 e
 
 Existing tests that must not be weakened: `progression.test.ts`, `xp_hooks.test.ts`, `ability.test.ts`, `combat_pipeline.test.ts`, `character_lifecycle.test.ts`, `existing_save_cert.test.ts`, GdUnit progression/ability/character-select suites, Prompt 18 e2e.
 
-## Live snapshot (passing now, expected to change later)
+## Live snapshot (PROG-03)
 
-The audit currently asserts production `class.*` ids are warrior/marksman/mage/**mystic** with mystic `rosterSelectable: false`, live curve maxLevel 5, XP sum 375, `HOTBAR_SIZE` 8, physical classes still have mana on `startingResources`, and canonical abilities have `runtimeEnabled: false`. That is conflict documentation, not the design end state. Later PROG phases update this snapshot when live combat matches the design.
+The audit asserts production `class.*` ids are warrior/marksman/mage/**mystic**, all `rosterSelectable: true`, live curve maxLevel 5, XP sum 375, `HOTBAR_SIZE` 8, physical classes omit mana on `startingResources`, and canonical abilities have `runtimeEnabled: false`. Live combat still uses Foundation numbers. Later PROG phases update this snapshot when live combat matches the design.

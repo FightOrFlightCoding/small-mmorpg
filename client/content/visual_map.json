@@ -27,7 +27,7 @@
     "fallback_color": "#5B4DB8"
   },
   "visual.class_mystic": {
-    "fallback_color": "#6A4C9C"
+    "fallback_color": "#2A9D8F"
   },
   "visual.npc_elder": {
     "texture": "res://assets/third_party/kenney_rpg_base/PNG/rpgTile165.png",

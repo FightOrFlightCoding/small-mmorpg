@@ -118,7 +118,7 @@ test("valid source documents compile to a payload", () => {
     assert.ok(Object.keys(payload.abilities).length >= 5);
   assert.equal(payload.abilities["test.ability.basic_melee"].targetMode, "entity");
   assert.equal(payload.stats["stat.strength"].abbreviation, "STR");
-  assert.equal(payload.classes["class.mystic"].rosterSelectable, false);
+  assert.equal(payload.classes["class.mystic"].rosterSelectable, true);
   assert.equal(payload.classes["class.warrior"].baseStats?.["stat.strength"], 8);
   assert.equal(payload.levelCurves["curve.vibecode.l10"].maxLevel, 10);
   assert.equal(payload.autoAttacks["ability.warrior.auto_attack"].runtimeEnabled, false);

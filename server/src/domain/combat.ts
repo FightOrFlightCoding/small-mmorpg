@@ -202,6 +202,10 @@ export function restoreRespawnVitals(state: StarterZoneState, player: MatchPlaye
     multiplyModifiers: emptyModifierMap(),
   });
   const resources = dict(player.resources);
-  resources[manaId] = evaluated.maxMana;
+  if (evaluated.maxMana > 0) {
+    resources[manaId] = evaluated.maxMana;
+  } else {
+    delete resources[manaId];
+  }
   player.resources = resources;
 }

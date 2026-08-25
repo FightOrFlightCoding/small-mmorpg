@@ -36,6 +36,16 @@ static func for_id(class_id: String) -> Dictionary:
 				"shape": "Staff and spell",
 				"disclaimer": "Presentation summary, not a final balance promise.",
 			}
+		"class.mystic":
+			return {
+				"id": class_id,
+				"display_name": "Mystic",
+				"role": "Support, healing, buffs, debuffs, and curses",
+				"summary": "Mana-based caster.",
+				"glyph": "✧",
+				"shape": "Charm",
+				"disclaimer": "Presentation summary, not a final balance promise.",
+			}
 		_:
 			return {
 				"id": class_id,

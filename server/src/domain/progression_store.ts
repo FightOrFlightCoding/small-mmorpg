@@ -51,6 +51,14 @@ export function storedProgressionWriteValue(progression: CharacterProgression): 
     progressionSchemaVersion: progression.progressionSchemaVersion,
     xpByEventId: xpByEventId,
     allocateByRequestId: allocateByRequestId,
+    classId: progression.classId,
+    branchId: progression.branchId,
+    xpIntoLevel: progression.xpIntoLevel,
+    freeStatAllocations: progression.freeStatAllocations,
+    purchasedClassNodeIds: progression.purchasedClassNodeIds,
+    purchasedBranchNodeRanks: progression.purchasedBranchNodeRanks,
+    autoAssignEnabled: progression.autoAssignEnabled,
+    hotbarAssignments: progression.hotbarAssignments,
   };
   if (progression.hotbar !== undefined) {
     gameplay.hotbar = progression.hotbar;
@@ -106,6 +114,17 @@ export function storedProgressionFromValue(value: unknown): CharacterProgression
     typeof data.progressionSchemaVersion === "number" ? data.progressionSchemaVersion : 1;
   progression.xpByEventId = parseXpMap(data.xpByEventId);
   progression.allocateByRequestId = parseAllocateMap(data.allocateByRequestId);
+  progression.classId = typeof data.classId === "string" ? data.classId : "";
+  progression.branchId = typeof data.branchId === "string" ? data.branchId : "";
+  progression.xpIntoLevel =
+    typeof data.xpIntoLevel === "number" && isFinite(data.xpIntoLevel) && data.xpIntoLevel >= 0
+      ? data.xpIntoLevel
+      : progression.currentXp;
+  progression.freeStatAllocations = parseNumberMap(data.freeStatAllocations);
+  progression.purchasedClassNodeIds = parseStringList(data.purchasedClassNodeIds);
+  progression.purchasedBranchNodeRanks = parseNumberMap(data.purchasedBranchNodeRanks);
+  progression.autoAssignEnabled = data.autoAssignEnabled === true;
+  progression.hotbarAssignments = parseStringList(data.hotbarAssignments);
   if (typeof data.schemaVersion === "number") {
     progression.schemaVersion = data.schemaVersion;
   }

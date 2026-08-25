@@ -1,5 +1,6 @@
 import { channelFromStatId, type PlayerEquipment } from "./equipment";
 import { findItem, type ItemDefinition, type PlayerInventory } from "./inventory";
+import { classUsesMana } from "./canonical_progression";
 
 export const STAT_LAYER_ORDER = [
   "class_base",
@@ -76,6 +77,10 @@ export interface ClassContent {
   displayName?: string;
   progressionId: string;
   startingAbilities?: ReadonlyArray<string>;
+  resourceType?: string;
+  autoAttackId?: string;
+  baseStats?: { [id: string]: number };
+  automaticGrowth?: { [id: string]: number };
 }
 
 export interface ProgressionCatalog {
@@ -219,11 +224,13 @@ export function evaluateStats(catalog: ProgressionCatalog, ctx: StatContext): Ev
   const attackId = derivedStatIdForRole(catalog, "attack");
   const healthId = derivedStatIdForRole(catalog, "max_health");
   const manaId = derivedStatIdForRole(catalog, "max_mana");
+  const classDef = catalog.classes[ctx.classId];
+  const maxMana = manaId.length > 0 ? values[manaId] : 0;
   return {
     values: values,
     attack: attackId.length > 0 ? values[attackId] : 0,
     maxHealth: healthId.length > 0 ? values[healthId] : 1,
-    maxMana: manaId.length > 0 ? values[manaId] : 0,
+    maxMana: classUsesMana(classDef !== undefined ? classDef.resourceType : undefined) ? maxMana : 0,
   };
 }
 
@@ -471,6 +478,10 @@ function copyClassMap(input: { [id: string]: ClassContent }): { [id: string]: Cl
       displayName: def.displayName,
       progressionId: def.progressionId,
       startingAbilities: abilities,
+      resourceType: def.resourceType,
+      autoAttackId: def.autoAttackId,
+      baseStats: def.baseStats !== undefined ? copyNumberRecord(def.baseStats) : undefined,
+      automaticGrowth: def.automaticGrowth !== undefined ? copyNumberRecord(def.automaticGrowth) : undefined,
     };
   }
   return out;

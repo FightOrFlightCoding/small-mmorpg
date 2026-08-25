@@ -300,10 +300,11 @@ func _rebuild_deleted() -> void:
 		var title := Label.new()
 		var class_id := String(row.get("classId", ""))
 		var class_record: Dictionary = ContentRegistry.get_by_id(class_id)
-		title.text = "%s — %s — Level %s" % [
+		title.text = "%s — %s — Level %s%s" % [
 			String(row.get("displayName", row.get("name", "?"))),
 			String(class_record.get("displayName", class_id)),
 			str(int(row.get("level", 1))),
+			_branch_suffix(row),
 		]
 		var remain := Label.new()
 		remain.text = _retention_label(int(row.get("softDeleteExpiresAt", 0)))
@@ -324,6 +325,14 @@ func _rebuild_deleted() -> void:
 		card.add_child(remain)
 		card.add_child(restore)
 		_deleted_list.add_child(card)
+
+
+func _branch_suffix(row: Dictionary) -> String:
+	var branch_id := String(row.get("branchId", ""))
+	if branch_id.is_empty():
+		return ""
+	var branch_record: Dictionary = ContentRegistry.get_by_id(branch_id)
+	return " — %s" % String(branch_record.get("displayName", branch_id))
 
 
 func _is_deleted(row: Dictionary) -> bool:

@@ -14,6 +14,16 @@ import {
   validateSelectionTicket,
 } from "../src/domain/character_ticket";
 import { migrationDefaultClassId, type ClassDefinition } from "../src/domain/class_catalog";
+import { catalogFromContent } from "../src/domain/stats";
+import { initializeProgression, migrateToCanonicalProgression, type CharacterProgression } from "../src/domain/progression";
+import { assembleAccountExport } from "../src/domain/account_export";
+import {
+  CANONICAL_AUTO_ASSIGN_DEFAULT,
+  CANONICAL_PROGRESSION_SCHEMA_VERSION,
+  unspentBranchPoints,
+  unspentClassPoints,
+  unspentFreeStatPoints,
+} from "../src/domain/canonical_progression";
 import {
   createCharacterRecord,
   handleCharacterCreate,
@@ -52,7 +62,6 @@ const CLASSES: { [id: string]: ClassDefinition } = {
   "class.mystic": {
     id: "class.mystic",
     startingEquipment: [{ itemId: "item.training_sword", quantity: 1 }],
-    rosterSelectable: false,
   },
   "fixture.class.alpha": {
     id: "fixture.class.alpha",
@@ -86,6 +95,8 @@ class MemoryLifecycle implements CharacterLifecycleDeps {
   purgeJobs = new Map<string, import("../src/domain/character_purge").CharacterPurgeJob>();
   purgedSteps: string[] = [];
   starterGrants = 0;
+  progressions = new Map<string, CharacterProgression>();
+  progressionCatalog = catalogFromContent(content);
 
   nowMs = () => this.now;
   newId = () => {
@@ -134,6 +145,18 @@ class MemoryLifecycle implements CharacterLifecycleDeps {
   initializeNewCharacterGameplay = (_userId: string, record: StoredCharacter) => {
     this.initialized.push(record.characterId);
     this.starterGrants += 1;
+    const classId = record.classId !== undefined ? record.classId : "";
+    const progression = initializeProgression(this.progressionCatalog, classId);
+    progression.schemaVersion = 1;
+    progression.createdAt = this.now;
+    progression.updatedAt = this.now;
+    this.progressions.set(_userId + ":" + record.characterId, progression);
+  };
+  readProgression = (userId: string, characterId: string) => {
+    return this.progressions.get(userId + ":" + characterId) ?? null;
+  };
+  writeProgression = (userId: string, characterId: string, progression: CharacterProgression) => {
+    this.progressions.set(userId + ":" + characterId, progression);
   };
   readIdempotency = (userId: string, operation: string, key: string) => {
     return this.idempotency.get(userId + ":" + operation + ":" + key) ?? null;
@@ -156,8 +179,11 @@ class MemoryLifecycle implements CharacterLifecycleDeps {
   deletePurgeJob = (userId: string, characterId: string) => {
     this.purgeJobs.delete(userId + ":" + characterId);
   };
-  applyPurgeStep = (_userId: string, record: StoredCharacter, step: import("../src/domain/character_purge").PurgeStep) => {
+  applyPurgeStep = (userId: string, record: StoredCharacter, step: import("../src/domain/character_purge").PurgeStep) => {
     this.purgedSteps.push(record.characterId + ":" + step);
+    if (step === "progression") {
+      this.progressions.delete(userId + ":" + record.characterId);
+    }
   };
 }
 
@@ -228,10 +254,6 @@ test("invalid names and classes are rejected", () => {
   assert.throws(() => handleCharacterCreate("user-a", createPayload("ab", "fixture.class.alpha"), mem), /invalid_name/);
   assert.throws(
     () => handleCharacterCreate("user-a", createPayload("Alice", "fixture.class.missing"), mem),
-    /invalid_class/,
-  );
-  assert.throws(
-    () => handleCharacterCreate("user-a", createPayload("Mystic", "class.mystic"), mem),
     /invalid_class/,
   );
 });
@@ -357,21 +379,175 @@ test("reserveCanonicalName rejects a lost race", () => {
   assert.throws(() => reserveCanonicalName("alice", "c2", "user-b", "token-b", mem), /name_taken/);
 });
 
-test("create warrior marksman and mage and return catalog summaries", () => {
+test("create warrior marksman mage and mystic and return catalog summaries", () => {
   const mem = new MemoryLifecycle();
-  mem.ids = ["w", "m", "g"];
+  mem.ids = ["w", "m", "g", "y"];
   const warrior = handleCharacterCreate("user-a", createPayload("Blade", "class.warrior"), mem);
   const marksman = handleCharacterCreate("user-a", createPayload("Bow", "class.marksman"), mem);
   const mage = handleCharacterCreate("user-a", createPayload("Staff", "class.mage"), mem);
+  const mystic = handleCharacterCreate("user-a", createPayload("Charm", "class.mystic"), mem);
   assert.equal(warrior.classId, "class.warrior");
   assert.equal(marksman.classId, "class.marksman");
   assert.equal(mage.classId, "class.mage");
+  assert.equal(mystic.classId, "class.mystic");
   assert.equal(warrior.displayName, "Blade");
   assert.equal(warrior.status, "ACTIVE");
   assert.equal(warrior.level, 1);
+  assert.equal(warrior.branchId, "");
   const listed = handleCharacterList("user-a", mem);
-  assert.equal(listed.liveCount, 3);
+  assert.equal(listed.liveCount, 4);
   assert.equal(listed.characters[0].lastLocationNameKey.length > 0, true);
+  assert.equal(listed.characters[0].branchId, "");
+  assert.equal(listed.characters[3].classId, "class.mystic");
+  assert.equal(listed.characters[3].level, 1);
+});
+
+test("character create rejects client stat and level injection", () => {
+  const mem = new MemoryLifecycle();
+  assert.throws(
+    () => handleCharacterCreate("user-a", JSON.stringify({ name: "Forge", classId: "class.warrior", level: 10 }), mem),
+    /stat_injection:level/,
+  );
+  assert.throws(
+    () =>
+      handleCharacterCreate(
+        "user-a",
+        JSON.stringify({ name: "Forge", classId: "class.warrior", allocatedAttributes: { "stat.strength": 99 } }),
+        mem,
+      ),
+    /stat_injection:allocatedAttributes/,
+  );
+  assert.throws(
+    () =>
+      handleCharacterCreate(
+        "user-a",
+        JSON.stringify({ name: "Forge", classId: "class.warrior", xpIntoLevel: 500, currentXp: 500 }),
+        mem,
+      ),
+    /stat_injection:xpIntoLevel/,
+  );
+  assert.throws(
+    () =>
+      handleCharacterCreate(
+        "user-a",
+        JSON.stringify({ name: "Forge", classId: "class.warrior", startingAbilities: ["ability.warrior.whirlwind"] }),
+        mem,
+      ),
+    /stat_injection:startingAbilities/,
+  );
+});
+
+test("new production characters persist canonical level-1 progression", () => {
+  const mem = new MemoryLifecycle();
+  mem.ids = ["w", "m", "g", "y"];
+  const classIds = ["class.warrior", "class.marksman", "class.mage", "class.mystic"];
+  const names = ["Blade", "Bow", "Staff", "Charm"];
+  for (let i = 0; i < classIds.length; i++) {
+    handleCharacterCreate("user-a", createPayload(names[i], classIds[i]), mem);
+    const stored = mem.readProgression("user-a", mem.ids[i]);
+    assert.notEqual(stored, null);
+    if (stored === null) {
+      continue;
+    }
+    assert.equal(stored.progressionSchemaVersion, CANONICAL_PROGRESSION_SCHEMA_VERSION);
+    assert.equal(stored.classId, classIds[i]);
+    assert.equal(stored.branchId, "");
+    assert.equal(stored.level, 1);
+    assert.equal(stored.xpIntoLevel, 0);
+    assert.equal(stored.lifetimeXp, 0);
+    assert.equal(stored.currentXp, 0);
+    assert.deepEqual(stored.freeStatAllocations, {});
+    assert.deepEqual(stored.purchasedClassNodeIds, []);
+    assert.deepEqual(stored.purchasedBranchNodeRanks, {});
+    assert.equal(stored.autoAssignEnabled, CANONICAL_AUTO_ASSIGN_DEFAULT);
+    assert.deepEqual(stored.hotbarAssignments, []);
+    assert.deepEqual(stored.unlockedAbilityIds, []);
+    assert.equal(unspentClassPoints(stored.purchasedClassNodeIds, stored.level), 0);
+    assert.equal(unspentBranchPoints(stored.purchasedBranchNodeRanks, stored.level), 0);
+    assert.equal(unspentFreeStatPoints(stored.freeStatAllocations, stored.level), 0);
+    assert.equal(stored.createdAt, mem.now);
+    assert.equal(stored.updatedAt, mem.now);
+  }
+});
+
+test("starting-state create is idempotent and does not regrant", () => {
+  const mem = new MemoryLifecycle();
+  mem.ids = ["char-dup", "char-other"];
+  handleCharacterCreate("user-a", createPayload("Idem", "class.warrior", "key-1"), mem);
+  const first = mem.readProgression("user-a", "char-dup");
+  handleCharacterCreate("user-a", createPayload("Idem", "class.warrior", "key-1"), mem);
+  const second = mem.readProgression("user-a", "char-dup");
+  assert.equal(mem.initialized.length, 1);
+  assert.deepEqual(second, first);
+  assert.equal(mem.readProgression("user-a", "char-other"), null);
+});
+
+test("existing v1 warrior migrates without changing class or resetting xp", () => {
+  const mem = new MemoryLifecycle();
+  mem.ids = ["char-old"];
+  handleCharacterCreate("user-a", createPayload("Blade", "class.warrior"), mem);
+  const v1: CharacterProgression = {
+    ...initializeProgression(mem.progressionCatalog, "class.warrior"),
+    progressionSchemaVersion: 1,
+    level: 5,
+    currentXp: 12,
+    lifetimeXp: 387,
+    xpIntoLevel: 0,
+    unlockedAbilityIds: ["test.ability.basic_melee"],
+    hotbar: ["ability.warrior.heavy_strike", "ability.warrior.frenzy", "test.ability.basic_melee", "", "", "", "", ""],
+    allocatedAttributes: { "test.attribute.might": 2 },
+    unspentAttributePoints: 2,
+    unspentSkillPoints: 4,
+    createdAt: 10,
+    updatedAt: 10,
+  };
+  mem.writeProgression("user-a", "char-old", v1);
+  const listed = handleCharacterList("user-a", mem);
+  assert.equal(listed.characters[0].classId, "class.warrior");
+  assert.equal(listed.characters[0].level, 5);
+  assert.equal(listed.characters[0].branchId, "");
+  const migrated = mem.readProgression("user-a", "char-old");
+  assert.notEqual(migrated, null);
+  if (migrated === null) {
+    return;
+  }
+  assert.equal(migrated.progressionSchemaVersion, CANONICAL_PROGRESSION_SCHEMA_VERSION);
+  assert.equal(migrated.classId, "class.warrior");
+  assert.equal(migrated.level, 5);
+  assert.equal(migrated.currentXp, 12);
+  assert.equal(migrated.xpIntoLevel, 12);
+  assert.equal(migrated.lifetimeXp, 387);
+  assert.deepEqual(migrated.unlockedAbilityIds, ["test.ability.basic_melee"]);
+  assert.deepEqual(migrated.hotbarAssignments, ["ability.warrior.heavy_strike"]);
+  assert.deepEqual(migrated.purchasedClassNodeIds, []);
+  assert.equal(migrated.branchId, "");
+  const again = migrateToCanonicalProgression(migrated, "class.warrior", mem.now + 50, mem.progressionCatalog);
+  assert.equal(again.changed, false);
+});
+
+test("account export includes the canonical progression record without secrets", () => {
+  const mem = new MemoryLifecycle();
+  mem.ids = ["char-a"];
+  handleCharacterCreate("user-a", createPayload("Scout", "class.mage"), mem);
+  const progression = mem.readProgression("user-a", "char-a");
+  const payload = assembleAccountExport({
+    accountUserId: "user-a",
+    exportedAt: mem.now,
+    characters: [
+      {
+        catalog: mem.readCharacter("user-a", "char-a"),
+        progression: progression,
+      },
+    ],
+    gold: 0,
+    settings: {},
+  });
+  const characters = payload.characters as Array<{ progression: CharacterProgression }>;
+  assert.equal(characters.length, 1);
+  assert.equal(characters[0].progression.classId, "class.mage");
+  assert.equal(characters[0].progression.progressionSchemaVersion, CANONICAL_PROGRESSION_SCHEMA_VERSION);
+  assert.equal(characters[0].progression.level, 1);
+  assert.equal(JSON.stringify(payload).indexOf("hmac"), -1);
 });
 
 test("Archer archer ARCHER collide on one canonical reservation", () => {
@@ -450,9 +626,22 @@ test("restore requires a free slot and keeps progression inventory", () => {
   handleCharacterCreate("user-a", createPayload("Keep", "class.warrior"), mem);
   handleCharacterDeleteRequest("user-a", deletePayload("c1", "Keep"), mem);
   const grants = mem.starterGrants;
+  const before = mem.readProgression("user-a", "c1");
+  assert.notEqual(before, null);
+  if (before !== null) {
+    before.level = 4;
+    before.lifetimeXp = 225;
+    before.currentXp = 5;
+    before.xpIntoLevel = 5;
+    mem.writeProgression("user-a", "c1", before);
+  }
   const restored = handleCharacterRestore("user-a", idPayload("c1"), mem);
   assert.equal(restored.status, "ACTIVE");
   assert.equal(mem.starterGrants, grants);
+  const after = mem.readProgression("user-a", "c1");
+  assert.equal(after?.level, 4);
+  assert.equal(after?.lifetimeXp, 225);
+  assert.equal(after?.classId, "class.warrior");
   handleCharacterDeleteRequest("user-a", deletePayload("c1", "Keep"), mem);
   handleCharacterCreate("user-a", createPayload("Aone", "class.warrior"), mem);
   handleCharacterCreate("user-a", createPayload("Atwo", "class.warrior"), mem);
@@ -481,6 +670,8 @@ test("purge after retention releases the name and recovers a partial job", () =>
   assert.equal(mem.readReservation("gone"), null);
   assert.equal(mem.readRoster("user-a")?.characterIds.indexOf("c1"), -1);
   assert.equal(mem.readCharacter("user-a", "c1"), null);
+  assert.equal(mem.readProgression("user-a", "c1"), null);
+  assert.equal(mem.purgedSteps.indexOf("c1:progression") >= 0, true);
   handleCharacterCreate("user-b", createPayload("Gone", "class.mage"), mem);
   assert.equal(mem.readReservation("gone")?.accountUserId, "user-b");
 });

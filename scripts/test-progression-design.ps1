@@ -1,4 +1,4 @@
-# Canonical design-data audit plus PROG-02 live catalog snapshot. Does not enable new gameplay.
+# Canonical design-data audit plus PROG-03 live catalog snapshot. Does not enable level gains.
 $ErrorActionPreference = "Stop"
 . "$PSScriptRoot\_common.ps1"
 $RepoRoot = Get-RepoRoot

@@ -94,6 +94,14 @@ export const PROGRESSION_SAVE_KEYS = [
   "allocateByRequestId",
   "xpEventTicks",
   "allocateRequestTicks",
+  "classId",
+  "branchId",
+  "xpIntoLevel",
+  "freeStatAllocations",
+  "purchasedClassNodeIds",
+  "purchasedBranchNodeRanks",
+  "autoAssignEnabled",
+  "hotbarAssignments",
 ];
 
 export interface VersionDetection {

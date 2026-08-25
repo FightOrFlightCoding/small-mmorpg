@@ -14,6 +14,7 @@ var _name: Label
 var _class: Label
 var _glyph: Label
 var _level: Label
+var _branch: Label
 var _location: Label
 var _played: Label
 var _presence: Label
@@ -39,6 +40,9 @@ func _ready() -> void:
 	_class.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_level = Label.new()
 	_level.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_branch = Label.new()
+	_branch.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_branch.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_location = Label.new()
 	_location.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_location.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -64,6 +68,7 @@ func _ready() -> void:
 	_box.add_child(_name)
 	_box.add_child(_class)
 	_box.add_child(_level)
+	_box.add_child(_branch)
 	_box.add_child(_location)
 	_box.add_child(_played)
 	_box.add_child(_presence)
@@ -84,6 +89,14 @@ func bind(row: Dictionary, play_reason: String, play_busy: bool, remain_seconds:
 	_name.text = String(row.get("displayName", row.get("name", "?")))
 	_class.text = String(presentation.get("display_name", class_id))
 	_level.text = "Level %s" % str(int(row.get("level", 1)))
+	var branch_id := String(row.get("branchId", ""))
+	if branch_id.is_empty():
+		_branch.text = ""
+		_branch.visible = false
+	else:
+		var branch_record: Dictionary = ContentRegistry.get_by_id(branch_id)
+		_branch.text = String(branch_record.get("displayName", branch_id))
+		_branch.visible = true
 	play_button.disabled = not play_reason.is_empty() or play_busy
 	play_button.tooltip_text = play_reason.replace("\n", " — ") if not play_reason.is_empty() else "Play %s" % _name.text
 	_reason.text = play_reason
@@ -93,7 +106,12 @@ func bind(row: Dictionary, play_reason: String, play_busy: bool, remain_seconds:
 	else:
 		_countdown.set_seconds(0)
 	if "accessibility_name" in self:
-		set("accessibility_name", "%s, %s, level %s" % [_name.text, _class.text, str(int(row.get("level", 1)))])
+		set("accessibility_name", "%s, %s, level %s%s" % [
+			_name.text,
+			_class.text,
+			str(int(row.get("level", 1))),
+			"" if branch_id.is_empty() else ", %s" % _branch.text,
+		])
 
 
 func set_location(text_value: String) -> void:

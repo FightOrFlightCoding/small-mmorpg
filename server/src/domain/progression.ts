@@ -1,3 +1,13 @@
+import {
+  CANONICAL_AUTO_ASSIGN_DEFAULT,
+  CANONICAL_PROGRESSION_SCHEMA_VERSION,
+  canonicalHotbarFromLive,
+  clampCanonicalLevel,
+  unspentBranchPoints,
+  unspentClassPoints,
+  unspentFreeStatPoints,
+  usesCanonicalCreateState,
+} from "./canonical_progression";
 import { cloneTickMap, dict } from "./maps";
 import { cloneExtras, envelopeFromRecord } from "./save_schema";
 import {
@@ -10,7 +20,7 @@ import {
   type ProgressionCatalog,
 } from "./stats";
 
-export const PROGRESSION_SCHEMA_VERSION = 1;
+export const PROGRESSION_SCHEMA_VERSION = CANONICAL_PROGRESSION_SCHEMA_VERSION;
 export const MAX_ALLOCATE_PER_REQUEST = 100;
 
 export interface CharacterProgression {
@@ -32,6 +42,14 @@ export interface CharacterProgression {
   allocateByRequestId: { [requestId: string]: AllocateRecord };
   xpEventTicks?: { [eventId: string]: number };
   allocateRequestTicks?: { [requestId: string]: number };
+  classId: string;
+  branchId: string;
+  xpIntoLevel: number;
+  freeStatAllocations: { [statId: string]: number };
+  purchasedClassNodeIds: string[];
+  purchasedBranchNodeRanks: { [nodeId: string]: number };
+  autoAssignEnabled: boolean;
+  hotbarAssignments: string[];
   schemaVersion?: number;
   createdAt?: number;
   updatedAt?: number;
@@ -100,6 +118,14 @@ export function emptyProgression(): CharacterProgression {
     progressionSchemaVersion: PROGRESSION_SCHEMA_VERSION,
     xpByEventId: {},
     allocateByRequestId: {},
+    classId: "",
+    branchId: "",
+    xpIntoLevel: 0,
+    freeStatAllocations: {},
+    purchasedClassNodeIds: [],
+    purchasedBranchNodeRanks: {},
+    autoAssignEnabled: CANONICAL_AUTO_ASSIGN_DEFAULT,
+    hotbarAssignments: [],
   };
 }
 
@@ -130,6 +156,14 @@ export function cloneProgression(progression: CharacterProgression | undefined):
     allocateByRequestId: copyAllocateMap(progression.allocateByRequestId),
     xpEventTicks: cloneTickMap(progression.xpEventTicks),
     allocateRequestTicks: cloneTickMap(progression.allocateRequestTicks),
+    classId: progression.classId !== undefined ? progression.classId : "",
+    branchId: progression.branchId !== undefined ? progression.branchId : "",
+    xpIntoLevel: progression.xpIntoLevel !== undefined ? progression.xpIntoLevel : progression.currentXp,
+    freeStatAllocations: copyNumberMap(progression.freeStatAllocations),
+    purchasedClassNodeIds: copyStringList(progression.purchasedClassNodeIds),
+    purchasedBranchNodeRanks: copyNumberMap(progression.purchasedBranchNodeRanks),
+    autoAssignEnabled: progression.autoAssignEnabled === true,
+    hotbarAssignments: copyStringList(progression.hotbarAssignments),
     schemaVersion: envelope.schemaVersion,
     createdAt: envelope.createdAt,
     updatedAt: envelope.updatedAt,
@@ -164,18 +198,71 @@ export function applyQuestRewardProgression(
 export function initializeProgression(catalog: ProgressionCatalog, classId: string): CharacterProgression {
   const classDef = catalog.classes[classId];
   const progressionDef = classProgressionFor(catalog, classId);
-  const startingAbilities: string[] = [];
-  if (classDef !== undefined && classDef.startingAbilities !== undefined) {
-    for (let i = 0; i < classDef.startingAbilities.length; i++) {
-      startingAbilities.push(classDef.startingAbilities[i]);
-    }
-  }
   const next = emptyProgression();
+  next.classId = classId;
+  next.progressionSchemaVersion = PROGRESSION_SCHEMA_VERSION;
   next.unspentAttributePoints =
     progressionDef !== null ? progressionDef.attributePointRules.pointsAtCreate : 0;
   next.unspentSkillPoints = progressionDef !== null ? progressionDef.skillPointRules.pointsAtCreate : 0;
-  next.unlockedAbilityIds = startingAbilities;
+  next.autoAssignEnabled = CANONICAL_AUTO_ASSIGN_DEFAULT;
+  next.xpIntoLevel = 0;
+  next.hotbarAssignments = [];
+  next.freeStatAllocations = {};
+  next.purchasedClassNodeIds = [];
+  next.purchasedBranchNodeRanks = {};
+  next.branchId = "";
+  if (classDef !== undefined && !usesCanonicalCreateState(classDef.autoAttackId)) {
+    const startingAbilities: string[] = [];
+    if (classDef.startingAbilities !== undefined) {
+      for (let i = 0; i < classDef.startingAbilities.length; i++) {
+        startingAbilities.push(classDef.startingAbilities[i]);
+      }
+    }
+    next.unlockedAbilityIds = startingAbilities;
+  }
   return next;
+}
+
+export function migrateToCanonicalProgression(
+  existing: CharacterProgression | null,
+  classId: string,
+  nowMs: number,
+  catalog?: ProgressionCatalog,
+): { progression: CharacterProgression; changed: boolean } {
+  if (existing === null) {
+    const created = catalog !== undefined ? initializeProgression(catalog, classId) : emptyProgression();
+    created.classId = classId;
+    created.createdAt = nowMs;
+    created.updatedAt = nowMs;
+    created.progressionSchemaVersion = PROGRESSION_SCHEMA_VERSION;
+    return { progression: created, changed: true };
+  }
+  const next = cloneProgression(existing);
+  let changed = false;
+  if (next.classId !== classId && classId.length > 0) {
+    next.classId = classId;
+    changed = true;
+  }
+  if (next.progressionSchemaVersion < PROGRESSION_SCHEMA_VERSION) {
+    next.progressionSchemaVersion = PROGRESSION_SCHEMA_VERSION;
+    next.level = clampCanonicalLevel(next.level);
+    next.xpIntoLevel = next.currentXp;
+    next.freeStatAllocations = {};
+    next.purchasedClassNodeIds = [];
+    next.purchasedBranchNodeRanks = {};
+    next.branchId = "";
+    next.autoAssignEnabled = CANONICAL_AUTO_ASSIGN_DEFAULT;
+    next.hotbarAssignments = canonicalHotbarFromLive(next.hotbar);
+    next.updatedAt = nowMs;
+    if (next.createdAt === undefined || next.createdAt === 0) {
+      next.createdAt = nowMs;
+    }
+    changed = true;
+  } else if (next.xpIntoLevel !== next.currentXp) {
+    next.xpIntoLevel = next.currentXp;
+    changed = true;
+  }
+  return { progression: next, changed: changed };
 }
 
 export function grantXp(
@@ -212,6 +299,7 @@ export function grantXp(
   };
   stampXpTick(current, grant.eventId, tick);
   if (grant.amount === 0) {
+    current.xpIntoLevel = current.currentXp;
     return {
       progression: current,
       replay: false,
@@ -224,6 +312,7 @@ export function grantXp(
   current.lifetimeXp += grant.amount;
   if (curve === null || isMaxLevel(curve, current.level)) {
     current.currentXp = 0;
+    current.xpIntoLevel = 0;
     return {
       progression: current,
       replay: false,
@@ -255,6 +344,7 @@ export function grantXp(
       break;
     }
   }
+  current.xpIntoLevel = current.currentXp;
   return {
     progression: current,
     replay: false,
@@ -344,6 +434,16 @@ export function publicProgression(
     unspentSkillPoints: progression.unspentSkillPoints,
     unlockedAbilityIds: copyStringList(progression.unlockedAbilityIds),
     progressionSchemaVersion: progression.progressionSchemaVersion,
+    branchId: progression.branchId,
+    xpIntoLevel: progression.xpIntoLevel,
+    freeStatAllocations: copyNumberMap(progression.freeStatAllocations),
+    purchasedClassNodeIds: copyStringList(progression.purchasedClassNodeIds),
+    purchasedBranchNodeRanks: copyNumberMap(progression.purchasedBranchNodeRanks),
+    autoAssignEnabled: progression.autoAssignEnabled === true,
+    hotbarAssignments: copyStringList(progression.hotbarAssignments),
+    unspentClassPoints: unspentClassPoints(progression.purchasedClassNodeIds, progression.level),
+    unspentBranchPoints: unspentBranchPoints(progression.purchasedBranchNodeRanks, progression.level),
+    unspentFreeStatPoints: unspentFreeStatPoints(progression.freeStatAllocations, progression.level),
   };
 }
 

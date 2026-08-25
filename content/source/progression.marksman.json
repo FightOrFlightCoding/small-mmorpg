@@ -14,12 +14,10 @@
     "test.attribute.focus": 0
   },
   "startingResources": {
-    "test.resource.health": 90,
-    "test.resource.mana": 30
+    "test.resource.health": 90
   },
   "resourceGrowth": {
-    "test.resource.health": 4,
-    "test.resource.mana": 2
+    "test.resource.health": 4
   },
   "startingDerived": {
     "test.stat.attack": 3

@@ -1,53 +1,47 @@
 # Progression storage catalog
 
-PROG-01 does not change live storage. This document records **current** records and the **target** canonical progression blob for later phases.
+PROG-03 stores the canonical character progression record on the existing `player` / `progression_<compactCharacterId>` blob (`permissionWrite: 0`). `SAVE_SCHEMA_VERSION` stays **1**. Progression gameplay schema is `progressionSchemaVersion` **2**.
 
 Related: [STORAGE_CATALOG.md](../STORAGE_CATALOG.md), [PROGRESSION_MIGRATION_PLAN.md](PROGRESSION_MIGRATION_PLAN.md).
 
-## Current live record
+## Live record (PROG-03)
 
 | Field | Value |
 | --- | --- |
 | Collection / key | `player` / `progression_<compactCharacterId>` (`PROGRESSION_COLLECTION` / `PROGRESSION_KEY` prefix) |
 | `permissionRead` | 1 |
 | `permissionWrite` | **0** |
-| Envelope | `schemaVersion` (save) + `progressionSchemaVersion` currently **1** |
+| Envelope | `schemaVersion` **1** (save) + `progressionSchemaVersion` **2** (canonical progression) |
 | Owner | Server match + lifecycle adapters |
 | Client | Mirror only (`FULL_STATE.progression` / opcode 111). Never writes storage |
 
-Current value fields (not the design target): `level`, `currentXp`, `lifetimeXp`, `allocatedAttributes`, `unspentAttributePoints`, `unspentSkillPoints`, `unlockedAbilityIds`, `hotbar?`, `abilityRanks?`, idempotency maps (`xpByEventId`, `allocateByRequestId`, hotbar/unlock request maps and tick stamps), timestamps.
+CamelCase JSON keys (project convention). Design snake_case names map as follows:
 
-Class id lives on the **character** record, not the progression blob. There is no `branch_id`, no talent node lists, no auto-assign flag.
-
-Missing progression on join is not fatal: the match initializes level 1 and persists once.
-
-## Target canonical fields (later)
-
-Persist minimum source data. Do **not** persist calculated HP, mana, crit, haste, or DR as authority.
-
-| Field | Role |
+| Design field | Stored field |
 | --- | --- |
-| `schema_version` | Progression schema (distinct from or aligned with `SAVE_SCHEMA_VERSION` when a later phase names a bump) |
-| `class_id` | Immutable after create (`class.warrior` / `mage` / `marksman` / `mystic`) |
-| `branch_id` | Empty until level 5; then one locked branch id |
-| `level` | 1–10 |
-| `xp_into_level` | XP toward next level (replaces `currentXp` semantics) |
-| `lifetime_xp` | Cumulative |
-| `free_stat_allocations` | Spent free points per stat id |
-| `purchased_class_node_ids` | Class-tree purchases (max 2 of 3) |
-| `purchased_branch_node_ranks` | Branch node id → rank |
-| `auto_assign_enabled` | Server-owned toggle |
-| `hotbar_assignments` | Up to four active ability ids; auto-attack excluded |
-| `created_at` / `updated_at` | Envelope |
+| `schema_version` | `progressionSchemaVersion` |
+| `class_id` | `classId` (also on the character record; character record is immutable after create) |
+| `branch_id` | `branchId` |
+| `level` | `level` |
+| `xp_into_level` | `xpIntoLevel` (kept in sync with live `currentXp`) |
+| `lifetime_xp` | `lifetimeXp` |
+| `free_stat_allocations` | `freeStatAllocations` |
+| `purchased_class_node_ids` | `purchasedClassNodeIds` |
+| `purchased_branch_node_ranks` | `purchasedBranchNodeRanks` |
+| `auto_assign_enabled` | `autoAssignEnabled` |
+| `hotbar_assignments` | `hotbarAssignments` |
+| `created_at` / `updated_at` | envelope `createdAt` / `updatedAt` |
 
-Reproducible from content + those fields: unspent class/branch points, granted abilities/ranks, derived stats. Idempotency maps for XP and purchases remain required for reward safety; they are operational, not design-stat source.
+Do **not** persist calculated HP, mana, crit, haste, DR, unspent class points, or unspent branch points as authority. `publicProgression` includes calculated `unspentClassPoints`, `unspentBranchPoints`, and `unspentFreeStatPoints`.
 
-Cached match fields (current HP/mana, cooldowns, effects) stay match-lived except existing checkpoint rules.
+Live Foundation fields remain on the same blob so combat stays accepted: `currentXp`, 3-stat `allocatedAttributes`, `unspentAttributePoints`, `unspentSkillPoints`, `unlockedAbilityIds`, 8-slot `hotbar`, idempotency maps.
+
+Missing progression on list/join/export is not fatal: initialize canonical level 1 and persist once.
 
 ## Account export and deletion
 
-Export (`account_export`) includes the progression storage object after secret filtering. Character purge already lists `progression` among deleted gameplay kinds. Soft-delete leaves the blob until purge. Later schema fields must stay exportable and purgeable on the same key.
+Export (`account_export`) migrates each character's progression, then includes the blob after secret filtering. Character purge deletes `progression` among gameplay kinds. Soft-delete leaves the blob until purge. Restore does not re-run starter grants and does not reset the progression record. Account deletion runs character purge for every roster id, which removes the progression object.
 
 ## Character summaries
 
-`character_catalog` currently exposes `classId` and `level` only. Branch may be added later as a safe summary field; it must not become a client-authored value.
+`character_catalog` exposes `classId`, `level`, `branchId` (empty until a later phase records a branch), and presence (`ONLINE` / `LINK_DEAD` / …). Those fields are server-authored.

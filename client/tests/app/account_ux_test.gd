@@ -82,6 +82,12 @@ func test_class_cards_are_distinguishable_without_color_only() -> void:
 	assert_str(String(ClassPresentation.for_id("class.warrior").get("shape", ""))).contains("Sword")
 	assert_str(String(ClassPresentation.for_id("class.marksman").get("shape", ""))).contains("Bow")
 	assert_str(String(ClassPresentation.for_id("class.mage").get("shape", ""))).contains("Staff")
+	assert_str(String(ClassPresentation.for_id("class.mystic").get("shape", ""))).contains("Charm")
+	assert_str(String(ClassPresentation.for_id("class.mystic").get("glyph", ""))).is_not_equal(
+		String(ClassPresentation.for_id("class.mage").get("glyph", ""))
+	)
+	assert_str(ClassPresentation.selected_summary("class.mystic")).contains("Support")
+	assert_str(ClassPresentation.selected_summary("class.mystic")).contains("Mana-based")
 	assert_str(ClassPresentation.selected_summary("class.warrior")).contains("Close-range")
 
 

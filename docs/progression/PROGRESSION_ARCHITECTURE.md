@@ -1,16 +1,16 @@
 # Progression architecture (PROG-01)
 
-Documentation-only contract through PROG-01. PROG-02 adds canonical content JSON and generated bundles without enabling new player-visible combat.
+Documentation-only contract through PROG-01. PROG-02 adds canonical content JSON and generated bundles without enabling new player-visible combat. PROG-03 adds four-class creation and the canonical progression record without enabling level gains or talent spend.
 
 Canonical numbers: [rpg-progression-design-v1.0.md](../design/rpg-progression-design-v1.0.md).  
 Readings: [progression-interpretations.md](../design/progression-interpretations.md).  
-Undocumented implementation numbers: [progression-implementation-addendum.md](../design/progression-implementation-addendum.md) (empty of new values in PROG-01).
+Undocumented implementation numbers: [progression-implementation-addendum.md](../design/progression-implementation-addendum.md).
 
 ## Last accepted phase and ownership
 
-Last accepted phase: **PROG-02** (canonical shared content schemas). Foundation v1 / Prompt 35 / ACCT-09 remain accepted. Prompt 18 village/slime behavior remains frozen.
+Last accepted phase: **PROG-03** (four-class creation and progression-state migration). Foundation v1 / Prompt 35 / ACCT-09 remain accepted. Prompt 18 village/slime behavior remains frozen.
 
-PROG-02 authors canonical progression as content only. It does **not** replace the accepted progression, ability, effect, hotbar, or statistics systems. Later phases extend the owners below.
+PROG-03 extends character create/list and the existing progression blob. It does **not** replace the accepted ability, effect, hotbar, or statistics combat systems. Later phases extend the owners below.
 
 | Concern | Owner | Extend, do not duplicate |
 | --- | --- | --- |
@@ -22,7 +22,7 @@ PROG-02 authors canonical progression as content only. It does **not** replace t
 | Effects, DoTs, shields | `effects.ts`, `combat_pipeline.ts` | Haste snapshot, no DoT crit |
 | Threat / taunt | `threat.ts`, combat events | Challenge taunt later |
 | Equipment modifiers | `equipment.ts` channels into `stats.ts` | Keep as a modifier source |
-| Character summaries | `character_catalog.ts` | Add branch later if listed |
+| Character summaries | `character_catalog.ts` | `classId`, `level`, `branchId`, presence |
 | Export / delete | `account_export.ts`, `character_purge.ts` (includes `progression`) | Same blobs |
 | Content pipeline | `tools/content-build`, JSON Schema | No `.tres` as source of truth |
 | Design audit | `progression_design_audit.ts` (tests only) | Not imported by the match runtime |
@@ -35,15 +35,15 @@ The server is authoritative for class, branch, level, XP, automatic growth, free
 
 The client sends intentions only (`ALLOCATE_ATTRIBUTES`, `USE_ABILITY`, `CANCEL_CAST`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, and later branch/talent/respec intents). It never submits authoritative level, XP, stat totals, point balances, grants, ranks, combat results, mana, cooldown completion, durations, or respec results.
 
-## Persistence (target)
+## Persistence (PROG-03)
 
-Do not persist calculated statistics as source data. Target canonical fields (later migration):
+Do not persist calculated statistics as source data. Canonical fields on the existing progression blob:
 
-`schema_version`, `class_id`, `branch_id`, `level`, `xp_into_level`, `lifetime_xp`, `free_stat_allocations`, `purchased_class_node_ids`, `purchased_branch_node_ranks`, `auto_assign_enabled`, `hotbar_assignments`, `created_at`, `updated_at`.
+`progressionSchemaVersion`, `classId`, `branchId`, `level`, `xpIntoLevel`, `lifetimeXp`, `freeStatAllocations`, `purchasedClassNodeIds`, `purchasedBranchNodeRanks`, `autoAssignEnabled`, `hotbarAssignments`, `createdAt`, `updatedAt`.
 
-Point balances and granted abilities must be reproducible from class, branch, level, allocations, purchased nodes, and content. Cached derived values may exist in the match but must be rebuildable. Canonical records keep `permissionWrite: 0`.
+Point balances and granted design abilities must be reproducible from class, branch, level, allocations, purchased nodes, and content. Cached derived values may exist in the match but must be rebuildable. Canonical records keep `permissionWrite: 0`.
 
-Current live fields differ; see [PROGRESSION_STORAGE_CATALOG.md](PROGRESSION_STORAGE_CATALOG.md) and [PROGRESSION_MIGRATION_PLAN.md](PROGRESSION_MIGRATION_PLAN.md).
+Live Foundation fields remain on the same blob. See [PROGRESSION_STORAGE_CATALOG.md](PROGRESSION_STORAGE_CATALOG.md) and [PROGRESSION_MIGRATION_PLAN.md](PROGRESSION_MIGRATION_PLAN.md).
 
 ## Invariants (later implementation)
 

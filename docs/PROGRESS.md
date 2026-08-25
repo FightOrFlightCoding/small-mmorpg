@@ -1,10 +1,10 @@
 # Progress
 
-Last accepted phase: **PROG-02 — Canonical Shared Content Schemas and Generated Bundles**.
+Last accepted phase: **PROG-03 — Four-Class Character Creation and Progression-State Migration**.
 
 Current phase: none.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
 
@@ -1010,6 +1010,37 @@ Complete data representation of the Vibecode 1–10 progression design without e
 | Client GdUnit | 276/276, 0 orphans, `SHELL_LOGIN` |
 
 Limitations: Canonical combat is catalog-only. Mystic is not playable. Geometry omitted by the design is ledgered in [design/progression-implementation-addendum.md](design/progression-implementation-addendum.md). Manual Prompt 18 world play was not re-run; live village/slime behavior was not changed.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/content.ps1 validate
+powershell -File scripts/test-content.ps1
+powershell -File scripts/content-build.ps1
+powershell -File scripts/test-progression-design.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+```
+
+## PROG-03 four-class character creation and progression-state migration (2026-08-25)
+
+Character create offers Warrior, Mage, Marksman, and Mystic (`class.warrior` / `class.mage` / `class.marksman` / `class.mystic`). The five-slot limit is unchanged. The server rejects unknown classes and client-forged stats, XP, level, abilities, and equipment. New production characters start at canonical level 1: zero XP, empty free/class/branch purchases, no branch, auto-assign off, class auto-attack presentation only, no L2 or branch grants. Mage and Mystic keep a mana pool; Warrior and Marksman have `maxMana` 0.
+
+The existing `player` / `progression_<id>` blob (`permissionWrite: 0`) stores `progressionSchemaVersion` **2** with the canonical fields. `SAVE_SCHEMA_VERSION` stays **1**. Point balances and derived stats are calculated. Existing warrior/marksman/mage characters migrate in place without class conversion, without duplicating starters, and without regranting quests. Character Select summaries include class, level, branch when chosen, and link-dead/online presence. Account export, support snapshot, soft-delete, restore, purge, and account deletion handle the same record.
+
+Client/server generated catalogs share content hash `3b57502b4a197972c970420cd7b2a5a74955311b5840be0b4d184843c24e3320`. Live combat still uses `test.curve.standard` (cap 5), Might/Vitality/Focus, and `test.ability.*`. Canonical `ability.*` rows remain `runtimeEnabled: false`. Prompt 18 village/slime behavior is unchanged. No level gains.
+
+| Gate | Result |
+| --- | --- |
+| Content validate/build | pass; client/server hashes match |
+| Content-build tests | 24/24 (`scripts/test-content.ps1`) |
+| Design audit | 10/10 (`scripts/test-progression-design.ps1`) |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (29 RPCs, 34 storage records, 32 client opcodes) |
+| Server hermetic | 557 passed, 13 skipped (live suites off); `tsc` via server test script |
+| Client GdUnit | 276/276, 0 orphans, `SHELL_LOGIN` |
+
+Limitations: Level-up, branch choice, talent spend, and canonical combat remain later PROG phases. Geometry omitted by the design is ledgered in [design/progression-implementation-addendum.md](design/progression-implementation-addendum.md). Manual Prompt 18 world play was not re-run; live village/slime behavior was not changed.
 
 Reproduction:
 

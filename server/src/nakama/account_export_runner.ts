@@ -1,10 +1,13 @@
 import { assembleAccountExport, supportRecoveryId } from "../domain/account_export";
+import { catalogFromContent } from "../domain/stats";
+import { migrateToCanonicalProgression } from "../domain/progression";
+import { content } from "../generated/content";
 import { readAccountProfile } from "./account_profile_store";
 import { readRoster } from "./roster_store";
 import { readCharacter } from "./character_store";
 import { readInventory } from "./inventory_store";
 import { readEquipment } from "./equipment_store";
-import { readProgression } from "./progression_store";
+import { readProgression, writeProgression } from "./progression_store";
 import { readQuests } from "./quest_store";
 import { readActiveLocation } from "./location_store";
 import { readGameplayLease } from "./gameplay_lease_store";
@@ -33,12 +36,18 @@ export function buildAccountExportPayload(
   const tradeHistory: unknown[] = [];
   const partyHistory: unknown[] = [];
   const repo = nakamaPartyRepository(nk);
+  const catalog = catalogFromContent(content);
   for (let i = 0; i < ids.length; i++) {
     const character = readCharacter(nk, userId, ids[i]);
     const location = readActiveLocation(nk, userId, ids[i]);
+    const classId = character !== null && character.classId !== undefined ? character.classId : "";
+    const ensured = migrateToCanonicalProgression(readProgression(nk, userId, ids[i]), classId, nowMs, catalog);
+    if (ensured.changed) {
+      writeProgression(nk, userId, ensured.progression, ids[i]);
+    }
     characters.push({
       catalog: character,
-      progression: readProgression(nk, userId, ids[i]),
+      progression: ensured.progression,
       inventory: readInventory(nk, userId, ids[i]),
       equipment: readEquipment(nk, userId, ids[i]),
       quests: readQuests(nk, userId, ids[i]),

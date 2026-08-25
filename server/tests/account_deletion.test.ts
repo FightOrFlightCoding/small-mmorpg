@@ -51,6 +51,7 @@ interface MemoryWorld {
   supportRecovery: boolean;
   settings: boolean;
   inviteBindings: boolean;
+  progressions: { [characterId: string]: boolean };
   job: AccountDeletionJob | null;
 }
 
@@ -81,6 +82,7 @@ function seedWorld(): MemoryWorld {
     supportRecovery: true,
     settings: true,
     inviteBindings: true,
+    progressions: { "char-live": true, "char-deleted": true },
     job: null,
   };
 }
@@ -128,6 +130,7 @@ function memoryDeps(world: MemoryWorld): AccountDeletionDeps {
       if (world.purged.indexOf(characterId) === -1) {
         world.purged.push(characterId);
       }
+      delete world.progressions[characterId];
     },
     wipeGold: function () {
       world.gold = 0;
@@ -193,6 +196,7 @@ function assertComplete(world: MemoryWorld): void {
   assert.equal(world.selection, false);
   assert.equal(world.lease, false);
   assert.deepEqual(world.purged, ["char-live", "char-deleted"]);
+  assert.deepEqual(world.progressions, {});
   assert.equal(world.gold, 0);
   assert.equal(world.emailIndex, "");
   assert.equal(world.pendingEmailChange, false);

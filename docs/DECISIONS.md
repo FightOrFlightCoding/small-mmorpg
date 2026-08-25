@@ -645,3 +645,11 @@ Canonical 1–10 progression is authored as JSON in the existing `tools/content-
 
 `class.mystic` is in the catalog with `rosterSelectable: false` so Character Select stays three cards. Canonical `ability.*` combat rows and auto-attacks have `runtimeEnabled: false` and are omitted from the live ability map. Physical classes use `resource.none` for the canonical resource field; live `startingResources` still include mana. Changing a numerical content value does not require combat source edits. Geometry omitted by the design is ledgered in `docs/design/progression-implementation-addendum.md`. Protocol code stays class-id-agnostic; talent nodes are data, not opcode special cases.
 
+## 2026-08-25 — PROG-03 four-class creation and progression-state migration
+
+Character create offers `class.warrior`, `class.mage`, `class.marksman`, and `class.mystic`. The five-slot limit is unchanged. The client may send only name, class id, and idempotency; stats/XP/level/abilities/equipment are `stat_injection`. New production characters start at canonical level 1 (zero XP, empty free/class/branch purchases, no branch, auto-assign off, class auto-attack presentation only, no L2/branch grants). Mage and Mystic keep a mana pool; Warrior and Marksman have `maxMana` 0.
+
+The existing `player` / `progression_<id>` blob (`permissionWrite: 0`) stores `progressionSchemaVersion` **2** with the canonical fields. `SAVE_SCHEMA_VERSION` stays **1**. Point balances and derived stats are calculated. Existing warrior/marksman/mage characters migrate in place without class conversion, without duplicating starters, and without regranting quests. Account export, support snapshot, soft-delete, restore, purge, and account deletion use the same record.
+
+JSON keys remain camelCase. Design `schema_version` is `progressionSchemaVersion`. Auto-assign default is off (`CANONICAL_AUTO_ASSIGN_DEFAULT`). Live combat still uses `test.curve.standard`, Might/Vitality/Focus, and `test.ability.*` until a later PROG phase.
+

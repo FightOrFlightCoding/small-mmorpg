@@ -14,6 +14,7 @@ import { dict } from "./maps";
 import { distance, lineBlocked, SNAPSHOT_RATE_HZ } from "./movement";
 import type { MatchPlayer, StarterZoneState } from "./match_state";
 import { cloneProgression, type CharacterProgression } from "./progression";
+import { usesCanonicalCreateState } from "./canonical_progression";
 import {
   emptyModifierMap,
   equipmentModifiersFromGear,
@@ -531,8 +532,21 @@ export function prepareJoinedPlayerAbilities(
   let changed = false;
   if (player.progression !== undefined) {
     const classId = player.classId !== undefined ? player.classId : "";
-    const basicId = state.basicAbilityId !== undefined ? state.basicAbilityId : "";
-    changed = ensureAbilityOwnership(player.progression, startingAbilitiesForClass(state, classId), basicId);
+    const classDef =
+      state.progressionCatalog !== undefined ? state.progressionCatalog.classes[classId] : undefined;
+    if (usesCanonicalCreateState(classDef !== undefined ? classDef.autoAttackId : undefined)) {
+      if (player.progression.hotbar === undefined || player.progression.hotbar.length !== HOTBAR_SIZE) {
+        player.progression.hotbar = emptyHotbar();
+        changed = true;
+      }
+      if (player.progression.abilityRanks === undefined) {
+        player.progression.abilityRanks = {};
+        changed = true;
+      }
+    } else {
+      const basicId = state.basicAbilityId !== undefined ? state.basicAbilityId : "";
+      changed = ensureAbilityOwnership(player.progression, startingAbilitiesForClass(state, classId), basicId);
+    }
   }
   if (fillResources) {
     fillMaxResources(state, player);
@@ -550,7 +564,11 @@ function fillMaxResources(state: StarterZoneState, player: MatchPlayer): void {
   }
   const stats = casterStats(state, player);
   const resources = cloneResourceMap(player.resources);
-  resources[manaId] = stats !== null ? stats.maxMana : 0;
+  if (stats !== null && stats.maxMana > 0) {
+    resources[manaId] = stats.maxMana;
+  } else {
+    delete resources[manaId];
+  }
   player.resources = resources;
 }
 

@@ -78,12 +78,12 @@ ACCT-08 wraps accepted account and character operations in a project-owned desig
 
 ## Character select (`scenes/character`, `character.gd`)
 
-- Five visible slot cards (`UxCharacterCard` / `UxEmptySlot`): name, class glyph+label (not color-only), level, last location, last played, presence, Play, Delete.
+- Five visible slot cards (`UxCharacterCard` / `UxEmptySlot`): name, class glyph+label (not color-only), level, branch when chosen, last location, last played, presence, Play, Delete.
 - Link-dead copy is `Character still in world` / `Available in N seconds` from `playAvailableAt` vs `serverTimeMs`. Other live-lease characters show `Waiting for previous character to leave`. All Play buttons stay disabled until the lease clears, then the catalog refreshes and Play needs a new ticket. No client restart.
 - Create Character, Recently Deleted, Account Settings, Logout, server status, client/server version in debug builds.
-- Creation: three class cards with presentation summaries (Warrior close-range sword/shield, Marksman ranged bow, Mage staff/spell), name field, name rules, selected-state summary, Create, Cancel/Back, confirmation. No editable stats or starting-item lists. Creation is the only authoritative name reservation.
+- Creation: four class cards with presentation summaries (Warrior close-range sword/shield, Marksman ranged bow, Mage staff/spell, Mystic charm/fate support caster), name field, name rules, selected-state summary, Create, Cancel/Back, confirmation. No editable stats or starting-item lists. Creation is the only authoritative name reservation.
 - Delete dialog: name, class, level, seven-day retention, immediate slot release, restore availability, exact-name field, destructive confirm.
-- Recently Deleted: name, class, level, time remaining, Restore (disabled without a free slot, with full-slot copy). Purged rows disappear when the server list no longer includes them. No client-only permanent-delete button.
+- Recently Deleted: name, class, level, branch when chosen, time remaining, Restore (disabled without a free slot, with full-slot copy). Purged rows disappear when the server list no longer includes them. No client-only permanent-delete button.
 - Account Settings: verified email, account status, created date, registration mode, Support Recovery ID, Change password, Change email, Log out all sessions, Export my data. Permanent deletion is visually separated. Nakama user id is behind a developer-details toggle.
 - Unverified/disabled/deleting accounts never reach this scene through the email path; RPCs still enforce the playable-account guard.
 

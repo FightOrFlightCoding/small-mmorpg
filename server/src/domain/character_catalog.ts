@@ -31,6 +31,7 @@ export interface CharacterCatalogEntry {
   name: string;
   canonicalName: string;
   classId: string;
+  branchId: string;
   level: number;
   lastLocationNameKey: string;
   lastPlayedAt: number;
@@ -114,6 +115,7 @@ export function characterCatalogEntry(input: {
   accountUserId: string;
   nowMs: number;
   level: number;
+  branchId: string;
   location: ActiveLocation | null;
   lease: GameplayLease | null;
   maintenance: boolean;
@@ -136,6 +138,7 @@ export function characterCatalogEntry(input: {
     name: record.name,
     canonicalName: record.canonicalName !== undefined ? record.canonicalName : record.name.toLowerCase(),
     classId: record.classId !== undefined ? record.classId : "",
+    branchId: input.branchId,
     level: input.level,
     lastLocationNameKey: locationNameKey(input.location, record.zoneId),
     lastPlayedAt: record.lastPlayedAt !== undefined ? record.lastPlayedAt : record.updatedAt,

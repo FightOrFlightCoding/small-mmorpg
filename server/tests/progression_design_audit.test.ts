@@ -147,7 +147,7 @@ test("design markdown tables parse", () => {
   assert.equal(tables.length >= 12, true);
 });
 
-test("live catalog snapshot keeps foundation gameplay while canonical four-class content is data-only", () => {
+test("live catalog snapshot keeps foundation combat while four production classes are selectable", () => {
   const classIds = Object.keys(content.classes);
   const production: string[] = [];
   const selectable: string[] = [];
@@ -163,8 +163,8 @@ test("live catalog snapshot keeps foundation gameplay while canonical four-class
   production.sort();
   selectable.sort();
   assert.deepEqual(production, ["class.mage", "class.marksman", "class.mystic", "class.warrior"]);
-  assert.deepEqual(selectable, ["class.mage", "class.marksman", "class.warrior"]);
-  assert.equal(content.classes["class.mystic"].rosterSelectable, false);
+  assert.deepEqual(selectable, ["class.mage", "class.marksman", "class.mystic", "class.warrior"]);
+  assert.equal(content.classes["class.mystic"].rosterSelectable, true);
   assert.equal(content.levelCurves["test.curve.standard"].maxLevel, 5);
   assert.equal(content.levelCurves["curve.vibecode.l10"].maxLevel, 10);
   const xp = content.levelCurves["test.curve.standard"].xpRequired;
@@ -174,8 +174,14 @@ test("live catalog snapshot keeps foundation gameplay while canonical four-class
   }
   assert.equal(sum, 375);
   assert.equal(HOTBAR_SIZE, 8);
-  assert.equal(content.classes["class.warrior"].startingResources["test.resource.mana"], 20);
-  assert.equal(content.classes["class.marksman"].startingResources["test.resource.mana"], 30);
+  const warriorResources = content.classes["class.warrior"].startingResources as { [id: string]: number };
+  const marksmanResources = content.classes["class.marksman"].startingResources as { [id: string]: number };
+  const mageResources = content.classes["class.mage"].startingResources as { [id: string]: number };
+  const mysticResources = content.classes["class.mystic"].startingResources as { [id: string]: number };
+  assert.equal(Object.prototype.hasOwnProperty.call(warriorResources, "test.resource.mana"), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(marksmanResources, "test.resource.mana"), false);
+  assert.ok(mageResources["test.resource.mana"] > 0);
+  assert.ok(mysticResources["test.resource.mana"] > 0);
   assert.ok(Object.prototype.hasOwnProperty.call(content.stats, "stat.strength"));
   assert.equal(content.abilities["ability.warrior.heavy_strike"].runtimeEnabled, false);
   const conflicts = readRepoFile("docs/progression/CURRENT_CONFLICTS.md");
