@@ -85,27 +85,30 @@ func request_login_email(email: String, password: String) -> void:
 	if AppState.has_fatal_error:
 		return
 	if email.strip_edges().is_empty() or password.is_empty():
-		AppState.report_recoverable("invalid_credentials", "Email and password are required.")
+		AppState.report_recoverable("invalid_credentials", AccountErrors.message_for("invalid_credentials"))
 		return
 	var result := await AccountService.login(email, password)
 	var code := String(result.get("code", ""))
-	if code == "EMAIL_VERIFICATION_REQUIRED":
-		AppState.report_recoverable(code, AccountErrors.message_for(code))
+	if code == "EMAIL_VERIFICATION_REQUIRED" or AccountErrors.canonicalize(code) == "AUTH_EMAIL_UNVERIFIED":
+		AppState.report_recoverable("EMAIL_VERIFICATION_REQUIRED", AccountErrors.message_for("EMAIL_VERIFICATION_REQUIRED"))
 		SceneRouter.transition_to(SceneRouter.SCENE_VERIFY)
 		return
-	if code == "AUTH_ACCOUNT_DISABLED":
-		AppState.report_recoverable(code, AccountErrors.message_for(code))
+	if AccountErrors.canonicalize(code) == "ACCOUNT_DISABLED":
+		AppState.report_recoverable("AUTH_ACCOUNT_DISABLED", AccountErrors.message_for("ACCOUNT_DISABLED"))
 		SceneRouter.transition_to(SceneRouter.SCENE_ACCOUNT_DISABLED)
 		return
-	if code == "AUTH_UNAVAILABLE":
-		AppState.report_recoverable(code, AccountErrors.message_for(code))
+	if AccountErrors.canonicalize(code) == "ACCOUNT_DELETING":
+		AppState.report_recoverable("AUTH_ACCOUNT_DELETING", AccountErrors.message_for("ACCOUNT_DELETING"))
+		return
+	if AccountErrors.canonicalize(code) == "ACCOUNT_SERVER_UNAVAILABLE":
+		AppState.report_recoverable("AUTH_UNAVAILABLE", AccountErrors.message_for("ACCOUNT_SERVER_UNAVAILABLE"))
 		SceneRouter.transition_to(SceneRouter.SCENE_SERVER_UNAVAILABLE)
 		return
 	if code == "AUTH_INVALID_CREDENTIALS":
 		AppState.report_recoverable("invalid_credentials", AccountErrors.message_for("invalid_credentials"))
 		return
 	if not bool(result.get("ok", false)):
-		AppState.report_recoverable(code if not code.is_empty() else "invalid_credentials", String(result.get("message", AccountErrors.message_for("invalid_credentials"))))
+		AppState.report_recoverable(code if not code.is_empty() else "invalid_credentials", AccountErrors.display_for(code, String(result.get("request_id", AccountService.last_request_id))))
 		return
 	await NetworkService.import_session(
 		String(result.get("token", "")),
@@ -320,7 +323,7 @@ func request_return_to_character_select() -> bool:
 		AppState.departure_locked = false
 		AppState.notify_loading_completed("return")
 		AppState.notify_session_status("Online")
-		var message := String(result.get("message", "Cannot leave safely."))
+		var message := AccountErrors.message_for("CHARACTER_SAFE_LEAVE_DENIED")
 		AppState.report_recoverable(String(result.get("code", "unsafe_leave")), message)
 		return false
 	enter_world_after_bootstrap = false
@@ -350,7 +353,7 @@ func request_logout() -> void:
 			AppState.departure_locked = false
 			AppState.notify_loading_completed("logout")
 			AppState.notify_session_status("Online")
-			AppState.report_recoverable(String(result.get("code", "unsafe_leave")), String(result.get("message", "Cannot leave safely.")))
+			AppState.report_recoverable(String(result.get("code", "unsafe_leave")), AccountErrors.message_for("CHARACTER_SAFE_LEAVE_DENIED"))
 			return
 		await NetworkService.depart_gameplay()
 		_departure_busy = false
@@ -376,7 +379,7 @@ func request_quit_safely() -> bool:
 		AppState.departure_locked = false
 		AppState.notify_loading_completed("logout")
 		AppState.notify_session_status("Online")
-		AppState.report_recoverable(String(result.get("code", "unsafe_leave")), String(result.get("message", "Cannot leave safely.")))
+		AppState.report_recoverable(String(result.get("code", "unsafe_leave")), AccountErrors.message_for("CHARACTER_SAFE_LEAVE_DENIED"))
 		return false
 	await NetworkService.depart_gameplay()
 	_departure_busy = false

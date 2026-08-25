@@ -619,3 +619,7 @@ Account Settings on Character Select shows verified email, status, created date,
 
 `nk.accountDeleteId(userId, true)` is the only recorded-delete primitive. Product confirm does not call it as the whole path.
 
+## 2026-08-25 — ACCT-08 professional account and character UX
+
+Client-only presentation. `ShellTheme` / `Ux*` components wrap accepted lifecycle screens. Class cards use glyph, shape label, and name so identity is not color-only. `AccountErrors` aliases gateway/RPC codes to the ACCT-08 catalog; unknown errors show `Something went wrong.` and `Reference: <request ID>`. Back navigation cannot skip email verification or treat Character Select Escape as logout. In-world leave still waits for opcode 32 acknowledgement. No new RPCs, storage, or Prompt 18 gameplay changes. Stay Signed In remains later.
+

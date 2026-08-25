@@ -20,6 +20,9 @@ func test_error_mapping_hides_account_existence() -> void:
 	assert_str(AccountErrors.message_for("AUTH_INVALID_CREDENTIALS")).is_equal("Email or password is incorrect.")
 	assert_str(AccountErrors.message_for("invalid_credentials")).is_equal("Email or password is incorrect.")
 	assert_bool(AccountErrors.is_account_gate("email_verification_required")).is_true()
+	var unknown := AccountErrors.display_for("INTERNAL_TRACE_CODE", "abc-99")
+	assert_str(unknown).contains("Something went wrong.")
+	assert_str(unknown).contains("Reference: abc-99")
 
 
 func test_rpc_stack_traces_are_not_shown() -> void:

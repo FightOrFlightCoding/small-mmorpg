@@ -34,6 +34,10 @@ func _on_submit() -> void:
 	_resend.disabled = true
 	await GameService.request_password_reset(_email_edit.text)
 	_status.text = "If an account exists for that email, password-reset instructions have been sent. Check your inbox and junk folder. The code expires after 15 minutes."
+	if not _email_edit.text.strip_edges().is_empty():
+		var masked := EmailMask.mask(_email_edit.text)
+		if not masked.is_empty():
+			_status.text = "If an account exists for that email, password-reset instructions have been sent to %s. Check your inbox and junk folder. The code expires after 15 minutes." % masked
 	_continue.visible = true
 	_busy = false
 	_submit.disabled = false

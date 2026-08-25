@@ -4,11 +4,14 @@ extends RefCounted
 ## Test double for AccountService gateway calls. Does not contact the network.
 
 var ready_ok: bool = true
+var ready_email_ok: bool = true
 var register_ok: bool = true
 var register_code: String = "AUTH_REGISTRATION_FAILED"
 var login_ok: bool = true
 var login_code: String = "AUTH_INVALID_CREDENTIALS"
 var login_message: String = "Email or password is incorrect."
+var login_retry_after: int = 0
+var last_request_id: String = "req-test"
 var verify_ok: bool = true
 var verify_code: String = "AUTH_INVALID_CHALLENGE"
 var refresh_ok: bool = true
@@ -56,7 +59,7 @@ func request(method: String, path: String, body: Dictionary, bearer: String) -> 
 	last_bearer = bearer
 	last_email = String(body.get("email", last_email))
 	if path == "/ready":
-		return {"ok": ready_ok, "nakama": ready_ok, "email": ready_ok}
+		return {"ok": ready_ok and ready_email_ok, "nakama": ready_ok, "email": ready_email_ok}
 	if path == "/v1/auth/register":
 		return _register(body)
 	if path == "/v1/auth/login":
@@ -174,7 +177,13 @@ func _login(body: Dictionary) -> Dictionary:
 	login_calls += 1
 	var email := String(body.get("email", "")).strip_edges().to_lower()
 	if not login_ok:
-		return {"ok": false, "code": login_code, "message": login_message}
+		return {
+			"ok": false,
+			"code": login_code,
+			"message": login_message,
+			"request_id": last_request_id,
+			"retry_after_seconds": login_retry_after,
+		}
 	var row: Variant = registered.get(email, null)
 	if typeof(row) == TYPE_DICTIONARY and not bool((row as Dictionary).get("verified", true)):
 		return {"ok": false, "code": "EMAIL_VERIFICATION_REQUIRED"}

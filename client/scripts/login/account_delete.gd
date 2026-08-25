@@ -18,6 +18,12 @@ func _ready() -> void:
 	super._ready()
 	WindowManager.open(WindowManager.ACCOUNT_DELETE)
 	_password.secret = true
+	ShellTheme.style_field(_password, "password")
+	ShellTheme.style_field(_code, "text")
+	ShellTheme.style_field(_phrase, "text")
+	ShellTheme.style_secondary(_send_code)
+	ShellTheme.style_destructive(_confirm, true)
+	ShellTheme.style_secondary(_back)
 	_confirm.focus_mode = Control.FOCUS_CLICK
 	_confirm.disabled = true
 	_send_code.pressed.connect(_on_send_code)

@@ -1,10 +1,13 @@
 # Account UI flows
 
-ACCT-04 Godot shell for credential recovery and maintenance, plus ACCT-05 Character Select (five slots, production class cards, Recently Deleted). Gateway-hosted `/v1/confirm` pages remain for email links. Product email login goes through `AccountService` and the auth gateway. Debug Alice/Bob/device buttons remain, hidden in release.
+ACCT-08 wraps accepted account and character operations in a project-owned design system (`DesignTokens`, `ShellTheme`, `Ux*` components). Lifecycle actions still go through `GameService` / `AccountService` / `NetworkService`. Gateway-hosted `/v1/confirm` pages remain for email links. Debug Alice/Bob/device buttons remain, hidden in release.
+
+`AccountErrors` maps catalog codes to player copy. Unknown codes show `Something went wrong.` plus `Reference: <request ID>`. Dialogs never show raw backend codes or stack traces.
 
 ## Login (`scenes/login/login.tscn`)
 
-- Email, password, show/hide, Caps Lock hint where typing looks shifted, Remember Email, Login, Register, Forgot Password, **Forgot which email you used?**, server status, version, loading, field/global errors.
+- Autofocus email, Enter advances email → password → submit, explicit tab order, show/hide password, Caps Lock hint, Remember Email, Login loading spinner, Register, Forgot Password, **Forgot which email you used?**, server banners (maintenance, client update, email delay), version in debug builds, rate-limit countdown, field/global errors.
+- Invalid credentials keep the email and clear the password. Generic copy only.
 - Local Compose server hint includes Mailpit (`http://127.0.0.1:8025`); verification mail is not delivered to Gmail.
 - Stay Signed In is hidden (`CredentialStore` unavailable).
 - Debug: Alice, Bob, this machine (hidden in release).
@@ -17,13 +20,15 @@ ACCT-04 Godot shell for credential recovery and maintenance, plus ACCT-05 Charac
 
 ## Registration (`scenes/login/register.tscn`)
 
-- Email, password, confirm, show/hide, 15–128 guidance, live strength, Terms and Privacy checkboxes **unchecked** by default, placeholder document links, Register, Back to Login, field errors.
+- Live local email syntax guidance, password guidance/confirm/visibility/strength, Terms and Privacy checkboxes **unchecked** by default, placeholder document links, field errors, form error summary, Register, Back to Login.
+- Does not claim success until the server confirms. Duplicate email uses the generic “We could not create this account…” copy.
 - Local Compose: Mailpit capture note (`http://127.0.0.1:8025`, not Gmail).
 - Success → Email Verification. Duplicate email uses the generic “We could not create this account…” copy.
 
 ## Email verification (`scenes/login/verify.tscn`)
 
-- Explanation, code field with paste, Verify, Resend with countdown, Change email (registration), Back to Login, delivery-delay copy.
+- Explanation with a partially masked address only after the player supplied that email, one code field with paste and grouped formatting, Verify, Resend with countdown, expiry copy, Change email (registration), Back to Login, delivery-delay copy, email-provider outage banner.
+- Back never skips to Character Select.
 - Local Compose captures mail in Mailpit (`http://127.0.0.1:8025`). The verify screen says so and offers **Open local inbox**. Codes are not delivered to Gmail.
 - Success → Login.
 
@@ -73,12 +78,13 @@ ACCT-04 Godot shell for credential recovery and maintenance, plus ACCT-05 Charac
 
 ## Character select (`scenes/character`, `character.gd`)
 
-- Five visible slot cards: name, class, level, placeholder class color, last location, last played, presence, Play, Delete.
-- Link-dead copy is `Character still in world` / `Available in N seconds` from `playAvailableAt` vs `serverTimeMs`. Other live-lease characters show `Waiting for previous character to leave`. All Play buttons stay disabled until the lease clears, then the catalog refreshes and Play needs a new ticket.
-- Create Character, Recently Deleted, Account Settings, Logout, server status, version.
-- Creation: three content-driven class cards (Warrior / Marksman / Mage), name field, name rules, advisory availability, Create, Back, final confirmation. Creation is the only authoritative name reservation.
-- Recently Deleted: name, class, level, time remaining, Restore (disabled without a free slot). No client-only permanent-delete button.
-- Account Settings: verified email, account status, created date, registration mode, Support Recovery ID, Change password, Change email, Log out all sessions, Export my data, Delete account. Nakama user id is behind a developer-details toggle.
+- Five visible slot cards (`UxCharacterCard` / `UxEmptySlot`): name, class glyph+label (not color-only), level, last location, last played, presence, Play, Delete.
+- Link-dead copy is `Character still in world` / `Available in N seconds` from `playAvailableAt` vs `serverTimeMs`. Other live-lease characters show `Waiting for previous character to leave`. All Play buttons stay disabled until the lease clears, then the catalog refreshes and Play needs a new ticket. No client restart.
+- Create Character, Recently Deleted, Account Settings, Logout, server status, client/server version in debug builds.
+- Creation: three class cards with presentation summaries (Warrior close-range sword/shield, Marksman ranged bow, Mage staff/spell), name field, name rules, selected-state summary, Create, Cancel/Back, confirmation. No editable stats or starting-item lists. Creation is the only authoritative name reservation.
+- Delete dialog: name, class, level, seven-day retention, immediate slot release, restore availability, exact-name field, destructive confirm.
+- Recently Deleted: name, class, level, time remaining, Restore (disabled without a free slot, with full-slot copy). Purged rows disappear when the server list no longer includes them. No client-only permanent-delete button.
+- Account Settings: verified email, account status, created date, registration mode, Support Recovery ID, Change password, Change email, Log out all sessions, Export my data. Permanent deletion is visually separated. Nakama user id is behind a developer-details toggle.
 - Unverified/disabled/deleting accounts never reach this scene through the email path; RPCs still enforce the playable-account guard.
 
 ## Delete Account (`scenes/login/account_delete.tscn`)
@@ -94,16 +100,17 @@ ACCT-04 Godot shell for credential recovery and maintenance, plus ACCT-05 Charac
 
 ## World HUD
 
-- Character Select: opcode 32, wait for ack, then the character scene.
+- Game Menu: Resume, Settings, Return to Character Select, Logout to Login, Quit Game. Return/logout show leave restrictions, session progress, and wait for server acknowledgement; they do not claim the character left first.
+- HUD also keeps Character Select / Logout / Quit. Return uses opcode 32, waits for ack, then the character scene.
 - Log out: same safe leave, then revoke current tokens, Login. Failed leave stays in-world.
 - Quit Game: Quit Safely when allowed; otherwise warn about the ten-second hold, Cancel, or Quit Anyway.
 - Session status: Entering world, Online, Returning to Character Select, Logging out, Connection lost, Character remains in world, Server unavailable.
-- Settings persist non-credential preferences.
+- Settings persist non-credential preferences (including UI scale and text size).
 - Debug GM panel does not grant account authority.
 
 ## Shared screen rules
 
-All recovery and maintenance screens provide a loading state, disabled duplicate submit, clear success, clear expiry, resend guidance where a challenge is involved, back navigation, password visibility controls on password fields, and paste support on code fields. None enumerate accounts.
+All recovery and maintenance screens provide a loading state with a timeout message, disabled duplicate submit, clear success, clear expiry, resend guidance where a challenge is involved, back navigation that cannot skip verification or destructive confirm, password visibility on password fields, and paste support on code fields. Keyboard focus is visible. None enumerate accounts.
 
 ## Later phases (do not implement here)
 

@@ -53,11 +53,26 @@ var _name_timer: Timer
 var _lease_timer: Timer
 var _play_busy: bool = false
 var _lease_list_refresh_busy: bool = false
+var _class_summary: Label
+var _delete_summary: Label
 
 
 func _ready() -> void:
 	super._ready()
-	_version.text = "Version %s" % AccountService.CLIENT_VERSION
+	_version.visible = OS.is_debug_build()
+	_version.text = "Client %s" % AccountService.CLIENT_VERSION
+	ShellTheme.style_secondary(_logout_button)
+	ShellTheme.style_primary(_create_button)
+	ShellTheme.style_secondary(_deleted_button)
+	ShellTheme.style_secondary(_settings_button)
+	ShellTheme.style_primary(_submit_create)
+	ShellTheme.style_secondary(_back_create)
+	ShellTheme.style_primary(_confirm_create)
+	ShellTheme.style_destructive(_confirm_delete, true)
+	ShellTheme.style_secondary(_cancel_delete)
+	ShellTheme.style_field(_name_edit, "text")
+	ShellTheme.style_field(_delete_name_edit, "text")
+	ShellTheme.style_destructive(_delete_account_button)
 	_logout_button.pressed.connect(_on_logout_pressed)
 	_create_button.pressed.connect(_show_create)
 	_deleted_button.pressed.connect(_show_deleted)
@@ -78,6 +93,9 @@ func _ready() -> void:
 	_cancel_delete.pressed.connect(_show_select)
 	_name_edit.max_length = 16
 	_name_edit.text_changed.connect(_on_name_changed)
+	_install_create_summary()
+	_install_settings_danger()
+	_install_delete_summary()
 	_name_timer = Timer.new()
 	_name_timer.one_shot = true
 	_name_timer.wait_time = 0.4
@@ -101,6 +119,47 @@ func _ready() -> void:
 	else:
 		_status.text = "Sign-in is required."
 	_show_select()
+
+
+func _install_create_summary() -> void:
+	_class_summary = Label.new()
+	_class_summary.name = "ClassSummary"
+	_class_summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_create_panel.add_child(_class_summary)
+	_create_panel.move_child(_class_summary, _name_edit.get_index())
+
+
+func _install_settings_danger() -> void:
+	var support := Label.new()
+	support.name = "SupportInfo"
+	support.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	support.text = "Support can look up a recovery ID. They will never ask for your password."
+	_settings_panel.add_child(support)
+	_settings_panel.move_child(support, _export_button.get_index() + 1)
+	var danger := Label.new()
+	danger.name = "DestructiveHelp"
+	danger.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	danger.add_theme_color_override("font_color", DesignTokens.ERROR)
+	danger.text = "Danger zone — permanent account deletion cannot be undone. This is separate from ordinary settings."
+	_settings_panel.add_child(danger)
+	_settings_panel.move_child(danger, _delete_account_button.get_index())
+
+
+func _install_delete_summary() -> void:
+	_delete_summary = Label.new()
+	_delete_summary.name = "DeleteSummary"
+	_delete_summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_delete_panel.add_child(_delete_summary)
+	_delete_panel.move_child(_delete_summary, _delete_help.get_index())
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		if _delete_panel.visible or _create_panel.visible or _deleted_panel.visible or _settings_panel.visible:
+			_show_select()
+			get_viewport().set_input_as_handled()
+			return
+	super._unhandled_input(event)
 
 
 func _exit_tree() -> void:
@@ -142,66 +201,22 @@ func _rebuild_class_cards() -> void:
 	_refresh_class_selection()
 
 
-func _make_class_card(class_id: String, record: Dictionary) -> Button:
-	var card := Button.new()
-	card.toggle_mode = true
-	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	card.custom_minimum_size = Vector2(180, 220)
-	var visual_id := String(record.get("placeholderIconAssetId", record.get("visualAssetSetId", "")))
-	var visual: Dictionary = ContentRegistry.resolve_visual(visual_id)
-	var color: Color = Color(0.3, 0.3, 0.35, 1)
-	if visual.get("fallback_color") is Color:
-		color = visual["fallback_color"]
-	var box := VBoxContainer.new()
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var swatch := ColorRect.new()
-	swatch.custom_minimum_size = Vector2(0, 48)
-	swatch.color = color
-	swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var title := Label.new()
-	title.text = String(record.get("displayName", class_id))
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var role := Label.new()
-	role.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	role.text = _class_role_text(record)
-	role.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var summary := Label.new()
-	summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	summary.text = _class_start_summary(record)
-	summary.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_child(swatch)
-	box.add_child(title)
-	box.add_child(role)
-	box.add_child(summary)
-	card.add_child(box)
-	card.pressed.connect(func() -> void:
-		_selected_class_id = class_id
+func _make_class_card(class_id: String, _record: Dictionary) -> Button:
+	var card := UxClassCard.new()
+	card.configure(class_id)
+	card.class_chosen.connect(func(id: String) -> void:
+		_selected_class_id = id
 		_refresh_class_selection()
 	)
-	card.set_meta("class_id", class_id)
 	return card
 
 
 func _class_role_text(record: Dictionary) -> String:
-	var short := String(record.get("shortDescription", ""))
-	if not short.is_empty():
-		return short
-	return String(record.get("roleSummaryKey", record.get("displayName", "")))
+	return String(ClassPresentation.for_id(String(record.get("id", ""))).get("role", ""))
 
 
 func _class_start_summary(record: Dictionary) -> String:
-	var abilities: Variant = record.get("startingAbilities", [])
-	var equipment: Variant = record.get("startingEquipment", [])
-	var ability_count := 0
-	if typeof(abilities) == TYPE_ARRAY:
-		ability_count = (abilities as Array).size()
-	var gear := "starter kit"
-	if typeof(equipment) == TYPE_ARRAY and (equipment as Array).size() > 0:
-		var first: Variant = (equipment as Array)[0]
-		if typeof(first) == TYPE_DICTIONARY:
-			gear = String((first as Dictionary).get("itemId", gear))
-	return "Provisional loadout: %s, %s abilities." % [gear, str(ability_count)]
+	return ClassPresentation.selected_summary(String(record.get("id", "")))
 
 
 func _refresh_class_selection() -> void:
@@ -209,6 +224,8 @@ func _refresh_class_selection() -> void:
 		if child is Button:
 			var button := child as Button
 			button.button_pressed = String(button.get_meta("class_id", "")) == _selected_class_id
+	if _class_summary != null:
+		_class_summary.text = ClassPresentation.selected_summary(_selected_class_id)
 
 
 func _on_list_finished(success: bool, _message: String) -> void:
@@ -248,79 +265,24 @@ func _rebuild_slots() -> void:
 			continue
 		live.append(row)
 	for i in SLOT_COUNT:
-		var card := PanelContainer.new()
-		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		card.custom_minimum_size = Vector2(140, 220)
-		var box := VBoxContainer.new()
-		box.add_theme_constant_override("separation", 4)
 		if i < live.size():
-			_fill_active_card(box, live[i] as Dictionary)
+			var card := UxCharacterCard.new()
+			var row: Dictionary = live[i]
+			var reason := _play_reason(row)
+			var remain := _remaining_seconds(int(row.get("playAvailableAt", 0)))
+			card.bind(row, reason, _play_busy, remain)
+			card.set_location(_location_label(String(row.get("lastLocationNameKey", ""))))
+			card.set_played(_played_label(int(row.get("lastPlayedAt", 0))))
+			card.set_presence(_presence_label(String(row.get("activePresenceState", "OFFLINE"))))
+			card.play_pressed.connect(_play_character)
+			var captured: Dictionary = row
+			card.delete_pressed.connect(func(_character_id: String) -> void:
+				_open_delete(captured)
+			)
+			_slot_row.add_child(card)
 		else:
-			var empty := Label.new()
-			empty.text = "Empty slot"
-			empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			box.add_child(empty)
-		card.add_child(box)
-		_slot_row.add_child(card)
-
-
-func _fill_active_card(box: VBoxContainer, row: Dictionary) -> void:
-	var class_id := String(row.get("classId", ""))
-	var class_record: Dictionary = ContentRegistry.get_by_id(class_id)
-	var visual_id := String(class_record.get("placeholderIconAssetId", class_record.get("visualAssetSetId", "")))
-	var visual: Dictionary = ContentRegistry.resolve_visual(visual_id)
-	var swatch := ColorRect.new()
-	swatch.custom_minimum_size = Vector2(0, 36)
-	swatch.color = Color(0.25, 0.28, 0.32, 1)
-	if visual.get("fallback_color") is Color:
-		swatch.color = visual["fallback_color"]
-	box.add_child(swatch)
-	var name_label := Label.new()
-	name_label.text = String(row.get("displayName", row.get("name", "?")))
-	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(name_label)
-	var class_label := Label.new()
-	class_label.text = String(class_record.get("displayName", class_id))
-	class_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(class_label)
-	var level := Label.new()
-	level.text = "Level %s" % str(int(row.get("level", 1)))
-	level.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(level)
-	var loc := Label.new()
-	loc.text = _location_label(String(row.get("lastLocationNameKey", "")))
-	loc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	loc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(loc)
-	var played := Label.new()
-	played.text = _played_label(int(row.get("lastPlayedAt", 0)))
-	played.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(played)
-	var presence := Label.new()
-	presence.text = _presence_label(String(row.get("activePresenceState", "OFFLINE")))
-	presence.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(presence)
-	var play := Button.new()
-	play.text = "Play"
-	var reason := _play_reason(row)
-	play.disabled = not reason.is_empty() or _play_busy
-	if not reason.is_empty():
-		play.tooltip_text = reason.replace("\n", " — ")
-		var wait := Label.new()
-		wait.text = reason
-		wait.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		wait.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		box.add_child(wait)
-	play.pressed.connect(func() -> void:
-		_play_character(String(row.get("characterId", "")))
-	)
-	box.add_child(play)
-	var delete_btn := Button.new()
-	delete_btn.text = "Delete"
-	delete_btn.pressed.connect(func() -> void:
-		_open_delete(row)
-	)
-	box.add_child(delete_btn)
+			var empty := UxEmptySlot.new()
+			_slot_row.add_child(empty)
 
 
 func _rebuild_deleted() -> void:
@@ -348,6 +310,10 @@ func _rebuild_deleted() -> void:
 		restore.disabled = AppState.live_count >= AppState.slot_limit
 		if restore.disabled:
 			restore.tooltip_text = "Restoration requires a free slot."
+			var full := Label.new()
+			full.text = AccountErrors.message_for("CHARACTER_SLOTS_FULL")
+			full.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			card.add_child(full)
 		var character_id := String(row.get("characterId", ""))
 		restore.pressed.connect(func() -> void:
 			GameService.request_character_restore(character_id)
@@ -460,12 +426,7 @@ func _retention_label(expires_at: int) -> String:
 
 
 func _refresh_server_status() -> void:
-	if AppState.server_maintenance:
-		_server_status.text = "Server: maintenance"
-	elif AppState.content_incompatible:
-		_server_status.text = "Server: incompatible"
-	else:
-		_server_status.text = "Server: ready"
+	UxServerStatus.from_app_state(_server_status)
 
 
 func _show_select() -> void:
@@ -545,13 +506,20 @@ func _on_export_pressed() -> void:
 
 func _open_delete(row: Dictionary) -> void:
 	_pending_delete = row.duplicate(true)
-	_delete_help.text = "Type %s exactly to move this character to Recently Deleted." % String(row.get("displayName", row.get("name", "")))
+	var class_id := String(row.get("classId", ""))
+	var presentation := ClassPresentation.for_id(class_id)
+	var name := String(row.get("displayName", row.get("name", "")))
+	if _delete_summary != null:
+		_delete_summary.text = "%s — %s — Level %s" % [name, String(presentation.get("display_name", class_id)), str(int(row.get("level", 1)))]
+	_delete_help.text = "Type %s exactly to confirm. The live slot is freed immediately. The character stays in Recently Deleted for seven days and can be restored while a slot is free. After that window the character is purged." % name
 	_delete_name_edit.text = ""
+	_confirm_delete.text = "Delete character"
 	_select_panel.visible = false
 	_create_panel.visible = false
 	_deleted_panel.visible = false
 	_settings_panel.visible = false
 	_delete_panel.visible = true
+	_delete_name_edit.grab_focus()
 
 
 func _on_confirm_delete() -> void:
@@ -590,7 +558,8 @@ func _on_create_pressed() -> void:
 		return
 	_create_ready = true
 	_confirm_create.visible = true
-	_confirm_create.text = "Confirm create %s as %s" % [_name_edit.text.strip_edges(), _selected_class_id]
+	var presentation := ClassPresentation.for_id(_selected_class_id)
+	_confirm_create.text = "Confirm create %s as %s" % [_name_edit.text.strip_edges(), String(presentation.get("display_name", _selected_class_id))]
 
 
 func _on_confirm_create() -> void:

@@ -33,7 +33,11 @@ var deletion_status_token: String = ""
 var last_export_path: String = ""
 var last_code: String = ""
 var last_message: String = ""
+var last_request_id: String = ""
+var last_retry_after_seconds: int = 0
 var last_field_errors: Dictionary = {}
+var last_email_provider_ok: bool = true
+var last_nakama_ok: bool = true
 var credential_store: CredentialStore = CredentialStore.new()
 
 var _http: HTTPRequest
@@ -62,7 +66,11 @@ func reset_for_tests() -> void:
 	_clear_session()
 	last_code = ""
 	last_message = ""
+	last_request_id = ""
+	last_retry_after_seconds = 0
 	last_field_errors = {}
+	last_email_provider_ok = true
+	last_nakama_ok = true
 	pending_email = ""
 	pending_reset_email = ""
 	pending_reset_code = ""
@@ -93,12 +101,14 @@ func local_mail_capture_copy() -> String:
 
 func probe_ready() -> bool:
 	var result := await _request("GET", "/ready", {}, "")
-	if not bool(result.get("ok", false)):
-		gateway_reachable = false
-		gateway_unavailable.emit()
-		return false
-	gateway_reachable = true
-	return true
+	last_nakama_ok = bool(result.get("nakama", result.get("ok", false)))
+	last_email_provider_ok = bool(result.get("email", true))
+	if last_nakama_ok:
+		gateway_reachable = true
+		return true
+	gateway_reachable = false
+	gateway_unavailable.emit()
+	return false
 
 
 func register_account(
@@ -432,13 +442,25 @@ func _clear_session() -> void:
 func _clear_last_error() -> void:
 	last_code = ""
 	last_message = ""
+	last_request_id = ""
+	last_retry_after_seconds = 0
 	last_field_errors = {}
 
 
-func _fail(code: String, message: String) -> Dictionary:
+func _fail(code: String, _message: String) -> Dictionary:
 	last_code = code
-	last_message = message
-	return {"ok": false, "code": code, "message": message, "field_errors": last_field_errors}
+	if AccountErrors.is_known(code):
+		last_message = AccountErrors.message_for(code)
+	else:
+		last_message = AccountErrors.display_for(code, last_request_id)
+	return {
+		"ok": false,
+		"code": code,
+		"message": last_message,
+		"field_errors": last_field_errors,
+		"request_id": last_request_id,
+		"retry_after_seconds": last_retry_after_seconds,
+	}
 
 
 func _start_refresh_timer() -> void:
@@ -527,6 +549,8 @@ func _request(method: String, path: String, body: Dictionary, bearer: String, id
 	var raw: PackedByteArray = completed[3]
 	if result_code != HTTPRequest.RESULT_SUCCESS:
 		gateway_reachable = false
+		if result_code == HTTPRequest.RESULT_TIMEOUT:
+			return _fail("ACCOUNT_SERVER_UNAVAILABLE", AccountErrors.message_for("ACCOUNT_SERVER_UNAVAILABLE"))
 		return _fail("AUTH_UNAVAILABLE", AccountErrors.message_for("AUTH_UNAVAILABLE"))
 	var text := raw.get_string_from_utf8()
 	var parsed: Variant = JSON.parse_string(text)
@@ -540,6 +564,16 @@ func _request(method: String, path: String, body: Dictionary, bearer: String, id
 
 
 func _normalize_result(data: Dictionary) -> Dictionary:
+	last_request_id = String(data.get("request_id", data.get("requestId", "")))
+	last_retry_after_seconds = int(data.get("retry_after_seconds", data.get("retryAfterSeconds", 0)))
+	if data.has("nakama") or data.has("email"):
+		last_nakama_ok = bool(data.get("nakama", bool(data.get("ok", false))))
+		last_email_provider_ok = bool(data.get("email", true))
+		if last_nakama_ok:
+			last_code = ""
+			last_message = ""
+			last_field_errors = {}
+			return data
 	if bool(data.get("ok", false)):
 		last_code = ""
 		last_message = ""
@@ -551,11 +585,13 @@ func _normalize_result(data: Dictionary) -> Dictionary:
 		fields = data["field_errors"]
 	last_field_errors = fields
 	last_code = code
-	last_message = AccountErrors.message_for(code, String(data.get("message", "")))
+	last_message = AccountErrors.display_for(code, last_request_id)
 	return {
 		"ok": false,
 		"code": code,
 		"message": last_message,
 		"field_errors": fields,
 		"message_key": String(data.get("message_key", "")),
+		"request_id": last_request_id,
+		"retry_after_seconds": last_retry_after_seconds,
 	}

@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Account settings, data export, and permanent deletion (ACCT-07)**.
+Last accepted phase: **Professional account and character UX (ACCT-08)**.
 
 Current phase: none.
 
@@ -927,7 +927,20 @@ powershell -File scripts/test-auth-gateway.ps1
 powershell -File scripts/test-client.ps1
 ```
 
+## Professional account and character UX acceptance (ACCT-08, 2026-08-25)
 
+Client-only presentation around accepted account and character operations. `DesignTokens`, `ShellTheme`, and `Ux*` components cover primary/secondary/destructive buttons, text/email/password/code fields, checkbox, inline validation, form error summary, spinner, modal/confirm, status banner, character/class/empty-slot cards, countdown badge, toast, and server-status. Lifecycle screens call `GameService` / `AccountService` / `NetworkService` only. `AccountErrors` maps the ACCT-08 catalog; unknown errors show `Something went wrong.` plus `Reference: <request ID>`. Navigation is Boot → compatibility → Login → Register/recovery → Verify → Character Select → Create → Gameplay → Character Select → Logout. Back cannot skip verification. Character Select shows five slots, three class cards that are distinguishable without color-only identity, link-dead countdown copy, seven-day delete/restore, and a separated Account Settings danger zone. In-world Game Menu waits for opcode 32 acknowledgement before claiming a safe leave. Stay Signed In remains later. Prompt 18 village/slime behavior is unchanged. No new RPCs or storage records.
 
+| Gate | Result |
+| --- | --- |
+| Client GdUnit | 270/270, 0 orphans, `SHELL_LOGIN` |
+| Authoritative lifecycle | unchanged (client presentation only) |
 
+Limitations: Stay Signed In remains hidden. Final game art is not required; class cards use glyph, shape label, and name. Godot screen-reader support is limited to `accessibility_name` where the engine exposes it.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-client.ps1
+```
 

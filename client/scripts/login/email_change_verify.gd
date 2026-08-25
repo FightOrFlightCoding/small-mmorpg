@@ -18,12 +18,18 @@ var _done: bool = false
 func _ready() -> void:
 	super._ready()
 	WindowManager.open(WindowManager.EMAIL_CHANGE_VERIFY)
-	_explanation.text = "We sent a confirmation code to the new address. Your current email stays active until you confirm. Pasting is supported."
-	_code_edit.placeholder_text = "Confirmation code"
+	_explanation.text = "%s Your current email stays active until you confirm. Pasting is supported. Codes expire after a short time." % EmailMask.explain_destination(AccountService.pending_email_change, "the new address")
+	_code_edit.placeholder_text = "XXX XXX"
+	ShellTheme.style_field(_code_edit, "text")
+	ShellTheme.style_primary(_submit)
+	ShellTheme.style_secondary(_resend)
+	ShellTheme.style_secondary(_back)
 	_submit.pressed.connect(_on_submit)
 	_resend.pressed.connect(_on_resend)
 	_back.pressed.connect(func() -> void: SceneRouter.transition_to(SceneRouter.SCENE_CHANGE_EMAIL if AppState.is_authenticated else SceneRouter.SCENE_LOGIN))
 	_code_edit.gui_input.connect(_on_code_gui_input)
+	_code_edit.text_changed.connect(func(_value: String) -> void: CodeFormatter.apply_to_edit(_code_edit))
+	_code_edit.text_submitted.connect(func(_value: String) -> void: _on_submit())
 	_countdown = Timer.new()
 	_countdown.one_shot = false
 	_countdown.wait_time = 1.0
@@ -37,7 +43,7 @@ func _on_code_gui_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.ctrl_pressed and event.keycode == KEY_V:
 		var pasted := DisplayServer.clipboard_get().strip_edges()
 		if not pasted.is_empty():
-			_code_edit.text = pasted
+			_code_edit.text = CodeFormatter.grouped(pasted)
 
 
 func _on_submit() -> void:
@@ -48,7 +54,7 @@ func _on_submit() -> void:
 		return
 	_busy = true
 	_submit.disabled = true
-	await GameService.confirm_email_change(_code_edit.text)
+	await GameService.confirm_email_change(CodeFormatter.normalize(_code_edit.text))
 	_status.text = AccountService.last_message
 	if AccountService.last_code == "AUTH_CHALLENGE_EXPIRED":
 		_status.text = "That code has expired. Request a new email change."

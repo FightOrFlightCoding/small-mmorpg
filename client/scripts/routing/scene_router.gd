@@ -47,6 +47,7 @@ const SCENE_PATHS: Dictionary = {
 ## Tests set this false so GdUnit does not tear down the runner tree.
 var apply_scene_changes: bool = true
 var current_scene_id: String = SCENE_BOOT
+var _history: PackedStringArray = PackedStringArray()
 
 
 func scene_path(scene_id: String) -> String:
@@ -89,10 +90,12 @@ func can_transition_to(scene_id: String) -> bool:
 	return true
 
 
-func transition_to(scene_id: String) -> bool:
+func transition_to(scene_id: String, record_history: bool = true) -> bool:
 	if not can_transition_to(scene_id):
 		return false
 	var path := scene_path(scene_id)
+	if record_history:
+		_record_history(scene_id)
 	AppState.notify_loading_started("scene")
 	current_scene_id = scene_id
 	AppState.notify_scene_changed(scene_id)
@@ -105,6 +108,52 @@ func transition_to(scene_id: String) -> bool:
 	return true
 
 
+func go_back() -> bool:
+	if current_scene_id == SCENE_BOOT or current_scene_id == SCENE_LOGIN:
+		return false
+	if current_scene_id == SCENE_WORLD or current_scene_id == SCENE_CHARACTER:
+		return false
+	if current_scene_id == SCENE_VERIFY:
+		return transition_to(SCENE_LOGIN, false)
+	if current_scene_id == SCENE_EMAIL_CHANGE_VERIFY:
+		if AppState.is_authenticated:
+			return transition_to(SCENE_CHANGE_EMAIL, false)
+		return transition_to(SCENE_LOGIN, false)
+	if current_scene_id == SCENE_ACCOUNT_DELETE:
+		if AppState.is_authenticated:
+			return transition_to(SCENE_CHARACTER, false)
+		return transition_to(SCENE_LOGIN, false)
+	if current_scene_id == SCENE_PASSWORD_RESET_NEW:
+		return transition_to(SCENE_PASSWORD_RESET_CODE, false)
+	if _history.is_empty():
+		return transition_to(SCENE_LOGIN, false)
+	var previous := _history[_history.size() - 1]
+	_history.resize(_history.size() - 1)
+	if previous == SCENE_WORLD or previous == SCENE_VERIFY or previous == SCENE_CHARACTER:
+		if previous == SCENE_CHARACTER and AppState.is_authenticated and (
+			current_scene_id == SCENE_CHANGE_PASSWORD
+			or current_scene_id == SCENE_CHANGE_EMAIL
+			or current_scene_id == SCENE_ACCOUNT_DELETE
+		):
+			return transition_to(SCENE_CHARACTER, false)
+		if previous == SCENE_CHARACTER and AppState.is_authenticated:
+			return transition_to(SCENE_CHARACTER, false)
+		return transition_to(SCENE_LOGIN, false)
+	if not can_transition_to(previous):
+		return transition_to(SCENE_LOGIN, false)
+	return transition_to(previous, false)
+
+
+func _record_history(scene_id: String) -> void:
+	if scene_id == SCENE_LOGIN or scene_id == SCENE_BOOT or scene_id == SCENE_ACCOUNT_DELETED:
+		_history.clear()
+		return
+	if current_scene_id.is_empty() or current_scene_id == scene_id:
+		return
+	_history.append(current_scene_id)
+
+
 func reset_for_tests() -> void:
 	apply_scene_changes = false
 	current_scene_id = SCENE_BOOT
+	_history.clear()

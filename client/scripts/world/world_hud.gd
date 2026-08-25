@@ -107,16 +107,34 @@ var _quit_safely: Button
 var _quit_anyway: Button
 var _quit_cancel: Button
 var _quit_safe_mode: bool = true
+var _game_menu: ColorRect
+var _menu_status: Label
+var _menu_resume: Button
+var _menu_settings: Button
+var _menu_return: Button
+var _menu_logout: Button
+var _menu_quit: Button
+var _menu_button: Button
 
 
 func _ready() -> void:
+	if has_node("Root") and $Root is Control:
+		ShellTheme.apply($Root as Control)
+	if get_node_or_null("ToastHost") == null:
+		var host := UxToastHost.new()
+		host.name = "ToastHost"
+		add_child(host)
 	_resync.pressed.connect(func() -> void: resync_pressed.emit())
 	_logout.pressed.connect(func() -> void: logout_pressed.emit())
 	if _return_button != null:
+		_return_button.text = "Return to Character Select"
 		_return_button.pressed.connect(func() -> void: return_pressed.emit())
 	if _quit != null:
 		_quit.pressed.connect(func() -> void: quit_pressed.emit())
+	if _logout != null:
+		_logout.text = "Logout to Login"
 	_build_quit_dialog()
+	_build_game_menu()
 	if not AppState.session_status_changed.is_connected(_on_session_status):
 		AppState.session_status_changed.connect(_on_session_status)
 	_on_session_status(AppState.session_status if not AppState.session_status.is_empty() else "Online")
@@ -1976,6 +1994,12 @@ func set_departure_locked(locked: bool) -> void:
 		_logout.disabled = locked
 	if _quit != null:
 		_quit.disabled = locked
+	if _menu_return != null:
+		_menu_return.disabled = locked
+	if _menu_logout != null:
+		_menu_logout.disabled = locked
+	if _menu_quit != null:
+		_menu_quit.disabled = locked
 	if _resync != null:
 		_resync.disabled = locked
 
@@ -2060,5 +2084,118 @@ func _build_quit_dialog() -> void:
 	panel.add_child(vbox)
 	_quit_overlay.add_child(panel)
 	add_child(_quit_overlay)
+
+
+func toggle_game_menu() -> void:
+	if _game_menu != null and _game_menu.visible:
+		hide_game_menu()
+	else:
+		show_game_menu()
+
+
+func show_game_menu() -> void:
+	if _game_menu == null:
+		_build_game_menu()
+	_refresh_game_menu_status()
+	_game_menu.visible = true
+	WindowManager.open(WindowManager.GAME_MENU)
+	if _menu_resume != null:
+		_menu_resume.grab_focus()
+
+
+func hide_game_menu() -> void:
+	if _game_menu != null:
+		_game_menu.visible = false
+	WindowManager.close(WindowManager.GAME_MENU)
+
+
+func _refresh_game_menu_status() -> void:
+	if _menu_status == null:
+		return
+	var safe := GameService.local_player_can_leave_safely()
+	var restriction := "Safe leave is available." if safe else "Safe leave is restricted (combat, death, trade, or transfer)."
+	var progress := AppState.session_status if not AppState.session_status.is_empty() else "Online"
+	_menu_status.text = "%s\nProgress: %s\nThe character has not left until the server acknowledges it." % [restriction, progress]
+
+
+func _build_game_menu() -> void:
+	if _menu_button == null and has_node("Root/Margin/VBox/Buttons"):
+		var buttons: HBoxContainer = $Root/Margin/VBox/Buttons
+		_menu_button = Button.new()
+		_menu_button.name = "MenuButton"
+		_menu_button.text = "Menu"
+		ShellTheme.style_secondary(_menu_button)
+		_menu_button.pressed.connect(toggle_game_menu)
+		buttons.add_child(_menu_button)
+		buttons.move_child(_menu_button, 0)
+	if _game_menu != null:
+		return
+	_game_menu = ColorRect.new()
+	_game_menu.name = "GameMenu"
+	_game_menu.color = Color(0, 0, 0, 0.55)
+	_game_menu.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_game_menu.visible = false
+	_game_menu.mouse_filter = Control.MOUSE_FILTER_STOP
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.offset_left = -240
+	panel.offset_top = -200
+	panel.offset_right = 240
+	panel.offset_bottom = 200
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", DesignTokens.SPACE_MD)
+	var title := Label.new()
+	title.text = "Game Menu"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", DesignTokens.FONT_HEADING)
+	_menu_status = Label.new()
+	_menu_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_menu_resume = Button.new()
+	_menu_resume.text = "Resume"
+	ShellTheme.style_primary(_menu_resume)
+	_menu_resume.pressed.connect(hide_game_menu)
+	_menu_settings = Button.new()
+	_menu_settings.text = "Settings"
+	ShellTheme.style_secondary(_menu_settings)
+	_menu_settings.pressed.connect(func() -> void:
+		hide_game_menu()
+		_on_settings_pressed()
+	)
+	_menu_return = Button.new()
+	_menu_return.text = "Return to Character Select"
+	ShellTheme.style_secondary(_menu_return)
+	_menu_return.pressed.connect(func() -> void:
+		_refresh_game_menu_status()
+		_menu_status.text += "\nWaiting for server acknowledgement…"
+		_menu_return.disabled = true
+		return_pressed.emit()
+	)
+	_menu_logout = Button.new()
+	_menu_logout.text = "Logout to Login"
+	ShellTheme.style_secondary(_menu_logout)
+	_menu_logout.pressed.connect(func() -> void:
+		_refresh_game_menu_status()
+		_menu_status.text += "\nWaiting for server acknowledgement…"
+		_menu_logout.disabled = true
+		logout_pressed.emit()
+	)
+	_menu_quit = Button.new()
+	_menu_quit.text = "Quit Game"
+	ShellTheme.style_destructive(_menu_quit)
+	_menu_quit.pressed.connect(func() -> void:
+		hide_game_menu()
+		quit_pressed.emit()
+	)
+	vbox.add_child(title)
+	vbox.add_child(_menu_status)
+	vbox.add_child(_menu_resume)
+	vbox.add_child(_menu_settings)
+	vbox.add_child(_menu_return)
+	vbox.add_child(_menu_logout)
+	vbox.add_child(_menu_quit)
+	panel.add_child(vbox)
+	_game_menu.add_child(panel)
+	add_child(_game_menu)
+	_refresh_game_menu_status()
 
 

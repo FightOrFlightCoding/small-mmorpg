@@ -44,10 +44,11 @@ const VENDOR := "vendor"
 const INN := "inn"
 const CAVE := "cave"
 const DEATH := "death"
+const GAME_MENU := "game_menu"
 const ERROR := "error"
 const COMPATIBILITY := "compatibility"
 
-const EXCLUSIVE := ["settings", "vendor", "inn", "error", "compatibility"]
+const EXCLUSIVE := ["settings", "vendor", "inn", "error", "compatibility", "game_menu"]
 
 const CLOSEABLE := [
 	"settings",
@@ -66,6 +67,7 @@ const CLOSEABLE := [
 	"vendor",
 	"inn",
 	"cave",
+	"game_menu",
 ]
 
 var focused_id: String = ""

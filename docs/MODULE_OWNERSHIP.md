@@ -18,7 +18,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `ReconnectPolicy` | C | Backoff timings | none | none | none | no | no | no |
 | `MatchProtocol` | C | Opcodes, envelopes, FULL_STATE parse | none | none | none | no | schema only | no |
 | `GameService` | C | Boot, email register/login/verify/reset/password-change/email-change via AccountService, debug device login, character lifecycle, zone join | none | autoloads | `AccountService`, `NetworkService`, `SceneRouter`, `AppState` | no | via NetworkService | no |
-| `SceneRouter` | C | Boot/login/register/verify/unavailable/disabled/forgot-password/reset/change-password/change-email/forgot-email/character/world | current scene id | Godot tree | `AppState` | no | no | no |
+| `SceneRouter` | C | Boot/login/register/verify/unavailable/disabled/forgot-password/reset/change-password/change-email/forgot-email/character/world; back stack that cannot skip verification | current scene id + history | Godot tree | `AppState` | no | no | no |
 | `QuestService` | C | Journal mirror; accept/turn-in intents | In-memory quest view | none | `NetworkService` | no | QUEST_ACCEPT / QUEST_TURN_IN | no |
 | `InventoryService` | C | Inventory mirror; pickup/destroy/split/move intents | GLoot inventory clone | GLoot 3.0.2 | `NetworkService` | no | PICKUP / DESTROY_ITEM / SPLIT_STACK / MOVE_ITEM | no grants |
 | `EquipmentService` | C | Equipment mirror; equip intents | GLoot ItemSlot clone | GLoot 3.0.2 | `NetworkService`, `InventoryService` | no | EQUIP | no |
@@ -41,7 +41,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `MoveIntent` / `MovementSim` / `MovementReconciler` / `SnapshotBuffer` | C | Prediction and interpolation | unacked cmds, buffer | none | `MatchProtocol` | no | INPUT | no |
 | `AttackIntent` / `CombatFeedback` / `InteractIntent` / `PickupIntent` | C | Usability targeting and floating numbers | none | none | `NetworkService` | no | ATTACK / SET_TARGET / INTERACT / PICKUP | no |
 | `NetDebugOverlay` | C | Debug FPS / ping EMA | none | none | none | no | no | no |
-| `ErrorDialog` / `LoadingOverlay` / `ShellPage` | C | Visible errors and overlays | none | none | `AppState`, `WindowManager` | no | no | no |
+| `ErrorDialog` / `LoadingOverlay` / `ShellPage` / `ShellTheme` / `Ux*` | C | Visible errors, overlays, toasts, and reusable shell controls | none | none | `AppState`, `WindowManager`, `AccountErrors` | no | no | no |
 | `Boot` / `Login` / `Register` / `Verify` / recovery and credential-change scenes / `Character` scenes | C | Shell UI | none | none | `GameService`, `AccountService` | no | no | no |
 | `SliceJourney` / `SliceSession` / `e2e_slice` | C debug | Headless two-identity journey | test sessions | `NakamaNetworkBackend` | `MatchProtocol` | no | same opcodes as players | no |
 | `protocol.ts` | S | Opcode parse, injection rejection | none | none | none | no | yes (parse) | no |
