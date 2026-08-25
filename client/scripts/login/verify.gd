@@ -30,7 +30,7 @@ func _ready() -> void:
 	ShellTheme.style_secondary(_back_button)
 	_explanation.text = "%s Enter it here. Pasting is supported." % EmailMask.explain_destination(AccountService.pending_email)
 	_delay.text = AccountService.local_mail_capture_copy()
-	_inbox_button.visible = AccountService.uses_local_mail_capture()
+	_inbox_button.visible = AccountService.shows_local_operator_hints()
 	_inbox_button.pressed.connect(_on_inbox_pressed)
 	_code_edit.placeholder_text = "XXX XXX"
 	_code_edit.secret = false

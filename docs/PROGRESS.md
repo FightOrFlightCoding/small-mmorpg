@@ -1,6 +1,6 @@
 # Progress
 
-Last accepted phase: **Professional account and character UX (ACCT-08)**.
+Last accepted phase: **Security, failure, distribution, and final lifecycle certification (ACCT-09)**.
 
 Current phase: none.
 
@@ -942,5 +942,31 @@ Reproduction:
 
 ```powershell
 powershell -File scripts/test-client.ps1
+```
+
+## Security, failure, distribution, and lifecycle certification (ACCT-09, 2026-08-25)
+
+No new account features. Named gateway and Nakama rate limits, safe account audits, an 85-row threat matrix, a 15-row failure map, release hiding of development auth/Mailpit/local URLs, and final lifecycle documents. RPC count remains 29; storage records remain 34; client opcodes remain 32. Prompt 18 village/slime behavior is unchanged.
+
+| Gate | Result |
+| --- | --- |
+| Auth gateway | 49/49 |
+| Server domain | 532/532 passed, 13 skipped live |
+| Client GdUnit | 273/273, 0 orphans, `SHELL_LOGIN` |
+| Five-account hermetic | pass (`lifecycle_cert.test.ts`) |
+| Character slots/classes | pass (`character_lifecycle.test.ts`) |
+| Link-dead / lease | pass (`gameplay_lease.test.ts`) |
+| Email reuse / deletion isolation | pass |
+| Backup replay by user id | pass (`account_deletion.test.ts`) |
+| Release presentation audit | pass (`account_release_audit_test.gd`) |
+
+Documents: [account/ACCOUNT_LIFECYCLE_READY.md](account/ACCOUNT_LIFECYCLE_READY.md), [account/PLAYER_ACCOUNT_GUIDE.md](account/PLAYER_ACCOUNT_GUIDE.md), [account/SUPPORT_RECOVERY_RUNBOOK.md](account/SUPPORT_RECOVERY_RUNBOOK.md), [account/EMAIL_DELIVERY_RUNBOOK.md](account/EMAIL_DELIVERY_RUNBOOK.md), [account/ACCOUNT_DELETION_RUNBOOK.md](account/ACCOUNT_DELETION_RUNBOOK.md), [account/SESSION_AND_LEASE_RUNBOOK.md](account/SESSION_AND_LEASE_RUNBOOK.md), [account/ACCOUNT_SECURITY_TEST_REPORT.md](account/ACCOUNT_SECURITY_TEST_REPORT.md).
+
+Limitations: Stay Signed In remains hidden. Link-dead starts at disconnect **detection**. Live five-email Mailpit world play and a new release `.exe` were not rebuilt in this run. Suggested tag `account-character-lifecycle-v1` — do not create until the working tree is clean and the user approves.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-account-lifecycle.ps1
 ```
 

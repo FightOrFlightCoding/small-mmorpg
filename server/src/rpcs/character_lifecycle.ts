@@ -1,6 +1,8 @@
 import { characterLifecycleDeps } from "../nakama/character_lifecycle_deps";
 import { requirePlayableUser } from "../nakama/playable_account";
 import { rpcFailureCode, rpcFailurePayload } from "../domain/rpc_error";
+import { consumeSessionRate } from "../domain/rate_limit";
+import { formatAccountAudit } from "../domain/account_audit";
 import {
   handleCharacterBootstrapViaRoster,
   handleCharacterCreate,
@@ -16,6 +18,13 @@ function rpcError(logger: nkruntime.Logger, userId: string | undefined, action: 
   const message = rpcFailureCode(error);
   logger.error("%s rejected user_id=%s action=%s reason=%s", action, userId !== undefined ? userId : "", action, message);
   return rpcFailurePayload(message);
+}
+
+function rateLimited(userId: string, kind: "character_create" | "character_name" | "character_select"): string | null {
+  if (consumeSessionRate(kind, userId, Date.now())) {
+    return null;
+  }
+  return rpcFailurePayload("rate_limited");
 }
 
 function deps(nk: nkruntime.Nakama, ctx: nkruntime.Context, logger: nkruntime.Logger) {
@@ -65,8 +74,12 @@ export function rpcCharacterCreate(
 ): string {
   try {
     const userId = requirePlayableUser(ctx, nk);
+    const limited = rateLimited(userId, "character_create");
+    if (limited !== null) {
+      return limited;
+    }
     const response = handleCharacterCreate(userId, payload, deps(nk, ctx, logger));
-    logger.info("character_create ok user_id=%s character_id=%s", userId, response.characterId);
+    logger.info(formatAccountAudit("character_created", { user_id: userId, character_id: response.characterId }));
     return JSON.stringify(response);
   } catch (error) {
     return rpcError(logger, ctx.userId, "character_create", error);
@@ -81,8 +94,12 @@ export function rpcCharacterSelect(
 ): string {
   try {
     const userId = requirePlayableUser(ctx, nk);
+    const limited = rateLimited(userId, "character_select");
+    if (limited !== null) {
+      return limited;
+    }
     const response = handleCharacterSelect(userId, payload, deps(nk, ctx, logger));
-    logger.info("character_select ok user_id=%s character_id=%s", userId, response.characterId);
+    logger.info(formatAccountAudit("character_selected", { user_id: userId, character_id: response.characterId }));
     return JSON.stringify(response);
   } catch (error) {
     return rpcError(logger, ctx.userId, "character_select", error);
@@ -97,7 +114,9 @@ export function rpcCharacterSoftDelete(
 ): string {
   try {
     const userId = requirePlayableUser(ctx, nk);
-    return JSON.stringify(handleCharacterDeleteRequest(userId, payload, deps(nk, ctx, logger)));
+    const result = handleCharacterDeleteRequest(userId, payload, deps(nk, ctx, logger));
+    logger.info(formatAccountAudit("character_soft_deleted", { user_id: userId }));
+    return JSON.stringify(result);
   } catch (error) {
     return rpcError(logger, ctx.userId, "character_soft_delete", error);
   }
@@ -111,7 +130,9 @@ export function rpcCharacterDeleteRequest(
 ): string {
   try {
     const userId = requirePlayableUser(ctx, nk);
-    return JSON.stringify(handleCharacterDeleteRequest(userId, payload, deps(nk, ctx, logger)));
+    const result = handleCharacterDeleteRequest(userId, payload, deps(nk, ctx, logger));
+    logger.info(formatAccountAudit("character_soft_deleted", { user_id: userId }));
+    return JSON.stringify(result);
   } catch (error) {
     return rpcError(logger, ctx.userId, "character_delete_request", error);
   }
@@ -125,7 +146,9 @@ export function rpcCharacterRestore(
 ): string {
   try {
     const userId = requirePlayableUser(ctx, nk);
-    return JSON.stringify(handleCharacterRestore(userId, payload, deps(nk, ctx, logger)));
+    const restored = handleCharacterRestore(userId, payload, deps(nk, ctx, logger));
+    logger.info(formatAccountAudit("character_restored", { user_id: userId }));
+    return JSON.stringify(restored);
   } catch (error) {
     return rpcError(logger, ctx.userId, "character_restore", error);
   }
@@ -139,6 +162,10 @@ export function rpcCharacterNameAvailable(
 ): string {
   try {
     const userId = requirePlayableUser(ctx, nk);
+    const limited = rateLimited(userId, "character_name");
+    if (limited !== null) {
+      return limited;
+    }
     return JSON.stringify(handleCharacterNameAvailable(userId, payload, deps(nk, ctx, logger)));
   } catch (error) {
     return rpcError(logger, ctx.userId, "character_name_available", error);
@@ -153,7 +180,9 @@ export function rpcCharacterPurge(
 ): string {
   try {
     const userId = requirePlayableUser(ctx, nk);
-    return JSON.stringify(handleCharacterPurge(userId, payload, deps(nk, ctx, logger)));
+    const purged = handleCharacterPurge(userId, payload, deps(nk, ctx, logger));
+    logger.info(formatAccountAudit("character_purged", { user_id: userId }));
+    return JSON.stringify(purged);
   } catch (error) {
     return rpcError(logger, ctx.userId, "character_purge", error);
   }

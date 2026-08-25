@@ -96,6 +96,7 @@ import { consumeTransferTicket, issueTransferTicket, previewTransferTicket } fro
 import { createCaveMatch } from "../rpcs/cave";
 import { findOrCreateStarterZoneMatch } from "./starter_zone_registry";
 import { formatOpsLog, incrementCounter } from "../domain/ops_metrics";
+import { formatAccountAudit } from "../domain/account_audit";
 import { SLOW_TICK_MS } from "../domain/rate_limit";
 import { shouldWarnShutdown, shutdownWarningMessage } from "../domain/maintenance";
 import { readEffectiveMaintenance, readEnvironment } from "./ops_store";
@@ -519,6 +520,7 @@ export function matchJoin(
       zoneOrInstanceId,
       serverInstanceIdentifier(matchId, node),
     );
+    logger.info(formatAccountAudit("lease_acquired", { user_id: presence.userId, character_id: character.characterId, match_id: matchId }));
     joined.push(presence);
   }
   recoverCommittingTrades(zone, function (request) {
@@ -659,6 +661,9 @@ export function matchLeave(
     );
     delete nextPresences[presence.userId];
     logger.info(formatOpsLog("match_leave", { user_id: presence.userId, link_dead: transferring ? "0" : "1" }));
+    if (!transferring) {
+      logger.info(formatAccountAudit("lease_link_dead", { user_id: presence.userId }));
+    }
     incrementCounter("connectedPlayers", -1);
   }
   touchCaveOccupancy(nk, zone);
@@ -1271,11 +1276,11 @@ function applyLeaseLifecycle(
     if (current !== null) {
       writeGameplayLease(nk, markLeaseLeaving(current, nowMs));
     }
-    logger.info("gameplay_lease leaving user_id=%s reason=safe_leave", userId);
+    logger.info(formatAccountAudit("lease_released", { user_id: userId, reason: "safe_leave" }));
   }
   for (let d = 0; d < linkDeadDespawnUserIds.length; d++) {
     clearGameplayLease(nk, linkDeadDespawnUserIds[d]);
-    logger.info("gameplay_lease released user_id=%s reason=link_dead_despawn", linkDeadDespawnUserIds[d]);
+    logger.info(formatAccountAudit("lease_released", { user_id: linkDeadDespawnUserIds[d], reason: "link_dead_despawn" }));
   }
 }
 

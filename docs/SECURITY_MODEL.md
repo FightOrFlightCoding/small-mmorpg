@@ -196,11 +196,11 @@ Machine-readable copy: `server/src/domain/security_catalog.ts`. Every expected a
 | resync_abuse | Flood `RESYNC_REQUEST` | resync 2/10 ticks | resync 2/10 ticks | 2048 | n/a | `rate_limited` | `security.test.ts` |
 | chat_abuse | Flood/markup/oversize chat | JSON `{message}`; Label no BBCode; 200 chars | chat 4/2s | 200 chars | n/a | `rate_limited` / `message_too_long` / `invalid_payload` | `chat.test.ts`, `security.test.ts` |
 
-Additional Prompt 18–33 rows (equipment spoof, quest skip, fabricated NPC, GM, maintenance, save version) remain covered by the tests listed in prior phases and in [TEST_CATALOG.md](TEST_CATALOG.md).
+Additional Prompt 18–33 rows (equipment spoof, quest skip, fabricated NPC, GM, maintenance, save version) remain covered by the tests listed in prior phases and in [TEST_CATALOG.md](TEST_CATALOG.md). Account lifecycle threats (registration through deletion and leases) are the 85-row matrix in [account/ACCOUNT_THREAT_MODEL.md](account/ACCOUNT_THREAT_MODEL.md) and `server/src/domain/account_security_catalog.ts`.
 
 ## Client local storage
 
-The Godot client must not write canonical inventory, equipment, quest, currency, progression, party, cave, location, trade, health, or position records to `user://` or other local files. `AppState` is in-memory presentation/session flags only. Persistence is Nakama storage and wallet, written by the server. Device-debug session tokens (never passwords) may be cached in `user://session_cache.json`. Email product sessions keep access and refresh tokens in memory and refresh through `POST /v1/auth/refresh`; a dead refresh token returns to Login. Remember Email may store the address only.
+The Godot client must not write canonical inventory, equipment, quest, currency, progression, party, cave, location, trade, health, or position records to `user://` or other local files. `AppState` is in-memory presentation/session flags only. Persistence is Nakama storage and wallet, written by the server. Device-debug session tokens (never passwords) may be cached in `user://session_cache.json`. Email product sessions keep access and refresh tokens in memory and refresh through `POST /v1/auth/refresh`; a dead refresh token returns to Login. Remember Email may store the address only. Account audits must not log passwords, verification/reset/deletion codes, access or refresh tokens, gateway secrets, or raw provider payloads.
 
 Debug Alice/Bob/machine device identities are gated by `OS.is_debug_build()` (tests may set `DevIdentity.force_release_config`). Release builds expose email registration and login only.
 

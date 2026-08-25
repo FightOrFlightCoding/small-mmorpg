@@ -88,13 +88,32 @@ func stay_signed_in_available() -> bool:
 	return CredentialStore.STAY_SIGNED_IN_ENABLED and credential_store != null and credential_store.is_available()
 
 
+func apply_runtime_gateway_url(args: PackedStringArray = PackedStringArray()) -> void:
+	var resolved := args
+	if resolved.is_empty():
+		resolved = OS.get_cmdline_user_args()
+	for arg in resolved:
+		if arg.begins_with("--gateway-url="):
+			var value := arg.substr("--gateway-url=".length()).strip_edges()
+			if not value.is_empty():
+				gateway_url = value.trim_suffix("/")
+				return
+	var env_url := OS.get_environment("VIBECODE_AUTH_GATEWAY_URL").strip_edges()
+	if not env_url.is_empty():
+		gateway_url = env_url.trim_suffix("/")
+
+
+func shows_local_operator_hints() -> bool:
+	return DevIdentity.development_auth_allowed() and uses_local_mail_capture()
+
+
 func uses_local_mail_capture() -> bool:
 	var lowered := gateway_url.to_lower()
 	return lowered.contains("127.0.0.1") or lowered.contains("localhost")
 
 
 func local_mail_capture_copy() -> String:
-	if uses_local_mail_capture():
+	if shows_local_operator_hints():
 		return "Local development captures mail in Mailpit at %s. It is not sent to Gmail or other inboxes. Open that page and paste the code here. Codes expire after a short time." % LOCAL_MAILPIT_URL
 	return "Email can take a few minutes. Check junk folders. The code expires after a short time."
 

@@ -6,6 +6,8 @@ import type { GatewayLogger } from "../logging/redact";
 import { errorEnvelope, httpStatusForCode } from "../http/errors";
 import { confirmPage, forgotEmailHelpPage, parsePurpose, resultPage, supportLookupPage } from "../http/pages";
 import { GatewayRateLimits } from "../rate_limits/memory";
+import type { AccountRateAction } from "../rate_limits/catalog";
+import { isAccountAuditEvent, sanitizeAuditFields, type AccountAuditEvent } from "../logging/audit";
 import { canonicalizeEmail } from "../validation/email";
 import { validatePassword } from "../validation/password";
 import { evaluateClientVersion } from "../validation/client_version";
@@ -125,6 +127,28 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
       .send(errorEnvelope({ code: code, messageKey: messageKey, requestId: requestId, retryAfterSeconds: retryAfterSeconds, fieldErrors: fieldErrors }));
   }
 
+  function audit(event: AccountAuditEvent, fields?: { [key: string]: unknown }): void {
+    if (!isAccountAuditEvent(event)) {
+      return;
+    }
+    deps.logger.info("account_audit", { event: event, ...sanitizeAuditFields(fields) });
+  }
+
+  function enforceNamed(
+    action: AccountRateAction,
+    key: string,
+    _request: FastifyRequest,
+    reply: FastifyReply,
+    requestId: string,
+  ): boolean {
+    const limited = deps.rates.consume(action, key, deps.now());
+    if (!limited.allowed) {
+      sendError(reply, requestId, "AUTH_RATE_LIMITED", "auth.error.rate_limited", limited.retryAfterSeconds);
+      return false;
+    }
+    return true;
+  }
+
   function enforceIp(request: FastifyRequest, reply: FastifyReply, requestId: string): boolean {
     const limited = deps.rates.ip.consume("ip:" + clientIp(request), deps.now());
     if (!limited.allowed) {
@@ -178,7 +202,7 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
   }
 
   async function providerAllowed(requestId: string): Promise<boolean> {
-    const limited = deps.rates.provider.consume("provider:send", deps.now());
+    const limited = deps.rates.consume("provider", "send", deps.now());
     if (!limited.allowed) {
       deps.logger.warn("email_provider_limited", { request_id: requestId });
       return false;
@@ -556,7 +580,7 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
 
   async function maybeResendVerification(email: string, userId: string, requestId: string): Promise<void> {
     const hash = emailLookupHash(deps.config.emailHmacPepper, email);
-    const limited = deps.rates.emailHash.consume("verify:" + hash, deps.now());
+    const limited = deps.rates.consume("verification_request", hash, deps.now());
     if (!limited.allowed) {
       return;
     }
@@ -592,6 +616,9 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
     if (challengeId.length === 0 || code.length === 0) {
       return sendError(reply, requestId, "AUTH_INVALID_CHALLENGE", "auth.error.invalid_challenge");
     }
+    if (!enforceNamed("verification_attempt", challengeId, request, reply, requestId)) {
+      return;
+    }
     const finished = await finishChallenge({
       purpose: "EMAIL_VERIFICATION",
       challengeId: challengeId,
@@ -601,6 +628,7 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
     if (!finished.ok) {
       return sendError(reply, requestId, "AUTH_INVALID_CHALLENGE", "auth.error.invalid_challenge");
     }
+    audit("email_verified", { request_id: requestId });
     return reply.send({ ok: true, request_id: requestId, verified: true, idempotent: finished.idempotent });
   }
 
@@ -675,9 +703,9 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
       return sendError(reply, requestId, access.code, "auth.error.registration_closed");
     }
     const hash = emailLookupHash(deps.config.emailHmacPepper, email.canonical);
-    const emailLimit = deps.rates.emailHash.consume("register:" + hash, deps.now());
-    if (!emailLimit.allowed) {
-      return sendError(reply, requestId, "AUTH_RATE_LIMITED", "auth.error.rate_limited", emailLimit.retryAfterSeconds);
+    audit("registration_requested", { request_id: requestId });
+    if (!enforceNamed("registration", hash, request, reply, requestId)) {
+      return;
     }
     const existing = await deps.nakama.rpc("lookup_email", { hmac: hash }, requestId, deps.now());
     let existingDecision = existing.data.decision as { ok?: boolean; userId?: string } | undefined;
@@ -768,6 +796,7 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
     if (!challenge.ok) {
       deps.logger.error("register_email_failed", { request_id: requestId });
     }
+    audit("account_created", { request_id: requestId, user_id: created.userId });
     return reply.send({ ok: true, request_id: requestId, verification_required: true });
   });
 
@@ -782,14 +811,21 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
     }
     const email = canonicalizeEmail(body.email);
     if (!email.ok || typeof body.password !== "string") {
+      audit("login_failure", { request_id: requestId, reason_category: "invalid_credentials" });
       return sendError(reply, requestId, "AUTH_INVALID_CREDENTIALS", "auth.error.invalid_credentials");
+    }
+    const loginHash = emailLookupHash(deps.config.emailHmacPepper, email.canonical);
+    if (!enforceNamed("login", loginHash, request, reply, requestId)) {
+      return;
     }
     const result = await deps.nakama.authenticateEmail(email.canonical, body.password, false);
     if (!result.ok) {
       const lowered = result.message.toLowerCase();
       if (lowered.indexOf("disabled") !== -1) {
+        audit("login_failure", { request_id: requestId, reason_category: "disabled" });
         return sendError(reply, requestId, "AUTH_ACCOUNT_DISABLED", "auth.error.account_disabled");
       }
+      audit("login_failure", { request_id: requestId, reason_category: "invalid_credentials" });
       return sendError(reply, requestId, "AUTH_INVALID_CREDENTIALS", "auth.error.invalid_credentials");
     }
     const hash = emailLookupHash(deps.config.emailHmacPepper, email.canonical);
@@ -797,18 +833,23 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
     const profile = lookup.data.profile as { status?: string; verifiedAt?: number } | null | undefined;
     const account = await deps.nakama.getAccount(result.token);
     if (account.disableTime > 0) {
+      audit("login_failure", { request_id: requestId, reason_category: "disabled", user_id: result.userId });
       return sendError(reply, requestId, "AUTH_ACCOUNT_DISABLED", "auth.error.account_disabled");
     }
     const status = profile !== undefined && profile !== null && typeof profile.status === "string" ? profile.status : "PENDING_VERIFICATION";
     if (status === "DISABLED") {
+      audit("login_failure", { request_id: requestId, reason_category: "disabled", user_id: result.userId });
       return sendError(reply, requestId, "AUTH_ACCOUNT_DISABLED", "auth.error.account_disabled");
     }
     if (status === "DELETION_PENDING" || status === "DELETING" || status === "DELETED") {
+      audit("login_failure", { request_id: requestId, reason_category: "deleting", user_id: result.userId });
       return sendError(reply, requestId, "AUTH_ACCOUNT_DELETING", "auth.error.account_deleting");
     }
     if (status !== "ACTIVE" || profile === undefined || profile === null || !(profile.verifiedAt !== undefined && profile.verifiedAt > 0)) {
+      audit("login_failure", { request_id: requestId, reason_category: "unverified", user_id: result.userId });
       return sendError(reply, requestId, "EMAIL_VERIFICATION_REQUIRED", "auth.error.verification_required");
     }
+    audit("login_success", { request_id: requestId, user_id: result.userId });
     return reply.send({
       ok: true,
       request_id: requestId,
@@ -831,6 +872,9 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
     if (!enforceIp(request, reply, requestId)) {
       return;
     }
+    if (!enforceNamed("session_refresh", clientIp(request), request, reply, requestId)) {
+      return;
+    }
     const body = asObject(request.body);
     if (!clientVersionError(requestId, reply, body)) {
       return;
@@ -843,6 +887,7 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
     if (!refreshed.ok) {
       return sendError(reply, requestId, "AUTH_INVALID_CREDENTIALS", "auth.error.session_expired");
     }
+    audit("session_refreshed", { request_id: requestId, user_id: refreshed.userId });
     return reply.send({
       ok: true,
       request_id: requestId,
@@ -863,6 +908,7 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
       return sendError(reply, requestId, "AUTH_FORBIDDEN", "auth.error.forbidden");
     }
     await deps.nakama.logout(access, refreshToken);
+    audit("logout_current", { request_id: requestId });
     return reply.send({ ok: true, request_id: requestId });
   });
 
@@ -893,6 +939,8 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
     }
     await deps.nakama.logoutAll(access);
     await sendNotice(account.email, "suspicious_session_invalidation", requestId);
+    audit("logout_all", { request_id: requestId, user_id: account.userId });
+    audit("session_revoked", { request_id: requestId, user_id: account.userId, reason_category: "logout_all" });
     return reply.send({ ok: true, request_id: requestId, logged_out_all: true });
   });
 
@@ -939,6 +987,7 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
       message_key: "auth.password_reset.requested",
     };
     const finish = async () => {
+      audit("password_reset_requested", { request_id: requestId });
       await padUntil(started);
       return reply.send(generic);
     };
@@ -954,7 +1003,7 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
       return finish();
     }
     const hash = emailLookupHash(deps.config.emailHmacPepper, email.canonical);
-    const emailLimit = deps.rates.emailHash.consume("reset:" + hash, deps.now());
+    const emailLimit = deps.rates.consume("password_reset_request", hash, deps.now());
     if (!emailLimit.allowed) {
       return reply.status(429).send(
         errorEnvelope({
@@ -1011,6 +1060,9 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
     if (resolved === null) {
       return sendError(reply, requestId, "AUTH_INVALID_CHALLENGE", "auth.error.invalid_challenge");
     }
+    if (!enforceNamed("password_reset_attempt", resolved.challengeId, request, reply, requestId)) {
+      return;
+    }
     const finished = await finishChallenge({
       purpose: "PASSWORD_RESET",
       challengeId: resolved.challengeId,
@@ -1025,6 +1077,8 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
       const mapped = challengeError(finished.reason);
       return sendError(reply, requestId, mapped.code, mapped.messageKey);
     }
+    audit("password_reset_completed", { request_id: requestId });
+    audit("session_revoked", { request_id: requestId, reason_category: "password_reset" });
     return reply.send({ ok: true, request_id: requestId, require_login: true });
   }
 
@@ -1070,6 +1124,8 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
     }
     await revokeAllWithPassword(session.email, passwords.password, requestId);
     await sendNotice(session.email, "password_changed", requestId);
+    audit("password_changed", { request_id: requestId, user_id: session.userId });
+    audit("session_revoked", { request_id: requestId, user_id: session.userId, reason_category: "password_change" });
     return reply.send({ ok: true, request_id: requestId, require_login: true });
   }
 
@@ -1085,6 +1141,9 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
     }
     const session = await requireActiveBearer(request, reply, requestId);
     if (session === null) {
+      return;
+    }
+    if (!enforceNamed("email_change_request", session.userId, request, reply, requestId)) {
       return;
     }
     const current = typeof body.current_password === "string" ? body.current_password : typeof body.password === "string" ? body.password : "";
@@ -1114,6 +1173,7 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
       ttlMs: deps.config.emailChangeTtlMs,
     });
     await sendNotice(session.email, "email_change_old_notice", requestId);
+    audit("email_change_requested", { request_id: requestId, user_id: session.userId });
     return reply.send({ ok: true, request_id: requestId });
   }
 
@@ -1138,6 +1198,9 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
     const resolved = await resolveTypedChallenge("EMAIL_CHANGE", body, requestId);
     if (resolved === null) {
       return sendError(reply, requestId, "AUTH_INVALID_CHALLENGE", "auth.error.invalid_challenge");
+    }
+    if (!enforceNamed("email_change_attempt", resolved.challengeId, request, reply, requestId)) {
+      return;
     }
     const proved = await deps.nakama.authenticateEmail(next.canonical, password, false);
     let userId = "";
@@ -1171,6 +1234,8 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
       const mapped = challengeError(finished.reason);
       return sendError(reply, requestId, mapped.code, mapped.messageKey);
     }
+    audit("email_changed", { request_id: requestId });
+    audit("session_revoked", { request_id: requestId, reason_category: "email_change" });
     return reply.send({ ok: true, request_id: requestId, require_login: true });
   }
 
@@ -1295,6 +1360,7 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
         ? (exported.data.export as { [key: string]: unknown })
         : {};
     exportDownloads.set(token, { userId: session.userId, expiresAt: expiresAt, payload: payload });
+    audit("account_export_generated", { request_id: requestId, user_id: session.userId });
     return reply.send({
       ok: true,
       request_id: requestId,
@@ -1366,6 +1432,9 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
     if (session === null) {
       return;
     }
+    if (!enforceNamed("account_deletion_request", session.userId, request, reply, requestId)) {
+      return;
+    }
     const password = typeof body.password === "string" ? body.password : typeof body.current_password === "string" ? body.current_password : "";
     const idempotencyKey = typeof request.headers["idempotency-key"] === "string" ? request.headers["idempotency-key"] : "";
     if (password.length === 0 || idempotencyKey.length === 0) {
@@ -1393,6 +1462,7 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
       templateId: "account_deletion_confirmation",
       ttlMs: 15 * 60 * 1000,
     });
+    audit("account_deletion_requested", { request_id: requestId, user_id: session.userId });
     return reply.send({ ok: true, request_id: requestId, confirmation_required: true });
   }
 
@@ -1408,6 +1478,9 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
     }
     const session = await requireSessionBearer(request, reply, requestId);
     if (session === null) {
+      return;
+    }
+    if (!enforceNamed("account_deletion_attempt", session.userId, request, reply, requestId)) {
       return;
     }
     const password = typeof body.password === "string" ? body.password : typeof body.current_password === "string" ? body.current_password : "";
@@ -1478,6 +1551,8 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
     if (completed) {
       await sendNotice(session.email, "account_deleted", requestId);
       await deps.nakama.logoutAll(session.token);
+      audit("account_deletion_completed", { request_id: requestId, user_id: session.userId });
+      audit("session_revoked", { request_id: requestId, user_id: session.userId, reason_category: "account_deletion" });
     }
     return reply.send({
       ok: true,

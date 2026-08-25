@@ -179,6 +179,12 @@ test("per-IP rate-limit foundation returns AUTH_RATE_LIMITED", async () => {
     });
     if (response.statusCode === 429) {
       limited += 1;
+      const body = JSON.parse(response.body);
+      assert.equal(body.code, "AUTH_RATE_LIMITED");
+      assert.ok(body.retry_after_seconds >= 1);
+      const encoded = JSON.stringify(body).toLowerCase();
+      assert.equal(encoded.indexOf("exist"), -1);
+      assert.equal(encoded.indexOf("unknown"), -1);
     }
   }
   assert.ok(limited > 0);

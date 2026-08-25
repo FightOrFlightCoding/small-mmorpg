@@ -19,6 +19,7 @@ func _ready() -> void:
 
 func start_boot(bundle_path: String = ContentRegistry.DEFAULT_BUNDLE_PATH) -> bool:
 	AppState.notify_loading_started("boot")
+	AccountService.apply_runtime_gateway_url()
 	var loaded := ContentRegistry.load_bundle(bundle_path)
 	if not loaded:
 		var code := ContentRegistry.catalog.error_code

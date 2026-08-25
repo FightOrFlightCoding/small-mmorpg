@@ -31,6 +31,7 @@ import { PROGRESSION_COLLECTION, PROGRESSION_KEY } from "../domain/progression_s
 import { PLAYER_CAVE_KEY } from "../domain/cave";
 import { readEffectiveMaintenance } from "./ops_store";
 import { environmentFromRuntime } from "../domain/environment";
+import { formatAccountAudit } from "../domain/account_audit";
 
 export function characterLifecycleDeps(
   nk: nkruntime.Nakama,
@@ -110,7 +111,7 @@ export function characterLifecycleDeps(
     },
     logLeaseRepair: function (userId: string, matchId: string, reason: string) {
       if (logger !== undefined) {
-        logger.info("gameplay_lease repaired user_id=%s match_id=%s reason=%s", userId, matchId, reason);
+        logger.info(formatAccountAudit("stale_lease_repaired", { user_id: userId, match_id: matchId, reason: reason }));
       }
     },
     readProgression: function (userId: string, characterId: string) {

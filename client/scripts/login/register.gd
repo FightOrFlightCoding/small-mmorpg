@@ -42,8 +42,12 @@ func _ready() -> void:
 	_terms.button_pressed = false
 	_privacy.button_pressed = false
 	_guidance.text = "Passwords must be 15–128 characters and must not be a common password."
-	_mail_hint.visible = AccountService.uses_local_mail_capture()
-	_mail_hint.text = "Local verification codes are captured in Mailpit at %s. They are not delivered to Gmail." % AccountService.LOCAL_MAILPIT_URL
+	if AccountService.shows_local_operator_hints():
+		_mail_hint.visible = true
+		_mail_hint.text = "Local verification codes are captured in Mailpit at %s. They are not delivered to Gmail." % AccountService.LOCAL_MAILPIT_URL
+	else:
+		_mail_hint.visible = false
+		_mail_hint.text = ""
 	_register_button.pressed.connect(_on_register_pressed)
 	_back_button.pressed.connect(_on_back_pressed)
 	_show_password.pressed.connect(func() -> void: _toggle_secret(_password_edit, _show_password))

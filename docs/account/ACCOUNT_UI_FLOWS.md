@@ -8,7 +8,7 @@ ACCT-08 wraps accepted account and character operations in a project-owned desig
 
 - Autofocus email, Enter advances email → password → submit, explicit tab order, show/hide password, Caps Lock hint, Remember Email, Login loading spinner, Register, Forgot Password, **Forgot which email you used?**, server banners (maintenance, client update, email delay), version in debug builds, rate-limit countdown, field/global errors.
 - Invalid credentials keep the email and clear the password. Generic copy only.
-- Local Compose server hint includes Mailpit (`http://127.0.0.1:8025`); verification mail is not delivered to Gmail.
+- Debug local Compose server hint includes Mailpit (`http://127.0.0.1:8025`); verification mail is not delivered to Gmail. Release hides Mailpit, Alice/Bob, and the local gateway URL.
 - Stay Signed In is hidden (`CredentialStore` unavailable).
 - Debug: Alice, Bob, this machine (hidden in release).
 - Forgot Password opens Forgot Password Request. The gateway call is `POST /v1/auth/password/reset/request` with generic copy whether or not the address exists.
@@ -22,7 +22,7 @@ ACCT-08 wraps accepted account and character operations in a project-owned desig
 
 - Live local email syntax guidance, password guidance/confirm/visibility/strength, Terms and Privacy checkboxes **unchecked** by default, placeholder document links, field errors, form error summary, Register, Back to Login.
 - Does not claim success until the server confirms. Duplicate email uses the generic “We could not create this account…” copy.
-- Local Compose: Mailpit capture note (`http://127.0.0.1:8025`, not Gmail).
+- Debug local Compose: Mailpit capture note (`http://127.0.0.1:8025`, not Gmail). Hidden in release.
 - Success → Email Verification. Duplicate email uses the generic “We could not create this account…” copy.
 
 ## Email verification (`scenes/login/verify.tscn`)

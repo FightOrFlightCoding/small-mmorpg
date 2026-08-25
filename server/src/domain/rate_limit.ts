@@ -28,8 +28,14 @@ export const CHAT_RATE_WINDOW_MS = 2000;
 export const CHAT_RATE_MAX = 4;
 export const PARTY_RPC_RATE_WINDOW_MS = 2000;
 export const PARTY_RPC_RATE_MAX = 8;
+export const CHARACTER_CREATE_RATE_WINDOW_MS = 10_000;
+export const CHARACTER_CREATE_RATE_MAX = 20;
+export const CHARACTER_NAME_RATE_WINDOW_MS = 10_000;
+export const CHARACTER_NAME_RATE_MAX = 30;
+export const CHARACTER_SELECT_RATE_WINDOW_MS = 10_000;
+export const CHARACTER_SELECT_RATE_MAX = 20;
 
-export type SessionRateKind = "auth" | "chat" | "party";
+export type SessionRateKind = "auth" | "chat" | "party" | "character_create" | "character_name" | "character_select";
 
 export interface PlayerActionRate {
   windowStartTick: number;
@@ -159,6 +165,15 @@ function sessionLimit(kind: SessionRateKind): { windowMs: number; max: number } 
   }
   if (kind === "chat") {
     return { windowMs: CHAT_RATE_WINDOW_MS, max: CHAT_RATE_MAX };
+  }
+  if (kind === "character_create") {
+    return { windowMs: CHARACTER_CREATE_RATE_WINDOW_MS, max: CHARACTER_CREATE_RATE_MAX };
+  }
+  if (kind === "character_name") {
+    return { windowMs: CHARACTER_NAME_RATE_WINDOW_MS, max: CHARACTER_NAME_RATE_MAX };
+  }
+  if (kind === "character_select") {
+    return { windowMs: CHARACTER_SELECT_RATE_WINDOW_MS, max: CHARACTER_SELECT_RATE_MAX };
   }
   return { windowMs: PARTY_RPC_RATE_WINDOW_MS, max: PARTY_RPC_RATE_MAX };
 }

@@ -8,6 +8,11 @@ import {
   PARTY_RPC_RATE_MAX,
   PARTY_RPC_RATE_WINDOW_MS,
   consumeSessionRate,
+  CHARACTER_CREATE_RATE_MAX,
+  CHARACTER_CREATE_RATE_WINDOW_MS,
+  CHARACTER_NAME_RATE_MAX,
+  CHARACTER_SELECT_RATE_MAX,
+  resetSessionRates,
 } from "../src/domain/rate_limit";
 
 test("session auth, chat, and party windows are independent", () => {
@@ -32,4 +37,25 @@ test("session auth, chat, and party windows are independent", () => {
   }
   assert.equal(consumeSessionRate("party", partyKey, now + 50), false);
   assert.equal(consumeSessionRate("party", partyKey, now + PARTY_RPC_RATE_WINDOW_MS), true);
+});
+
+test("character create, name, and select windows are independent and do not lock accounts", () => {
+  resetSessionRates();
+  const now = 2_200_000_000_000;
+  const user = "character-rate-user";
+  for (let i = 0; i < CHARACTER_CREATE_RATE_MAX; i++) {
+    assert.equal(consumeSessionRate("character_create", user, now), true);
+  }
+  assert.equal(consumeSessionRate("character_create", user, now + 10), false);
+  assert.equal(consumeSessionRate("character_name", user, now), true);
+  assert.equal(consumeSessionRate("character_select", user, now), true);
+  for (let i = 1; i < CHARACTER_NAME_RATE_MAX; i++) {
+    assert.equal(consumeSessionRate("character_name", user, now), true);
+  }
+  assert.equal(consumeSessionRate("character_name", user, now + 10), false);
+  for (let i = 1; i < CHARACTER_SELECT_RATE_MAX; i++) {
+    assert.equal(consumeSessionRate("character_select", user, now), true);
+  }
+  assert.equal(consumeSessionRate("character_select", user, now + 10), false);
+  assert.equal(consumeSessionRate("character_create", user, now + CHARACTER_CREATE_RATE_WINDOW_MS), true);
 });

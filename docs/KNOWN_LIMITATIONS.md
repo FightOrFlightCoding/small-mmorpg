@@ -24,7 +24,7 @@ Not in this repository’s foundation track:
 - Friends lists and social directories
 - Dungeons beyond party caves
 - Account cosmetics / appearance editor
-- Password-recovery email (operators assist in the Nakama console)
+- Stay Signed In / OS credential store for email refresh tokens
 - Final class names, lore, balance, and commissioned art
 
 ## Runtime and persistence

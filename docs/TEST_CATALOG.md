@@ -1,6 +1,6 @@
 # Test catalog
 
-Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, Prompt 24 ability coverage, Prompt 25 combat-pipeline coverage, Prompt 26 enemy/spawn/AI/loot/boss coverage, Prompt 27 NPC/quest/vendor/inn coverage, Prompt 28 party/chat/group-credit/loot coverage, Prompt 29 public-world/cave/transfer/reconnect coverage, Prompt 30 nearby trade coverage, Prompt 31 UI/settings/asset-contract coverage, Prompt 32 content-CLI / systems-lab / GM coverage, Prompt 33 environment / handshake / maintenance / backup-restore coverage, Prompt 34 security / fuzz / rate-limit / capacity / soak / five-client certification, and Prompt 35 existing-save / content-only / asset-manifest / five-client resume certification. Do not weaken these tests.
+Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, Prompt 24 ability coverage, Prompt 25 combat-pipeline coverage, Prompt 26 enemy/spawn/AI/loot/boss coverage, Prompt 27 NPC/quest/vendor/inn coverage, Prompt 28 party/chat/group-credit/loot coverage, Prompt 29 public-world/cave/transfer/reconnect coverage, Prompt 30 nearby trade coverage, Prompt 31 UI/settings/asset-contract coverage, Prompt 32 content-CLI / systems-lab / GM coverage, Prompt 33 environment / handshake / maintenance / backup-restore coverage, Prompt 34 security / fuzz / rate-limit / capacity / soak / five-client certification, Prompt 35 existing-save / content-only / asset-manifest / five-client resume certification, and ACCT-09 account lifecycle security / failure / distribution certification. Do not weaken these tests.
 
 Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDATION_BASELINE.md).
 
@@ -19,6 +19,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `scripts/test-failure` | Domain failure tests; `-Live` restarts Nakama/Postgres in a disposable stack |
 | `scripts/test-account-compat` | Domain account helpers plus live Nakama 3.40.0 lifecycle proofs (starts the stack if needed) |
 | `scripts/test-auth-gateway` | Auth-gateway hermetic suite; live HTTP-key ping when Nakama is up |
+| `scripts/test-account-lifecycle` | ACCT-09 hermetic lifecycle gate (setup, content, server/gateway builds, server + gateway + client tests). `-StartStack` / `-ExportRelease` / `-LiveFailure` optional |
 | `scripts/test-all` | setup + content, audit, server, client, e2e, capacity, soak, five-client, backup |
 | `scripts/test-backup` | Dump local `nakama`, restore into `nakama_restore_drill`, verify table counts |
 | `scripts/verify-release` | Content, audit, server, migrations, client, backup drill |
@@ -93,7 +94,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `auth_privacy.test.ts` | Login error sanitization; registration `email_taken` | |
 | `security_catalog.test.ts` | Every Prompt 34 attack id has a seven-field control and a test file | |
 | `fuzz.test.ts` | Deterministic malformed corpus; no crash or gold/item mutate | |
-| `session_rate.test.ts` | Auth/chat/party session windows | |
+| `session_rate.test.ts` | Auth/chat/party and character create/name/select session windows | |
 | `cert_load.test.ts` | Capacity 20+caves report; short soak cleanup | |
 | `cert_failure.test.ts` | Disconnect, delayed/duplicate messages, cave terminate, stale presence, transfer leave, trade recover | |
 | `cert_content.test.ts` | Content-only cert pack present; `quest.cert_scout` accept/kill/turn-in; vendor buy `item.cert_mail` | |
@@ -109,6 +110,9 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `account_compat.live.test.ts` | Live Nakama 3.40.0 proofs; skipped unless `ACCT_COMPAT_LIVE=1` | |
 | `gateway_assertion.test.ts` | HTTP-key vs session distinction; assertion tamper/replay/skew | |
 | `auth_challenge.test.ts` | Hash-only challenges; single-use; idempotent consume; expiry; attempt lock | |
+| `account_security_catalog.test.ts` | ACCT-09 85-threat matrix: validation, rate limit, idempotency, error, test file, audit | |
+| `account_failure_catalog.test.ts` | ACCT-09 failure mappings and named rate-action coverage | |
+| `account_audit.test.ts` | Account audit lines drop password, refresh, and codes | |
 | `auth_gateway_rpc.test.ts` | Session reject; missing assertion; signed HTTP-key ping; `support_snapshot` never returns email | |
 | `auth_gateway.live.test.ts` | Live HTTP-key ping and session `gateway_rpc_forbidden` as HTTP 200 JSON without `stackTrace`; skipped unless `ACCT_GATEWAY_LIVE=1` | |
 
@@ -117,6 +121,8 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | File | Coverage |
 | --- | --- |
 | `gateway.test.ts` | Health/ready, missing production config, oversized/invalid JSON, request ids, redaction, rate limits, register/verify, duplicate/concurrent register, legal/password validation, unverified/disabled/deleting login, refresh/logout/logout-all, CLOSED/INVITE_ONLY, unverified cleanup, email failure without deleting the account, reset non-enumeration and uniform timing, reset success/expiry/wrong-code/lock/replay, session revocation without auto-login, password change, email-change success/duplicate/expiry/rollback, forgotten-email help, admin-only support lookup, account status fields, export request/auth/expiry/secret exclusion, deletion gates (password/code/phrase/busy/trade/transfer), HTML confirm does not delete, saga resume, email reuse with new user id |
+| `lifecycle_cert.test.ts` | Five independent accounts register/verify/login; duplicate email; logout-all; password reset; email change; deleted-email reuse |
+| `rate_catalog.test.ts` | Named public rate policies, retry guidance without enumeration, no permanent lockout, audit sanitizer |
 | `email.test.ts` | Memory success/failure; SendGrid 202 vs HTTP error |
 | `assertion.test.ts` | Signed RPC envelope |
 
@@ -156,6 +162,7 @@ Reproduction: `powershell -File scripts/test-auth-gateway.ps1`
 | `auth_privacy_test.gd` | Login does not leak whether an email exists | |
 | `e2e_hooks_test.gd` | `--e2e-slice`, `--cert-five`, and `--cert-five-resume` required | VS-T10 helper |
 | `asset_cert_test.gd` | Asset-manifest replacements for character, enemy, NPC, item icon, ability icon, tileset, SFX | |
+| `account_release_audit_test.gd` | Release hides Alice/Bob, Mailpit, local gateway URL; `--gateway-url=` override | |
 
 `fake_network_backend.gd` is a test double, not a suite.
 
