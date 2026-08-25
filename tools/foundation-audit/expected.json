@@ -150,7 +150,8 @@
     { "collection": "ops", "key": "metrics", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "account_compat", "key": "email_index", "permissionWrite": 0, "schemaVersion": "absent" },
     { "collection": "account_profile", "key": "email_index", "permissionWrite": 0, "schemaVersion": "absent" },
-    { "collection": "auth_challenge", "key": "c", "permissionWrite": 0, "schemaVersion": 1 }
+    { "collection": "auth_challenge", "key": "c", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "account_deletion", "key": "d", "permissionWrite": 0, "schemaVersion": 1 }
   ],
   "walletCurrencies": ["gold"],
   "productionContentFiles": [

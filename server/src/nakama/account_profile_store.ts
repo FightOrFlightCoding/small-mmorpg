@@ -6,7 +6,7 @@ import {
   ACCOUNT_PROFILE_PERMISSION_READ,
   ACCOUNT_PROFILE_PERMISSION_WRITE,
   accountProfileWriteValue,
-  decideProfileEmailLookup,
+  decideProfileEmailLookupWithRereads,
   parseAccountProfileValue,
   type AccountProfileRecord,
 } from "../domain/account_profile";
@@ -37,6 +37,7 @@ export function writeAccountProfile(
     acceptedTermsVersion?: string;
     acceptedPrivacyVersion?: string;
     acceptedAt?: number;
+    registrationMode?: string;
   },
 ): AccountProfileRecord {
   const existing = readAccountProfile(nk, userId);
@@ -66,6 +67,12 @@ export function writeAccountProfile(
         : existing !== null
           ? existing.acceptedAt
           : 0,
+    registrationMode:
+      extras !== undefined && extras.registrationMode !== undefined
+        ? extras.registrationMode
+        : existing !== null
+          ? existing.registrationMode
+          : "",
   });
   nk.storageWrite([
     {
@@ -117,6 +124,11 @@ export function lookupAccountProfileByHmac(
       break;
     }
   }
-  const primary = hits.length === 1 ? readAccountProfile(nk, hits[0].userId) : null;
-  return { decision: decideProfileEmailLookup(hits, primary, hmac), hits: hits };
+  const profilesByUserId: { [userId: string]: AccountProfileRecord | null } = {};
+  for (let i = 0; i < hits.length; i++) {
+    if (profilesByUserId[hits[i].userId] === undefined) {
+      profilesByUserId[hits[i].userId] = readAccountProfile(nk, hits[i].userId);
+    }
+  }
+  return { decision: decideProfileEmailLookupWithRereads(hits, profilesByUserId, hmac), hits: hits };
 }

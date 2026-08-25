@@ -38,6 +38,18 @@ static func message_for(code: String, fallback: String = "") -> String:
 			return "That session is no longer valid. Sign in again."
 		"AUTH_VALIDATION":
 			return "Check the highlighted fields and try again."
+		"AUTH_ACCOUNT_BUSY", "account_busy":
+			return "Leave the world and wait until no character is in play before deleting this account."
+		"AUTH_ACCOUNT_TRADING", "account_trading":
+			return "Finish or cancel the open trade before deleting this account."
+		"AUTH_ACCOUNT_TRANSFERRING", "account_transferring":
+			return "Wait for the transfer to finish before deleting this account."
+		"AUTH_DELETE_ACTIVE", "delete_already_active":
+			return "Account deletion is already in progress."
+		"AUTH_DELETE_PHRASE", "delete_phrase":
+			return "Type DELETE ACCOUNT exactly to confirm."
+		"AUTH_EXPORT_EXPIRED":
+			return "That export download expired. Request a new export."
 		"password_mismatch":
 			return "Password confirmation does not match."
 		"terms_required":
@@ -111,6 +123,10 @@ static func extract_rpc_domain_code(message: String) -> String:
 		"reservation_mismatch",
 		"account_busy",
 		"link_dead",
+		"account_trading",
+		"account_transferring",
+		"delete_already_active",
+		"delete_phrase",
 		"content_incompatible",
 		"selection_expired",
 		"selection_invalidated",

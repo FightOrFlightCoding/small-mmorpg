@@ -28,6 +28,9 @@ var pending_reset_email: String = ""
 var pending_reset_code: String = ""
 var pending_email_change: String = ""
 var pending_email_change_password: String = ""
+var deletion_idempotency_key: String = ""
+var deletion_status_token: String = ""
+var last_export_path: String = ""
 var last_code: String = ""
 var last_message: String = ""
 var last_field_errors: Dictionary = {}
@@ -262,6 +265,82 @@ func confirm_email_change(code: String) -> Dictionary:
 		_clear_session()
 		_stop_refresh_timer()
 	return result
+
+
+func fetch_account_status() -> Dictionary:
+	_clear_last_error()
+	if access_token.is_empty():
+		return _fail("AUTH_FORBIDDEN", AccountErrors.message_for("AUTH_FORBIDDEN"))
+	return await _request("GET", "/v1/account/status", {}, access_token)
+
+
+func request_data_export() -> Dictionary:
+	_clear_last_error()
+	if access_token.is_empty():
+		return _fail("AUTH_FORBIDDEN", AccountErrors.message_for("AUTH_FORBIDDEN"))
+	var requested := await _request("POST", "/v1/account/export/request", {"client_version": CLIENT_VERSION}, access_token)
+	if not bool(requested.get("ok", false)):
+		return requested
+	var token := String(requested.get("export_token", ""))
+	if token.is_empty():
+		return _fail("AUTH_EXPORT_EXPIRED", AccountErrors.message_for("AUTH_EXPORT_EXPIRED"))
+	var downloaded := await _request("GET", "/v1/account/export/download?token=%s" % token, {}, access_token)
+	if not bool(downloaded.get("ok", false)):
+		return downloaded
+	var path := "user://account_export.json"
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return _fail("AUTH_UNAVAILABLE", AccountErrors.message_for("AUTH_UNAVAILABLE"))
+	var payload: Variant = downloaded.get("export", downloaded)
+	file.store_string(JSON.stringify(payload, "\t"))
+	file.close()
+	last_export_path = path
+	last_message = "Saved to %s" % path
+	downloaded["path"] = path
+	return downloaded
+
+
+func request_account_deletion(password: String) -> Dictionary:
+	_clear_last_error()
+	if access_token.is_empty():
+		return _fail("AUTH_FORBIDDEN", AccountErrors.message_for("AUTH_FORBIDDEN"))
+	if deletion_idempotency_key.is_empty():
+		deletion_idempotency_key = _idempotency_key()
+	var body := {"password": password, "client_version": CLIENT_VERSION, "idempotency_key": deletion_idempotency_key}
+	return await _request("POST", "/v1/account/delete/request", body, access_token, deletion_idempotency_key)
+
+
+func confirm_account_deletion(password: String, code: String, phrase: String) -> Dictionary:
+	_clear_last_error()
+	if access_token.is_empty():
+		return _fail("AUTH_FORBIDDEN", AccountErrors.message_for("AUTH_FORBIDDEN"))
+	if phrase != "DELETE ACCOUNT":
+		return _fail("AUTH_DELETE_PHRASE", AccountErrors.message_for("AUTH_DELETE_PHRASE"))
+	if deletion_idempotency_key.is_empty():
+		deletion_idempotency_key = _idempotency_key()
+	var body := {
+		"password": password,
+		"code": code.strip_edges(),
+		"phrase": phrase,
+		"client_version": CLIENT_VERSION,
+		"idempotency_key": deletion_idempotency_key,
+	}
+	var result := await _request("POST", "/v1/account/delete/confirm", body, access_token, deletion_idempotency_key)
+	if bool(result.get("ok", false)):
+		deletion_status_token = String(result.get("status_token", ""))
+		if bool(result.get("completed", false)):
+			deletion_idempotency_key = ""
+			_clear_session()
+			_stop_refresh_timer()
+	return result
+
+
+func fetch_deletion_status() -> Dictionary:
+	_clear_last_error()
+	var path := "/v1/account/delete/status"
+	if not deletion_status_token.is_empty():
+		path = "%s?status_token=%s" % [path, deletion_status_token]
+	return await _request("GET", path, {}, access_token)
 
 
 func refresh_session() -> Dictionary:

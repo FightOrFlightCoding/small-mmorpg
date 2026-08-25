@@ -1,4 +1,4 @@
-import { decideEmailLookup, type EmailIndexRecord, type EmailLookupDecision } from "./account_compat";
+import { decideEmailLookup, decideEmailLookupWithRereads, type EmailIndexRecord, type EmailLookupDecision } from "./account_compat";
 import { inferAccountStatus, type AccountStatus } from "./account_status";
 
 export const ACCOUNT_PROFILE_COLLECTION = "account_profile";
@@ -16,6 +16,7 @@ export interface AccountProfileRecord {
   acceptedTermsVersion: string;
   acceptedPrivacyVersion: string;
   acceptedAt: number;
+  registrationMode: string;
 }
 
 export function parseAccountProfileValue(
@@ -38,6 +39,7 @@ export function parseAccountProfileValue(
     acceptedTermsVersion: typeof value.acceptedTermsVersion === "string" ? value.acceptedTermsVersion : "",
     acceptedPrivacyVersion: typeof value.acceptedPrivacyVersion === "string" ? value.acceptedPrivacyVersion : "",
     acceptedAt: acceptedAt,
+    registrationMode: typeof value.registrationMode === "string" ? value.registrationMode : "",
   };
 }
 
@@ -51,6 +53,7 @@ export function accountProfileWriteValue(
     acceptedTermsVersion?: string;
     acceptedPrivacyVersion?: string;
     acceptedAt?: number;
+    registrationMode?: string;
   },
 ): AccountProfileRecord {
   const status = extras !== undefined && extras.status !== undefined ? extras.status : inferAccountStatus(verifiedAt);
@@ -64,6 +67,7 @@ export function accountProfileWriteValue(
     acceptedPrivacyVersion:
       extras !== undefined && extras.acceptedPrivacyVersion !== undefined ? extras.acceptedPrivacyVersion : "",
     acceptedAt: extras !== undefined && extras.acceptedAt !== undefined ? extras.acceptedAt : 0,
+    registrationMode: extras !== undefined && extras.registrationMode !== undefined ? extras.registrationMode : "",
   };
 }
 
@@ -74,4 +78,18 @@ export function decideProfileEmailLookup(
 ): EmailLookupDecision {
   const mapped: EmailIndexRecord | null = reread === null ? null : { hmac: reread.hmac, userId: reread.userId };
   return decideEmailLookup(indexHits, mapped, expectedHmac);
+}
+
+export function decideProfileEmailLookupWithRereads(
+  indexHits: EmailIndexRecord[],
+  profilesByUserId: { [userId: string]: AccountProfileRecord | null },
+  expectedHmac: string,
+): EmailLookupDecision {
+  const rereadByUserId: { [userId: string]: EmailIndexRecord | null } = {};
+  const keys = Object.keys(profilesByUserId);
+  for (let i = 0; i < keys.length; i++) {
+    const profile = profilesByUserId[keys[i]];
+    rereadByUserId[keys[i]] = profile === null ? null : { hmac: profile.hmac, userId: profile.userId };
+  }
+  return decideEmailLookupWithRereads(indexHits, rereadByUserId, expectedHmac);
 }

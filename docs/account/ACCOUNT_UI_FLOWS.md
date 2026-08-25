@@ -78,8 +78,19 @@ ACCT-04 Godot shell for credential recovery and maintenance, plus ACCT-05 Charac
 - Create Character, Recently Deleted, Account Settings, Logout, server status, version.
 - Creation: three content-driven class cards (Warrior / Marksman / Mage), name field, name rules, advisory availability, Create, Back, final confirmation. Creation is the only authoritative name reservation.
 - Recently Deleted: name, class, level, time remaining, Restore (disabled without a free slot). No client-only permanent-delete button.
-- Account Settings: change password, change email, logout-all. Permanent account deletion remains later.
+- Account Settings: verified email, account status, created date, registration mode, Support Recovery ID, Change password, Change email, Log out all sessions, Export my data, Delete account. Nakama user id is behind a developer-details toggle.
 - Unverified/disabled/deleting accounts never reach this scene through the email path; RPCs still enforce the playable-account guard.
+
+## Delete Account (`scenes/login/account_delete.tscn`)
+
+- Irreversible warning covering five slots, live and recently deleted characters, inventory, equipment, gold, quests, settings, and parties. No restore. The email may later register a blank account.
+- Current password, send confirmation code, email code, exact phrase `DELETE ACCOUNT`.
+- Confirm is click-only (`FOCUS_CLICK`); Enter does not confirm. The button stays disabled until password, code, and phrase are valid.
+- Success opens Account Deleted. Incomplete sagas show resume copy; the same idempotency key continues the job.
+
+## Account Deleted (`scenes/login/account_deleted.tscn`)
+
+- Clear success. Back to Login. No auto-login.
 
 ## World HUD
 
@@ -96,8 +107,7 @@ All recovery and maintenance screens provide a loading state, disabled duplicate
 
 ## Later phases (do not implement here)
 
-1. Account Settings: export, delete (password + email code + `DELETE ACCOUNT`).
-2. Stay Signed In after OS credential-store certification on editor, exported Windows, and exported Linux.
+1. Stay Signed In after OS credential-store certification on editor, exported Windows, and exported Linux.
 
 ## Error display rules
 

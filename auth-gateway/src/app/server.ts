@@ -63,6 +63,8 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
     trustProxy: false,
   });
   const idempotency = new Map<string, IdempotencyEntry>();
+  const exportDownloads = new Map<string, { userId: string; expiresAt: number; payload: { [key: string]: unknown } }>();
+  const deletionStatusTokens = new Map<string, { userId: string; expiresAt: number }>();
   const delayFn =
     deps.delay !== undefined ? deps.delay : (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -321,7 +323,9 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
         ? body.reset_challenge
         : typeof body.email_change_challenge === "string"
           ? body.email_change_challenge
-          : "";
+          : typeof body.deletion_challenge === "string"
+            ? body.deletion_challenge
+            : "";
     if (code.length === 0 && typed.length > 0) {
       if (typed.indexOf("-") !== -1) {
         code = typed;
@@ -409,6 +413,61 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
     return { token: token, userId: account.userId, email: account.email };
   }
 
+  async function requireSessionBearer(
+    request: FastifyRequest,
+    reply: FastifyReply,
+    requestId: string,
+  ): Promise<{ token: string; userId: string; email: string } | null> {
+    const token = bearer(request);
+    if (token.length === 0) {
+      sendError(reply, requestId, "AUTH_FORBIDDEN", "auth.error.forbidden");
+      return null;
+    }
+    const account = await deps.nakama.getAccount(token);
+    if (!account.ok) {
+      sendError(reply, requestId, "AUTH_FORBIDDEN", "auth.error.forbidden");
+      return null;
+    }
+    return { token: token, userId: account.userId, email: account.email };
+  }
+
+  function fenceHttpCode(code: string): string {
+    if (code === "account_busy") {
+      return "AUTH_ACCOUNT_BUSY";
+    }
+    if (code === "account_trading") {
+      return "AUTH_ACCOUNT_TRADING";
+    }
+    if (code === "account_transferring") {
+      return "AUTH_ACCOUNT_TRANSFERRING";
+    }
+    if (code === "delete_already_active") {
+      return "AUTH_DELETE_ACTIVE";
+    }
+    if (code === "delete_phrase") {
+      return "AUTH_DELETE_PHRASE";
+    }
+    if (code === "invalid_credentials") {
+      return "AUTH_INVALID_CREDENTIALS";
+    }
+    if (code === "challenge_expired") {
+      return "AUTH_CHALLENGE_EXPIRED";
+    }
+    if (code === "invalid_challenge") {
+      return "AUTH_INVALID_CHALLENGE";
+    }
+    if (code === "challenge_locked") {
+      return "AUTH_CHALLENGE_LOCKED";
+    }
+    if (code === "account_disabled") {
+      return "AUTH_ACCOUNT_DISABLED";
+    }
+    if (code === "account_deleting") {
+      return "AUTH_ACCOUNT_DELETING";
+    }
+    return "AUTH_VALIDATION";
+  }
+
   async function finishChallenge(input: {
     purpose: AuthChallengePurpose;
     challengeId: string;
@@ -481,9 +540,7 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
       }
     }
     if (input.purpose === "ACCOUNT_DELETION" && userId.length > 0) {
-      const deleted = await deps.nakama.rpc("delete_account", { user_id: userId }, input.requestId, deps.now());
-      const email = typeof deleted.data.email === "string" ? deleted.data.email : "";
-      await sendNotice(email, "account_deleted", input.requestId);
+      return { ok: true, idempotent: consumed.data.idempotent === true, reason: "use_client_confirm" };
     }
     return { ok: true, idempotent: consumed.data.idempotent === true, reason: "" };
   }
@@ -696,6 +753,7 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
         privacy_version: deps.config.privacyVersion,
         created_at: deps.now(),
         accepted_at: deps.now(),
+        registration_mode: deps.config.registrationMode,
       },
       requestId,
       deps.now(),
@@ -851,13 +909,23 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
     const profile = await deps.nakama.rpc("get_profile", { user_id: account.userId }, requestId, deps.now());
     const status = typeof profile.data.status === "string" ? profile.data.status : "PENDING_VERIFICATION";
     const verifiedAt = typeof profile.data.verifiedAt === "number" ? profile.data.verifiedAt : 0;
+    const createdAt = typeof profile.data.createdAt === "number" ? profile.data.createdAt : 0;
+    const supportRecoveryId = typeof profile.data.supportRecoveryId === "string" ? profile.data.supportRecoveryId : "";
+    const registrationMode =
+      typeof profile.data.registrationMode === "string" && profile.data.registrationMode.length > 0
+        ? profile.data.registrationMode
+        : deps.config.registrationMode;
     return reply.send({
       ok: true,
       request_id: requestId,
-      user_id: account.userId,
-      username: account.username,
+      verified_email: account.email,
       account_status: account.disableTime > 0 ? "DISABLED" : status,
       verified: verifiedAt > 0 && status === "ACTIVE",
+      created_at: createdAt,
+      registration_mode: registrationMode,
+      support_recovery_id: supportRecoveryId,
+      username: account.username,
+      user_id: account.userId,
     });
   });
 
@@ -1202,46 +1270,273 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
   });
   app.post("/v1/support/lookup", handleSupportLookup);
 
-  app.post("/v1/auth/account-deletion/request", async (request, reply) => {
+  async function handleExportRequest(request: FastifyRequest, reply: FastifyReply) {
     const requestId = requestIdOf(request);
     if (!enforceIp(request, reply, requestId)) {
       return;
     }
-    const token = bearer(request);
-    if (token.length === 0) {
-      return sendError(reply, requestId, "AUTH_FORBIDDEN", "auth.error.forbidden");
+    const session = await requireActiveBearer(request, reply, requestId);
+    if (session === null) {
+      return;
     }
-    const account = await deps.nakama.getAccount(token);
-    if (!account.ok || account.email.length === 0) {
-      return sendError(reply, requestId, "AUTH_FORBIDDEN", "auth.error.forbidden");
+    const exported = await deps.nakama.rpc(
+      "export_account",
+      { user_id: session.userId, registration_mode: deps.config.registrationMode },
+      requestId,
+      deps.now(),
+    );
+    if (!exported.ok || exported.data.ok !== true) {
+      return sendError(reply, requestId, "AUTH_UNAVAILABLE", "auth.error.unavailable");
+    }
+    const token = randomBytes(24).toString("hex");
+    const expiresAt = deps.now() + 5 * 60 * 1000;
+    const payload =
+      exported.data.export !== undefined && typeof exported.data.export === "object" && exported.data.export !== null
+        ? (exported.data.export as { [key: string]: unknown })
+        : {};
+    exportDownloads.set(token, { userId: session.userId, expiresAt: expiresAt, payload: payload });
+    return reply.send({
+      ok: true,
+      request_id: requestId,
+      export_token: token,
+      expires_at: expiresAt,
+      download_path: "/v1/account/export/download",
+    });
+  }
+
+  async function handleExportStatus(request: FastifyRequest, reply: FastifyReply) {
+    const requestId = requestIdOf(request);
+    const session = await requireSessionBearer(request, reply, requestId);
+    if (session === null) {
+      return;
+    }
+    const query = request.query as { token?: string };
+    const token = typeof query.token === "string" ? query.token : "";
+    const found = exportDownloads.get(token);
+    if (found === undefined || found.userId !== session.userId) {
+      return sendError(reply, requestId, "AUTH_EXPORT_EXPIRED", "auth.error.export_expired");
+    }
+    if (found.expiresAt <= deps.now()) {
+      exportDownloads.delete(token);
+      return sendError(reply, requestId, "AUTH_EXPORT_EXPIRED", "auth.error.export_expired");
+    }
+    return reply.send({
+      ok: true,
+      request_id: requestId,
+      ready: true,
+      expires_at: found.expiresAt,
+    });
+  }
+
+  async function handleExportDownload(request: FastifyRequest, reply: FastifyReply) {
+    const requestId = requestIdOf(request);
+    const session = await requireSessionBearer(request, reply, requestId);
+    if (session === null) {
+      return;
+    }
+    const query = request.query as { token?: string };
+    const token = typeof query.token === "string" ? query.token : "";
+    const found = exportDownloads.get(token);
+    if (found === undefined || found.userId !== session.userId || found.expiresAt <= deps.now()) {
+      if (found !== undefined) {
+        exportDownloads.delete(token);
+      }
+      return sendError(reply, requestId, "AUTH_EXPORT_EXPIRED", "auth.error.export_expired");
+    }
+    reply.header("cache-control", "no-store");
+    reply.header("content-disposition", 'attachment; filename="account-export.json"');
+    return reply.send({
+      ok: true,
+      request_id: requestId,
+      export: found.payload,
+    });
+  }
+
+  async function handleDeleteRequest(request: FastifyRequest, reply: FastifyReply) {
+    const requestId = requestIdOf(request);
+    if (!enforceIp(request, reply, requestId)) {
+      return;
+    }
+    const body = asObject(request.body);
+    applyIdempotency(request, body);
+    if (replayIdempotency(request, reply)) {
+      return;
+    }
+    const session = await requireActiveBearer(request, reply, requestId);
+    if (session === null) {
+      return;
+    }
+    const password = typeof body.password === "string" ? body.password : typeof body.current_password === "string" ? body.current_password : "";
+    const idempotencyKey = typeof request.headers["idempotency-key"] === "string" ? request.headers["idempotency-key"] : "";
+    if (password.length === 0 || idempotencyKey.length === 0) {
+      return sendError(reply, requestId, "AUTH_VALIDATION", "auth.error.validation");
+    }
+    const proved = await deps.nakama.authenticateEmail(session.email, password, false);
+    if (!proved.ok) {
+      return sendError(reply, requestId, "AUTH_INVALID_CREDENTIALS", "auth.error.invalid_credentials");
+    }
+    const fence = await deps.nakama.rpc(
+      "delete_request",
+      { user_id: session.userId, idempotency_key: idempotencyKey },
+      requestId,
+      deps.now(),
+    );
+    if (!fence.ok || fence.data.ok !== true) {
+      const code = typeof fence.data.code === "string" ? fenceHttpCode(fence.data.code) : "AUTH_UNAVAILABLE";
+      return sendError(reply, requestId, code, "auth.error.delete_blocked");
     }
     await issueChallenge({
       purpose: "ACCOUNT_DELETION",
-      email: account.email,
-      userId: account.userId,
+      email: session.email,
+      userId: session.userId,
       requestId: requestId,
       templateId: "account_deletion_confirmation",
+      ttlMs: 15 * 60 * 1000,
     });
-    return reply.send({ ok: true, request_id: requestId });
-  });
+    return reply.send({ ok: true, request_id: requestId, confirmation_required: true });
+  }
 
-  app.post("/v1/auth/account-deletion/confirm", async (request, reply) => {
+  async function handleDeleteConfirm(request: FastifyRequest, reply: FastifyReply) {
     const requestId = requestIdOf(request);
+    if (!enforceIp(request, reply, requestId)) {
+      return;
+    }
     const body = asObject(request.body);
-    if (typeof body.challenge_id !== "string" || typeof body.code !== "string") {
-      return sendError(reply, requestId, "AUTH_INVALID_CHALLENGE", "auth.error.invalid_challenge");
+    applyIdempotency(request, body);
+    if (replayIdempotency(request, reply)) {
+      return;
     }
-    const finished = await finishChallenge({
-      purpose: "ACCOUNT_DELETION",
-      challengeId: body.challenge_id,
-      code: body.code,
-      requestId: requestId,
+    const session = await requireSessionBearer(request, reply, requestId);
+    if (session === null) {
+      return;
+    }
+    const password = typeof body.password === "string" ? body.password : typeof body.current_password === "string" ? body.current_password : "";
+    const phrase = typeof body.phrase === "string" ? body.phrase : typeof body.confirmation_phrase === "string" ? body.confirmation_phrase : "";
+    const idempotencyKey = typeof request.headers["idempotency-key"] === "string" ? request.headers["idempotency-key"] : "";
+    if (password.length === 0 || idempotencyKey.length === 0) {
+      return sendError(reply, requestId, "AUTH_VALIDATION", "auth.error.validation");
+    }
+    if (phrase !== "DELETE ACCOUNT") {
+      return sendError(reply, requestId, "AUTH_DELETE_PHRASE", "auth.error.delete_phrase");
+    }
+    const proved = await deps.nakama.authenticateEmail(session.email, password, false);
+    if (!proved.ok) {
+      return sendError(reply, requestId, "AUTH_INVALID_CREDENTIALS", "auth.error.invalid_credentials");
+    }
+    const fence = await deps.nakama.rpc(
+      "delete_request",
+      { user_id: session.userId, idempotency_key: idempotencyKey },
+      requestId,
+      deps.now(),
+    );
+    if (!fence.ok || fence.data.ok !== true) {
+      const code = typeof fence.data.code === "string" ? fenceHttpCode(fence.data.code) : "AUTH_UNAVAILABLE";
+      return sendError(reply, requestId, code, "auth.error.delete_blocked");
+    }
+    if (fence.data.resume !== true) {
+      body.email = session.email;
+      const typed = await resolveTypedChallenge("ACCOUNT_DELETION", body, requestId);
+      if (typed === null) {
+        return sendError(reply, requestId, "AUTH_INVALID_CHALLENGE", "auth.error.invalid_challenge");
+      }
+      const finished = await finishChallenge({
+        purpose: "ACCOUNT_DELETION",
+        challengeId: typed.challengeId,
+        code: typed.code,
+        requestId: requestId,
+      });
+      if (!finished.ok) {
+        const code =
+          finished.reason === "expired"
+            ? "AUTH_CHALLENGE_EXPIRED"
+            : finished.reason === "locked"
+              ? "AUTH_CHALLENGE_LOCKED"
+              : "AUTH_INVALID_CHALLENGE";
+        return sendError(reply, requestId, code, "auth.error.invalid_challenge");
+      }
+    }
+    const statusToken = randomBytes(24).toString("hex");
+    const deletionJobId = randomUUID();
+    const confirmed = await deps.nakama.rpc(
+      "delete_confirm",
+      {
+        user_id: session.userId,
+        idempotency_key: idempotencyKey,
+        deletion_job_id: deletionJobId,
+        status_token: statusToken,
+        hmac: emailLookupHash(deps.config.emailHmacPepper, session.email),
+      },
+      requestId,
+      deps.now(),
+    );
+    if (!confirmed.ok || confirmed.data.ok !== true) {
+      const code = typeof confirmed.data.code === "string" ? fenceHttpCode(confirmed.data.code) : "AUTH_UNAVAILABLE";
+      return sendError(reply, requestId, code, "auth.error.delete_blocked");
+    }
+    const completed = confirmed.data.completed === true;
+    deletionStatusTokens.set(statusToken, { userId: session.userId, expiresAt: deps.now() + 24 * 60 * 60 * 1000 });
+    if (completed) {
+      await sendNotice(session.email, "account_deleted", requestId);
+      await deps.nakama.logoutAll(session.token);
+    }
+    return reply.send({
+      ok: true,
+      request_id: requestId,
+      completed: completed,
+      deletion_job_id: typeof confirmed.data.deletionJobId === "string" ? confirmed.data.deletionJobId : deletionJobId,
+      status_token: statusToken,
+      phase: typeof confirmed.data.phase === "string" ? confirmed.data.phase : "",
     });
-    if (!finished.ok) {
-      return sendError(reply, requestId, "AUTH_INVALID_CHALLENGE", "auth.error.invalid_challenge");
+  }
+
+  async function handleDeleteStatus(request: FastifyRequest, reply: FastifyReply) {
+    const requestId = requestIdOf(request);
+    const query = request.query as { status_token?: string; token?: string };
+    const token = typeof query.status_token === "string" ? query.status_token : typeof query.token === "string" ? query.token : "";
+    let userId = "";
+    const sessionToken = bearer(request);
+    if (sessionToken.length > 0) {
+      const account = await deps.nakama.getAccount(sessionToken);
+      if (account.ok) {
+        userId = account.userId;
+      }
     }
-    return reply.send({ ok: true, request_id: requestId, deleted: true });
-  });
+    if (userId.length === 0 && token.length > 0) {
+      const mapped = deletionStatusTokens.get(token);
+      if (mapped !== undefined && mapped.expiresAt > deps.now()) {
+        userId = mapped.userId;
+      }
+    }
+    if (userId.length === 0) {
+      return sendError(reply, requestId, "AUTH_FORBIDDEN", "auth.error.forbidden");
+    }
+    const status = await deps.nakama.rpc(
+      "delete_status",
+      { user_id: userId, status_token: token },
+      requestId,
+      deps.now(),
+    );
+    if (!status.ok) {
+      return sendError(reply, requestId, "AUTH_FORBIDDEN", "auth.error.forbidden");
+    }
+    return reply.send({
+      ok: true,
+      request_id: requestId,
+      completed: status.data.completed === true,
+      found: status.data.found === true,
+      phase: typeof status.data.phase === "string" ? status.data.phase : "",
+      deletion_job_id: typeof status.data.deletionJobId === "string" ? status.data.deletionJobId : "",
+    });
+  }
+
+  app.post("/v1/account/export/request", handleExportRequest);
+  app.get("/v1/account/export/status", handleExportStatus);
+  app.get("/v1/account/export/download", handleExportDownload);
+  app.post("/v1/account/delete/request", handleDeleteRequest);
+  app.post("/v1/account/delete/confirm", handleDeleteConfirm);
+  app.get("/v1/account/delete/status", handleDeleteStatus);
+  app.post("/v1/auth/account-deletion/request", handleDeleteRequest);
+  app.post("/v1/auth/account-deletion/confirm", handleDeleteConfirm);
 
   app.get("/v1/confirm", async (request, reply) => {
     const requestId = requestIdOf(request);
@@ -1291,6 +1586,9 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
         return reply.type("text/html").send(confirmPage({ purpose: purpose, requestId: requestId, challengeId: challengeId, error: "This request could not be completed." }));
       }
     }
+    if (purpose === "ACCOUNT_DELETION") {
+      return reply.redirect("/v1/confirm/done?ok=0");
+    }
     const finished = await finishChallenge({
       purpose: purpose,
       challengeId: challengeId,
@@ -1310,7 +1608,7 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
 
   app.addHook("onSend", async (request, reply, payload) => {
     const key = request.headers["idempotency-key"];
-    if (typeof key === "string" && key.length > 0) {
+    if (typeof key === "string" && key.length > 0 && shouldCacheIdempotentPayload(request.url, payload)) {
       idempotency.set(request.method + ":" + request.url + ":" + key, {
         status: reply.statusCode,
         body: payload,
@@ -1321,6 +1619,33 @@ export function createGatewayApp(deps: GatewayDeps): FastifyInstance {
   });
 
   return app;
+}
+
+function shouldCacheIdempotentPayload(url: string, payload: unknown): boolean {
+  const deletion =
+    url.indexOf("/v1/account/delete/") !== -1 || url.indexOf("/v1/auth/account-deletion/") !== -1;
+  if (!deletion) {
+    return true;
+  }
+  let body: unknown = payload;
+  if (typeof payload === "string") {
+    try {
+      body = JSON.parse(payload);
+    } catch {
+      return true;
+    }
+  }
+  if (body === null || typeof body !== "object" || Array.isArray(body)) {
+    return true;
+  }
+  const rec = body as { ok?: unknown; completed?: unknown };
+  if (rec.ok !== true) {
+    return false;
+  }
+  if (url.indexOf("/confirm") !== -1) {
+    return rec.completed === true;
+  }
+  return true;
 }
 
 function asObject(body: unknown): { [key: string]: unknown } {

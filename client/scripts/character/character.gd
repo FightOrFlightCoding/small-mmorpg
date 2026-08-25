@@ -24,10 +24,20 @@ const NAME_HINT := "Name: 3–16 letters, digits, spaces, hyphen, or apostrophe.
 @onready var _deleted_list: VBoxContainer = $Root/VBox/DeletedPanel/DeletedList
 @onready var _back_deleted: Button = $Root/VBox/DeletedPanel/BackDeleted
 @onready var _settings_panel: VBoxContainer = $Root/VBox/SettingsPanel
+@onready var _settings_email: Label = $Root/VBox/SettingsPanel/EmailLabel
+@onready var _settings_status: Label = $Root/VBox/SettingsPanel/StatusLabel
+@onready var _settings_created: Label = $Root/VBox/SettingsPanel/CreatedLabel
+@onready var _settings_mode: Label = $Root/VBox/SettingsPanel/RegistrationModeLabel
+@onready var _settings_recovery: Label = $Root/VBox/SettingsPanel/SupportRecoveryLabel
+@onready var _settings_userid: Label = $Root/VBox/SettingsPanel/UserIdLabel
+@onready var _settings_dev: CheckButton = $Root/VBox/SettingsPanel/DevDetailsToggle
+@onready var _settings_message: Label = $Root/VBox/SettingsPanel/SettingsStatus
 @onready var _logout_all_password: LineEdit = $Root/VBox/SettingsPanel/LogoutAllPassword
 @onready var _logout_all_button: Button = $Root/VBox/SettingsPanel/LogoutAllButton
 @onready var _change_password_button: Button = $Root/VBox/SettingsPanel/ChangePasswordButton
 @onready var _change_email_button: Button = $Root/VBox/SettingsPanel/ChangeEmailButton
+@onready var _export_button: Button = $Root/VBox/SettingsPanel/ExportButton
+@onready var _delete_account_button: Button = $Root/VBox/SettingsPanel/DeleteAccountButton
 @onready var _back_settings: Button = $Root/VBox/SettingsPanel/BackSettings
 @onready var _delete_panel: VBoxContainer = $Root/VBox/DeleteConfirmPanel
 @onready var _delete_help: Label = $Root/VBox/DeleteConfirmPanel/DeleteHelp
@@ -59,6 +69,9 @@ func _ready() -> void:
 	_back_settings.pressed.connect(_show_select)
 	_change_password_button.pressed.connect(func() -> void: SceneRouter.transition_to(SceneRouter.SCENE_CHANGE_PASSWORD))
 	_change_email_button.pressed.connect(func() -> void: SceneRouter.transition_to(SceneRouter.SCENE_CHANGE_EMAIL))
+	_export_button.pressed.connect(_on_export_pressed)
+	_delete_account_button.pressed.connect(func() -> void: SceneRouter.transition_to(SceneRouter.SCENE_ACCOUNT_DELETE))
+	_settings_dev.toggled.connect(_on_dev_details_toggled)
 	_logout_all_button.pressed.connect(_on_logout_all_pressed)
 	_logout_all_password.secret = true
 	_confirm_delete.pressed.connect(_on_confirm_delete)
@@ -495,7 +508,40 @@ func _show_settings() -> void:
 	_settings_panel.visible = true
 	_delete_panel.visible = false
 	WindowManager.open(WindowManager.ACCOUNT_SETTINGS)
+	_settings_userid.visible = _settings_dev.button_pressed
+	await _load_account_settings()
 
+
+func _load_account_settings() -> void:
+	var result := await GameService.fetch_account_status()
+	if not bool(result.get("ok", false)):
+		_settings_message.text = AccountService.last_message
+		return
+	_settings_email.text = "Email: %s" % String(result.get("verified_email", "—"))
+	_settings_status.text = "Status: %s" % String(result.get("account_status", "—"))
+	var created_at := int(result.get("created_at", 0))
+	if created_at > 0:
+		_settings_created.text = "Created: %s" % Time.get_datetime_string_from_unix_time(int(created_at / 1000), true)
+	else:
+		_settings_created.text = "Created: —"
+	_settings_mode.text = "Registration: %s" % String(result.get("registration_mode", "—"))
+	_settings_recovery.text = "Support Recovery ID: %s" % String(result.get("support_recovery_id", "—"))
+	_settings_userid.text = "User id: %s" % String(result.get("user_id", "—"))
+	_settings_message.text = ""
+
+
+func _on_dev_details_toggled(pressed: bool) -> void:
+	_settings_userid.visible = pressed
+
+
+func _on_export_pressed() -> void:
+	_export_button.disabled = true
+	var result := await GameService.export_account_data()
+	if bool(result.get("ok", false)):
+		_settings_message.text = "Saved to %s" % String(result.get("path", "user://account_export.json"))
+	else:
+		_settings_message.text = AccountService.last_message
+	_export_button.disabled = false
 
 func _open_delete(row: Dictionary) -> void:
 	_pending_delete = row.duplicate(true)

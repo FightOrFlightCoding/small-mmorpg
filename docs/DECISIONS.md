@@ -613,4 +613,9 @@ Window close/Alt+F4 may show the quit dialog; it is not an authoritative logout.
 
 Heartbeat limitation: the 10 s clock is `disconnectDetectedAt` in server time. Nakama 3.40.0 defaults (unchanged here) ping every **15 s** and wait **25 s** for a pong. Frozen clients and cable pulls can therefore sit in `ONLINE` until that pong wait expires. Clean closes can hit `matchLeave` immediately. `presence_lost` records both timestamps. Do not promise the avatar vanishes 10 s after the window closes.
 
+## 2026-08-25 — ACCT-07 account settings, data export, and permanent deletion
+
+Account Settings on Character Select shows verified email, status, created date, registration mode, and a derived Support Recovery ID. Nakama user ids stay behind developer details. Export is assembled server-side, held in gateway memory for five minutes, and downloaded with the same Bearer user. Deletion is a 7-phase idempotent saga on the system user (`account_deletion` / `d_<userId>`). Confirm requires password, email code, exact `DELETE ACCOUNT`, and a click-only button. HTML `/v1/confirm` does not delete. Login is blocked while `DELETING` except status handling. Email reuse creates a new user id; stale HMAC index hits are ignored after re-read. Backup replay is by original user id so a replacement account with the same email is not deleted. Gold is wiped as the account wallet (character purge does not touch it). Invite-only remains an env allowlist, not a per-account binding. Stay Signed In remains later.
+
+`nk.accountDeleteId(userId, true)` is the only recorded-delete primitive. Product confirm does not call it as the whole path.
 

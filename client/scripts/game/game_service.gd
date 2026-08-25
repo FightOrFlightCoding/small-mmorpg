@@ -166,6 +166,41 @@ func confirm_email_change(code: String) -> void:
 	await NetworkService.logout()
 
 
+func fetch_account_status() -> Dictionary:
+	if AppState.has_fatal_error:
+		return {"ok": false, "code": "AUTH_UNAVAILABLE"}
+	return await AccountService.fetch_account_status()
+
+
+func export_account_data() -> Dictionary:
+	if AppState.has_fatal_error:
+		return {"ok": false, "code": "AUTH_UNAVAILABLE"}
+	return await AccountService.request_data_export()
+
+
+func request_account_deletion(password: String) -> Dictionary:
+	if AppState.has_fatal_error:
+		return {"ok": false, "code": "AUTH_UNAVAILABLE"}
+	var result := await AccountService.request_account_deletion(password)
+	if not bool(result.get("ok", false)):
+		AppState.report_recoverable(String(result.get("code", "AUTH_VALIDATION")), String(result.get("message", AccountErrors.message_for("AUTH_VALIDATION"))))
+	return result
+
+
+func confirm_account_deletion(password: String, code: String, phrase: String) -> Dictionary:
+	if AppState.has_fatal_error:
+		return {"ok": false, "code": "AUTH_UNAVAILABLE"}
+	var result := await AccountService.confirm_account_deletion(password, code, phrase)
+	if not bool(result.get("ok", false)):
+		AppState.report_recoverable(String(result.get("code", "AUTH_VALIDATION")), String(result.get("message", AccountErrors.message_for("AUTH_VALIDATION"))))
+		return result
+	if bool(result.get("completed", false)):
+		defer_login_after_logout = true
+		await NetworkService.logout()
+		SceneRouter.transition_to(SceneRouter.SCENE_ACCOUNT_DELETED)
+	return result
+
+
 func request_verify_email(code: String) -> void:
 	if AppState.has_fatal_error:
 		return

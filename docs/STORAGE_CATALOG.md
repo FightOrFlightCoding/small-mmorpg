@@ -590,6 +590,24 @@ Value: `{ schemaVersion, characterId, requestId, reasonType, reasonId, goldDelta
 | Client access     | No. Codes are mailed or typed; hashes stay server-side |
 
 
+## `account_deletion` / `d`
+
+
+| Field             | Value |
+| ----------------- | --- |
+| Purpose           | Idempotent account-deletion job and tombstone. Live jobs hold `emailHeld` only until `complete`; tombstones keep `deletionJobId`, `accountUserId`, `idempotencyKey`, `statusToken`, `emailLookupHash`, and completed phases. No raw email. |
+| Owner             | Server `auth_gateway` on the system user from the first write |
+| Scope             | System user, key `d_<compactUserId>` |
+| `permissionRead`  | 0 |
+| `permissionWrite` | 0 |
+| Schema version    | 1 |
+| Creation          | `delete_confirm` start-or-resume |
+| Read              | Direct `storageRead` by original user id (backup replay is by user id, never by email) |
+| Update            | Phase completion; tombstone write when `completedAt > 0` |
+| Deletion          | None. Tombstone remains so restore-and-replay cannot delete a later replacement account |
+| Client access     | No |
+
+
 ## Nakama wallet `gold`
 
 

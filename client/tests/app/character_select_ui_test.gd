@@ -101,3 +101,20 @@ func test_link_dead_countdown_disables_every_play_button() -> void:
 	for play in play_buttons:
 		assert_bool(play.disabled).is_true()
 	scene.queue_free()
+
+
+func test_account_settings_lists_export_delete_and_hides_user_id() -> void:
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	AppState.is_authenticated = true
+	var scene: Node = load("res://scenes/character/character.tscn").instantiate()
+	add_child(scene)
+	await await_idle_frame()
+	await await_idle_frame()
+	assert_str(String(scene.get_node("Root/VBox/SettingsPanel/SettingsHelp").text)).contains("export")
+	assert_bool(String(scene.get_node("Root/VBox/SettingsPanel/SettingsHelp").text).contains("not available yet")).is_false()
+	assert_str(String(scene.get_node("Root/VBox/SettingsPanel/ExportButton").text)).is_equal("Export my data")
+	assert_str(String(scene.get_node("Root/VBox/SettingsPanel/DeleteAccountButton").text)).is_equal("Delete account")
+	assert_bool((scene.get_node("Root/VBox/SettingsPanel/UserIdLabel") as CanvasItem).visible).is_false()
+	assert_str(String(scene.get_node("Root/VBox/SettingsPanel/SupportRecoveryLabel").text)).contains("Support Recovery ID")
+	scene.queue_free()

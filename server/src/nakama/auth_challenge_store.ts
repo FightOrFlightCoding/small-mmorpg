@@ -66,3 +66,13 @@ export function listAuthChallengesByHash(
   }
   return records;
 }
+
+export function deleteAuthChallenge(nk: nkruntime.Nakama, challengeId: string): void {
+  nk.storageDelete([
+    {
+      collection: AUTH_CHALLENGE_COLLECTION,
+      key: challengeStorageKey(challengeId),
+      userId: SYSTEM_USER_ID,
+    },
+  ]);
+}

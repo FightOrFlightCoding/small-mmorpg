@@ -39,6 +39,14 @@ var email_change_confirm_calls: int = 0
 var password_change_ok: bool = true
 var email_change_ok: bool = true
 var reset_confirm_ok: bool = true
+var export_ok: bool = true
+var delete_ok: bool = true
+var delete_completed: bool = true
+var delete_code: String = ""
+var verified_email: String = "alice@example.com"
+var created_at: int = 1700000000000
+var registration_mode: String = "OPEN"
+var support_recovery_id: String = "VIBE-ABCD-EF12-3456"
 var revoked_refresh: Dictionary = {}
 
 
@@ -105,7 +113,45 @@ func request(method: String, path: String, body: Dictionary, bearer: String) -> 
 	if path == "/v1/account/status":
 		if bearer.is_empty():
 			return {"ok": false, "code": "AUTH_FORBIDDEN"}
-		return {"ok": true, "account_status": "ACTIVE", "verified": true, "user_id": user_id, "username": username}
+		return {
+			"ok": true,
+			"account_status": "ACTIVE",
+			"verified": true,
+			"verified_email": verified_email,
+			"created_at": created_at,
+			"registration_mode": registration_mode,
+			"support_recovery_id": support_recovery_id,
+			"user_id": user_id,
+			"username": username,
+		}
+	if path == "/v1/account/export/request":
+		if bearer.is_empty():
+			return {"ok": false, "code": "AUTH_FORBIDDEN"}
+		if not export_ok:
+			return {"ok": false, "code": "AUTH_UNAVAILABLE"}
+		return {"ok": true, "export_token": "export-token", "expires_at": created_at + 300000}
+	if path.begins_with("/v1/account/export/download"):
+		if bearer.is_empty():
+			return {"ok": false, "code": "AUTH_FORBIDDEN"}
+		if path.find("export-token") < 0:
+			return {"ok": false, "code": "AUTH_EXPORT_EXPIRED"}
+		return {"ok": true, "export": {"schemaVersion": 1, "gold": 0, "accountProfile": {"status": "ACTIVE"}}}
+	if path == "/v1/account/delete/request":
+		if bearer.is_empty():
+			return {"ok": false, "code": "AUTH_FORBIDDEN"}
+		if not delete_ok:
+			return {"ok": false, "code": delete_code if not delete_code.is_empty() else "AUTH_ACCOUNT_BUSY"}
+		return {"ok": true, "confirmation_required": true}
+	if path == "/v1/account/delete/confirm":
+		if bearer.is_empty():
+			return {"ok": false, "code": "AUTH_FORBIDDEN"}
+		if String(body.get("phrase", "")) != "DELETE ACCOUNT":
+			return {"ok": false, "code": "AUTH_DELETE_PHRASE"}
+		if not delete_ok:
+			return {"ok": false, "code": delete_code if not delete_code.is_empty() else "AUTH_INVALID_CHALLENGE"}
+		return {"ok": true, "completed": delete_completed, "deletion_job_id": "job-1", "status_token": "status-1", "phase": "complete" if delete_completed else "freeze"}
+	if path.begins_with("/v1/account/delete/status"):
+		return {"ok": true, "completed": delete_completed, "found": true, "phase": "complete" if delete_completed else "freeze", "deletion_job_id": "job-1"}
 	return {"ok": false, "code": "AUTH_UNAVAILABLE"}
 
 

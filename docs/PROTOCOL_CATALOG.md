@@ -234,12 +234,12 @@ Commands: `inspect_character`, `teleport_character`, `repair_invalid_location`, 
 | Field | Value |
 | --- | --- |
 | Direction | Auth gateway → server HTTP RPC |
-| Request | `{ assertion, op, ... }` where `op` is `ping` / `put_email_index` / `lookup_email` / `get_profile` / `mark_verified` / `challenge_put` / `challenge_get` / `challenge_find` / `challenge_consume` / `purge_unverified` / `replace_password` / `replace_email` / `delete_account` / `support_snapshot`. `assertion` is `{ request_id, timestamp, nonce, operation, payload_hash, signature }` |
+| Request | `{ assertion, op, ... }` where `op` is `ping` / `put_email_index` / `lookup_email` / `get_profile` / `mark_verified` / `challenge_put` / `challenge_get` / `challenge_find` / `challenge_consume` / `purge_unverified` / `replace_password` / `replace_email` / `delete_account` / `support_snapshot` / `export_account` / `delete_request` / `delete_confirm` / `delete_status` / `delete_resume`. `assertion` is `{ request_id, timestamp, nonce, operation, payload_hash, signature }` |
 | Authority | Nakama HTTP key **and** HMAC assertion using `VIBECODE_GATEWAY_HMAC_SECRET`. Session JWT is `gateway_rpc_forbidden`. Timestamp skew 60s; nonce replay cache 4096 |
 | Auth | HTTP key. Not a player UI |
-| Storage | `account_profile` / `email_index`, `auth_challenge` / `c_<id>`, `permissionWrite: 0`, hashes only |
+| Storage | `account_profile` / `email_index`, `auth_challenge` / `c_<id>`, `account_deletion` / `d_<userId>` on the system user, `permissionWrite: 0`, hashes only |
 | Errors | `gateway_rpc_forbidden`, `missing_assertion`, `stale_assertion`, `replayed_nonce`, `bad_signature`, `invalid_payload`, `malformed_json`, `unknown_field` |
-| Tests | `server/tests/auth_gateway_rpc.test.ts`, `server/tests/gateway_assertion.test.ts`, `server/tests/auth_challenge.test.ts`, `server/tests/auth_gateway.live.test.ts` |
+| Tests | `server/tests/auth_gateway_rpc.test.ts`, `server/tests/gateway_assertion.test.ts`, `server/tests/auth_challenge.test.ts`, `server/tests/account_deletion.test.ts`, `server/tests/account_export.test.ts`, `server/tests/auth_gateway.live.test.ts` |
 
 ## Client → server match opcodes
 

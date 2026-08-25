@@ -51,6 +51,15 @@ export function httpStatusForCode(code: string): number {
   ) {
     return 403;
   }
+  if (code === "AUTH_DELETE_PHRASE") {
+    return 400;
+  }
+  if (code === "AUTH_EXPORT_EXPIRED") {
+    return 410;
+  }
+  if (code === "AUTH_ACCOUNT_BUSY" || code === "AUTH_ACCOUNT_TRADING" || code === "AUTH_ACCOUNT_TRANSFERRING" || code === "AUTH_DELETE_ACTIVE") {
+    return 409;
+  }
   if (code === "AUTH_EMAIL_TAKEN" || code === "AUTH_REGISTRATION_FAILED") {
     return 409;
   }

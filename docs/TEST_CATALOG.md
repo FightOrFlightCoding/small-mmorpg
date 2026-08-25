@@ -101,6 +101,8 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `email.test.ts` | Canonical email trim/lowercase; plus-tags and dots preserved | |
 | `hmac.test.ts` | Pure SHA-256/HMAC match Node crypto (Nakama JS has no `crypto`) | |
 | `account_compat.test.ts` | HMAC index object shape; lookup rejects missing/multiple/stale hits | |
+| `account_deletion.test.ts` | Fence, phrase, 7-phase saga resume, replay-by-user-id, stale index after delete | |
+| `account_export.test.ts` | Support Recovery ID format; secret and foreign-data filters | |
 | `account_gate.test.ts` | Playable-account guard; login EMAIL_VERIFICATION_REQUIRED after credentials; unverified cleanup; internal usernames; legacy profile inference | |
 | `rpc_error.test.ts` | RPC adapters return `{ok:false,code}` JSON; stacked `Error` messages collapse to a domain code; hooks still throw strings | |
 | `rpc_error.live.test.ts` | Live unverified `character_list` is HTTP 200 `{ok:false,code}` with no `stackTrace` / `index.js`; skipped unless `ACCT_RPC_LIVE=1` | |
@@ -114,7 +116,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 
 | File | Coverage |
 | --- | --- |
-| `gateway.test.ts` | Health/ready, missing production config, oversized/invalid JSON, request ids, redaction, rate limits, register/verify, duplicate/concurrent register, legal/password validation, unverified/disabled/deleting login, refresh/logout/logout-all, CLOSED/INVITE_ONLY, unverified cleanup, email failure without deleting the account, reset non-enumeration and uniform timing, reset success/expiry/wrong-code/lock/replay, session revocation without auto-login, password change, email-change success/duplicate/expiry/rollback, forgotten-email help, admin-only support lookup |
+| `gateway.test.ts` | Health/ready, missing production config, oversized/invalid JSON, request ids, redaction, rate limits, register/verify, duplicate/concurrent register, legal/password validation, unverified/disabled/deleting login, refresh/logout/logout-all, CLOSED/INVITE_ONLY, unverified cleanup, email failure without deleting the account, reset non-enumeration and uniform timing, reset success/expiry/wrong-code/lock/replay, session revocation without auto-login, password change, email-change success/duplicate/expiry/rollback, forgotten-email help, admin-only support lookup, account status fields, export request/auth/expiry/secret exclusion, deletion gates (password/code/phrase/busy/trade/transfer), HTML confirm does not delete, saga resume, email reuse with new user id |
 | `email.test.ts` | Memory success/failure; SendGrid 202 vs HTTP error |
 | `assertion.test.ts` | Signed RPC envelope |
 
@@ -127,10 +129,10 @@ Reproduction: `powershell -File scripts/test-auth-gateway.ps1`
 | `compatibility/compatibility_test.gd` | addons load | |
 | `content_registry_test.gd` | catalog IDs, hash | VS-T8 |
 | `error_state_test.gd` | visible errors, no hang | VS-M4 |
-| `scene_router_test.gd` / `shell_scenes_test.gd` | boot/login/register/verify/unavailable/disabled/forgot-password/reset/change-password/change-email/forgot-email/character/world | VS-T8 |
+| `scene_router_test.gd` / `shell_scenes_test.gd` | boot/login/register/verify/unavailable/disabled/forgot-password/reset/change-password/change-email/forgot-email/account-delete/deleted/character/world | VS-T8 |
 | `auth_flow_test.gd` | gateway email register/login/verify routing, invalid credentials, session refresh, logout/logout-all, unverified gameplay reject, release-gated device auth, tickets, password reset without auto-login, password change, email change, slot limit 5, local Mailpit verify copy | VS-M4 |
-| `character_select_ui_test.gd` | five slot positions, three production class cards, Create / Recently Deleted / Account Settings, link-dead countdown disables Play | |
-| `account_service_test.gd` | error mapping, RPC stack sanitization, password strength, credential store unavailable, remember-email, revoked refresh does not loop, failed logout-all keeps the session, reset confirm has no tokens, forgotten-email reveals no address, canonical change-password/email paths, local Mailpit capture | |
+| `character_select_ui_test.gd` | five slot positions, three production class cards, Create / Recently Deleted / Account Settings, export/delete copy, hidden user id, link-dead countdown disables Play | |
+| `account_service_test.gd` | error mapping, RPC stack sanitization, password strength, credential store unavailable, remember-email, revoked refresh does not loop, failed logout-all keeps the session, reset confirm has no tokens, forgotten-email reveals no address, canonical change-password/email/export/delete paths, click-only delete confirm, local Mailpit capture | |
 | `dev_identity_test.gd` | Alice/Bob ids | |
 | `protocol_test.gd` | client opcodes match | VS-T9 |
 | `zone_join_test.gd` | FULL_STATE gate, mismatch fatal, duplicate join recoverable, resync, chat join failure, logout leaves chat after opcode 32 ack, failed safe leave stays in world | VS-T9 analog |

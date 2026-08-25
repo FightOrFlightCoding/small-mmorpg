@@ -38,6 +38,10 @@ export function writeSelection(nk: nkruntime.Nakama, userId: string, ticket: Sel
   ]);
 }
 
+export function deleteSelection(nk: nkruntime.Nakama, userId: string): void {
+  nk.storageDelete([{ collection: SELECTION_COLLECTION, key: SELECTION_KEY, userId: userId }]);
+}
+
 export function selectionFromValue(value: { [key: string]: unknown }): SelectionTicket | null {
   if (typeof value.ticketId !== "string" || typeof value.accountUserId !== "string" || typeof value.characterId !== "string") {
     return null;

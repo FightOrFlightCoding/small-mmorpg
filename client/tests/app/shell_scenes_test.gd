@@ -25,6 +25,8 @@ func test_all_shell_scenes_instantiate() -> void:
 		"res://scenes/login/change_email.tscn",
 		"res://scenes/login/email_change_verify.tscn",
 		"res://scenes/login/forgot_email.tscn",
+		"res://scenes/login/account_delete.tscn",
+		"res://scenes/login/account_deleted.tscn",
 		"res://scenes/character/character.tscn",
 		"res://scenes/world/world.tscn",
 		"res://scenes/world/player_avatar.tscn",

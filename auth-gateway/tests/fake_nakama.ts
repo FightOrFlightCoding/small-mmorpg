@@ -1,7 +1,33 @@
+import { createHash } from "node:crypto";
 import { createChallengeRecord } from "../src/challenges/state";
 import { MemoryChallengeStore } from "../src/challenges/state";
 import type { AuthChallengePurpose } from "../src/challenges/types";
 import type { GatewayRpcResult, NakamaAuthResult, NakamaBridge } from "../src/nakama/client";
+
+const DELETION_PHASES = [
+  "freeze",
+  "cancel_transient",
+  "remove_game_data",
+  "remove_account_indexes",
+  "revoke_sessions",
+  "delete_nakama",
+  "complete",
+] as const;
+
+interface FakeDeletionJob {
+  deletionJobId: string;
+  accountUserId: string;
+  idempotencyKey: string;
+  statusToken: string;
+  emailHeld: string;
+  completedPhases: string[];
+  completedAt: number;
+}
+
+function supportRecoveryId(userId: string): string {
+  const hex = createHash("sha256").update("vibe.support-recovery:" + userId, "utf8").digest("hex").slice(0, 12).toUpperCase();
+  return "VIBE-" + hex.slice(0, 4) + "-" + hex.slice(4, 8) + "-" + hex.slice(8, 12);
+}
 
 interface FakeUser {
   password: string;
@@ -21,6 +47,7 @@ interface FakeProfile {
   acceptedTermsVersion: string;
   acceptedPrivacyVersion: string;
   acceptedAt: number;
+  registrationMode: string;
 }
 
 interface FakeSession {
@@ -50,7 +77,16 @@ export class FakeNakama implements NakamaBridge {
   failReplaceEmail = false;
   readonly characterNames = new Map<string, string[]>();
   readonly nameReservations = new Map<string, string>();
+  readonly leases = new Map<string, string>();
+  readonly trading = new Set<string>();
+  readonly transferring = new Set<string>();
+  readonly deletionJobs = new Map<string, FakeDeletionJob>();
+  readonly gold = new Map<string, number>();
+  readonly itemLocks = new Map<string, number>();
+  readonly staleIndexHits: { hmac: string; userId: string }[] = [];
+  interruptAfter: string | null = null;
   private tokenSeq = 0;
+  private userSeq = 0;
 
   async health(): Promise<boolean> {
     return this.healthy;
@@ -67,7 +103,8 @@ export class FakeNakama implements NakamaBridge {
       if (this.usernames.has(chosen)) {
         return fail(409, "Username is already in use.");
       }
-      const userId = "user-" + String(this.users.size + 1);
+      this.userSeq += 1;
+      const userId = "user-" + String(this.userSeq);
       const token = this.nextToken(userId, chosen);
       const refreshToken = "refresh-" + userId + "-" + String(this.sessions.length + 1);
       this.usernames.add(chosen);
@@ -180,6 +217,12 @@ export class FakeNakama implements NakamaBridge {
               ? fields.privacy_version
               : "",
         acceptedAt: existing !== undefined ? existing.acceptedAt : typeof fields.accepted_at === "number" ? fields.accepted_at : nowMs,
+        registrationMode:
+          existing !== undefined
+            ? existing.registrationMode
+            : typeof fields.registration_mode === "string"
+              ? fields.registration_mode
+              : "",
       };
       this.profiles.set(userId, profile);
       return { ok: true, status: 200, data: { ok: true, userId: userId, status: profile.status, createdAt: profile.createdAt }, message: "" };
@@ -192,14 +235,37 @@ export class FakeNakama implements NakamaBridge {
           hits.push(profile);
         }
       });
-      if (hits.length === 1) {
+      for (let i = 0; i < this.staleIndexHits.length; i++) {
+        if (this.staleIndexHits[i].hmac === hmac) {
+          hits.push({
+            hmac: hmac,
+            userId: this.staleIndexHits[i].userId,
+            verifiedAt: 0,
+            status: "DELETED",
+            createdAt: 0,
+            acceptedTermsVersion: "",
+            acceptedPrivacyVersion: "",
+            acceptedAt: 0,
+            registrationMode: "",
+          });
+        }
+      }
+      const live: FakeProfile[] = [];
+      for (let i = 0; i < hits.length; i++) {
+        const reread = this.profiles.get(hits[i].userId);
+        if (reread !== undefined && reread.hmac === hmac) {
+          live.push(reread);
+        }
+      }
+      if (live.length === 1) {
+        const reread = live[0];
         return {
           ok: true,
           status: 200,
           data: {
             ok: true,
-            decision: { ok: true, userId: hits[0].userId },
-            profile: { userId: hits[0].userId, status: hits[0].status, verifiedAt: hits[0].verifiedAt, createdAt: hits[0].createdAt },
+            decision: { ok: true, userId: reread.userId },
+            profile: { userId: reread.userId, status: reread.status, verifiedAt: reread.verifiedAt, createdAt: reread.createdAt },
           },
           message: "",
         };
@@ -207,7 +273,11 @@ export class FakeNakama implements NakamaBridge {
       return {
         ok: true,
         status: 200,
-        data: { ok: false, decision: { ok: false, reason: hits.length === 0 ? "missing" : "multiple" }, profile: null },
+        data: {
+          ok: false,
+          decision: { ok: false, reason: hits.length === 0 ? "missing" : live.length > 1 ? "multiple" : "stale" },
+          profile: null,
+        },
         message: "",
       };
     }
@@ -227,6 +297,8 @@ export class FakeNakama implements NakamaBridge {
           verifiedAt: profile.verifiedAt,
           createdAt: profile.createdAt,
           disableTime: user !== undefined ? user.disableTime : 0,
+          registrationMode: profile.registrationMode,
+          supportRecoveryId: supportRecoveryId(profile.userId),
         },
         message: "",
       };
@@ -418,6 +490,124 @@ export class FakeNakama implements NakamaBridge {
       this.deleteUser(userId);
       return { ok: true, status: 200, data: { ok: true, recorded: true, email: email }, message: "" };
     }
+    if (op === "export_account") {
+      const userId = String(fields.user_id);
+      const profile = this.profiles.get(userId);
+      const names = this.characterNames.get(userId);
+      return {
+        ok: true,
+        status: 200,
+        data: {
+          ok: true,
+          userId: userId,
+          supportRecoveryId: supportRecoveryId(userId),
+          export: {
+            schemaVersion: 1,
+            supportRecoveryId: supportRecoveryId(userId),
+            accountProfile:
+              profile === undefined
+                ? null
+                : {
+                    status: profile.status,
+                    createdAt: profile.createdAt,
+                    verifiedAt: profile.verifiedAt,
+                    acceptedTermsVersion: profile.acceptedTermsVersion,
+                    acceptedPrivacyVersion: profile.acceptedPrivacyVersion,
+                    acceptedAt: profile.acceptedAt,
+                    registrationMode: profile.registrationMode,
+                  },
+            characters: names !== undefined ? names.map((name) => ({ name: name })) : [],
+            gold: this.gold.has(userId) ? this.gold.get(userId) : 0,
+            nakama: { account: { user: { id: userId } } },
+          },
+        },
+        message: "",
+      };
+    }
+    if (op === "delete_request") {
+      return this.deleteFence(String(fields.user_id), String(fields.idempotency_key));
+    }
+    if (op === "delete_confirm") {
+      const userId = String(fields.user_id);
+      const fence = this.deleteFence(userId, String(fields.idempotency_key));
+      if (!fence.data.ok) {
+        return fence;
+      }
+      const existing = this.deletionJobs.get(userId);
+      const job: FakeDeletionJob =
+        existing !== undefined
+          ? existing
+          : {
+              deletionJobId: typeof fields.deletion_job_id === "string" ? String(fields.deletion_job_id) : "job-" + userId,
+              accountUserId: userId,
+              idempotencyKey: String(fields.idempotency_key),
+              statusToken: typeof fields.status_token === "string" ? String(fields.status_token) : "status-" + userId,
+              emailHeld: this.emailByUserId(userId),
+              completedPhases: [],
+              completedAt: 0,
+            };
+      this.runDeletion(job);
+      this.deletionJobs.set(userId, job);
+      return {
+        ok: true,
+        status: 200,
+        data: {
+          ok: true,
+          found: true,
+          completed: job.completedAt > 0,
+          deletionJobId: job.deletionJobId,
+          statusToken: job.statusToken,
+          phase: job.completedAt > 0 ? "complete" : DELETION_PHASES[job.completedPhases.length],
+          completedPhases: job.completedPhases.slice(),
+        },
+        message: "",
+      };
+    }
+    if (op === "delete_status") {
+      const userId = String(fields.user_id);
+      const job = this.deletionJobs.get(userId);
+      if (job === undefined) {
+        return { ok: true, status: 200, data: { ok: true, found: false, completed: false, phase: "", deletionJobId: "" }, message: "" };
+      }
+      if (typeof fields.status_token === "string" && fields.status_token.length > 0 && job.statusToken !== fields.status_token) {
+        return { ok: false, status: 403, data: { ok: false, code: "forbidden" }, message: "forbidden" };
+      }
+      return {
+        ok: true,
+        status: 200,
+        data: {
+          ok: true,
+          found: true,
+          completed: job.completedAt > 0,
+          deletionJobId: job.deletionJobId,
+          phase: job.completedAt > 0 ? "complete" : DELETION_PHASES[Math.min(job.completedPhases.length, DELETION_PHASES.length - 1)],
+          completedPhases: job.completedPhases.slice(),
+        },
+        message: "",
+      };
+    }
+    if (op === "delete_resume") {
+      const userId = String(fields.user_id);
+      const job = this.deletionJobs.get(userId);
+      if (job === undefined) {
+        return { ok: true, status: 200, data: { ok: true, found: false, completed: false, phase: "", deletionJobId: "" }, message: "" };
+      }
+      this.runDeletion(job);
+      this.deletionJobs.set(userId, job);
+      return {
+        ok: true,
+        status: 200,
+        data: {
+          ok: true,
+          found: true,
+          completed: job.completedAt > 0,
+          deletionJobId: job.deletionJobId,
+          phase: job.completedAt > 0 ? "complete" : DELETION_PHASES[job.completedPhases.length],
+          completedPhases: job.completedPhases.slice(),
+        },
+        message: "",
+      };
+    }
     return { ok: true, status: 200, data: { ok: true, op: op }, message: "" };
   }
 
@@ -425,6 +615,80 @@ export class FakeNakama implements NakamaBridge {
     const user = this.users.get(email);
     if (user !== undefined) {
       user.disableTime = this.nowMs();
+    }
+  }
+
+  private deleteFence(userId: string, idempotencyKey: string): GatewayRpcResult {
+    const existing = this.deletionJobs.get(userId);
+    if (existing !== undefined) {
+      if (existing.idempotencyKey === idempotencyKey) {
+        return { ok: true, status: 200, data: { ok: true, resume: true }, message: "" };
+      }
+      return { ok: true, status: 200, data: { ok: false, code: "delete_already_active" }, message: "" };
+    }
+    const profile = this.profiles.get(userId);
+    const status = profile !== undefined ? profile.status : "ACTIVE";
+    if (status !== "ACTIVE") {
+      return { ok: true, status: 200, data: { ok: false, code: status === "DISABLED" ? "account_disabled" : "account_deleting" }, message: "" };
+    }
+    const lease = this.leases.get(userId);
+    if (lease === "ONLINE" || lease === "ENTERING" || lease === "LEAVING" || lease === "LINK_DEAD" || lease === "DESPAWNING") {
+      return { ok: true, status: 200, data: { ok: false, code: "account_busy" }, message: "" };
+    }
+    if (this.trading.has(userId)) {
+      return { ok: true, status: 200, data: { ok: false, code: "account_trading" }, message: "" };
+    }
+    if (this.transferring.has(userId)) {
+      return { ok: true, status: 200, data: { ok: false, code: "account_transferring" }, message: "" };
+    }
+    return { ok: true, status: 200, data: { ok: true, resume: false }, message: "" };
+  }
+
+  private runDeletion(job: FakeDeletionJob): void {
+    const userId = job.accountUserId;
+    for (let i = 0; i < DELETION_PHASES.length; i++) {
+      const phase = DELETION_PHASES[i];
+      if (job.completedPhases.indexOf(phase) !== -1) {
+        continue;
+      }
+      if (phase === "freeze") {
+        const profile = this.profiles.get(userId);
+        if (profile !== undefined) {
+          this.profiles.set(userId, { ...profile, status: "DELETING" });
+        }
+      } else if (phase === "cancel_transient") {
+        this.trading.delete(userId);
+        this.transferring.delete(userId);
+        this.leases.delete(userId);
+        this.itemLocks.set(userId, 0);
+      } else if (phase === "remove_game_data") {
+        this.characterNames.delete(userId);
+        this.gold.set(userId, 0);
+        const reservations = Array.from(this.nameReservations.entries());
+        for (let r = 0; r < reservations.length; r++) {
+          if (reservations[r][1] === userId) {
+            this.nameReservations.delete(reservations[r][0]);
+          }
+        }
+      } else if (phase === "remove_account_indexes") {
+        this.profiles.delete(userId);
+      } else if (phase === "revoke_sessions") {
+        for (let s = 0; s < this.sessions.length; s++) {
+          if (this.sessions[s].userId === userId) {
+            this.sessions[s].revoked = true;
+          }
+        }
+      } else if (phase === "delete_nakama") {
+        this.deleteUser(userId);
+      } else {
+        job.emailHeld = "";
+        job.completedAt = this.nowMs();
+      }
+      job.completedPhases.push(phase);
+      if (this.interruptAfter === phase) {
+        this.interruptAfter = null;
+        return;
+      }
     }
   }
 
@@ -463,6 +727,18 @@ export class FakeNakama implements NakamaBridge {
       this.users.delete(email);
     }
     this.profiles.delete(userId);
+    this.characterNames.delete(userId);
+    this.gold.delete(userId);
+    this.itemLocks.delete(userId);
+    this.leases.delete(userId);
+    this.trading.delete(userId);
+    this.transferring.delete(userId);
+    const reservations = Array.from(this.nameReservations.entries());
+    for (let i = 0; i < reservations.length; i++) {
+      if (reservations[i][1] === userId) {
+        this.nameReservations.delete(reservations[i][0]);
+      }
+    }
     for (let i = 0; i < this.sessions.length; i++) {
       if (this.sessions[i].userId === userId) {
         this.sessions[i].revoked = true;

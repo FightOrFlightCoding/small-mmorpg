@@ -177,7 +177,40 @@ horizontal_alignment = 1
 
 [node name="SettingsHelp" type="Label" parent="Root/VBox/SettingsPanel"]
 layout_mode = 2
-text = "Permanent account deletion is not available yet. Use password and email change here."
+text = "Change password and email, log out every session, export a copy of your data, or permanently delete this account. Nakama user ids are hidden unless you open developer details."
+autowrap_mode = 3
+
+[node name="EmailLabel" type="Label" parent="Root/VBox/SettingsPanel"]
+layout_mode = 2
+text = "Email: —"
+
+[node name="StatusLabel" type="Label" parent="Root/VBox/SettingsPanel"]
+layout_mode = 2
+text = "Status: —"
+
+[node name="CreatedLabel" type="Label" parent="Root/VBox/SettingsPanel"]
+layout_mode = 2
+text = "Created: —"
+
+[node name="RegistrationModeLabel" type="Label" parent="Root/VBox/SettingsPanel"]
+layout_mode = 2
+text = "Registration: —"
+
+[node name="SupportRecoveryLabel" type="Label" parent="Root/VBox/SettingsPanel"]
+layout_mode = 2
+text = "Support Recovery ID: —"
+
+[node name="DevDetailsToggle" type="CheckButton" parent="Root/VBox/SettingsPanel"]
+layout_mode = 2
+text = "Show developer details"
+
+[node name="UserIdLabel" type="Label" parent="Root/VBox/SettingsPanel"]
+visible = false
+layout_mode = 2
+text = "User id: —"
+
+[node name="SettingsStatus" type="Label" parent="Root/VBox/SettingsPanel"]
+layout_mode = 2
 autowrap_mode = 3
 
 [node name="ChangePasswordButton" type="Button" parent="Root/VBox/SettingsPanel"]
@@ -196,6 +229,14 @@ secret = true
 [node name="LogoutAllButton" type="Button" parent="Root/VBox/SettingsPanel"]
 layout_mode = 2
 text = "Log out all sessions"
+
+[node name="ExportButton" type="Button" parent="Root/VBox/SettingsPanel"]
+layout_mode = 2
+text = "Export my data"
+
+[node name="DeleteAccountButton" type="Button" parent="Root/VBox/SettingsPanel"]
+layout_mode = 2
+text = "Delete account"
 
 [node name="BackSettings" type="Button" parent="Root/VBox/SettingsPanel"]
 layout_mode = 2

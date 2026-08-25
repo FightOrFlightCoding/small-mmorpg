@@ -66,13 +66,8 @@ ACCT-03 puts Godot product email login on the auth gateway and gates gameplay on
 | Compiled server key | Godot debug client still contains `defaultkey` for gameplay/device auth; the gateway also holds it and must not echo it |
 | 10 s link-dead | Implemented: entity stays 10 s after **detection**; new socket is not rebound; Play disabled until `despawnAt` |
 | Active-character lease | Account-scoped OCC lease; one live character; stale match repair |
-| Account delete UI | Gateway deletion confirm exists; Godot delete flow and `DELETING` resume remain later |
-| Unverified sweep | Policy + `purge_unverified` + opportunistic duplicate-register purge; no periodic cron of every stale account |
-| HMAC pepper | Local Compose uses `local-*-not-production`; staging/production must replace via gitignored env |
-| Client `PUT /v2/account` | Unhooked |
-| Storage writes from a raw HTTP client | No `beforeStorageWrite`; rely on `permissionWrite: 0` |
-| Password in URLs / logs | Client does not put passwords in URLs today; keep that invariant |
-| Export over-share | `accountExportId` includes Nakama collections; product export must filter and add project fields |
+| Account delete UI | Implemented: password + email code + `DELETE ACCOUNT` + click-only confirm; saga resume; HTML `/v1/confirm` does not delete |
+| Export over-share | Product export filters secrets and foreign private data; gateway memory TTL 5 minutes; no permanent public URL |
 
 ## Abuse cases mapped to APIs
 
@@ -80,5 +75,5 @@ ACCT-03 puts Godot product email login on the auth gateway and gates gameplay on
 - Login: canonicalize, `create=false`, sanitized errors, client-version gate, verification required only after proof.
 - Reset / forgotten email: HMAC lookup + re-read; same HTTP success whether missing, present, disabled, unverified, or deleted. No public reveal endpoint.
 - Change password / email: proven Nakama `linkEmail` / temp-device sequence; logout-all; no password history.
-- Delete: authenticated `ACTIVE`, no lease, password + email one-time + typed confirmation + idempotency; `accountDeleteId(id, true)` (Godot UI later).
+- Delete: authenticated `ACTIVE`, no lease/trade/transfer, password + email one-time + typed `DELETE ACCOUNT` + click-only confirm + idempotency; freeze `DELETING`; `accountDeleteId(id, true)` only as saga phase 6.
 - Lookup: never store raw email in a publicly readable index. Support snapshot never returns email.

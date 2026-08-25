@@ -54,6 +54,30 @@ export function decideEmailLookup(
   return { ok: true, userId: reread.userId };
 }
 
+export function decideEmailLookupWithRereads(
+  indexHits: EmailIndexRecord[],
+  rereadByUserId: { [userId: string]: EmailIndexRecord | null },
+  expectedHmac: string,
+): EmailLookupDecision {
+  const live: EmailIndexRecord[] = [];
+  for (let i = 0; i < indexHits.length; i++) {
+    const reread = rereadByUserId[indexHits[i].userId];
+    if (reread !== null && reread !== undefined && reread.hmac === expectedHmac && reread.userId === indexHits[i].userId) {
+      live.push(reread);
+    }
+  }
+  if (live.length === 1) {
+    return { ok: true, userId: live[0].userId };
+  }
+  if (live.length > 1) {
+    return { ok: false, reason: "multiple" };
+  }
+  if (indexHits.length === 0) {
+    return { ok: false, reason: "missing" };
+  }
+  return { ok: false, reason: "stale" };
+}
+
 export function emailIndexWriteValue(userId: string, hmac: string): EmailIndexRecord {
   return { hmac: hmac, userId: userId };
 }

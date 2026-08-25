@@ -24,6 +24,15 @@ import { readRoster } from "../nakama/roster_store";
 import { readCharacter } from "../nakama/character_store";
 import { readActiveLocation } from "../nakama/location_store";
 import { readNameReservation } from "../nakama/name_reservation_store";
+import { supportRecoveryId } from "../domain/account_export";
+import {
+  evaluateStoredDeleteFence,
+  publicDeletionStatus,
+  resumeAccountDeletion,
+  startOrResumeAccountDeletion,
+} from "../nakama/account_deletion_runner";
+import { readAccountDeletionJob } from "../nakama/account_deletion_store";
+import { buildAccountExportPayload } from "../nakama/account_export_runner";
 
 export const AUTH_GATEWAY_RPC_ID = "auth_gateway";
 
@@ -42,6 +51,11 @@ const AUTH_GATEWAY_OPS = [
   "replace_email",
   "delete_account",
   "support_snapshot",
+  "export_account",
+  "delete_request",
+  "delete_confirm",
+  "delete_status",
+  "delete_resume",
 ] as const;
 
 type AuthGatewayOp = (typeof AUTH_GATEWAY_OPS)[number];
@@ -68,6 +82,10 @@ const ALLOWED_KEYS = [
   "retention_ms",
   "allow_hmac_change",
   "character_name",
+  "idempotency_key",
+  "deletion_job_id",
+  "status_token",
+  "registration_mode",
 ];
 
 interface NonceEntry {
@@ -132,6 +150,10 @@ interface ParsedRequest {
   retentionMs: number;
   allowHmacChange: boolean;
   characterName: string;
+  idempotencyKey: string;
+  deletionJobId: string;
+  statusToken: string;
+  registrationMode: string;
   payloadJson: string;
 }
 
@@ -193,6 +215,10 @@ function parseRequest(payload: string): ParsedRequest {
     retentionMs: typeof data.retention_ms === "number" ? data.retention_ms : 0,
     allowHmacChange: data.allow_hmac_change === true,
     characterName: typeof data.character_name === "string" ? data.character_name : "",
+    idempotencyKey: typeof data.idempotency_key === "string" ? data.idempotency_key : "",
+    deletionJobId: typeof data.deletion_job_id === "string" ? data.deletion_job_id : "",
+    statusToken: typeof data.status_token === "string" ? data.status_token : "",
+    registrationMode: typeof data.registration_mode === "string" ? data.registration_mode : "",
     payloadJson: JSON.stringify(body),
   };
 }
@@ -223,6 +249,7 @@ function dispatch(nk: nkruntime.Nakama, request: ParsedRequest, nowMs: number): 
       acceptedTermsVersion?: string;
       acceptedPrivacyVersion?: string;
       acceptedAt?: number;
+      registrationMode?: string;
     } = {};
     if (existing === null) {
       extras.status = ACCOUNT_STATUS_PENDING_VERIFICATION;
@@ -230,6 +257,7 @@ function dispatch(nk: nkruntime.Nakama, request: ParsedRequest, nowMs: number): 
       extras.acceptedTermsVersion = request.termsVersion;
       extras.acceptedPrivacyVersion = request.privacyVersion;
       extras.acceptedAt = request.acceptedAt > 0 ? request.acceptedAt : nowMs;
+      extras.registrationMode = request.registrationMode;
     }
     const verifiedAt = existing !== null ? existing.verifiedAt : 0;
     const record = writeAccountProfile(nk, request.userId, request.hmac, verifiedAt, extras);
@@ -280,6 +308,8 @@ function dispatch(nk: nkruntime.Nakama, request: ParsedRequest, nowMs: number): 
       verifiedAt: profile.verifiedAt,
       createdAt: profile.createdAt,
       disableTime: disableTime,
+      registrationMode: profile.registrationMode,
+      supportRecoveryId: supportRecoveryId(profile.userId),
     };
   }
   if (request.op === "mark_verified") {
@@ -415,6 +445,73 @@ function dispatch(nk: nkruntime.Nakama, request: ParsedRequest, nowMs: number): 
     const deletedEmail = typeof deleted.email === "string" ? deleted.email : "";
     nk.accountDeleteId(request.userId, true);
     return { ok: true, op: request.op, userId: request.userId, recorded: true, email: deletedEmail };
+  }
+  if (request.op === "export_account") {
+    if (request.userId.length === 0) {
+      throw new Error("invalid_payload");
+    }
+    const payload = buildAccountExportPayload(nk, request.userId, nowMs, request.registrationMode);
+    return { ok: true, op: request.op, userId: request.userId, export: payload, supportRecoveryId: supportRecoveryId(request.userId) };
+  }
+  if (request.op === "delete_request") {
+    if (request.userId.length === 0 || request.idempotencyKey.length === 0) {
+      throw new Error("invalid_payload");
+    }
+    const fence = evaluateStoredDeleteFence(nk, request.userId, request.idempotencyKey, nowMs);
+    if (!fence.ok) {
+      return { ok: false, op: request.op, code: fence.code };
+    }
+    return { ok: true, op: request.op, resume: fence.resume };
+  }
+  if (request.op === "delete_confirm") {
+    if (request.userId.length === 0 || request.idempotencyKey.length === 0) {
+      throw new Error("invalid_payload");
+    }
+    const fence = evaluateStoredDeleteFence(nk, request.userId, request.idempotencyKey, nowMs);
+    if (!fence.ok) {
+      return { ok: false, op: request.op, code: fence.code };
+    }
+    let email = "";
+    try {
+      const account = nk.accountGetId(request.userId);
+      email = typeof account.email === "string" ? account.email : "";
+    } catch {
+      email = "";
+    }
+    const profile = readAccountProfile(nk, request.userId);
+    const job = startOrResumeAccountDeletion({
+      nk: nk,
+      userId: request.userId,
+      email: email,
+      emailLookupHash: profile !== null ? profile.hmac : request.hmac,
+      idempotencyKey: request.idempotencyKey,
+      deletionJobId: request.deletionJobId.length > 0 ? request.deletionJobId : nk.uuidv4(),
+      statusToken: request.statusToken.length > 0 ? request.statusToken : nk.uuidv4(),
+      nowMs: nowMs,
+    });
+    return {
+      ok: true,
+      op: request.op,
+      ...publicDeletionStatus(job),
+      statusToken: job.statusToken,
+    };
+  }
+  if (request.op === "delete_status") {
+    if (request.userId.length === 0) {
+      throw new Error("invalid_payload");
+    }
+    const job = readAccountDeletionJob(nk, request.userId);
+    if (job !== null && request.statusToken.length > 0 && job.statusToken !== request.statusToken) {
+      return { ok: false, op: request.op, code: "forbidden" };
+    }
+    return { ok: true, op: request.op, ...publicDeletionStatus(job) };
+  }
+  if (request.op === "delete_resume") {
+    if (request.userId.length === 0) {
+      throw new Error("invalid_payload");
+    }
+    const job = resumeAccountDeletion(nk, request.userId);
+    return { ok: true, op: request.op, ...publicDeletionStatus(job) };
   }
   throw new Error("invalid_payload");
 }

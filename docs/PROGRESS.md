@@ -1,10 +1,10 @@
 # Progress
 
-Last accepted phase: **Active-character lease, safe departure, and ten-second link-dead (ACCT-06)**.
+Last accepted phase: **Account settings, data export, and permanent deletion (ACCT-07)**.
 
 Current phase: none.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later account-lifecycle features until a later ACCT phase names them.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
 
 ## Phase 0 acceptance (2026-08-15)
 
@@ -902,6 +902,30 @@ powershell -File scripts/test-client.ps1
 ```
 
 World HUD: Character Select, Log out, Quit Game (Quit Safely / Quit Anyway / Cancel). Alt+F4 shows the same dialog when Godot delivers the close request; it is not an authoritative logout.
+
+## Account settings, data export, and permanent deletion acceptance (ACCT-07, 2026-08-25)
+
+Account Settings on Character Select shows verified email, account status, created date, registration mode, and a derived Support Recovery ID. Nakama user ids stay behind developer details. Export is assembled on the server, held in gateway memory for five minutes, and downloaded with the same Bearer user (no permanent public URL). Product deletion is a 7-phase idempotent saga on the system user (`account_deletion` / `d_<userId>`). Confirm requires current password, email code, exact `DELETE ACCOUNT`, and a click-only button. Hosted HTML `/v1/confirm` does not delete. Freeze sets `DELETING` and blocks gameplay and login except deletion-status handling. The old email may register a new blank account with a new user id; stale HMAC index hits are ignored after re-read. Backup replay is by original user id. Gold is the account wallet and is wiped by the saga, not by character purge. Stay Signed In remains later. Prompt 18 village/slime behavior is unchanged.
+
+| Gate | Result |
+| --- | --- |
+| Content | hash `42047a6420550c4c815d4affafdefbaaecd446590706ae3e8c95c7e46f773455` |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (29 RPCs, 34 storage records, 32 client opcodes) |
+| Server hermetic | 523 passed, 13 skipped (live suites off), `tsc --noEmit` |
+| Auth gateway | 44 passed, `tsc --noEmit` |
+| Client GdUnit | 257/257, 0 orphans, `SHELL_LOGIN` |
+
+Limitations: Stay Signed In remains hidden. Export cache is per gateway process; a restart requires a new export request. Invite-only remains an env allowlist. HTML confirm pages do not complete account deletion.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/content-build.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-auth-gateway.ps1
+powershell -File scripts/test-client.ps1
+```
 
 
 

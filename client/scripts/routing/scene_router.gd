@@ -18,6 +18,8 @@ const SCENE_CHANGE_PASSWORD: String = "change_password"
 const SCENE_CHANGE_EMAIL: String = "change_email"
 const SCENE_EMAIL_CHANGE_VERIFY: String = "email_change_verify"
 const SCENE_FORGOT_EMAIL: String = "forgot_email"
+const SCENE_ACCOUNT_DELETE: String = "account_delete"
+const SCENE_ACCOUNT_DELETED: String = "account_deleted"
 const SCENE_CHARACTER: String = "character"
 const SCENE_WORLD: String = "world"
 
@@ -36,6 +38,8 @@ const SCENE_PATHS: Dictionary = {
 	SCENE_CHANGE_EMAIL: "res://scenes/login/change_email.tscn",
 	SCENE_EMAIL_CHANGE_VERIFY: "res://scenes/login/email_change_verify.tscn",
 	SCENE_FORGOT_EMAIL: "res://scenes/login/forgot_email.tscn",
+	SCENE_ACCOUNT_DELETE: "res://scenes/login/account_delete.tscn",
+	SCENE_ACCOUNT_DELETED: "res://scenes/login/account_deleted.tscn",
 	SCENE_CHARACTER: "res://scenes/character/character.tscn",
 	SCENE_WORLD: "res://scenes/world/world.tscn",
 }
@@ -65,7 +69,7 @@ func can_transition_to(scene_id: String) -> bool:
 			and AppState.has_character
 			and AppState.has_zone_state
 		)
-	if scene_id == SCENE_CHANGE_PASSWORD or scene_id == SCENE_CHANGE_EMAIL:
+	if scene_id == SCENE_CHANGE_PASSWORD or scene_id == SCENE_CHANGE_EMAIL or scene_id == SCENE_ACCOUNT_DELETE:
 		return AppState.content_ready and not AppState.has_fatal_error and AppState.is_authenticated
 	if (
 		scene_id == SCENE_LOGIN
@@ -79,6 +83,7 @@ func can_transition_to(scene_id: String) -> bool:
 		or scene_id == SCENE_PASSWORD_CHANGED
 		or scene_id == SCENE_EMAIL_CHANGE_VERIFY
 		or scene_id == SCENE_FORGOT_EMAIL
+		or scene_id == SCENE_ACCOUNT_DELETED
 	):
 		return AppState.content_ready and not AppState.has_fatal_error
 	return true

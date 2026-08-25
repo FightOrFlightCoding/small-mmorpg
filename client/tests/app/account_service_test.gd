@@ -146,3 +146,42 @@ func test_change_password_and_email_use_canonical_paths() -> void:
 	assert_str(account.last_path).is_equal("/v1/account/email/change/confirm")
 	assert_bool(bool(confirmed.get("require_login", false))).is_true()
 
+
+func test_account_status_export_and_delete_use_canonical_paths() -> void:
+	var account := AccountService.backend as FakeAccountBackend
+	await AccountService.login("alice@example.com", "secret-pass-15x")
+	var status := await AccountService.fetch_account_status()
+	assert_bool(bool(status.get("ok", false))).is_true()
+	assert_str(String(status.get("verified_email", ""))).is_equal("alice@example.com")
+	assert_str(String(status.get("support_recovery_id", "")).substr(0, 5)).is_equal("VIBE-")
+	var exported := await AccountService.request_data_export()
+	assert_bool(bool(exported.get("ok", false))).is_true()
+	assert_str(String(exported.get("path", ""))).is_equal("user://account_export.json")
+	var requested := await AccountService.request_account_deletion("secret-pass-15x")
+	assert_bool(bool(requested.get("ok", false))).is_true()
+	assert_str(account.last_path).is_equal("/v1/account/delete/request")
+	var bad_phrase := await AccountService.confirm_account_deletion("secret-pass-15x", "AAAA-BBBB-CCCC-DDDD", "delete account")
+	assert_bool(bool(bad_phrase.get("ok", true))).is_false()
+	assert_str(String(bad_phrase.get("code", ""))).is_equal("AUTH_DELETE_PHRASE")
+	var confirmed := await AccountService.confirm_account_deletion("secret-pass-15x", "AAAA-BBBB-CCCC-DDDD", "DELETE ACCOUNT")
+	assert_bool(bool(confirmed.get("ok", false))).is_true()
+	assert_bool(bool(confirmed.get("completed", false))).is_true()
+	assert_str(AccountService.access_token).is_equal("")
+
+
+func test_delete_confirm_button_is_click_only() -> void:
+	var page: Control = auto_free(preload("res://scenes/login/account_delete.tscn").instantiate())
+	add_child(page)
+	await get_tree().process_frame
+	var confirm := page.get_node("Center/VBox/ConfirmButton") as Button
+	assert_int(confirm.focus_mode).is_equal(Control.FOCUS_CLICK)
+	assert_bool(confirm.disabled).is_true()
+	(page.get_node("Center/VBox/PasswordRow/PasswordEdit") as LineEdit).text = "secret-pass-15x"
+	(page.get_node("Center/VBox/PasswordRow/PasswordEdit") as LineEdit).text_changed.emit("secret-pass-15x")
+	(page.get_node("Center/VBox/CodeEdit") as LineEdit).text = "AAAA-BBBB-CCCC-DDDD"
+	(page.get_node("Center/VBox/CodeEdit") as LineEdit).text_changed.emit("AAAA-BBBB-CCCC-DDDD")
+	(page.get_node("Center/VBox/PhraseEdit") as LineEdit).text = "DELETE ACCOUNT"
+	(page.get_node("Center/VBox/PhraseEdit") as LineEdit).text_changed.emit("DELETE ACCOUNT")
+	await get_tree().process_frame
+	assert_bool(confirm.disabled).is_false()
+

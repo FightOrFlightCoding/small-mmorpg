@@ -17,7 +17,7 @@ A player session is a Nakama JWT plus refresh token returned by the gateway. The
 | Module | Path | Role |
 | --- | --- | --- |
 | `GameService` | `client/scripts/game/game_service.gd` | Orchestrates register/login/verify/reset/password-change/email-change/logout onto AccountService and device auth onto NetworkService |
-| `AccountService` | `client/scripts/account/account_service.gd` | Public gateway HTTP, account status, access/refresh tokens, bounded refresh, logout/logout-all. Does not own character gameplay |
+| `AccountService` | `client/scripts/account/account_service.gd` | Public gateway HTTP, account status, export download, delete request/confirm/status, access/refresh tokens, bounded refresh, logout/logout-all. Does not own character gameplay |
 | `NetworkService` | `client/scripts/network/network_service.gd` | Nakama session import, socket, RPCs, reconnect, current-session logout |
 | `NakamaNetworkBackend` | `client/scripts/network/nakama_network_backend.gd` | Thin SDK: device auth, `import_session` from gateway tokens, socket, RPCs. Email product login does not call `authenticate_email_async` |
 | `SessionCache` | `client/scripts/network/session_cache.gd` | Device-debug token cache only. Email refresh tokens are not written to `user://` |
@@ -68,7 +68,9 @@ Join metadata may carry `selectionTicket` or `transferTicket`, never `characterI
 
 ## Account deletion
 
-No product account-deletion UI or project tombstone. Compatibility proofs call `nk.accountDeleteId(userId, true)` through `acct_compat_probe` and also exercise console `DELETE` and client `DELETE /v2/account`.
+Product deletion is a 7-phase idempotent saga owned on the system user (`account_deletion` / `d_<userId>`) from the first write, because user-owned storage is gone after `nk.accountDeleteId`. Confirm requires an authenticated session, current password, email one-time code, exact phrase `DELETE ACCOUNT`, and no live lease/trade/transfer. Freeze sets `DELETING`. Gameplay and new logins are rejected; deletion status may use a `status_token` after sessions are revoked. Completion mail uses the email held only for the request. The old email is reusable for a new user id. Backup replay matches the **original user id**, never the email, so a later replacement account is not deleted.
+
+Compatibility proofs still call `nk.accountDeleteId(userId, true)` through `acct_compat_probe`. Console `DELETE` remains an operator tool. Godot never calls `DELETE /v2/account`.
 
 ## Authentication-related RPCs and hooks
 

@@ -46,8 +46,9 @@ Later phases should keep the same verify-after-index rule on `account_profile`. 
 
 | Collection | Key | Index | Value | Write |
 | --- | --- | --- | --- | --- |
-| `account_profile` | `email_index` | `account_profile_email_hmac` on field `hmac` | `{ hmac, userId, verifiedAt, status, createdAt, acceptedTermsVersion, acceptedPrivacyVersion, acceptedAt }` | 0 |
+| `account_profile` | `email_index` | `account_profile_email_hmac` on field `hmac` | `{ hmac, userId, verifiedAt, status, createdAt, acceptedTermsVersion, acceptedPrivacyVersion, acceptedAt, registrationMode }` | 0 |
 | `auth_challenge` | `c_<challenge_id>` | `auth_challenge_lookup` on `email_lookup_hash`, `purpose` | Challenge metadata + `secret_hash` only | 0 |
+| `account_deletion` | `d_<compactUserId>` | none | Deletion job / tombstone on the **system user**. `permissionWrite: 0`, `schemaVersion` 1. No raw email in the tombstone | 0 |
 
 Challenge objects are owned by the system user. Raw codes never appear in storage or logs. Hosted confirm pages and the Godot verification scene consume the same hashed secret.
 
@@ -57,6 +58,10 @@ Password reset and logged-in password change do not write a password-history col
 
 Support lookup does not persist a project record. The gateway logs `support_lookup` with `request_id`, `query_kind`, `query_hash`, `hit`, and `user_id` only.
 
+The Support Recovery ID is derived (`VIBE-` plus 12 hex from SHA-256 of `vibe.support-recovery:` + user id). It is not a stored secret.
+
+Product export is assembled by `export_account` (Nakama `accountExportId` plus project stores) and filtered of password hashes, challenge hashes, secrets, and other players’ private data. The download blob lives in **gateway process memory** for five minutes, keyed by a random token, and is not written to Nakama storage.
+
 ## Client local files
 
 | Path | Allowed | Forbidden |
@@ -64,6 +69,7 @@ Support lookup does not persist a project record. The gateway logs `support_look
 | `user://session_cache.json` | Device-debug access/refresh tokens, user id, username, auth mode, device id | password, codes, server keys, **email product refresh tokens** |
 | `user://remember_email.json` | Remembered email string only | password, tokens, codes |
 | `user://client_settings.json` | keybinds, volume, scale, window | email/password/tokens/tickets |
+| `user://account_export.json` | Player-triggered export copy | password, tokens, codes, server keys |
 
 `CredentialStore` is the Stay Signed In interface. It reports unavailable; Stay Signed In is hidden. Plaintext refresh tokens in `user://` for email product sessions are prohibited.
 
