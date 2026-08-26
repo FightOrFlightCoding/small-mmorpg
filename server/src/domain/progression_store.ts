@@ -84,6 +84,9 @@ export function storedProgressionWriteValue(progression: CharacterProgression): 
   if (progression.respecByRequestId !== undefined) {
     gameplay.respecByRequestId = copyStoredAbilityActions(progression.respecByRequestId);
   }
+  if (progression.purchaseTalentByRequestId !== undefined) {
+    gameplay.purchaseTalentByRequestId = copyStoredAbilityActions(progression.purchaseTalentByRequestId);
+  }
   if (progression.xpEventTicks !== undefined) {
     gameplay.xpEventTicks = progression.xpEventTicks;
   }
@@ -125,6 +128,7 @@ export function storedProgressionFromValue(value: unknown): CharacterProgression
   progression.selectBranchByRequestId = parseAbilityActionMap(data.selectBranchByRequestId);
   progression.autoAssignByRequestId = parseAbilityActionMap(data.autoAssignByRequestId);
   progression.respecByRequestId = parseAbilityActionMap(data.respecByRequestId);
+  progression.purchaseTalentByRequestId = parseAbilityActionMap(data.purchaseTalentByRequestId);
   progression.progressionSchemaVersion =
     typeof data.progressionSchemaVersion === "number" ? data.progressionSchemaVersion : 1;
   progression.xpByEventId = parseXpMap(data.xpByEventId);

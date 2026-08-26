@@ -233,7 +233,7 @@ Value: `{ schemaVersion, createdAt, updatedAt, currencies: ["gold"] }`.
 | Client access     | Mirror via `FULL_STATE.progression` / `PROGRESSION_STATE`. Client never sends XP amounts.                  |
 
 
-Value: `{ schemaVersion, createdAt, updatedAt, level, currentXp, lifetimeXp, allocatedAttributes, unspentAttributePoints, unspentSkillPoints, unlockedAbilityIds, hotbar?, abilityRanks?, assignHotbarByRequestId?, unlockAbilityByRequestId?, hotbarRequestTicks?, unlockRequestTicks?, progressionSchemaVersion, xpByEventId, allocateByRequestId, xpEventTicks?, allocateRequestTicks?, classId, branchId, xpIntoLevel, freeStatAllocations, purchasedClassNodeIds, purchasedBranchNodeRanks, autoAssignEnabled, hotbarAssignments }`. Allocations are never negative. Point balances and derived stats are calculated, not trusted from the client. Client hotbar state is not proof of ownership.
+Value: `{ schemaVersion, createdAt, updatedAt, level, currentXp, lifetimeXp, allocatedAttributes, unspentAttributePoints, unspentSkillPoints, unlockedAbilityIds, hotbar?, abilityRanks?, assignHotbarByRequestId?, unlockAbilityByRequestId?, hotbarRequestTicks?, unlockRequestTicks?, progressionSchemaVersion, xpByEventId, allocateByRequestId, xpEventTicks?, allocateRequestTicks?, classId, branchId, xpIntoLevel, freeStatAllocations, purchasedClassNodeIds, purchasedBranchNodeRanks, autoAssignEnabled, hotbarAssignments, purchaseTalentByRequestId? }`. Allocations are never negative. Point balances and derived stats are calculated, not trusted from the client. Client hotbar state is not proof of ownership. Production ownership is derived from class, level, branch, and purchased nodes.
 
 ## `match` / `starter_zone`
 

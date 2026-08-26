@@ -15,12 +15,19 @@ import { distance, lineBlocked, SNAPSHOT_RATE_HZ } from "./movement";
 import type { MatchPlayer, StarterZoneState } from "./match_state";
 import { cloneProgression, type CharacterProgression } from "./progression";
 import { usesCanonicalCreateState } from "./canonical_progression";
+import {
+  assignCanonicalHotbar,
+  publicCanonicalHotbar,
+  syncDerivedAbilityOwnership,
+  usesCanonicalTalentRuntime,
+} from "./canonical_talents";
 import { formulaCastTime } from "./canonical_stats";
 import {
   evaluateStats,
   playerStatContext,
   resourceIdForRole,
   type EvaluatedStats,
+  type ProgressionCatalog,
 } from "./stats";
 
 export const HOTBAR_SIZE = 8;
@@ -238,6 +245,8 @@ export function assignHotbar(
   abilityId: string,
   requestId: string,
   tick: number,
+  catalog?: ProgressionCatalog,
+  classId?: string,
 ): { progression: CharacterProgression; ok: boolean; code: string; replay: boolean; changed: boolean } {
   const current = cloneProgression(progression);
   if (current.assignHotbarByRequestId === undefined) {
@@ -246,6 +255,11 @@ export function assignHotbar(
   const previous = current.assignHotbarByRequestId[requestId];
   if (previous !== undefined) {
     return { progression: current, ok: previous.ok, code: previous.code, replay: true, changed: false };
+  }
+  const resolvedClassId = classId !== undefined ? classId : current.classId;
+  if (catalog !== undefined && usesCanonicalTalentRuntime(catalog, resolvedClassId)) {
+    const assigned = assignCanonicalHotbar(current, catalog, resolvedClassId, slotIndex, abilityId);
+    return rememberHotbar(current, requestId, tick, assigned.ok, assigned.code);
   }
   if (slotIndex < 0 || slotIndex >= HOTBAR_SIZE || slotIndex !== Math.floor(slotIndex)) {
     return rememberHotbar(current, requestId, tick, false, "invalid_slot");
@@ -275,6 +289,9 @@ export function unlockAbility(
   const previous = current.unlockAbilityByRequestId[requestId];
   if (previous !== undefined) {
     return { progression: current, ok: previous.ok, code: previous.code, replay: true, changed: false };
+  }
+  if (classId.indexOf("class.") === 0) {
+    return rememberUnlock(current, requestId, tick, false, "unsupported_class");
   }
   if (definition === undefined) {
     return rememberUnlock(current, requestId, tick, false, "invalid_id");
@@ -545,6 +562,11 @@ export function prepareJoinedPlayerAbilities(
         player.progression.abilityRanks = {};
         changed = true;
       }
+      if (state.progressionCatalog !== undefined) {
+        if (syncDerivedAbilityOwnership(player.progression, state.progressionCatalog, classId)) {
+          changed = true;
+        }
+      }
     } else {
       const basicId = state.basicAbilityId !== undefined ? state.basicAbilityId : "";
       changed = ensureAbilityOwnership(player.progression, startingAbilitiesForClass(state, classId), basicId);
@@ -612,9 +634,17 @@ export function useLegacyAttackOrAbility(
 export function publicAbilityState(
   player: MatchPlayer,
   tick: number,
+  catalog?: ProgressionCatalog,
 ): { [key: string]: unknown } {
   const progression = player.progression;
-  const hotbar = progression !== undefined && progression.hotbar !== undefined ? progression.hotbar : emptyHotbar();
+  const classId = player.classId !== undefined ? player.classId : "";
+  const useCanonical =
+    catalog !== undefined && progression !== undefined && usesCanonicalTalentRuntime(catalog, classId);
+  const hotbar = useCanonical
+    ? publicCanonicalHotbar(progression as CharacterProgression)
+    : progression !== undefined && progression.hotbar !== undefined
+      ? progression.hotbar
+      : emptyHotbar();
   const cooldowns: { [id: string]: number } = {};
   const source = dict(player.abilityCooldowns);
   const keys = Object.keys(source);
@@ -626,6 +656,11 @@ export function publicAbilityState(
   return {
     unlockedAbilityIds: progression !== undefined ? progression.unlockedAbilityIds : [],
     hotbar: hotbar.slice(),
+    hotbarAssignments: useCanonical
+      ? hotbar.slice()
+      : progression !== undefined
+        ? progression.hotbarAssignments
+        : [],
     abilityRanks: progression !== undefined && progression.abilityRanks !== undefined ? progression.abilityRanks : {},
     resources: cloneResourceMap(player.resources),
     cooldowns: cooldowns,

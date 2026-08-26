@@ -8,9 +8,9 @@ Undocumented implementation numbers: [progression-implementation-addendum.md](..
 
 ## Last accepted phase and ownership
 
-Last accepted phase: **PROG-06** (manual free-stat allocation and trainer respec). Later PROG phases still own talent spend and canonical combat. Foundation v1 / Prompt 35 / ACCT-09 remain accepted. Prompt 18 village/slime combat behavior remains frozen.
+Last accepted phase: **PROG-07** (branch choice, talent trees, derived ownership, four-slot production hotbar). Later PROG phases still own canonical combat. Foundation v1 / Prompt 35 / ACCT-09 remain accepted. Prompt 18 village/slime combat behavior remains frozen.
 
-PROG-05 overlays `curve.vibecode.l10` on production `class.*` characters and grants KillXP `8 + 2 * enemy_level` (elite `* 3`). Canonical melee/ranged/spell/curse/heal/shield functions exist and are tested independently. Live ATTACK and canonical `ability.*` combat remain later-phase work. Owned gaps: [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md).
+PROG-07 enforces class/branch point pools, SELECT_BRANCH, PURCHASE_TALENT, derived ability ownership, and server-validated 4-slot hotbars. Canonical melee/ranged/spell/curse/heal/shield functions exist and are tested independently. Live ATTACK and canonical `ability.*` combat remain later-phase work. Owned gaps: [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md).
 
 | Concern | Owner | Extend, do not duplicate |
 | --- | --- | --- |
@@ -33,7 +33,7 @@ Godot `.tres` resources suggested in design §15.9 are **not** the source of tru
 
 The server is authoritative for class, branch, level, XP, automatic growth, free allocations, point balances, auto-assign, talent purchases, ability ownership and ranks, hotbar validity, derived statistics, maxima and current vitals, mana regen, crit, haste, damage reduction, attack/cast/DoT timing, cooldown progress, damage/heal/shield/buff/debuff/threat/taunt, death, respec, gold cost, enemy XP, and quest XP.
 
-The client sends intentions only (`ALLOCATE_ATTRIBUTES`, `ALLOCATE_ATTRIBUTES_BATCH`, `TRAINER_RESPEC`, `SELECT_BRANCH`, `SET_AUTO_ASSIGN`, `AUTO_ASSIGN_UNSPENT_POINTS`, `USE_ABILITY`, `CANCEL_CAST`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, and later talent intents). It never submits authoritative level, XP, stat totals, point balances, grants, ranks, combat results, mana, cooldown completion, durations, gold costs, or respec results.
+The client sends intentions only (`ALLOCATE_ATTRIBUTES`, `ALLOCATE_ATTRIBUTES_BATCH`, `TRAINER_RESPEC`, `SELECT_BRANCH`, `PURCHASE_TALENT`, `SET_AUTO_ASSIGN`, `AUTO_ASSIGN_UNSPENT_POINTS`, `USE_ABILITY`, `CANCEL_CAST`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`). It never submits authoritative level, XP, stat totals, point balances, grants, ranks, combat results, mana, cooldown completion, durations, gold costs, or respec results.
 
 ## Persistence (PROG-03)
 

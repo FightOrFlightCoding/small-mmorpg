@@ -128,6 +128,16 @@ func request_select_branch(p_branch_id: String) -> String:
 	return request_id
 
 
+func request_purchase_talent(tree_id: String, node_id: String, requested_rank: int = 1) -> String:
+	if tree_id.is_empty() or node_id.is_empty() or requested_rank < 1:
+		return ""
+	var request_id := MatchProtocol.new_request_id()
+	_pending_request_id = request_id
+	NetworkService.send_purchase_talent(tree_id, node_id, requested_rank, request_id)
+	request_started.emit(request_id)
+	return request_id
+
+
 func request_set_auto_assign(enabled: bool) -> String:
 	var request_id := MatchProtocol.new_request_id()
 	_pending_request_id = request_id
@@ -147,7 +157,7 @@ func request_auto_assign_unspent() -> String:
 
 
 func unspent_stat_points() -> int:
-	if _uses_canonical_class():
+	if uses_canonical_class():
 		return unspent_free_stat_points
 	return unspent_attribute_points
 
@@ -169,7 +179,7 @@ func derived_ids() -> PackedStringArray:
 
 
 func _preview_allocate(attribute_id: String, amount: int) -> void:
-	if _uses_canonical_class():
+	if uses_canonical_class():
 		unspent_free_stat_points = maxi(unspent_free_stat_points - amount, 0)
 		unspent_attribute_points = unspent_free_stat_points
 		free_stat_allocations[attribute_id] = int(free_stat_allocations.get(attribute_id, 0)) + amount
@@ -180,7 +190,7 @@ func _preview_allocate(attribute_id: String, amount: int) -> void:
 	progression_changed.emit()
 
 
-func _uses_canonical_class() -> bool:
+func uses_canonical_class() -> bool:
 	return class_id == "class.warrior" or class_id == "class.mage" or class_id == "class.marksman" or class_id == "class.mystic"
 
 

@@ -642,6 +642,20 @@ func send_trainer_respec(npc_id: String, request_id: String) -> Dictionary:
 	)
 
 
+func send_purchase_talent(tree_id: String, node_id: String, requested_rank: int, request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_PURCHASE_TALENT,
+		MatchProtocol.client_envelope_json({
+			"treeId": tree_id,
+			"nodeId": node_id,
+			"requestedRank": requested_rank,
+			"requestId": request_id,
+		})
+	)
+
+
 func send_select_branch(branch_id: String, request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}

@@ -34,7 +34,7 @@ CamelCase JSON keys (project convention). Design snake_case names map as follows
 
 Do **not** persist calculated HP, mana, crit, haste, DR, unspent class points, or unspent branch points as authority. `publicProgression` includes calculated `unspentClassPoints`, `unspentBranchPoints`, and `unspentFreeStatPoints`.
 
-Live Foundation fields remain on the same blob so combat stays accepted: `currentXp`, 3-stat `allocatedAttributes`, `unspentAttributePoints`, `unspentSkillPoints`, `unlockedAbilityIds`, 8-slot `hotbar`, idempotency maps (`allocateByRequestId`, `respecByRequestId`, ability/branch maps).
+Live Foundation fields remain on the same blob so combat stays accepted: `currentXp`, 3-stat `allocatedAttributes`, `unspentAttributePoints`, `unspentSkillPoints`, `unlockedAbilityIds` (derived for production), 8-slot live `hotbar` (test classes), idempotency maps (`allocateByRequestId`, `respecByRequestId`, `purchaseTalentByRequestId`, ability/branch maps). Production hotbar authority is `hotbarAssignments` (4 slots).
 
 Missing progression on list/join/export is not fatal: initialize canonical level 1 and persist once.
 

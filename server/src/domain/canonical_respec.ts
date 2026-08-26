@@ -1,5 +1,6 @@
 import { pendingBranchSelection } from "./canonical_leveling";
 import { respecGoldCost } from "./canonical_progression";
+import { syncDerivedAbilityOwnership } from "./canonical_talents";
 import { distance, findNpc, type InteractionNpc } from "./interaction";
 import { findNpcService, NPC_SERVICE_RESPEC, type NpcDefinition } from "./npc";
 import type { CharacterProgression } from "./progression";
@@ -49,20 +50,11 @@ export function applyCanonicalRespec(
     trainerId: trainerId,
     timestamp: timestamp,
   };
-  const classDef = catalog.classes[classId];
-  const remove = grantedAbilityIds(
-    catalog,
-    progression.branchId,
-    progression.purchasedClassNodeIds,
-    progression.purchasedBranchNodeRanks,
-  );
-  const basicAbilityId = progression.level >= 2 ? classDef?.basicAbilityId : undefined;
   progression.freeStatAllocations = {};
   progression.purchasedClassNodeIds = [];
   progression.purchasedBranchNodeRanks = {};
   progression.branchId = "";
-  progression.unlockedAbilityIds = keepOwnedAbilities(progression.unlockedAbilityIds, basicAbilityId, remove);
-  progression.hotbarAssignments = filterHotbar(progression.hotbarAssignments, progression.unlockedAbilityIds);
+  syncDerivedAbilityOwnership(progression, catalog, classId);
   if (progression.hotbar !== undefined) {
     progression.hotbar = filterHotbar(progression.hotbar, progression.unlockedAbilityIds);
   }
@@ -118,68 +110,6 @@ export function respecAuditMetadata(snapshot: RespecSnapshot): { [key: string]: 
   };
 }
 
-function grantedAbilityIds(
-  catalog: ProgressionCatalog,
-  branchId: string,
-  classNodes: ReadonlyArray<string>,
-  branchRanks: { [nodeId: string]: number },
-): { [abilityId: string]: boolean } {
-  const remove: { [abilityId: string]: boolean } = {};
-  const branch = branchId.length > 0 ? catalog.branches[branchId] : undefined;
-  if (branch !== undefined) {
-    mark(remove, branch.signatureAbilityId);
-    mark(remove, branch.capstoneAbilityId);
-  }
-  const grants = catalog.talentGrants !== undefined ? catalog.talentGrants : {};
-  for (let i = 0; i < classNodes.length; i++) {
-    addNodeGrants(remove, grants[classNodes[i]]);
-  }
-  const nodeIds = Object.keys(branchRanks);
-  for (let i = 0; i < nodeIds.length; i++) {
-    if (numberOr(branchRanks[nodeIds[i]], 0) > 0) {
-      addNodeGrants(remove, grants[nodeIds[i]]);
-    }
-  }
-  return remove;
-}
-
-function addNodeGrants(
-  remove: { [abilityId: string]: boolean },
-  grant: { grantsActiveAbilityId?: string; rankReplacementAbilityId?: string } | undefined,
-): void {
-  if (grant === undefined) {
-    return;
-  }
-  mark(remove, grant.grantsActiveAbilityId);
-  mark(remove, grant.rankReplacementAbilityId);
-}
-
-function keepOwnedAbilities(
-  unlocked: ReadonlyArray<string>,
-  basicAbilityId: string | undefined,
-  remove: { [abilityId: string]: boolean },
-): string[] {
-  const kept: string[] = [];
-  const basic = basicAbilityId !== undefined ? basicAbilityId : "";
-  for (let i = 0; i < unlocked.length; i++) {
-    const id = unlocked[i];
-    if (id === basic) {
-      if (kept.indexOf(id) === -1) {
-        kept.push(id);
-      }
-      continue;
-    }
-    if (remove[id] === true) {
-      continue;
-    }
-    kept.push(id);
-  }
-  if (basic.length > 0 && kept.indexOf(basic) === -1) {
-    kept.unshift(basic);
-  }
-  return kept;
-}
-
 function filterHotbar(hotbar: ReadonlyArray<string>, unlocked: ReadonlyArray<string>): string[] {
   const next: string[] = [];
   for (let i = 0; i < hotbar.length; i++) {
@@ -195,12 +125,6 @@ function filterHotbar(hotbar: ReadonlyArray<string>, unlocked: ReadonlyArray<str
     }
   }
   return next;
-}
-
-function mark(map: { [id: string]: boolean }, id: string | undefined): void {
-  if (id !== undefined && id.length > 0) {
-    map[id] = true;
-  }
 }
 
 function copyAmounts(source: { [id: string]: number } | undefined): { [id: string]: number } {
@@ -227,11 +151,4 @@ function copyIds(values: ReadonlyArray<string> | undefined): string[] {
     list.push(values[i]);
   }
   return list;
-}
-
-function numberOr(value: number | undefined, fallback: number): number {
-  if (value === undefined || !isFinite(value)) {
-    return fallback;
-  }
-  return value;
 }

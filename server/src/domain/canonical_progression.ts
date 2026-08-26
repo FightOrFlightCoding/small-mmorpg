@@ -8,6 +8,8 @@ export const XP_SOURCE_ELITE_KILL = "elite_kill";
 export const XP_SOURCE_QUEST = "quest";
 export const XP_SOURCE_DEV = "dev";
 export const CANONICAL_HOTBAR_SIZE = 4;
+export const CANONICAL_MAX_OWNED_ACTIVES = 4;
+export const CANONICAL_MAX_CLASS_NODES = 2;
 export const CANONICAL_AUTO_ASSIGN_DEFAULT = false;
 export const CANONICAL_RESPEC_GOLD_PER_LEVEL = 50;
 

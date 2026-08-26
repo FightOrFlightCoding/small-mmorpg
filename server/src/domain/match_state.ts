@@ -980,7 +980,7 @@ function abilitiesFor(state: StarterZoneState, selfId: string, tick: number): { 
   if (player === undefined) {
     return {};
   }
-  return publicAbilityState(player, tick);
+  return publicAbilityState(player, tick, state.progressionCatalog);
 }
 
 function partyFor(state: StarterZoneState, selfId: string): { [key: string]: unknown } | null {

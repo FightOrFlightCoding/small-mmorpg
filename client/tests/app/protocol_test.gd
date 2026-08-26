@@ -56,6 +56,7 @@ func test_join_metadata_carries_selection_ticket_not_character_id() -> void:
 	assert_int(MatchProtocol.CLIENT_AUTO_ASSIGN_UNSPENT_POINTS).is_equal(35)
 	assert_int(MatchProtocol.CLIENT_ALLOCATE_ATTRIBUTES_BATCH).is_equal(36)
 	assert_int(MatchProtocol.CLIENT_TRAINER_RESPEC).is_equal(37)
+	assert_int(MatchProtocol.CLIENT_PURCHASE_TALENT).is_equal(38)
 	assert_int(MatchProtocol.SERVER_FULL_STATE).is_equal(101)
 	assert_int(MatchProtocol.SERVER_SNAPSHOT).is_equal(102)
 	assert_int(MatchProtocol.SERVER_ACTION_RESULT).is_equal(103)

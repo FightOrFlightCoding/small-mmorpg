@@ -1,13 +1,13 @@
 # Current progression conflicts
 
-PROG-06 is the accepted free-stat allocation and trainer-respec path. Remaining live/design gaps are **owned staged work**, not items that will vanish on their own.
+PROG-07 is the accepted talent-tree, ownership, and production-hotbar path. Remaining live/design gaps are **owned staged work**, not items that will vanish on their own.
 
 Canonical target: [rpg-progression-design-v1.0.md](../design/rpg-progression-design-v1.0.md).  
 Live ownership: [PROGRESSION_ARCHITECTURE.md](PROGRESSION_ARCHITECTURE.md).  
 Noncanonical numbers: [progression-implementation-addendum.md](../design/progression-implementation-addendum.md).  
 Final save mapping: [PROGRESSION_MIGRATION_PLAN.md](PROGRESSION_MIGRATION_PLAN.md).
 
-This register does **not** mean PROG-05 failed. Production HP, mana, regen, crit, haste, DR, power-category hit functions, damage order, modifier identity, the level-10 auto-growth sheet, the L10 XP curve, KillXP, automatic growth, free points, auto-assign, and milestones are implemented and tested. Live ATTACK, the 8-slot Foundation hotbar, `test.ability.*` GCD, leftover 3-stat fields, and talent spend remain because later PROG phases own those subsystems.
+This register does **not** mean PROG-06 failed. Production HP, mana, regen, crit, haste, DR, power-category hit functions, damage order, modifier identity, the level-10 auto-growth sheet, the L10 XP curve, KillXP, automatic growth, free points, auto-assign, milestones, free-stat allocation, trainer respec, class/branch talent spend, derived ability ownership, and the four-slot production hotbar are implemented and tested. Live ATTACK, the test-only 8-slot Foundation `HOTBAR_SIZE`, `test.ability.*` GCD, leftover 3-stat fields, and class-specific combat remain because later PROG phases own those subsystems.
 
 ## Status values
 
@@ -35,7 +35,7 @@ Every conflict below has **Status**, **Resolution owner**, **Must be resolved by
 | PROG-04 | Canonical mathematical foundation (accepted) |
 | PROG-05 | XP curve, automatic growth, free points, auto-assign, milestones (accepted) |
 | PROG-06 | Manual free-stat allocation and trainer respec (accepted) |
-| PROG-07 | Class/branch talent spend, ownership, **one** production hotbar |
+| PROG-07 | Class/branch talent spend, ownership, **one** production hotbar (accepted) |
 | PROG-08 | Canonical combat mechanics (no production GCD) |
 | PROG-09–12 | Every class and branch, including auto-attacks |
 | PROG-13 | Complete player-facing progression UI |
@@ -100,6 +100,27 @@ Proceed to PROG-07 only when every row is true. These are PROG-06 exit criteria,
 | Gold request ids do not double-charge | same |
 | Content hash unchanged | `3b57502b4a197972c970420cd7b2a5a74955311b5840be0b4d184843c24e3320` |
 | Talent spend remains later | `C-talent-runtime` |
+
+## PROG-08 go/no-go
+
+Proceed to PROG-08 only when every row is true. These are PROG-07 exit criteria, not PROG-08 work.
+
+| Criterion | Evidence |
+| --- | --- |
+| All previous tests still pass | Content, design audit, foundation audit, server, client gates |
+| Class points: 1 at 3, 2 at 4+, at most two class nodes | `server/tests/progression_talent_trees.test.ts` |
+| Branch choice at 5+, class roster, idempotent, respec-only change | same |
+| Signature at 5+branch, capstone at 10+branch | same |
+| Branch points 1–6 from levels 5–10; pools do not mix | same |
+| Tier 2 after 2 spent; Tier 3 after 4 spent and not before level 9 | same |
+| Rank, active-unlock, and content prerequisites | same |
+| Derived ownership; no production UNLOCK_ABILITY | `server/tests/progression_hotbar_ceiling.test.ts` |
+| Four production actives; auto-attack separate; Frenzy passive | `progression_hotbar_ceiling.test.ts`, `progression_frenzy_passive.test.ts` |
+| Hotbar cannot hold unowned or passive abilities | same |
+| Respec removes revoked abilities from the hotbar | `progression_talent_trees.test.ts`, `progression_respec.test.ts` |
+| Reconnect persists purchases and hotbar | same |
+| Content hash unchanged | `3b57502b4a197972c970420cd7b2a5a74955311b5840be0b4d184843c24e3320` |
+| Canonical combat remains later | `C-attack-foundation`, `C-gcd` |
 
 ## Conflict register
 
@@ -218,25 +239,25 @@ Proceed to PROG-07 only when every row is true. These are PROG-06 exit criteria,
 ### C-hotbar-dual
 
 - **Conflict:** Live `HOTBAR_SIZE = 8` (server `ability.ts`, client `ability_service.gd`) coexists with canonical `hotbarAssignments` (max 4, excludes auto-attack, Frenzy, and `test.ability.*`). Two independently mutable records (`live` hotbar vs canonical hotbar) must not survive as production authorities.
-- **Status:** DEFERRED
+- **Status:** RESOLVED
 - **Resolution owner:** PROG-07 ownership, trees, and hotbar.
-- **Must be resolved by:** End of PROG-07. Temporary coexistence is acceptable until then.
-- **Closure test:** After PROG-07 there is one authoritative production hotbar model: 4 active slots; auto-attack separate; passives excluded; Frenzy excluded. The eight-slot path is removed, migrated, or confined to explicitly test-only fixtures. Ability ownership comes from level, branch, and purchased nodes. “Unlock any ability using skill points” is gone from production behavior.
+- **Must be resolved by:** Accepted in PROG-07. The eight-slot path remains `TEST_ONLY_PERMANENT` for Foundation `test.class.*` / `test.ability.*` fixtures (`HOTBAR_SIZE` 8).
+- **Closure test:** Production `class.*` uses one authoritative hotbar: 4 active slots; auto-attack separate; passives excluded; Frenzy excluded. Covered by `server/tests/progression_hotbar_ceiling.test.ts` and `server/tests/progression_frenzy_passive.test.ts`.
 
 ### C-unlock-any-ability
 
 - **Conflict:** Live skill points can unlock any unlocked-list ability. Design grants from the timeline and trees.
-- **Status:** DEFERRED
+- **Status:** RESOLVED
 - **Resolution owner:** PROG-07
-- **Must be resolved by:** End of PROG-07, with `C-hotbar-dual`.
-- **Closure test:** Production cannot spend points to unlock an arbitrary `test.ability.*` or `ability.*` id outside class/branch/node grants. New production characters keep an empty canonical hotbar until those grants exist. Auto-attack remains the ATTACK opcode, not a hotbar id.
+- **Must be resolved by:** Accepted in PROG-07, with `C-hotbar-dual`.
+- **Closure test:** Production cannot spend points to unlock an arbitrary `test.ability.*` or `ability.*` id outside class/branch/node grants. New production characters keep an empty canonical hotbar until those grants exist. Auto-attack remains the ATTACK opcode, not a hotbar id. Covered by `server/tests/progression_hotbar_ceiling.test.ts`.
 
 ### C-frenzy-passive
 
 - **Conflict:** Exact §9.2 table: Frenzy is a **Passive stacker** and does not take a hotbar slot. The four-active rule is a hard maximum, not “every branch has four buttons.”
 - **Status:** RESOLVED
 - **Resolution owner:** PROG-01 interpretation; PROG-03 migration strips `ability.warrior.frenzy` from canonical `hotbarAssignments`. Combat behavior is `C-frenzy-combat`.
-- **Must be resolved by:** Accepted as a reading. Keep the strip rule until PROG-07 owns the hotbar.
+- **Must be resolved by:** Accepted as a reading. PROG-07 owns the production hotbar; Frenzy remains excluded from it.
 - **Closure test:** Interpretations doc plus migration strip. Live code has no Frenzy combat behavior until `C-frenzy-combat`.
 
 ### C-frenzy-combat
@@ -258,10 +279,10 @@ Proceed to PROG-07 only when every row is true. These are PROG-06 exit criteria,
 ### C-talent-runtime
 
 - **Conflict:** Talent trees exist in the catalog; no spend/unlock runtime. Class 3-pick-2 and branch 8/9 are not playable. PROG-03 stores empty `purchasedClassNodeIds` / `purchasedBranchNodeRanks`. Point balances are calculated.
-- **Status:** DEFERRED
+- **Status:** RESOLVED
 - **Resolution owner:** PROG-07 branch trees and ownership.
-- **Must be resolved by:** End of PROG-07.
-- **Closure test:** Purchases persist as node ids/ranks. Balances recompute from level and purchases. The client cannot submit a finished tree.
+- **Must be resolved by:** Accepted in PROG-07.
+- **Closure test:** Purchases persist as node ids/ranks. Balances recompute from level and purchases. The client cannot submit a finished tree. Covered by `server/tests/progression_talent_trees.test.ts` and `server/tests/protocol.test.ts`.
 
 ### C-respec
 

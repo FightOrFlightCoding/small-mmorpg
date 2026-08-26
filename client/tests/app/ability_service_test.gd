@@ -7,6 +7,7 @@ func before_test() -> void:
 	SceneRouter.reset_for_tests()
 	AppState.reset_for_tests()
 	NetworkService.reset_for_tests()
+	ProgressionService.reset_for_tests()
 	AbilityService.reset_for_tests()
 	assert_bool(ContentRegistry.load_bundle()).is_true()
 
@@ -92,3 +93,35 @@ func test_hud_shows_hotbar_and_cast_bar() -> void:
 	var cast_bar: ProgressBar = hud.get_node("Root/CastBar")
 	assert_bool(cast_bar.visible).is_true()
 	assert_float(cast_bar.value).is_greater(0.0)
+
+
+func test_canonical_hotbar_is_four_slots_and_frenzy_is_not_placed() -> void:
+	ProgressionService.apply_canonical({
+		"classId": "class.warrior",
+		"classDisplayName": "Warrior",
+		"level": 5,
+		"currentXp": 0,
+		"xpToNext": 1120,
+		"atMaxLevel": false,
+		"baseAttributes": {},
+		"allocatedAttributes": {},
+		"derived": {},
+		"unspentAttributePoints": 12,
+		"unlockedAbilityIds": ["ability.warrior.heavy_strike", "ability.warrior.frenzy"],
+	})
+	AbilityService.apply_canonical({
+		"unlockedAbilityIds": ["ability.warrior.heavy_strike", "ability.warrior.frenzy"],
+		"hotbar": ["ability.warrior.heavy_strike", "", "", ""],
+		"cooldowns": {},
+		"activeCast": {},
+	})
+	assert_int(AbilityService.hotbar.size()).is_equal(4)
+	assert_str(String(AbilityService.hotbar[0])).is_equal("ability.warrior.heavy_strike")
+	assert_bool(AbilityService.hotbar.has("ability.warrior.frenzy")).is_false()
+	var hud: WorldHud = auto_free(preload("res://scenes/world/world_hud.tscn").instantiate())
+	add_child(hud)
+	await get_tree().process_frame
+	var slot0: Button = hud.get_node("Root/Hotbar/Slot0")
+	var slot4: Button = hud.get_node("Root/Hotbar/Slot4")
+	assert_bool(slot0.visible).is_true()
+	assert_bool(slot4.visible).is_false()

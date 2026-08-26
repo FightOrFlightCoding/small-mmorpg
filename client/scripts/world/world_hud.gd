@@ -570,6 +570,7 @@ func _refresh_hotbar() -> void:
 			if not AbilityService.can_afford(ability_id):
 				label = "%s\n--" % label
 		(button as Button).text = label
+		(button as Button).visible = i < AbilityService.hotbar.size()
 		(button as Button).disabled = ability_id.is_empty()
 
 

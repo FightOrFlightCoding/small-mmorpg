@@ -246,4 +246,16 @@ func test_select_branch_and_auto_assign_send_opcodes_without_xp() -> void:
 	assert_bool(respec_payload.has("gold")).is_false()
 	assert_bool(respec_payload.has("xp")).is_false()
 	assert_bool(respec_payload.has("level")).is_false()
+	var talent_id := ProgressionService.request_purchase_talent("tree.warrior.berserker", "talent.warrior.berserker.slaughter", 1)
+	await get_tree().process_frame
+	assert_str(talent_id).is_not_empty()
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_PURCHASE_TALENT)
+	var talent_payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_str(String(talent_payload.get("treeId", ""))).is_equal("tree.warrior.berserker")
+	assert_str(String(talent_payload.get("nodeId", ""))).is_equal("talent.warrior.berserker.slaughter")
+	assert_int(int(talent_payload.get("requestedRank", 0))).is_equal(1)
+	assert_bool(talent_payload.has("xp")).is_false()
+	assert_bool(talent_payload.has("level")).is_false()
+	assert_bool(talent_payload.has("purchasedBranchNodeRanks")).is_false()
+	assert_bool(talent_payload.has("unlockedAbilityIds")).is_false()
 

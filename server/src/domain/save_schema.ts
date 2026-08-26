@@ -105,6 +105,7 @@ export const PROGRESSION_SAVE_KEYS = [
   "selectBranchByRequestId",
   "autoAssignByRequestId",
   "respecByRequestId",
+  "purchaseTalentByRequestId",
 ];
 
 export interface VersionDetection {

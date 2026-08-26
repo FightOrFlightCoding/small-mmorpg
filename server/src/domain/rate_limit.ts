@@ -92,7 +92,8 @@ export function actionForOpcode(opcode: number): RateAction {
     opcode === ClientOpcode.SET_AUTO_ASSIGN ||
     opcode === ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS ||
     opcode === ClientOpcode.ALLOCATE_ATTRIBUTES_BATCH ||
-    opcode === ClientOpcode.TRAINER_RESPEC
+    opcode === ClientOpcode.TRAINER_RESPEC ||
+    opcode === ClientOpcode.PURCHASE_TALENT
   ) {
     return "allocate";
   }

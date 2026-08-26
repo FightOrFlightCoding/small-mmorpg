@@ -6,7 +6,9 @@ signal abilities_changed
 signal targeting_changed
 signal request_started(request_id: String)
 
-const HOTBAR_SIZE := 8
+const FOUNDATION_HOTBAR_SIZE := 8
+const CANONICAL_HOTBAR_SIZE := 4
+const HOTBAR_SIZE := FOUNDATION_HOTBAR_SIZE
 
 var unlocked_ability_ids: Array = []
 var hotbar: Array = []
@@ -74,9 +76,7 @@ func cancel_targeting() -> void:
 
 
 func try_hotbar(slot_index: int) -> String:
-	if slot_index < 0 or slot_index >= HOTBAR_SIZE:
-		return ""
-	if slot_index >= hotbar.size():
+	if slot_index < 0 or slot_index >= hotbar.size():
 		return ""
 	var ability_id := String(hotbar[slot_index])
 	if ability_id.is_empty():
@@ -128,6 +128,8 @@ func request_cancel_cast() -> String:
 
 func request_assign_hotbar(slot_index: int, ability_id: String) -> String:
 	if NetworkService.match_id.is_empty():
+		return ""
+	if slot_index < 0 or slot_index >= hotbar.size():
 		return ""
 	var request_id := MatchProtocol.new_request_id()
 	_note_pending(request_id)
@@ -204,9 +206,12 @@ func can_afford(ability_id: String) -> bool:
 func apply_canonical(state: Dictionary) -> void:
 	unlocked_ability_ids = _copy_string_list(state.get("unlockedAbilityIds", []))
 	hotbar = _copy_string_list(state.get("hotbar", []))
-	if hotbar.size() < HOTBAR_SIZE:
-		while hotbar.size() < HOTBAR_SIZE:
+	var cap := _hotbar_cap(hotbar.size())
+	if hotbar.size() < cap:
+		while hotbar.size() < cap:
 			hotbar.append("")
+	elif hotbar.size() > cap:
+		hotbar = hotbar.slice(0, cap)
 	ability_ranks = _copy_number_map(state.get("abilityRanks", {}))
 	resources = _copy_number_map(state.get("resources", {}))
 	cooldowns = _copy_number_map(state.get("cooldowns", {}))
@@ -218,6 +223,14 @@ func apply_canonical(state: Dictionary) -> void:
 		active_cast = {}
 	effects = _copy_array(state.get("effects", []))
 	abilities_changed.emit()
+
+
+func _hotbar_cap(incoming_size: int) -> int:
+	if ProgressionService.uses_canonical_class():
+		return CANONICAL_HOTBAR_SIZE
+	if incoming_size > 0 and incoming_size <= CANONICAL_HOTBAR_SIZE:
+		return CANONICAL_HOTBAR_SIZE
+	return FOUNDATION_HOTBAR_SIZE
 
 
 func _send_use(ability_id: String, target_id: String, point: Vector2) -> String:
@@ -348,7 +361,8 @@ func _note_pending(request_id: String) -> void:
 
 func _reset_hotbar() -> void:
 	hotbar = []
-	for _i in range(HOTBAR_SIZE):
+	var cap := CANONICAL_HOTBAR_SIZE if ProgressionService.uses_canonical_class() else FOUNDATION_HOTBAR_SIZE
+	for _i in range(cap):
 		hotbar.append("")
 
 

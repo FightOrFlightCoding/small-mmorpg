@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { HOTBAR_SIZE } from "../src/domain/ability";
+import { CANONICAL_HOTBAR_SIZE } from "../src/domain/canonical_progression";
 import { content } from "../src/generated/content";
 import { catalogFromContent, levelCurveFor } from "../src/domain/stats";
 import {
@@ -184,6 +185,7 @@ test("live catalog snapshot keeps foundation combat while four production classe
   }
   assert.equal(sum, 375);
   assert.equal(HOTBAR_SIZE, 8);
+  assert.equal(CANONICAL_HOTBAR_SIZE, 4);
   const warriorResources = content.classes["class.warrior"].startingResources as { [id: string]: number };
   const marksmanResources = content.classes["class.marksman"].startingResources as { [id: string]: number };
   const mageResources = content.classes["class.mage"].startingResources as { [id: string]: number };

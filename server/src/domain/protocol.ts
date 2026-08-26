@@ -42,6 +42,7 @@ export const ClientOpcode = {
   AUTO_ASSIGN_UNSPENT_POINTS: 35,
   ALLOCATE_ATTRIBUTES_BATCH: 36,
   TRAINER_RESPEC: 37,
+  PURCHASE_TALENT: 38,
 } as const;
 
 export const ServerOpcode = {
@@ -103,6 +104,7 @@ const CLIENT_OPCODES: ClientOpcode[] = [
   ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS,
   ClientOpcode.ALLOCATE_ATTRIBUTES_BATCH,
   ClientOpcode.TRAINER_RESPEC,
+  ClientOpcode.PURCHASE_TALENT,
 ];
 
 const REWARD_OPCODES: ClientOpcode[] = [
@@ -155,6 +157,7 @@ OPCODE_KEYS[ClientOpcode.SET_AUTO_ASSIGN] = ["enabled"];
 OPCODE_KEYS[ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS] = [];
 OPCODE_KEYS[ClientOpcode.ALLOCATE_ATTRIBUTES_BATCH] = ["allocations"];
 OPCODE_KEYS[ClientOpcode.TRAINER_RESPEC] = ["npcId"];
+OPCODE_KEYS[ClientOpcode.PURCHASE_TALENT] = ["treeId", "nodeId", "requestedRank"];
 
 const OUTCOME_KEYS = [
   "attack",
@@ -188,6 +191,10 @@ const OUTCOME_KEYS = [
   "unspentAttributePoints",
   "unspentSkillPoints",
   "unspentFreeStatPoints",
+  "purchasedClassNodeIds",
+  "purchasedBranchNodeRanks",
+  "hotbarAssignments",
+  "unlockedAbilityIds",
   "allocatedAttributes",
   "freeStatAllocations",
   "resultingGold",
@@ -214,7 +221,7 @@ const OUTCOME_KEYS = [
 const INPUT_NUMBER_KEYS = ["seq", "axisX", "axisY"];
 const ALLOCATE_NUMBER_KEYS = ["amount"];
 const INVENTORY_NUMBER_KEYS = ["quantity", "toSlotIndex"];
-const ABILITY_NUMBER_KEYS = ["targetX", "targetY", "slotIndex"];
+const ABILITY_NUMBER_KEYS = ["targetX", "targetY", "slotIndex", "requestedRank"];
 const TRADE_NUMBER_KEYS = ["revision"];
 const BOOLEAN_KEYS = ["enabled"];
 
@@ -238,6 +245,7 @@ export interface ParsedClientMessage {
   targetX?: number;
   targetY?: number;
   slotIndex?: number;
+  requestedRank?: number;
   revision?: number;
   enabled?: boolean;
   allocations?: Array<{ statId: string; amount: number }>;
@@ -281,7 +289,8 @@ function requiresRequestId(opcode: ClientOpcode): boolean {
     opcode === ClientOpcode.RETURN_TO_CHARACTER_SELECT ||
     opcode === ClientOpcode.SELECT_BRANCH ||
     opcode === ClientOpcode.SET_AUTO_ASSIGN ||
-    opcode === ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS
+    opcode === ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS ||
+    opcode === ClientOpcode.PURCHASE_TALENT
   );
 }
 
@@ -538,6 +547,13 @@ export function parseClientMessage(
       return { code: "invalid_slot", message: "ASSIGN_HOTBAR slotIndex must be a finite integer." };
     }
     message.slotIndex = slotIndex;
+  }
+  if (opcode === ClientOpcode.PURCHASE_TALENT) {
+    const requestedRank = data.requestedRank;
+    if (typeof requestedRank !== "number" || !isFinite(requestedRank) || requestedRank !== Math.floor(requestedRank)) {
+      return { code: "invalid_rank", message: "PURCHASE_TALENT requestedRank must be a finite integer." };
+    }
+    message.requestedRank = requestedRank;
   }
   if (opcode === ClientOpcode.SET_AUTO_ASSIGN) {
     if (typeof data.enabled !== "boolean") {

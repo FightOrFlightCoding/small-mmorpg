@@ -661,7 +661,7 @@ Warrior and Marksman expose no mana resource. Mage and Mystic use `Mana_max = 20
 
 On max-health change, the already accepted pipeline policy applies: living characters keep current health plus any **increase** in max, then clamp to the new max. Ordinary equipment changes do not refill. Full refill remains create, authorized respawn, inn/healer restore, or an explicit effect. Test classes without canonical `baseStats` keep Foundation `evaluateStats` layers so Prompt 18 cert fixtures stay on `test.class.*` numbers.
 
-Canonical melee/ranged/spell/heal functions exist and are tested independently (`scalePower` / `evaluateCanonicalHit`). Live ATTACK still uses Foundation `test.stat.attack` until PROG-08–12. Remaining live/design gaps are owned in [progression/CURRENT_CONFLICTS.md](progression/CURRENT_CONFLICTS.md): dual hotbars close in PROG-07; production GCD is forbidden from PROG-08 and audited in PROG-15; leftover schema-2 Foundation fields receive a final real-player policy in PROG-14. Quest slime-problem XP 20 is `project.quest.slime_problem.xp` (noncanonical content).
+Canonical melee/ranged/spell/heal functions exist and are tested independently (`scalePower` / `evaluateCanonicalHit`). Live ATTACK still uses Foundation `test.stat.attack` until PROG-08–12. Remaining live/design gaps are owned in [progression/CURRENT_CONFLICTS.md](progression/CURRENT_CONFLICTS.md): dual hotbars and talent spend close in PROG-07; production GCD is forbidden from PROG-08 and audited in PROG-15; leftover schema-2 Foundation fields receive a final real-player policy in PROG-14. Quest slime-problem XP 20 is `project.quest.slime_problem.xp` (noncanonical content).
 
 ## 2026-08-26 — PROG-05 XP curve, automatic growth, milestones, and auto-assignment
 
@@ -678,4 +678,12 @@ Production `class.*` characters spend unspent free points on any of the eight `s
 Trainer respec is a generic NPC `respec` service overlay on `npc.test_innkeeper` (and `npc.lab_trainer` when that development NPC is present). Authored NPC JSON is unchanged so the content hash stays `3b57502b4a197972c970420cd7b2a5a74955311b5840be0b4d184843c24e3320`. Gold cost is canonical `50 × current_level`. Safe-leave restrictions apply. Gold and progression persist through `TX_REASON_RESPEC` / `nk.multiUpdate`. Repeated `requestId` values do not deduct twice.
 
 Respec clears free allocations, class-node purchases, branch ranks and choice, signature/capstone/buyable-active/branch-passive ownership, and invalid hotbar slots. Points refund by calculation (earned minus spent). Class, level, XP, automatic growth, the level-2 basic skill, equipment, and inventory remain. Derived stats recalculate. Level 5+ without a branch keeps `pendingBranchSelection`. Talent spend remains PROG-07. GM `reset_attribute_allocation` / `reset_skill_allocation` remain debug/ops, not the player path. Overlay trainer ids and batch size 16 are `project.npc.respec_trainers` / `project.allocate.batch_max_entries` in the implementation addendum.
+
+## 2026-08-26 — PROG-07 branch choice, talent trees, ability ownership, and hotbar rules
+
+Production `class.*` characters earn two class points (1 at 3, 2 at 4+) and six branch points (1 at 5 through 6 at 10). Pools do not mix. Opcode 33 `SELECT_BRANCH` requires level ≥ 5, a class-owned branch, no existing branch, safe-leave, and `requestId` idempotency. Success sets the branch, grants signature at 5+, capstone at 10, and keeps unspent branch points. Branch change is trainer respec only.
+
+Opcode 38 `PURCHASE_TALENT` (`treeId`, `nodeId`, `requestedRank`, `requestId`) spends one rank. The server enforces tree kind, branch, point availability, tier gates (Tier 3 not before level 9), sequential ranks, content prerequisites, the two-node class cap, one buyable branch active, and a hard maximum of four owned actives. Ability ownership is derived from class, level, branch, and purchased nodes. Production `UNLOCK_ABILITY` is `unsupported_class`.
+
+The production hotbar is four slots of owned active abilities. Auto-attack stays on ATTACK. Frenzy (`ability.warrior.frenzy`) is a passive signature and cannot be placed. Respec strips revoked ids and publishes canonical hotbar state. Foundation `test.class.*` keep the 8-slot skill-point path. Canonical `ability.*` stay `runtimeEnabled: false`. Content hash unchanged.
 

@@ -55,6 +55,7 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS, 35);
   assert.equal(ClientOpcode.ALLOCATE_ATTRIBUTES_BATCH, 36);
   assert.equal(ClientOpcode.TRAINER_RESPEC, 37);
+  assert.equal(ClientOpcode.PURCHASE_TALENT, 38);
   assert.equal(ServerOpcode.FULL_STATE, 101);
   assert.equal(ServerOpcode.SNAPSHOT, 102);
   assert.equal(ServerOpcode.ACTION_RESULT, 103);
@@ -769,5 +770,69 @@ test("allocate batch and trainer respec parse intentions and reject xp injection
   assert.equal(isProtocolError(respecGold), true);
   if (isProtocolError(respecGold)) {
     assert.equal(respecGold.code, "stat_injection:gold");
+  }
+});
+
+test("purchase talent parses intentions and rejects xp or rank injection", () => {
+  const parsed = parse(
+    ClientOpcode.PURCHASE_TALENT,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      treeId: "tree.warrior.berserker",
+      nodeId: "talent.warrior.berserker.slaughter",
+      requestedRank: 1,
+      requestId: "req-talent01",
+    }),
+  );
+  assert.equal(isProtocolError(parsed), false);
+  if (!isProtocolError(parsed)) {
+    assert.equal(parsed.fields.treeId, "tree.warrior.berserker");
+    assert.equal(parsed.fields.nodeId, "talent.warrior.berserker.slaughter");
+    assert.equal(parsed.requestedRank, 1);
+  }
+  const injectedXp = parse(
+    ClientOpcode.PURCHASE_TALENT,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      treeId: "tree.warrior.berserker",
+      nodeId: "talent.warrior.berserker.slaughter",
+      requestedRank: 1,
+      requestId: "req-talent02",
+      xp: 999,
+    }),
+  );
+  assert.equal(isProtocolError(injectedXp), true);
+  if (isProtocolError(injectedXp)) {
+    assert.equal(injectedXp.code, "stat_injection:xp");
+  }
+  const injectedRanks = parse(
+    ClientOpcode.PURCHASE_TALENT,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      treeId: "tree.warrior.berserker",
+      nodeId: "talent.warrior.berserker.slaughter",
+      requestedRank: 1,
+      requestId: "req-talent03",
+      purchasedBranchNodeRanks: { "talent.warrior.berserker.slaughter": 1 },
+    }),
+  );
+  assert.equal(isProtocolError(injectedRanks), true);
+  if (isProtocolError(injectedRanks)) {
+    assert.equal(injectedRanks.code, "stat_injection:purchasedBranchNodeRanks");
+  }
+  const injectedUnlocks = parse(
+    ClientOpcode.PURCHASE_TALENT,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      treeId: "tree.warrior.berserker",
+      nodeId: "talent.warrior.berserker.slaughter",
+      requestedRank: 1,
+      requestId: "req-talent04",
+      unlockedAbilityIds: ["ability.warrior.whirlwind"],
+    }),
+  );
+  assert.equal(isProtocolError(injectedUnlocks), true);
+  if (isProtocolError(injectedUnlocks)) {
+    assert.equal(injectedUnlocks.code, "stat_injection:unlockedAbilityIds");
   }
 });

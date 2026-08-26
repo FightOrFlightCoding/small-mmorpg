@@ -22,6 +22,7 @@ import {
   usesCanonicalCreateState,
 } from "./canonical_progression";
 import { applyCanonicalRespec, type RespecSnapshot } from "./canonical_respec";
+import { applyCanonicalTalentPurchase, type TalentPurchaseInput } from "./canonical_talents";
 import { classUsesCanonicalStats } from "./canonical_stats";
 import { cloneTickMap, dict } from "./maps";
 import { cloneExtras, envelopeFromRecord } from "./save_schema";
@@ -65,6 +66,7 @@ export interface CharacterProgression {
   selectBranchByRequestId?: { [requestId: string]: AbilityActionRecord };
   autoAssignByRequestId?: { [requestId: string]: AbilityActionRecord };
   respecByRequestId?: { [requestId: string]: AbilityActionRecord };
+  purchaseTalentByRequestId?: { [requestId: string]: AbilityActionRecord };
   classId: string;
   branchId: string;
   xpIntoLevel: number;
@@ -205,6 +207,7 @@ export function cloneProgression(progression: CharacterProgression | undefined):
     selectBranchByRequestId: copyAbilityActionMap(progression.selectBranchByRequestId),
     autoAssignByRequestId: copyAbilityActionMap(progression.autoAssignByRequestId),
     respecByRequestId: copyAbilityActionMap(progression.respecByRequestId),
+    purchaseTalentByRequestId: copyAbilityActionMap(progression.purchaseTalentByRequestId),
     classId: progression.classId !== undefined ? progression.classId : "",
     branchId: progression.branchId !== undefined ? progression.branchId : "",
     xpIntoLevel: progression.xpIntoLevel !== undefined ? progression.xpIntoLevel : progression.currentXp,
@@ -695,6 +698,49 @@ export function selectBranch(
   };
 }
 
+export interface TalentPurchaseActionInput extends TalentPurchaseInput {}
+
+export function purchaseTalent(
+  progression: CharacterProgression,
+  catalog: ProgressionCatalog,
+  classId: string,
+  input: TalentPurchaseActionInput,
+): ProgressionActionResult {
+  const current = cloneProgression(progression);
+  const maps = ensureRequestMaps(current);
+  const previous = maps.purchaseTalentByRequestId[input.requestId];
+  if (previous !== undefined) {
+    return {
+      progression: current,
+      replay: true,
+      changed: false,
+      ok: previous.ok,
+      code: previous.code,
+      events: [],
+    };
+  }
+  const purchased = applyCanonicalTalentPurchase(current, catalog, classId, input);
+  maps.purchaseTalentByRequestId[input.requestId] = { ok: purchased.ok, code: purchased.code };
+  current.purchaseTalentByRequestId = maps.purchaseTalentByRequestId;
+  const events: ProgressionEvent[] = [];
+  for (let i = 0; i < purchased.events.length; i++) {
+    const row = purchased.events[i];
+    const event: ProgressionEvent = { type: row.type as ProgressionEvent["type"] };
+    if (row.abilityId !== undefined) {
+      event.abilityId = row.abilityId;
+    }
+    events.push(event);
+  }
+  return {
+    progression: current,
+    replay: false,
+    changed: true,
+    ok: purchased.ok,
+    code: purchased.code,
+    events: events,
+  };
+}
+
 export function setAutoAssign(
   progression: CharacterProgression,
   input: AutoAssignFlagInput,
@@ -975,11 +1021,13 @@ function ensureRequestMaps(progression: CharacterProgression): {
   selectBranchByRequestId: { [requestId: string]: AbilityActionRecord };
   autoAssignByRequestId: { [requestId: string]: AbilityActionRecord };
   respecByRequestId: { [requestId: string]: AbilityActionRecord };
+  purchaseTalentByRequestId: { [requestId: string]: AbilityActionRecord };
 } {
   return {
     selectBranchByRequestId: copyAbilityActionMap(progression.selectBranchByRequestId),
     autoAssignByRequestId: copyAbilityActionMap(progression.autoAssignByRequestId),
     respecByRequestId: copyAbilityActionMap(progression.respecByRequestId),
+    purchaseTalentByRequestId: copyAbilityActionMap(progression.purchaseTalentByRequestId),
   };
 }
 

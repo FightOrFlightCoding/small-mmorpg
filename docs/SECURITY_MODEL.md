@@ -120,7 +120,7 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 ### Rate-limit abuse
 
-**Attack:** Flood `INPUT`, `ATTACK`, `USE_ABILITY`, `CANCEL_CAST`, `SET_TARGET`, `INTERACT`, `PICKUP`, `EQUIP`, `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, quest opcodes, `VENDOR_BUY`, `VENDOR_SELL`, `INN_REST`, `CAVE_ENTER`, `CAVE_EXIT`, trade opcodes, `ALLOCATE_ATTRIBUTES`, `ALLOCATE_ATTRIBUTES_BATCH`, `TRAINER_RESPEC`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, `RELEASE_RESPAWN`, or `RESYNC_REQUEST` faster than an honest client.
+**Attack:** Flood `INPUT`, `ATTACK`, `USE_ABILITY`, `CANCEL_CAST`, `SET_TARGET`, `INTERACT`, `PICKUP`, `EQUIP`, `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, quest opcodes, `VENDOR_BUY`, `VENDOR_SELL`, `INN_REST`, `CAVE_ENTER`, `CAVE_EXIT`, trade opcodes, `ALLOCATE_ATTRIBUTES`, `ALLOCATE_ATTRIBUTES_BATCH`, `TRAINER_RESPEC`, `PURCHASE_TALENT`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, `RELEASE_RESPAWN`, or `RESYNC_REQUEST` faster than an honest client.
 
 **Defense:** Match state stores per-user `actionRates` for a 10-tick window. Excess is `rate_limited`, logged, and not applied. Honest 10 Hz movement stays under the `INPUT` cap of 20/s.
 
@@ -150,7 +150,9 @@ Machine-readable copy: `server/src/domain/security_catalog.ts`. Every expected a
 | level_injection | Client sets level | No client level field | allocate 8/10 ticks | 2048 | n/a | `stat_injection:level` | `progression.test.ts`, `protocol.test.ts` |
 | attribute_overspending | Spend more points than unspent | Server pool check | allocate 8/10 ticks | 2048 | `requestId` replay | `insufficient_points` / `invalid_amount` | `progression.test.ts`, `progression_respec.test.ts` |
 | skill_point_overspending | Unlock with too few skill points | `unlockAbility` cost check | allocate 8/10 ticks | 2048 | `requestId` replay | `insufficient_points` | `ability.test.ts`, `security.test.ts` |
-| ability_unlock_bypass | Use or hotbar a locked ability | Server unlock list | attack/allocate 8/10 ticks | 2048 | n/a | `ability_locked` | `ability.test.ts`, `protocol.test.ts` |
+| ability_unlock_bypass | Use or hotbar a locked ability | Server unlock list / derived ownership | attack/allocate 8/10 ticks | 2048 | n/a | `ability_locked` | `ability.test.ts`, `protocol.test.ts`, `progression_hotbar_ceiling.test.ts` |
+| talent_point_overspending | Spend class points in a branch tree or overspend ranks | `purchaseTalent` treeKind, pools, tiers, prerequisites | allocate 8/10 ticks | 2048 | `requestId` replay | `insufficient_points` / `invalid_tree` / `prerequisite_missing` | `progression_talent_trees.test.ts` |
+| production_unlock_any | `UNLOCK_ABILITY` on a production class | Production classes reject UNLOCK_ABILITY | allocate 8/10 ticks | 2048 | `requestId` | `unsupported_class` | `progression_hotbar_ceiling.test.ts` |
 | position_spoofing | Send x/y as movement | `INPUT` is axes+seq only | input 20/10 ticks | 2048 | stale seq ignored | `stat_injection:x` | `security.test.ts`, `protocol.test.ts`, `movement.test.ts` |
 | speed_hacking | Oversized axis or implied teleport | Server dt and `moveSpeed` | input 20/10 ticks | 2048 | n/a | Applied speed matches content | `movement.test.ts`, `security.test.ts` |
 | target_spoofing | Attack unknown or foreign IDs | Match entity indexes | attack 8/10 ticks | 2048 | n/a | `invalid_target` | `combat.test.ts`, `targeting.test.ts`, `security.test.ts` |

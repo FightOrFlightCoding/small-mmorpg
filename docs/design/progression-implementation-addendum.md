@@ -30,7 +30,7 @@ When a later phase needs a value absent from the design, reuse an already accept
 | `project.threat.switch_ratio` | `1.1` (`DEFAULT_AI_PROFILE`) | Threat target switch hysteresis | no |
 | `project.tick.snapshot_hz` | `10` | Authoritative match tick rate | no |
 | `project.save.schema_version` | `1` | Player-save envelope | no |
-| `project.hotbar.size` | `8` | Current hotbar length (conflicts with design max 4; see CURRENT_CONFLICTS.md) | no |
+| `project.hotbar.size` | `8` | Foundation/test-class hotbar length (`HOTBAR_SIZE`). Production uses canonical 4. | no |
 | `project.gcd.ability` | `0.7s` on current test abilities | Existing GCD field (design has no global cooldown) | no |
 
 None of the rows above are license to retune §9 / §14.

@@ -599,6 +599,9 @@ export function auditConflictRegister(markdown: string): AuditIssue[] {
   if (markdown.indexOf("## PROG-07 go/no-go") < 0) {
     issues.push({ code: "missing_prog07_gating", message: "CURRENT_CONFLICTS.md must include PROG-07 go/no-go." });
   }
+  if (markdown.indexOf("## PROG-08 go/no-go") < 0) {
+    issues.push({ code: "missing_prog08_gating", message: "CURRENT_CONFLICTS.md must include PROG-08 go/no-go." });
+  }
   const entries = parseConflictRegister(markdown);
   const seen: { [id: string]: boolean } = {};
   for (let i = 0; i < entries.length; i++) {

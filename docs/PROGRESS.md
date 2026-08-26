@@ -1,10 +1,10 @@
 # Progress
 
-Last accepted phase: **PROG-06 — Manual Stat Allocation and Full Trainer Respec**.
+Last accepted phase: **PROG-07 — Branch Choice, Talent Trees, Ability Ownership, and Hotbar Rules**.
 
 Current phase: none.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
 
@@ -1137,6 +1137,38 @@ A successful respec clears free allocations, class-node purchases, branch ranks,
 | Client GdUnit | 279/279, 0 orphans, `SHELL_LOGIN` |
 
 Limitations: Talent spend, one production hotbar, and canonical combat remain later PROG phases. Live ATTACK is not retuned onto STR/AGI/INT. `npc.lab_trainer` is development-only and omitted from the production catalog; the starter-zone trainer is the innkeeper overlay. Manual Prompt 18 world play was not re-run; live village/slime combat behavior was not changed.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/content.ps1 validate
+powershell -File scripts/test-content.ps1
+powershell -File scripts/content-build.ps1
+powershell -File scripts/test-progression-design.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+```
+
+## PROG-07 branch choice, talent trees, ability ownership, and hotbar rules (2026-08-26)
+
+Production `class.*` characters earn two class points (1 at level 3, 2 at level 4+) and six branch points (1 at 5 through 6 at 10). Class points cannot buy branch nodes; branch points cannot buy class nodes. Each class tree has three one-rank nodes; a character may purchase at most two.
+
+Opcode 33 `SELECT_BRANCH` requires level ≥ 5, a branch that belongs to the character class, no existing branch, character ownership, safe-leave, and `requestId` idempotency. Success sets the branch, grants the signature at level 5 or higher, grants the capstone at 10, exposes that branch tree, and preserves unspent branch points. The branch cannot be changed except by trainer respec.
+
+Opcode 38 `PURCHASE_TALENT` (`treeId`, `nodeId`, `requestedRank`, `requestId`) spends one rank. The server enforces tree identity, branch, point availability, tier gates (Tier 2 after 2 spent in that tree; Tier 3 after 4 spent and not before level 9), sequential ranks, content prerequisites, maximum rank, the two-node class cap, one buyable branch active, and a hard maximum of four owned actives. Ability ownership is derived from class, level, branch, and purchased nodes. Production `UNLOCK_ABILITY` is `unsupported_class`.
+
+Auto-attack is owned at level 1 on the ATTACK path and is not a hotbar skill. Basic unlocks at 2. Signature unlocks at 5 plus branch. Capstone unlocks at 10 plus branch. A buyable branch active is granted only by its node. Berserker Frenzy is a passive signature and does not occupy a slot. The production hotbar is four owned active abilities; passives, auto-attack, duplicates, and unowned ids are rejected. Respec removes revoked abilities from the hotbar and publishes canonical hotbar state. Foundation `test.class.*` keep the 8-slot skill-point path. Canonical `ability.*` stay `runtimeEnabled: false`. Authored content was not rebuilt; content hash is unchanged. Prompt 18 village/slime combat behavior is unchanged.
+
+| Gate | Result |
+| --- | --- |
+| Content-build tests | 25/25 (`scripts/test-content.ps1`); hash `3b57502b4a197972c970420cd7b2a5a74955311b5840be0b4d184843c24e3320` |
+| Design audit | 10/10 (`scripts/test-progression-design.ps1`) |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (29 RPCs, 34 storage records, 38 client opcodes) |
+| Server hermetic | 629 passed, 13 skipped (live suites off); `tsc` via server test script |
+| Client GdUnit | 280/280, 0 orphans, `SHELL_LOGIN` |
+
+Limitations: Canonical combat, class-specific effect behavior, and production GCD removal remain later PROG phases. Live ATTACK is not retuned onto STR/AGI/INT. The eight-slot Foundation hotbar remains test-only. Manual Prompt 18 world play was not re-run; live village/slime combat behavior was not changed.
 
 Reproduction:
 

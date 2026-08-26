@@ -90,6 +90,7 @@ export interface ClassContent {
   autoAttackId?: string;
   basicAbilityId?: string;
   canonicalLevelCurveId?: string;
+  classTreeId?: string;
   branchIds?: ReadonlyArray<string>;
   autoAssignTemplate?: { amounts: { [id: string]: number } };
   baseStats?: { [id: string]: number };
@@ -101,11 +102,48 @@ export interface BranchContent {
   classId: string;
   signatureAbilityId: string;
   capstoneAbilityId: string;
+  branchTreeId?: string;
 }
 
 export interface TalentGrantContent {
   grantsActiveAbilityId?: string;
   rankReplacementAbilityId?: string;
+}
+
+export interface TalentPrerequisiteContent {
+  nodeId: string;
+  minRank: number;
+}
+
+export interface TalentTierGateContent {
+  tier: number;
+  minLevel?: number;
+  minPointsSpent: number;
+}
+
+export interface TalentTreeContent {
+  id: string;
+  treeKind: "class" | "branch";
+  ownerId: string;
+  pointsAvailable: number;
+  maxActiveGrants?: number;
+  tierGates?: TalentTierGateContent[];
+  nodeIds: string[];
+}
+
+export interface TalentNodeContent {
+  id: string;
+  treeId: string;
+  tier: number;
+  maxRank: number;
+  pointCostPerRank: number;
+  prerequisites?: TalentPrerequisiteContent[];
+  grantsActiveAbilityId?: string;
+}
+
+export interface AbilityCategoryContent {
+  id: string;
+  category: string;
 }
 
 export interface ProgressionCatalog {
@@ -117,6 +155,9 @@ export interface ProgressionCatalog {
   classProgressions: { [id: string]: ClassProgressionContent };
   branches: { [id: string]: BranchContent };
   talentGrants: { [nodeId: string]: TalentGrantContent };
+  talentTrees: { [id: string]: TalentTreeContent };
+  talentNodes: { [id: string]: TalentNodeContent };
+  abilities: { [id: string]: AbilityCategoryContent };
 }
 
 export interface StatContext {
@@ -170,7 +211,9 @@ export function catalogFromContent(content: {
   levelCurves: { [id: string]: LevelCurveContent };
   classProgressions: { [id: string]: ClassProgressionContent };
   branches?: { [id: string]: BranchContent };
+  talentTrees?: { [id: string]: unknown };
   talentNodes?: { [id: string]: unknown };
+  abilities?: { [id: string]: unknown };
 }): ProgressionCatalog {
   return {
     classes: copyClassMap(content.classes),
@@ -181,6 +224,9 @@ export function catalogFromContent(content: {
     classProgressions: copyProgressionMap(content.classProgressions),
     branches: copyBranchMap(content.branches),
     talentGrants: copyTalentGrants(content.talentNodes),
+    talentTrees: copyTalentTrees(content.talentTrees),
+    talentNodes: copyTalentNodes(content.talentNodes),
+    abilities: copyAbilityCategories(content.abilities),
   };
 }
 
@@ -697,6 +743,7 @@ function copyClassMap(input: { [id: string]: ClassContent }): { [id: string]: Cl
       autoAttackId: def.autoAttackId,
       basicAbilityId: def.basicAbilityId,
       canonicalLevelCurveId: def.canonicalLevelCurveId,
+      classTreeId: def.classTreeId,
       branchIds: def.branchIds !== undefined ? copyIds(def.branchIds) : undefined,
       autoAssignTemplate:
         def.autoAssignTemplate !== undefined
@@ -861,6 +908,7 @@ function copyBranchMap(input: { [id: string]: BranchContent } | undefined): { [i
       classId: def.classId,
       signatureAbilityId: def.signatureAbilityId !== undefined ? def.signatureAbilityId : "",
       capstoneAbilityId: def.capstoneAbilityId !== undefined ? def.capstoneAbilityId : "",
+      branchTreeId: def.branchTreeId,
     };
   }
   return out;
@@ -892,6 +940,145 @@ function copyTalentGrants(input: { [id: string]: unknown } | undefined): { [node
     if (grant.grantsActiveAbilityId !== undefined || grant.rankReplacementAbilityId !== undefined) {
       out[ids[i]] = grant;
     }
+  }
+  return out;
+}
+
+function copyTalentTrees(input: { [id: string]: unknown } | undefined): { [id: string]: TalentTreeContent } {
+  const out: { [id: string]: TalentTreeContent } = {};
+  if (input === undefined) {
+    return out;
+  }
+  const ids = Object.keys(input);
+  for (let i = 0; i < ids.length; i++) {
+    const raw = input[ids[i]];
+    if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+      continue;
+    }
+    const def = raw as {
+      id?: unknown;
+      treeKind?: unknown;
+      ownerId?: unknown;
+      pointsAvailable?: unknown;
+      maxActiveGrants?: unknown;
+      tierGates?: unknown;
+      nodeIds?: unknown;
+    };
+    if (typeof def.id !== "string" || (def.treeKind !== "class" && def.treeKind !== "branch")) {
+      continue;
+    }
+    if (typeof def.ownerId !== "string" || !Array.isArray(def.nodeIds)) {
+      continue;
+    }
+    const nodeIds: string[] = [];
+    for (let n = 0; n < def.nodeIds.length; n++) {
+      if (typeof def.nodeIds[n] === "string") {
+        nodeIds.push(def.nodeIds[n]);
+      }
+    }
+    const tree: TalentTreeContent = {
+      id: def.id,
+      treeKind: def.treeKind,
+      ownerId: def.ownerId,
+      pointsAvailable: typeof def.pointsAvailable === "number" ? def.pointsAvailable : 0,
+      nodeIds: nodeIds,
+    };
+    if (typeof def.maxActiveGrants === "number") {
+      tree.maxActiveGrants = def.maxActiveGrants;
+    }
+    if (Array.isArray(def.tierGates)) {
+      const gates: TalentTierGateContent[] = [];
+      for (let g = 0; g < def.tierGates.length; g++) {
+        const gateRaw = def.tierGates[g];
+        if (gateRaw === null || typeof gateRaw !== "object" || Array.isArray(gateRaw)) {
+          continue;
+        }
+        const gate = gateRaw as { tier?: unknown; minLevel?: unknown; minPointsSpent?: unknown };
+        if (typeof gate.tier !== "number" || typeof gate.minPointsSpent !== "number") {
+          continue;
+        }
+        const copied: TalentTierGateContent = { tier: gate.tier, minPointsSpent: gate.minPointsSpent };
+        if (typeof gate.minLevel === "number") {
+          copied.minLevel = gate.minLevel;
+        }
+        gates.push(copied);
+      }
+      tree.tierGates = gates;
+    }
+    out[ids[i]] = tree;
+  }
+  return out;
+}
+
+function copyTalentNodes(input: { [id: string]: unknown } | undefined): { [id: string]: TalentNodeContent } {
+  const out: { [id: string]: TalentNodeContent } = {};
+  if (input === undefined) {
+    return out;
+  }
+  const ids = Object.keys(input);
+  for (let i = 0; i < ids.length; i++) {
+    const raw = input[ids[i]];
+    if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+      continue;
+    }
+    const def = raw as {
+      id?: unknown;
+      treeId?: unknown;
+      tier?: unknown;
+      maxRank?: unknown;
+      pointCostPerRank?: unknown;
+      prerequisites?: unknown;
+      grantsActiveAbilityId?: unknown;
+    };
+    if (typeof def.id !== "string" || typeof def.treeId !== "string") {
+      continue;
+    }
+    const node: TalentNodeContent = {
+      id: def.id,
+      treeId: def.treeId,
+      tier: typeof def.tier === "number" ? def.tier : 1,
+      maxRank: typeof def.maxRank === "number" ? def.maxRank : 1,
+      pointCostPerRank: typeof def.pointCostPerRank === "number" ? def.pointCostPerRank : 1,
+    };
+    if (Array.isArray(def.prerequisites)) {
+      const prereqs: TalentPrerequisiteContent[] = [];
+      for (let p = 0; p < def.prerequisites.length; p++) {
+        const row = def.prerequisites[p];
+        if (row === null || typeof row !== "object" || Array.isArray(row)) {
+          continue;
+        }
+        const prereq = row as { nodeId?: unknown; minRank?: unknown };
+        if (typeof prereq.nodeId === "string" && typeof prereq.minRank === "number") {
+          prereqs.push({ nodeId: prereq.nodeId, minRank: prereq.minRank });
+        }
+      }
+      node.prerequisites = prereqs;
+    }
+    if (typeof def.grantsActiveAbilityId === "string" && def.grantsActiveAbilityId.length > 0) {
+      node.grantsActiveAbilityId = def.grantsActiveAbilityId;
+    }
+    out[ids[i]] = node;
+  }
+  return out;
+}
+
+function copyAbilityCategories(input: { [id: string]: unknown } | undefined): { [id: string]: AbilityCategoryContent } {
+  const out: { [id: string]: AbilityCategoryContent } = {};
+  if (input === undefined) {
+    return out;
+  }
+  const ids = Object.keys(input);
+  for (let i = 0; i < ids.length; i++) {
+    const raw = input[ids[i]];
+    if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+      continue;
+    }
+    const def = raw as { id?: unknown; abilityCategory?: unknown };
+    const id = typeof def.id === "string" ? def.id : ids[i];
+    out[ids[i]] = {
+      id: id,
+      category: typeof def.abilityCategory === "string" ? def.abilityCategory : "",
+    };
   }
   return out;
 }

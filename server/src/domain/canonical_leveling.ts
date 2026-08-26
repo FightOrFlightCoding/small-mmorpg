@@ -8,6 +8,7 @@ import {
 } from "./canonical_progression";
 import type { CharacterProgression, XpGrant, XpGrantResult } from "./progression";
 import { classUsesCanonicalStats } from "./canonical_stats";
+import { syncDerivedAbilityOwnership } from "./canonical_talents";
 import {
   isMaxLevel,
   levelCurveFor,
@@ -28,6 +29,7 @@ export type ProgressionEventType =
   | "basic_unlocked"
   | "signature_unlocked"
   | "capstone_unlocked"
+  | "talent_active_unlocked"
   | "level_cap_reached";
 
 export interface ProgressionEvent {
@@ -116,6 +118,7 @@ export function applyCanonicalXpGrant(
     }
   }
   progression.xpIntoLevel = progression.currentXp;
+  syncDerivedAbilityOwnership(progression, catalog, classId);
   return finish(progression, levelsGained, events);
 }
 
@@ -158,6 +161,7 @@ export function selectCanonicalBranch(
   }
   progression.branchId = branchId;
   grantMilestoneAbilities(progression, catalog, classDef, events);
+  syncDerivedAbilityOwnership(progression, catalog, classId);
   return { ok: true, code: "ok", events: events };
 }
 

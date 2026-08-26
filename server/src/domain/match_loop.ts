@@ -90,6 +90,7 @@ import {
   cloneProgression,
   grantXp,
   publicProgression,
+  purchaseTalent,
   selectBranch,
   setAutoAssign,
   type CharacterProgression,
@@ -691,6 +692,10 @@ function handleValidated(
   }
   if (parsed.opcode === ClientOpcode.SELECT_BRANCH) {
     handleSelectBranch(parsed, userId, state, tick, outbound, persistProgressionByUser);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.PURCHASE_TALENT) {
+    handlePurchaseTalent(parsed, userId, state, tick, outbound, persistProgressionByUser);
     return;
   }
   if (parsed.opcode === ClientOpcode.SET_AUTO_ASSIGN) {
@@ -1467,6 +1472,8 @@ function handleAssignHotbar(
     abilityId,
     parsed.requestId as string,
     tick,
+    state.progressionCatalog,
+    player.classId,
   );
   player.progression = outcome.progression;
   if (outcome.changed) {
@@ -2398,6 +2405,12 @@ function handleSelectBranch(
     outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
     return;
   }
+  const restricted = evaluateSafeLeave(player, state);
+  if (!restricted.ok) {
+    const blocked = actionResult(restricted.code, false, parsed.requestId);
+    outbound.push({ opcode: blocked.opcode, body: blocked.body, toUserId: userId });
+    return;
+  }
   const outcome = selectBranch(player.progression, state.progressionCatalog, player.classId, {
     requestId: parsed.requestId as string,
     branchId: parsed.fields.branchId,
@@ -2414,6 +2427,46 @@ function handleSelectBranch(
     if (eventsGrantAbilities(outcome.events)) {
       pushAbilityState(state, userId, outbound, tick, parsed.requestId);
     }
+  }
+}
+
+function handlePurchaseTalent(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  tick: number,
+  outbound: MatchOutbound[],
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
+): void {
+  const player = state.players[userId];
+  if (player === undefined || player.progression === undefined || state.progressionCatalog === undefined || player.classId === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  const restricted = evaluateSafeLeave(player, state);
+  if (!restricted.ok) {
+    const blocked = actionResult(restricted.code, false, parsed.requestId);
+    outbound.push({ opcode: blocked.opcode, body: blocked.body, toUserId: userId });
+    return;
+  }
+  const requestedRank = parsed.requestedRank !== undefined ? parsed.requestedRank : 0;
+  const outcome = purchaseTalent(player.progression, state.progressionCatalog, player.classId, {
+    requestId: parsed.requestId as string,
+    treeId: parsed.fields.treeId,
+    nodeId: parsed.fields.nodeId,
+    requestedRank: requestedRank,
+  });
+  player.progression = outcome.progression;
+  if (outcome.changed) {
+    persistProgressionByUser[userId] = cloneProgression(player.progression);
+    refreshPlayerDerived(state, userId);
+  }
+  const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  if (outcome.ok) {
+    pushProgressionState(state, userId, outbound, parsed.requestId, outcome.events);
+    pushAbilityState(state, userId, outbound, tick, parsed.requestId);
   }
 }
 
@@ -2476,7 +2529,7 @@ function handleAutoAssignUnspent(
 function eventsGrantAbilities(events: ReadonlyArray<ProgressionEvent>): boolean {
   for (let i = 0; i < events.length; i++) {
     const type = events[i].type;
-    if (type === "basic_unlocked" || type === "signature_unlocked" || type === "capstone_unlocked") {
+    if (type === "basic_unlocked" || type === "signature_unlocked" || type === "capstone_unlocked" || type === "talent_active_unlocked") {
       return true;
     }
   }
@@ -2642,7 +2695,7 @@ function pushAbilityState(
   if (player === undefined) {
     return;
   }
-  const message = abilityState(state.contentHash, publicAbilityState(player, tick), requestId);
+  const message = abilityState(state.contentHash, publicAbilityState(player, tick, state.progressionCatalog), requestId);
   outbound.push({ opcode: message.opcode, body: message.body, toUserId: userId });
 }
 

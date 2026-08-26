@@ -243,7 +243,7 @@ Commands: `inspect_character`, `teleport_character`, `repair_invalid_location`, 
 
 ## Client → server match opcodes
 
-Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARGET 8; INTERACT/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/quest/VENDOR_BUY/VENDOR_SELL/INN_REST/CAVE_ENTER/CAVE_EXIT/TRADE_*/ALLOCATE_ATTRIBUTES/ALLOCATE_ATTRIBUTES_BATCH/TRAINER_RESPEC/ASSIGN_HOTBAR/UNLOCK_ABILITY/RETURN_TO_CHARACTER_SELECT/SELECT_BRANCH/SET_AUTO_ASSIGN/AUTO_ASSIGN_UNSPENT_POINTS 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
+Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARGET 8; INTERACT/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/quest/VENDOR_BUY/VENDOR_SELL/INN_REST/CAVE_ENTER/CAVE_EXIT/TRADE_*/ALLOCATE_ATTRIBUTES/ALLOCATE_ATTRIBUTES_BATCH/TRAINER_RESPEC/PURCHASE_TALENT/ASSIGN_HOTBAR/UNLOCK_ABILITY/RETURN_TO_CHARACTER_SELECT/SELECT_BRANCH/SET_AUTO_ASSIGN/AUTO_ASSIGN_UNSPENT_POINTS 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
 
 ### 1 `INPUT`
 
@@ -395,10 +395,10 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 | Field | Value |
 | --- | --- |
 | Body | `{ protocolVersion, slotIndex, abilityId?, requestId }` (`slotIndex` is a JSON number; omit `abilityId` to clear) |
-| Authority | Server unlock list; client hotbar is not proof of ownership |
-| Errors | `invalid_slot`, `ability_locked` |
+| Authority | Production: owned active, 4 slots, no duplicates, no passives, no auto-attack. Foundation test classes: 8-slot unlock list. Client hotbar is not proof of ownership |
+| Errors | `invalid_slot`, `ability_locked`, `ability_passive`, `duplicate_hotbar` |
 | Rate limit | Shares ALLOCATE window (8) |
-| Tests | `ability.test.ts` |
+| Tests | `ability.test.ts`, `progression_hotbar_ceiling.test.ts` |
 
 ### 16 `UNLOCK_ABILITY`
 
@@ -407,9 +407,9 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 | Body | `{ protocolVersion, abilityId, requestId }` |
 | Authority | Server skill points, level, class tags, prerequisites |
 | Idempotency | Same `requestId` replays the stored result |
-| Errors | `insufficient_points`, `already_unlocked`, `level_restricted`, `class_restricted`, `prerequisite_missing` |
+| Errors | `insufficient_points`, `already_unlocked`, `level_restricted`, `class_restricted`, `prerequisite_missing`, `unsupported_class` |
 | Rate limit | Shares ALLOCATE window (8) |
-| Tests | `ability.test.ts` |
+| Tests | `ability.test.ts`, `progression_hotbar_ceiling.test.ts` |
 
 ### 17 `SET_TARGET`
 
@@ -590,11 +590,11 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 | Field | Value |
 | --- | --- |
 | Body | `{ protocolVersion, branchId, requestId }` |
-| Authority | Level ≥ 5, class roster, unset `branchId`. Does not invent a default branch. Grants pending signature/capstone after selection. |
+| Authority | Level ≥ 5, class roster, unset `branchId`, safe-leave. Does not invent a default branch. Grants pending signature/capstone after selection. |
 | Idempotency | Same `requestId` replays the stored result |
-| Errors | `branch_locked`, `branch_already_selected`, `invalid_branch`, `invalid_request_id`, `player_missing` |
+| Errors | `branch_locked`, `branch_already_selected`, `invalid_branch`, `in_combat`, `trading`, `dead`, `casting`, `transferring`, `link_dead`, `invalid_request_id`, `player_missing` |
 | Rate limit | Shares ALLOCATE window (8) |
-| Tests | `progression_timeline.test.ts`, `protocol.test.ts` |
+| Tests | `progression_timeline.test.ts`, `progression_talent_trees.test.ts`, `protocol.test.ts` |
 
 ### 34 `SET_AUTO_ASSIGN`
 
@@ -640,6 +640,17 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 | Rate limit | Shares ALLOCATE window (8) |
 | Tests | `progression_respec.test.ts`, `protocol.test.ts` |
 
+### 38 `PURCHASE_TALENT`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, treeId, nodeId, requestedRank, requestId }` (`requestedRank` is a finite integer) |
+| Authority | Class or branch tree, point pools, tier, prerequisites, max rank, derived ownership, active ceiling. Client never sends ranks or unlock lists as facts. |
+| Idempotency | Same `requestId` replays the stored result |
+| Errors | `invalid_tree`, `invalid_id`, `invalid_rank`, `already_unlocked`, `insufficient_points`, `class_restricted`, `branch_locked`, `invalid_branch`, `prerequisite_missing`, `level_restricted`, `active_ceiling`, `unsupported_class`, `in_combat`, `trading`, `dead`, `casting`, `transferring`, `link_dead`, `stat_injection:xp` |
+| Rate limit | Shares ALLOCATE window (8) |
+| Tests | `progression_talent_trees.test.ts`, `protocol.test.ts` |
+
 No other client opcodes exist. Unknown opcode → `unknown_opcode`.
 
 ## Server → client match opcodes
@@ -659,7 +670,7 @@ No client rate limit. Occupied matches send **102** every tick.
 | 109 | `EQUIPMENT_STATE` | slots, derived | `equipment.test.ts` |
 | 110 | `WALLET_STATE` | gold | `quest_reward.test.ts`, `wallet_service_test.gd` |
 | 111 | `PROGRESSION_STATE` | progression (class, level, XP, attributes, derived, unspent points) | `progression.test.ts`, `progression_service_test.gd` |
-| 112 | `ABILITY_STATE` | unlocked ids, hotbar, ranks, resources, cooldowns, active cast, effects | `ability.test.ts`, `ability_service_test.gd` |
+| 112 | `ABILITY_STATE` | unlocked ids, hotbar (4 production / 8 test), optional `hotbarAssignments`, ranks, resources, cooldowns, active cast, effects | `ability.test.ts`, `ability_service_test.gd`, `progression_hotbar_ceiling.test.ts` |
 | 113 | `PARTY_STATE` | optional `party` view for the recipient (ids, leader, members, revision, connection state, pending invite) | `party.test.ts`, `party_service_test.gd` |
 | 114 | `PARTY_EVENT` | `partyId`, `eventType`, optional `systemMessage` / loot assignment | `party.test.ts`, `party_credit_loot.test.ts` |
 | 115 | `TRADE_STATE` | canonical trade: ids, state, revision, offers, goldOffers, acceptances, expiresAt | `trade.test.ts`, `trade_service_test.gd` |
