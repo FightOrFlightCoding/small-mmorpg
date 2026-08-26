@@ -28,6 +28,9 @@ export function storedProgressionWriteValue(progression: CharacterProgression): 
       reasonType: record.reasonType,
       reasonId: record.reasonId,
     };
+    if (record.createdAt !== undefined) {
+      xpByEventId[xpKeys[i]].createdAt = record.createdAt;
+    }
   }
   const allocateByRequestId: { [requestId: string]: { [key: string]: unknown } } = {};
   const allocateKeys = Object.keys(progression.allocateByRequestId);
@@ -72,6 +75,12 @@ export function storedProgressionWriteValue(progression: CharacterProgression): 
   if (progression.unlockAbilityByRequestId !== undefined) {
     gameplay.unlockAbilityByRequestId = copyStoredAbilityActions(progression.unlockAbilityByRequestId);
   }
+  if (progression.selectBranchByRequestId !== undefined) {
+    gameplay.selectBranchByRequestId = copyStoredAbilityActions(progression.selectBranchByRequestId);
+  }
+  if (progression.autoAssignByRequestId !== undefined) {
+    gameplay.autoAssignByRequestId = copyStoredAbilityActions(progression.autoAssignByRequestId);
+  }
   if (progression.xpEventTicks !== undefined) {
     gameplay.xpEventTicks = progression.xpEventTicks;
   }
@@ -110,6 +119,8 @@ export function storedProgressionFromValue(value: unknown): CharacterProgression
   progression.abilityRanks = parseNumberMap(data.abilityRanks);
   progression.assignHotbarByRequestId = parseAbilityActionMap(data.assignHotbarByRequestId);
   progression.unlockAbilityByRequestId = parseAbilityActionMap(data.unlockAbilityByRequestId);
+  progression.selectBranchByRequestId = parseAbilityActionMap(data.selectBranchByRequestId);
+  progression.autoAssignByRequestId = parseAbilityActionMap(data.autoAssignByRequestId);
   progression.progressionSchemaVersion =
     typeof data.progressionSchemaVersion === "number" ? data.progressionSchemaVersion : 1;
   progression.xpByEventId = parseXpMap(data.xpByEventId);
@@ -212,6 +223,9 @@ function parseXpMap(value: unknown): { [eventId: string]: XpGrantRecord } {
       reasonType: data.reasonType,
       reasonId: data.reasonId,
     };
+    if (typeof data.createdAt === "number" && isFinite(data.createdAt)) {
+      out[keys[i]].createdAt = data.createdAt;
+    }
   }
   return out;
 }

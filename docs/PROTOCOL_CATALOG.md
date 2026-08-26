@@ -243,7 +243,7 @@ Commands: `inspect_character`, `teleport_character`, `repair_invalid_location`, 
 
 ## Client → server match opcodes
 
-Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARGET 8; INTERACT/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/quest/VENDOR_BUY/VENDOR_SELL/INN_REST/CAVE_ENTER/CAVE_EXIT/TRADE_*/ALLOCATE_ATTRIBUTES/ASSIGN_HOTBAR/UNLOCK_ABILITY/RETURN_TO_CHARACTER_SELECT 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
+Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARGET 8; INTERACT/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/quest/VENDOR_BUY/VENDOR_SELL/INN_REST/CAVE_ENTER/CAVE_EXIT/TRADE_*/ALLOCATE_ATTRIBUTES/ASSIGN_HOTBAR/UNLOCK_ABILITY/RETURN_TO_CHARACTER_SELECT/SELECT_BRANCH/SET_AUTO_ASSIGN/AUTO_ASSIGN_UNSPENT_POINTS 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
 
 ### 1 `INPUT`
 
@@ -584,6 +584,39 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 | Errors | `in_combat` (`Cannot leave safely while in combat.`), `dead`, `casting`, `trading`, `transferring`, `reward_in_progress`, `link_dead` |
 | Rate limit | Shares ALLOCATE window (8) |
 | Tests | `gameplay_lease.test.ts`, `protocol.test.ts`, `protocol_test.gd` |
+
+### 33 `SELECT_BRANCH`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, branchId, requestId }` |
+| Authority | Level ≥ 5, class roster, unset `branchId`. Does not invent a default branch. Grants pending signature/capstone after selection. |
+| Idempotency | Same `requestId` replays the stored result |
+| Errors | `branch_locked`, `branch_already_selected`, `invalid_branch`, `invalid_request_id`, `player_missing` |
+| Rate limit | Shares ALLOCATE window (8) |
+| Tests | `progression_timeline.test.ts`, `protocol.test.ts` |
+
+### 34 `SET_AUTO_ASSIGN`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, enabled, requestId }` (`enabled` is a JSON boolean) |
+| Authority | Persists `autoAssignEnabled` only. Turning on does not spend existing unspent points. |
+| Idempotency | Same `requestId` replays the stored result |
+| Errors | `invalid_id` (non-boolean `enabled`), `invalid_request_id`, `player_missing` |
+| Rate limit | Shares ALLOCATE window (8) |
+| Tests | `progression_timeline.test.ts`, `protocol.test.ts` |
+
+### 35 `AUTO_ASSIGN_UNSPENT_POINTS`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, requestId }` |
+| Authority | Spends all currently unspent free points by repeating the class template. Confirmed action; not implied by the toggle. |
+| Idempotency | Same `requestId` replays the stored result |
+| Errors | `invalid_request_id`, `player_missing` |
+| Rate limit | Shares ALLOCATE window (8) |
+| Tests | `progression_timeline.test.ts`, `protocol.test.ts` |
 
 No other client opcodes exist. Unknown opcode → `unknown_opcode`.
 

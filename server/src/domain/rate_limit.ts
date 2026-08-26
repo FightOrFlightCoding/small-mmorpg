@@ -87,7 +87,10 @@ export function actionForOpcode(opcode: number): RateAction {
     opcode === ClientOpcode.ASSIGN_HOTBAR ||
     opcode === ClientOpcode.UNLOCK_ABILITY ||
     opcode === ClientOpcode.RELEASE_RESPAWN ||
-    opcode === ClientOpcode.RETURN_TO_CHARACTER_SELECT
+    opcode === ClientOpcode.RETURN_TO_CHARACTER_SELECT ||
+    opcode === ClientOpcode.SELECT_BRANCH ||
+    opcode === ClientOpcode.SET_AUTO_ASSIGN ||
+    opcode === ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS
   ) {
     return "allocate";
   }

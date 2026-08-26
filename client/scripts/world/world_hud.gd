@@ -410,7 +410,7 @@ func refresh_progression() -> void:
 		else:
 			_progression_xp.text = "XP: %s / %s" % [str(ProgressionService.current_xp), str(ProgressionService.xp_to_next)]
 	if _progression_points != null:
-		_progression_points.text = "Attribute points: %s" % str(ProgressionService.unspent_attribute_points)
+		_progression_points.text = "Attribute points: %s" % str(ProgressionService.unspent_stat_points())
 	if _progression_skills != null:
 		_progression_skills.text = "Skill points: %s" % str(ProgressionService.unspent_skill_points)
 	_rebuild_unlock_rows()
@@ -665,7 +665,7 @@ func _rebuild_attribute_rows() -> void:
 	var fingerprint := "%s|%s|%s" % [
 		",".join(ProgressionService.attribute_ids()),
 		str(ProgressionService.allocated_attributes),
-		str(ProgressionService.unspent_attribute_points),
+		str(ProgressionService.unspent_stat_points()),
 	]
 	if fingerprint == _attribute_row_fingerprint:
 		return
@@ -685,7 +685,7 @@ func _rebuild_attribute_rows() -> void:
 		var label: Label = row.get_child(0)
 		label.text = "%s  base %s  alloc %s" % [label_name, str(base_value), str(allocated)]
 		var button: Button = row.get_child(1)
-		button.disabled = ProgressionService.unspent_attribute_points < 1
+		button.disabled = ProgressionService.unspent_stat_points() < 1
 
 
 func _trim_container(host: VBoxContainer, keep: int) -> void:

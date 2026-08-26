@@ -16,7 +16,13 @@ var allocated_attributes: Dictionary = {}
 var derived: Dictionary = {}
 var unspent_attribute_points: int = 0
 var unspent_skill_points: int = 0
+var unspent_free_stat_points: int = 0
+var free_stat_allocations: Dictionary = {}
+var auto_assign_enabled: bool = false
+var pending_branch_selection: bool = false
+var branch_id: String = ""
 var unlocked_ability_ids: Array = []
+var events: Array = []
 
 var _canonical: Dictionary = {}
 var _pending_request_id: String = ""
@@ -45,7 +51,13 @@ func reset() -> void:
 	derived = {}
 	unspent_attribute_points = 0
 	unspent_skill_points = 0
+	unspent_free_stat_points = 0
+	free_stat_allocations = {}
+	auto_assign_enabled = false
+	pending_branch_selection = false
+	branch_id = ""
 	unlocked_ability_ids = []
+	events = []
 	_canonical = {}
 	_pending_request_id = ""
 	progression_changed.emit()
@@ -63,7 +75,7 @@ func apply_canonical(state: Dictionary) -> void:
 
 
 func request_allocate(attribute_id: String, amount: int = 1) -> String:
-	if attribute_id.is_empty() or amount < 1 or amount > unspent_attribute_points:
+	if attribute_id.is_empty() or amount < 1 or amount > unspent_stat_points():
 		return ""
 	var request_id := MatchProtocol.new_request_id()
 	_pending_request_id = request_id
@@ -71,6 +83,40 @@ func request_allocate(attribute_id: String, amount: int = 1) -> String:
 	NetworkService.send_allocate_attributes(attribute_id, amount, request_id)
 	request_started.emit(request_id)
 	return request_id
+
+
+func request_select_branch(p_branch_id: String) -> String:
+	if p_branch_id.is_empty():
+		return ""
+	var request_id := MatchProtocol.new_request_id()
+	_pending_request_id = request_id
+	NetworkService.send_select_branch(p_branch_id, request_id)
+	request_started.emit(request_id)
+	return request_id
+
+
+func request_set_auto_assign(enabled: bool) -> String:
+	var request_id := MatchProtocol.new_request_id()
+	_pending_request_id = request_id
+	NetworkService.send_set_auto_assign(enabled, request_id)
+	request_started.emit(request_id)
+	return request_id
+
+
+func request_auto_assign_unspent() -> String:
+	if unspent_stat_points() < 1:
+		return ""
+	var request_id := MatchProtocol.new_request_id()
+	_pending_request_id = request_id
+	NetworkService.send_auto_assign_unspent_points(request_id)
+	request_started.emit(request_id)
+	return request_id
+
+
+func unspent_stat_points() -> int:
+	if _uses_canonical_class():
+		return unspent_free_stat_points
+	return unspent_attribute_points
 
 
 func attribute_ids() -> PackedStringArray:
@@ -90,9 +136,19 @@ func derived_ids() -> PackedStringArray:
 
 
 func _preview_allocate(attribute_id: String, amount: int) -> void:
-	unspent_attribute_points = maxi(unspent_attribute_points - amount, 0)
-	allocated_attributes[attribute_id] = int(allocated_attributes.get(attribute_id, 0)) + amount
+	if _uses_canonical_class():
+		unspent_free_stat_points = maxi(unspent_free_stat_points - amount, 0)
+		unspent_attribute_points = unspent_free_stat_points
+		free_stat_allocations[attribute_id] = int(free_stat_allocations.get(attribute_id, 0)) + amount
+		allocated_attributes[attribute_id] = int(allocated_attributes.get(attribute_id, 0)) + amount
+	else:
+		unspent_attribute_points = maxi(unspent_attribute_points - amount, 0)
+		allocated_attributes[attribute_id] = int(allocated_attributes.get(attribute_id, 0)) + amount
 	progression_changed.emit()
+
+
+func _uses_canonical_class() -> bool:
+	return class_id == "class.warrior" or class_id == "class.mage" or class_id == "class.marksman" or class_id == "class.mystic"
 
 
 func _apply_fields(state: Dictionary) -> void:
@@ -107,11 +163,21 @@ func _apply_fields(state: Dictionary) -> void:
 	derived = _copy_number_map(state.get("derived", {}))
 	unspent_attribute_points = int(state.get("unspentAttributePoints", 0))
 	unspent_skill_points = int(state.get("unspentSkillPoints", 0))
+	unspent_free_stat_points = int(state.get("unspentFreeStatPoints", 0))
+	free_stat_allocations = _copy_number_map(state.get("freeStatAllocations", {}))
+	auto_assign_enabled = bool(state.get("autoAssignEnabled", false))
+	pending_branch_selection = bool(state.get("pendingBranchSelection", false))
+	branch_id = String(state.get("branchId", ""))
 	unlocked_ability_ids = []
 	var unlocked: Variant = state.get("unlockedAbilityIds", [])
 	if typeof(unlocked) == TYPE_ARRAY:
 		for entry in unlocked:
 			unlocked_ability_ids.append(String(entry))
+	events = []
+	var incoming: Variant = state.get("events", [])
+	if typeof(incoming) == TYPE_ARRAY:
+		for entry in incoming:
+			events.append(entry)
 
 
 func _on_zone_state_updated() -> void:

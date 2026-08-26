@@ -300,6 +300,7 @@ export function createEnemyFromDefinition(
     respawnDelaySec: spawn.respawnDelaySec,
     xpReward: numberOr(def !== undefined ? def.xpReward : undefined, 0),
     deathCount: 0,
+    level: numberOr(def !== undefined ? def.level : undefined, 1),
     effects: [],
     aiProfileId: def !== undefined && def.aiProfileId !== undefined ? def.aiProfileId : "",
     abilityLoadout: loadout,

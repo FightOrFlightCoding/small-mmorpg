@@ -102,6 +102,8 @@ export const PROGRESSION_SAVE_KEYS = [
   "purchasedBranchNodeRanks",
   "autoAssignEnabled",
   "hotbarAssignments",
+  "selectBranchByRequestId",
+  "autoAssignByRequestId",
 ];
 
 export interface VersionDetection {

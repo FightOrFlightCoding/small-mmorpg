@@ -187,3 +187,44 @@ func test_client_mirrors_server_canonical_derived_floats_without_computing() -> 
 	assert_float(float(ProgressionService.derived["formula.crit_chance"])).is_equal_approx(0.015, 0.0001)
 	assert_float(float(ProgressionService.derived["formula.haste_mult"])).is_equal_approx(1.03, 0.0001)
 	assert_bool(ProgressionService.derived.has("formula.mana_max")).is_false()
+
+
+func test_select_branch_and_auto_assign_send_opcodes_without_xp() -> void:
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	ProgressionService.apply_canonical({
+		"classId": "class.warrior",
+		"classDisplayName": "Warrior",
+		"level": 5,
+		"currentXp": 0,
+		"xpToNext": 1120,
+		"atMaxLevel": false,
+		"baseAttributes": {"stat.strength": 20},
+		"allocatedAttributes": {},
+		"derived": {},
+		"unspentAttributePoints": 12,
+		"unspentFreeStatPoints": 12,
+		"unspentSkillPoints": 0,
+		"pendingBranchSelection": true,
+		"autoAssignEnabled": false,
+		"unlockedAbilityIds": ["ability.warrior.heavy_strike"],
+	})
+	var branch_id := ProgressionService.request_select_branch("branch.warrior.berserker")
+	await get_tree().process_frame
+	assert_str(branch_id).is_not_empty()
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_SELECT_BRANCH)
+	var branch_payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_str(String(branch_payload.get("branchId", ""))).is_equal("branch.warrior.berserker")
+	assert_bool(branch_payload.has("xp")).is_false()
+	var flag_id := ProgressionService.request_set_auto_assign(true)
+	await get_tree().process_frame
+	assert_str(flag_id).is_not_empty()
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_SET_AUTO_ASSIGN)
+	var flag_payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_bool(bool(flag_payload.get("enabled", false))).is_true()
+	var spend_id := ProgressionService.request_auto_assign_unspent()
+	await get_tree().process_frame
+	assert_str(spend_id).is_not_empty()
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_AUTO_ASSIGN_UNSPENT_POINTS)
+

@@ -84,11 +84,17 @@ import { dict } from "./maps";
 import {
   allocateAttributes,
   applyQuestRewardProgression,
+  autoAssignUnspentPoints,
   cloneProgression,
   grantXp,
   publicProgression,
+  selectBranch,
+  setAutoAssign,
   type CharacterProgression,
+  type ProgressionEvent,
 } from "./progression";
+import { canonicalKillXpAmount, enemyIsElite, XP_SOURCE_ELITE_KILL } from "./canonical_progression";
+import { usesCanonicalLeveling } from "./canonical_leveling";
 import {
   collectPositionCheckpoints,
   expireDisconnected,
@@ -667,6 +673,18 @@ function handleValidated(
   }
   if (parsed.opcode === ClientOpcode.ALLOCATE_ATTRIBUTES) {
     handleAllocate(parsed, userId, state, tick, outbound, persistProgressionByUser);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.SELECT_BRANCH) {
+    handleSelectBranch(parsed, userId, state, tick, outbound, persistProgressionByUser);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.SET_AUTO_ASSIGN) {
+    handleSetAutoAssign(parsed, userId, state, outbound, persistProgressionByUser);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS) {
+    handleAutoAssignUnspent(parsed, userId, state, outbound, persistProgressionByUser);
     return;
   }
   if (parsed.opcode === ClientOpcode.VENDOR_BUY) {
@@ -1917,7 +1935,7 @@ function grantKillXpToEligible(
   state: StarterZoneState,
   death: { eventId: string; killerId: string },
   eligible: { userId: string; characterId: string }[],
-  enemy: { id: string; enemyId: string; xpReward?: number; deathCount: number } | null,
+  enemy: { id: string; enemyId: string; xpReward?: number; deathCount: number; level?: number; tags?: string[] } | null,
   tick: number,
   persistProgressionByUser: { [userId: string]: CharacterProgression },
   outbound: MatchOutbound[],
@@ -1926,11 +1944,20 @@ function grantKillXpToEligible(
   if (enemy === null) {
     return;
   }
-  const amount = splitKillXp(enemy.xpReward !== undefined ? enemy.xpReward : 0, eligible.length, formula);
   const killer = state.players[death.killerId];
   const killerCharacterId = killer !== undefined ? killer.characterId : "";
   for (let i = 0; i < eligible.length; i++) {
     const member = eligible[i];
+    const player = state.players[member.userId];
+    const classId = player !== undefined && player.classId !== undefined ? player.classId : "";
+    const catalog = state.progressionCatalog;
+    const raw =
+      catalog !== undefined && usesCanonicalLeveling(catalog, classId)
+        ? canonicalKillXpAmount(enemy.level !== undefined ? enemy.level : 1, enemy.tags)
+        : enemy.xpReward !== undefined
+          ? enemy.xpReward
+          : 0;
+    const amount = splitKillXp(raw, eligible.length, formula);
     const grant = killXpGrantFromEnemy(
       {
         id: enemy.id,
@@ -1945,6 +1972,10 @@ function grantKillXpToEligible(
     }
     grant.eventId = killXpEventId(death.eventId, member.characterId, killerCharacterId);
     grant.amount = amount;
+    grant.createdAt = tick;
+    if (catalog !== undefined && usesCanonicalLeveling(catalog, classId) && enemyIsElite(enemy.tags)) {
+      grant.reasonType = XP_SOURCE_ELITE_KILL;
+    }
     applyServerXpGrant(matchXpSink(state, tick, persistProgressionByUser, outbound), member.userId, grant);
   }
 }
@@ -2184,6 +2215,105 @@ function handleAllocate(
   }
 }
 
+function handleSelectBranch(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  tick: number,
+  outbound: MatchOutbound[],
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
+): void {
+  const player = state.players[userId];
+  if (player === undefined || player.progression === undefined || state.progressionCatalog === undefined || player.classId === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  const outcome = selectBranch(player.progression, state.progressionCatalog, player.classId, {
+    requestId: parsed.requestId as string,
+    branchId: parsed.fields.branchId,
+  });
+  player.progression = outcome.progression;
+  if (outcome.changed) {
+    persistProgressionByUser[userId] = cloneProgression(player.progression);
+    refreshPlayerDerived(state, userId);
+  }
+  const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  if (outcome.ok) {
+    pushProgressionState(state, userId, outbound, parsed.requestId, outcome.events);
+    if (eventsGrantAbilities(outcome.events)) {
+      pushAbilityState(state, userId, outbound, tick, parsed.requestId);
+    }
+  }
+}
+
+function handleSetAutoAssign(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  outbound: MatchOutbound[],
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
+): void {
+  const player = state.players[userId];
+  if (player === undefined || player.progression === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  const outcome = setAutoAssign(player.progression, {
+    requestId: parsed.requestId as string,
+    enabled: parsed.enabled === true,
+  });
+  player.progression = outcome.progression;
+  if (outcome.changed) {
+    persistProgressionByUser[userId] = cloneProgression(player.progression);
+  }
+  const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  if (outcome.ok) {
+    pushProgressionState(state, userId, outbound, parsed.requestId);
+  }
+}
+
+function handleAutoAssignUnspent(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  outbound: MatchOutbound[],
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
+): void {
+  const player = state.players[userId];
+  if (player === undefined || player.progression === undefined || state.progressionCatalog === undefined || player.classId === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  const outcome = autoAssignUnspentPoints(player.progression, state.progressionCatalog, player.classId, {
+    requestId: parsed.requestId as string,
+  });
+  player.progression = outcome.progression;
+  if (outcome.changed) {
+    persistProgressionByUser[userId] = cloneProgression(player.progression);
+    refreshPlayerDerived(state, userId);
+  }
+  const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  if (outcome.ok) {
+    pushProgressionState(state, userId, outbound, parsed.requestId);
+  }
+}
+
+function eventsGrantAbilities(events: ReadonlyArray<ProgressionEvent>): boolean {
+  for (let i = 0; i < events.length; i++) {
+    const type = events[i].type;
+    if (type === "basic_unlocked" || type === "signature_unlocked" || type === "capstone_unlocked") {
+      return true;
+    }
+  }
+  return false;
+}
+
 function grantQuestXp(
   state: StarterZoneState,
   userId: string,
@@ -2235,12 +2365,18 @@ function applyTrustedXp(
   if (classId.length === 0) {
     return { ok: false, replay: false, applied: false, code: "player_missing" };
   }
+  if (grant.createdAt === undefined) {
+    grant.createdAt = tick;
+  }
   const outcome = grantXp(player.progression, state.progressionCatalog, classId, grant, tick);
   player.progression = outcome.progression;
   if (outcome.changed) {
     persistProgressionByUser[userId] = cloneProgression(player.progression);
     refreshPlayerDerived(state, userId);
-    pushProgressionState(state, userId, outbound);
+    pushProgressionState(state, userId, outbound, undefined, outcome.events);
+    if (outcome.levelsGained > 0 || eventsGrantAbilities(outcome.events)) {
+      pushAbilityState(state, userId, outbound, tick);
+    }
   }
   return {
     ok: outcome.code === "ok",
@@ -2255,6 +2391,7 @@ function pushProgressionState(
   userId: string,
   outbound: MatchOutbound[],
   requestId?: string,
+  events?: ReadonlyArray<ProgressionEvent>,
 ): void {
   const player = state.players[userId];
   if (player === undefined || player.progression === undefined || state.progressionCatalog === undefined) {
@@ -2275,7 +2412,7 @@ function pushProgressionState(
       effectModifiersFrom(player.effects),
     ),
   );
-  const payload = publicProgression(state.progressionCatalog, classId, player.progression, evaluated.values);
+  const payload = publicProgression(state.progressionCatalog, classId, player.progression, evaluated.values, events);
   const message = progressionState(state.contentHash, payload, requestId);
   outbound.push({ opcode: message.opcode, body: message.body, toUserId: userId });
 }

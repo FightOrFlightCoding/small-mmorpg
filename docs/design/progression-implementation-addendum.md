@@ -70,3 +70,11 @@ Documents the already accepted health-recalculation policy. Not a new combat num
 | `project.health.max_change_policy` | add positive max delta, then clamp to new max; no refill on equip | Keep current health when maxima change | Design allows either percent or existing policy | no | `server/tests/progression.test.ts` | no |
 | `project.quest.slime_problem.xp` | `20` | Prompt 18 slime-problem quest XP | Design KillXP is `8 + 2 * enemy_level`; this quest reward is not specified as KillXP | no | `server/tests/quest.test.ts` | no |
 
+### PROG-05
+
+Capped-XP policy when a character is already at level 10. Design forbids level 11 and extra points; it does not say whether overflow XP is discarded or counted.
+
+| Stable ID | Value | Purpose | Reason it was required | Affects balance | Tests using it | Canonical design data |
+| --- | --- | --- | --- | --- | --- | --- |
+| `project.xp.cap_overflow_policy` | `lifetime_only` | Extra XP after level 10 increases `lifetimeXp` only; `currentXp` / `xpIntoLevel` stay 0 | Design omits overflow handling | no | `server/tests/progression_timeline.test.ts` | no |
+

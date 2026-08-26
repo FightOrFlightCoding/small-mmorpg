@@ -50,6 +50,9 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ClientOpcode.TRADE_ACCEPT_REVISION, 30);
   assert.equal(ClientOpcode.TRADE_CANCEL, 31);
   assert.equal(ClientOpcode.RETURN_TO_CHARACTER_SELECT, 32);
+  assert.equal(ClientOpcode.SELECT_BRANCH, 33);
+  assert.equal(ClientOpcode.SET_AUTO_ASSIGN, 34);
+  assert.equal(ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS, 35);
   assert.equal(ServerOpcode.FULL_STATE, 101);
   assert.equal(ServerOpcode.SNAPSHOT, 102);
   assert.equal(ServerOpcode.ACTION_RESULT, 103);
@@ -639,4 +642,58 @@ test("trade gold field is stat injection", () => {
     }),
   );
   assert.equal(isProtocolError(amount), false);
+});
+
+test("select branch and auto-assign opcodes parse intentions and reject xp injection", () => {
+  const branch = parse(
+    ClientOpcode.SELECT_BRANCH,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      branchId: "branch.warrior.berserker",
+      requestId: "req-branch01",
+    }),
+  );
+  assert.equal(isProtocolError(branch), false);
+  if (!isProtocolError(branch)) {
+    assert.equal(branch.fields.branchId, "branch.warrior.berserker");
+  }
+  const flag = parse(
+    ClientOpcode.SET_AUTO_ASSIGN,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      enabled: true,
+      requestId: "req-autoflag1",
+    }),
+  );
+  assert.equal(isProtocolError(flag), false);
+  if (!isProtocolError(flag)) {
+    assert.equal(flag.enabled, true);
+  }
+  const enabledString = parse(
+    ClientOpcode.SET_AUTO_ASSIGN,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      enabled: "true",
+      requestId: "req-autoflag2",
+    }),
+  );
+  assert.equal(isProtocolError(enabledString), true);
+  const spend = parse(
+    ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS,
+    JSON.stringify({ protocolVersion: PROTOCOL_VERSION, requestId: "req-autosp01" }),
+  );
+  assert.equal(isProtocolError(spend), false);
+  const injected = parse(
+    ClientOpcode.SELECT_BRANCH,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      branchId: "branch.warrior.berserker",
+      requestId: "req-branch02",
+      unspentFreeStatPoints: 99,
+    }),
+  );
+  assert.equal(isProtocolError(injected), true);
+  if (isProtocolError(injected)) {
+    assert.equal(injected.code, "stat_injection:unspentFreeStatPoints");
+  }
 });

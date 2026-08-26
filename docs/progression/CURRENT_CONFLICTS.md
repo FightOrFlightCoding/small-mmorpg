@@ -1,13 +1,13 @@
 # Current progression conflicts
 
-PROG-04 is the canonical mathematical foundation. Remaining live/design gaps are **owned staged work**, not items that will vanish on their own.
+PROG-05 is the accepted 1–10 leveling pipeline. Remaining live/design gaps are **owned staged work**, not items that will vanish on their own.
 
 Canonical target: [rpg-progression-design-v1.0.md](../design/rpg-progression-design-v1.0.md).  
 Live ownership: [PROGRESSION_ARCHITECTURE.md](PROGRESSION_ARCHITECTURE.md).  
 Noncanonical numbers: [progression-implementation-addendum.md](../design/progression-implementation-addendum.md).  
 Final save mapping: [PROGRESSION_MIGRATION_PLAN.md](PROGRESSION_MIGRATION_PLAN.md).
 
-This register does **not** mean PROG-04 failed. Production HP, mana, regen, crit, haste, DR, power-category hit functions, damage order, modifier identity, and the level-10 auto-growth sheet are implemented and tested. Live ATTACK, the 8-slot Foundation hotbar, `test.ability.*` GCD, live XP curve, and leftover 3-stat fields remain because later PROG phases own those subsystems.
+This register does **not** mean PROG-05 failed. Production HP, mana, regen, crit, haste, DR, power-category hit functions, damage order, modifier identity, the level-10 auto-growth sheet, the L10 XP curve, KillXP, automatic growth, free points, auto-assign, and milestones are implemented and tested. Live ATTACK, the 8-slot Foundation hotbar, `test.ability.*` GCD, leftover 3-stat fields, and talent spend remain because later PROG phases own those subsystems.
 
 ## Status values
 
@@ -33,7 +33,8 @@ Every conflict below has **Status**, **Resolution owner**, **Must be resolved by
 | Phases | Owns |
 | --- | --- |
 | PROG-04 | Canonical mathematical foundation (accepted) |
-| PROG-05–07 | Leveling, allocation, branches, trees, ownership, **one** production hotbar |
+| PROG-05 | XP curve, automatic growth, free points, auto-assign, milestones (accepted) |
+| PROG-06–07 | Class/branch talent spend, ownership, **one** production hotbar |
 | PROG-08 | Canonical combat mechanics (no production GCD) |
 | PROG-09–12 | Every class and branch, including auto-attacks |
 | PROG-13 | Complete player-facing progression UI |
@@ -63,6 +64,26 @@ Proceed to PROG-05 only when every row is true. These are PROG-04 exit criteria,
 | Every unresolved item has an assigned later phase | this register; no `BLOCKING` rows |
 | Quest XP 20 is recorded as noncanonical content | `project.quest.slime_problem.xp` in the addendum |
 | Legacy migration is marked for final resolution in PROG-14 | `C-legacy-migration` |
+
+## PROG-06 go/no-go
+
+Proceed to PROG-06 only when every row is true. These are PROG-05 exit criteria, not PROG-06 work.
+
+| Criterion | Evidence |
+| --- | --- |
+| All previous tests still pass | Content, design audit, foundation audit, server, client gates |
+| Every XP transition and 11100 total | `server/tests/progression_xp_curve.test.ts` |
+| Multi-level grant, duplicate event, cap overflow | `server/tests/progression_timeline.test.ts` |
+| Production KillXP and elite `* 3` | same curve tests; test classes keep `xpReward` |
+| Automatic growth is computed, not stored as allocations | timeline growth test |
+| Free points equal `3 * (level - 1)` | timeline free-point test |
+| Auto-assign on gain spends only the new three points | timeline auto-assign tests |
+| Toggle on does not spend existing points | match `SET_AUTO_ASSIGN` test |
+| Pending branch at 5 and 10 does not invent a branch | timeline pending/L10 tests |
+| Reconnect, restart, Character Select level | storage round-trip + character-select tests |
+| Client cannot inject XP | protocol `stat_injection` + timeline injection test |
+| Content hash unchanged | `3b57502b4a197972c970420cd7b2a5a74955311b5840be0b4d184843c24e3320` |
+| Talent spend remains later | `C-talent-runtime` |
 
 ## Conflict register
 
@@ -109,18 +130,18 @@ Proceed to PROG-05 only when every row is true. These are PROG-04 exit criteria,
 ### C-xp-curve-live
 
 - **Conflict:** Live classes still join with `test.curve.standard` **maxLevel 5**, `xpRequired` `[50, 75, 100, 150]` sum **375**, and +1 attribute / +1 skill per level-up. Design cap is **10**, `curve.vibecode.l10` sum **11100**, +6 automatic and +3 free, skill points only on the timeline.
-- **Status:** DEFERRED
+- **Status:** RESOLVED
 - **Resolution owner:** PROG-05 leveling and allocation.
-- **Must be resolved by:** Before PROG-07 ownership/hotbar work depends on the 1–10 timeline.
-- **Closure test:** Production `class.*` characters use `curve.vibecode.l10`. Level-up grants +6 automatic and +3 free. Foundation +1/+1 is gone from production. PROG-04 does not grant levels; existing 1–5 are preserved (clamp 1–10); characters are not jumped to 10.
+- **Must be resolved by:** Accepted in PROG-05 for production `class.*` characters.
+- **Closure test:** Production `class.*` characters overlay `canonicalLevelCurveId` `curve.vibecode.l10` (authored `levelCurveId` remains `test.curve.standard` so the content hash is unchanged). Level-up grants +6 automatic growth and +3 free points. Foundation +1/+1 remains only on `test.class.*` / `test.curve.standard`. Covered by `server/tests/progression_xp_curve.test.ts` and `server/tests/progression_timeline.test.ts`.
 
 ### C-kill-xp
 
 - **Conflict:** Kill XP = content `xpReward` (slime **10**). Design `KillXP = 8 + 2 * enemy_level`.
-- **Status:** DEFERRED
-- **Resolution owner:** PROG-08 combat rewards; enemy content retune as needed through PROG-15.
-- **Must be resolved by:** PROG-15 production certification.
-- **Closure test:** Production enemy deaths grant `8 + 2 * enemy_level` (or the then-accepted content that implements that identity). No production kill uses a silent leftover `xpReward` that disagrees with the formula unless that value is ledgered as `NONCANONICAL_CONTENT_VALUE`.
+- **Status:** RESOLVED
+- **Resolution owner:** PROG-05 trusted XP service. Elite multiplier is `* 3`. The unused `8 + 3 * level` dial is not implemented.
+- **Must be resolved by:** Accepted in PROG-05 for production `class.*` kills.
+- **Closure test:** Production enemy deaths grant `8 + 2 * enemy_level`, elite `* 3`. `enemy.green_slime` is level 1 so KillXP is **10**, matching the authored `xpReward`. Test classes still use content `xpReward`. Covered by `server/tests/progression_xp_curve.test.ts`. Quest slime-problem **20** remains `C-quest-xp-20`.
 
 ### C-quest-xp-20
 

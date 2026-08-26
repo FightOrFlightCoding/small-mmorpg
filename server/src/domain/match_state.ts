@@ -216,6 +216,7 @@ export interface MatchEnemy {
   respawnDelaySec: number;
   xpReward: number;
   deathCount: number;
+  level?: number;
   effects?: ActiveEffect[];
   spawnId?: string;
   slotIndex?: number;
@@ -694,6 +695,7 @@ function cloneEnemy(enemy: MatchEnemy): MatchEnemy {
     respawnDelaySec: enemy.respawnDelaySec,
     xpReward: enemy.xpReward !== undefined ? enemy.xpReward : 0,
     deathCount: enemy.deathCount !== undefined ? enemy.deathCount : 0,
+    level: enemy.level !== undefined ? enemy.level : 1,
     effects: cloneActiveEffects(enemy.effects),
     spawnId: extra.spawnId,
     slotIndex: extra.slotIndex,

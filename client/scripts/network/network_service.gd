@@ -618,6 +618,39 @@ func send_allocate_attributes(attribute_id: String, amount: int, request_id: Str
 	)
 
 
+func send_select_branch(branch_id: String, request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_SELECT_BRANCH,
+		MatchProtocol.client_envelope_json({
+			"branchId": branch_id,
+			"requestId": request_id,
+		})
+	)
+
+
+func send_set_auto_assign(enabled: bool, request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_SET_AUTO_ASSIGN,
+		MatchProtocol.client_envelope_json({
+			"enabled": enabled,
+			"requestId": request_id,
+		})
+	)
+
+
+func send_auto_assign_unspent_points(request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_AUTO_ASSIGN_UNSPENT_POINTS,
+		MatchProtocol.client_envelope_json({"requestId": request_id})
+	)
+
+
 func send_use_ability(extra: Dictionary) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}

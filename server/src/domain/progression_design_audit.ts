@@ -5,6 +5,9 @@
  * Do not import this module from the Nakama match runtime.
  */
 
+export { killXp, roundToTens, xpToNext } from "./canonical_progression";
+import { xpToNext } from "./canonical_progression";
+
 export type CatalogClassification = "canonical" | "compile-time-addition";
 
 export interface CatalogEntry {
@@ -499,18 +502,6 @@ export function canonicalCatalog(): CatalogEntry[] {
   return rows;
 }
 
-export function roundToTens(value: number): number {
-  return Math.round(value / 10) * 10;
-}
-
-export function xpToNext(level: number): number {
-  return roundToTens(100 * Math.pow(level, 1.5));
-}
-
-export function killXp(enemyLevel: number): number {
-  return 8 + 2 * enemyLevel;
-}
-
 export function sumStatMap(values: { [stat: string]: number }): number {
   let total = 0;
   const keys = Object.keys(values);
@@ -601,6 +592,9 @@ export function auditConflictRegister(markdown: string): AuditIssue[] {
   const issues: AuditIssue[] = [];
   if (markdown.indexOf("## PROG-05 go/no-go") < 0) {
     issues.push({ code: "missing_prog05_gating", message: "CURRENT_CONFLICTS.md must include PROG-05 go/no-go." });
+  }
+  if (markdown.indexOf("## PROG-06 go/no-go") < 0) {
+    issues.push({ code: "missing_prog06_gating", message: "CURRENT_CONFLICTS.md must include PROG-06 go/no-go." });
   }
   const entries = parseConflictRegister(markdown);
   const seen: { [id: string]: boolean } = {};

@@ -6,6 +6,7 @@ export interface TrustedXpGrant {
   reasonType: string;
   reasonId: string;
   eventId: string;
+  createdAt?: number;
 }
 
 export interface XpHookResult {

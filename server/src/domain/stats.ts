@@ -88,8 +88,19 @@ export interface ClassContent {
   startingAbilities?: ReadonlyArray<string>;
   resourceType?: string;
   autoAttackId?: string;
+  basicAbilityId?: string;
+  canonicalLevelCurveId?: string;
+  branchIds?: ReadonlyArray<string>;
+  autoAssignTemplate?: { amounts: { [id: string]: number } };
   baseStats?: { [id: string]: number };
   automaticGrowth?: { [id: string]: number };
+}
+
+export interface BranchContent {
+  id: string;
+  classId: string;
+  signatureAbilityId: string;
+  capstoneAbilityId: string;
 }
 
 export interface ProgressionCatalog {
@@ -99,6 +110,7 @@ export interface ProgressionCatalog {
   derivedStats: { [id: string]: DerivedStatContent };
   levelCurves: { [id: string]: LevelCurveContent };
   classProgressions: { [id: string]: ClassProgressionContent };
+  branches: { [id: string]: BranchContent };
 }
 
 export interface StatContext {
@@ -151,6 +163,7 @@ export function catalogFromContent(content: {
   derivedStats: { [id: string]: DerivedStatContent };
   levelCurves: { [id: string]: LevelCurveContent };
   classProgressions: { [id: string]: ClassProgressionContent };
+  branches?: { [id: string]: BranchContent };
 }): ProgressionCatalog {
   return {
     classes: copyClassMap(content.classes),
@@ -159,6 +172,7 @@ export function catalogFromContent(content: {
     derivedStats: copyDerivedMap(content.derivedStats),
     levelCurves: copyCurveMap(content.levelCurves),
     classProgressions: copyProgressionMap(content.classProgressions),
+    branches: copyBranchMap(content.branches),
   };
 }
 
@@ -172,6 +186,13 @@ export function classProgressionFor(catalog: ProgressionCatalog, classId: string
 }
 
 export function levelCurveFor(catalog: ProgressionCatalog, classId: string): LevelCurveContent | null {
+  const classDef = catalog.classes[classId];
+  if (classDef !== undefined && classDef.canonicalLevelCurveId !== undefined && classDef.canonicalLevelCurveId.length > 0) {
+    const canonical = catalog.levelCurves[classDef.canonicalLevelCurveId];
+    if (canonical !== undefined) {
+      return canonical;
+    }
+  }
   const progression = classProgressionFor(catalog, classId);
   if (progression === null) {
     return null;
@@ -666,6 +687,13 @@ function copyClassMap(input: { [id: string]: ClassContent }): { [id: string]: Cl
       startingAbilities: abilities,
       resourceType: def.resourceType,
       autoAttackId: def.autoAttackId,
+      basicAbilityId: def.basicAbilityId,
+      canonicalLevelCurveId: def.canonicalLevelCurveId,
+      branchIds: def.branchIds !== undefined ? copyIds(def.branchIds) : undefined,
+      autoAssignTemplate:
+        def.autoAssignTemplate !== undefined
+          ? { amounts: copyNumberRecord(def.autoAssignTemplate.amounts) }
+          : undefined,
       baseStats: def.baseStats !== undefined ? copyNumberRecord(def.baseStats) : undefined,
       automaticGrowth: def.automaticGrowth !== undefined ? copyNumberRecord(def.automaticGrowth) : undefined,
     };
@@ -800,6 +828,32 @@ function copyNumberRecord(map: { [id: string]: number }): { [id: string]: number
   const keys = Object.keys(map);
   for (let i = 0; i < keys.length; i++) {
     out[keys[i]] = map[keys[i]];
+  }
+  return out;
+}
+
+function copyIds(values: ReadonlyArray<string>): string[] {
+  const list: string[] = [];
+  for (let i = 0; i < values.length; i++) {
+    list.push(values[i]);
+  }
+  return list;
+}
+
+function copyBranchMap(input: { [id: string]: BranchContent } | undefined): { [id: string]: BranchContent } {
+  const out: { [id: string]: BranchContent } = {};
+  if (input === undefined) {
+    return out;
+  }
+  const ids = Object.keys(input);
+  for (let i = 0; i < ids.length; i++) {
+    const def = input[ids[i]];
+    out[ids[i]] = {
+      id: def.id,
+      classId: def.classId,
+      signatureAbilityId: def.signatureAbilityId !== undefined ? def.signatureAbilityId : "",
+      capstoneAbilityId: def.capstoneAbilityId !== undefined ? def.capstoneAbilityId : "",
+    };
   }
   return out;
 }

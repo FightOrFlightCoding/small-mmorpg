@@ -1,6 +1,6 @@
 # Progression architecture (PROG-01)
 
-Documentation-only contract through PROG-01. PROG-02 adds canonical content JSON and generated bundles without enabling new player-visible combat. PROG-03 adds four-class creation and the canonical progression record without enabling level gains or talent spend. PROG-04 adds canonical derived statistics, resource asymmetry, and the modifier engine without enabling level gains or talent spend.
+Documentation-only contract through PROG-01. PROG-02 adds canonical content JSON and generated bundles without enabling new player-visible combat. PROG-03 adds four-class creation and the canonical progression record without enabling level gains or talent spend. PROG-04 adds canonical derived statistics, resource asymmetry, and the modifier engine without enabling level gains or talent spend. PROG-05 adds the 1–10 XP curve, sequential level processing, automatic growth, free points, auto-assign, and milestones without talent spend or canonical combat.
 
 Canonical numbers: [rpg-progression-design-v1.0.md](../design/rpg-progression-design-v1.0.md).  
 Readings: [progression-interpretations.md](../design/progression-interpretations.md).  
@@ -8,16 +8,16 @@ Undocumented implementation numbers: [progression-implementation-addendum.md](..
 
 ## Last accepted phase and ownership
 
-Last accepted phase: **PROG-04** (canonical statistics, derived values, and resource engine). Later PROG phases still own level gains, talent spend, and canonical combat. Foundation v1 / Prompt 35 / ACCT-09 remain accepted. Prompt 18 village/slime behavior remains frozen.
+Last accepted phase: **PROG-05** (XP curve, automatic growth, level milestones, and auto-assignment). Later PROG phases still own talent spend and canonical combat. Foundation v1 / Prompt 35 / ACCT-09 remain accepted. Prompt 18 village/slime combat behavior remains frozen.
 
-PROG-04 overlays canonical derived statistics on production `class.*` characters. Canonical melee/ranged/spell/curse/heal/shield functions exist and are tested independently. Live ATTACK, the live XP curve, and canonical `ability.*` remain later-phase work. Owned gaps: [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md).
+PROG-05 overlays `curve.vibecode.l10` on production `class.*` characters and grants KillXP `8 + 2 * enemy_level` (elite `* 3`). Canonical melee/ranged/spell/curse/heal/shield functions exist and are tested independently. Live ATTACK and canonical `ability.*` combat remain later-phase work. Owned gaps: [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md).
 
 | Concern | Owner | Extend, do not duplicate |
 | --- | --- | --- |
 | Class lookup / create | `class_catalog.ts`, `character_lifecycle.ts`, `character.gd` | Production `class.*` documents |
 | Level, XP, allocation | `progression.ts`, `progression_store.ts`, `ProgressionService` | Same records and opcodes |
 | Derived stats | `stats.ts`, `canonical_stats.ts`, content `derived_stat` / `attribute` / `resource` | Canonical formulas overlay production classes; test classes keep Foundation layers |
-| XP grants | `xp_hooks.ts`, enemy `xpReward`, quest `rewards.xp` | KillXP formula later |
+| XP grants | `progression.ts`, `canonical_leveling.ts`, `xp_hooks.ts` | Production KillXP `8+2*level`; test classes keep `xpReward` |
 | Abilities, casts, hotbar | `ability.ts`, `AbilityService`, content `ability` | New skills/talents as content |
 | Effects, DoTs, shields | `effects.ts`, `combat_pipeline.ts` | Haste snapshot, no DoT crit |
 | Threat / taunt | `threat.ts`, combat events | Challenge taunt later |
@@ -33,7 +33,7 @@ Godot `.tres` resources suggested in design §15.9 are **not** the source of tru
 
 The server is authoritative for class, branch, level, XP, automatic growth, free allocations, point balances, auto-assign, talent purchases, ability ownership and ranks, hotbar validity, derived statistics, maxima and current vitals, mana regen, crit, haste, damage reduction, attack/cast/DoT timing, cooldown progress, damage/heal/shield/buff/debuff/threat/taunt, death, respec, gold cost, enemy XP, and quest XP.
 
-The client sends intentions only (`ALLOCATE_ATTRIBUTES`, `USE_ABILITY`, `CANCEL_CAST`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, and later branch/talent/respec intents). It never submits authoritative level, XP, stat totals, point balances, grants, ranks, combat results, mana, cooldown completion, durations, or respec results.
+The client sends intentions only (`ALLOCATE_ATTRIBUTES`, `SELECT_BRANCH`, `SET_AUTO_ASSIGN`, `AUTO_ASSIGN_UNSPENT_POINTS`, `USE_ABILITY`, `CANCEL_CAST`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, and later talent/respec intents). It never submits authoritative level, XP, stat totals, point balances, grants, ranks, combat results, mana, cooldown completion, durations, or respec results.
 
 ## Persistence (PROG-03)
 
@@ -53,6 +53,10 @@ No stat caps. Warrior/Marksman have no mana. Mage/Mystic use mana. Haste never r
 
 Server delta time and tick progression. Haste affects auto-attack interval, cast time, channel time, and base DoT tick interval. Cooldown recovery still uses stored remaining ticks without haste. Mana is float, regen continuous (`min(max, current + regen * delta)`), spend at cast start, interrupted casts do not refund unless content says so. Capstones cost 0 mana (content). Cooldown-recovery-rate talents remain later.
 
+## Leveling (PROG-05)
+
+Production levels 1–10 use `round_to_tens(100 * level^1.5)`. Process levels sequentially. Automatic growth is computed, not stored. Free points earned are `3 * (level - 1)`. Auto-assign on level gain spends only the newly earned three points. Cap overflow is lifetime-only. No default branch. Milestone ability grants are ownership only.
+
 ## PvP
 
 Remains disabled.
@@ -65,7 +69,7 @@ No progression, skill-tree, RPG-statistics, cooldown, or ability plugin. No new 
 
 | Phases | Owns |
 | --- | --- |
-| PROG-05–07 | Leveling, allocation, branches, trees, ownership, one production hotbar |
+| PROG-06–07 | Class/branch talent spend, ownership, one production hotbar |
 | PROG-08 | Canonical combat mechanics; no production global cooldown |
 | PROG-09–12 | Every class and branch, including auto-attacks |
 | PROG-13 | Complete player-facing progression UI |

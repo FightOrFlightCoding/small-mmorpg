@@ -33,6 +33,7 @@ import {
 const catalog = catalogFromContent(content);
 const classIds = Object.keys(catalog.classes).sort();
 const defaultClassId = defaultClass();
+const foundationClassId = "test.class.vanguard";
 const otherClassId = otherClass();
 const attributeIds = Object.keys(catalog.attributes).sort();
 
@@ -141,8 +142,8 @@ function envelope(extra: { [key: string]: unknown } = {}): string {
 }
 
 test("xp below the next level threshold stays at level 1", () => {
-  const progression = initializeProgression(catalog, defaultClassId);
-  const result = grantXp(progression, catalog, defaultClassId, {
+  const progression = initializeProgression(catalog, foundationClassId);
+  const result = grantXp(progression, catalog, foundationClassId, {
     characterId: "char-1",
     amount: 10,
     reasonType: "kill",
@@ -158,8 +159,8 @@ test("xp below the next level threshold stays at level 1", () => {
 });
 
 test("one xp grant can produce exactly one level", () => {
-  const progression = initializeProgression(catalog, defaultClassId);
-  const result = grantXp(progression, catalog, defaultClassId, {
+  const progression = initializeProgression(catalog, foundationClassId);
+  const result = grantXp(progression, catalog, foundationClassId, {
     characterId: "char-1",
     amount: 50,
     reasonType: "quest",
@@ -174,8 +175,8 @@ test("one xp grant can produce exactly one level", () => {
 });
 
 test("one xp grant can cross multiple levels", () => {
-  const progression = initializeProgression(catalog, defaultClassId);
-  const result = grantXp(progression, catalog, defaultClassId, {
+  const progression = initializeProgression(catalog, foundationClassId);
+  const result = grantXp(progression, catalog, foundationClassId, {
     characterId: "char-1",
     amount: 50 + 75 + 10,
     reasonType: "admin",
@@ -190,8 +191,8 @@ test("one xp grant can cross multiple levels", () => {
 });
 
 test("maximum level keeps leftover xp out of currentXp and grants no extra points", () => {
-  const progression = initializeProgression(catalog, defaultClassId);
-  const toMax = grantXp(progression, catalog, defaultClassId, {
+  const progression = initializeProgression(catalog, foundationClassId);
+  const toMax = grantXp(progression, catalog, foundationClassId, {
     characterId: "char-1",
     amount: 50 + 75 + 100 + 150 + 40,
     reasonType: "admin",
@@ -202,7 +203,7 @@ test("maximum level keeps leftover xp out of currentXp and grants no extra point
   assert.equal(toMax.progression.currentXp, 0);
   const pointsAtCap = toMax.progression.unspentAttributePoints;
   const skillsAtCap = toMax.progression.unspentSkillPoints;
-  const extra = grantXp(toMax.progression, catalog, defaultClassId, {
+  const extra = grantXp(toMax.progression, catalog, foundationClassId, {
     characterId: "char-1",
     amount: 99,
     reasonType: "admin",
@@ -218,7 +219,7 @@ test("maximum level keeps leftover xp out of currentXp and grants no extra point
 });
 
 test("duplicate xp event ids do not grant twice", () => {
-  const progression = initializeProgression(catalog, defaultClassId);
+  const progression = initializeProgression(catalog, foundationClassId);
   const grant = {
     characterId: "char-1",
     amount: 50,
@@ -226,8 +227,8 @@ test("duplicate xp event ids do not grant twice", () => {
     reasonId: "enemy",
     eventId: "kill:same",
   };
-  const first = grantXp(progression, catalog, defaultClassId, grant);
-  const second = grantXp(first.progression, catalog, defaultClassId, grant);
+  const first = grantXp(progression, catalog, foundationClassId, grant);
+  const second = grantXp(first.progression, catalog, foundationClassId, grant);
   assert.equal(second.replay, true);
   assert.equal(second.changed, false);
   assert.equal(second.progression.level, first.progression.level);
@@ -236,8 +237,8 @@ test("duplicate xp event ids do not grant twice", () => {
 });
 
 test("attribute allocation spends unspent points and is idempotent", () => {
-  let progression = initializeProgression(catalog, defaultClassId);
-  progression = grantXp(progression, catalog, defaultClassId, {
+  let progression = initializeProgression(catalog, foundationClassId);
+  progression = grantXp(progression, catalog, foundationClassId, {
     characterId: "char-1",
     amount: 50,
     reasonType: "admin",
@@ -248,7 +249,7 @@ test("attribute allocation spends unspent points and is idempotent", () => {
     requestId: "alloc-1-xxxx",
     attributeId: attributeIds[0],
     amount: 1,
-    classId: defaultClassId,
+    classId: foundationClassId,
   });
   assert.equal(first.ok, true);
   assert.equal(first.progression.unspentAttributePoints, 0);
@@ -257,19 +258,19 @@ test("attribute allocation spends unspent points and is idempotent", () => {
     requestId: "alloc-1-xxxx",
     attributeId: attributeIds[0],
     amount: 1,
-    classId: defaultClassId,
+    classId: foundationClassId,
   });
   assert.equal(replay.replay, true);
   assert.equal(replay.progression.allocatedAttributes[attributeIds[0]], 1);
 });
 
 test("overspending, unknown attributes, and negative amounts are rejected", () => {
-  const progression = initializeProgression(catalog, defaultClassId);
+  const progression = initializeProgression(catalog, foundationClassId);
   const overspend = allocateAttributes(progression, catalog, {
     requestId: "alloc-overspend",
     attributeId: attributeIds[0],
     amount: 1,
-    classId: defaultClassId,
+    classId: foundationClassId,
   });
   assert.equal(overspend.ok, false);
   assert.equal(overspend.code, "insufficient_points");
@@ -277,7 +278,7 @@ test("overspending, unknown attributes, and negative amounts are rejected", () =
     requestId: "alloc-unknown",
     attributeId: "missing.attribute.id",
     amount: 1,
-    classId: defaultClassId,
+    classId: foundationClassId,
   });
   assert.equal(unknown.ok, false);
   assert.equal(unknown.code, "unknown_attribute");
@@ -285,7 +286,7 @@ test("overspending, unknown attributes, and negative amounts are rejected", () =
     requestId: "alloc-negative",
     attributeId: attributeIds[0],
     amount: -1,
-    classId: defaultClassId,
+    classId: foundationClassId,
   });
   assert.equal(negative.ok, false);
   assert.equal(negative.code, "invalid_amount");
@@ -359,9 +360,9 @@ test("prompt 18 characters initialize at level 1 with previous combat numbers", 
 });
 
 test("full state reconnection includes canonical progression", () => {
-  let state = addPlayer(zoneWithCatalog(), playerWithProgression("user-alice", defaultClassId));
+  let state = addPlayer(zoneWithCatalog(), playerWithProgression("user-alice", foundationClassId));
   const player = state.players["user-alice"];
-  const granted = grantXp(player.progression!, catalog, defaultClassId, {
+  const granted = grantXp(player.progression!, catalog, foundationClassId, {
     characterId: player.characterId,
     amount: 50,
     reasonType: "admin",
@@ -372,7 +373,7 @@ test("full state reconnection includes canonical progression", () => {
   const body = JSON.parse(buildFullState(state, 9, "user-alice"));
   assert.equal(body.progression.level, 2);
   assert.equal(body.progression.unspentSkillPoints, 1);
-  assert.equal(body.progression.classId, defaultClassId);
+  assert.equal(body.progression.classId, foundationClassId);
 });
 
 test("allocate opcode is parsed as a number amount and rejects xp injection", () => {
@@ -398,11 +399,11 @@ test("allocate opcode is parsed as a number amount and rejects xp injection", ()
 });
 
 test("match allocate command spends points and persist skill points", () => {
-  let state = addPlayer(zoneWithCatalog(), playerWithProgression("user-alice", defaultClassId));
+  let state = addPlayer(zoneWithCatalog(), playerWithProgression("user-alice", foundationClassId));
   state.players["user-alice"].progression = grantXp(
     state.players["user-alice"].progression!,
     catalog,
-    defaultClassId,
+    foundationClassId,
     {
       characterId: "char-user-alice",
       amount: 50,

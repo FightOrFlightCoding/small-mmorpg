@@ -4,6 +4,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { HOTBAR_SIZE } from "../src/domain/ability";
 import { content } from "../src/generated/content";
+import { catalogFromContent, levelCurveFor } from "../src/domain/stats";
 import {
   DESIGN_RELATIVE_PATH,
   EXPECTED_BRANCH_NODES,
@@ -169,6 +170,13 @@ test("live catalog snapshot keeps foundation combat while four production classe
   assert.equal(content.classes["class.mystic"].rosterSelectable, true);
   assert.equal(content.levelCurves["test.curve.standard"].maxLevel, 5);
   assert.equal(content.levelCurves["curve.vibecode.l10"].maxLevel, 10);
+  assert.equal(content.classes["class.warrior"].canonicalLevelCurveId, "curve.vibecode.l10");
+  assert.equal(content.classes["class.mage"].canonicalLevelCurveId, "curve.vibecode.l10");
+  assert.equal(content.classes["class.marksman"].canonicalLevelCurveId, "curve.vibecode.l10");
+  assert.equal(content.classes["class.mystic"].canonicalLevelCurveId, "curve.vibecode.l10");
+  const liveCatalog = catalogFromContent(content);
+  assert.equal(levelCurveFor(liveCatalog, "class.warrior")?.maxLevel, 10);
+  assert.equal(levelCurveFor(liveCatalog, "test.class.vanguard")?.maxLevel, 5);
   const xp = content.levelCurves["test.curve.standard"].xpRequired;
   let sum = 0;
   for (let i = 0; i < xp.length; i++) {

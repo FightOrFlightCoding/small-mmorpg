@@ -1,10 +1,10 @@
 # Progress
 
-Last accepted phase: **PROG-04 — Canonical Statistics, Derived Values, and Resource Engine**.
+Last accepted phase: **PROG-05 — XP Curve, Automatic Growth, Level Milestones, and Auto-Assignment**.
 
 Current phase: none.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
 
@@ -1074,6 +1074,39 @@ Level-10 auto-growth with zero free allocation matches the design §6.3 referenc
 | Client GdUnit | 277/277, 0 orphans, `SHELL_LOGIN` |
 
 Limitations: Level-up, branch choice, talent spend, and canonical combat remain later PROG phases. Live ATTACK is not retuned onto STR/AGI/INT. Geometry omitted by the design is ledgered in [design/progression-implementation-addendum.md](design/progression-implementation-addendum.md). Manual Prompt 18 world play was not re-run; live village/slime behavior was not changed.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/content.ps1 validate
+powershell -File scripts/test-content.ps1
+powershell -File scripts/content-build.ps1
+powershell -File scripts/test-progression-design.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+```
+
+## PROG-05 XP curve, automatic growth, level milestones, and auto-assignment (2026-08-26)
+
+Production `class.*` characters use `curve.vibecode.l10`: `XP_to_next(level) = round_to_tens(100 * level^1.5)` with deterministic nearest-ten rounding. Transitions are 100, 280, 520, 800, 1,120, 1,470, 1,850, 2,260, 2,700 (total **11,100** to level 10). Authored `levelCurveId` stays `test.curve.standard` so the content hash is unchanged; runtime overlays `canonicalLevelCurveId`. Test classes keep Foundation cap 5 and content `xpReward`.
+
+One trusted progression service accepts kill, elite kill (`* 3`), quest, and authorized development grants. Kill XP is `8 + 2 * enemy_level`. Duplicate `eventId` values do not grant twice. The client never sends an XP amount. One grant may cross multiple levels; each gained level applies automatic growth (computed from class and level, not stored as allocations), grants three free points, processes milestones, recalculates derived state, emits one `level_gained` event, and persists atomically. Level 10 does not produce level 11 or extra points. Overflow XP uses `project.xp.cap_overflow_policy` = `lifetime_only`. Level-10 rewards do not duplicate.
+
+Earned free points are `3 * (level - 1)`. Auto-assign defaults off. Enabling the flag does not spend existing points; a level gain with the flag on spends only the newly earned three. Opcode 35 spends all currently unspent points on the class template. Branch choice is required at 5; missing branch keeps signature/capstone pending and does not invent a default. Milestone `ability.*` grants add ownership only (`runtimeEnabled: false`).
+
+Client/server generated catalogs share content hash `3b57502b4a197972c970420cd7b2a5a74955311b5840be0b4d184843c24e3320`. Live ATTACK still uses Foundation `test.stat.attack`. Slime KillXP is **10** (level 1), matching authored `xpReward`. Prompt 18 village/slime combat behavior is unchanged.
+
+| Gate | Result |
+| --- | --- |
+| Content validate/build | pass; client/server hashes match |
+| Content-build tests | 25/25 (`scripts/test-content.ps1`) |
+| Design audit | 10/10 (`scripts/test-progression-design.ps1`) |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (29 RPCs, 34 storage records, 35 client opcodes) |
+| Server hermetic | 593 passed, 13 skipped (live suites off); `tsc` via server test script |
+| Client GdUnit | 278/278, 0 orphans, `SHELL_LOGIN` |
+
+Limitations: Talent spend, one production hotbar, and canonical combat remain later PROG phases. Live ATTACK is not retuned onto STR/AGI/INT. Geometry omitted by the design is ledgered in [design/progression-implementation-addendum.md](design/progression-implementation-addendum.md). Manual Prompt 18 world play was not re-run; live village/slime combat behavior was not changed.
 
 Reproduction:
 

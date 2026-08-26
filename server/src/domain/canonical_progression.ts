@@ -1,5 +1,12 @@
 export const CANONICAL_PROGRESSION_SCHEMA_VERSION = 2;
 export const CANONICAL_LEVEL_CAP = 10;
+export const CANONICAL_FREE_POINTS_PER_LEVEL = 3;
+export const CANONICAL_XP_TO_NEXT = [100, 280, 520, 800, 1120, 1470, 1850, 2260, 2700] as const;
+export const CANONICAL_TOTAL_XP_TO_10 = 11100;
+export const XP_SOURCE_KILL = "kill";
+export const XP_SOURCE_ELITE_KILL = "elite_kill";
+export const XP_SOURCE_QUEST = "quest";
+export const XP_SOURCE_DEV = "dev";
 export const CANONICAL_HOTBAR_SIZE = 4;
 export const CANONICAL_AUTO_ASSIGN_DEFAULT = false;
 export const RESOURCE_NONE = "resource.none";
@@ -131,6 +138,45 @@ export function canonicalHotbarFromLive(hotbar: string[] | undefined): string[] 
     }
   }
   return assignments;
+}
+
+export function roundToTens(value: number): number {
+  return Math.round(value / 10) * 10;
+}
+
+export function xpToNext(level: number): number {
+  if (level < 1 || level >= CANONICAL_LEVEL_CAP) {
+    return 0;
+  }
+  return roundToTens(100 * Math.pow(level, 1.5));
+}
+
+export function killXp(enemyLevel: number): number {
+  const level = isFinite(enemyLevel) && enemyLevel > 0 ? Math.floor(enemyLevel) : 1;
+  return 8 + 2 * level;
+}
+
+export function eliteKillXp(enemyLevel: number): number {
+  return killXp(enemyLevel) * 3;
+}
+
+export function enemyIsElite(tags: ReadonlyArray<string> | undefined): boolean {
+  if (tags === undefined) {
+    return false;
+  }
+  for (let i = 0; i < tags.length; i++) {
+    if (tags[i] === "elite") {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function canonicalKillXpAmount(enemyLevel: number, tags: ReadonlyArray<string> | undefined): number {
+  if (enemyIsElite(tags)) {
+    return eliteKillXp(enemyLevel);
+  }
+  return killXp(enemyLevel);
 }
 
 export function clampCanonicalLevel(level: number): number {

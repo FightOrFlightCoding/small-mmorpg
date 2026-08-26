@@ -22,7 +22,7 @@ Match and RPC payloads for the slice are JSON objects.
 - Envelopes are UTF-8 JSON.
 - Strict client intentions reject unknown fields.
 - Client→server match payloads are rejected above **2048** bytes (`payload_too_large`).
-- Limits: `INPUT` **20**, `ATTACK`/`USE_ABILITY`/`CANCEL_CAST`/`SET_TARGET` **8**, `INTERACT` **8**, `PICKUP` **8**, `DESTROY_ITEM`/`SPLIT_STACK`/`MOVE_ITEM` **8**, `EQUIP` **8**, `QUEST_ACCEPT`+`QUEST_TURN_IN` **8**, `VENDOR_BUY`+`VENDOR_SELL`+`INN_REST` **8**, `CAVE_ENTER`+`CAVE_EXIT` **8**, trade opcodes **8**, `ALLOCATE_ATTRIBUTES`/`ASSIGN_HOTBAR`/`UNLOCK_ABILITY`/`RELEASE_RESPAWN`/`RETURN_TO_CHARACTER_SELECT` **8**, `RESYNC_REQUEST` **2**. Extra requests are `rate_limited` (`SYSTEM_MESSAGE`), are logged, and do not apply. At most **24** match messages are parsed per player per tick. Session limits: auth **5 / 10 s**, chat **4 / 2 s**, mutating party RPCs **8 / 2 s** (`party_get_state` exempt).
+- Limits: `INPUT` **20**, `ATTACK`/`USE_ABILITY`/`CANCEL_CAST`/`SET_TARGET` **8**, `INTERACT` **8**, `PICKUP` **8**, `DESTROY_ITEM`/`SPLIT_STACK`/`MOVE_ITEM` **8**, `EQUIP` **8**, `QUEST_ACCEPT`+`QUEST_TURN_IN` **8**, `VENDOR_BUY`+`VENDOR_SELL`+`INN_REST` **8**, `CAVE_ENTER`+`CAVE_EXIT` **8**, trade opcodes **8**, `ALLOCATE_ATTRIBUTES`/`ASSIGN_HOTBAR`/`UNLOCK_ABILITY`/`RELEASE_RESPAWN`/`RETURN_TO_CHARACTER_SELECT`/`SELECT_BRANCH`/`SET_AUTO_ASSIGN`/`AUTO_ASSIGN_UNSPENT_POINTS` **8**, `RESYNC_REQUEST` **2**. Extra requests are `rate_limited` (`SYSTEM_MESSAGE`), are logged, and do not apply. At most **24** match messages are parsed per player per tick. Session limits: auth **5 / 10 s**, chat **4 / 2 s**, mutating party RPCs **8 / 2 s** (`party_get_state` exempt).
 - `FULL_STATE` / `SNAPSHOT` require the documented fields. `SNAPSHOT` is broadcast at **10 Hz** (the match tick rate) while the zone is occupied.
 
 ## Opcodes
@@ -63,6 +63,9 @@ Match and RPC payloads for the slice are JSON objects.
 | 30 | `TRADE_ACCEPT_REVISION` | `{ protocolVersion, tradeId, revision, requestId }` | Accept the current revision. Commit only when both accepted the same current revision. |
 | 31 | `TRADE_CANCEL` | `{ protocolVersion, tradeId, requestId }` | Cancel an inviting or open trade. Committing trades are recovered, not cancelled. |
 | 32 | `RETURN_TO_CHARACTER_SELECT` | `{ protocolVersion, requestId }` | Safe leave. Client must wait for `ACTION_RESULT` before leaving the match or changing scenes. |
+| 33 | `SELECT_BRANCH` | `{ protocolVersion, branchId, requestId }` | Select a class branch at level ≥ 5. Server owns roster and pending signature/capstone grants. |
+| 34 | `SET_AUTO_ASSIGN` | `{ protocolVersion, enabled, requestId }` | Persist auto-assign flag. `enabled` is a JSON boolean. Does not spend existing points. |
+| 35 | `AUTO_ASSIGN_UNSPENT_POINTS` | `{ protocolVersion, requestId }` | Spend all currently unspent free points on the class template. |
 
 `contentHash` is optional on client messages. If present it must match the server catalog.
 

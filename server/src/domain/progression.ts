@@ -1,13 +1,24 @@
 import {
+  applyAutoAssignUnspent as spendCanonicalUnspent,
+  applyCanonicalXpGrant,
+  allocateFreeStat,
+  pendingBranchSelection,
+  selectCanonicalBranch,
+  usesCanonicalLeveling,
+  type ProgressionEvent,
+} from "./canonical_leveling";
+import {
   CANONICAL_AUTO_ASSIGN_DEFAULT,
   CANONICAL_PROGRESSION_SCHEMA_VERSION,
   canonicalHotbarFromLive,
+  canonicalStatTotals,
   clampCanonicalLevel,
   unspentBranchPoints,
   unspentClassPoints,
   unspentFreeStatPoints,
   usesCanonicalCreateState,
 } from "./canonical_progression";
+import { classUsesCanonicalStats } from "./canonical_stats";
 import { cloneTickMap, dict } from "./maps";
 import { cloneExtras, envelopeFromRecord } from "./save_schema";
 import {
@@ -21,6 +32,7 @@ import {
   type ProgressionCatalog,
 } from "./stats";
 
+export type { ProgressionEvent } from "./canonical_leveling";
 export const PROGRESSION_SCHEMA_VERSION = CANONICAL_PROGRESSION_SCHEMA_VERSION;
 export const MAX_ALLOCATE_PER_REQUEST = 100;
 
@@ -43,6 +55,8 @@ export interface CharacterProgression {
   allocateByRequestId: { [requestId: string]: AllocateRecord };
   xpEventTicks?: { [eventId: string]: number };
   allocateRequestTicks?: { [requestId: string]: number };
+  selectBranchByRequestId?: { [requestId: string]: AbilityActionRecord };
+  autoAssignByRequestId?: { [requestId: string]: AbilityActionRecord };
   classId: string;
   branchId: string;
   xpIntoLevel: number;
@@ -61,6 +75,7 @@ export interface XpGrantRecord {
   amount: number;
   reasonType: string;
   reasonId: string;
+  createdAt?: number;
 }
 
 export interface AllocateRecord {
@@ -81,6 +96,7 @@ export interface XpGrant {
   reasonType: string;
   reasonId: string;
   eventId: string;
+  createdAt?: number;
 }
 
 export interface XpGrantResult {
@@ -89,6 +105,7 @@ export interface XpGrantResult {
   changed: boolean;
   levelsGained: number;
   code: string;
+  events: ProgressionEvent[];
 }
 
 export interface AllocateInput {
@@ -157,6 +174,8 @@ export function cloneProgression(progression: CharacterProgression | undefined):
     allocateByRequestId: copyAllocateMap(progression.allocateByRequestId),
     xpEventTicks: cloneTickMap(progression.xpEventTicks),
     allocateRequestTicks: cloneTickMap(progression.allocateRequestTicks),
+    selectBranchByRequestId: copyAbilityActionMap(progression.selectBranchByRequestId),
+    autoAssignByRequestId: copyAbilityActionMap(progression.autoAssignByRequestId),
     classId: progression.classId !== undefined ? progression.classId : "",
     branchId: progression.branchId !== undefined ? progression.branchId : "",
     xpIntoLevel: progression.xpIntoLevel !== undefined ? progression.xpIntoLevel : progression.currentXp,
@@ -276,51 +295,32 @@ export function grantXp(
   const current = cloneProgression(progression);
   const previous = current.xpByEventId[grant.eventId];
   if (previous !== undefined) {
-    return {
-      progression: current,
-      replay: true,
-      changed: false,
-      levelsGained: 0,
-      code: "ok",
-    };
+    return emptyGrantResult(current, true, false, 0, "ok");
   }
   if (!isNonNegativeInteger(grant.amount)) {
-    return {
-      progression: current,
-      replay: false,
-      changed: false,
-      levelsGained: 0,
-      code: "invalid_amount",
-    };
+    return emptyGrantResult(current, false, false, 0, "invalid_amount");
   }
+  const createdAt = grant.createdAt !== undefined ? grant.createdAt : tick;
   current.xpByEventId[grant.eventId] = {
     amount: grant.amount,
     reasonType: grant.reasonType,
     reasonId: grant.reasonId,
+    createdAt: createdAt,
   };
   stampXpTick(current, grant.eventId, tick);
+  if (usesCanonicalLeveling(catalog, classId)) {
+    return applyCanonicalXpGrant(current, catalog, classId, grant);
+  }
   if (grant.amount === 0) {
     current.xpIntoLevel = current.currentXp;
-    return {
-      progression: current,
-      replay: false,
-      changed: true,
-      levelsGained: 0,
-      code: "ok",
-    };
+    return emptyGrantResult(current, false, true, 0, "ok");
   }
   const curve = levelCurveFor(catalog, classId);
   current.lifetimeXp += grant.amount;
   if (curve === null || isMaxLevel(curve, current.level)) {
     current.currentXp = 0;
     current.xpIntoLevel = 0;
-    return {
-      progression: current,
-      replay: false,
-      changed: true,
-      levelsGained: 0,
-      code: "ok",
-    };
+    return emptyGrantResult(current, false, true, 0, "ok");
   }
   current.currentXp += grant.amount;
   let levelsGained = 0;
@@ -346,13 +346,7 @@ export function grantXp(
     }
   }
   current.xpIntoLevel = current.currentXp;
-  return {
-    progression: current,
-    replay: false,
-    changed: true,
-    levelsGained: levelsGained,
-    code: "ok",
-  };
+  return emptyGrantResult(current, false, true, levelsGained, "ok");
 }
 
 export function allocateAttributes(
@@ -373,6 +367,26 @@ export function allocateAttributes(
   }
   if (!isPositiveInteger(input.amount) || input.amount > MAX_ALLOCATE_PER_REQUEST) {
     return failAllocate(current, input, "invalid_amount");
+  }
+  if (classUsesCanonicalStats(catalog.classes[input.classId])) {
+    const spent = allocateFreeStat(current, input.attributeId, input.amount);
+    if (!spent.ok) {
+      return failAllocate(current, input, spent.code);
+    }
+    current.allocateByRequestId[input.requestId] = {
+      ok: true,
+      code: "ok",
+      attributeId: input.attributeId,
+      amount: input.amount,
+    };
+    stampAllocateTick(current, input.requestId, input.tick);
+    return {
+      progression: current,
+      replay: false,
+      changed: true,
+      ok: true,
+      code: "ok",
+    };
   }
   if (catalog.attributes[input.attributeId] === undefined) {
     return failAllocate(current, input, "unknown_attribute");
@@ -415,12 +429,23 @@ export function publicProgression(
   classId: string,
   progression: CharacterProgression,
   derivedValues: { [statId: string]: number },
+  events?: ReadonlyArray<ProgressionEvent>,
 ): { [key: string]: unknown } {
   const classDef = catalog.classes[classId];
   const curve = levelCurveFor(catalog, classId);
   const atMax = curve !== null ? isMaxLevel(curve, progression.level) : false;
   const xpToNext = curve !== null && !atMax ? xpRequiredForLevel(curve, progression.level) : 0;
-  return {
+  const canonical = classUsesCanonicalStats(classDef);
+  const baseAttributes = canonical
+    ? canonicalStatTotals(classDef !== undefined ? classDef.baseStats : undefined, classDef !== undefined ? classDef.automaticGrowth : undefined, {}, progression.level)
+    : baseAttributesFor(catalog, classId, progression.level);
+  const allocatedAttributes = canonical
+    ? copyNumberMap(progression.freeStatAllocations)
+    : copyNumberMap(progression.allocatedAttributes);
+  const unspentAttributePoints = canonical
+    ? unspentFreeStatPoints(progression.freeStatAllocations, progression.level)
+    : progression.unspentAttributePoints;
+  const payload: { [key: string]: unknown } = {
     classId: classId,
     classDisplayName: classDef !== undefined && classDef.displayName !== undefined ? classDef.displayName : classId,
     level: progression.level,
@@ -428,10 +453,10 @@ export function publicProgression(
     lifetimeXp: progression.lifetimeXp,
     xpToNext: xpToNext,
     atMaxLevel: atMax,
-    baseAttributes: baseAttributesFor(catalog, classId, progression.level),
-    allocatedAttributes: copyNumberMap(progression.allocatedAttributes),
+    baseAttributes: baseAttributes,
+    allocatedAttributes: allocatedAttributes,
     derived: copyNumberMap(derivedValues),
-    unspentAttributePoints: progression.unspentAttributePoints,
+    unspentAttributePoints: unspentAttributePoints,
     unspentSkillPoints: progression.unspentSkillPoints,
     unlockedAbilityIds: copyStringList(progression.unlockedAbilityIds),
     progressionSchemaVersion: progression.progressionSchemaVersion,
@@ -445,7 +470,130 @@ export function publicProgression(
     unspentClassPoints: unspentClassPoints(progression.purchasedClassNodeIds, progression.level),
     unspentBranchPoints: unspentBranchPoints(progression.purchasedBranchNodeRanks, progression.level),
     unspentFreeStatPoints: unspentFreeStatPoints(progression.freeStatAllocations, progression.level),
+    pendingBranchSelection: pendingBranchSelection(progression.level, progression.branchId),
     canonicalDerived: copyNumberMap(derivedValues),
+  };
+  if (events !== undefined && events.length > 0) {
+    payload.events = copyEvents(events);
+  }
+  return payload;
+}
+
+export interface BranchSelectInput {
+  requestId: string;
+  branchId: string;
+}
+
+export interface AutoAssignFlagInput {
+  requestId: string;
+  enabled: boolean;
+}
+
+export interface AutoAssignUnspentInput {
+  requestId: string;
+}
+
+export interface ProgressionActionResult {
+  progression: CharacterProgression;
+  replay: boolean;
+  changed: boolean;
+  ok: boolean;
+  code: string;
+  events: ProgressionEvent[];
+}
+
+export function selectBranch(
+  progression: CharacterProgression,
+  catalog: ProgressionCatalog,
+  classId: string,
+  input: BranchSelectInput,
+): ProgressionActionResult {
+  const current = cloneProgression(progression);
+  const maps = ensureRequestMaps(current);
+  const previous = maps.selectBranchByRequestId[input.requestId];
+  if (previous !== undefined) {
+    return {
+      progression: current,
+      replay: true,
+      changed: false,
+      ok: previous.ok,
+      code: previous.code,
+      events: [],
+    };
+  }
+  const selected = selectCanonicalBranch(current, catalog, classId, input.branchId);
+  maps.selectBranchByRequestId[input.requestId] = { ok: selected.ok, code: selected.code };
+  current.selectBranchByRequestId = maps.selectBranchByRequestId;
+  return {
+    progression: current,
+    replay: false,
+    changed: true,
+    ok: selected.ok,
+    code: selected.code,
+    events: selected.events,
+  };
+}
+
+export function setAutoAssign(
+  progression: CharacterProgression,
+  input: AutoAssignFlagInput,
+): ProgressionActionResult {
+  const current = cloneProgression(progression);
+  const maps = ensureRequestMaps(current);
+  const previous = maps.autoAssignByRequestId[input.requestId];
+  if (previous !== undefined) {
+    return {
+      progression: current,
+      replay: true,
+      changed: false,
+      ok: previous.ok,
+      code: previous.code,
+      events: [],
+    };
+  }
+  current.autoAssignEnabled = input.enabled === true;
+  maps.autoAssignByRequestId[input.requestId] = { ok: true, code: "ok" };
+  current.autoAssignByRequestId = maps.autoAssignByRequestId;
+  return {
+    progression: current,
+    replay: false,
+    changed: true,
+    ok: true,
+    code: "ok",
+    events: [],
+  };
+}
+
+export function autoAssignUnspentPoints(
+  progression: CharacterProgression,
+  catalog: ProgressionCatalog,
+  classId: string,
+  input: AutoAssignUnspentInput,
+): ProgressionActionResult {
+  const current = cloneProgression(progression);
+  const maps = ensureRequestMaps(current);
+  const previous = maps.autoAssignByRequestId[input.requestId];
+  if (previous !== undefined) {
+    return {
+      progression: current,
+      replay: true,
+      changed: false,
+      ok: previous.ok,
+      code: previous.code,
+      events: [],
+    };
+  }
+  const spent = spendCanonicalUnspent(current, catalog, classId);
+  maps.autoAssignByRequestId[input.requestId] = { ok: true, code: "ok" };
+  current.autoAssignByRequestId = maps.autoAssignByRequestId;
+  current.freeStatAllocations = spent.progression.freeStatAllocations;
+  return {
+    progression: current,
+    replay: false,
+    changed: true,
+    ok: true,
+    code: "ok",
+    events: [],
   };
 }
 
@@ -576,6 +724,7 @@ function copyXpMap(map: { [eventId: string]: XpGrantRecord } | undefined): { [ev
       amount: record.amount,
       reasonType: record.reasonType,
       reasonId: record.reasonId,
+      createdAt: record.createdAt,
     };
   }
   return out;
@@ -642,4 +791,53 @@ function numberOrZero(value: number | undefined): number {
     return 0;
   }
   return value;
+}
+
+function emptyGrantResult(
+  progression: CharacterProgression,
+  replay: boolean,
+  changed: boolean,
+  levelsGained: number,
+  code: string,
+): XpGrantResult {
+  return {
+    progression: progression,
+    replay: replay,
+    changed: changed,
+    levelsGained: levelsGained,
+    code: code,
+    events: [],
+  };
+}
+
+function ensureRequestMaps(progression: CharacterProgression): {
+  selectBranchByRequestId: { [requestId: string]: AbilityActionRecord };
+  autoAssignByRequestId: { [requestId: string]: AbilityActionRecord };
+} {
+  return {
+    selectBranchByRequestId: copyAbilityActionMap(progression.selectBranchByRequestId),
+    autoAssignByRequestId: copyAbilityActionMap(progression.autoAssignByRequestId),
+  };
+}
+
+function copyEvents(events: ReadonlyArray<ProgressionEvent>): ProgressionEvent[] {
+  const list: ProgressionEvent[] = [];
+  for (let i = 0; i < events.length; i++) {
+    const event = events[i];
+    const copy: ProgressionEvent = { type: event.type };
+    if (event.level !== undefined) {
+      copy.level = event.level;
+    }
+    if (event.amount !== undefined) {
+      copy.amount = event.amount;
+    }
+    if (event.abilityId !== undefined) {
+      copy.abilityId = event.abilityId;
+    }
+    if (event.statId !== undefined) {
+      copy.statId = event.statId;
+    }
+    list.push(copy);
+  }
+  return list;
 }

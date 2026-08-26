@@ -36,6 +36,9 @@ export const ClientOpcode = {
   TRADE_ACCEPT_REVISION: 30,
   TRADE_CANCEL: 31,
   RETURN_TO_CHARACTER_SELECT: 32,
+  SELECT_BRANCH: 33,
+  SET_AUTO_ASSIGN: 34,
+  AUTO_ASSIGN_UNSPENT_POINTS: 35,
 } as const;
 
 export const ServerOpcode = {
@@ -92,6 +95,9 @@ const CLIENT_OPCODES: ClientOpcode[] = [
   ClientOpcode.TRADE_ACCEPT_REVISION,
   ClientOpcode.TRADE_CANCEL,
   ClientOpcode.RETURN_TO_CHARACTER_SELECT,
+  ClientOpcode.SELECT_BRANCH,
+  ClientOpcode.SET_AUTO_ASSIGN,
+  ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS,
 ];
 
 const REWARD_OPCODES: ClientOpcode[] = [
@@ -138,6 +144,9 @@ OPCODE_KEYS[ClientOpcode.TRADE_SET_GOLD] = ["tradeId", "amount"];
 OPCODE_KEYS[ClientOpcode.TRADE_ACCEPT_REVISION] = ["tradeId", "revision"];
 OPCODE_KEYS[ClientOpcode.TRADE_CANCEL] = ["tradeId"];
 OPCODE_KEYS[ClientOpcode.RETURN_TO_CHARACTER_SELECT] = [];
+OPCODE_KEYS[ClientOpcode.SELECT_BRANCH] = ["branchId"];
+OPCODE_KEYS[ClientOpcode.SET_AUTO_ASSIGN] = ["enabled"];
+OPCODE_KEYS[ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS] = [];
 
 const OUTCOME_KEYS = [
   "attack",
@@ -170,7 +179,9 @@ const OUTCOME_KEYS = [
   "level",
   "unspentAttributePoints",
   "unspentSkillPoints",
+  "unspentFreeStatPoints",
   "allocatedAttributes",
+  "freeStatAllocations",
   "resultingGold",
   "resultingBalance",
   "healing",
@@ -197,6 +208,7 @@ const ALLOCATE_NUMBER_KEYS = ["amount"];
 const INVENTORY_NUMBER_KEYS = ["quantity", "toSlotIndex"];
 const ABILITY_NUMBER_KEYS = ["targetX", "targetY", "slotIndex"];
 const TRADE_NUMBER_KEYS = ["revision"];
+const BOOLEAN_KEYS = ["enabled"];
 
 export interface ProtocolError {
   code: string;
@@ -219,6 +231,7 @@ export interface ParsedClientMessage {
   targetY?: number;
   slotIndex?: number;
   revision?: number;
+  enabled?: boolean;
 }
 
 export function isClientOpcode(opcode: number): opcode is ClientOpcode {
@@ -255,7 +268,10 @@ function requiresRequestId(opcode: ClientOpcode): boolean {
     opcode === ClientOpcode.TRADE_SET_GOLD ||
     opcode === ClientOpcode.TRADE_ACCEPT_REVISION ||
     opcode === ClientOpcode.TRADE_CANCEL ||
-    opcode === ClientOpcode.RETURN_TO_CHARACTER_SELECT
+    opcode === ClientOpcode.RETURN_TO_CHARACTER_SELECT ||
+    opcode === ClientOpcode.SELECT_BRANCH ||
+    opcode === ClientOpcode.SET_AUTO_ASSIGN ||
+    opcode === ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS
   );
 }
 
@@ -358,6 +374,9 @@ export function parseClientMessage(
       continue;
     }
     if (TRADE_NUMBER_KEYS.indexOf(key) !== -1) {
+      continue;
+    }
+    if (BOOLEAN_KEYS.indexOf(key) !== -1) {
       continue;
     }
     if (key === "instanceId" && !Object.prototype.hasOwnProperty.call(data, key)) {
@@ -486,6 +505,12 @@ export function parseClientMessage(
       return { code: "invalid_slot", message: "ASSIGN_HOTBAR slotIndex must be a finite integer." };
     }
     message.slotIndex = slotIndex;
+  }
+  if (opcode === ClientOpcode.SET_AUTO_ASSIGN) {
+    if (typeof data.enabled !== "boolean") {
+      return { code: "invalid_id", message: "Field enabled must be a boolean." };
+    }
+    message.enabled = data.enabled;
   }
   return message;
 }
