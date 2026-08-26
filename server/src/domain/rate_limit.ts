@@ -90,7 +90,9 @@ export function actionForOpcode(opcode: number): RateAction {
     opcode === ClientOpcode.RETURN_TO_CHARACTER_SELECT ||
     opcode === ClientOpcode.SELECT_BRANCH ||
     opcode === ClientOpcode.SET_AUTO_ASSIGN ||
-    opcode === ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS
+    opcode === ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS ||
+    opcode === ClientOpcode.ALLOCATE_ATTRIBUTES_BATCH ||
+    opcode === ClientOpcode.TRAINER_RESPEC
   ) {
     return "allocate";
   }

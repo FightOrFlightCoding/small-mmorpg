@@ -227,4 +227,23 @@ func test_select_branch_and_auto_assign_send_opcodes_without_xp() -> void:
 	await get_tree().process_frame
 	assert_str(spend_id).is_not_empty()
 	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_AUTO_ASSIGN_UNSPENT_POINTS)
+	var batch_id := ProgressionService.request_allocate_batch([
+		{"statId": "stat.strength", "amount": 1},
+		{"statId": "stat.intelligence", "amount": 1},
+	])
+	await get_tree().process_frame
+	assert_str(batch_id).is_not_empty()
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_ALLOCATE_ATTRIBUTES_BATCH)
+	var batch_payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_bool(batch_payload.has("xp")).is_false()
+	assert_bool(batch_payload.has("level")).is_false()
+	var respec_id := ProgressionService.request_respec("npc.test_innkeeper")
+	await get_tree().process_frame
+	assert_str(respec_id).is_not_empty()
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_TRAINER_RESPEC)
+	var respec_payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_str(String(respec_payload.get("npcId", ""))).is_equal("npc.test_innkeeper")
+	assert_bool(respec_payload.has("gold")).is_false()
+	assert_bool(respec_payload.has("xp")).is_false()
+	assert_bool(respec_payload.has("level")).is_false()
 

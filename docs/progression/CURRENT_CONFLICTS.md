@@ -1,6 +1,6 @@
 # Current progression conflicts
 
-PROG-05 is the accepted 1–10 leveling pipeline. Remaining live/design gaps are **owned staged work**, not items that will vanish on their own.
+PROG-06 is the accepted free-stat allocation and trainer-respec path. Remaining live/design gaps are **owned staged work**, not items that will vanish on their own.
 
 Canonical target: [rpg-progression-design-v1.0.md](../design/rpg-progression-design-v1.0.md).  
 Live ownership: [PROGRESSION_ARCHITECTURE.md](PROGRESSION_ARCHITECTURE.md).  
@@ -34,7 +34,8 @@ Every conflict below has **Status**, **Resolution owner**, **Must be resolved by
 | --- | --- |
 | PROG-04 | Canonical mathematical foundation (accepted) |
 | PROG-05 | XP curve, automatic growth, free points, auto-assign, milestones (accepted) |
-| PROG-06–07 | Class/branch talent spend, ownership, **one** production hotbar |
+| PROG-06 | Manual free-stat allocation and trainer respec (accepted) |
+| PROG-07 | Class/branch talent spend, ownership, **one** production hotbar |
 | PROG-08 | Canonical combat mechanics (no production GCD) |
 | PROG-09–12 | Every class and branch, including auto-attacks |
 | PROG-13 | Complete player-facing progression UI |
@@ -82,6 +83,21 @@ Proceed to PROG-06 only when every row is true. These are PROG-05 exit criteria,
 | Pending branch at 5 and 10 does not invent a branch | timeline pending/L10 tests |
 | Reconnect, restart, Character Select level | storage round-trip + character-select tests |
 | Client cannot inject XP | protocol `stat_injection` + timeline injection test |
+| Content hash unchanged | `3b57502b4a197972c970420cd7b2a5a74955311b5840be0b4d184843c24e3320` |
+| Talent spend remains later | `C-talent-runtime` |
+
+## PROG-07 go/no-go
+
+Proceed to PROG-07 only when every row is true. These are PROG-06 exit criteria, not PROG-07 work.
+
+| Criterion | Evidence |
+| --- | --- |
+| All previous tests still pass | Content, design audit, foundation audit, server, client gates |
+| All eight stats accept free points | `server/tests/progression_respec.test.ts` |
+| Batch allocation is atomic | same |
+| Respec costs exactly `50 × level` | same |
+| Respec refunds free/class/branch points and keeps class/level/XP/growth/basic | same |
+| Gold request ids do not double-charge | same |
 | Content hash unchanged | `3b57502b4a197972c970420cd7b2a5a74955311b5840be0b4d184843c24e3320` |
 | Talent spend remains later | `C-talent-runtime` |
 
@@ -243,17 +259,17 @@ Proceed to PROG-06 only when every row is true. These are PROG-05 exit criteria,
 
 - **Conflict:** Talent trees exist in the catalog; no spend/unlock runtime. Class 3-pick-2 and branch 8/9 are not playable. PROG-03 stores empty `purchasedClassNodeIds` / `purchasedBranchNodeRanks`. Point balances are calculated.
 - **Status:** DEFERRED
-- **Resolution owner:** PROG-06 class points; PROG-07 branch trees and ownership.
+- **Resolution owner:** PROG-07 branch trees and ownership.
 - **Must be resolved by:** End of PROG-07.
 - **Closure test:** Purchases persist as node ids/ranks. Balances recompute from level and purchases. The client cannot submit a finished tree.
 
 ### C-respec
 
 - **Conflict:** GM `reset_attribute_allocation` / `reset_skill_allocation` vs trainer NPC, gold **50 × level**, refunds free stats, skill points, **and branch**. `npc.lab_trainer` is development-only dialogue. Player respec is not implemented.
-- **Status:** DEFERRED
-- **Resolution owner:** PROG-14 lifecycle (trainer, gold, refunds) after PROG-07 makes spend real.
-- **Must be resolved by:** PROG-14, before PROG-15.
-- **Closure test:** Player respec charges `50 × level`, refunds free stats, skill points, and branch, and does not use a GM command as the production path.
+- **Status:** RESOLVED
+- **Resolution owner:** PROG-06 trainer respec (`npc.test_innkeeper` / `npc.lab_trainer` overlay `respec` service). GM `reset_*` remains debug/ops.
+- **Must be resolved by:** Accepted in PROG-06.
+- **Closure test:** Player respec charges `50 × level`, refunds free stats, class points, and branch, and does not use a GM command as the production path. Covered by `server/tests/progression_respec.test.ts`.
 
 ### C-legacy-migration
 

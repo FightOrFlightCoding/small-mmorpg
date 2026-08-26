@@ -85,6 +85,39 @@ func request_allocate(attribute_id: String, amount: int = 1) -> String:
 	return request_id
 
 
+func request_allocate_batch(allocations: Array) -> String:
+	if allocations.is_empty():
+		return ""
+	var total := 0
+	for entry in allocations:
+		if typeof(entry) != TYPE_DICTIONARY:
+			return ""
+		var amount := int((entry as Dictionary).get("amount", 0))
+		if amount < 1:
+			return ""
+		total += amount
+	if total < 1 or total > unspent_stat_points():
+		return ""
+	var request_id := MatchProtocol.new_request_id()
+	_pending_request_id = request_id
+	for entry in allocations:
+		var row: Dictionary = entry
+		_preview_allocate(String(row.get("statId", row.get("attributeId", ""))), int(row.get("amount", 0)))
+	NetworkService.send_allocate_attributes_batch(allocations, request_id)
+	request_started.emit(request_id)
+	return request_id
+
+
+func request_respec(npc_id: String) -> String:
+	if npc_id.is_empty():
+		return ""
+	var request_id := MatchProtocol.new_request_id()
+	_pending_request_id = request_id
+	NetworkService.send_trainer_respec(npc_id, request_id)
+	request_started.emit(request_id)
+	return request_id
+
+
 func request_select_branch(p_branch_id: String) -> String:
 	if p_branch_id.is_empty():
 		return ""

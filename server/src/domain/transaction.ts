@@ -1,5 +1,6 @@
 import type { PlayerEquipment } from "./equipment";
 import type { PlayerInventory } from "./inventory";
+import type { CharacterProgression } from "./progression";
 import type { QuestLog } from "./quest";
 import { applyGoldMutation, type GoldLedger, type GoldMutationResult } from "./wallet";
 
@@ -13,6 +14,7 @@ export const TX_REASON_ADMIN_GRANT = "admin_grant";
 export const TX_REASON_VENDOR = "vendor";
 export const TX_REASON_INN = "inn";
 export const TX_REASON_TRADE = "trade";
+export const TX_REASON_RESPEC = "respec";
 
 export interface TransactionAuditEvent {
   requestId: string;
@@ -31,6 +33,7 @@ export interface TransactionVersions {
   inventory?: string;
   equipment?: string;
   quests?: string;
+  progression?: string;
 }
 
 export interface TransactionWrite {
@@ -44,6 +47,7 @@ export interface TransactionWrite {
   inventory?: PlayerInventory;
   equipment?: PlayerEquipment;
   questLog?: QuestLog;
+  progression?: CharacterProgression;
   expectedVersions?: TransactionVersions;
   currentVersions?: TransactionVersions;
   metadata?: { [key: string]: unknown };
@@ -119,6 +123,9 @@ function versionConflict(expected?: TransactionVersions, current?: TransactionVe
     return "version_conflict";
   }
   if (expected.quests !== undefined && expected.quests !== actual.quests) {
+    return "version_conflict";
+  }
+  if (expected.progression !== undefined && expected.progression !== actual.progression) {
     return "version_conflict";
   }
   return "";

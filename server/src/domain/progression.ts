@@ -2,6 +2,7 @@ import {
   applyAutoAssignUnspent as spendCanonicalUnspent,
   applyCanonicalXpGrant,
   allocateFreeStat,
+  allocateFreeStatBatch,
   pendingBranchSelection,
   selectCanonicalBranch,
   usesCanonicalLeveling,
@@ -10,14 +11,17 @@ import {
 import {
   CANONICAL_AUTO_ASSIGN_DEFAULT,
   CANONICAL_PROGRESSION_SCHEMA_VERSION,
+  CANONICAL_RESPEC_GOLD_PER_LEVEL,
   canonicalHotbarFromLive,
   canonicalStatTotals,
   clampCanonicalLevel,
+  respecGoldCost,
   unspentBranchPoints,
   unspentClassPoints,
   unspentFreeStatPoints,
   usesCanonicalCreateState,
 } from "./canonical_progression";
+import { applyCanonicalRespec, type RespecSnapshot } from "./canonical_respec";
 import { classUsesCanonicalStats } from "./canonical_stats";
 import { cloneTickMap, dict } from "./maps";
 import { cloneExtras, envelopeFromRecord } from "./save_schema";
@@ -33,8 +37,11 @@ import {
 } from "./stats";
 
 export type { ProgressionEvent } from "./canonical_leveling";
+export { CANONICAL_RESPEC_GOLD_PER_LEVEL, respecGoldCost };
 export const PROGRESSION_SCHEMA_VERSION = CANONICAL_PROGRESSION_SCHEMA_VERSION;
 export const MAX_ALLOCATE_PER_REQUEST = 100;
+export const MAX_ALLOCATE_BATCH_ENTRIES = 16;
+export const RESPEC_GOLD_PER_LEVEL = CANONICAL_RESPEC_GOLD_PER_LEVEL;
 
 export interface CharacterProgression {
   level: number;
@@ -57,6 +64,7 @@ export interface CharacterProgression {
   allocateRequestTicks?: { [requestId: string]: number };
   selectBranchByRequestId?: { [requestId: string]: AbilityActionRecord };
   autoAssignByRequestId?: { [requestId: string]: AbilityActionRecord };
+  respecByRequestId?: { [requestId: string]: AbilityActionRecord };
   classId: string;
   branchId: string;
   xpIntoLevel: number;
@@ -116,12 +124,32 @@ export interface AllocateInput {
   tick?: number;
 }
 
+export interface AllocateBatchInput {
+  requestId: string;
+  allocations: ReadonlyArray<{ statId: string; amount: number }>;
+  classId: string;
+  tick?: number;
+}
+
+export interface TrainerRespecInput {
+  requestId: string;
+  trainerId: string;
+  characterId: string;
+  classId: string;
+  timestamp: number;
+}
+
 export interface AllocateResult {
   progression: CharacterProgression;
   replay: boolean;
   changed: boolean;
   ok: boolean;
   code: string;
+}
+
+export interface TrainerRespecResult extends AllocateResult {
+  goldCost: number;
+  snapshot: RespecSnapshot;
 }
 
 export function emptyProgression(): CharacterProgression {
@@ -176,6 +204,7 @@ export function cloneProgression(progression: CharacterProgression | undefined):
     allocateRequestTicks: cloneTickMap(progression.allocateRequestTicks),
     selectBranchByRequestId: copyAbilityActionMap(progression.selectBranchByRequestId),
     autoAssignByRequestId: copyAbilityActionMap(progression.autoAssignByRequestId),
+    respecByRequestId: copyAbilityActionMap(progression.respecByRequestId),
     classId: progression.classId !== undefined ? progression.classId : "",
     branchId: progression.branchId !== undefined ? progression.branchId : "",
     xpIntoLevel: progression.xpIntoLevel !== undefined ? progression.xpIntoLevel : progression.currentXp,
@@ -365,10 +394,10 @@ export function allocateAttributes(
       code: previous.code,
     };
   }
-  if (!isPositiveInteger(input.amount) || input.amount > MAX_ALLOCATE_PER_REQUEST) {
-    return failAllocate(current, input, "invalid_amount");
-  }
   if (classUsesCanonicalStats(catalog.classes[input.classId])) {
+    if (!isPositiveInteger(input.amount)) {
+      return failAllocate(current, input, "invalid_amount");
+    }
     const spent = allocateFreeStat(current, input.attributeId, input.amount);
     if (!spent.ok) {
       return failAllocate(current, input, spent.code);
@@ -387,6 +416,9 @@ export function allocateAttributes(
       ok: true,
       code: "ok",
     };
+  }
+  if (!isPositiveInteger(input.amount) || input.amount > MAX_ALLOCATE_PER_REQUEST) {
+    return failAllocate(current, input, "invalid_amount");
   }
   if (catalog.attributes[input.attributeId] === undefined) {
     return failAllocate(current, input, "unknown_attribute");
@@ -421,6 +453,135 @@ export function allocateAttributes(
     changed: true,
     ok: true,
     code: "ok",
+  };
+}
+
+export function allocateAttributesBatch(
+  progression: CharacterProgression,
+  catalog: ProgressionCatalog,
+  input: AllocateBatchInput,
+): AllocateResult {
+  const current = cloneProgression(progression);
+  const previous = current.allocateByRequestId[input.requestId];
+  if (previous !== undefined) {
+    return {
+      progression: current,
+      replay: true,
+      changed: false,
+      ok: previous.ok,
+      code: previous.code,
+    };
+  }
+  const stub: AllocateInput = {
+    requestId: input.requestId,
+    attributeId: "batch",
+    amount: 0,
+    classId: input.classId,
+    tick: input.tick,
+  };
+  if (!classUsesCanonicalStats(catalog.classes[input.classId])) {
+    return failAllocate(current, stub, "unsupported_class");
+  }
+  if (input.allocations.length === 0 || input.allocations.length > MAX_ALLOCATE_BATCH_ENTRIES) {
+    return failAllocate(current, stub, "invalid_amount");
+  }
+  const spent = allocateFreeStatBatch(current, input.allocations);
+  if (!spent.ok) {
+    return failAllocate(current, stub, spent.code);
+  }
+  let total = 0;
+  for (let i = 0; i < input.allocations.length; i++) {
+    total += input.allocations[i].amount;
+  }
+  current.allocateByRequestId[input.requestId] = {
+    ok: true,
+    code: "ok",
+    attributeId: "batch",
+    amount: total,
+  };
+  stampAllocateTick(current, input.requestId, input.tick);
+  return {
+    progression: current,
+    replay: false,
+    changed: true,
+    ok: true,
+    code: "ok",
+  };
+}
+
+export function applyTrainerRespec(
+  progression: CharacterProgression,
+  catalog: ProgressionCatalog,
+  input: TrainerRespecInput,
+): TrainerRespecResult {
+  const current = cloneProgression(progression);
+  const maps = ensureRequestMaps(current);
+  const previous = maps.respecByRequestId[input.requestId];
+  if (previous !== undefined) {
+    return {
+      progression: current,
+      replay: true,
+      changed: false,
+      ok: previous.ok,
+      code: previous.code,
+      goldCost: previous.ok ? respecGoldCost(current.level) : 0,
+      snapshot: {
+        characterId: input.characterId,
+        level: current.level,
+        goldCost: respecGoldCost(current.level),
+        previousBranch: current.branchId,
+        previousAllocations: {},
+        previousClassNodes: [],
+        previousBranchRanks: {},
+        requestId: input.requestId,
+        trainerId: input.trainerId,
+        timestamp: input.timestamp,
+      },
+    };
+  }
+  if (!classUsesCanonicalStats(catalog.classes[input.classId])) {
+    maps.respecByRequestId[input.requestId] = { ok: false, code: "unsupported_class" };
+    current.respecByRequestId = maps.respecByRequestId;
+    return {
+      progression: current,
+      replay: false,
+      changed: true,
+      ok: false,
+      code: "unsupported_class",
+      goldCost: 0,
+      snapshot: {
+        characterId: input.characterId,
+        level: current.level,
+        goldCost: 0,
+        previousBranch: current.branchId,
+        previousAllocations: {},
+        previousClassNodes: [],
+        previousBranchRanks: {},
+        requestId: input.requestId,
+        trainerId: input.trainerId,
+        timestamp: input.timestamp,
+      },
+    };
+  }
+  const applied = applyCanonicalRespec(
+    current,
+    catalog,
+    input.classId,
+    input.characterId,
+    input.requestId,
+    input.trainerId,
+    input.timestamp,
+  );
+  maps.respecByRequestId[input.requestId] = { ok: true, code: "ok" };
+  current.respecByRequestId = maps.respecByRequestId;
+  return {
+    progression: current,
+    replay: false,
+    changed: true,
+    ok: true,
+    code: "ok",
+    goldCost: applied.goldCost,
+    snapshot: applied.snapshot,
   };
 }
 
@@ -813,10 +974,12 @@ function emptyGrantResult(
 function ensureRequestMaps(progression: CharacterProgression): {
   selectBranchByRequestId: { [requestId: string]: AbilityActionRecord };
   autoAssignByRequestId: { [requestId: string]: AbilityActionRecord };
+  respecByRequestId: { [requestId: string]: AbilityActionRecord };
 } {
   return {
     selectBranchByRequestId: copyAbilityActionMap(progression.selectBranchByRequestId),
     autoAssignByRequestId: copyAbilityActionMap(progression.autoAssignByRequestId),
+    respecByRequestId: copyAbilityActionMap(progression.respecByRequestId),
   };
 }
 

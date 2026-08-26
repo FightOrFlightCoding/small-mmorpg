@@ -243,7 +243,7 @@ Commands: `inspect_character`, `teleport_character`, `repair_invalid_location`, 
 
 ## Client → server match opcodes
 
-Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARGET 8; INTERACT/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/quest/VENDOR_BUY/VENDOR_SELL/INN_REST/CAVE_ENTER/CAVE_EXIT/TRADE_*/ALLOCATE_ATTRIBUTES/ASSIGN_HOTBAR/UNLOCK_ABILITY/RETURN_TO_CHARACTER_SELECT/SELECT_BRANCH/SET_AUTO_ASSIGN/AUTO_ASSIGN_UNSPENT_POINTS 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
+Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARGET 8; INTERACT/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/quest/VENDOR_BUY/VENDOR_SELL/INN_REST/CAVE_ENTER/CAVE_EXIT/TRADE_*/ALLOCATE_ATTRIBUTES/ALLOCATE_ATTRIBUTES_BATCH/TRAINER_RESPEC/ASSIGN_HOTBAR/UNLOCK_ABILITY/RETURN_TO_CHARACTER_SELECT/SELECT_BRANCH/SET_AUTO_ASSIGN/AUTO_ASSIGN_UNSPENT_POINTS 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
 
 ### 1 `INPUT`
 
@@ -329,12 +329,12 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 
 | Field | Value |
 | --- | --- |
-| Body | `{ protocolVersion, attributeId, amount, requestId }` (`amount` is a JSON number) |
-| Authority | Server unspent points, class `allowedAttributeIds`, content attribute catalog |
+| Body | `{ protocolVersion, attributeId?, statId?, amount, requestId }` (`amount` is a JSON number; `statId` is an alias of `attributeId`) |
+| Authority | Server unspent points. Production `class.*` may spend any of the eight `stat.*` with no per-stat cap. Test classes keep Foundation `allowedAttributeIds` and the 100-per-request cap. |
 | Idempotency | Same `requestId` replays the stored result |
 | Errors | `invalid_amount`, `unknown_attribute`, `class_restricted`, `insufficient_points`, `invalid_request_id`, `stat_injection:xp` |
 | Rate limit | 8 / window |
-| Tests | `progression.test.ts`, `progression_service_test.gd` |
+| Tests | `progression.test.ts`, `progression_respec.test.ts`, `progression_service_test.gd` |
 
 ### 10 `DESTROY_ITEM`
 
@@ -617,6 +617,28 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 | Errors | `invalid_request_id`, `player_missing` |
 | Rate limit | Shares ALLOCATE window (8) |
 | Tests | `progression_timeline.test.ts`, `protocol.test.ts` |
+
+### 36 `ALLOCATE_ATTRIBUTES_BATCH`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, allocations, requestId }` (`allocations` is `[{ statId\|attributeId, amount }, ...]`, 1–16 entries) |
+| Authority | Validate the whole batch, then apply atomically. Production `stat.*` only. No partial spend. |
+| Idempotency | Same `requestId` replays the stored result |
+| Errors | `invalid_amount`, `unknown_attribute`, `insufficient_points`, `unsupported_class`, `in_combat`, `trading`, `invalid_request_id`, `stat_injection:xp` |
+| Rate limit | Shares ALLOCATE window (8) |
+| Tests | `progression_respec.test.ts`, `protocol.test.ts` |
+
+### 37 `TRAINER_RESPEC`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, npcId, requestId }` |
+| Authority | Server-approved trainer NPC (`respec` service), gold `50 × level`, safe-leave restrictions. Refunds free/class/branch points. Does not invent a branch. |
+| Idempotency | Same `requestId` replays; gold is not deducted twice |
+| Errors | `out_of_range`, `invalid_service`, `invalid_target`, `insufficient_gold`, `in_combat`, `trading`, `dead`, `casting`, `transferring`, `link_dead`, `reward_in_progress`, `unsupported_class`, `stat_injection:gold` |
+| Rate limit | Shares ALLOCATE window (8) |
+| Tests | `progression_respec.test.ts`, `protocol.test.ts` |
 
 No other client opcodes exist. Unknown opcode → `unknown_opcode`.
 

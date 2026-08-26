@@ -48,7 +48,8 @@
             "inn",
             "healer",
             "cave_entrance",
-            "cave_exit"
+            "cave_exit",
+            "respec"
           ]
         },
         "questIds": {

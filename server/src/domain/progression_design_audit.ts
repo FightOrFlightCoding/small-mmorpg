@@ -554,7 +554,7 @@ export function parseConflictRegister(markdown: string): ConflictEntry[] {
     const title = heading[2] !== undefined ? heading[2].trim() : "";
     const fields: { [label: string]: string } = {};
     i += 1;
-    while (i < lines.length && !lines[i].startsWith("### ")) {
+    while (i < lines.length && lines[i].indexOf("### ") !== 0) {
       const field = lines[i].match(/^- \*\*(Conflict|Status|Resolution owner|Must be resolved by|Closure test):\*\*\s*(.*)$/);
       if (field !== null) {
         const label = field[1];
@@ -562,7 +562,7 @@ export function parseConflictRegister(markdown: string): ConflictEntry[] {
         i += 1;
         while (
           i < lines.length &&
-          !lines[i].startsWith("### ") &&
+          lines[i].indexOf("### ") !== 0 &&
           !/^- \*\*(Conflict|Status|Resolution owner|Must be resolved by|Closure test):\*\*/.test(lines[i])
         ) {
           if (lines[i].trim().length > 0) {
@@ -595,6 +595,9 @@ export function auditConflictRegister(markdown: string): AuditIssue[] {
   }
   if (markdown.indexOf("## PROG-06 go/no-go") < 0) {
     issues.push({ code: "missing_prog06_gating", message: "CURRENT_CONFLICTS.md must include PROG-06 go/no-go." });
+  }
+  if (markdown.indexOf("## PROG-07 go/no-go") < 0) {
+    issues.push({ code: "missing_prog07_gating", message: "CURRENT_CONFLICTS.md must include PROG-07 go/no-go." });
   }
   const entries = parseConflictRegister(markdown);
   const seen: { [id: string]: boolean } = {};

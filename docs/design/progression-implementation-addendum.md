@@ -78,3 +78,12 @@ Capped-XP policy when a character is already at level 10. Design forbids level 1
 | --- | --- | --- | --- | --- | --- | --- |
 | `project.xp.cap_overflow_policy` | `lifetime_only` | Extra XP after level 10 increases `lifetimeXp` only; `currentXp` / `xpIntoLevel` stay 0 | Design omits overflow handling | no | `server/tests/progression_timeline.test.ts` | no |
 
+### PROG-06
+
+Trainer NPC ids and the runtime `respec` overlay. Gold `50 × level` is canonical compile-time (`compile.respec_cost`); it is not invented here. Overlaying `respec` on existing generic NPCs avoids a content rebuild and keeps the generated hash unchanged.
+
+| Stable ID | Value | Purpose | Reason it was required | Affects balance | Tests using it | Canonical design data |
+| --- | --- | --- | --- | --- | --- | --- |
+| `project.npc.respec_trainers` | `npc.test_innkeeper`, `npc.lab_trainer` | Runtime overlay of generic NPC service `respec` | Design requires a trainer NPC; authored NPC documents have no `respec` row and must not be rebuilt this phase | no (who may offer the service) | `server/tests/progression_respec.test.ts` | no |
+| `project.allocate.batch_max_entries` | `16` | Max rows in `ALLOCATE_ATTRIBUTES_BATCH` | Design does not specify a batch size; protocol needs a finite cap | no | `server/tests/protocol.test.ts` | no |
+

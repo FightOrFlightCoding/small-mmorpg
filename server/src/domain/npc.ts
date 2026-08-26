@@ -6,6 +6,8 @@ export const NPC_SERVICE_INN = "inn";
 export const NPC_SERVICE_HEALER = "healer";
 export const NPC_SERVICE_CAVE_ENTRANCE = "cave_entrance";
 export const NPC_SERVICE_CAVE_EXIT = "cave_exit";
+export const NPC_SERVICE_RESPEC = "respec";
+export const RESPEC_TRAINER_NPC_IDS = ["npc.test_innkeeper", "npc.lab_trainer"];
 
 export interface NpcService {
   type: string;
@@ -73,6 +75,7 @@ export function npcDefinitionsFromContent(npcs: {
     if (services.length === 0) {
       services.push({ type: NPC_SERVICE_DIALOGUE });
     }
+    overlayRespecService(ids[i], services);
     map[ids[i]] = {
       id: entry.id,
       displayName: entry.displayName,
@@ -136,6 +139,18 @@ export function publicNpcServices(definition: NpcDefinition | undefined): string
     types.push(definition.services[i].type);
   }
   return types;
+}
+
+function overlayRespecService(id: string, services: NpcService[]): void {
+  if (RESPEC_TRAINER_NPC_IDS.indexOf(id) === -1) {
+    return;
+  }
+  for (let i = 0; i < services.length; i++) {
+    if (services[i].type === NPC_SERVICE_RESPEC) {
+      return;
+    }
+  }
+  services.push({ type: NPC_SERVICE_RESPEC });
 }
 
 function copyService(source: {

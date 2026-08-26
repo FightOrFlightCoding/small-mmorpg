@@ -671,3 +671,11 @@ Kill XP for production classes is `8 + 2 * enemy_level`; elite tags multiply by 
 
 Automatic growth is computed from class and level and is not stored as editable allocations. Free points earned are `3 * (level - 1)`. `SET_AUTO_ASSIGN` persists the flag only. `AUTO_ASSIGN_UNSPENT_POINTS` spends the current unspent pool by repeating the class template in `CANONICAL_STAT_IDS` order. No default branch: L5/L10 without a branch keep signature/capstone pending. Milestone abilities add ownership to `unlockedAbilityIds` only; canonical `ability.*` stay `runtimeEnabled: false`. Opcodes 33–35 share the allocate rate bucket. The client never sends XP amounts, levels, or derived totals.
 
+## 2026-08-26 — PROG-06 manual free-stat allocation and trainer respec
+
+Production `class.*` characters spend unspent free points on any of the eight `stat.*` ids. Amount must be a positive integer. There is no per-stat cap and no class restriction. Opcode 36 validates a confirmed batch then applies atomically. Opcode 9 still accepts `attributeId` as an alias of `statId`. Test classes keep Foundation `allowedAttributeIds` and `MAX_ALLOCATE_PER_REQUEST` 100.
+
+Trainer respec is a generic NPC `respec` service overlay on `npc.test_innkeeper` (and `npc.lab_trainer` when that development NPC is present). Authored NPC JSON is unchanged so the content hash stays `3b57502b4a197972c970420cd7b2a5a74955311b5840be0b4d184843c24e3320`. Gold cost is canonical `50 × current_level`. Safe-leave restrictions apply. Gold and progression persist through `TX_REASON_RESPEC` / `nk.multiUpdate`. Repeated `requestId` values do not deduct twice.
+
+Respec clears free allocations, class-node purchases, branch ranks and choice, signature/capstone/buyable-active/branch-passive ownership, and invalid hotbar slots. Points refund by calculation (earned minus spent). Class, level, XP, automatic growth, the level-2 basic skill, equipment, and inventory remain. Derived stats recalculate. Level 5+ without a branch keeps `pendingBranchSelection`. Talent spend remains PROG-07. GM `reset_attribute_allocation` / `reset_skill_allocation` remain debug/ops, not the player path. Overlay trainer ids and batch size 16 are `project.npc.respec_trainers` / `project.allocate.batch_max_entries` in the implementation addendum.
+

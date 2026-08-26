@@ -1,5 +1,6 @@
 export const PROTOCOL_VERSION = 1;
 export const MAX_MATCH_PAYLOAD_BYTES = 2048;
+export const MAX_ALLOCATE_BATCH_ENTRIES = 16;
 export const REQUEST_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 export const CONTENT_HASH_PATTERN = /^[a-f0-9]{64}$/;
 
@@ -39,6 +40,8 @@ export const ClientOpcode = {
   SELECT_BRANCH: 33,
   SET_AUTO_ASSIGN: 34,
   AUTO_ASSIGN_UNSPENT_POINTS: 35,
+  ALLOCATE_ATTRIBUTES_BATCH: 36,
+  TRAINER_RESPEC: 37,
 } as const;
 
 export const ServerOpcode = {
@@ -98,6 +101,8 @@ const CLIENT_OPCODES: ClientOpcode[] = [
   ClientOpcode.SELECT_BRANCH,
   ClientOpcode.SET_AUTO_ASSIGN,
   ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS,
+  ClientOpcode.ALLOCATE_ATTRIBUTES_BATCH,
+  ClientOpcode.TRAINER_RESPEC,
 ];
 
 const REWARD_OPCODES: ClientOpcode[] = [
@@ -107,6 +112,7 @@ const REWARD_OPCODES: ClientOpcode[] = [
   ClientOpcode.VENDOR_BUY,
   ClientOpcode.VENDOR_SELL,
   ClientOpcode.INN_REST,
+  ClientOpcode.TRAINER_RESPEC,
 ];
 
 const COMMON_KEYS = ["protocolVersion", "contentHash", "requestId"];
@@ -120,7 +126,7 @@ OPCODE_KEYS[ClientOpcode.EQUIP] = ["instanceId", "slot"];
 OPCODE_KEYS[ClientOpcode.QUEST_ACCEPT] = ["questId"];
 OPCODE_KEYS[ClientOpcode.QUEST_TURN_IN] = ["questId", "npcId"];
 OPCODE_KEYS[ClientOpcode.RESYNC_REQUEST] = [];
-OPCODE_KEYS[ClientOpcode.ALLOCATE_ATTRIBUTES] = ["attributeId", "amount"];
+OPCODE_KEYS[ClientOpcode.ALLOCATE_ATTRIBUTES] = ["attributeId", "statId", "amount"];
 OPCODE_KEYS[ClientOpcode.DESTROY_ITEM] = ["instanceId", "quantity"];
 OPCODE_KEYS[ClientOpcode.SPLIT_STACK] = ["instanceId", "quantity"];
 OPCODE_KEYS[ClientOpcode.MOVE_ITEM] = ["instanceId", "toSlotIndex"];
@@ -147,6 +153,8 @@ OPCODE_KEYS[ClientOpcode.RETURN_TO_CHARACTER_SELECT] = [];
 OPCODE_KEYS[ClientOpcode.SELECT_BRANCH] = ["branchId"];
 OPCODE_KEYS[ClientOpcode.SET_AUTO_ASSIGN] = ["enabled"];
 OPCODE_KEYS[ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS] = [];
+OPCODE_KEYS[ClientOpcode.ALLOCATE_ATTRIBUTES_BATCH] = ["allocations"];
+OPCODE_KEYS[ClientOpcode.TRAINER_RESPEC] = ["npcId"];
 
 const OUTCOME_KEYS = [
   "attack",
@@ -232,6 +240,7 @@ export interface ParsedClientMessage {
   slotIndex?: number;
   revision?: number;
   enabled?: boolean;
+  allocations?: Array<{ statId: string; amount: number }>;
 }
 
 export function isClientOpcode(opcode: number): opcode is ClientOpcode {
@@ -249,6 +258,7 @@ function requiresRequestId(opcode: ClientOpcode): boolean {
     opcode === ClientOpcode.ATTACK ||
     opcode === ClientOpcode.EQUIP ||
     opcode === ClientOpcode.ALLOCATE_ATTRIBUTES ||
+    opcode === ClientOpcode.ALLOCATE_ATTRIBUTES_BATCH ||
     opcode === ClientOpcode.DESTROY_ITEM ||
     opcode === ClientOpcode.SPLIT_STACK ||
     opcode === ClientOpcode.MOVE_ITEM ||
@@ -397,6 +407,15 @@ export function parseClientMessage(
     if (key === "mode" && opcode === ClientOpcode.INN_REST && !Object.prototype.hasOwnProperty.call(data, key)) {
       continue;
     }
+    if (key === "attributeId" && opcode === ClientOpcode.ALLOCATE_ATTRIBUTES && !Object.prototype.hasOwnProperty.call(data, key)) {
+      continue;
+    }
+    if (key === "statId" && opcode === ClientOpcode.ALLOCATE_ATTRIBUTES && !Object.prototype.hasOwnProperty.call(data, key)) {
+      continue;
+    }
+    if (key === "allocations") {
+      continue;
+    }
     if (typeof data[key] !== "string") {
       return { code: "invalid_id", message: "Field " + key + " must be a string id." };
     }
@@ -434,6 +453,20 @@ export function parseClientMessage(
       return { code: "invalid_amount", message: "Amount must be a finite integer." };
     }
     message.amount = amount;
+  }
+  if (opcode === ClientOpcode.ALLOCATE_ATTRIBUTES) {
+    const resolved = resolveAllocateStatId(data);
+    if (resolved.code !== undefined) {
+      return resolved;
+    }
+    message.fields.attributeId = resolved.statId;
+  }
+  if (opcode === ClientOpcode.ALLOCATE_ATTRIBUTES_BATCH) {
+    const parsedAllocations = parseAllocateBatch(data.allocations);
+    if (!Array.isArray(parsedAllocations)) {
+      return parsedAllocations;
+    }
+    message.allocations = parsedAllocations;
   }
   if (
     opcode === ClientOpcode.TRADE_SET_OFFER &&
@@ -513,6 +546,53 @@ export function parseClientMessage(
     message.enabled = data.enabled;
   }
   return message;
+}
+
+function resolveAllocateStatId(data: { [key: string]: unknown }): { statId: string; code?: undefined } | ProtocolError {
+  const attributeId = typeof data.attributeId === "string" ? data.attributeId : "";
+  const statId = typeof data.statId === "string" ? data.statId : "";
+  if (attributeId.length === 0 && statId.length === 0) {
+    return { code: "invalid_id", message: "ALLOCATE_ATTRIBUTES requires statId or attributeId." };
+  }
+  if (attributeId.length > 0 && statId.length > 0 && attributeId !== statId) {
+    return { code: "invalid_id", message: "statId and attributeId must match when both are present." };
+  }
+  return { statId: statId.length > 0 ? statId : attributeId };
+}
+
+function parseAllocateBatch(
+  raw: unknown,
+): Array<{ statId: string; amount: number }> | ProtocolError {
+  if (!Array.isArray(raw)) {
+    return { code: "invalid_id", message: "allocations must be an array." };
+  }
+  if (raw.length === 0 || raw.length > MAX_ALLOCATE_BATCH_ENTRIES) {
+    return { code: "invalid_amount", message: "allocations must contain 1 to 16 entries." };
+  }
+  const list: Array<{ statId: string; amount: number }> = [];
+  for (let i = 0; i < raw.length; i++) {
+    const item = raw[i];
+    if (item === null || typeof item !== "object" || Array.isArray(item)) {
+      return { code: "invalid_id", message: "Each allocation must be an object." };
+    }
+    const row = item as { [key: string]: unknown };
+    const keys = Object.keys(row);
+    for (let k = 0; k < keys.length; k++) {
+      if (keys[k] !== "statId" && keys[k] !== "attributeId" && keys[k] !== "amount") {
+        return { code: "unknown_field:" + keys[k], message: "Unknown field " + keys[k] + "." };
+      }
+    }
+    const resolved = resolveAllocateStatId(row);
+    if (resolved.code !== undefined) {
+      return resolved;
+    }
+    const amount = row.amount;
+    if (typeof amount !== "number" || !isFinite(amount) || amount !== Math.floor(amount)) {
+      return { code: "invalid_amount", message: "Amount must be a finite integer." };
+    }
+    list.push({ statId: resolved.statId, amount: amount });
+  }
+  return list;
 }
 
 export function isProtocolError(value: ParsedClientMessage | ProtocolError): value is ProtocolError {

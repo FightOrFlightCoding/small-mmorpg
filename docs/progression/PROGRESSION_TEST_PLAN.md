@@ -1,18 +1,18 @@
 # Progression test plan
 
-PROG-05 is accepted: the 1–10 XP curve, sequential level processing, automatic growth, free points, auto-assign, and milestones without talent spend or canonical combat. Existing Foundation/ACCT suites must keep passing. The PROG-01 design-source audit still runs.
+PROG-06 implements manual free-stat allocation and trainer respec. Talent spend and canonical combat remain later. Existing Foundation/ACCT suites must keep passing. The PROG-01 design-source audit still runs.
 
 Related: [TEST_CATALOG.md](../TEST_CATALOG.md), [CANONICAL_VALUE_CATALOG.md](CANONICAL_VALUE_CATALOG.md).
 
-## PROG-05 coverage
+## PROG-06 coverage
 
 | Command | Proves |
 | --- | --- |
-| `powershell -File scripts/test-progression-design.ps1` | Canonical markdown invariants + contract docs + live four-class snapshot (production curve overlay) |
-| `powershell -File scripts/test-server.ps1` | Same audit plus the accepted server domain suite, including `progression_xp_curve.test.ts` and `progression_timeline.test.ts` |
-| `powershell -File scripts/test-client.ps1` | GdUnit suite (opcodes 33–35, progression mirror) |
+| `powershell -File scripts/test-progression-design.ps1` | Canonical markdown invariants + contract docs + live four-class snapshot + PROG-07 go/no-go heading |
+| `powershell -File scripts/test-server.ps1` | Same audit plus the accepted server domain suite, including `progression_respec.test.ts` |
+| `powershell -File scripts/test-client.ps1` | GdUnit suite (opcodes 33–37, batch/respec intentions without gold/XP) |
 
-`server/tests/progression_design_audit.test.ts` remains the design-source audit. `server/tests/progression_xp_curve.test.ts` and `server/tests/progression_timeline.test.ts` cover PROG-05. Foundation XP assertions in `progression.test.ts` use `test.class.vanguard`.
+`server/tests/progression_design_audit.test.ts` remains the design-source audit. `server/tests/progression_xp_curve.test.ts` and `server/tests/progression_timeline.test.ts` cover PROG-05. `server/tests/progression_respec.test.ts` covers PROG-06. Foundation XP assertions in `progression.test.ts` use `test.class.vanguard`.
 
 ## Audit targets (design source — passing now)
 
@@ -53,7 +53,7 @@ These files are **named now**. They must not be treated as existing in PROG-01 e
 | `server/tests/progression_metronome.test.ts` | Arcane Bolt vs L10 regen |
 | `server/tests/progression_dps_audit.test.ts` | §12 ±5% |
 | `server/tests/progression_enemy_baselines.test.ts` | §13 mob/elite |
-| `server/tests/progression_respec.test.ts` | trainer gold 50×level |
+| `server/tests/progression_respec.test.ts` | eight-stat allocate, atomic batch, trainer gold 50×level, refunds, gold idempotency, reconnect |
 | `server/tests/ability.test.ts` | extend existing ability suite |
 | `server/tests/combat_pipeline.test.ts` | extend crit/haste/DoT/shield |
 | `server/tests/character_lifecycle.test.ts` | four classes including mystic |
@@ -63,9 +63,9 @@ These files are **named now**. They must not be treated as existing in PROG-01 e
 
 Existing tests that must not be weakened: `progression.test.ts`, `xp_hooks.test.ts`, `ability.test.ts`, `combat_pipeline.test.ts`, `character_lifecycle.test.ts`, `existing_save_cert.test.ts`, GdUnit progression/ability/character-select suites, Prompt 18 e2e.
 
-## Live snapshot (PROG-05)
+## Live snapshot (PROG-06)
 
-The audit asserts production `class.*` ids are warrior/marksman/mage/**mystic**, all `rosterSelectable: true`, `test.curve.standard` maxLevel 5 / XP sum 375, production overlay `curve.vibecode.l10` maxLevel 10, `HOTBAR_SIZE` 8, physical classes omit mana on `startingResources`, and canonical abilities have `runtimeEnabled: false`. Production-class **vitals** use canonical HP/mana formulas. Live ATTACK still uses Foundation numbers. Production KillXP and the L10 curve are live. [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md) owns every remaining gap.
+The audit asserts production `class.*` ids are warrior/marksman/mage/**mystic**, all `rosterSelectable: true`, `test.curve.standard` maxLevel 5 / XP sum 375, production overlay `curve.vibecode.l10` maxLevel 10, `HOTBAR_SIZE` 8, physical classes omit mana on `startingResources`, and canonical abilities have `runtimeEnabled: false`. Production-class **vitals** use canonical HP/mana formulas. Live ATTACK still uses Foundation numbers. Production KillXP, the L10 curve, free-stat allocation, and trainer respec are live. Talent spend is not. [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md) owns every remaining gap. C-respec is RESOLVED.
 
 ## Later named closures
 

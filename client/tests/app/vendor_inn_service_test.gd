@@ -56,3 +56,18 @@ func test_cave_enter_does_not_claim_a_transfer() -> void:
 	assert_str(String(payload.get("npcId", ""))).is_equal("npc.test_cave_portal")
 	assert_bool(payload.has("matchId")).is_false()
 	assert_bool(payload.has("zoneId")).is_false()
+
+
+func test_respec_sends_npc_id_without_gold_or_xp() -> void:
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	InnService.last_npc_id = "npc.test_innkeeper"
+	InnService.request_respec()
+	await get_tree().process_frame
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_TRAINER_RESPEC)
+	var payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_str(String(payload.get("npcId", ""))).is_equal("npc.test_innkeeper")
+	assert_bool(payload.has("gold")).is_false()
+	assert_bool(payload.has("xp")).is_false()
+	assert_bool(payload.has("level")).is_false()

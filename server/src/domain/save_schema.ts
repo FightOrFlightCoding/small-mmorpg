@@ -104,6 +104,7 @@ export const PROGRESSION_SAVE_KEYS = [
   "hotbarAssignments",
   "selectBranchByRequestId",
   "autoAssignByRequestId",
+  "respecByRequestId",
 ];
 
 export interface VersionDetection {

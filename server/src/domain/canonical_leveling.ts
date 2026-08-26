@@ -169,11 +169,47 @@ export function allocateFreeStat(
   if (!isCanonicalStatId(attributeId)) {
     return { ok: false, code: "unknown_attribute" };
   }
+  if (!(amount > 0) || amount !== Math.floor(amount) || !isFinite(amount)) {
+    return { ok: false, code: "invalid_amount" };
+  }
   const unspent = unspentFreeStatPoints(progression.freeStatAllocations, progression.level);
   if (amount > unspent) {
     return { ok: false, code: "insufficient_points" };
   }
   progression.freeStatAllocations[attributeId] = numberOr(progression.freeStatAllocations[attributeId], 0) + amount;
+  return { ok: true, code: "ok" };
+}
+
+export function allocateFreeStatBatch(
+  progression: CharacterProgression,
+  entries: ReadonlyArray<{ statId: string; amount: number }>,
+): { ok: boolean; code: string } {
+  if (entries.length === 0) {
+    return { ok: false, code: "invalid_amount" };
+  }
+  const merged: { [statId: string]: number } = {};
+  let total = 0;
+  for (let i = 0; i < entries.length; i++) {
+    const statId = entries[i].statId;
+    const amount = entries[i].amount;
+    if (!isCanonicalStatId(statId)) {
+      return { ok: false, code: "unknown_attribute" };
+    }
+    if (!(amount > 0) || amount !== Math.floor(amount) || !isFinite(amount)) {
+      return { ok: false, code: "invalid_amount" };
+    }
+    merged[statId] = numberOr(merged[statId], 0) + amount;
+    total += amount;
+  }
+  const unspent = unspentFreeStatPoints(progression.freeStatAllocations, progression.level);
+  if (total > unspent) {
+    return { ok: false, code: "insufficient_points" };
+  }
+  const ids = Object.keys(merged);
+  for (let i = 0; i < ids.length; i++) {
+    const statId = ids[i];
+    progression.freeStatAllocations[statId] = numberOr(progression.freeStatAllocations[statId], 0) + merged[statId];
+  }
   return { ok: true, code: "ok" };
 }
 

@@ -618,6 +618,30 @@ func send_allocate_attributes(attribute_id: String, amount: int, request_id: Str
 	)
 
 
+func send_allocate_attributes_batch(allocations: Array, request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_ALLOCATE_ATTRIBUTES_BATCH,
+		MatchProtocol.client_envelope_json({
+			"allocations": allocations,
+			"requestId": request_id,
+		})
+	)
+
+
+func send_trainer_respec(npc_id: String, request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_TRAINER_RESPEC,
+		MatchProtocol.client_envelope_json({
+			"npcId": npc_id,
+			"requestId": request_id,
+		})
+	)
+
+
 func send_select_branch(branch_id: String, request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}

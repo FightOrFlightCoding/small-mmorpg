@@ -9,6 +9,13 @@ export const XP_SOURCE_QUEST = "quest";
 export const XP_SOURCE_DEV = "dev";
 export const CANONICAL_HOTBAR_SIZE = 4;
 export const CANONICAL_AUTO_ASSIGN_DEFAULT = false;
+export const CANONICAL_RESPEC_GOLD_PER_LEVEL = 50;
+
+export function respecGoldCost(level: number): number {
+  const current = level > 0 && isFinite(level) ? Math.floor(level) : 1;
+  return CANONICAL_RESPEC_GOLD_PER_LEVEL * current;
+}
+
 export const RESOURCE_NONE = "resource.none";
 export const FRENZY_ABILITY_ID = "ability.warrior.frenzy";
 

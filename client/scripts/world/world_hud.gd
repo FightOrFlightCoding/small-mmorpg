@@ -400,9 +400,13 @@ func refresh_wallet() -> void:
 
 func refresh_progression() -> void:
 	if _progression_summary != null:
-		_progression_summary.text = "%s  Level %s" % [
+		var branch_hint := ""
+		if ProgressionService.pending_branch_selection:
+			branch_hint = "  Choose a branch"
+		_progression_summary.text = "%s  Level %s%s" % [
 			ProgressionService.class_display_name if not ProgressionService.class_display_name.is_empty() else "Class --",
 			str(ProgressionService.level),
+			branch_hint,
 		]
 	if _progression_xp != null:
 		if ProgressionService.at_max_level:
@@ -1927,7 +1931,7 @@ func _build_inn_panel() -> void:
 	_inn_panel.visible = false
 	_inn_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_inn_panel.offset_left = -140.0
-	_inn_panel.offset_top = -140.0
+	_inn_panel.offset_top = -180.0
 	_inn_panel.offset_right = 140.0
 	_inn_panel.offset_bottom = -16.0
 	var margin := MarginContainer.new()
@@ -1949,6 +1953,10 @@ func _build_inn_panel() -> void:
 	heal.text = "Heal"
 	heal.pressed.connect(func() -> void: InnService.request_heal())
 	vbox.add_child(heal)
+	var respec := Button.new()
+	respec.text = "Respec"
+	respec.pressed.connect(func() -> void: InnService.request_respec())
+	vbox.add_child(respec)
 	var close := Button.new()
 	close.text = "Close"
 	close.pressed.connect(_hide_inn)

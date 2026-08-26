@@ -120,7 +120,7 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 ### Rate-limit abuse
 
-**Attack:** Flood `INPUT`, `ATTACK`, `USE_ABILITY`, `CANCEL_CAST`, `SET_TARGET`, `INTERACT`, `PICKUP`, `EQUIP`, `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, quest opcodes, `VENDOR_BUY`, `VENDOR_SELL`, `INN_REST`, `CAVE_ENTER`, `CAVE_EXIT`, trade opcodes, `ALLOCATE_ATTRIBUTES`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, `RELEASE_RESPAWN`, or `RESYNC_REQUEST` faster than an honest client.
+**Attack:** Flood `INPUT`, `ATTACK`, `USE_ABILITY`, `CANCEL_CAST`, `SET_TARGET`, `INTERACT`, `PICKUP`, `EQUIP`, `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, quest opcodes, `VENDOR_BUY`, `VENDOR_SELL`, `INN_REST`, `CAVE_ENTER`, `CAVE_EXIT`, trade opcodes, `ALLOCATE_ATTRIBUTES`, `ALLOCATE_ATTRIBUTES_BATCH`, `TRAINER_RESPEC`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, `RELEASE_RESPAWN`, or `RESYNC_REQUEST` faster than an honest client.
 
 **Defense:** Match state stores per-user `actionRates` for a 10-tick window. Excess is `rate_limited`, logged, and not applied. Honest 10 Hz movement stays under the `INPUT` cap of 20/s.
 
@@ -148,7 +148,7 @@ Machine-readable copy: `server/src/domain/security_catalog.ts`. Every expected a
 | deleted_character_use | Select or join a soft-deleted slot | Soft-delete flags roster | select RPC | RPC | n/a | `character_deleted` | `character_lifecycle.test.ts` |
 | xp_injection | Client sends xp/level/currentXp | Outcome keys rejected; grants only trusted events | allocate 8/10 ticks | 2048 | XP `eventId` unique | `stat_injection:xp` | `progression.test.ts`, `protocol.test.ts`, `xp_hooks.test.ts`, `security.test.ts` |
 | level_injection | Client sets level | No client level field | allocate 8/10 ticks | 2048 | n/a | `stat_injection:level` | `progression.test.ts`, `protocol.test.ts` |
-| attribute_overspending | Spend more points than unspent | Server pool check | allocate 8/10 ticks | 2048 | `requestId` replay | `insufficient_points` / `invalid_amount` | `progression.test.ts` |
+| attribute_overspending | Spend more points than unspent | Server pool check | allocate 8/10 ticks | 2048 | `requestId` replay | `insufficient_points` / `invalid_amount` | `progression.test.ts`, `progression_respec.test.ts` |
 | skill_point_overspending | Unlock with too few skill points | `unlockAbility` cost check | allocate 8/10 ticks | 2048 | `requestId` replay | `insufficient_points` | `ability.test.ts`, `security.test.ts` |
 | ability_unlock_bypass | Use or hotbar a locked ability | Server unlock list | attack/allocate 8/10 ticks | 2048 | n/a | `ability_locked` | `ability.test.ts`, `protocol.test.ts` |
 | position_spoofing | Send x/y as movement | `INPUT` is axes+seq only | input 20/10 ticks | 2048 | stale seq ignored | `stat_injection:x` | `security.test.ts`, `protocol.test.ts`, `movement.test.ts` |
@@ -169,6 +169,7 @@ Machine-readable copy: `server/src/domain/security_catalog.ts`. Every expected a
 | negative_gold | Negative gold offer or wallet | Finite amount >= 0; wallet clamps | trade/vendor 8/10 ticks | 2048 | txn `requestId` | `invalid_amount` / `insufficient_gold` | `transaction.test.ts`, `trade.test.ts`, `security.test.ts` |
 | vendor_price_spoofing | Client price/gold on buy/sell | `price` unknown; `gold` injection | vendor 8/10 ticks | 2048 | `requestId` | `unknown_field:price` / `stat_injection:gold` | `vendor.test.ts`, `protocol.test.ts` |
 | locked_item_mutation | Equip/destroy/sell a locked stack | `lockReason` checked | equip/inventory/vendor | 2048 | n/a | `item_locked` | `equipment.test.ts`, `trade.test.ts`, `vendor.test.ts` |
+| respec_gold_replay | Replay trainer respec to double-charge gold | `TX_REASON_RESPEC` + `respecByRequestId` | allocate 8/10 ticks | 2048 | `requestId` | replay ok; gold deducted once | `progression_respec.test.ts` |
 | transaction_replay | Replay `requestId` on gold/item txn | Transaction `requestId` map | vendor/quest 8/10 ticks | 2048 | `requestId` | replay ok; no second mutate | `transaction.test.ts`, `vendor.test.ts` |
 | forged_membership | Send members/creditUserIds | `stat_injection`; server party record | party RPC 8/2s | RPC | n/a | `stat_injection:members` | `party.test.ts`, `protocol.test.ts` |
 | party_over_capacity | Sixth member | `MAX_PARTY_SIZE` 5 | party RPC 8/2s | RPC | n/a | `party_full` | `party.test.ts` |

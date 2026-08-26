@@ -53,7 +53,8 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `ability.ts` | S | Ability use, casts, cooldowns, unlock, hotbar, ATTACK wrapper | match casts/cooldowns; progression unlocks/hotbar | none | effects, combat_pipeline, stats | serialize via progression | USE_ABILITY / CANCEL_CAST / ASSIGN_HOTBAR / UNLOCK_ABILITY | no |
 | `effects.ts` | S | Structured effect handlers (damage, heal, resource, modifier, periodic, stun, root) | match effect lists | none | combat_pipeline, stats | no | COMBAT_EVENT | no |
 | `stats.ts` | S | Deterministic derived-stat pipeline | none | none | equipment modifiers | no | no | no |
-| `progression.ts` / `progression_store.ts` (domain) | S | XP, levels, allocation, serialize progression | none | none | stats.ts | serialize only | no | no |
+| `progression.ts` / `progression_store.ts` (domain) | S | XP, levels, single/batch free-stat allocation, trainer respec apply, serialize progression | none | none | stats.ts, canonical_respec.ts | serialize only | ALLOCATE_ATTRIBUTES / ALLOCATE_ATTRIBUTES_BATCH / TRAINER_RESPEC via loop | no |
+| `canonical_respec.ts` | S | Trainer range/service gate, refund/clear, hotbar cleanup, respec audit metadata | none | none | npc.ts, interaction.ts, canonical_leveling.ts | no | via loop | no |
 | `progression_design_audit.ts` | S (tests only) | Parse canonical design markdown; catalog IDs. Not a second progression implementation. Do not import from the match runtime. | none | none | none | no | no | no |
 | `xp_hooks.ts` | S | Trusted XP grant interface from kill/quest events | none | none | progression.ts via match loop | no | no | no |
 | `interaction.ts` | S | NPC existence, zone, per-NPC range, optional service gate | none | none | none | no | INTERACTION_RESULT | no |

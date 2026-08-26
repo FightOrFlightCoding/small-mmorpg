@@ -36,7 +36,7 @@ import { applyVendorBuy, applyVendorSell, type VendorTradeOutcome } from "./vend
 import { applyCaveEnter, applyInnRest } from "./inn";
 import { applyCaveWipeIfNeeded, markCaveBossDefeated, evaluateCaveExit, type CaveTransferIntent } from "./cave";
 import { TRANSFER_TICKET_TTL_MS } from "./instance";
-import { TX_REASON_INN, TX_REASON_VENDOR, type TransactionCommitter } from "./transaction";
+import { TX_REASON_INN, TX_REASON_RESPEC, TX_REASON_VENDOR, type TransactionCommitter } from "./transaction";
 import { type TradeCommitter, type TradeRecord } from "./trade";
 import { cancelTradesForUser, handleTradeMessage, isTradeOpcode, recoverCommittingTrades, spendableGold, tickTrades } from "./match_trade";
 import {
@@ -83,7 +83,9 @@ import { defaultGroupCreditRules } from "./party";
 import { dict } from "./maps";
 import {
   allocateAttributes,
+  allocateAttributesBatch,
   applyQuestRewardProgression,
+  applyTrainerRespec,
   autoAssignUnspentPoints,
   cloneProgression,
   grantXp,
@@ -95,6 +97,7 @@ import {
 } from "./progression";
 import { canonicalKillXpAmount, enemyIsElite, XP_SOURCE_ELITE_KILL } from "./canonical_progression";
 import { usesCanonicalLeveling } from "./canonical_leveling";
+import { evaluateTrainerNpc, respecAuditMetadata } from "./canonical_respec";
 import {
   collectPositionCheckpoints,
   expireDisconnected,
@@ -366,6 +369,9 @@ export function applyMatchLoop(
   const progressionIds = Object.keys(persistProgressionByUser);
   for (let p = 0; p < progressionIds.length; p++) {
     const userId = progressionIds[p];
+    if (skipStorageUsers[userId] === true) {
+      continue;
+    }
     persistProgression.push({
       userId: userId,
       characterId: characterIdOf(next, userId),
@@ -673,6 +679,14 @@ function handleValidated(
   }
   if (parsed.opcode === ClientOpcode.ALLOCATE_ATTRIBUTES) {
     handleAllocate(parsed, userId, state, tick, outbound, persistProgressionByUser);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.ALLOCATE_ATTRIBUTES_BATCH) {
+    handleAllocateBatch(parsed, userId, state, tick, outbound, persistProgressionByUser);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.TRAINER_RESPEC) {
+    handleTrainerRespec(parsed, userId, state, tick, outbound, persistProgressionByUser, skipStorageUsers, commitTxn);
     return;
   }
   if (parsed.opcode === ClientOpcode.SELECT_BRANCH) {
@@ -2196,6 +2210,12 @@ function handleAllocate(
     outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
     return;
   }
+  const restricted = evaluateSafeLeave(player, state);
+  if (!restricted.ok) {
+    const blocked = actionResult(restricted.code, false, parsed.requestId);
+    outbound.push({ opcode: blocked.opcode, body: blocked.body, toUserId: userId });
+    return;
+  }
   const outcome = allocateAttributes(player.progression, state.progressionCatalog, {
     requestId: parsed.requestId as string,
     attributeId: parsed.fields.attributeId,
@@ -2213,6 +2233,155 @@ function handleAllocate(
   if (outcome.ok) {
     pushProgressionState(state, userId, outbound, parsed.requestId);
   }
+}
+
+function handleAllocateBatch(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  tick: number,
+  outbound: MatchOutbound[],
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
+): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  if (player.progression === undefined || state.progressionCatalog === undefined || player.classId === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  const restricted = evaluateSafeLeave(player, state);
+  if (!restricted.ok) {
+    const blocked = actionResult(restricted.code, false, parsed.requestId);
+    outbound.push({ opcode: blocked.opcode, body: blocked.body, toUserId: userId });
+    return;
+  }
+  const outcome = allocateAttributesBatch(player.progression, state.progressionCatalog, {
+    requestId: parsed.requestId as string,
+    allocations: parsed.allocations !== undefined ? parsed.allocations : [],
+    classId: player.classId,
+    tick: tick,
+  });
+  player.progression = outcome.progression;
+  if (outcome.changed) {
+    persistProgressionByUser[userId] = cloneProgression(player.progression);
+    refreshPlayerDerived(state, userId);
+  }
+  const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  if (outcome.ok) {
+    pushProgressionState(state, userId, outbound, parsed.requestId);
+  }
+}
+
+function handleTrainerRespec(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  tick: number,
+  outbound: MatchOutbound[],
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
+  skipStorageUsers: { [userId: string]: boolean },
+  commitTxn?: TransactionCommitter,
+): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  if (player.progression === undefined || state.progressionCatalog === undefined || player.classId === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  const requestId = parsed.requestId as string;
+  const restricted = evaluateSafeLeave(player, state);
+  if (!restricted.ok) {
+    const blocked = actionResult(restricted.code, false, requestId);
+    outbound.push({ opcode: blocked.opcode, body: blocked.body, toUserId: userId });
+    return;
+  }
+  const trainer = evaluateTrainerNpc({
+    playerX: player.x,
+    playerY: player.y,
+    npcId: parsed.fields.npcId,
+    npcs: state.npcs,
+    interactionRange: state.interactionRange,
+    npcById: npcCatalog(state),
+  });
+  if (!trainer.ok) {
+    const failed = actionResult(trainer.code, false, requestId);
+    outbound.push({ opcode: failed.opcode, body: failed.body, toUserId: userId });
+    return;
+  }
+  const outcome = applyTrainerRespec(player.progression, state.progressionCatalog, {
+    requestId: requestId,
+    trainerId: parsed.fields.npcId,
+    characterId: player.characterId !== undefined ? player.characterId : "",
+    classId: player.classId,
+    timestamp: tick,
+  });
+  if (!outcome.ok) {
+    player.progression = outcome.progression;
+    if (outcome.changed) {
+      persistProgressionByUser[userId] = cloneProgression(player.progression);
+    }
+    const failed = actionResult(outcome.code, false, requestId);
+    outbound.push({ opcode: failed.opcode, body: failed.body, toUserId: userId });
+    return;
+  }
+  if (outcome.replay) {
+    const result = actionResult(outcome.code, true, requestId);
+    outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+    const wallet = walletState(state.contentHash, player.gold !== undefined ? player.gold : 0, requestId);
+    outbound.push({ opcode: wallet.opcode, body: wallet.body, toUserId: userId });
+    pushProgressionState(state, userId, outbound, requestId);
+    pushAbilityState(state, userId, outbound, tick, requestId);
+    return;
+  }
+  const gold = player.gold !== undefined ? player.gold : 0;
+  if (gold < outcome.goldCost) {
+    const poor = actionResult("insufficient_gold", false, requestId);
+    outbound.push({ opcode: poor.opcode, body: poor.body, toUserId: userId });
+    return;
+  }
+  if (commitTxn !== undefined) {
+    const committed = commitTxn({
+      requestId: requestId,
+      characterId: player.characterId !== undefined ? player.characterId : "",
+      userId: userId,
+      reasonType: TX_REASON_RESPEC,
+      reasonId: parsed.fields.npcId,
+      goldDelta: -outcome.goldCost,
+      currentGold: gold,
+      progression: outcome.progression,
+      metadata: respecAuditMetadata(outcome.snapshot),
+    });
+    if (!committed.ok) {
+      const persistFailed = actionResult(committed.code, false, requestId);
+      outbound.push({ opcode: persistFailed.opcode, body: persistFailed.body, toUserId: userId });
+      return;
+    }
+    player.gold = committed.gold;
+    player.progression = outcome.progression;
+    skipStorageUsers[userId] = true;
+  } else {
+    player.gold = gold - outcome.goldCost;
+    player.progression = outcome.progression;
+    persistProgressionByUser[userId] = cloneProgression(player.progression);
+  }
+  refreshPlayerDerived(state, userId);
+  const result = actionResult(outcome.code, true, requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  const wallet = walletState(state.contentHash, player.gold !== undefined ? player.gold : 0, requestId);
+  outbound.push({ opcode: wallet.opcode, body: wallet.body, toUserId: userId });
+  pushProgressionState(state, userId, outbound, requestId);
+  pushAbilityState(state, userId, outbound, tick, requestId);
 }
 
 function handleSelectBranch(

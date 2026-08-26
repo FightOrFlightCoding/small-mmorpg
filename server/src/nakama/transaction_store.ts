@@ -1,9 +1,11 @@
 import { buildInventoryWrite } from "./inventory_store";
 import { buildQuestWrite } from "./quest_store";
 import { buildEquipmentWrite } from "./equipment_store";
+import { buildProgressionWrite } from "./progression_store";
 import { INVENTORY_COLLECTION, INVENTORY_KEY } from "../domain/inventory_store";
 import { QUEST_COLLECTION, QUEST_KEY, storedQuestFromValue } from "../domain/quest_store";
 import { EQUIPMENT_COLLECTION, EQUIPMENT_KEY } from "../domain/equipment_store";
+import { PROGRESSION_COLLECTION, PROGRESSION_KEY } from "../domain/progression_store";
 import { QUEST_STATUS_COMPLETED } from "../domain/quest";
 import { goldFromWallet } from "../domain/wallet";
 import { storageKey } from "../domain/storage_scope";
@@ -49,6 +51,7 @@ export function commitTransaction(nk: nkruntime.Nakama, request: TransactionWrit
   const questKey = request.questLog !== undefined ? storageKey(QUEST_KEY, characterId) : "";
   const inventoryKey = request.inventory !== undefined ? storageKey(INVENTORY_KEY, characterId) : "";
   const equipmentKey = request.equipment !== undefined ? storageKey(EQUIPMENT_KEY, characterId) : "";
+  const progressionKey = request.progression !== undefined ? storageKey(PROGRESSION_KEY, characterId) : "";
   for (let attempt = 0; attempt < MAX_TRANSACTION_RETRIES; attempt++) {
     const reads: nkruntime.StorageReadRequest[] = [];
     if (request.questLog !== undefined) {
@@ -60,10 +63,14 @@ export function commitTransaction(nk: nkruntime.Nakama, request: TransactionWrit
     if (request.equipment !== undefined) {
       reads.push({ collection: EQUIPMENT_COLLECTION, key: equipmentKey, userId: request.userId });
     }
+    if (request.progression !== undefined) {
+      reads.push({ collection: PROGRESSION_COLLECTION, key: progressionKey, userId: request.userId });
+    }
     const objects = reads.length > 0 ? nk.storageRead(reads) : [];
     let questVersion: string | undefined;
     let inventoryVersion: string | undefined;
     let equipmentVersion: string | undefined;
+    let progressionVersion: string | undefined;
     let storedLog = request.questLog !== undefined ? storedQuestFromValue(null) : null;
     for (let i = 0; i < objects.length; i++) {
       const object = objects[i];
@@ -77,12 +84,16 @@ export function commitTransaction(nk: nkruntime.Nakama, request: TransactionWrit
       if (request.equipment !== undefined && object.collection === EQUIPMENT_COLLECTION && object.key === equipmentKey) {
         equipmentVersion = object.version;
       }
+      if (request.progression !== undefined && object.collection === PROGRESSION_COLLECTION && object.key === progressionKey) {
+        progressionVersion = object.version;
+      }
     }
     request.currentGold = readGold(nk, request.userId);
     request.currentVersions = {
       inventory: inventoryVersion,
       equipment: equipmentVersion,
       quests: questVersion,
+      progression: progressionVersion,
     };
     if (request.reasonType === TX_REASON_QUEST_REWARD && storedLog !== null) {
       const prior = storedLog.turnInByRequestId[request.requestId];
@@ -145,6 +156,9 @@ export function commitTransaction(nk: nkruntime.Nakama, request: TransactionWrit
     }
     if (request.equipment !== undefined) {
       writes.push(buildEquipmentWrite(request.userId, request.equipment, equipmentVersion, characterId));
+    }
+    if (request.progression !== undefined) {
+      writes.push(buildProgressionWrite(request.userId, request.progression, progressionVersion, characterId));
     }
     const wallets: nkruntime.WalletUpdate[] = [];
     if (request.goldDelta !== 0) {

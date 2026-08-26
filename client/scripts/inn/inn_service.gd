@@ -42,6 +42,12 @@ func request_heal() -> void:
 	NetworkService.send_inn_rest(last_npc_id, "healer")
 
 
+func request_respec() -> void:
+	if last_npc_id.is_empty():
+		return
+	ProgressionService.request_respec(last_npc_id)
+
+
 func _on_interaction_result(payload: Dictionary) -> void:
 	if not bool(payload.get("result_ok", false)):
 		return
@@ -49,5 +55,5 @@ func _on_interaction_result(payload: Dictionary) -> void:
 	if npc_id.is_empty():
 		return
 	var services: Array = payload.get("services", [])
-	if services.has("inn") or services.has("healer"):
+	if services.has("inn") or services.has("healer") or services.has("respec"):
 		last_npc_id = npc_id

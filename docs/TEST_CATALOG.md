@@ -81,6 +81,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `progression_l10_sheet.test.ts` | §6.3 auto-growth reference sheet for all four classes | |
 | `progression_xp_curve.test.ts` | L10 XP transitions, 11100 total, KillXP, elite XP, production curve overlay | |
 | `progression_timeline.test.ts` | multi-level, duplicate event, cap overflow, growth, free points, auto-assign, pending branch, L10 without branch, storage round-trip, character-select level | |
+| `progression_respec.test.ts` | eight-stat allocate, batch atomicity, overspend/unknown/neg/zero/duplicate, no caps, trainer respec cost 50×level, gold idempotency, combat/trade/range rejection, hotbar/branch cleanup, derived recalc, reconnect persist | |
 | `gameplay_lease.test.ts` | exclusive acquire, concurrent second acquire, two sessions, second character blocked, ENTERING timeout, stale missing match, link-dead timestamps, no movement, despawn boundary, emptyTicks after expire, Nakama ping/pong detection window, safe leave, combat reject, join reject, catalog countdown, Play disabled, entry after release, no duplicate snapshot avatars | |
 | `starter_zone_registry.test.ts` | canonical match id | |
 | `persistence.test.ts` | checkpoints, link-dead avatar, no session rebind, seq reset, Nakama null maps/extras on tick 0 | VS-M5 automated analog |

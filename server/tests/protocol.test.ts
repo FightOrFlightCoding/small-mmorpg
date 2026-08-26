@@ -53,6 +53,8 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ClientOpcode.SELECT_BRANCH, 33);
   assert.equal(ClientOpcode.SET_AUTO_ASSIGN, 34);
   assert.equal(ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS, 35);
+  assert.equal(ClientOpcode.ALLOCATE_ATTRIBUTES_BATCH, 36);
+  assert.equal(ClientOpcode.TRAINER_RESPEC, 37);
   assert.equal(ServerOpcode.FULL_STATE, 101);
   assert.equal(ServerOpcode.SNAPSHOT, 102);
   assert.equal(ServerOpcode.ACTION_RESULT, 103);
@@ -695,5 +697,77 @@ test("select branch and auto-assign opcodes parse intentions and reject xp injec
   assert.equal(isProtocolError(injected), true);
   if (isProtocolError(injected)) {
     assert.equal(injected.code, "stat_injection:unspentFreeStatPoints");
+  }
+});
+
+test("allocate batch and trainer respec parse intentions and reject xp injection", () => {
+  const statAlias = parse(
+    ClientOpcode.ALLOCATE_ATTRIBUTES,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      statId: "stat.intelligence",
+      amount: 2,
+      requestId: "req-stat-alias1",
+    }),
+  );
+  assert.equal(isProtocolError(statAlias), false);
+  if (!isProtocolError(statAlias)) {
+    assert.equal(statAlias.fields.attributeId, "stat.intelligence");
+    assert.equal(statAlias.amount, 2);
+  }
+  const batch = parse(
+    ClientOpcode.ALLOCATE_ATTRIBUTES_BATCH,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      allocations: [
+        { statId: "stat.strength", amount: 2 },
+        { attributeId: "stat.intelligence", amount: 1 },
+      ],
+      requestId: "req-batch-ok01",
+    }),
+  );
+  assert.equal(isProtocolError(batch), false);
+  if (!isProtocolError(batch)) {
+    assert.equal(batch.allocations !== undefined ? batch.allocations.length : 0, 2);
+    assert.equal(batch.allocations !== undefined ? batch.allocations[0].statId : "", "stat.strength");
+    assert.equal(batch.allocations !== undefined ? batch.allocations[1].amount : 0, 1);
+  }
+  const injected = parse(
+    ClientOpcode.ALLOCATE_ATTRIBUTES_BATCH,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      allocations: [{ statId: "stat.strength", amount: 1 }],
+      requestId: "req-batch-xp01",
+      xp: 999,
+    }),
+  );
+  assert.equal(isProtocolError(injected), true);
+  if (isProtocolError(injected)) {
+    assert.equal(injected.code, "stat_injection:xp");
+  }
+  const respec = parse(
+    ClientOpcode.TRAINER_RESPEC,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      npcId: "npc.test_innkeeper",
+      requestId: "req-respec-ok1",
+    }),
+  );
+  assert.equal(isProtocolError(respec), false);
+  if (!isProtocolError(respec)) {
+    assert.equal(respec.fields.npcId, "npc.test_innkeeper");
+  }
+  const respecGold = parse(
+    ClientOpcode.TRAINER_RESPEC,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      npcId: "npc.test_innkeeper",
+      requestId: "req-respec-gld1",
+      gold: 0,
+    }),
+  );
+  assert.equal(isProtocolError(respecGold), true);
+  if (isProtocolError(respecGold)) {
+    assert.equal(respecGold.code, "stat_injection:gold");
   }
 });

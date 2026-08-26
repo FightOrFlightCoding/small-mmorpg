@@ -103,6 +103,11 @@ export interface BranchContent {
   capstoneAbilityId: string;
 }
 
+export interface TalentGrantContent {
+  grantsActiveAbilityId?: string;
+  rankReplacementAbilityId?: string;
+}
+
 export interface ProgressionCatalog {
   classes: { [id: string]: ClassContent };
   attributes: { [id: string]: AttributeContent };
@@ -111,6 +116,7 @@ export interface ProgressionCatalog {
   levelCurves: { [id: string]: LevelCurveContent };
   classProgressions: { [id: string]: ClassProgressionContent };
   branches: { [id: string]: BranchContent };
+  talentGrants: { [nodeId: string]: TalentGrantContent };
 }
 
 export interface StatContext {
@@ -164,6 +170,7 @@ export function catalogFromContent(content: {
   levelCurves: { [id: string]: LevelCurveContent };
   classProgressions: { [id: string]: ClassProgressionContent };
   branches?: { [id: string]: BranchContent };
+  talentNodes?: { [id: string]: unknown };
 }): ProgressionCatalog {
   return {
     classes: copyClassMap(content.classes),
@@ -173,6 +180,7 @@ export function catalogFromContent(content: {
     levelCurves: copyCurveMap(content.levelCurves),
     classProgressions: copyProgressionMap(content.classProgressions),
     branches: copyBranchMap(content.branches),
+    talentGrants: copyTalentGrants(content.talentNodes),
   };
 }
 
@@ -854,6 +862,36 @@ function copyBranchMap(input: { [id: string]: BranchContent } | undefined): { [i
       signatureAbilityId: def.signatureAbilityId !== undefined ? def.signatureAbilityId : "",
       capstoneAbilityId: def.capstoneAbilityId !== undefined ? def.capstoneAbilityId : "",
     };
+  }
+  return out;
+}
+
+function copyTalentGrants(input: { [id: string]: unknown } | undefined): { [nodeId: string]: TalentGrantContent } {
+  const out: { [nodeId: string]: TalentGrantContent } = {};
+  if (input === undefined) {
+    return out;
+  }
+  const ids = Object.keys(input);
+  for (let i = 0; i < ids.length; i++) {
+    const raw = input[ids[i]];
+    if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+      continue;
+    }
+    const def = raw as { grantsActiveAbilityId?: unknown; rankReplacement?: { abilityId?: unknown } };
+    const grant: TalentGrantContent = {};
+    if (typeof def.grantsActiveAbilityId === "string" && def.grantsActiveAbilityId.length > 0) {
+      grant.grantsActiveAbilityId = def.grantsActiveAbilityId;
+    }
+    if (
+      def.rankReplacement !== undefined &&
+      typeof def.rankReplacement.abilityId === "string" &&
+      def.rankReplacement.abilityId.length > 0
+    ) {
+      grant.rankReplacementAbilityId = def.rankReplacement.abilityId;
+    }
+    if (grant.grantsActiveAbilityId !== undefined || grant.rankReplacementAbilityId !== undefined) {
+      out[ids[i]] = grant;
+    }
   }
   return out;
 }

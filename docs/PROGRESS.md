@@ -1,10 +1,10 @@
 # Progress
 
-Last accepted phase: **PROG-05 — XP Curve, Automatic Growth, Level Milestones, and Auto-Assignment**.
+Last accepted phase: **PROG-06 — Manual Stat Allocation and Full Trainer Respec**.
 
 Current phase: none.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
 
@@ -1107,6 +1107,36 @@ Client/server generated catalogs share content hash `3b57502b4a197972c970420cd7b
 | Client GdUnit | 278/278, 0 orphans, `SHELL_LOGIN` |
 
 Limitations: Talent spend, one production hotbar, and canonical combat remain later PROG phases. Live ATTACK is not retuned onto STR/AGI/INT. Geometry omitted by the design is ledgered in [design/progression-implementation-addendum.md](design/progression-implementation-addendum.md). Manual Prompt 18 world play was not re-run; live village/slime combat behavior was not changed.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/content.ps1 validate
+powershell -File scripts/test-content.ps1
+powershell -File scripts/content-build.ps1
+powershell -File scripts/test-progression-design.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+```
+
+## PROG-06 manual stat allocation and full trainer respec (2026-08-26)
+
+Production `class.*` characters spend unspent free points through opcode 9 (`statId` or `attributeId`, positive integer `amount`, `requestId`) and opcode 36 (confirmed batch, 1–16 entries, validated then applied atomically). All eight `stat.*` ids are legal. There is no per-stat cap and no class restriction. The match rejects allocate while a forbidden transaction is active. Test classes keep Foundation `allowedAttributeIds` and the 100-per-request cap.
+
+Trainer respec is opcode 37 (`npcId`, `requestId`) on a generic NPC with overlay service `respec` (`npc.test_innkeeper`; `npc.lab_trainer` when that development NPC is in the catalog). Authored NPC documents were not rebuilt; content hash is unchanged. Cost is canonical `50 × current_level` gold. Dead, combat, casting, trading, transferring, link-dead, other restricted transactions, out-of-range, missing trainer service, and insufficient gold reject the action. Gold and the progression blob persist together as `TX_REASON_RESPEC`. Repeated `requestId` values do not deduct twice.
+
+A successful respec clears free allocations, class-node purchases, branch ranks, branch choice, signature/capstone/buyable-active/branch-passive ownership, and invalid hotbar slots. Earned free/class/branch points refund by calculation. Class, level, XP, automatic growth, the level-2 basic skill, equipment, and inventory stay. Derived statistics are recalculated. Level 5+ without a branch keeps persistent pending-branch guidance. Talent spend remains PROG-07. Canonical `ability.*` stay `runtimeEnabled: false`. Prompt 18 village/slime combat behavior is unchanged.
+
+| Gate | Result |
+| --- | --- |
+| Content-build tests | 25/25 (`scripts/test-content.ps1`); hash `3b57502b4a197972c970420cd7b2a5a74955311b5840be0b4d184843c24e3320` |
+| Design audit | 10/10 (`scripts/test-progression-design.ps1`) |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (29 RPCs, 34 storage records, 37 client opcodes) |
+| Server hermetic | 607 passed, 13 skipped (live suites off); `tsc` via server test script |
+| Client GdUnit | 279/279, 0 orphans, `SHELL_LOGIN` |
+
+Limitations: Talent spend, one production hotbar, and canonical combat remain later PROG phases. Live ATTACK is not retuned onto STR/AGI/INT. `npc.lab_trainer` is development-only and omitted from the production catalog; the starter-zone trainer is the innkeeper overlay. Manual Prompt 18 world play was not re-run; live village/slime combat behavior was not changed.
 
 Reproduction:
 
