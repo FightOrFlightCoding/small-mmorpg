@@ -1,6 +1,6 @@
 # Progression architecture (PROG-01)
 
-Documentation-only contract through PROG-01. PROG-02 adds canonical content JSON and generated bundles without enabling new player-visible combat. PROG-03 adds four-class creation and the canonical progression record without enabling level gains or talent spend.
+Documentation-only contract through PROG-01. PROG-02 adds canonical content JSON and generated bundles without enabling new player-visible combat. PROG-03 adds four-class creation and the canonical progression record without enabling level gains or talent spend. PROG-04 adds canonical derived statistics, resource asymmetry, and the modifier engine without enabling level gains or talent spend.
 
 Canonical numbers: [rpg-progression-design-v1.0.md](../design/rpg-progression-design-v1.0.md).  
 Readings: [progression-interpretations.md](../design/progression-interpretations.md).  
@@ -8,15 +8,15 @@ Undocumented implementation numbers: [progression-implementation-addendum.md](..
 
 ## Last accepted phase and ownership
 
-Last accepted phase: **PROG-03** (four-class creation and progression-state migration). Foundation v1 / Prompt 35 / ACCT-09 remain accepted. Prompt 18 village/slime behavior remains frozen.
+Last accepted phase: **PROG-04** (canonical statistics, derived values, and resource engine). Later PROG phases still own level gains, talent spend, and canonical combat. Foundation v1 / Prompt 35 / ACCT-09 remain accepted. Prompt 18 village/slime behavior remains frozen.
 
-PROG-03 extends character create/list and the existing progression blob. It does **not** replace the accepted ability, effect, hotbar, or statistics combat systems. Later phases extend the owners below.
+PROG-04 overlays canonical derived statistics on production `class.*` characters. Canonical melee/ranged/spell/curse/heal/shield functions exist and are tested independently. Live ATTACK, the live XP curve, and canonical `ability.*` remain later-phase work. Owned gaps: [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md).
 
 | Concern | Owner | Extend, do not duplicate |
 | --- | --- | --- |
 | Class lookup / create | `class_catalog.ts`, `character_lifecycle.ts`, `character.gd` | Production `class.*` documents |
 | Level, XP, allocation | `progression.ts`, `progression_store.ts`, `ProgressionService` | Same records and opcodes |
-| Derived stats | `stats.ts`, content `derived_stat` / `attribute` / `resource` | New 8-stat formulas in content + evaluator |
+| Derived stats | `stats.ts`, `canonical_stats.ts`, content `derived_stat` / `attribute` / `resource` | Canonical formulas overlay production classes; test classes keep Foundation layers |
 | XP grants | `xp_hooks.ts`, enemy `xpReward`, quest `rewards.xp` | KillXP formula later |
 | Abilities, casts, hotbar | `ability.ts`, `AbilityService`, content `ability` | New skills/talents as content |
 | Effects, DoTs, shields | `effects.ts`, `combat_pipeline.ts` | Haste snapshot, no DoT crit |
@@ -45,13 +45,13 @@ Point balances and granted design abilities must be reproducible from class, bra
 
 Live Foundation fields remain on the same blob. See [PROGRESSION_STORAGE_CATALOG.md](PROGRESSION_STORAGE_CATALOG.md) and [PROGRESSION_MIGRATION_PLAN.md](PROGRESSION_MIGRATION_PLAN.md).
 
-## Invariants (later implementation)
+## Invariants (PROG-04 statistics)
 
-Level cap 10. Each level after 1 grants +6 automatic and +3 free (automatic is double free). No stat caps. Warrior/Marksman have no mana. Mage/Mystic use mana. Haste never reduces cooldowns. DoTs never crit and preserve total damage when tick interval changes. Basics at 2, class points at 3–4, branch+signature at 5, branch points 5–10, capstone at 10, Tier 3 not before 9, at most one buyable tree active, auto-attack separate from the 4-slot active hotbar, every reward/point operation idempotent.
+No stat caps. Warrior/Marksman have no mana. Mage/Mystic use mana. Haste never reduces stored cooldown duration. DoTs never crit and preserve total damage when tick interval changes. Calculated derived values are not persisted as authority.
 
-## Combat timing (later)
+## Combat timing (PROG-04)
 
-Server delta time and tick progression. Haste affects auto-attack interval, cast time, channel time, and base DoT tick interval. Cooldown recovery advances `cooldown_progress += delta * cooldown_recovery_rate` without shrinking stored cooldown. Mana is float, regen continuous, spend at cast start, interrupted casts do not refund unless content says so. Capstones cost 0 mana.
+Server delta time and tick progression. Haste affects auto-attack interval, cast time, channel time, and base DoT tick interval. Cooldown recovery still uses stored remaining ticks without haste. Mana is float, regen continuous (`min(max, current + regen * delta)`), spend at cast start, interrupted casts do not refund unless content says so. Capstones cost 0 mana (content). Cooldown-recovery-rate talents remain later.
 
 ## PvP
 
@@ -60,3 +60,14 @@ Remains disabled.
 ## Dependencies
 
 No progression, skill-tree, RPG-statistics, cooldown, or ability plugin. No new npm/Godot packages in PROG-01.
+
+## Later PROG phases
+
+| Phases | Owns |
+| --- | --- |
+| PROG-05–07 | Leveling, allocation, branches, trees, ownership, one production hotbar |
+| PROG-08 | Canonical combat mechanics; no production global cooldown |
+| PROG-09–12 | Every class and branch, including auto-attacks |
+| PROG-13 | Complete player-facing progression UI |
+| PROG-14 | Persistence, lifecycle, final leftover-field migration |
+| PROG-15 | Remove production legacy paths and certify balance |

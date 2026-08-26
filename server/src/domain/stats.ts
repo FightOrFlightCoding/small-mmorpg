@@ -1,6 +1,15 @@
 import { channelFromStatId, type PlayerEquipment } from "./equipment";
 import { findItem, type ItemDefinition, type PlayerInventory } from "./inventory";
 import { classUsesMana } from "./canonical_progression";
+import {
+  CANONICAL_SOURCE_EQUIPMENT,
+  classUsesCanonicalStats,
+  canonicalInputFromClass,
+  evaluateCanonicalSnapshot,
+  preserveHealthOnMaxChange,
+  type CanonicalModifier,
+  type CanonicalSnapshot,
+} from "./canonical_stats";
 
 export const STAT_LAYER_ORDER = [
   "class_base",
@@ -96,10 +105,12 @@ export interface StatContext {
   classId: string;
   level: number;
   allocatedAttributes: { [id: string]: number };
+  freeStatAllocations?: { [id: string]: number };
   equipmentModifiers: { [channel: string]: number };
   effectModifiers: { [channel: string]: number };
   percentModifiers: { [channel: string]: number };
   multiplyModifiers: { [channel: string]: number };
+  identifiedModifiers?: CanonicalModifier[];
 }
 
 export interface EvaluatedStats {
@@ -107,6 +118,13 @@ export interface EvaluatedStats {
   attack: number;
   maxHealth: number;
   maxMana: number;
+  manaRegen?: number;
+  critChance?: number;
+  critMult?: number;
+  hasteMult?: number;
+  damageReduction?: number;
+  effectiveHp?: number;
+  canonical?: CanonicalSnapshot;
 }
 
 export interface CombatStatTarget {
@@ -116,9 +134,14 @@ export interface CombatStatTarget {
   classId?: string;
   allocatedAttributes?: { [id: string]: number };
   level?: number;
-  progression?: { level: number; allocatedAttributes: { [id: string]: number } };
+  progression?: {
+    level: number;
+    allocatedAttributes: { [id: string]: number };
+    freeStatAllocations?: { [id: string]: number };
+  };
   equipment?: PlayerEquipment;
   inventory?: PlayerInventory;
+  resources?: { [resourceId: string]: number };
 }
 
 export function catalogFromContent(content: {
@@ -225,13 +248,27 @@ export function evaluateStats(catalog: ProgressionCatalog, ctx: StatContext): Ev
   const healthId = derivedStatIdForRole(catalog, "max_health");
   const manaId = derivedStatIdForRole(catalog, "max_mana");
   const classDef = catalog.classes[ctx.classId];
-  const maxMana = manaId.length > 0 ? values[manaId] : 0;
-  return {
+  const foundationMana = manaId.length > 0 ? values[manaId] : 0;
+  const usesMana = classUsesMana(classDef !== undefined ? classDef.resourceType : undefined);
+  const evaluated: EvaluatedStats = {
     values: values,
     attack: attackId.length > 0 ? values[attackId] : 0,
     maxHealth: healthId.length > 0 ? values[healthId] : 1,
-    maxMana: classUsesMana(classDef !== undefined ? classDef.resourceType : undefined) ? maxMana : 0,
+    maxMana: usesMana ? foundationMana : 0,
+    manaRegen: 0,
+    critChance: 0,
+    critMult: 1.5,
+    hasteMult: 1,
+    damageReduction: 0,
   };
+  evaluated.effectiveHp = evaluated.maxHealth;
+  if (!usesMana && manaId.length > 0) {
+    delete evaluated.values[manaId];
+  }
+  if (classDef !== undefined && classUsesCanonicalStats(classDef)) {
+    overlayCanonicalStats(evaluated, classDef, ctx, healthId, manaId, usesMana);
+  }
+  return evaluated;
 }
 
 export function equipmentModifiersFromGear(
@@ -277,8 +314,105 @@ export function equipmentModifiersFromGear(
   return modifiers;
 }
 
+export function identifiedModifiersFromGear(
+  equipment: PlayerEquipment | undefined,
+  inventory: PlayerInventory | undefined,
+  itemsById: { [id: string]: ItemDefinition },
+): CanonicalModifier[] {
+  const identified: CanonicalModifier[] = [];
+  if (equipment === undefined) {
+    return identified;
+  }
+  const tags = Object.keys(equipment.slots);
+  for (let t = 0; t < tags.length; t++) {
+    const instanceId = equipment.slots[tags[t]];
+    if (instanceId.length === 0) {
+      continue;
+    }
+    const item = findItem(inventory, instanceId);
+    if (item === null) {
+      continue;
+    }
+    const definition = itemsById[item.itemId];
+    if (definition === undefined) {
+      continue;
+    }
+    const sourceId = item.instanceId.length > 0 ? item.instanceId : item.itemId;
+    const statModifiers = definition.statModifiers !== undefined ? definition.statModifiers : [];
+    for (let i = 0; i < statModifiers.length; i++) {
+      identified.push({
+        sourceId: sourceId,
+        sourceKind: CANONICAL_SOURCE_EQUIPMENT,
+        channel: statModifiers[i].statId,
+        op: "add",
+        value: statModifiers[i].amount,
+      });
+    }
+    if (statModifiers.length === 0) {
+      const bonus = definition.attackBonus !== undefined ? definition.attackBonus : 0;
+      if (bonus !== 0) {
+        identified.push({
+          sourceId: sourceId,
+          sourceKind: CANONICAL_SOURCE_EQUIPMENT,
+          channel: "weapon_base",
+          op: "add",
+          value: bonus,
+        });
+      }
+    }
+  }
+  return identified;
+}
+
+export function identifiedModifiersFromEffectMap(
+  effectModifiers: { [channel: string]: number },
+  sourceKind: CanonicalModifier["sourceKind"] = "temporary_effect",
+): CanonicalModifier[] {
+  const identified: CanonicalModifier[] = [];
+  const channels = Object.keys(effectModifiers);
+  for (let i = 0; i < channels.length; i++) {
+    const channel = channels[i];
+    identified.push({
+      sourceId: "effect:" + channel,
+      sourceKind: sourceKind,
+      channel: channel,
+      op: "add",
+      value: effectModifiers[channel],
+    });
+  }
+  return identified;
+}
+
 export function emptyModifierMap(): { [channel: string]: number } {
   return {};
+}
+
+export function playerStatContext(
+  classId: string,
+  progression: {
+    level: number;
+    allocatedAttributes: { [id: string]: number };
+    freeStatAllocations?: { [id: string]: number };
+  },
+  equipment: PlayerEquipment | undefined,
+  inventory: PlayerInventory | undefined,
+  itemsById: { [id: string]: ItemDefinition },
+  effectModifiers?: { [channel: string]: number },
+): StatContext {
+  const effects = effectModifiers !== undefined ? effectModifiers : emptyModifierMap();
+  return {
+    classId: classId,
+    level: progression.level,
+    allocatedAttributes: progression.allocatedAttributes,
+    freeStatAllocations: progression.freeStatAllocations !== undefined ? progression.freeStatAllocations : {},
+    equipmentModifiers: equipmentModifiersFromGear(equipment, inventory, itemsById),
+    effectModifiers: effects,
+    percentModifiers: emptyModifierMap(),
+    multiplyModifiers: emptyModifierMap(),
+    identifiedModifiers: identifiedModifiersFromGear(equipment, inventory, itemsById).concat(
+      identifiedModifiersFromEffectMap(effects),
+    ),
+  };
 }
 
 export function syncCombatStatsFromPipeline(
@@ -308,19 +442,23 @@ export function syncCombatStatsFromPipeline(
     classId: target.classId,
     level: level,
     allocatedAttributes: allocated,
+    freeStatAllocations:
+      target.progression !== undefined && target.progression.freeStatAllocations !== undefined
+        ? target.progression.freeStatAllocations
+        : {},
     equipmentModifiers: equipmentModifiersFromGear(target.equipment, target.inventory, itemsById),
     effectModifiers: effectModifiers !== undefined ? effectModifiers : emptyModifierMap(),
     percentModifiers: percentModifiers !== undefined ? percentModifiers : emptyModifierMap(),
     multiplyModifiers: multiplyModifiers !== undefined ? multiplyModifiers : emptyModifierMap(),
+    identifiedModifiers: identifiedModifiersFromGear(target.equipment, target.inventory, itemsById).concat(
+      identifiedModifiersFromEffectMap(effectModifiers !== undefined ? effectModifiers : emptyModifierMap()),
+    ),
   });
   const previousMax = target.maxHealth;
   target.maxHealth = evaluated.maxHealth;
   target.derivedAttack = evaluated.attack;
   if (target.health > 0) {
-    const delta = target.maxHealth - previousMax;
-    if (delta > 0) {
-      target.health += delta;
-    }
+    target.health = preserveHealthOnMaxChange(target.health, previousMax, target.maxHealth);
   }
   if (target.health > target.maxHealth) {
     target.health = target.maxHealth;
@@ -328,7 +466,55 @@ export function syncCombatStatsFromPipeline(
   if (target.health < 0) {
     target.health = 0;
   }
+  if (target.resources !== undefined) {
+    const manaId = resourceIdForRole(catalog, "mana");
+    if (manaId.length > 0) {
+      if (evaluated.maxMana <= 0) {
+        delete target.resources[manaId];
+      } else if (target.resources[manaId] !== undefined && target.resources[manaId] > evaluated.maxMana) {
+        target.resources[manaId] = evaluated.maxMana;
+      }
+    }
+  }
   return evaluated;
+}
+
+function overlayCanonicalStats(
+  evaluated: EvaluatedStats,
+  classDef: ClassContent,
+  ctx: StatContext,
+  healthId: string,
+  manaId: string,
+  usesMana: boolean,
+): void {
+  const free =
+    ctx.freeStatAllocations !== undefined ? ctx.freeStatAllocations : {};
+  const snapshot = evaluateCanonicalSnapshot(
+    canonicalInputFromClass(classDef, ctx.level, free, ctx.identifiedModifiers !== undefined ? ctx.identifiedModifiers : []),
+  );
+  evaluated.canonical = snapshot;
+  evaluated.maxHealth = snapshot.hpMax;
+  evaluated.maxMana = usesMana ? snapshot.manaMax : 0;
+  evaluated.manaRegen = snapshot.manaRegen;
+  evaluated.critChance = snapshot.critChance;
+  evaluated.critMult = snapshot.critMult;
+  evaluated.hasteMult = snapshot.hasteMult;
+  evaluated.damageReduction = snapshot.damageReduction;
+  evaluated.effectiveHp = snapshot.effectiveHp;
+  const derivedIds = Object.keys(snapshot.derived);
+  for (let i = 0; i < derivedIds.length; i++) {
+    evaluated.values[derivedIds[i]] = snapshot.derived[derivedIds[i]];
+  }
+  if (healthId.length > 0) {
+    evaluated.values[healthId] = snapshot.hpMax;
+  }
+  if (manaId.length > 0) {
+    if (usesMana) {
+      evaluated.values[manaId] = snapshot.manaMax;
+    } else {
+      delete evaluated.values[manaId];
+    }
+  }
 }
 
 function evaluateDerivedStat(

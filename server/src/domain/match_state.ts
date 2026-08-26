@@ -23,12 +23,7 @@ import type { VendorDefinition } from "./vendor";
 import { dict } from "./maps";
 import { cloneProgression, publicProgression, type CharacterProgression } from "./progression";
 import { cloneActionRates, emptyActionRates, type PlayerActionRate } from "./rate_limit";
-import {
-  emptyModifierMap,
-  equipmentModifiersFromGear,
-  evaluateStats,
-  type ProgressionCatalog,
-} from "./stats";
+import { evaluateStats, playerStatContext, type ProgressionCatalog } from "./stats";
 import { publicWallet } from "./wallet";
 import {
   cloneActiveCast,
@@ -956,15 +951,17 @@ function progressionFor(state: StarterZoneState, selfId: string): { [key: string
   if (classId.length === 0) {
     return {};
   }
-  const evaluated = evaluateStats(state.progressionCatalog, {
-    classId: classId,
-    level: player.progression.level,
-    allocatedAttributes: player.progression.allocatedAttributes,
-    equipmentModifiers: equipmentModifiersFromGear(player.equipment, player.inventory, state.itemsById),
-    effectModifiers: effectModifiersFrom(player.effects),
-    percentModifiers: emptyModifierMap(),
-    multiplyModifiers: emptyModifierMap(),
-  });
+  const evaluated = evaluateStats(
+    state.progressionCatalog,
+    playerStatContext(
+      classId,
+      player.progression,
+      player.equipment,
+      player.inventory,
+      state.itemsById,
+      effectModifiersFrom(player.effects),
+    ),
+  );
   return publicProgression(state.progressionCatalog, classId, player.progression, evaluated.values);
 }
 

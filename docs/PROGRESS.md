@@ -1,10 +1,10 @@
 # Progress
 
-Last accepted phase: **PROG-03 — Four-Class Character Creation and Progression-State Migration**.
+Last accepted phase: **PROG-04 — Canonical Statistics, Derived Values, and Resource Engine**.
 
 Current phase: none.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
 
@@ -1041,6 +1041,39 @@ Client/server generated catalogs share content hash `3b57502b4a197972c970420cd7b
 | Client GdUnit | 276/276, 0 orphans, `SHELL_LOGIN` |
 
 Limitations: Level-up, branch choice, talent spend, and canonical combat remain later PROG phases. Geometry omitted by the design is ledgered in [design/progression-implementation-addendum.md](design/progression-implementation-addendum.md). Manual Prompt 18 world play was not re-run; live village/slime behavior was not changed.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/content.ps1 validate
+powershell -File scripts/test-content.ps1
+powershell -File scripts/content-build.ps1
+powershell -File scripts/test-progression-design.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+```
+
+## PROG-04 canonical statistics, derived values, and resource engine (2026-08-26)
+
+Production `class.*` characters calculate stats as class base + automatic growth + free allocations + identified equipment modifiers + identified temporary effects. Derived values use the design §4 formulas exactly (`HP_max`, `Mana_max`, `ManaRegen`, `CritChance`, `CritMult`, `HasteMult`, `DamageReduction`, `EffectiveHP`, haste-scaled attack/cast/DoT intervals). Point balances and derived totals are calculated, never stored as authority and never taken from the client. The client mirrors `canonicalDerived` floats without recomputing formulas.
+
+Warrior and Marksman expose no mana resource or mana UI. Mage and Mystic use `Mana_max = 20+4*INT` and continuous `mana = min(max, current + regen * delta)`. Haste scales auto-attack interval, cast/channel time, and DoT tick interval (total DoT damage preserved) and does not change stored cooldown ticks. Direct hits may roll one authoritative crit; DoTs never crit; shields do not crit unless content sets `shieldCanCrit`. Different-source percentage modifiers multiply; higher ranks of the same node replace lower ranks. There are no secret caps on attributes, crit chance, or damage reduction. Foundation v1 content is rejected if it contains nonfinite numbers.
+
+On max-health change, the already accepted pipeline policy applies (`project.health.max_change_policy`): living characters keep current health plus any increase in max, then clamp to the new max. Ordinary equipment changes do not refill. Full refill remains create, authorized respawn, inn/healer restore, or an explicit effect. Test classes without canonical `baseStats` keep Foundation `evaluateStats` layers.
+
+Level-10 auto-growth with zero free allocation matches the design §6.3 reference sheet (Warrior/Mage/Marksman/Mystic HP, Effective HP, Mana, regen, crit, haste, DR). Client/server generated catalogs share content hash `3b57502b4a197972c970420cd7b2a5a74955311b5840be0b4d184843c24e3320`. Live ATTACK still uses Foundation `test.stat.attack` (might + gear). Canonical `ability.*` rows remain `runtimeEnabled: false`. Prompt 18 village/slime behavior is unchanged. No level gains.
+
+| Gate | Result |
+| --- | --- |
+| Content validate/build | pass; client/server hashes match |
+| Content-build tests | 25/25 (`scripts/test-content.ps1`) |
+| Design audit | 10/10 (`scripts/test-progression-design.ps1`) |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (29 RPCs, 34 storage records, 32 client opcodes) |
+| Server hermetic | 569 passed, 13 skipped (live suites off); `tsc` via server test script |
+| Client GdUnit | 277/277, 0 orphans, `SHELL_LOGIN` |
+
+Limitations: Level-up, branch choice, talent spend, and canonical combat remain later PROG phases. Live ATTACK is not retuned onto STR/AGI/INT. Geometry omitted by the design is ledgered in [design/progression-implementation-addendum.md](design/progression-implementation-addendum.md). Manual Prompt 18 world play was not re-run; live village/slime behavior was not changed.
 
 Reproduction:
 

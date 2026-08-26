@@ -161,3 +161,29 @@ func test_hud_allocate_button_survives_preview_refresh() -> void:
 	assert_object(attributes.get_child(0).get_child(1)).is_same(first)
 	assert_int(ProgressionService.unspent_attribute_points).is_equal(1)
 	assert_bool(first.disabled).is_false()
+
+
+func test_client_mirrors_server_canonical_derived_floats_without_computing() -> void:
+	ProgressionService.apply_canonical({
+		"classId": "class.warrior",
+		"classDisplayName": "Warrior",
+		"level": 1,
+		"currentXp": 0,
+		"xpToNext": 50,
+		"atMaxLevel": false,
+		"baseAttributes": {},
+		"allocatedAttributes": {},
+		"derived": {
+			"formula.hp_max": 110,
+			"formula.crit_chance": 0.015,
+			"formula.haste_mult": 1.03,
+			"formula.damage_reduction": 0.015,
+		},
+		"unspentAttributePoints": 0,
+		"unspentSkillPoints": 0,
+		"unlockedAbilityIds": [],
+	})
+	assert_float(float(ProgressionService.derived["formula.hp_max"])).is_equal(110.0)
+	assert_float(float(ProgressionService.derived["formula.crit_chance"])).is_equal_approx(0.015, 0.0001)
+	assert_float(float(ProgressionService.derived["formula.haste_mult"])).is_equal_approx(1.03, 0.0001)
+	assert_bool(ProgressionService.derived.has("formula.mana_max")).is_false()

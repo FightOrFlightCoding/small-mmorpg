@@ -14,6 +14,7 @@ import {
   baseAttributesFor,
   classProgressionFor,
   evaluateStats,
+  identifiedModifiersFromEffectMap,
   isMaxLevel,
   levelCurveFor,
   xpRequiredForLevel,
@@ -444,6 +445,7 @@ export function publicProgression(
     unspentClassPoints: unspentClassPoints(progression.purchasedClassNodeIds, progression.level),
     unspentBranchPoints: unspentBranchPoints(progression.purchasedBranchNodeRanks, progression.level),
     unspentFreeStatPoints: unspentFreeStatPoints(progression.freeStatAllocations, progression.level),
+    canonicalDerived: copyNumberMap(derivedValues),
   };
 }
 
@@ -460,10 +462,14 @@ export function evaluateProgressionStats(
     classId: classId,
     level: progression.level,
     allocatedAttributes: progression.allocatedAttributes,
+    freeStatAllocations: progression.freeStatAllocations,
     equipmentModifiers: equipmentModifiers,
     effectModifiers: effectModifiers,
     percentModifiers: percentModifiers,
     multiplyModifiers: multiplyModifiers,
+    identifiedModifiers: identifiedModifiersFromEffectMap(effectModifiers).concat(
+      identifiedModifiersFromEffectMap(equipmentModifiers, "equipment"),
+    ),
   });
 }
 

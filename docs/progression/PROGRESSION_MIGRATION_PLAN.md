@@ -46,6 +46,20 @@ Existing characters cannot be left implicit.
 
 Missing progression blob: initialize canonical level 1 for the character's class, then persist.
 
+## PROG-14 final policy (planned)
+
+PROG-03 v2 mapping is **not** the last migration. It keeps live 3-stat allocations, unlocks, and the 8-slot hotbar, and it leaves canonical `freeStatAllocations` and talent purchases empty. That is acceptable for development and certification characters. It is not acceptable as the permanent fate of real player investment.
+
+Before PROG-14 completes:
+
+1. Classify every existing character as **development/test** or **real player**.
+2. Development/test characters may be migrated under deterministic test rules, reset through authorized development tooling, or retained solely for regression compatibility.
+3. Real player characters must have old allocation **translated** deterministically, **refunded** as equivalent canonical unspent points, or **explicitly reset** with a visible migration notice.
+4. Do not leave old investment in a field the canonical stat engine no longer reads.
+5. Run migration logic even for records already marked `progressionSchemaVersion` **2** when they still contain leftover Foundation authorities (`allocatedAttributes`, live 8-slot `hotbar`, production `unlockedAbilityIds`). A PROG-03 blob must not be treated as finished merely because its schema number is current.
+
+Do not implement this mapping before PROG-14. Details of the chosen translation/refund/reset path are recorded in this file when that phase runs.
+
 ## Fixtures
 
 - `server/tests/fixtures/saves/current-v1-alice.json` — test vanguard L2 with 3-stat allocation; canonical migrate keeps class/level/XP.

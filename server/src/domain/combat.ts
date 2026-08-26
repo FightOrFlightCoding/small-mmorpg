@@ -1,6 +1,6 @@
 import { dict } from "./maps";
 import type { MatchEnemy, MatchPlayer, StarterZoneState } from "./match_state";
-import { equipmentModifiersFromGear, emptyModifierMap, evaluateStats, resourceIdForRole } from "./stats";
+import { evaluateStats, playerStatContext, resourceIdForRole } from "./stats";
 
 export const PLAYER_RESPAWN_DELAY_SEC = 3;
 export const NEVER_ATTACKED_TICK = -1;
@@ -192,15 +192,13 @@ export function restoreRespawnVitals(state: StarterZoneState, player: MatchPlaye
   if (manaId.length === 0) {
     return;
   }
-  const evaluated = evaluateStats(state.progressionCatalog, {
-    classId: player.classId,
-    level: player.progression.level,
-    allocatedAttributes: player.progression.allocatedAttributes,
-    equipmentModifiers: equipmentModifiersFromGear(player.equipment, player.inventory, state.itemsById),
-    effectModifiers: emptyModifierMap(),
-    percentModifiers: emptyModifierMap(),
-    multiplyModifiers: emptyModifierMap(),
-  });
+  const evaluated = evaluateStats(state.progressionCatalog, playerStatContext(
+    player.classId,
+    player.progression,
+    player.equipment,
+    player.inventory,
+    state.itemsById,
+  ));
   const resources = dict(player.resources);
   if (evaluated.maxMana > 0) {
     resources[manaId] = evaluated.maxMana;

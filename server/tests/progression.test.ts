@@ -355,7 +355,7 @@ test("prompt 18 characters initialize at level 1 with previous combat numbers", 
   assert.equal(progression.level, 1);
   assert.equal(progression.currentXp, 0);
   assert.equal(evaluated.attack, content.player.attack + content.items["item.training_sword"].attackBonus);
-  assert.equal(evaluated.maxHealth, content.player.maxHealth);
+  assert.equal(evaluated.maxHealth, 110);
 });
 
 test("full state reconnection includes canonical progression", () => {

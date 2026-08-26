@@ -155,6 +155,15 @@ test("invalid numerical ranges are rejected", () => {
   assert.ok(codes.some((code) => code.indexOf("invalid_range:maxHealth") === 0));
 });
 
+test("nonfinite numeric content is rejected", () => {
+  const docs = clone(loadValid());
+  const warrior = find(docs, "class.warrior");
+  const baseStats = warrior["baseStats"] as { [id: string]: number };
+  baseStats["stat.vitality"] = Number.POSITIVE_INFINITY;
+  const codes = codesOf(() => validateDocuments(SCHEMA_DIR, docs));
+  assert.ok(codes.some((code) => code.indexOf("nonfinite:") === 0));
+});
+
 test("unknown equipment slots are rejected", () => {
   const docs = clone(loadValid());
   find(docs, "item.training_sword")["equipSlot"] = "tail";

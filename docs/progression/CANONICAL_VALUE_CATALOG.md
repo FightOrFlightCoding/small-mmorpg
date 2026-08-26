@@ -76,8 +76,8 @@ Basics / signatures / capstones bind to the ability IDs in §9.
 | 4 | `formula.dot_tick_interval` | `BaseTickInterval / HasteMult` | `server/src/domain/effects.ts` | same | canonical |
 | 4 | `formula.melee_hit` | `Base * (1 + STR/100)` | `server/src/domain/combat_pipeline.ts` | `server/tests/progression_formulas.test.ts` | canonical |
 | 4 | `formula.ranged_hit` | `Base * (1 + AGI/100)` | same | same | canonical |
-| 4 | `formula.spell_hit` | `Base * (1 + INT/100)` | same | same | canonical |
-| 4 | `formula.heal` | `Base * (1 + SPI/100)` | same | same | canonical |
+| 4 | `formula.spell_hit` | `Base * (1 + INT/100)` including curse/DoT scaling | same | same | canonical |
+| 4 | `formula.heal` | `Base * (1 + SPI/100)` including shields/absorbs | same | same | canonical |
 | 4 | `formula.on_crit` | `hit *= CritMult` (not DoT) | same | same | canonical |
 | 4 | `formula.damage_taken` | `Hit * (1-DR) * Π(1+takenMods)` | same | same | canonical |
 | 4 | `formula.expected_crit_value` | `1 + CritChance * (CritMult-1)` | same | `server/tests/progression_dps_audit.test.ts` | canonical |

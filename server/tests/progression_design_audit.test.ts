@@ -15,7 +15,9 @@ import {
   LOCKED_CLASS_IDS,
   PLANNED_REGRESSION_TESTS,
   REQUIRED_CONTRACT_DOCS,
+  REQUIRED_CONFLICT_IDS,
   auditCanonicalDesign,
+  auditConflictRegister,
   canonicalCatalog,
   missingCatalogIdsInText,
   missingPlannedTestsInText,
@@ -188,6 +190,12 @@ test("live catalog snapshot keeps foundation combat while four production classe
   assert.equal(conflicts.indexOf("class.mystic") >= 0, true);
   assert.equal(conflicts.indexOf("HOTBAR_SIZE") >= 0, true);
   assert.equal(conflicts.indexOf("test.curve.standard") >= 0, true);
+  assert.equal(conflicts.indexOf("test.stat.attack") >= 0, true);
+  const conflictIssues = auditConflictRegister(conflicts);
+  assert.deepEqual(conflictIssues, [], conflictIssues.map((issue) => issue.code + ":" + issue.message).join("; "));
+  for (let i = 0; i < REQUIRED_CONFLICT_IDS.length; i++) {
+    assert.equal(conflicts.indexOf("### " + REQUIRED_CONFLICT_IDS[i]) >= 0, true);
+  }
 });
 
 test("every planned regression test is named for a later phase or this audit", () => {

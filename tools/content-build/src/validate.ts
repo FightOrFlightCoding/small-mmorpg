@@ -109,6 +109,7 @@ export function validateDocuments(
         issues.push(mapped[e]);
       }
     }
+    rejectNonfinite(doc.data, id, issues);
   }
 
   const allDocs = selectDocuments(byId, true);
@@ -1300,4 +1301,28 @@ function uniqueIssues(issues: ContentIssue[]): ContentIssue[] {
     unique.push(issues[i]);
   }
   return unique;
+}
+
+function rejectNonfinite(value: unknown, path: string, issues: ContentIssue[]): void {
+  if (typeof value === "number") {
+    if (!isFinite(value)) {
+      issues.push(issue("nonfinite:" + path));
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      rejectNonfinite(value[i], path + "[" + String(i) + "]", issues);
+    }
+    return;
+  }
+  if (value !== null && typeof value === "object") {
+    const record = value as { [key: string]: unknown };
+    const keys = Object.keys(record);
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i];
+      const next = path.length > 0 ? path + "." + key : key;
+      rejectNonfinite(record[key], next, issues);
+    }
+  }
 }

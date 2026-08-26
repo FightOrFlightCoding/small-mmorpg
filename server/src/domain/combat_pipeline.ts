@@ -20,6 +20,7 @@ import type { MatchPlayer, StarterZoneState } from "./match_state";
 import { distance } from "./movement";
 import { addDamageThreat, applyHealThreatToEnemies, profileForEnemy } from "./threat";
 import { noteAddDeath } from "./spawn_controller";
+import { evaluateCanonicalHit, type PowerCategory } from "./canonical_stats";
 
 export const IN_COMBAT_TIMEOUT_TICKS = 50;
 export const COMBAT_APPLY_TTL_TICKS = 6000;
@@ -58,6 +59,19 @@ export interface CombatFormula {
   critForced?: boolean;
   critMultiplier?: number;
   minResult?: number;
+  powerCategory?: PowerCategory;
+  canonicalStats?: { [id: string]: number };
+  canonicalCritChance?: number;
+  canonicalCritMult?: number;
+  canonicalOutgoingProduct?: number;
+  canonicalDamageReduction?: number;
+  canonicalTakenProduct?: number;
+  canonicalCritDamageProduct?: number;
+  bonusCritChance?: number;
+  isDot?: boolean;
+  isShield?: boolean;
+  shieldCanCrit?: boolean;
+  random?: () => number;
 }
 
 export interface CombatApplyInput {
@@ -266,6 +280,9 @@ export function applyCombat(state: StarterZoneState, input: CombatApplyInput, ev
 }
 
 export function evaluateCombatFormula(formula: CombatFormula, action: "damage" | "heal", absorb: number): CombatStages {
+  if (formula.powerCategory !== undefined && formula.canonicalStats !== undefined) {
+    return evaluateCanonicalCombatFormula(formula, action, absorb);
+  }
   const base = Math.max(0, Math.floor(numericOr(formula.base, 0)));
   const sourceStat = numericOr(formula.sourceStatValue, 0);
   const sourceCoeff = numericOr(formula.sourceStatCoefficient, 0);
@@ -685,6 +702,42 @@ function rejectApply(
   };
   rememberCombatApply(state, eventId, tick, result);
   return result;
+}
+
+function evaluateCanonicalCombatFormula(formula: CombatFormula, action: "damage" | "heal", absorb: number): CombatStages {
+  const category = formula.powerCategory !== undefined ? formula.powerCategory : "melee";
+  const hit = evaluateCanonicalHit({
+    base: numericOr(formula.base, 0),
+    category: category,
+    stats: formula.canonicalStats !== undefined ? formula.canonicalStats : {},
+    critChance: numericOr(formula.canonicalCritChance, 0),
+    critMult: numericOr(formula.canonicalCritMult, 1.5),
+    outgoingProduct: numericOr(formula.canonicalOutgoingProduct, 1),
+    damageReduction: action === "damage" ? numericOr(formula.canonicalDamageReduction, 0) : 0,
+    takenProduct: action === "damage" ? numericOr(formula.canonicalTakenProduct, 1) : 1,
+    critDamageProduct: numericOr(formula.canonicalCritDamageProduct, 1),
+    guaranteedCrit: formula.critForced === true,
+    bonusCritChance: formula.bonusCritChance,
+    isDot: formula.isDot === true,
+    isShield: formula.isShield === true || category === "shield",
+    shieldCanCrit: formula.shieldCanCrit === true,
+    random: formula.random,
+  });
+  const afterSource = hit.afterOutgoing;
+  const afterTarget = hit.afterDamageReduction;
+  const afterMitigation = hit.final;
+  const shield = Math.max(0, absorb);
+  const afterShields = action === "damage" ? Math.max(0, afterMitigation - shield) : afterMitigation;
+  const minResult = Math.max(0, numericOr(formula.minResult, 0));
+  const finalAmount = Math.max(minResult, afterShields);
+  return {
+    base: hit.rawScaled,
+    afterSource: afterSource,
+    afterTarget: afterTarget,
+    afterMitigation: afterMitigation,
+    afterShields: afterShields,
+    finalAmount: finalAmount,
+  };
 }
 
 function numericOr(value: number | undefined, fallback: number): number {

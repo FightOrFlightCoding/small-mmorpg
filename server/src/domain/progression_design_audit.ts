@@ -182,6 +182,8 @@ export const PLANNED_REGRESSION_TESTS = [
   "server/tests/progression_hotbar_ceiling.test.ts",
   "server/tests/progression_frenzy_passive.test.ts",
   "server/tests/progression_dot_haste.test.ts",
+  "server/tests/progression_gcd_absent.test.ts",
+  "server/tests/progression_gcd_audit.test.ts",
   "server/tests/progression_metronome.test.ts",
   "server/tests/progression_dps_audit.test.ts",
   "server/tests/progression_enemy_baselines.test.ts",
@@ -192,6 +194,37 @@ export const PLANNED_REGRESSION_TESTS = [
   "client/tests/app/progression_service_test.gd",
   "client/tests/app/ability_service_test.gd",
   "client/tests/app/character_select_ui_test.gd",
+];
+
+export const CONFLICT_STATUSES = [
+  "DEFERRED",
+  "RESOLVED",
+  "TEST_ONLY_PERMANENT",
+  "NONCANONICAL_CONTENT_VALUE",
+  "BLOCKING",
+] as const;
+
+export type ConflictStatus = (typeof CONFLICT_STATUSES)[number];
+
+export interface ConflictEntry {
+  id: string;
+  title: string;
+  conflict: string;
+  status: string;
+  resolutionOwner: string;
+  mustBeResolvedBy: string;
+  closureTest: string;
+}
+
+export const REQUIRED_CONFLICT_IDS = [
+  "C-canonical-damage",
+  "C-attack-foundation",
+  "C-hotbar-dual",
+  "C-gcd",
+  "C-legacy-migration",
+  "C-quest-xp-20",
+  "C-unlock-any-ability",
+  "C-xp-curve-live",
 ];
 
 function entry(
@@ -506,6 +539,113 @@ export function parseMarkdownTables(markdown: string): MarkdownTable[] {
     i += 1;
   }
   return tables;
+}
+
+const CONFLICT_FIELD_LABELS = [
+  "Conflict",
+  "Status",
+  "Resolution owner",
+  "Must be resolved by",
+  "Closure test",
+] as const;
+
+export function parseConflictRegister(markdown: string): ConflictEntry[] {
+  const lines = markdown.split(/\r?\n/);
+  const entries: ConflictEntry[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const heading = lines[i].match(/^### (C-[a-z0-9-]+)(?:\s+(.*))?$/);
+    if (heading === null) {
+      i += 1;
+      continue;
+    }
+    const id = heading[1];
+    const title = heading[2] !== undefined ? heading[2].trim() : "";
+    const fields: { [label: string]: string } = {};
+    i += 1;
+    while (i < lines.length && !lines[i].startsWith("### ")) {
+      const field = lines[i].match(/^- \*\*(Conflict|Status|Resolution owner|Must be resolved by|Closure test):\*\*\s*(.*)$/);
+      if (field !== null) {
+        const label = field[1];
+        const parts = [field[2]];
+        i += 1;
+        while (
+          i < lines.length &&
+          !lines[i].startsWith("### ") &&
+          !/^- \*\*(Conflict|Status|Resolution owner|Must be resolved by|Closure test):\*\*/.test(lines[i])
+        ) {
+          if (lines[i].trim().length > 0) {
+            parts.push(lines[i].trim());
+          }
+          i += 1;
+        }
+        fields[label] = parts.join(" ").trim();
+        continue;
+      }
+      i += 1;
+    }
+    entries.push({
+      id: id,
+      title: title,
+      conflict: fields["Conflict"] !== undefined ? fields["Conflict"] : "",
+      status: fields["Status"] !== undefined ? fields["Status"] : "",
+      resolutionOwner: fields["Resolution owner"] !== undefined ? fields["Resolution owner"] : "",
+      mustBeResolvedBy: fields["Must be resolved by"] !== undefined ? fields["Must be resolved by"] : "",
+      closureTest: fields["Closure test"] !== undefined ? fields["Closure test"] : "",
+    });
+  }
+  return entries;
+}
+
+export function auditConflictRegister(markdown: string): AuditIssue[] {
+  const issues: AuditIssue[] = [];
+  if (markdown.indexOf("## PROG-05 go/no-go") < 0) {
+    issues.push({ code: "missing_prog05_gating", message: "CURRENT_CONFLICTS.md must include PROG-05 go/no-go." });
+  }
+  const entries = parseConflictRegister(markdown);
+  const seen: { [id: string]: boolean } = {};
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    if (seen[entry.id] === true) {
+      issues.push({ code: "duplicate_conflict", message: "Duplicate conflict id " + entry.id + "." });
+    }
+    seen[entry.id] = true;
+    for (let f = 0; f < CONFLICT_FIELD_LABELS.length; f++) {
+      const label = CONFLICT_FIELD_LABELS[f];
+      const value =
+        label === "Conflict"
+          ? entry.conflict
+          : label === "Status"
+            ? entry.status
+            : label === "Resolution owner"
+              ? entry.resolutionOwner
+              : label === "Must be resolved by"
+                ? entry.mustBeResolvedBy
+                : entry.closureTest;
+      if (value.length === 0) {
+        issues.push({ code: "missing_conflict_field", message: entry.id + " is missing " + label + "." });
+      }
+    }
+    if (CONFLICT_STATUSES.indexOf(entry.status as ConflictStatus) < 0) {
+      issues.push({ code: "invalid_conflict_status", message: entry.id + " has status " + entry.status + "." });
+    }
+    if (entry.status === "BLOCKING") {
+      issues.push({ code: "blocking_conflict", message: entry.id + " is BLOCKING." });
+    }
+    if (entry.status === "DEFERRED" && entry.resolutionOwner.indexOf("PROG-") < 0) {
+      issues.push({
+        code: "deferred_without_owner",
+        message: entry.id + " is DEFERRED without a PROG- resolution owner.",
+      });
+    }
+  }
+  for (let i = 0; i < REQUIRED_CONFLICT_IDS.length; i++) {
+    const id = REQUIRED_CONFLICT_IDS[i];
+    if (seen[id] !== true) {
+      issues.push({ code: "missing_required_conflict", message: "Missing required conflict " + id + "." });
+    }
+  }
+  return issues;
 }
 
 export function auditCanonicalDesign(markdown: string): DesignAuditResult {

@@ -346,6 +346,8 @@ func refresh_party() -> void:
 					var pool: Variant = resources[resource_id]
 					if typeof(pool) != TYPE_DICTIONARY:
 						continue
+					if int(pool.get("max", 0)) <= 0:
+						continue
 					line += "  %s %s/%s" % [
 						String(resource_id),
 						str(int(pool.get("current", 0))),
@@ -415,10 +417,13 @@ func refresh_progression() -> void:
 	_rebuild_attribute_rows()
 	if _progression_derived != null:
 		var lines := PackedStringArray(["Derived:"])
+		var canonical := ProgressionService.derived.has("formula.hp_max")
 		for stat_id in ProgressionService.derived_ids():
+			if canonical and (stat_id == "test.stat.max_health" or stat_id == "test.stat.max_mana"):
+				continue
 			var record: Dictionary = ContentRegistry.get_by_id(stat_id)
-			var label := String(record.get("displayName", stat_id))
-			lines.append("%s %s" % [label, str(int(ProgressionService.derived.get(stat_id, 0)))])
+			var label := _canonical_derived_label(stat_id, String(record.get("displayName", stat_id)))
+			lines.append("%s %s" % [label, _format_derived_value(stat_id, ProgressionService.derived.get(stat_id, 0))])
 		_progression_derived.text = "\n".join(lines)
 
 
@@ -810,6 +815,37 @@ func _refresh_health(state: Dictionary) -> void:
 		_respawn_button.visible = local_dead
 
 
+func _canonical_derived_label(stat_id: String, fallback: String) -> String:
+	match stat_id:
+		"formula.hp_max":
+			return "HP max"
+		"formula.mana_max":
+			return "Mana max"
+		"formula.mana_regen":
+			return "Mana regen"
+		"formula.crit_chance":
+			return "Crit chance"
+		"formula.crit_mult":
+			return "Crit mult"
+		"formula.haste_mult":
+			return "Haste"
+		"formula.damage_reduction":
+			return "Damage reduction"
+		"formula.effective_hp":
+			return "Effective HP"
+		_:
+			return fallback
+
+
+func _format_derived_value(stat_id: String, value: Variant) -> String:
+	var amount := float(value)
+	if stat_id == "formula.crit_chance" or stat_id == "formula.damage_reduction":
+		return "%s%%" % str(snapped(amount * 100.0, 0.01))
+	if absf(amount - round(amount)) < 0.0005:
+		return str(int(round(amount)))
+	return str(snapped(amount, 0.001))
+
+
 func _resource_summary(entry: Dictionary) -> String:
 	var resources: Variant = entry.get("resources", {})
 	if typeof(resources) != TYPE_DICTIONARY:
@@ -827,6 +863,8 @@ func _resource_summary(entry: Dictionary) -> String:
 		var bits := label.split(".")
 		if bits.size() > 0:
 			label = bits[bits.size() - 1]
+		if label == "mana" and float(data[key]) <= 0.0:
+			continue
 		parts.append("%s %s" % [label, str(int(data[key]))])
 	return "  ".join(parts)
 

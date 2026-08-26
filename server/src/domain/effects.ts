@@ -4,6 +4,7 @@ import { SNAPSHOT_RATE_HZ } from "./movement";
 import type { MatchEnemy, MatchPlayer, StarterZoneState } from "./match_state";
 import { dict } from "./maps";
 import { resourceIdForRole, type EvaluatedStats } from "./stats";
+import { formulaDotTickInterval } from "./canonical_stats";
 
 export type EffectType =
   | "direct_damage"
@@ -181,6 +182,7 @@ export function applyEffectDefinition(
   const actor = toEffectSource(source);
   const rank = isMatchPlayer(source) ? rankScale(source, abilityId) : 1;
   const magnitude = resolveMagnitude(definition.magnitude, stats, fallbackAttack) * rank;
+  const haste = stats !== null && stats.hasteMult !== undefined ? stats.hasteMult : 1;
   const type = String(definition.type);
   if (type === "direct_damage") {
     dealDamage(state, actor, target, magnitude, abilityId, tick, events);
@@ -194,7 +196,7 @@ export function applyEffectDefinition(
     changeResource(state, target, definition, magnitude, actor, tick, events);
     return;
   }
-  applyStatus(target, definition, abilityId, actor, magnitude, tick, events);
+  applyStatus(target, definition, abilityId, actor, magnitude, tick, events, haste);
 }
 
 export function toEffectSource(source: MatchPlayer | EffectSource): EffectSource {
@@ -356,12 +358,24 @@ function applyStatus(
   magnitude: number,
   tick: number,
   events: CombatEvent[],
+  hasteMult: number,
 ): void {
   const durationTicks = cooldownTicks(definition.duration, SNAPSHOT_RATE_HZ);
   if (durationTicks <= 0 && definition.type !== "timed_stat_modifier" && definition.type !== "stun" && definition.type !== "root" && definition.type !== "periodic_damage" && definition.type !== "periodic_heal") {
     return;
   }
-  const intervalTicks = cooldownTicks(definition.tickInterval, SNAPSHOT_RATE_HZ);
+  const baseInterval = definition.tickInterval;
+  const scaledInterval = formulaDotTickInterval(baseInterval, hasteMult);
+  const intervalTicks = cooldownTicks(scaledInterval, SNAPSHOT_RATE_HZ);
+  let appliedMagnitude = magnitude;
+  if (
+    (definition.type === "periodic_damage" || definition.type === "periodic_heal") &&
+    baseInterval > 0 &&
+    scaledInterval > 0 &&
+    scaledInterval !== baseInterval
+  ) {
+    appliedMagnitude = magnitude * (scaledInterval / baseInterval);
+  }
   const incoming: ActiveEffect = {
     effectId: definition.id,
     abilityId: abilityId,
@@ -369,7 +383,7 @@ function applyStatus(
     sourceKind: source.kind,
     type: definition.type,
     stacks: 1,
-    magnitude: magnitude,
+    magnitude: appliedMagnitude,
     remainingTicks: durationTicks > 0 ? durationTicks : 1,
     tickIntervalTicks: intervalTicks,
     nextTickAt: intervalTicks > 0 ? tick + intervalTicks : 0,

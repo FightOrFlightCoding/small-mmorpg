@@ -15,10 +15,10 @@ import { distance, lineBlocked, SNAPSHOT_RATE_HZ } from "./movement";
 import type { MatchPlayer, StarterZoneState } from "./match_state";
 import { cloneProgression, type CharacterProgression } from "./progression";
 import { usesCanonicalCreateState } from "./canonical_progression";
+import { formulaCastTime } from "./canonical_stats";
 import {
-  emptyModifierMap,
-  equipmentModifiersFromGear,
   evaluateStats,
+  playerStatContext,
   resourceIdForRole,
   type EvaluatedStats,
 } from "./stats";
@@ -368,8 +368,10 @@ export function useAbility(
   startCooldowns(player, definition, tick);
   player.lastAttackTick = tick;
 
-  const castTicks = cooldownTicks(definition.castTime, SNAPSHOT_RATE_HZ);
-  const channelTicks = cooldownTicks(definition.channelTime, SNAPSHOT_RATE_HZ);
+  const stats = casterStats(state, player);
+  const haste = stats !== null && stats.hasteMult !== undefined ? stats.hasteMult : 1;
+  const castTicks = cooldownTicks(formulaCastTime(definition.castTime, haste), SNAPSHOT_RATE_HZ);
+  const channelTicks = cooldownTicks(formulaCastTime(definition.channelTime, haste), SNAPSHOT_RATE_HZ);
   if (castTicks > 0) {
     player.activeCast = {
       abilityId: definition.id,
@@ -916,15 +918,14 @@ function casterStats(state: StarterZoneState, player: MatchPlayer): EvaluatedSta
   if (state.progressionCatalog === undefined || player.classId === undefined || player.progression === undefined) {
     return null;
   }
-  return evaluateStats(state.progressionCatalog, {
-    classId: player.classId,
-    level: player.progression.level,
-    allocatedAttributes: player.progression.allocatedAttributes,
-    equipmentModifiers: equipmentModifiersFromGear(player.equipment, player.inventory, state.itemsById),
-    effectModifiers: effectModifiersFrom(player.effects),
-    percentModifiers: emptyModifierMap(),
-    multiplyModifiers: emptyModifierMap(),
-  });
+  return evaluateStats(state.progressionCatalog, playerStatContext(
+    player.classId,
+    player.progression,
+    player.equipment,
+    player.inventory,
+    state.itemsById,
+    effectModifiersFrom(player.effects),
+  ));
 }
 
 function classTagsFor(state: StarterZoneState, classId: string): string[] {

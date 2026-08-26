@@ -651,5 +651,15 @@ Character create offers `class.warrior`, `class.mage`, `class.marksman`, and `cl
 
 The existing `player` / `progression_<id>` blob (`permissionWrite: 0`) stores `progressionSchemaVersion` **2** with the canonical fields. `SAVE_SCHEMA_VERSION` stays **1**. Point balances and derived stats are calculated. Existing warrior/marksman/mage characters migrate in place without class conversion, without duplicating starters, and without regranting quests. Account export, support snapshot, soft-delete, restore, purge, and account deletion use the same record.
 
-JSON keys remain camelCase. Design `schema_version` is `progressionSchemaVersion`. Auto-assign default is off (`CANONICAL_AUTO_ASSIGN_DEFAULT`). Live combat still uses `test.curve.standard`, Might/Vitality/Focus, and `test.ability.*` until a later PROG phase.
+JSON keys remain camelCase. Design `schema_version` is `progressionSchemaVersion`. Auto-assign default is off (`CANONICAL_AUTO_ASSIGN_DEFAULT`). Live ATTACK still uses Foundation `test.stat.attack` until a later PROG phase retunes auto-attack.
+
+## 2026-08-26 — PROG-04 canonical statistics, derived values, and resource engine
+
+Production `class.*` characters calculate stats as class base + automatic growth + free allocations + identified equipment modifiers + identified temporary effects. Derived values use the §4 formulas exactly. Point balances and derived totals are calculated, never stored as authority and never taken from the client.
+
+Warrior and Marksman expose no mana resource. Mage and Mystic use `Mana_max = 20+4*INT` and continuous `mana = min(max, current + regen * delta)`. Haste scales auto-attack interval, cast/channel time, and DoT tick interval (total DoT damage preserved) and does not change stored cooldown ticks. DoTs never roll crit. Shields do not crit unless content sets `shieldCanCrit`. Different-source percentage modifiers multiply; higher ranks of the same node replace lower ranks. There are no secret caps on attributes, crit chance, or damage reduction. Foundation v1 content is rejected if it contains nonfinite numbers.
+
+On max-health change, the already accepted pipeline policy applies: living characters keep current health plus any **increase** in max, then clamp to the new max. Ordinary equipment changes do not refill. Full refill remains create, authorized respawn, inn/healer restore, or an explicit effect. Test classes without canonical `baseStats` keep Foundation `evaluateStats` layers so Prompt 18 cert fixtures stay on `test.class.*` numbers.
+
+Canonical melee/ranged/spell/heal functions exist and are tested independently (`scalePower` / `evaluateCanonicalHit`). Live ATTACK still uses Foundation `test.stat.attack` until PROG-08–12. Remaining live/design gaps are owned in [progression/CURRENT_CONFLICTS.md](progression/CURRENT_CONFLICTS.md): dual hotbars close in PROG-07; production GCD is forbidden from PROG-08 and audited in PROG-15; leftover schema-2 Foundation fields receive a final real-player policy in PROG-14. Quest slime-problem XP 20 is `project.quest.slime_problem.xp` (noncanonical content).
 

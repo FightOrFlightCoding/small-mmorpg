@@ -149,5 +149,5 @@ func _copy_number_map(value: Variant) -> Dictionary:
 		return out
 	var data: Dictionary = value
 	for key in data.keys():
-		out[String(key)] = int(data[key])
+		out[String(key)] = float(data[key])
 	return out

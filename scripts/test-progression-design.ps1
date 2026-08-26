@@ -1,4 +1,4 @@
-# Canonical design-data audit plus PROG-03 live catalog snapshot. Does not enable level gains.
+# Canonical design-data audit plus PROG-03/PROG-04 live catalog snapshot. Does not enable level gains.
 $ErrorActionPreference = "Stop"
 . "$PSScriptRoot\_common.ps1"
 $RepoRoot = Get-RepoRoot

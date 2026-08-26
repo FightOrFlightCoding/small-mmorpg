@@ -1,6 +1,6 @@
 # Test catalog
 
-Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, Prompt 24 ability coverage, Prompt 25 combat-pipeline coverage, Prompt 26 enemy/spawn/AI/loot/boss coverage, Prompt 27 NPC/quest/vendor/inn coverage, Prompt 28 party/chat/group-credit/loot coverage, Prompt 29 public-world/cave/transfer/reconnect coverage, Prompt 30 nearby trade coverage, Prompt 31 UI/settings/asset-contract coverage, Prompt 32 content-CLI / systems-lab / GM coverage, Prompt 33 environment / handshake / maintenance / backup-restore coverage, Prompt 34 security / fuzz / rate-limit / capacity / soak / five-client certification, Prompt 35 existing-save / content-only / asset-manifest / five-client resume certification, ACCT-09 account lifecycle security / failure / distribution certification, PROG-01 canonical progression design audit, PROG-02 canonical shared content schemas, and PROG-03 four-class creation plus progression-state migration. Do not weaken these tests.
+Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, Prompt 24 ability coverage, Prompt 25 combat-pipeline coverage, Prompt 26 enemy/spawn/AI/loot/boss coverage, Prompt 27 NPC/quest/vendor/inn coverage, Prompt 28 party/chat/group-credit/loot coverage, Prompt 29 public-world/cave/transfer/reconnect coverage, Prompt 30 nearby trade coverage, Prompt 31 UI/settings/asset-contract coverage, Prompt 32 content-CLI / systems-lab / GM coverage, Prompt 33 environment / handshake / maintenance / backup-restore coverage, Prompt 34 security / fuzz / rate-limit / capacity / soak / five-client certification, Prompt 35 existing-save / content-only / asset-manifest / five-client resume certification, ACCT-09 account lifecycle security / failure / distribution certification, PROG-01 canonical progression design audit, PROG-02 canonical shared content schemas, PROG-03 four-class creation plus progression-state migration, and PROG-04 canonical statistics, derived values, and resource engine. Do not weaken these tests.
 
 Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDATION_BASELINE.md).
 
@@ -33,6 +33,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | duplicate IDs | `duplicate_id` |
 | missing references | `missing_reference` |
 | invalid ranges | `invalid_range` |
+| nonfinite numbers | `nonfinite` |
 | unknown equipment slot | `unknown_equipment_slot` |
 | duplicate quest reward | `duplicate_quest_reward` |
 | deterministic generation | byte-identical reruns |
@@ -54,7 +55,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `fixtures/malformed_messages.ts` | malformed JSON corpus | VS-T1 |
 | `movement.test.ts` | teleport/overspeed, seq, wall depenetration, living-player and NPC blockers | VS-T2 |
 | `combat.test.ts` | server damage, cooldown, death, slime AI | VS-T3 |
-| `combat_pipeline.test.ts` | pipeline order, healing, defense, modifiers, periodic, death, dead restrictions, respawn, bind fallback, duplicate event, invalid target, PvP, cast interrupt, reconnect while dead | |
+| `combat_pipeline.test.ts` | pipeline order, healing, defense, modifiers, periodic, death, dead restrictions, respawn, bind fallback, duplicate event, invalid target, PvP, cast interrupt, reconnect while dead, canonical power-category scaling independent of ATTACK | |
 | `spawn_controller.test.ts` | always slime, manual create, duplicate spawn, in-place respawn, group reset | |
 | `enemy_ai.test.ts` | melee/ranged/caster AI, stun, threat switch, heal threat, leash without HP restore | |
 | `loot_table.test.ts` | guaranteed/chance/weighted/empty rolls, duplicate death loot/XP, party-credit hook | |
@@ -76,6 +77,8 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `character.test.ts` | bootstrap wrapper, `permissionWrite: 0` | |
 | `character_lifecycle.test.ts` | create warrior/marksman/mage/mystic, invalid class, client stat/level injection, five slots, sixth rejected, invalid name, case-insensitive and concurrent `name_taken`, duplicate create, canonical L1 persist, v1 migrate, export shape, foreign/soft-deleted select, ticket expiry/replay, delete/lease/restore/purge (progression removed), Prompt 18 migrate, starter init once | |
 | `canonical_progression.test.ts` | L1 arrays, caster/physical mana, production create skips starters, v1→v2 migrate idempotent, missing blob, hotbar mapping, storage round-trip | |
+| `progression_formulas.test.ts` | §4 formulas including melee/ranged/spell/curse/heal/shield, L1 arrays, equipment/effect identity, rank replace, source multiply, no caps, mana regen, haste vs cooldown, damage order, DoT total-damage identity, DoT/shield crit rules, nonfinite rejection | |
+| `progression_l10_sheet.test.ts` | §6.3 auto-growth reference sheet for all four classes | |
 | `gameplay_lease.test.ts` | exclusive acquire, concurrent second acquire, two sessions, second character blocked, ENTERING timeout, stale missing match, link-dead timestamps, no movement, despawn boundary, emptyTicks after expire, Nakama ping/pong detection window, safe leave, combat reject, join reject, catalog countdown, Play disabled, entry after release, no duplicate snapshot avatars | |
 | `starter_zone_registry.test.ts` | canonical match id | |
 | `persistence.test.ts` | checkpoints, link-dead avatar, no session rebind, seq reset, Nakama null maps/extras on tick 0 | VS-M5 automated analog |
@@ -83,7 +86,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `chat.test.ts` | RT hooks | |
 | `content.test.ts` | generated catalog shape | VS-T8 analog |
 | `progression.test.ts` | XP thresholds, multi-level, max level, duplicate event, allocate, derived-stat order, equipment/effect hooks, Prompt 18 migrate, reconnect FULL_STATE | |
-| `progression_design_audit.test.ts` | Canonical design file present; four classes / eight branches / 34+6 budgets / 11100 XP / trees / Frenzy passive; catalog IDs; live snapshot (four selectable classes; cap 5 / hotbar 8; physical classes omit mana) | |
+| `progression_design_audit.test.ts` | Canonical design file present; four classes / eight branches / 34+6 budgets / 11100 XP / trees / Frenzy passive; catalog IDs; live snapshot (four selectable classes; cap 5 / hotbar 8; physical classes omit mana); owned conflict register | |
 | `ability.test.ts` | locked use, valid melee, ATTACK wrapper, range, PvP, relation, resource, ICD/GCD, duplicate request, movement/damage interrupt, cancel, heal, DoT, stack policies, expiration, unlock, hotbar, reconnect clears casts, null magnitude scale, catalog strip/rebind | |
 | `party.test.ts` | create, invite, accept, decline, expired invite, party full, already in party, leave, kick, promote, leader disconnect, grace reconnect, all-absent disband, forged membership, duplicate requestId, create-declines-pending, accept-leaves-current, ghost-member prune, match-cache eviction | |
 | `party_credit_loot.test.ts` | group kill XP, out-of-range member, group quest credit, personal loot, server-assigned loot, duplicate death event | |

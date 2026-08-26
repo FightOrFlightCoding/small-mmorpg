@@ -170,6 +170,60 @@ test("defense mitigation reduces damage with a structured formula", () => {
   assert.equal(unmitigated.finalAmount, 4);
 });
 
+test("canonical power categories scale independently of Foundation ATTACK", () => {
+  const melee = evaluateCombatFormula(
+    {
+      base: 10,
+      powerCategory: "melee",
+      canonicalStats: { "stat.strength": 50 },
+      canonicalOutgoingProduct: 1,
+      canonicalDamageReduction: 0,
+      canonicalTakenProduct: 1,
+      canonicalCritChance: 0,
+      canonicalCritMult: 1.5,
+      canonicalCritDamageProduct: 1,
+    },
+    "damage",
+    0,
+  );
+  assert.equal(melee.base, 15);
+  assert.equal(melee.finalAmount, 15);
+  const curse = evaluateCombatFormula(
+    {
+      base: 10,
+      powerCategory: "curse",
+      canonicalStats: { "stat.intelligence": 50 },
+      canonicalOutgoingProduct: 1,
+      canonicalDamageReduction: 0,
+      canonicalTakenProduct: 1,
+      canonicalCritChance: 0,
+      canonicalCritMult: 1.5,
+      canonicalCritDamageProduct: 1,
+    },
+    "damage",
+    0,
+  );
+  assert.equal(curse.base, 15);
+  const shield = evaluateCombatFormula(
+    {
+      base: 10,
+      powerCategory: "shield",
+      canonicalStats: { "stat.spirit": 50 },
+      canonicalOutgoingProduct: 1,
+      canonicalDamageReduction: 0,
+      canonicalTakenProduct: 1,
+      canonicalCritChance: 1,
+      canonicalCritMult: 2,
+      canonicalCritDamageProduct: 1,
+      isShield: true,
+    },
+    "heal",
+    0,
+  );
+  assert.equal(shield.base, 15);
+  assert.equal(shield.finalAmount, 15);
+});
+
 test("stat modifiers apply after base magnitude", () => {
   const stages = evaluateCombatFormula(
     {

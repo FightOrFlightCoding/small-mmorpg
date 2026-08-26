@@ -61,3 +61,12 @@ Project defaults required to persist the canonical progression record. These num
 | `project.progression.schema_version` | `2` (`progressionSchemaVersion`; `SAVE_SCHEMA_VERSION` stays `1`) | Distinguish canonical progression fields from Foundation v1 blobs | Design field `schema_version` without a numeric value | no | `server/tests/canonical_progression.test.ts` | no |
 | `project.progression.auto_assign_default` | `false` (`CANONICAL_AUTO_ASSIGN_DEFAULT`) | New and migrated characters start with auto-assign off | Design does not specify the create-time default | no | same | no |
 
+### PROG-04
+
+Documents the already accepted health-recalculation policy. Not a new combat number.
+
+| Stable ID | Value | Purpose | Reason it was required | Affects balance | Tests using it | Canonical design data |
+| --- | --- | --- | --- | --- | --- | --- |
+| `project.health.max_change_policy` | add positive max delta, then clamp to new max; no refill on equip | Keep current health when maxima change | Design allows either percent or existing policy | no | `server/tests/progression.test.ts` | no |
+| `project.quest.slime_problem.xp` | `20` | Prompt 18 slime-problem quest XP | Design KillXP is `8 + 2 * enemy_level`; this quest reward is not specified as KillXP | no | `server/tests/quest.test.ts` | no |
+

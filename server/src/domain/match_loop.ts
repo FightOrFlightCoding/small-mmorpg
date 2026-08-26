@@ -106,12 +106,12 @@ import {
 } from "./rate_limit";
 import { type RejectedAction } from "./security_log";
 import {
-  emptyModifierMap,
-  equipmentModifiersFromGear,
   evaluateStats,
+  playerStatContext,
   resourceIdForRole,
   syncCombatStatsFromPipeline,
 } from "./stats";
+import { formulaAttackInterval, regenerateMana } from "./canonical_stats";
 
 export interface MatchOutbound {
   opcode: number;
@@ -262,6 +262,7 @@ export function applyMatchLoop(
   tickCombatFlags(next, tick);
   interruptDamagedCasters(next, combatEvents, tick);
   tickEffects(next, tick, combatEvents);
+  tickManaRegen(next, 1 / MATCH_TICK_RATE);
   refreshAllDerived(next);
   processEnemyDeathRewards(
     next,
@@ -1328,7 +1329,7 @@ function handleAttack(
     combatEvents,
     playerAttack(state, userId),
     state.playerAttackRange,
-    state.playerAttackCooldownSec,
+    playerAttackInterval(state, userId),
   );
   const result = actionResult(decision.code, decision.ok, parsed.requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
@@ -2263,15 +2264,17 @@ function pushProgressionState(
   if (classId.length === 0) {
     return;
   }
-  const evaluated = evaluateStats(state.progressionCatalog, {
-    classId: classId,
-    level: player.progression.level,
-    allocatedAttributes: player.progression.allocatedAttributes,
-    equipmentModifiers: equipmentModifiersFromGear(player.equipment, player.inventory, state.itemsById),
-    effectModifiers: effectModifiersFrom(player.effects),
-    percentModifiers: emptyModifierMap(),
-    multiplyModifiers: emptyModifierMap(),
-  });
+  const evaluated = evaluateStats(
+    state.progressionCatalog,
+    playerStatContext(
+      classId,
+      player.progression,
+      player.equipment,
+      player.inventory,
+      state.itemsById,
+      effectModifiersFrom(player.effects),
+    ),
+  );
   const payload = publicProgression(state.progressionCatalog, classId, player.progression, evaluated.values);
   const message = progressionState(state.contentHash, payload, requestId);
   outbound.push({ opcode: message.opcode, body: message.body, toUserId: userId });
@@ -2529,17 +2532,83 @@ function resourceCaps(state: StarterZoneState, player: MatchPlayer): { [resource
     return caps;
   }
   const manaId = resourceIdForRole(state.progressionCatalog, "mana");
-  const evaluated = evaluateStats(state.progressionCatalog, {
-    classId: player.classId,
-    level: player.progression.level,
-    allocatedAttributes: player.progression.allocatedAttributes,
-    equipmentModifiers: equipmentModifiersFromGear(player.equipment, player.inventory, state.itemsById),
-    effectModifiers: emptyModifierMap(),
-    percentModifiers: emptyModifierMap(),
-    multiplyModifiers: emptyModifierMap(),
-  });
-  if (manaId.length > 0) {
+  const evaluated = evaluateStats(
+    state.progressionCatalog,
+    playerStatContext(
+      player.classId,
+      player.progression,
+      player.equipment,
+      player.inventory,
+      state.itemsById,
+      effectModifiersFrom(player.effects),
+    ),
+  );
+  if (manaId.length > 0 && evaluated.maxMana > 0) {
     caps[manaId] = evaluated.maxMana;
   }
   return caps;
+}
+
+function playerAttackInterval(state: StarterZoneState, userId: string): number {
+  const base = state.playerAttackCooldownSec;
+  const player = state.players[userId];
+  if (player === undefined || player.classId === undefined || player.progression === undefined) {
+    return base;
+  }
+  if (state.progressionCatalog === undefined) {
+    return base;
+  }
+  const evaluated = evaluateStats(
+    state.progressionCatalog,
+    playerStatContext(
+      player.classId,
+      player.progression,
+      player.equipment,
+      player.inventory,
+      state.itemsById,
+      effectModifiersFrom(player.effects),
+    ),
+  );
+  const haste = evaluated.hasteMult !== undefined ? evaluated.hasteMult : 1;
+  return formulaAttackInterval(base, haste);
+}
+
+function tickManaRegen(state: StarterZoneState, deltaSec: number): void {
+  if (state.progressionCatalog === undefined) {
+    return;
+  }
+  const manaId = resourceIdForRole(state.progressionCatalog, "mana");
+  if (manaId.length === 0) {
+    return;
+  }
+  const ids = Object.keys(state.players);
+  for (let i = 0; i < ids.length; i++) {
+    const player = state.players[ids[i]];
+    if (player === undefined || player.health <= 0 || player.classId === undefined || player.progression === undefined) {
+      continue;
+    }
+    const evaluated = evaluateStats(
+      state.progressionCatalog,
+      playerStatContext(
+        player.classId,
+        player.progression,
+        player.equipment,
+        player.inventory,
+        state.itemsById,
+        effectModifiersFrom(player.effects),
+      ),
+    );
+    const resources = player.resources !== undefined ? player.resources : {};
+    if (!(evaluated.maxMana > 0)) {
+      if (resources[manaId] !== undefined) {
+        delete resources[manaId];
+        player.resources = resources;
+      }
+      continue;
+    }
+    const current = resources[manaId] !== undefined ? resources[manaId] : 0;
+    const regen = evaluated.manaRegen !== undefined ? evaluated.manaRegen : 0;
+    resources[manaId] = regenerateMana(current, evaluated.maxMana, regen, deltaSec);
+    player.resources = resources;
+  }
 }
