@@ -1,13 +1,13 @@
 # Current progression conflicts
 
-PROG-07 is the accepted talent-tree, ownership, and production-hotbar path. Remaining live/design gaps are **owned staged work**, not items that will vanish on their own.
+PROG-08 is the accepted generic combat-mechanics path. Remaining live/design gaps are **owned staged work**, not items that will vanish on their own.
 
 Canonical target: [rpg-progression-design-v1.0.md](../design/rpg-progression-design-v1.0.md).  
 Live ownership: [PROGRESSION_ARCHITECTURE.md](PROGRESSION_ARCHITECTURE.md).  
 Noncanonical numbers: [progression-implementation-addendum.md](../design/progression-implementation-addendum.md).  
 Final save mapping: [PROGRESSION_MIGRATION_PLAN.md](PROGRESSION_MIGRATION_PLAN.md).
 
-This register does **not** mean PROG-06 failed. Production HP, mana, regen, crit, haste, DR, power-category hit functions, damage order, modifier identity, the level-10 auto-growth sheet, the L10 XP curve, KillXP, automatic growth, free points, auto-assign, milestones, free-stat allocation, trainer respec, class/branch talent spend, derived ability ownership, and the four-slot production hotbar are implemented and tested. Live ATTACK, the test-only 8-slot Foundation `HOTBAR_SIZE`, `test.ability.*` GCD, leftover 3-stat fields, and class-specific combat remain because later PROG phases own those subsystems.
+This register does **not** mean PROG-08 failed. Production HP, mana, regen, crit, haste, DR, power-category hit functions, damage order, modifier identity, the level-10 auto-growth sheet, the L10 XP curve, KillXP, automatic growth, free points, auto-assign, milestones, free-stat allocation, trainer respec, class/branch talent spend, derived ability ownership, the four-slot production hotbar, and the generic combat engine (events, RNG, DoT/shield/threat/multi-hit, no production GCD) are implemented and tested. Live ATTACK, the test-only 8-slot Foundation `HOTBAR_SIZE`, leftover 3-stat fields, and class-specific combat remain because later PROG phases own those subsystems.
 
 ## Status values
 
@@ -36,7 +36,7 @@ Every conflict below has **Status**, **Resolution owner**, **Must be resolved by
 | PROG-05 | XP curve, automatic growth, free points, auto-assign, milestones (accepted) |
 | PROG-06 | Manual free-stat allocation and trainer respec (accepted) |
 | PROG-07 | Class/branch talent spend, ownership, **one** production hotbar (accepted) |
-| PROG-08 | Canonical combat mechanics (no production GCD) |
+| PROG-08 | Canonical combat mechanics (no production GCD) (accepted) |
 | PROG-09–12 | Every class and branch, including auto-attacks |
 | PROG-13 | Complete player-facing progression UI |
 | PROG-14 | Persistence and lifecycle integration, **final** legacy migration |
@@ -122,6 +122,25 @@ Proceed to PROG-08 only when every row is true. These are PROG-07 exit criteria,
 | Content hash unchanged | `3b57502b4a197972c970420cd7b2a5a74955311b5840be0b4d184843c24e3320` |
 | Canonical combat remains later | `C-attack-foundation`, `C-gcd` |
 
+## PROG-09 go/no-go
+
+Proceed to PROG-09 only when every row is true. These are PROG-08 exit criteria, not PROG-09 work.
+
+| Criterion | Evidence |
+| --- | --- |
+| All previous tests still pass | Content, design audit, foundation audit, server, client gates |
+| Generic handlers exist for every required mechanic kind | `server/tests/canonical_combat.test.ts` |
+| Core combat modules do not branch on class ids | same |
+| Haste changes cast/attack/DoT timing; cooldown recovery is separate | `canonical_combat.test.ts`, `progression_dot_haste.test.ts` |
+| DoTs preserve total damage and never crit | `progression_dot_haste.test.ts` |
+| Independent multi-hit rolls crits per hit on one parent cooldown | `canonical_combat.test.ts` |
+| Shields emit exactly one break or expiry event | `progression_combat_mechanics.test.ts` |
+| Reflection and overflow heals cannot recurse | `canonical_combat.test.ts` |
+| No production GCD on class, ability, cast remaining, or production UI | `progression_gcd_absent.test.ts`, `ability_service_test.gd` |
+| Client cannot submit crit or random rolls | `progression_combat_mechanics.test.ts`, `combat_rng.test.ts` |
+| Content hash unchanged | `3b57502b4a197972c970420cd7b2a5a74955311b5840be0b4d184843c24e3320` |
+| Class combat definitions remain later | `C-attack-foundation`, `C-shields-taunt`, `C-frenzy-combat` |
+
 ## Conflict register
 
 ### C-canonical-damage
@@ -136,7 +155,7 @@ Proceed to PROG-08 only when every row is true. These are PROG-07 exit criteria,
 
 - **Conflict:** Live ATTACK uses Foundation `test.stat.attack` (might + gear). Canonical auto-attacks are not live. ATTACK does not roll canonical crit.
 - **Status:** DEFERRED
-- **Resolution owner:** PROG-08 generic combat pipeline; PROG-09 through PROG-12 class implementations.
+- **Resolution owner:** PROG-09 through PROG-12 class implementations. Generic hit, crit, and multi-hit helpers exist from PROG-04/PROG-08.
 - **Must be resolved by:** Before PROG-13 UI certification.
 - **Closure test:** Every production class auto-attack uses its canonical base damage, interval, scaling stat, haste behavior, crit behavior, and server authority. No `class.*` character damage reads `test.stat.attack`.
 
@@ -214,19 +233,19 @@ Proceed to PROG-08 only when every row is true. These are PROG-07 exit criteria,
 
 ### C-cooldown-recovery-rate
 
-- **Conflict:** No cooldown-recovery rate. Design Relentless/Nimble/Nest/Runner advance timers at `1+bonus`.
+- **Conflict:** No live cooldown-recovery talents. Design Relentless/Nimble/Nest/Runner advance timers at `1+bonus`. The engine rate is implemented; those nodes are not live.
 - **Status:** DEFERRED
-- **Resolution owner:** PROG-09 through PROG-12 (those talents).
+- **Resolution owner:** PROG-09 through PROG-12 (those talents). Engine + tests: PROG-08.
 - **Must be resolved by:** Before PROG-13, for any live talent that grants cooldown recovery.
-- **Closure test:** Those nodes multiply cooldown remaining-tick consumption. Haste still does not change stored cooldown duration.
+- **Closure test:** Those nodes multiply cooldown remaining-tick consumption. Haste still does not change stored cooldown duration. Covered for the engine by `server/tests/canonical_combat.test.ts`.
 
 ### C-gcd
 
 - **Conflict:** Live stored remaining ticks include a GCD field `globalCooldown` (e.g. 0.7s on test melee). Design has **no global cooldown**; casts/channels block incompatible actions; physical skills are gated by individual cooldowns.
-- **Status:** DEFERRED
+- **Status:** RESOLVED
 - **Resolution owner:** PROG-08 generic combat pipeline. PROG-15 production audit.
-- **Must be resolved by:** Before canonical `ability.*` become live (PROG-08). PROG-15 fails if production still depends on GCD.
-- **Closure test:** PROG-08 acceptance: no production class, production ability, authoritative cast state, or production client UI uses a global cooldown. Legacy `test.ability.*` may retain a GCD only when their package is development-only and excluded from production. PROG-15 search of production bundles and runtime paths for `globalCooldown`, `global_cooldown`, and `gcd` must find no production progression ability dependency.
+- **Must be resolved by:** Accepted in PROG-08. PROG-15 fails if production still depends on GCD.
+- **Closure test:** No production class, production ability, authoritative cast remaining, or production client UI uses a global cooldown. Covered by `server/tests/progression_gcd_absent.test.ts` and `client/tests/app/ability_service_test.gd`. Legacy `test.ability.*` may retain a GCD only when their package is development-only and excluded from production. PROG-15 search of production bundles and runtime paths for `globalCooldown`, `global_cooldown`, and `gcd` must find no production progression ability dependency.
 
 ### C-dot-crit-engine
 
@@ -272,7 +291,7 @@ Proceed to PROG-08 only when every row is true. These are PROG-07 exit criteria,
 
 - **Conflict:** Live equipment is an identified modifier source in `canonical_stats.ts`. Training sword / attack-from-might still disagree with §9 auto-attack baselines.
 - **Status:** DEFERRED
-- **Resolution owner:** PROG-08 through PROG-12 auto-attack retune.
+- **Resolution owner:** PROG-09 through PROG-12 auto-attack retune.
 - **Must be resolved by:** Before PROG-13.
 - **Closure test:** Production auto-attack baselines match §9. Outgoing and taken percentage modifiers from different sources still multiply; higher ranks of the same talent node still replace.
 
@@ -302,8 +321,8 @@ Proceed to PROG-08 only when every row is true. These are PROG-07 exit criteria,
 
 ### C-shields-taunt
 
-- **Conflict:** Live absorb uses effect tags (`shield` / `absorb` channel); threat tables and heal threat exist; **no** taunt ability. Design: Protective Charm / Benediction shields; Challenge taunt + DR.
+- **Conflict:** Live absorb uses effect tags (`shield` / `absorb` channel); threat tables and heal threat exist. The generic shield/taunt engine is live. Design Protective Charm / Benediction / Challenge are not wired as class abilities.
 - **Status:** DEFERRED
-- **Resolution owner:** PROG-09–12. Extend `effects.ts` / `threat.ts`; do not add a second combat pipeline.
+- **Resolution owner:** PROG-09–12. Extend existing `effects.ts` / `threat.ts`; do not add a second combat pipeline.
 - **Must be resolved by:** Before PROG-13 for the classes that own those skills.
-- **Closure test:** Those abilities use the single combat pipeline. Shields use SPI scaling and do not crit unless content sets `shieldCanCrit`.
+- **Closure test:** Those abilities use the single combat pipeline. Shields use SPI scaling and do not crit unless content sets `shieldCanCrit`. Engine coverage: `server/tests/progression_combat_mechanics.test.ts`.

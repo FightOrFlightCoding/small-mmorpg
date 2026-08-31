@@ -18,9 +18,10 @@ import {
 import { dict } from "./maps";
 import type { MatchPlayer, StarterZoneState } from "./match_state";
 import { distance } from "./movement";
-import { addDamageThreat, applyHealThreatToEnemies, profileForEnemy } from "./threat";
+import { addDamageThreat, applyHealThreatToEnemies, profileForEnemy, tauntDamageTakenMultiplier } from "./threat";
 import { noteAddDeath } from "./spawn_controller";
 import { evaluateCanonicalHit, type PowerCategory } from "./canonical_stats";
+import type { CombatRandom } from "./combat_rng";
 
 export const IN_COMBAT_TIMEOUT_TICKS = 50;
 export const COMBAT_APPLY_TTL_TICKS = 6000;
@@ -71,7 +72,7 @@ export interface CombatFormula {
   isDot?: boolean;
   isShield?: boolean;
   shieldCanCrit?: boolean;
-  random?: () => number;
+  random?: CombatRandom | (() => number);
 }
 
 export interface CombatApplyInput {
@@ -150,10 +151,15 @@ export function applyCombat(state: StarterZoneState, input: CombatApplyInput, ev
 
   const absorb = numericOr(input.formula.absorb, 0) + absorbFromEntity(target.effects);
   const evaluated = evaluateCombatFormula(input.formula, input.action, absorb);
+  applyTauntTakenReduction(state, input, evaluated, absorb);
   steps.push("base_magnitude");
   steps.push("source_modifiers");
   steps.push("target_modifiers");
   steps.push("mitigation");
+  if (input.action === "damage") {
+    const shieldHit = evaluated.afterMitigation - evaluated.afterShields;
+    consumeVictimShields(state, input.targetId, input.targetKind, shieldHit, events);
+  }
   steps.push("shields");
   steps.push("final_amount");
 
@@ -290,7 +296,7 @@ export function evaluateCombatFormula(formula: CombatFormula, action: "damage" |
   const sourcePercent = numericOr(formula.sourcePercent, 0);
   let afterSource = Math.floor(base + sourceStat * sourceCoeff + sourceFlat);
   afterSource = Math.floor(afterSource * (1 + sourcePercent));
-  if (formula.critEnabled === true && formula.critForced === true) {
+  if (formula.isDot !== true && formula.critEnabled === true && formula.critForced === true) {
     const critMult = numericOr(formula.critMultiplier, 1.5);
     afterSource = Math.floor(afterSource * critMult);
   }
@@ -481,6 +487,12 @@ export function tickCombatFlags(state: StarterZoneState, tick: number): void {
       last = lastDamage;
     }
     player.inCombat = last > NEVER_ATTACKED_TICK && tick - last < IN_COMBAT_TIMEOUT_TICKS;
+    if (player.inCombat !== true && player.oncePerCombatUsed !== undefined) {
+      const keys = Object.keys(player.oncePerCombatUsed);
+      for (let k = 0; k < keys.length; k++) {
+        delete player.oncePerCombatUsed[keys[k]];
+      }
+    }
   }
 }
 
@@ -587,8 +599,33 @@ function markCombatActivity(state: StarterZoneState, input: CombatApplyInput, _r
   }
 }
 
+function applyTauntTakenReduction(
+  state: StarterZoneState,
+  input: CombatApplyInput,
+  evaluated: CombatStages,
+  absorb: number,
+): void {
+  if (input.action !== "damage" || input.sourceKind !== "enemy" || input.targetKind !== "player") {
+    return;
+  }
+  const attacker = findEnemy(state.enemies, input.sourceId);
+  if (attacker === null) {
+    return;
+  }
+  const mult = tauntDamageTakenMultiplier(attacker, input.targetId);
+  if (mult === 1) {
+    return;
+  }
+  const scaled = Math.floor(evaluated.afterMitigation * mult);
+  evaluated.afterMitigation = scaled;
+  const shield = Math.max(0, absorb);
+  evaluated.afterShields = Math.max(0, scaled - shield);
+  const minResult = Math.max(0, numericOr(input.formula.minResult, 0));
+  evaluated.finalAmount = Math.max(minResult, evaluated.afterShields);
+}
+
 function absorbFromEntity(
-  effects: { tags?: string[]; statChannel?: string; magnitude?: number; stacks?: number }[] | undefined,
+  effects: { tags?: string[]; statChannel?: string; magnitude?: number; stacks?: number; remainingAbsorb?: number }[] | undefined,
 ): number {
   if (effects === undefined) {
     return 0;
@@ -607,11 +644,77 @@ function absorbFromEntity(
     if (!shielded) {
       continue;
     }
+    if (effect.remainingAbsorb !== undefined) {
+      total += Math.max(0, effect.remainingAbsorb);
+      continue;
+    }
     const magnitude = numericOr(effect.magnitude, 0);
     const stacks = numericOr(effect.stacks, 1);
     total += magnitude * stacks;
   }
   return Math.max(0, Math.floor(total));
+}
+
+function consumeVictimShields(
+  state: StarterZoneState,
+  targetId: string,
+  targetKind: "player" | "enemy",
+  amount: number,
+  events: CombatEvent[],
+): void {
+  if (!(amount > 0)) {
+    return;
+  }
+  let remaining = amount;
+  let effects: { remainingAbsorb?: number; magnitude?: number; stacks?: number; tags?: string[]; statChannel?: string; terminalEventSent?: boolean; remainingTicks?: number; sourceId: string; sourceKind: "player" | "enemy"; effectId: string; abilityId: string }[] | undefined;
+  if (targetKind === "player") {
+    const player = dict(state.players)[targetId];
+    effects = player !== undefined ? player.effects : undefined;
+  } else {
+    const enemy = findEnemy(state.enemies, targetId);
+    effects = enemy !== null ? enemy.effects : undefined;
+  }
+  if (effects === undefined) {
+    return;
+  }
+  for (let i = 0; i < effects.length; i++) {
+    const effect = effects[i];
+    const channel = effect.statChannel !== undefined ? String(effect.statChannel) : "";
+    let shielded = channel === "absorb";
+    const tags = effect.tags !== undefined ? effect.tags : [];
+    for (let t = 0; t < tags.length; t++) {
+      if (tags[t] === "shield") {
+        shielded = true;
+      }
+    }
+    if (!shielded || remaining <= 0) {
+      continue;
+    }
+    const pool =
+      effect.remainingAbsorb !== undefined ? effect.remainingAbsorb : numericOr(effect.magnitude, 0) * numericOr(effect.stacks, 1);
+    if (!(pool > 0)) {
+      continue;
+    }
+    const take = pool < remaining ? pool : remaining;
+    const nextPool = pool - take;
+    effect.remainingAbsorb = nextPool;
+    effect.magnitude = nextPool;
+    remaining -= take;
+    if (nextPool <= 0 && effect.terminalEventSent !== true) {
+      effect.terminalEventSent = true;
+      effect.remainingTicks = 0;
+      events.push({
+        type: "message",
+        sourceId: effect.sourceId,
+        sourceKind: effect.sourceKind,
+        targetId: targetId,
+        targetKind: targetKind,
+        effectId: effect.effectId,
+        abilityId: effect.abilityId,
+        message: "shield_broken",
+      });
+    }
+  }
 }
 
 function replayCombatApply(state: StarterZoneState, eventId: string): CombatApplyResult | null {

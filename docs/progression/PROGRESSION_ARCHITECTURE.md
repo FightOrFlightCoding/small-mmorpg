@@ -8,9 +8,9 @@ Undocumented implementation numbers: [progression-implementation-addendum.md](..
 
 ## Last accepted phase and ownership
 
-Last accepted phase: **PROG-07** (branch choice, talent trees, derived ownership, four-slot production hotbar). Later PROG phases still own canonical combat. Foundation v1 / Prompt 35 / ACCT-09 remain accepted. Prompt 18 village/slime combat behavior remains frozen.
+Last accepted phase: **PROG-08** (generic combat mechanics; no production global cooldown). Later PROG phases still own class combat definitions and live ATTACK retune. Foundation v1 / Prompt 35 / ACCT-09 remain accepted. Prompt 18 village/slime combat behavior remains frozen.
 
-PROG-07 enforces class/branch point pools, SELECT_BRANCH, PURCHASE_TALENT, derived ability ownership, and server-validated 4-slot hotbars. Canonical melee/ranged/spell/curse/heal/shield functions exist and are tested independently. Live ATTACK and canonical `ability.*` combat remain later-phase work. Owned gaps: [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md).
+PROG-08 extends the project-owned ability/effect/combat pipeline with reusable mechanic handlers, typed combat events, a server-authoritative random interface, independent multi-hit, DoT snapshot/retune, shields, taunt, cooldown recovery, vault movement, and line/cone/radius/delayed-ground targeting. Canonical `ability.*` stay `runtimeEnabled: false`. Live ATTACK is not retuned. Owned gaps: [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md).
 
 | Concern | Owner | Extend, do not duplicate |
 | --- | --- | --- |
@@ -19,8 +19,9 @@ PROG-07 enforces class/branch point pools, SELECT_BRANCH, PURCHASE_TALENT, deriv
 | Derived stats | `stats.ts`, `canonical_stats.ts`, content `derived_stat` / `attribute` / `resource` | Canonical formulas overlay production classes; test classes keep Foundation layers |
 | XP grants | `progression.ts`, `canonical_leveling.ts`, `xp_hooks.ts` | Production KillXP `8+2*level`; test classes keep `xpReward` |
 | Abilities, casts, hotbar | `ability.ts`, `AbilityService`, content `ability` | New skills/talents as content |
-| Effects, DoTs, shields | `effects.ts`, `combat_pipeline.ts` | Haste snapshot, no DoT crit |
-| Threat / taunt | `threat.ts`, combat events | Challenge taunt later |
+| Effects, DoTs, shields | `effects.ts`, `combat_pipeline.ts`, `canonical_combat.ts` | Haste snapshot, no DoT crit, one terminal shield event |
+| Threat / taunt | `threat.ts`, combat events | Challenge ability later; engine is live |
+| Combat events / RNG | `combat_events.ts`, `combat_rng.ts` | Handlers subscribe by event; client never rolls |
 | Equipment modifiers | `equipment.ts` channels into `stats.ts` | Keep as a modifier source |
 | Character summaries | `character_catalog.ts` | `classId`, `level`, `branchId`, presence |
 | Export / delete | `account_export.ts`, `character_purge.ts` (includes `progression`) | Same blobs |
@@ -33,7 +34,7 @@ Godot `.tres` resources suggested in design §15.9 are **not** the source of tru
 
 The server is authoritative for class, branch, level, XP, automatic growth, free allocations, point balances, auto-assign, talent purchases, ability ownership and ranks, hotbar validity, derived statistics, maxima and current vitals, mana regen, crit, haste, damage reduction, attack/cast/DoT timing, cooldown progress, damage/heal/shield/buff/debuff/threat/taunt, death, respec, gold cost, enemy XP, and quest XP.
 
-The client sends intentions only (`ALLOCATE_ATTRIBUTES`, `ALLOCATE_ATTRIBUTES_BATCH`, `TRAINER_RESPEC`, `SELECT_BRANCH`, `PURCHASE_TALENT`, `SET_AUTO_ASSIGN`, `AUTO_ASSIGN_UNSPENT_POINTS`, `USE_ABILITY`, `CANCEL_CAST`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`). It never submits authoritative level, XP, stat totals, point balances, grants, ranks, combat results, mana, cooldown completion, durations, gold costs, or respec results.
+The client sends intentions only (`ALLOCATE_ATTRIBUTES`, `ALLOCATE_ATTRIBUTES_BATCH`, `TRAINER_RESPEC`, `SELECT_BRANCH`, `PURCHASE_TALENT`, `SET_AUTO_ASSIGN`, `AUTO_ASSIGN_UNSPENT_POINTS`, `USE_ABILITY`, `CANCEL_CAST`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`). It never submits authoritative level, XP, stat totals, point balances, grants, ranks, combat results, crit rolls, mana, cooldown completion, durations, gold costs, or respec results.
 
 ## Persistence (PROG-03)
 
@@ -51,7 +52,7 @@ No stat caps. Warrior/Marksman have no mana. Mage/Mystic use mana. Haste never r
 
 ## Combat timing (PROG-04)
 
-Server delta time and tick progression. Haste affects auto-attack interval, cast time, channel time, and base DoT tick interval. Cooldown recovery still uses stored remaining ticks without haste. Mana is float, regen continuous (`min(max, current + regen * delta)`), spend at cast start, interrupted casts do not refund unless content says so. Capstones cost 0 mana (content). Cooldown-recovery-rate talents remain later.
+Server delta time and tick progression. Haste affects auto-attack interval, cast time, channel time, and base DoT tick interval. Cooldown recovery is a separate remaining-tick rate and is not haste. Mana is float, regen continuous (`min(max, current + regen * delta)`), spend at cast start, interrupted casts do not refund unless content says so. Capstones cost 0 mana (content). Cooldown-recovery-rate **talents** remain later; the engine rate exists.
 
 ## Leveling (PROG-05)
 
@@ -78,8 +79,8 @@ No progression, skill-tree, RPG-statistics, cooldown, or ability plugin. No new 
 | Phases | Owns |
 | --- | --- |
 | PROG-06 | Manual free-stat allocation and trainer respec (accepted) |
-| PROG-07 | Class/branch talent spend, ownership, one production hotbar |
-| PROG-08 | Canonical combat mechanics; no production global cooldown |
+| PROG-07 | Class/branch talent spend, ownership, one production hotbar (accepted) |
+| PROG-08 | Canonical combat mechanics; no production global cooldown (accepted) |
 | PROG-09–12 | Every class and branch, including auto-attacks |
 | PROG-13 | Complete player-facing progression UI |
 | PROG-14 | Persistence, lifecycle, final leftover-field migration |

@@ -451,11 +451,27 @@ export function identifiedModifiersFromEffectMap(
       sourceId: "effect:" + channel,
       sourceKind: sourceKind,
       channel: channel,
-      op: "add",
+      op: percentEffectChannel(channel) ? "pct" : "add",
       value: effectModifiers[channel],
     });
   }
   return identified;
+}
+
+function percentEffectChannel(channel: string): boolean {
+  return (
+    channel === "outgoing_damage" ||
+    channel === "outgoing" ||
+    channel === "taken_damage" ||
+    channel === "taken" ||
+    channel === "crit_damage" ||
+    channel === "critical_damage" ||
+    channel === "mana_cost" ||
+    channel === "attack_speed" ||
+    channel === "cast_time" ||
+    channel === "auto_attack" ||
+    channel === "movement_speed"
+  );
 }
 
 export function emptyModifierMap(): { [channel: string]: number } {

@@ -125,3 +125,27 @@ func test_canonical_hotbar_is_four_slots_and_frenzy_is_not_placed() -> void:
 	var slot4: Button = hud.get_node("Root/Hotbar/Slot4")
 	assert_bool(slot0.visible).is_true()
 	assert_bool(slot4.visible).is_false()
+
+
+func test_canonical_class_does_not_keep_a_global_cooldown() -> void:
+	ProgressionService.apply_canonical({
+		"classId": "class.warrior",
+		"classDisplayName": "Warrior",
+		"level": 2,
+		"currentXp": 0,
+		"xpToNext": 100,
+		"atMaxLevel": false,
+		"baseAttributes": {},
+		"allocatedAttributes": {},
+		"derived": {},
+		"unspentAttributePoints": 0,
+		"unlockedAbilityIds": ["ability.warrior.heavy_strike"],
+	})
+	AbilityService.apply_canonical({
+		"unlockedAbilityIds": ["ability.warrior.heavy_strike"],
+		"hotbar": ["ability.warrior.heavy_strike", "", "", ""],
+		"globalCooldownRemaining": 12,
+		"cooldowns": {},
+		"activeCast": {},
+	})
+	assert_int(AbilityService.global_cooldown_remaining).is_equal(0)

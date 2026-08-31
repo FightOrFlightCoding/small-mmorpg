@@ -293,3 +293,80 @@ function failResolution(code: string): TargetResolution {
 function finiteNumber(value: number | undefined): boolean {
   return typeof value === "number" && isFinite(value);
 }
+
+export function facingVector(facingX: number, facingY: number, fallbackX: number, fallbackY: number): { x: number; y: number } {
+  const len = Math.sqrt(facingX * facingX + facingY * facingY);
+  if (len > 0) {
+    return { x: facingX / len, y: facingY / len };
+  }
+  const fallbackLen = Math.sqrt(fallbackX * fallbackX + fallbackY * fallbackY);
+  if (fallbackLen > 0) {
+    return { x: fallbackX / fallbackLen, y: fallbackY / fallbackLen };
+  }
+  return { x: 0, y: 1 };
+}
+
+export function entitiesOnLine(
+  entities: ReadonlyArray<ResolvedEntity>,
+  originX: number,
+  originY: number,
+  dirX: number,
+  dirY: number,
+  range: number,
+  width: number,
+): ResolvedEntity[] {
+  const facing = facingVector(dirX, dirY, 0, 1);
+  const list: ResolvedEntity[] = [];
+  for (let i = 0; i < entities.length; i++) {
+    const entity = entities[i];
+    if (!entity.alive) {
+      continue;
+    }
+    const dx = entity.x - originX;
+    const dy = entity.y - originY;
+    const along = dx * facing.x + dy * facing.y;
+    if (along < 0 || along > range) {
+      continue;
+    }
+    const perp = Math.abs(dx * facing.y - dy * facing.x);
+    if (perp <= width) {
+      list.push(entity);
+    }
+  }
+  return list;
+}
+
+export function entitiesInCone(
+  entities: ReadonlyArray<ResolvedEntity>,
+  originX: number,
+  originY: number,
+  dirX: number,
+  dirY: number,
+  range: number,
+  halfAngleRad: number,
+): ResolvedEntity[] {
+  const facing = facingVector(dirX, dirY, 0, 1);
+  const cosMin = Math.cos(halfAngleRad);
+  const list: ResolvedEntity[] = [];
+  for (let i = 0; i < entities.length; i++) {
+    const entity = entities[i];
+    if (!entity.alive) {
+      continue;
+    }
+    const dx = entity.x - originX;
+    const dy = entity.y - originY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > range || dist === 0) {
+      continue;
+    }
+    const dot = (dx / dist) * facing.x + (dy / dist) * facing.y;
+    if (dot >= cosMin) {
+      list.push(entity);
+    }
+  }
+  return list;
+}
+
+export function livingEntities(state: StarterZoneState): ResolvedEntity[] {
+  return entitiesInRadius(state, 0, 0, 1e9);
+}

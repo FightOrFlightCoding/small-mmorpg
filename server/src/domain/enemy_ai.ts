@@ -98,7 +98,7 @@ function stepEnemy(
     return;
   }
 
-  const targetId = selectThreatTarget(state, enemy, profile);
+  const targetId = selectThreatTarget(state, enemy, profile, tick);
   enemy.aggroTarget = targetId;
   if (targetId === "") {
     enemy.aiState = EnemyAiState.Idle;

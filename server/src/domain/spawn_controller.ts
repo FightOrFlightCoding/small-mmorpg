@@ -366,6 +366,9 @@ export function cloneEnemyCombatFields(enemy: MatchEnemy): Pick<
   | "phaseFlags"
   | "addDeaths"
   | "lootTableId"
+  | "tauntSourceId"
+  | "tauntUntilTick"
+  | "tauntTakenReduction"
   | "tags"
   | "resources"
   | "abilityCooldowns"
@@ -388,6 +391,9 @@ export function cloneEnemyCombatFields(enemy: MatchEnemy): Pick<
     phaseFlags: copyFlagMap(enemy.phaseFlags),
     addDeaths: enemy.addDeaths !== undefined ? enemy.addDeaths : 0,
     lootTableId: enemy.lootTableId !== undefined ? enemy.lootTableId : "",
+    tauntSourceId: enemy.tauntSourceId !== undefined ? enemy.tauntSourceId : "",
+    tauntUntilTick: enemy.tauntUntilTick !== undefined ? enemy.tauntUntilTick : 0,
+    tauntTakenReduction: enemy.tauntTakenReduction !== undefined ? enemy.tauntTakenReduction : 0,
     tags: copyIds(enemy.tags),
     resources: copyNumberMap(enemy.resources),
     abilityCooldowns: copyNumberMap(enemy.abilityCooldowns),

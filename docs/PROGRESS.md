@@ -1,10 +1,10 @@
 # Progress
 
-Last accepted phase: **PROG-07 — Branch Choice, Talent Trees, Ability Ownership, and Hotbar Rules**.
+Last accepted phase: **PROG-08 — Generic Combat Mechanics Required by All Four Classes**.
 
 Current phase: none.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. PROG-08 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
 
@@ -1169,6 +1169,36 @@ Auto-attack is owned at level 1 on the ATTACK path and is not a hotbar skill. Ba
 | Client GdUnit | 280/280, 0 orphans, `SHELL_LOGIN` |
 
 Limitations: Canonical combat, class-specific effect behavior, and production GCD removal remain later PROG phases. Live ATTACK is not retuned onto STR/AGI/INT. The eight-slot Foundation hotbar remains test-only. Manual Prompt 18 world play was not re-run; live village/slime combat behavior was not changed.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/content.ps1 validate
+powershell -File scripts/test-content.ps1
+powershell -File scripts/content-build.ps1
+powershell -File scripts/test-progression-design.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+```
+
+## PROG-08 generic combat mechanics required by all four classes (2026-08-26)
+
+The existing project-owned ability and effect engine now has reusable handlers for every canonical mechanic the four classes need: direct melee/ranged/spell damage and healing, shields, periodic damage/healing, taunt and threat override, interrupt, stun, root, slow, movement-speed and damage modifiers, flat DR, crit chance/damage, mana cost and restoration, cooldown recovery, attack-speed, cast-time, auto-attack modifiers, reflect, lifesteal, once-per-combat, health/motion/proximity/control conditions, shield break/expiry, kill events, effect propagation, cooldown reset, vault movement, line/cone/radius/delayed-ground targeting, and independent multi-hit.
+
+Typed combat events (`before_ability` through `movement_stopped`) dispatch through generic handlers. Production random is server-side; tests inject seeded or scripted values. The client cannot submit crit or random rolls (`stat_injection:crit` / `critRoll`). Independent hits each roll crit on one parent cast and cooldown. DoTs store source, snapshot, remaining damage/ticks, interval, and expiry; haste and festering-like tick-rate modifiers compress interval without changing total damage or allowing tick crits. Shields scale with SPI, keep remaining absorb, emit exactly one break or expiry event, and suppress duplicate expiry on replace/refresh. Taunt overrides threat for a duration, then returns to the table, and reduces damage taken from that enemy. Haste changes cast and attack timing; cooldown recovery is a separate remaining-tick rate. Reflected damage and overflow heals cannot recurse.
+
+Production `class.*` ignore GCD remaining even if a leftover field is set. Foundation `test.ability.*` keep GCD. Canonical `ability.*` stay `runtimeEnabled: false`. Live ATTACK is not retuned onto STR/AGI/INT. No class-name checks in core combat modules. No third-party combat framework. Content was not rebuilt; hash is unchanged. Prompt 18 village/slime combat behavior is unchanged.
+
+| Gate | Result |
+| --- | --- |
+| Content-build tests | 25/25 (`scripts/test-content.ps1`); hash `3b57502b4a197972c970420cd7b2a5a74955311b5840be0b4d184843c24e3320` |
+| Design audit | 10/10 (`scripts/test-progression-design.ps1`) |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (29 RPCs, 34 storage records, 38 client opcodes) |
+| Server hermetic | 669 passed, 13 skipped (live suites off); `tsc` via server test script |
+| Client GdUnit | 283 passed (`scripts/test-client.ps1`); includes `ability_service_test.gd` GCD absence check |
+
+Limitations: Class-specific combat definitions, live ATTACK retune, cooldown-recovery talents, and Challenge/Protective Charm as playable abilities remain PROG-09–12. The eight-slot Foundation hotbar remains test-only. Manual Prompt 18 world play was not re-run; live village/slime combat behavior was not changed.
 
 Reproduction:
 

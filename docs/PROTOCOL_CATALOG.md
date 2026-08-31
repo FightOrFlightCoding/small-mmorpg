@@ -273,8 +273,8 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 | Body | `{ protocolVersion, targetId, requestId }` |
 | Authority | Server derived attack, range, cooldown. When the catalog and unlock exist, ATTACK uses `player.base.basicAbilityId`; otherwise Prompt 18 `applyPlayerAttack`. |
 | Idempotency | Same `requestId` does not hit twice |
-| Errors | `on_cooldown`, `out_of_range`, `invalid_target`, `target_dead`, `player_dead`, `stat_injection:damage` |
-| Tests | `combat.test.ts`, `security.test.ts`, `combat_client_test.gd`, `progression.test.ts` |
+| Errors | `on_cooldown`, `out_of_range`, `invalid_target`, `target_dead`, `player_dead`, `stat_injection:damage`, `stat_injection:crit` |
+| Tests | `combat.test.ts`, `security.test.ts`, `combat_client_test.gd`, `progression.test.ts`, `progression_combat_mechanics.test.ts` |
 
 ### 4 `PICKUP`
 
@@ -376,9 +376,9 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 | Body | `{ protocolVersion, abilityId, targetId?, targetX?, targetY?, requestId }` |
 | Authority | Server catalog, unlocks, range, relation, resources, cooldowns, control, LOS |
 | Idempotency | Same `requestId` replays the stored result |
-| Errors | `ability_locked`, `out_of_range`, `pvp_disabled`, `invalid_relation`, `insufficient_resource`, `on_cooldown`, `on_global_cooldown`, `invalid_target`, `control_restricted`, `already_casting`, `line_of_sight`, `stat_injection:*` |
+| Errors | `ability_locked`, `out_of_range`, `pvp_disabled`, `invalid_relation`, `insufficient_resource`, `on_cooldown`, `on_global_cooldown`, `invalid_target`, `control_restricted`, `already_casting`, `line_of_sight`, `stat_injection:*` including `crit` / `critRoll` |
 | Rate limit | Shares ATTACK window (8) |
-| Tests | `ability.test.ts`, `ability_service_test.gd` |
+| Tests | `ability.test.ts`, `ability_service_test.gd`, `progression_combat_mechanics.test.ts` |
 
 ### 14 `CANCEL_CAST`
 

@@ -120,15 +120,24 @@ func apply_remote_poses(poses: Dictionary) -> void:
 		if node == null and not key.contains(":"):
 			node = get_entity("%s:%s" % [KIND_PLAYER, key])
 		if node != null:
-			node.position = poses[id]
+			var next: Vector2 = poses[id]
+			if node is WorldAvatar:
+				var avatar := node as WorldAvatar
+				avatar.set_move_vector(next - avatar.position)
+				avatar.position = next
+			else:
+				node.position = next
 
 
-func pose_local(pos: Vector2, facing: Vector2 = Vector2.ZERO) -> void:
+func pose_local(pos: Vector2, facing: Variant = null) -> void:
+	## Facing is optional. Snapshot/reconcile pose updates must not pass Vector2.ZERO
+	## or they stop AnimatedSprite2D every tick and leave a static walk frame.
 	var node: Node2D = get_entity("%s:%s" % [KIND_PLAYER, local_server_id])
 	if node is WorldAvatar:
 		var avatar := node as WorldAvatar
 		avatar.set_server_position(pos.x, pos.y)
-		avatar.set_move_vector(facing)
+		if facing is Vector2:
+			avatar.set_move_vector(facing as Vector2)
 	elif node != null:
 		node.position = pos
 

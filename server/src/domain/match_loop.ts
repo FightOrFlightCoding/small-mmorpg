@@ -45,11 +45,13 @@ import {
   type RewardCommitter,
 } from "./quest_reward";
 import { type CombatEvent } from "./combat";
-import { assignHotbar, cancelCast, interruptCast, interruptMovingCasters, interruptOnDamage, publicAbilityState, tickCasts, unlockAbility, useAbility, useLegacyAttackOrAbility } from "./ability";
+import { assignHotbar, cancelCast, interruptCast, interruptMovingCasters, interruptOnDamage, publicAbilityState, tickAbilityCooldownRecovery, tickCasts, unlockAbility, useAbility, useLegacyAttackOrAbility } from "./ability";
 import { applyReleaseRespawn, tickCombatFlags } from "./combat_pipeline";
 import { applySetTarget } from "./targeting";
 import { applyServerXpGrant, killXpGrantFromEnemy, questXpGrant, type TrustedXpGrant } from "./xp_hooks";
 import { effectModifiersFrom, hasControlTag, tickEffects } from "./effects";
+import { dueDelayedGround } from "./canonical_combat";
+import { entitiesInRadius } from "./targeting";
 import { simulateCombatants } from "./enemy_ai";
 import { publicInventory, applyDestroyItem, applyMoveItem, applySplitStack, emptyInventory, type PlayerInventory } from "./inventory";
 import {
@@ -266,6 +268,8 @@ export function applyMatchLoop(
 
   const previousPos = capturePlayerPositions(next);
   simulateMovement(next, 1 / MATCH_TICK_RATE);
+  tickAbilityCooldowns(next, tick);
+  tickDelayedGround(next, tick, combatEvents);
   interruptMovingCasters(next, previousPos, tick, combatEvents);
   tickCasts(next, tick, combatEvents);
   simulateCombatants(next, tick, 1 / MATCH_TICK_RATE, MATCH_TICK_RATE, combatEvents);
@@ -2128,6 +2132,10 @@ function applyInput(state: StarterZoneState, userId: string, seq: number, axisX:
   }
   player.axisX = axisX;
   player.axisY = axisY;
+  if (axisX !== 0 || axisY !== 0) {
+    player.facingX = axisX;
+    player.facingY = axisY;
+  }
 }
 
 function simulateMovement(state: StarterZoneState, dt: number): void {
@@ -2140,8 +2148,20 @@ function simulateMovement(state: StarterZoneState, dt: number): void {
     if (hasControlTag(player.effects, "stun") || hasControlTag(player.effects, "root")) {
       continue;
     }
-    const delta = intendedDelta(player.axisX, player.axisY, state.moveSpeed, dt);
-    if (delta.x === 0 && delta.y === 0) {
+    const modifiers = effectModifiersFrom(player.effects);
+    const speedBonus = modifiers["movement_speed"] !== undefined ? modifiers["movement_speed"] : 0;
+    let speed = state.moveSpeed * (1 + speedBonus / 100);
+    if (speed < 0) {
+      speed = 0;
+    }
+    const delta = intendedDelta(player.axisX, player.axisY, speed, dt);
+    const moving = delta.x !== 0 || delta.y !== 0;
+    if (player.lastMoving === true && !moving) {
+      player.lastMoving = false;
+    } else if (moving && player.lastMoving !== true) {
+      player.lastMoving = true;
+    }
+    if (!moving) {
       continue;
     }
     const next = resolveMove(
@@ -2155,6 +2175,36 @@ function simulateMovement(state: StarterZoneState, dt: number): void {
     );
     player.x = next.x;
     player.y = next.y;
+  }
+}
+
+function tickAbilityCooldowns(state: StarterZoneState, tick: number): void {
+  const ids = Object.keys(state.players);
+  for (let i = 0; i < ids.length; i++) {
+    tickAbilityCooldownRecovery(state.players[ids[i]], tick);
+  }
+}
+
+function tickDelayedGround(state: StarterZoneState, tick: number, events: CombatEvent[]): void {
+  const pending = state.pendingGroundEffects !== undefined ? state.pendingGroundEffects : [];
+  const split = dueDelayedGround(pending, tick);
+  state.pendingGroundEffects = split.remaining;
+  for (let i = 0; i < split.due.length; i++) {
+    const due = split.due[i];
+    const hits = entitiesInRadius(state, due.x, due.y, due.radius);
+    for (let h = 0; h < hits.length; h++) {
+      events.push({
+        type: "message",
+        sourceId: due.sourceId,
+        sourceKind: due.sourceKind,
+        targetId: hits[h].id,
+        targetKind: hits[h].kind,
+        abilityId: due.abilityId,
+        x: due.x,
+        y: due.y,
+        message: "delayed_ground",
+      });
+    }
   }
 }
 

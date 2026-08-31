@@ -1,4 +1,5 @@
 import { CANONICAL_STAT_IDS, classUsesMana } from "./canonical_progression";
+import { asRandomFn, type CombatRandom } from "./combat_rng";
 import type { ClassContent } from "./stats";
 
 export const CANONICAL_SOURCE_CLASS_BASE = "class_base";
@@ -79,7 +80,7 @@ export interface CanonicalHitInput {
   isDot?: boolean;
   isShield?: boolean;
   shieldCanCrit?: boolean;
-  random?: () => number;
+  random?: CombatRandom | (() => number);
 }
 
 export interface CanonicalHitResult {
@@ -419,7 +420,7 @@ export function evaluateCanonicalHit(input: CanonicalHitInput): CanonicalHitResu
         input.critChance,
         input.bonusCritChance !== undefined ? input.bonusCritChance : 0,
         input.guaranteedCrit === true,
-        input.random !== undefined ? input.random : defaultRandom,
+        input.random !== undefined ? resolveRandom(input.random) : defaultRandom,
       )
     : false;
   const critMult = rolled ? input.critMult * input.critDamageProduct : 1;
@@ -546,6 +547,36 @@ export function normalizeChannel(channel: string): string {
   if (channel === "attack" || channel === "weapon_base") {
     return CHANNEL_WEAPON_BASE;
   }
+  if (channel === "cooldown_recovery") {
+    return "cooldown_recovery";
+  }
+  if (channel === "mana_cost") {
+    return "mana_cost";
+  }
+  if (channel === "attack_speed") {
+    return "attack_speed";
+  }
+  if (channel === "cast_time") {
+    return "cast_time";
+  }
+  if (channel === "movement_speed") {
+    return "movement_speed";
+  }
+  if (channel === "crit_chance" || channel === "critical_chance") {
+    return "crit_chance";
+  }
+  if (channel === "flat_damage_reduction") {
+    return "flat_damage_reduction";
+  }
+  if (channel === "auto_attack") {
+    return "auto_attack";
+  }
+  if (channel === "lifesteal") {
+    return "lifesteal";
+  }
+  if (channel === "reflect") {
+    return "reflect";
+  }
   if (channel.indexOf("stat.") === 0) {
     return channel;
   }
@@ -563,6 +594,13 @@ function hasteDivisor(hasteMult: number): number {
     return 1;
   }
   return hasteMult;
+}
+
+function resolveRandom(random: CombatRandom | (() => number)): () => number {
+  if (typeof random === "function") {
+    return random;
+  }
+  return asRandomFn(random);
 }
 
 function defaultRandom(): number {

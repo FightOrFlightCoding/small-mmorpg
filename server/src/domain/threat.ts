@@ -1,3 +1,4 @@
+import { cooldownTicks } from "./combat";
 import { dict } from "./maps";
 import type { MatchEnemy, MatchPlayer, StarterZoneState } from "./match_state";
 import { distance } from "./movement";
@@ -93,7 +94,59 @@ export function applyHealThreatToEnemies(
   }
 }
 
-export function selectThreatTarget(state: StarterZoneState, enemy: MatchEnemy, profile: AiProfileContent): string {
+export function applyTaunt(
+  enemy: MatchEnemy,
+  sourceId: string,
+  tick: number,
+  durationSec: number,
+  tickRate: number,
+  takenReduction?: number,
+): void {
+  if (sourceId.length === 0) {
+    return;
+  }
+  enemy.tauntSourceId = sourceId;
+  enemy.tauntUntilTick = tick + cooldownTicks(durationSec, tickRate);
+  enemy.tauntTakenReduction = takenReduction !== undefined && takenReduction > 0 ? takenReduction : 0;
+  enemy.aggroTarget = sourceId;
+}
+
+export function clearExpiredTaunt(enemy: MatchEnemy, tick: number): void {
+  if (enemy.tauntUntilTick === undefined || enemy.tauntUntilTick <= tick) {
+    enemy.tauntSourceId = "";
+    enemy.tauntUntilTick = 0;
+    enemy.tauntTakenReduction = 0;
+  }
+}
+
+export function tauntDamageTakenMultiplier(enemy: MatchEnemy, targetPlayerId: string): number {
+  const source = enemy.tauntSourceId !== undefined ? enemy.tauntSourceId : "";
+  if (source.length === 0 || source !== targetPlayerId) {
+    return 1;
+  }
+  const reduction = enemy.tauntTakenReduction !== undefined ? enemy.tauntTakenReduction : 0;
+  const next = 1 - reduction;
+  return next > 0 ? next : 0;
+}
+
+export function selectThreatTarget(
+  state: StarterZoneState,
+  enemy: MatchEnemy,
+  profile: AiProfileContent,
+  tick?: number,
+): string {
+  const now = tick !== undefined ? tick : 0;
+  clearExpiredTaunt(enemy, now);
+  const tauntSource = enemy.tauntSourceId !== undefined ? enemy.tauntSourceId : "";
+  const tauntUntil = enemy.tauntUntilTick !== undefined ? enemy.tauntUntilTick : 0;
+  if (tauntSource.length > 0 && tauntUntil > now && isValidThreatTarget(state, enemy, tauntSource)) {
+    return tauntSource;
+  }
+  if (tauntSource.length > 0 && !isValidThreatTarget(state, enemy, tauntSource)) {
+    enemy.tauntSourceId = "";
+    enemy.tauntUntilTick = 0;
+    enemy.tauntTakenReduction = 0;
+  }
   const table = dict(enemy.threatByPlayerId);
   const current = enemy.aggroTarget !== undefined ? enemy.aggroTarget : "";
   if (current.length > 0 && isValidThreatTarget(state, enemy, current)) {

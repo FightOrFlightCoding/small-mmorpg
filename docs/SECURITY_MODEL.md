@@ -160,6 +160,7 @@ Machine-readable copy: `server/src/domain/security_catalog.ts`. Every expected a
 | cooldown_bypass | Fire faster than ICD/GCD | Server cooldown clocks | attack 8/10 ticks | 2048 | duplicate `requestId` | `on_cooldown` / `on_global_cooldown` | `combat.test.ts`, `ability.test.ts`, `security.test.ts` |
 | resource_bypass | Cast without resource | Server resource pools | attack 8/10 ticks | 2048 | n/a | `resource_missing` | `ability.test.ts` |
 | damage_spoofing | Send damage/health | Intention only | attack 8/10 ticks | 2048 | `eventId` + `requestId` | `stat_injection:damage` | `combat.test.ts`, `ability.test.ts`, `protocol.test.ts`, `security.test.ts` |
+| client_crit_roll | Send crit/random rolls | Outcome keys reject `crit` / `critRoll` / `random` / `roll`; server `CombatRandom` only | attack 8/10 ticks | 2048 | `requestId` | `stat_injection:crit` | `progression_combat_mechanics.test.ts`, `combat_rng.test.ts` |
 | healing_spoofing | Send heal/healing | Outcome keys rejected | attack 8/10 ticks | 2048 | `eventId` | `stat_injection:heal` | `protocol.test.ts`, `combat_pipeline.test.ts`, `security.test.ts` |
 | dead_character_actions | Act while dead | Health check except `RELEASE_RESPAWN` | per opcode | 2048 | n/a | `player_dead` | `combat.test.ts`, `combat_pipeline.test.ts`, `security.test.ts` |
 | pvp_attempts | Damage another player | Living players friendly; PvP off | attack 8/10 ticks | 2048 | n/a | `pvp_disabled` | `ability.test.ts`, `combat_pipeline.test.ts` |

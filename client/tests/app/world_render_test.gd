@@ -83,6 +83,70 @@ func test_world_and_avatar_scenes_instantiate() -> void:
 		assert_object(instance).is_not_null()
 
 
+func test_player_avatar_plays_four_direction_walk() -> void:
+	var avatar: PlayerAvatar = auto_free(preload("res://scenes/world/player_avatar.tscn").instantiate())
+	add_child(avatar)
+	await get_tree().process_frame
+	var visual: Dictionary = ContentRegistry.resolve_visual("visual.player")
+	visual["visual_set"] = ContentRegistry.resolve_visual_set_for_content("player.base")
+	avatar.configure("player", "user-alice", "Alice", visual, true)
+	var anim: AnimatedSprite2D = avatar.get_node("AnimatedSprite2D")
+	assert_object(anim.sprite_frames).is_not_null()
+	assert_bool(anim.sprite_frames.has_animation(&"walk_down")).is_true()
+	assert_bool(anim.sprite_frames.has_animation(&"walk_right")).is_true()
+	assert_bool(anim.sprite_frames.has_animation(&"walk_up")).is_true()
+	assert_bool(anim.sprite_frames.has_animation(&"walk_left")).is_true()
+	assert_int(anim.sprite_frames.get_frame_count(&"walk_down")).is_equal(4)
+	assert_bool(avatar.get_node("Body").visible).is_false()
+	assert_bool(anim.visible).is_true()
+	avatar.set_move_vector(Vector2.RIGHT)
+	assert_str(String(anim.animation)).is_equal("walk_right")
+	assert_bool(anim.flip_h).is_false()
+	assert_bool(anim.is_playing()).is_true()
+	avatar.set_move_vector(Vector2.LEFT)
+	assert_str(String(anim.animation)).is_equal("walk_left")
+	assert_bool(anim.flip_h).is_true()
+	avatar.set_move_vector(Vector2.DOWN)
+	assert_str(String(anim.animation)).is_equal("walk_down")
+	assert_bool(anim.flip_h).is_false()
+	avatar.set_move_vector(Vector2.UP)
+	assert_str(String(anim.animation)).is_equal("walk_up")
+	avatar.set_move_vector(Vector2.ZERO)
+	assert_bool(anim.is_playing()).is_false()
+	assert_str(String(anim.animation)).is_equal("walk_up")
+
+
+func test_player_walk_frames_advance_despite_pose_only_updates() -> void:
+	## Snapshot reconcile used to call pose_local without facing, which stopped
+	## AnimatedSprite2D every tick and left a static frame-0 image while moving.
+	var registry: EntityRegistry = auto_free(EntityRegistry.new())
+	add_child(registry)
+	registry.apply_full_state({
+		"self_id": "user-alice",
+		"players": [{"userId": "user-alice", "name": "Alice", "x": 240, "y": 384}],
+		"npcs": [],
+		"enemies": [],
+		"loot": [],
+	})
+	var avatar := registry.get_entity("player:user-alice") as WorldAvatar
+	assert_object(avatar).is_not_null()
+	var anim: AnimatedSprite2D = avatar.get_node("AnimatedSprite2D")
+	avatar.set_move_vector(Vector2.RIGHT)
+	assert_bool(anim.is_playing()).is_true()
+	var start_frame := anim.frame
+	var saw_progress := false
+	for _i in range(24):
+		await get_tree().process_frame
+		# Pose-only update (no facing) must not cancel playback.
+		registry.pose_local(avatar.position + Vector2(1, 0))
+		assert_bool(anim.is_playing()).is_true()
+		assert_str(String(anim.animation)).is_equal("walk_right")
+		if anim.frame != start_frame or anim.frame_progress > 0.05:
+			saw_progress = true
+	assert_bool(saw_progress).is_true()
+	assert_int(anim.sprite_frames.get_frame_count(&"walk_right")).is_equal(4)
+
+
 func test_world_hud_panels_do_not_cover_chat_or_allocate_buttons() -> void:
 	var viewport := get_viewport()
 	viewport.size = Vector2i(1280, 720)

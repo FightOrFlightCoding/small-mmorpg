@@ -215,7 +215,10 @@ func apply_canonical(state: Dictionary) -> void:
 	ability_ranks = _copy_number_map(state.get("abilityRanks", {}))
 	resources = _copy_number_map(state.get("resources", {}))
 	cooldowns = _copy_number_map(state.get("cooldowns", {}))
-	global_cooldown_remaining = int(state.get("globalCooldownRemaining", 0))
+	if ProgressionService.uses_canonical_class():
+		global_cooldown_remaining = 0
+	else:
+		global_cooldown_remaining = int(state.get("globalCooldownRemaining", 0))
 	var cast: Variant = state.get("activeCast", {})
 	if typeof(cast) == TYPE_DICTIONARY:
 		active_cast = (cast as Dictionary).duplicate(true)

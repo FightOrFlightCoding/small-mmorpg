@@ -11,7 +11,8 @@ import {
   type MagnitudeFormula,
 } from "./effects";
 import { dict } from "./maps";
-import { distance, lineBlocked, SNAPSHOT_RATE_HZ } from "./movement";
+import { distance, lineBlocked, resolveVault, SNAPSHOT_RATE_HZ } from "./movement";
+import { entitiesInCone, entitiesOnLine, facingVector, livingEntities } from "./targeting";
 import type { MatchPlayer, StarterZoneState } from "./match_state";
 import { cloneProgression, type CharacterProgression } from "./progression";
 import { usesCanonicalCreateState } from "./canonical_progression";
@@ -22,8 +23,10 @@ import {
   usesCanonicalTalentRuntime,
 } from "./canonical_talents";
 import { formulaCastTime } from "./canonical_stats";
+import { cooldownRecoveryRate, scaledManaCost } from "./canonical_combat";
 import {
   evaluateStats,
+  identifiedModifiersFromEffectMap,
   playerStatContext,
   resourceIdForRole,
   type EvaluatedStats,
@@ -49,7 +52,7 @@ export interface AbilityDefinition {
   relationFilter: RelationFilter;
   range: number;
   minimumRange: number;
-  areaShape: "none" | "circle";
+  areaShape: "none" | "circle" | "line" | "cone";
   areaRadius: number;
   castTime: number;
   channelTime: number;
@@ -373,16 +376,16 @@ export function useAbility(
   if (!targeting.ok) {
     return remember(targeting.code, false);
   }
-  if (!resourcesAvailable(player, definition)) {
+  if (!resourcesAvailable(player, definition, effectModifiersFrom(player.effects))) {
     return remember("insufficient_resource", false);
   }
-  const cooldownCode = cooldownBlock(player, definition, tick);
+  const cooldownCode = cooldownBlock(player, definition, tick, ignoresGlobalCooldown(state, player));
   if (cooldownCode !== "") {
     return remember(cooldownCode, false);
   }
 
-  spendResources(player, definition);
-  startCooldowns(player, definition, tick);
+  spendResources(player, definition, effectModifiersFrom(player.effects));
+  startCooldowns(player, definition, tick, ignoresGlobalCooldown(state, player));
   player.lastAttackTick = tick;
 
   const stats = casterStats(state, player);
@@ -664,9 +667,12 @@ export function publicAbilityState(
     abilityRanks: progression !== undefined && progression.abilityRanks !== undefined ? progression.abilityRanks : {},
     resources: cloneResourceMap(player.resources),
     cooldowns: cooldowns,
-    globalCooldownRemaining: player.globalCooldownUntilTick !== undefined && player.globalCooldownUntilTick > tick
-      ? player.globalCooldownUntilTick - tick
-      : 0,
+    globalCooldownRemaining:
+      ignoresGlobalCooldownPlayer(catalog, classId) ||
+      player.globalCooldownUntilTick === undefined ||
+      player.globalCooldownUntilTick <= tick
+        ? 0
+        : player.globalCooldownUntilTick - tick,
     activeCast: player.activeCast !== undefined ? cloneActiveCast(player.activeCast) : null,
     effects: publicEffects(player.effects),
   };
@@ -776,12 +782,81 @@ function applyResolvedAbility(
   const targets = collectEffectTargets(state, player, definition, targeting);
   for (let e = 0; e < definition.effects.length; e++) {
     const effect = definition.effects[e];
+    if (effect.type === "forced_movement") {
+      applyVaultToPlayer(state, player, targeting.primaryId, effect.magnitude.value !== undefined ? effect.magnitude.value : 80);
+      continue;
+    }
     const selected = targetsForEffect(player, effect.target, targeting.primaryId, targets);
+    const hits = effect.hitCount !== undefined && effect.hitCount > 1 ? Math.floor(effect.hitCount) : 1;
     for (let t = 0; t < selected.length; t++) {
-      applyEffectDefinition(state, effect, definition.id, player, selected[t], stats, fallbackAttack, tick, events);
-      writeTarget(state, selected[t]);
+      for (let h = 0; h < hits; h++) {
+        applyEffectDefinition(state, effect, definition.id, player, selected[t], stats, fallbackAttack, tick, events);
+        writeTarget(state, selected[t]);
+      }
     }
   }
+}
+
+function applyVaultToPlayer(state: StarterZoneState, player: MatchPlayer, targetId: string, distancePx: number): void {
+  let dirX = player.facingX !== undefined ? player.facingX : 0;
+  let dirY = player.facingY !== undefined ? player.facingY : 1;
+  const pose = targetPose(state, targetId);
+  if (pose !== null && (targetId !== player.userId)) {
+    dirX = player.x - pose.x;
+    dirY = player.y - pose.y;
+  }
+  const next = resolveVault(
+    player.x,
+    player.y,
+    dirX,
+    dirY,
+    distancePx,
+    state.playerHalfExtent,
+    state.collisions,
+    state.walkableBounds,
+  );
+  player.x = next.x;
+  player.y = next.y;
+}
+
+function collectShapedTargets(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  definition: AbilityDefinition,
+  shape: string,
+) {
+  const list = [];
+  const facing = facingVector(
+    player.facingX !== undefined ? player.facingX : 0,
+    player.facingY !== undefined ? player.facingY : 0,
+    0,
+    1,
+  );
+  const range = definition.areaRadius > 0 ? definition.areaRadius : definition.range;
+  const living = livingEntities(state);
+  const hits =
+    shape === "line"
+      ? entitiesOnLine(living, player.x, player.y, facing.x, facing.y, range, 12)
+      : entitiesInCone(living, player.x, player.y, facing.x, facing.y, range, Math.PI / 4);
+  for (let i = 0; i < hits.length; i++) {
+    const hit = hits[i];
+    const relation = classifyTarget(state, player, hit.id);
+    if (!relationAllowed(definition.relationFilter, relation, hit.id === player.userId) || relation === "hostile_player") {
+      continue;
+    }
+    if (hit.kind === "player") {
+      const other = state.players[hit.id];
+      if (other !== undefined) {
+        list.push(playerAsTarget(other));
+      }
+    } else {
+      const enemy = findEnemy(state.enemies, hit.id);
+      if (enemy !== null) {
+        list.push(enemyAsTarget(enemy));
+      }
+    }
+  }
+  return list;
 }
 
 function collectEffectTargets(
@@ -791,7 +866,11 @@ function collectEffectTargets(
   targeting: { primaryId: string; pointX: number; pointY: number },
 ) {
   const list = [];
-  if (String(definition.areaShape) === "circle" && definition.areaRadius > 0) {
+  const shape = String(definition.areaShape);
+  if (shape === "line" || shape === "cone") {
+    return collectShapedTargets(state, player, definition, shape);
+  }
+  if (shape === "circle" && definition.areaRadius > 0) {
     const originX = targeting.pointX;
     const originY = targeting.pointY;
     const playerIds = Object.keys(state.players);
@@ -902,32 +981,40 @@ function targetPose(state: StarterZoneState, targetId: string): { x: number; y: 
   return { x: enemy.x, y: enemy.y };
 }
 
-function resourcesAvailable(player: MatchPlayer, definition: AbilityDefinition): boolean {
+function resourcesAvailable(player: MatchPlayer, definition: AbilityDefinition, modifiers: { [channel: string]: number }): boolean {
   const resources = dict(player.resources);
+  const identified = identifiedFromChannelMap(modifiers);
   for (let i = 0; i < definition.resourceCosts.length; i++) {
     const cost = definition.resourceCosts[i];
     const current = resources[cost.resourceId] !== undefined ? resources[cost.resourceId] : 0;
-    if (current < cost.amount) {
+    if (current < scaledManaCost(cost.amount, identified)) {
       return false;
     }
   }
   return true;
 }
 
-function spendResources(player: MatchPlayer, definition: AbilityDefinition): void {
+function spendResources(player: MatchPlayer, definition: AbilityDefinition, modifiers: { [channel: string]: number }): void {
   const resources = dict(player.resources);
+  const identified = identifiedFromChannelMap(modifiers);
   for (let i = 0; i < definition.resourceCosts.length; i++) {
     const cost = definition.resourceCosts[i];
     const current = resources[cost.resourceId] !== undefined ? resources[cost.resourceId] : 0;
-    resources[cost.resourceId] = current - cost.amount;
+    resources[cost.resourceId] = current - scaledManaCost(cost.amount, identified);
   }
   player.resources = resources;
 }
 
-function cooldownBlock(player: MatchPlayer, definition: AbilityDefinition, tick: number): string {
-  const gcdUntil = player.globalCooldownUntilTick !== undefined ? player.globalCooldownUntilTick : NEVER_ATTACKED_TICK;
-  if (gcdUntil > tick) {
-    return "on_global_cooldown";
+function identifiedFromChannelMap(modifiers: { [channel: string]: number }) {
+  return identifiedModifiersFromEffectMap(modifiers);
+}
+
+function cooldownBlock(player: MatchPlayer, definition: AbilityDefinition, tick: number, ignoreGcd: boolean): string {
+  if (!ignoreGcd) {
+    const gcdUntil = player.globalCooldownUntilTick !== undefined ? player.globalCooldownUntilTick : NEVER_ATTACKED_TICK;
+    if (gcdUntil > tick) {
+      return "on_global_cooldown";
+    }
   }
   const ready = dict(player.abilityCooldowns)[definition.id];
   if (ready !== undefined && ready > tick) {
@@ -936,10 +1023,12 @@ function cooldownBlock(player: MatchPlayer, definition: AbilityDefinition, tick:
   return "";
 }
 
-function startCooldowns(player: MatchPlayer, definition: AbilityDefinition, tick: number): void {
-  const gcdTicks = cooldownTicks(definition.globalCooldown, SNAPSHOT_RATE_HZ);
-  if (gcdTicks > 0) {
-    player.globalCooldownUntilTick = tick + gcdTicks;
+function startCooldowns(player: MatchPlayer, definition: AbilityDefinition, tick: number, ignoreGcd: boolean): void {
+  if (!ignoreGcd) {
+    const gcdTicks = cooldownTicks(definition.globalCooldown, SNAPSHOT_RATE_HZ);
+    if (gcdTicks > 0) {
+      player.globalCooldownUntilTick = tick + gcdTicks;
+    }
   }
   const icdTicks = cooldownTicks(definition.individualCooldown, SNAPSHOT_RATE_HZ);
   if (icdTicks > 0) {
@@ -947,6 +1036,39 @@ function startCooldowns(player: MatchPlayer, definition: AbilityDefinition, tick
     map[definition.id] = tick + icdTicks;
     player.abilityCooldowns = map;
   }
+}
+
+export function tickAbilityCooldownRecovery(player: MatchPlayer, tick: number): void {
+  const modifiers = effectModifiersFrom(player.effects);
+  const identified = identifiedFromChannelMap(modifiers);
+  const rate = cooldownRecoveryRate(identified);
+  const map = dict(player.abilityCooldowns);
+  const ids = Object.keys(map);
+  for (let i = 0; i < ids.length; i++) {
+    const ready = map[ids[i]];
+    const remaining = ready - tick;
+    if (remaining <= 0) {
+      continue;
+    }
+    const extra = rate - 1;
+    if (extra === 0) {
+      continue;
+    }
+    map[ids[i]] = tick + remaining - extra;
+  }
+  player.abilityCooldowns = map;
+}
+
+function ignoresGlobalCooldown(state: StarterZoneState, player: MatchPlayer): boolean {
+  const classId = player.classId !== undefined ? player.classId : "";
+  return ignoresGlobalCooldownPlayer(state.progressionCatalog, classId);
+}
+
+function ignoresGlobalCooldownPlayer(catalog: ProgressionCatalog | undefined, classId: string): boolean {
+  if (catalog === undefined || classId.length === 0) {
+    return false;
+  }
+  return usesCanonicalTalentRuntime(catalog, classId);
 }
 
 function casterStats(state: StarterZoneState, player: MatchPlayer): EvaluatedStats | null {
@@ -1080,6 +1202,13 @@ function copyAbility(raw: Parameters<typeof abilityDefinitionsFromContent>[0][st
     if (effect.resourceRole !== undefined) {
       copied.resourceRole = effect.resourceRole;
     }
+    const extra = effect as unknown as { hitCount?: number; tickRateMultiplier?: number };
+    if (typeof extra.hitCount === "number") {
+      copied.hitCount = extra.hitCount;
+    }
+    if (typeof extra.tickRateMultiplier === "number") {
+      copied.tickRateMultiplier = extra.tickRateMultiplier;
+    }
     effects.push(copied);
   }
   return {
@@ -1091,7 +1220,7 @@ function copyAbility(raw: Parameters<typeof abilityDefinitionsFromContent>[0][st
     relationFilter: raw.relationFilter as RelationFilter,
     range: raw.range,
     minimumRange: raw.minimumRange,
-    areaShape: raw.areaShape as "none" | "circle",
+    areaShape: raw.areaShape as AbilityDefinition["areaShape"],
     areaRadius: raw.areaRadius,
     castTime: raw.castTime,
     channelTime: raw.channelTime,

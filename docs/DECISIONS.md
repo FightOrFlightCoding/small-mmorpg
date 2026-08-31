@@ -661,7 +661,7 @@ Warrior and Marksman expose no mana resource. Mage and Mystic use `Mana_max = 20
 
 On max-health change, the already accepted pipeline policy applies: living characters keep current health plus any **increase** in max, then clamp to the new max. Ordinary equipment changes do not refill. Full refill remains create, authorized respawn, inn/healer restore, or an explicit effect. Test classes without canonical `baseStats` keep Foundation `evaluateStats` layers so Prompt 18 cert fixtures stay on `test.class.*` numbers.
 
-Canonical melee/ranged/spell/heal functions exist and are tested independently (`scalePower` / `evaluateCanonicalHit`). Live ATTACK still uses Foundation `test.stat.attack` until PROG-08–12. Remaining live/design gaps are owned in [progression/CURRENT_CONFLICTS.md](progression/CURRENT_CONFLICTS.md): dual hotbars and talent spend close in PROG-07; production GCD is forbidden from PROG-08 and audited in PROG-15; leftover schema-2 Foundation fields receive a final real-player policy in PROG-14. Quest slime-problem XP 20 is `project.quest.slime_problem.xp` (noncanonical content).
+Canonical melee/ranged/spell/heal functions exist and are tested independently (`scalePower` / `evaluateCanonicalHit`). Live ATTACK still uses Foundation `test.stat.attack` until PROG-09–12. Remaining live/design gaps are owned in [progression/CURRENT_CONFLICTS.md](progression/CURRENT_CONFLICTS.md): dual hotbars and talent spend closed in PROG-07; production GCD closed in PROG-08 and is audited in PROG-15; leftover schema-2 Foundation fields receive a final real-player policy in PROG-14. Quest slime-problem XP 20 is `project.quest.slime_problem.xp` (noncanonical content).
 
 ## 2026-08-26 — PROG-05 XP curve, automatic growth, milestones, and auto-assignment
 
@@ -686,4 +686,20 @@ Production `class.*` characters earn two class points (1 at 3, 2 at 4+) and six 
 Opcode 38 `PURCHASE_TALENT` (`treeId`, `nodeId`, `requestedRank`, `requestId`) spends one rank. The server enforces tree kind, branch, point availability, tier gates (Tier 3 not before level 9), sequential ranks, content prerequisites, the two-node class cap, one buyable branch active, and a hard maximum of four owned actives. Ability ownership is derived from class, level, branch, and purchased nodes. Production `UNLOCK_ABILITY` is `unsupported_class`.
 
 The production hotbar is four slots of owned active abilities. Auto-attack stays on ATTACK. Frenzy (`ability.warrior.frenzy`) is a passive signature and cannot be placed. Respec strips revoked ids and publishes canonical hotbar state. Foundation `test.class.*` keep the 8-slot skill-point path. Canonical `ability.*` stay `runtimeEnabled: false`. Content hash unchanged.
+
+## 2026-08-26 — PROG-08 generic combat mechanics
+
+The existing ability/effect/combat pipeline gained reusable mechanic handlers, a typed combat event bus, and a project-owned random interface. Production draws server-side; tests inject seeded or scripted values. The client cannot submit crit or random rolls.
+
+Independent multi-hit rolls crits per hit on one parent cooldown. DoTs keep source, snapshot, remaining damage/ticks, and interval; haste and tick-rate modifiers compress interval without changing total damage or allowing tick crits. Shields scale with SPI, emit one break or expiry event, and do not fire duplicate expiry on replace. Taunt overrides threat then returns to the table, with source-specific damage taken reduction. Haste changes cast and attack timing; cooldown recovery is a separate remaining-tick rate. Reflection and overflow heals cannot recurse. Vault movement is server-authoritative and stops at the last valid collision point.
+
+Production classes ignore GCD remaining. Foundation `test.ability.*` may keep a GCD. Canonical `ability.*` stay `runtimeEnabled: false`. Live ATTACK is not retuned. Class combat definitions remain PROG-09–12. No third-party combat framework. Content hash unchanged.
+
+## 2026-08-30 — C01 walk presentation (client-only)
+
+`visual_set.player.base` maps to Godot `SpriteFrames` sliced from `client/assets/characters/c01/c01_move.png` (HI01 C01 production walk sheet, 192×160 cells, 4×3: down / right / up). Left facing mirrors the right row via `AnimatedSprite2D.flip_h`. Playback is 8 FPS. The 24×24 AABB and square `Body` fallback stay; the sprite is scaled so authored feet sit on the AABB bottom. This is not hashed into `contentHash`. Attack/cast/hurt/death sheets were not imported. Rebuild frames with Godot: `--headless --path client -s res://scripts/tools/build_c01_walk_frames.gd`.
+
+`EntityRegistry.pose_local` only updates facing/animation when a `Vector2` facing is passed. Snapshot/reconcile pose-only calls must not pass `Vector2.ZERO` (the old default), or `AnimatedSprite2D` stops every tick and freezes on walk frame 0. Local input still passes the live move axis from `world.gd` `_process`.
+
+Side walk mid-frames pull the original contact stance together under the body with no high kick (original backed up as `c01_move_original.png`), so side gait reads plant → gather → plant. Rebuild with `scripts/build_c01_low_pass_frames.py`, then Godot SpriteFrames. Side playback uses near-even frame durations; `WorldAvatar` does not bob side walk (bounce read as strut).
 

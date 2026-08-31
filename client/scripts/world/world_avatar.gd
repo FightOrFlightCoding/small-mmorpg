@@ -34,6 +34,8 @@ var _use_frames: bool = false
 @onready var _body: Polygon2D = $Body
 @onready var _label: Label = $NameLabel
 @onready var _fallback_label: Label = $FallbackLabel
+var _animated: AnimatedSprite2D
+var _animated_base_offset: Vector2 = Vector2.ZERO
 
 
 func configure(p_kind: String, p_server_id: String, p_name: String, visual: Dictionary, p_local: bool = false) -> void:
@@ -48,14 +50,7 @@ func configure(p_kind: String, p_server_id: String, p_name: String, visual: Dict
 	_use_frames = bool(_visual_set.get("useFrames", false))
 	_anim_elapsed = 0.0
 	_anim_name = "idle"
-	if _body == null:
-		_body = $Body
-	if _sprite == null:
-		_sprite = $Sprite
-	if _label == null:
-		_label = $NameLabel
-	if _fallback_label == null:
-		_fallback_label = $FallbackLabel
+	_resolve_nodes()
 	_apply_visual(visual)
 	if p_kind == "player":
 		_body.color = _tint_for_player(p_name, p_local)
@@ -72,6 +67,7 @@ func configure(p_kind: String, p_server_id: String, p_name: String, visual: Dict
 	z_index = _z_for_kind(p_kind, p_local)
 	if p_kind == "player" or p_kind == "enemy":
 		_ensure_health_bar()
+		_layout_health_bar()
 
 
 func set_vitals(health: int, max_health: int, alive: bool) -> void:
@@ -93,9 +89,17 @@ func set_move_vector(vector: Vector2) -> void:
 		_anim_name = "walk"
 	else:
 		_anim_name = "idle"
+	_sync_animated_sprite()
 
 
 func _process(delta: float) -> void:
+	if _animated != null and _animated.visible and _animated.sprite_frames != null:
+		# Keep Godot AnimatedSprite2D advancing while the local/remote move vector says walk.
+		# Snapshot pose updates must not call set_move_vector(ZERO) or this restarts every tick.
+		if _anim_name == "walk" and not _animated.is_playing():
+			_sync_animated_sprite()
+		_update_side_walk_bob()
+		return
 	if not _use_frames or _sprite == null or not _sprite.visible or _sprite.texture == null:
 		return
 	_anim_elapsed += delta
@@ -135,21 +139,24 @@ func _apply_visual(visual: Dictionary) -> void:
 		color = visual["fallback_color"]
 	_body.color = color
 	var texture_path := String(visual.get("texture_path", ""))
-	if texture_path.is_empty():
+	var showed_texture := false
+	if not texture_path.is_empty():
+		var texture: Texture2D = load(texture_path)
+		if texture == null:
+			used_fallback = true
+			_fallback_label.visible = true
+		else:
+			_sprite.texture = texture
+			_sprite.visible = true
+			_body.visible = false
+			showed_texture = true
+			_apply_frame()
+	if not showed_texture:
 		_sprite.visible = false
 		_body.visible = true
-		return
-	var texture: Texture2D = load(texture_path)
-	if texture == null:
-		used_fallback = true
+	if _apply_animated_sprite():
 		_sprite.visible = false
-		_body.visible = true
-		_fallback_label.visible = true
-		return
-	_sprite.texture = texture
-	_sprite.visible = true
-	_body.visible = false
-	_apply_frame()
+		_body.visible = false
 
 
 func _apply_frame() -> void:
@@ -174,6 +181,129 @@ func _apply_frame() -> void:
 	var dir := VisualSetMath.direction_index(_facing, direction_count)
 	_sprite.region_enabled = true
 	_sprite.region_rect = Rect2(frame * frame_w, dir * frame_h, frame_w, frame_h)
+
+
+func _resolve_nodes() -> void:
+	if _body == null:
+		_body = $Body
+	if _sprite == null:
+		_sprite = $Sprite
+	if _label == null:
+		_label = $NameLabel
+	if _fallback_label == null:
+		_fallback_label = $FallbackLabel
+	if _animated == null:
+		_animated = get_node_or_null("AnimatedSprite2D") as AnimatedSprite2D
+
+
+func _apply_animated_sprite() -> bool:
+	if _animated == null:
+		_animated = get_node_or_null("AnimatedSprite2D") as AnimatedSprite2D
+	if _animated == null:
+		return false
+	var frames_path := String(_visual_set.get("spriteFramesPath", ""))
+	if not frames_path.is_empty():
+		if not ResourceLoader.exists(frames_path):
+			push_warning("Missing asset id: %s — sprite frames." % frames_path)
+			_animated.visible = false
+			return false
+		var loaded: SpriteFrames = load(frames_path) as SpriteFrames
+		if loaded == null:
+			_animated.visible = false
+			return false
+		_animated.sprite_frames = loaded
+	if _animated.sprite_frames == null:
+		_animated.visible = false
+		return false
+	var scale := float(_visual_set.get("displayScale", 0.375))
+	if scale <= 0.0:
+		scale = 0.375
+	_animated.scale = Vector2(scale, scale)
+	_animated_base_offset = _animated_offset(scale)
+	_animated.offset = _animated_base_offset
+	_animated.visible = true
+	_sync_animated_sprite()
+	return true
+
+
+func _animated_offset(scale: float) -> Vector2:
+	var authored: Variant = _visual_set.get("spriteOffset", null)
+	if typeof(authored) == TYPE_ARRAY and (authored as Array).size() >= 2:
+		return Vector2(float((authored as Array)[0]), float((authored as Array)[1]))
+	var frame_size: Variant = _visual_set.get("frameSize", [192, 160])
+	var foot: Variant = _visual_set.get("foot", [96, 150])
+	var frame_h := 160.0
+	if typeof(frame_size) == TYPE_ARRAY and (frame_size as Array).size() >= 2:
+		frame_h = float((frame_size as Array)[1])
+	var foot_y := frame_h
+	if typeof(foot) == TYPE_ARRAY and (foot as Array).size() >= 2:
+		foot_y = float((foot as Array)[1])
+	var center_y := frame_h * 0.5
+	return Vector2(0.0, 12.0 / scale - (foot_y - center_y))
+
+
+func _walk_anim_name() -> StringName:
+	var dir := VisualSetMath.direction_index(_facing, 4)
+	match dir:
+		0:
+			return &"walk_right"
+		1:
+			return &"walk_down"
+		2:
+			return &"walk_left"
+		3:
+			return &"walk_up"
+		_:
+			return &"walk_down"
+
+
+func _update_side_walk_bob() -> void:
+	if _animated == null:
+		return
+	var anim := StringName(_animated.animation)
+	var side := anim == &"walk_right" or anim == &"walk_left"
+	if not side or _anim_name != "walk" or not _animated.is_playing():
+		_animated.offset = _animated_base_offset
+		return
+	# Side art gathers feet under the body; keep offset stable (bob reads as strut).
+	_animated.offset = _animated_base_offset
+
+
+func _sync_animated_sprite() -> void:
+	if _animated == null or _animated.sprite_frames == null or not _animated.visible:
+		return
+	var anim := _walk_anim_name()
+	var flip_left := anim == &"walk_left"
+	if not _animated.sprite_frames.has_animation(anim):
+		if anim == &"walk_left" and _animated.sprite_frames.has_animation(&"walk_right"):
+			anim = &"walk_right"
+			flip_left = true
+		else:
+			return
+	_animated.flip_h = flip_left
+	# Match Godot 2D sprite animation docs: play while moving, stop when idle.
+	if _anim_name == "walk":
+		if _animated.animation != anim:
+			_animated.play(anim)
+		elif not _animated.is_playing():
+			_animated.play(anim)
+		return
+	if _animated.is_playing():
+		_animated.pause()
+	if _animated.animation != anim:
+		_animated.animation = anim
+		_animated.frame = 0
+		_animated.frame_progress = 0.0
+	_animated.offset = _animated_base_offset
+
+
+func _layout_health_bar() -> void:
+	if _health_back == null:
+		return
+	var y := -18.0
+	if _animated != null and _animated.visible:
+		y = (_animated.offset.y - 80.0) * _animated.scale.y - 8.0
+	_health_back.position = Vector2(-12.0, y)
 
 
 func _z_for_kind(p_kind: String, p_local: bool) -> int:
@@ -213,6 +343,7 @@ func _ensure_health_bar() -> void:
 	_health_back.color = Color(0.08, 0.08, 0.08, 0.8)
 	_health_back.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_health_back)
+	_layout_health_bar()
 	_health_fill = ColorRect.new()
 	_health_fill.name = "HealthFill"
 	_health_fill.size = Vector2(24, 3)

@@ -4,7 +4,8 @@ import { SNAPSHOT_RATE_HZ } from "./movement";
 import type { MatchEnemy, MatchPlayer, StarterZoneState } from "./match_state";
 import { dict } from "./maps";
 import { resourceIdForRole, type EvaluatedStats } from "./stats";
-import { formulaDotTickInterval } from "./canonical_stats";
+import { formulaDotTickInterval, formulaHeal } from "./canonical_stats";
+import { applyTaunt } from "./threat";
 
 export type EffectType =
   | "direct_damage"
@@ -14,13 +15,19 @@ export type EffectType =
   | "periodic_damage"
   | "periodic_heal"
   | "stun"
-  | "root";
+  | "root"
+  | "slow"
+  | "shield_absorb"
+  | "taunt"
+  | "interrupt"
+  | "reflect"
+  | "forced_movement";
 
 export type StackPolicy = "replace" | "refresh" | "stack" | "ignore";
 export type RefreshPolicy = "refresh" | "extend" | "ignore";
 
 export interface MagnitudeFormula {
-  kind: "constant" | "stat_role" | "stat_id";
+  kind: "constant" | "stat_role" | "stat_id" | "percent_max_health";
   value?: number;
   role?: string;
   statId?: string;
@@ -42,6 +49,11 @@ export interface EffectDefinition {
   tags: ReadonlyArray<string>;
   statChannel?: string;
   resourceRole?: string;
+  powerCategory?: "melee" | "ranged" | "spell" | "curse" | "heal" | "shield";
+  hitCount?: number;
+  tickRateMultiplier?: number;
+  nodeId?: string;
+  rank?: number;
 }
 
 export interface ActiveEffect {
@@ -61,6 +73,19 @@ export interface ActiveEffect {
   tags: string[];
   statChannel: string;
   resourceRole: string;
+  instanceId?: string;
+  snapshotStats?: { [id: string]: number };
+  totalRemaining?: number;
+  ticksRemaining?: number;
+  baseTickCount?: number;
+  currentIntervalSec?: number;
+  tickRateModifiers?: number;
+  remainingAbsorb?: number;
+  maxAbsorb?: number;
+  terminalEventSent?: boolean;
+  nodeId?: string;
+  rank?: number;
+  expiryTick?: number;
 }
 
 export function resolveMagnitude(formula: MagnitudeFormula, stats: EvaluatedStats | null, fallbackAttack: number): number {
@@ -68,7 +93,7 @@ export function resolveMagnitude(formula: MagnitudeFormula, stats: EvaluatedStat
   const bonus = finiteOr(formula.value, 0);
   const kind = String(formula.kind);
   if (kind === "constant") {
-    return Math.max(0, bonus);
+    return bonus;
   }
   if (kind === "stat_role") {
     const role = formula.role !== undefined && formula.role !== null ? String(formula.role) : "attack";
@@ -84,12 +109,21 @@ export function resolveMagnitude(formula: MagnitudeFormula, stats: EvaluatedStat
     }
     return Math.max(0, Math.floor(base * scale + bonus));
   }
+  if (kind === "percent_max_health") {
+    const maxHealth = stats !== null ? stats.maxHealth : 0;
+    const pct = scale !== 0 ? scale : bonus;
+    return Math.max(0, Math.floor(maxHealth * pct));
+  }
   if (kind === "stat_id" && formula.statId !== undefined && formula.statId !== null && stats !== null) {
     const value = stats.values[String(formula.statId)];
     const base = value !== undefined ? value : 0;
     return Math.max(0, Math.floor(base * scale + bonus));
   }
   return Math.max(0, Math.floor(fallbackAttack * scale + bonus));
+}
+
+export function shieldAbsorbFromSpirit(baseAbsorb: number, spirit: number): number {
+  return formulaHeal(baseAbsorb, spirit);
 }
 
 function finiteOr(value: number | null | undefined, fallback: number): number {
@@ -115,7 +149,7 @@ export function cloneActiveEffect(effect: ActiveEffect): ActiveEffect {
   for (let i = 0; i < effect.tags.length; i++) {
     tags.push(effect.tags[i]);
   }
-  return {
+  const cloned: ActiveEffect = {
     effectId: effect.effectId,
     abilityId: effect.abilityId,
     sourceId: effect.sourceId,
@@ -133,6 +167,55 @@ export function cloneActiveEffect(effect: ActiveEffect): ActiveEffect {
     statChannel: effect.statChannel,
     resourceRole: effect.resourceRole,
   };
+  if (effect.instanceId !== undefined) {
+    cloned.instanceId = effect.instanceId;
+  }
+  if (effect.snapshotStats !== undefined) {
+    cloned.snapshotStats = copyNumberMap(effect.snapshotStats);
+  }
+  if (effect.totalRemaining !== undefined) {
+    cloned.totalRemaining = effect.totalRemaining;
+  }
+  if (effect.ticksRemaining !== undefined) {
+    cloned.ticksRemaining = effect.ticksRemaining;
+  }
+  if (effect.baseTickCount !== undefined) {
+    cloned.baseTickCount = effect.baseTickCount;
+  }
+  if (effect.currentIntervalSec !== undefined) {
+    cloned.currentIntervalSec = effect.currentIntervalSec;
+  }
+  if (effect.tickRateModifiers !== undefined) {
+    cloned.tickRateModifiers = effect.tickRateModifiers;
+  }
+  if (effect.remainingAbsorb !== undefined) {
+    cloned.remainingAbsorb = effect.remainingAbsorb;
+  }
+  if (effect.maxAbsorb !== undefined) {
+    cloned.maxAbsorb = effect.maxAbsorb;
+  }
+  if (effect.terminalEventSent === true) {
+    cloned.terminalEventSent = true;
+  }
+  if (effect.nodeId !== undefined) {
+    cloned.nodeId = effect.nodeId;
+  }
+  if (effect.rank !== undefined) {
+    cloned.rank = effect.rank;
+  }
+  if (effect.expiryTick !== undefined) {
+    cloned.expiryTick = effect.expiryTick;
+  }
+  return cloned;
+}
+
+function copyNumberMap(source: { [id: string]: number }): { [id: string]: number } {
+  const next: { [id: string]: number } = {};
+  const keys = Object.keys(source);
+  for (let i = 0; i < keys.length; i++) {
+    next[keys[i]] = source[keys[i]];
+  }
+  return next;
 }
 
 export function hasControlTag(effects: ActiveEffect[] | undefined, tag: "stun" | "root"): boolean {
@@ -147,6 +230,23 @@ export function hasControlTag(effects: ActiveEffect[] | undefined, tag: "stun" |
   return false;
 }
 
+export function slowMagnitudeFrom(effects: ActiveEffect[] | undefined): number {
+  if (effects == null || !Array.isArray(effects)) {
+    return 0;
+  }
+  let total = 0;
+  for (let i = 0; i < effects.length; i++) {
+    const effect = effects[i];
+    if (effect.remainingTicks <= 0) {
+      continue;
+    }
+    if (effect.type === "slow" || (effect.type === "timed_stat_modifier" && effect.statChannel === "movement_speed")) {
+      total += effect.magnitude * effect.stacks;
+    }
+  }
+  return total;
+}
+
 export function effectModifiersFrom(effects: ActiveEffect[] | undefined): { [channel: string]: number } {
   const modifiers: { [channel: string]: number } = {};
   if (effects === undefined) {
@@ -154,6 +254,14 @@ export function effectModifiersFrom(effects: ActiveEffect[] | undefined): { [cha
   }
   for (let i = 0; i < effects.length; i++) {
     const effect = effects[i];
+    if (effect.remainingTicks <= 0) {
+      continue;
+    }
+    if (effect.type === "slow") {
+      const current = modifiers["movement_speed"] !== undefined ? modifiers["movement_speed"] : 0;
+      modifiers["movement_speed"] = current + effect.magnitude * effect.stacks;
+      continue;
+    }
     if (effect.type !== "timed_stat_modifier" || effect.statChannel.length === 0) {
       continue;
     }
@@ -185,7 +293,7 @@ export function applyEffectDefinition(
   const haste = stats !== null && stats.hasteMult !== undefined ? stats.hasteMult : 1;
   const type = String(definition.type);
   if (type === "direct_damage") {
-    dealDamage(state, actor, target, magnitude, abilityId, tick, events);
+    dealDamage(state, actor, target, magnitude, abilityId, tick, events, false);
     return;
   }
   if (type === "direct_heal") {
@@ -196,7 +304,31 @@ export function applyEffectDefinition(
     changeResource(state, target, definition, magnitude, actor, tick, events);
     return;
   }
-  applyStatus(target, definition, abilityId, actor, magnitude, tick, events, haste);
+  if (type === "interrupt") {
+    interruptLiveCast(state, target, actor, tick, events);
+    return;
+  }
+  if (type === "taunt" && target.kind === "enemy") {
+    const enemy = findEnemyById(state, target.id);
+    if (enemy !== undefined) {
+      applyTaunt(enemy, actor.id, tick, definition.duration, SNAPSHOT_RATE_HZ, magnitude);
+      events.push({
+        type: "threat",
+        sourceId: actor.id,
+        sourceKind: actor.kind,
+        targetId: target.id,
+        targetKind: "enemy",
+        abilityId: abilityId,
+        remainingHealth: target.health,
+        x: target.x,
+        y: target.y,
+        message: "enemy_taunted",
+      });
+    }
+    applyStatus(target, definition, abilityId, actor, magnitude, tick, events, haste, stats);
+    return;
+  }
+  applyStatus(target, definition, abilityId, actor, magnitude, tick, events, haste, stats);
 }
 
 export function toEffectSource(source: MatchPlayer | EffectSource): EffectSource {
@@ -306,6 +438,9 @@ function tickTargetEffects(
         effect.nextTickAt = tick + effect.tickIntervalTicks;
       }
     }
+    if (isShieldEffect(effect) && effect.remainingTicks === 1 && effect.terminalEventSent !== true) {
+      emitShieldTerminal(events, target, effect, "expired");
+    }
     effect.remainingTicks -= 1;
     if (effect.remainingTicks > 0) {
       kept.push(effect);
@@ -329,7 +464,13 @@ function applyPeriodicTick(
     }
     const actor: EffectSource =
       source !== undefined ? { id: source.userId, kind: "player" } : { id: effect.sourceId, kind: effect.sourceKind };
-    dealDamage(state, actor, target, amount, effect.abilityId, tick, events);
+    dealDamage(state, actor, target, amount, effect.abilityId, tick, events, true);
+    if (effect.totalRemaining !== undefined) {
+      effect.totalRemaining = Math.max(0, effect.totalRemaining - amount);
+    }
+    if (effect.ticksRemaining !== undefined) {
+      effect.ticksRemaining = Math.max(0, effect.ticksRemaining - 1);
+    }
     events.push({
       type: "effect_tick",
       sourceId: effect.sourceId,
@@ -359,13 +500,15 @@ function applyStatus(
   tick: number,
   events: CombatEvent[],
   hasteMult: number,
+  stats: EvaluatedStats | null,
 ): void {
   const durationTicks = cooldownTicks(definition.duration, SNAPSHOT_RATE_HZ);
-  if (durationTicks <= 0 && definition.type !== "timed_stat_modifier" && definition.type !== "stun" && definition.type !== "root" && definition.type !== "periodic_damage" && definition.type !== "periodic_heal") {
+  if (durationTicks <= 0 && definition.type !== "timed_stat_modifier" && definition.type !== "stun" && definition.type !== "root" && definition.type !== "slow" && definition.type !== "periodic_damage" && definition.type !== "periodic_heal" && definition.type !== "shield_absorb" && definition.type !== "taunt" && definition.type !== "reflect") {
     return;
   }
+  const extraTickRate = definition.tickRateMultiplier !== undefined && definition.tickRateMultiplier > 0 ? definition.tickRateMultiplier : 1;
   const baseInterval = definition.tickInterval;
-  const scaledInterval = formulaDotTickInterval(baseInterval, hasteMult);
+  const scaledInterval = formulaDotTickInterval(baseInterval, hasteMult * extraTickRate);
   const intervalTicks = cooldownTicks(scaledInterval, SNAPSHOT_RATE_HZ);
   let appliedMagnitude = magnitude;
   if (
@@ -375,6 +518,10 @@ function applyStatus(
     scaledInterval !== baseInterval
   ) {
     appliedMagnitude = magnitude * (scaledInterval / baseInterval);
+  }
+  if (definition.type === "shield_absorb" && stats !== null) {
+    const spirit = stats.values["stat.spirit"] !== undefined ? stats.values["stat.spirit"] : 0;
+    appliedMagnitude = Math.floor(shieldAbsorbFromSpirit(magnitude, spirit));
   }
   const incoming: ActiveEffect = {
     effectId: definition.id,
@@ -391,10 +538,33 @@ function applyStatus(
     maxStacks: definition.maxStacks,
     refreshPolicy: definition.refreshPolicy,
     tags: copyTags(definition.tags),
-    statChannel: definition.statChannel !== undefined ? definition.statChannel : "",
+    statChannel: definition.statChannel !== undefined ? definition.statChannel : definition.type === "shield_absorb" ? "absorb" : definition.type === "slow" ? "movement_speed" : "",
     resourceRole: definition.resourceRole !== undefined ? definition.resourceRole : "",
+    instanceId: source.id + ":" + definition.id,
+    tickRateModifiers: extraTickRate,
+    currentIntervalSec: scaledInterval,
+    nodeId: definition.nodeId,
+    rank: definition.rank,
+    expiryTick: tick + (durationTicks > 0 ? durationTicks : 1),
   };
-  const existingIndex = findEffectIndex(target.effects, incoming.effectId, incoming.sourceId);
+  if (definition.type === "periodic_damage" || definition.type === "periodic_heal") {
+    const ticks = intervalTicks > 0 ? Math.max(1, Math.round(durationTicks / intervalTicks)) : 1;
+    incoming.baseTickCount = ticks;
+    incoming.ticksRemaining = ticks;
+    incoming.totalRemaining = appliedMagnitude * ticks;
+    if (stats !== null) {
+      incoming.snapshotStats = copyNumberMap(stats.values);
+    }
+  }
+  if (definition.type === "shield_absorb") {
+    incoming.remainingAbsorb = appliedMagnitude;
+    incoming.maxAbsorb = appliedMagnitude;
+    incoming.terminalEventSent = false;
+    if (definition.tags.indexOf("shield") < 0) {
+      incoming.tags.push("shield");
+    }
+  }
+  const existingIndex = findReplaceableEffect(target.effects, incoming);
   if (existingIndex === -1) {
     target.effects.push(incoming);
     events.push({
@@ -416,6 +586,7 @@ function applyStatus(
     return;
   }
   if (definition.stackPolicy === "replace") {
+    suppressShieldTerminal(existing);
     target.effects[existingIndex] = incoming;
     return;
   }
@@ -443,15 +614,200 @@ function applyRefresh(existing: ActiveEffect, incoming: ActiveEffect): void {
   existing.remainingTicks = incoming.remainingTicks;
   existing.magnitude = incoming.magnitude;
   existing.nextTickAt = incoming.nextTickAt;
+  existing.tickIntervalTicks = incoming.tickIntervalTicks;
+  existing.currentIntervalSec = incoming.currentIntervalSec;
+  existing.totalRemaining = incoming.totalRemaining;
+  existing.ticksRemaining = incoming.ticksRemaining;
+  existing.baseTickCount = incoming.baseTickCount;
+  existing.remainingAbsorb = incoming.remainingAbsorb;
+  existing.maxAbsorb = incoming.maxAbsorb;
+  existing.terminalEventSent = false;
+  existing.rank = incoming.rank;
+  existing.expiryTick = incoming.expiryTick;
 }
 
-function findEffectIndex(effects: ActiveEffect[], effectId: string, sourceId: string): number {
+function findReplaceableEffect(effects: ActiveEffect[], incoming: ActiveEffect): number {
   for (let i = 0; i < effects.length; i++) {
-    if (effects[i].effectId === effectId && effects[i].sourceId === sourceId) {
+    const existing = effects[i];
+    if (existing.effectId === incoming.effectId && existing.sourceId === incoming.sourceId) {
       return i;
+    }
+    if (
+      incoming.nodeId !== undefined &&
+      incoming.nodeId.length > 0 &&
+      existing.nodeId === incoming.nodeId &&
+      existing.sourceId === incoming.sourceId
+    ) {
+      const existingRank = existing.rank !== undefined ? existing.rank : 0;
+      const incomingRank = incoming.rank !== undefined ? incoming.rank : 0;
+      if (incomingRank >= existingRank) {
+        return i;
+      }
     }
   }
   return -1;
+}
+
+export function retimePeriodic(effect: ActiveEffect, extraMultiplier: number, requiredTag?: string): boolean {
+  if (effect.type !== "periodic_damage" && effect.type !== "periodic_heal") {
+    return false;
+  }
+  if (requiredTag !== undefined && requiredTag.length > 0 && effect.tags.indexOf(requiredTag) < 0) {
+    return false;
+  }
+  const factor = extraMultiplier > 0 ? extraMultiplier : 1;
+  const currentInterval = effect.currentIntervalSec !== undefined ? effect.currentIntervalSec : 0;
+  if (!(currentInterval > 0)) {
+    return false;
+  }
+  const ticksLeft = effect.ticksRemaining !== undefined ? effect.ticksRemaining : 0;
+  const durationLeft = ticksLeft * currentInterval;
+  const newInterval = currentInterval / factor;
+  const newTicks = Math.max(1, Math.round(durationLeft / newInterval));
+  const total = effect.totalRemaining !== undefined ? effect.totalRemaining : effect.magnitude * ticksLeft;
+  effect.currentIntervalSec = newInterval;
+  effect.tickIntervalTicks = cooldownTicks(newInterval, SNAPSHOT_RATE_HZ);
+  effect.ticksRemaining = newTicks;
+  effect.magnitude = newTicks > 0 ? total / newTicks : effect.magnitude;
+  effect.tickRateModifiers = (effect.tickRateModifiers !== undefined ? effect.tickRateModifiers : 1) * factor;
+  return true;
+}
+
+export function isShieldEffect(effect: ActiveEffect): boolean {
+  if (effect.type === "shield_absorb") {
+    return true;
+  }
+  if (effect.statChannel === "absorb") {
+    return true;
+  }
+  return effect.tags.indexOf("shield") >= 0;
+}
+
+export function consumeShieldAbsorb(
+  effects: ActiveEffect[] | undefined,
+  damage: number,
+  target: { id: string; kind: "player" | "enemy"; x: number; y: number; health: number },
+  events: CombatEvent[],
+): number {
+  if (effects === undefined || !(damage > 0)) {
+    return 0;
+  }
+  let remaining = damage;
+  let absorbed = 0;
+  for (let i = 0; i < effects.length; i++) {
+    const effect = effects[i];
+    if (!isShieldEffect(effect)) {
+      continue;
+    }
+    const pool = effect.remainingAbsorb !== undefined ? effect.remainingAbsorb : effect.magnitude * effect.stacks;
+    if (!(pool > 0) || remaining <= 0) {
+      continue;
+    }
+    const take = pool < remaining ? pool : remaining;
+    const nextPool = pool - take;
+    effect.remainingAbsorb = nextPool;
+    effect.magnitude = nextPool;
+    remaining -= take;
+    absorbed += take;
+    if (nextPool <= 0 && effect.terminalEventSent !== true) {
+      emitShieldTerminal(events, target, effect, "broken");
+      effect.remainingTicks = 0;
+    }
+  }
+  return absorbed;
+}
+
+export function suppressShieldTerminal(effect: ActiveEffect): void {
+  if (isShieldEffect(effect)) {
+    effect.terminalEventSent = true;
+  }
+}
+
+function emitShieldTerminal(
+  events: CombatEvent[],
+  target: { id: string; kind: "player" | "enemy"; x: number; y: number; health: number },
+  effect: ActiveEffect,
+  reason: "broken" | "expired",
+): void {
+  if (effect.terminalEventSent === true) {
+    return;
+  }
+  effect.terminalEventSent = true;
+  events.push({
+    type: "message",
+    sourceId: effect.sourceId,
+    sourceKind: effect.sourceKind,
+    targetId: target.id,
+    targetKind: target.kind,
+    effectId: effect.effectId,
+    abilityId: effect.abilityId,
+    remainingHealth: target.health,
+    message: reason === "broken" ? "shield_broken" : "shield_expired",
+    x: target.x,
+    y: target.y,
+  });
+}
+
+function interruptLiveCast(
+  state: StarterZoneState,
+  target: EffectTarget,
+  source: EffectSource,
+  tick: number,
+  events: CombatEvent[],
+): void {
+  if (target.kind !== "player") {
+    const enemy = findEnemyById(state, target.id);
+    if (enemy === undefined || enemy.activeCast === undefined || enemy.activeCast.interruptReason !== "") {
+      return;
+    }
+    enemy.activeCast.interruptReason = "interrupt";
+    enemy.activeCast.completionTick = tick;
+    enemy.activeCast.channelUntilTick = 0;
+    events.push({
+      type: "interrupt",
+      sourceId: source.id,
+      sourceKind: source.kind,
+      targetId: target.id,
+      targetKind: "enemy",
+      interruptReason: "interrupt",
+      abilityId: enemy.activeCast.abilityId,
+      remainingHealth: target.health,
+      x: target.x,
+      y: target.y,
+    });
+    enemy.activeCast = undefined;
+    return;
+  }
+  const player = state.players[target.id];
+  if (player === undefined || player.activeCast === undefined || player.activeCast.interruptReason !== "") {
+    return;
+  }
+  player.activeCast.interruptReason = "interrupt";
+  player.activeCast.completionTick = tick;
+  player.activeCast.channelUntilTick = 0;
+  events.push({
+    type: "interrupt",
+    sourceId: source.id,
+    sourceKind: source.kind,
+    targetId: player.userId,
+    targetKind: "player",
+    interruptReason: "interrupt",
+    abilityId: player.activeCast.abilityId,
+    remainingHealth: player.health,
+    x: player.x,
+    y: player.y,
+  });
+  player.activeCast = undefined;
+}
+
+function findEnemyById(state: StarterZoneState, id: string): MatchEnemy | undefined {
+  const wanted = String(id);
+  for (let i = 0; i < state.enemies.length; i++) {
+    if (String(state.enemies[i].id) === wanted || String(state.enemies[i].enemyId) === wanted) {
+      return state.enemies[i];
+    }
+  }
+  return undefined;
 }
 
 function dealDamage(
@@ -462,6 +818,7 @@ function dealDamage(
   abilityId: string,
   tick: number,
   events: CombatEvent[],
+  isDot: boolean,
 ): void {
   if (amount <= 0 || target.health <= 0) {
     return;
@@ -474,7 +831,7 @@ function dealDamage(
       sourceKind: source.kind,
       targetId: target.id,
       targetKind: target.kind,
-      formula: { base: amount },
+      formula: { base: amount, isDot: isDot },
       tick: tick,
       abilityId: abilityId,
       respawnDelaySec: state.playerRespawnDelaySec,

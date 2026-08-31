@@ -33,7 +33,7 @@ Match and RPC payloads for the slice are JSON objects.
 | --- | --- | --- | --- |
 | 1 | `INPUT` | `{ protocolVersion, seq, axisX, axisY }` | Direction and sequence only. `seq` is a finite integer. Axes are finite numbers. Position, speed, and dt are rejected. |
 | 2 | `INTERACT` | `{ protocolVersion, targetId, requestId }` | Correlation `requestId` required. Server checks NPC existence, server-side distance vs per-NPC `interactionRange` (fallback `player.base.interactionRange`), zone, and live health. Returns `INTERACTION_RESULT` (optional `dialogueId`, `services`, `context`). |
-| 3 | `ATTACK` | `{ protocolVersion, targetId, requestId }` | Correlation `requestId` required. When the match has a catalog `basicAbilityId` unlocked, this opcode uses that ability (range, cooldown, and `direct_damage` from content). Otherwise Prompt 18 `applyPlayerAttack` (`player.base.attackRange` / `attackCooldown`, derived attack). Client `damage` / `attack` / `xp` are rejected. Returns `ACTION_RESULT` plus `COMBAT_EVENT` on a hit. |
+| 3 | `ATTACK` | `{ protocolVersion, targetId, requestId }` | Correlation `requestId` required. When the match has a catalog `basicAbilityId` unlocked, this opcode uses that ability (range, cooldown, and `direct_damage` from content). Otherwise Prompt 18 `applyPlayerAttack` (`player.base.attackRange` / `attackCooldown`, derived attack). Client `damage` / `attack` / `xp` / `crit` / `critRoll` / `random` / `roll` are rejected. Returns `ACTION_RESULT` plus `COMBAT_EVENT` on a hit. |
 | 4 | `PICKUP` | `{ protocolVersion, lootId, requestId }` | Reward opcode. `requestId` required. |
 | 5 | `EQUIP` | `{ protocolVersion, instanceId?, slot, requestId }` | Equip or unequip a content-defined slot (`main_hand`, `off_hand`, `head`, `chest`, `legs`, `feet` in the current catalog). Omit `instanceId` to unequip. `requestId` required. Client `attack` / `attackBonus` are rejected. |
 | 6 | `QUEST_ACCEPT` | `{ protocolVersion, questId, requestId }` | Reward opcode. `requestId` required. Validates quest ID, accept-NPC range, level, and class; creates accepted state once; persists; returns `ACTION_RESULT` plus `QUEST_STATE`. |
@@ -43,7 +43,7 @@ Match and RPC payloads for the slice are JSON objects.
 | 10 | `DESTROY_ITEM` | `{ protocolVersion, instanceId, quantity?, requestId }` | Destroy an owned stack or part of it. Optional `quantity` is a finite integer. |
 | 11 | `SPLIT_STACK` | `{ protocolVersion, instanceId, quantity, requestId }` | Split off `quantity` into a new server-generated instance. |
 | 12 | `MOVE_ITEM` | `{ protocolVersion, instanceId, toSlotIndex, requestId }` | Move or merge into `toSlotIndex`. Local drag/drop is not authoritative. |
-| 13 | `USE_ABILITY` | `{ protocolVersion, abilityId, targetId?, targetX?, targetY?, requestId }` | Intention only. Server owns range, cost, cooldown, cast time, and effect results. `damage` / `heal` / `castTime` / `cooldown` / `duration` are `stat_injection`. |
+| 13 | `USE_ABILITY` | `{ protocolVersion, abilityId, targetId?, targetX?, targetY?, requestId }` | Intention only. Server owns range, cost, cooldown, cast time, and effect results. `damage` / `heal` / `castTime` / `cooldown` / `duration` / `crit` / `critRoll` / `random` / `roll` are `stat_injection`. |
 | 14 | `CANCEL_CAST` | `{ protocolVersion, requestId }` | Cancels the caster's active cast. |
 | 15 | `ASSIGN_HOTBAR` | `{ protocolVersion, slotIndex, abilityId?, requestId }` | Server validates ownership. Empty `abilityId` clears the slot. |
 | 16 | `UNLOCK_ABILITY` | `{ protocolVersion, abilityId, requestId }` | Spends unspent skill points on Foundation test classes. Production `class.*` rejects this opcode (`unsupported_class`); ownership is derived. |
@@ -101,7 +101,7 @@ Match and RPC payloads for the slice are JSON objects.
 Legal client messages name what the player **wants to try**:
 
 - move intent (direction or target point — never a final authoritative transform)
-- attack intent (target ID and `requestId` — never a damage or health value)
+- attack intent (target ID and `requestId` — never a damage, health, or crit-roll value)
 - interact / loot / equip / allocate-attribute / dialogue-choice intents
 
 Illegal client messages (must be rejected if they appear):
@@ -109,6 +109,7 @@ Illegal client messages (must be rejected if they appear):
 - authoritative position or velocity
 - damage dealt
 - new health value
+- crit rolls, random rolls, or crit chance
 - item grant list
 - quest completed flag
 - currency delta

@@ -275,6 +275,34 @@ export function segmentIntersectsAabb(ax: number, ay: number, bx: number, by: nu
   return ySlab.ok;
 }
 
+export function resolveVault(
+  x: number,
+  y: number,
+  dirX: number,
+  dirY: number,
+  distancePx: number,
+  halfExtent: number,
+  collisions: ReadonlyArray<Aabb>,
+  walkableBounds: Aabb,
+): Vec2 {
+  const length = Math.sqrt(dirX * dirX + dirY * dirY);
+  const nx = length > 0 ? dirX / length : 0;
+  const ny = length > 0 ? dirY / length : 1;
+  const steps = 16;
+  let last: Vec2 = { x: x, y: y };
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const candidate = resolveMove(x, y, nx * distancePx * t, ny * distancePx * t, halfExtent, collisions, walkableBounds);
+    const travelled = distance(x, y, candidate.x, candidate.y);
+    const intended = distancePx * t;
+    if (travelled + 0.01 < intended) {
+      return last;
+    }
+    last = candidate;
+  }
+  return last;
+}
+
 export function lineBlocked(
   ax: number,
   ay: number,

@@ -103,6 +103,10 @@ export interface MatchPlayer {
   inCombat?: boolean;
   lastHostileActionTick?: number;
   lastDamageReceivedTick?: number;
+  facingX?: number;
+  facingY?: number;
+  oncePerCombatUsed?: { [id: string]: boolean };
+  lastMoving?: boolean;
   hostileTargetId?: string;
   friendlyTargetId?: string;
   bindX?: number;
@@ -229,6 +233,9 @@ export interface MatchEnemy {
   phaseFlags?: { [flag: string]: boolean };
   addDeaths?: number;
   lootTableId?: string;
+  tauntSourceId?: string;
+  tauntUntilTick?: number;
+  tauntTakenReduction?: number;
   tags?: string[];
   resources?: { [id: string]: number };
   abilityCooldowns?: { [abilityId: string]: number };
@@ -280,6 +287,17 @@ export interface StarterZoneState {
   basicAbilityId?: string;
   classTags?: { [classId: string]: string[] };
   combatApplyByEventId?: { [eventId: string]: CombatApplyRecord };
+  pendingGroundEffects?: Array<{
+    id: string;
+    sourceId: string;
+    sourceKind: "player" | "enemy";
+    abilityId: string;
+    x: number;
+    y: number;
+    radius: number;
+    resolveTick: number;
+    effectId: string;
+  }>;
   partyByCharacterId?: { [characterId: string]: MatchPartyCache };
   pendingInvitesByCharacterId?: {
     [characterId: string]: { partyId: string; fromDisplayName: string; expiresAt: number };
@@ -708,6 +726,9 @@ function cloneEnemy(enemy: MatchEnemy): MatchEnemy {
     phaseFlags: extra.phaseFlags,
     addDeaths: extra.addDeaths,
     lootTableId: extra.lootTableId,
+    tauntSourceId: extra.tauntSourceId,
+    tauntUntilTick: extra.tauntUntilTick,
+    tauntTakenReduction: extra.tauntTakenReduction,
     tags: extra.tags,
     resources: extra.resources,
     abilityCooldowns: extra.abilityCooldowns,
@@ -779,6 +800,10 @@ function cloneMatchPlayer(p: MatchPlayer, state: StarterZoneState): MatchPlayer 
     inCombat: p.inCombat === true,
     lastHostileActionTick: p.lastHostileActionTick != null ? p.lastHostileActionTick : -1,
     lastDamageReceivedTick: p.lastDamageReceivedTick != null ? p.lastDamageReceivedTick : -1,
+    facingX: typeof p.facingX === "number" && isFinite(p.facingX) ? p.facingX : 0,
+    facingY: typeof p.facingY === "number" && isFinite(p.facingY) ? p.facingY : 1,
+    oncePerCombatUsed: dict(p.oncePerCombatUsed),
+    lastMoving: p.lastMoving === true,
     hostileTargetId: p.hostileTargetId != null ? String(p.hostileTargetId) : "",
     friendlyTargetId: p.friendlyTargetId != null ? String(p.friendlyTargetId) : "",
     bindX: typeof p.bindX === "number" && isFinite(p.bindX) ? p.bindX : undefined,
@@ -867,6 +892,7 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     basicAbilityId: state.basicAbilityId,
     classTags: state.classTags,
     combatApplyByEventId: cloneCombatApplyMap(state.combatApplyByEventId),
+    pendingGroundEffects: clonePendingGround(state.pendingGroundEffects),
     partyByCharacterId: clonePartyCache(state.partyByCharacterId),
     pendingInvitesByCharacterId: clonePendingInvites(state.pendingInvitesByCharacterId),
     groupCreditRules: state.groupCreditRules,
@@ -1165,6 +1191,62 @@ function cloneCombatApplyMap(
     };
   }
   return out;
+}
+
+function clonePendingGround(
+  list:
+    | Array<{
+        id: string;
+        sourceId: string;
+        sourceKind: "player" | "enemy";
+        abilityId: string;
+        x: number;
+        y: number;
+        radius: number;
+        resolveTick: number;
+        effectId: string;
+      }>
+    | undefined,
+): Array<{
+  id: string;
+  sourceId: string;
+  sourceKind: "player" | "enemy";
+  abilityId: string;
+  x: number;
+  y: number;
+  radius: number;
+  resolveTick: number;
+  effectId: string;
+}> {
+  const next: Array<{
+    id: string;
+    sourceId: string;
+    sourceKind: "player" | "enemy";
+    abilityId: string;
+    x: number;
+    y: number;
+    radius: number;
+    resolveTick: number;
+    effectId: string;
+  }> = [];
+  if (list === undefined) {
+    return next;
+  }
+  for (let i = 0; i < list.length; i++) {
+    const row = list[i];
+    next.push({
+      id: String(row.id),
+      sourceId: String(row.sourceId),
+      sourceKind: row.sourceKind === "enemy" ? "enemy" : "player",
+      abilityId: String(row.abilityId),
+      x: typeof row.x === "number" && isFinite(row.x) ? row.x : 0,
+      y: typeof row.y === "number" && isFinite(row.y) ? row.y : 0,
+      radius: typeof row.radius === "number" && isFinite(row.radius) ? row.radius : 0,
+      resolveTick: typeof row.resolveTick === "number" && isFinite(row.resolveTick) ? row.resolveTick : 0,
+      effectId: String(row.effectId),
+    });
+  }
+  return next;
 }
 
 function copyLootDrops(drops: ReadonlyArray<LootDrop>): LootDrop[] {

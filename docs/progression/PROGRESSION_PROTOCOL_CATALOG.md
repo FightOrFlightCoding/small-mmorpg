@@ -20,7 +20,7 @@ Related: [PROTOCOL_CATALOG.md](../PROTOCOL_CATALOG.md).
 | 37 | `TRAINER_RESPEC` | `{ npcId, requestId }` | Trainer `respec` service; gold `50 × level`; refunds eligible points |
 | 38 | `PURCHASE_TALENT` | `{ treeId, nodeId, requestedRank, requestId }` | Class/branch pools, tiers, prerequisites, derived ownership |
 
-The client must never send level, XP amounts, derived totals, talent ranks as facts, damage/heal/crit/mana/cooldown outcomes, or respec results.
+The client must never send level, XP amounts, derived totals, talent ranks as facts, damage/heal/crit/mana/cooldown outcomes, crit rolls, or respec results.
 
 ## Current server → client
 

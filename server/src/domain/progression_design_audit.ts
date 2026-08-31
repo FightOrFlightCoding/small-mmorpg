@@ -186,6 +186,10 @@ export const PLANNED_REGRESSION_TESTS = [
   "server/tests/progression_frenzy_passive.test.ts",
   "server/tests/progression_dot_haste.test.ts",
   "server/tests/progression_gcd_absent.test.ts",
+  "server/tests/combat_rng.test.ts",
+  "server/tests/combat_events.test.ts",
+  "server/tests/canonical_combat.test.ts",
+  "server/tests/progression_combat_mechanics.test.ts",
   "server/tests/progression_gcd_audit.test.ts",
   "server/tests/progression_metronome.test.ts",
   "server/tests/progression_dps_audit.test.ts",
@@ -601,6 +605,9 @@ export function auditConflictRegister(markdown: string): AuditIssue[] {
   }
   if (markdown.indexOf("## PROG-08 go/no-go") < 0) {
     issues.push({ code: "missing_prog08_gating", message: "CURRENT_CONFLICTS.md must include PROG-08 go/no-go." });
+  }
+  if (markdown.indexOf("## PROG-09 go/no-go") < 0) {
+    issues.push({ code: "missing_prog09_gating", message: "CURRENT_CONFLICTS.md must include PROG-09 go/no-go." });
   }
   const entries = parseConflictRegister(markdown);
   const seen: { [id: string]: boolean } = {};
