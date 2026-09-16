@@ -555,13 +555,11 @@ function applyStatus(
     statChannel = "movement_speed";
     appliedMagnitude = magnitude * 100;
   }
-  if (
-    (definition.type === "periodic_damage" || definition.type === "periodic_heal") &&
-    baseInterval > 0 &&
-    scaledInterval > 0 &&
-    scaledInterval !== baseInterval
-  ) {
-    appliedMagnitude = magnitude * (scaledInterval / baseInterval);
+  if (definition.type === "periodic_damage" || definition.type === "periodic_heal") {
+    const intendedTickCount = baseInterval > 0 && definition.duration > 0 ? definition.duration / baseInterval : 1;
+    const intendedTotal = magnitude * intendedTickCount;
+    const ticks = intervalTicks > 0 ? Math.max(1, Math.round(durationTicks / intervalTicks)) : 1;
+    appliedMagnitude = ticks > 0 ? intendedTotal / ticks : magnitude;
   }
   if (definition.type === "shield_absorb" && stats !== null) {
     const spirit = stats.values["stat.spirit"] !== undefined ? stats.values["stat.spirit"] : 0;

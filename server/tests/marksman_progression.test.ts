@@ -444,11 +444,13 @@ test("respec removes Marksman ranks, unlocks, and combat modifiers", () => {
     },
   );
   state = addPlayer(state, player);
-  assert.equal(state.players.marksman.progression?.unlockedAbilityIds.indexOf("ability.marksman.piercing_shot") >= 0, true);
-  applyCanonicalRespec(state.players.marksman.progression as NonNullable<MatchPlayer["progression"]>, catalog, "class.marksman", "char-marksman", "respec-marksman-01", "npc.test_innkeeper", 1);
-  assert.equal(state.players.marksman.progression?.purchasedClassNodeIds.length, 0);
-  assert.equal(Object.keys(state.players.marksman.progression?.purchasedBranchNodeRanks ?? {}).length, 0);
-  assert.equal(state.players.marksman.progression?.unlockedAbilityIds.indexOf("ability.marksman.piercing_shot") >= 0, false);
+  const progression = state.players.marksman.progression;
+  assert.ok(progression !== undefined);
+  assert.equal(progression.unlockedAbilityIds.indexOf("ability.marksman.piercing_shot") >= 0, true);
+  applyCanonicalRespec(progression, catalog, "class.marksman", "char-marksman", "respec-marksman-01", "npc.test_innkeeper", 1);
+  assert.equal(progression.purchasedClassNodeIds.length, 0);
+  assert.equal(Object.keys(progression.purchasedBranchNodeRanks).length, 0);
+  assert.equal(progression.unlockedAbilityIds.indexOf("ability.marksman.piercing_shot") >= 0, false);
   const before = state.enemies[0].health;
   const result = run(state, 10, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.marksman.aimed_shot", targetId: "enemy-1", requestId: "respec-aimed-01" })]);
   assert.ok(Math.abs(damage(before, result.state.enemies[0].health) - 22 * 1.36) < 0.0001);
