@@ -648,6 +648,7 @@ function applyStatus(
   const baseInterval = definition.tickInterval;
   const scaledInterval = formulaDotTickInterval(baseInterval, hasteMult * extraTickRate);
   const intervalTicks = cooldownTicks(scaledInterval, SNAPSHOT_RATE_HZ);
+  const isPeriodic = definition.type === "periodic_damage" || definition.type === "periodic_heal";
   let appliedMagnitude = magnitude;
   let statChannel =
     definition.statChannel !== undefined
@@ -683,6 +684,7 @@ function applyStatus(
   if (definition.type === "shield_absorb" && definition.healthPercent !== undefined && definition.healthPercent > 0) {
     appliedMagnitude = Math.floor(magnitude);
   }
+  const liveTicks = durationTicks > 0 ? durationTicks + (isPeriodic ? 1 : 0) : 1;
   const incoming: ActiveEffect = {
     effectId: definition.id,
     abilityId: abilityId,
@@ -691,7 +693,7 @@ function applyStatus(
     type: definition.type,
     stacks: 1,
     magnitude: appliedMagnitude,
-    remainingTicks: durationTicks > 0 ? durationTicks : 1,
+    remainingTicks: liveTicks,
     tickIntervalTicks: intervalTicks,
     nextTickAt: intervalTicks > 0 ? tick + intervalTicks : 0,
     stackPolicy: definition.stackPolicy,
@@ -705,7 +707,7 @@ function applyStatus(
     currentIntervalSec: scaledInterval,
     nodeId: definition.nodeId,
     rank: definition.rank,
-    expiryTick: tick + (durationTicks > 0 ? durationTicks : 1),
+    expiryTick: tick + liveTicks,
   };
   if ((incoming.nodeId === undefined || incoming.nodeId.length === 0) && incoming.tags.indexOf("wither") >= 0) {
     incoming.nodeId = "wither";

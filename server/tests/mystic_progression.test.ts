@@ -37,6 +37,7 @@ function zone(): StarterZoneState {
   );
   state.progressionCatalog = catalog;
   state.combatRandom = scriptedRandom([0.99]);
+  state.enemies = [];
   return state;
 }
 
@@ -259,7 +260,7 @@ test("Compassion leaves a 20% HoT over 4s after a mend", () => {
 
 test("Malice leaves a 20% DoT over 4s that never crits", () => {
   let state = zone();
-  state.combatRandom = scriptedRandom([0]);
+  state.combatRandom = scriptedRandom([0.99]);
   state.enemies = [enemy("enemy-1")];
   state = addPlayer(state, mystic(10, "", ["talent.mystic.malice"]));
   const intel = intOf(10);
@@ -445,7 +446,8 @@ test("Dark Bargain reduces curse costs and Evil Eye increases damage taken", () 
   result = run(result.state, until + 1, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.mystic.evil_eye", targetId: "enemy-1", requestId: "evil-eye-01" })]);
   assert.equal(tagged(result.state.enemies[0].effects, "debuff").length >= 1, true);
   const before = result.state.enemies[0].health;
-  result = run(result.state, 41, [message(ClientOpcode.ATTACK, { targetId: "enemy-1", requestId: "evil-eye-hit" })]);
+  result.state.players.mystic.lastAttackTick = -999;
+  result = run(result.state, until + 2, [message(ClientOpcode.ATTACK, { targetId: "enemy-1", requestId: "evil-eye-hit" })]);
   assert.ok(Math.abs(damage(before, result.state.enemies[0].health) - formulaSpellHit(6, intel) * 1.15) < 0.05);
 });
 
