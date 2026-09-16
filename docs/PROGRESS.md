@@ -1,10 +1,10 @@
 # Progress
 
-Last accepted phase: **PROG-08 — Generic Combat Mechanics Required by All Four Classes**.
+Last accepted phase: **PROG-09 — Warrior, Bulwark, and Berserker Implementation**.
 
 Current phase: none.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. PROG-08 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. PROG-08 remains accepted. PROG-09 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
 
@@ -611,6 +611,27 @@ Reproduction:
 powershell -File scripts/test-audit.ps1
 powershell -File scripts/test-client.ps1
 ```
+
+## PROG-09 Warrior, Bulwark, and Berserker implementation (2026-09-16)
+
+Warrior is the first canonical class active in the existing authoritative combat path. `ATTACK` resolves `ability.warrior.auto_attack` (12 base melee damage, 2.0s base interval, STR scaling, server-side crit, and Haste timing), while Heavy Strike is separately granted at level 2 and remains a hotbar active. The production four-slot hotbar continues to exclude auto-attacks and passive Frenzy.
+
+All Warrior class-tree, Bulwark, and Berserker nodes are resolved from purchased talent content. This includes Heavy Strike rank replacement, Conditioning, Weapon Mastery, Challenge ranks and scoped taunt reduction, Iron Thorns non-recursive melee reflection, Fortitude rank replacement, Shield Bash and its stun rank, Punishment, Last Stand once-per-combat threshold healing, Unbreakable, Frenzy stack/rank/expiry behavior, Slaughter, Relentless cooldown recovery, Bloodlust, Whirlwind, Bloodthirst, Reckless, and Berserk. No second combat, effect, threat, cooldown, stat, ability, or progression system was added. No client outcome authority, production GCD, or PvP path was added.
+
+The intentional Warrior content update changes the shared generated hash to `913d28c51ea050509cf4eb57acbfd149012d56a6b3b354ff806d48bc8f1a47c6`. Challenge and Whirlwind radii, Shield Bash range, and Frenzy/Bloodthirst tags are recorded as noncanonical implementation values in [design/progression-implementation-addendum.md](design/progression-implementation-addendum.md). No storage schema migration is required; current progression purchases and match-lived effect state are reused.
+
+| Gate | Result |
+| --- | --- |
+| Content-build | 25/25 |
+| Foundation audit | `FOUNDATION_AUDIT_OK` |
+| Server hermetic | 673 passed, 13 skipped; bundle built |
+| Warrior mechanics and balance regressions | 4/4 (`warrior_progression`, `warrior_balance`) |
+| Auth gateway | 52/52 |
+| Migration fixture dry-run / apply / verify | passed |
+| Client GdUnit | 283/283, 0 failures, 0 orphans |
+| GitHub `verify` | passed (`0867ac9`, run 35112093346) |
+
+Remaining work is limited to the named PROG-10–12 class implementations and their auto-attack retunes. No PROG-10 work was started.
 
 ## Content production workflow, systems lab, and developer/GM tools acceptance (2026-08-19)
 
