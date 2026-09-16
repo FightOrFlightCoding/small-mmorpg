@@ -1,5 +1,7 @@
 # Current progression conflicts
 
+**Verification (2026-09-16):** Re-read against `origin/cursor/npc-quest-acceptance` @ `3cb1e35` (contains PROG-08 @ `8f0b949`). Statuses below unchanged except this stamp. **No `BLOCKING` rows.** PROG-08 is **not** on `origin/main` (`dccb539`); merge gap is a release/process issue, not a register rollback.
+
 PROG-08 is the accepted generic combat-mechanics path. Remaining live/design gaps are **owned staged work**, not items that will vanish on their own.
 
 Canonical target: [rpg-progression-design-v1.0.md](../design/rpg-progression-design-v1.0.md).  
