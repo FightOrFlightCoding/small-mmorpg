@@ -654,6 +654,7 @@ Keyboard focus, UI scale, color-independent lock labels, tooltips, long wrapping
 | Server hermetic | 714 passed, 13 skipped |
 | Client GdUnit | 297/297, 0 failures, 0 orphans, `SHELL_LOGIN` |
 | PROG-13 UI suite | 14/14 (`client/tests/app/progression_ui_test.gd`) |
+| GitHub `verify` | passed (`3780a75`, run 35146268952) |
 
 Limitations: Persistence leftover-field migration remains PROG-14. Production legacy-path removal and balance certification remain PROG-15. Final class art is not required. Equipment vs temporary effects uses the remainder of derived minus automatic minus free until `publicProgression` splits those channels. Manual Prompt 18 world play was not re-run; live village/slime combat behavior was not changed.
 
