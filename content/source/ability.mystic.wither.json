@@ -47,7 +47,8 @@
       "removalReason": "expired",
       "tags": [
         "dot",
-        "wither"
+        "wither",
+        "curse"
       ],
       "school": "spell"
     }
@@ -60,7 +61,7 @@
   "soundAssetId": "visual.ability_dot_sound",
   "skillPointCost": 0,
   "maxRank": 1,
-  "runtimeEnabled": false,
+  "runtimeEnabled": true,
   "abilityCategory": "signature",
   "ownerClassId": "class.mystic",
   "school": "spell",

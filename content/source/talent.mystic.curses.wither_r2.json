@@ -18,6 +18,15 @@
           "value": 0.25
         }
       ]
+    },
+    {
+      "abilityId": "ability.mystic.malediction",
+      "modifiers": [
+        {
+          "type": "ability_damage_percent",
+          "value": 0.25
+        }
+      ]
     }
   ]
 }

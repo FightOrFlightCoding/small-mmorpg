@@ -24,6 +24,7 @@ export interface CombatEvent {
   resourceDelta?: number;
   message?: string;
   crit?: boolean;
+  originTag?: string;
 }
 
 export function applyDamageAmount(health: number, amount: number): number {

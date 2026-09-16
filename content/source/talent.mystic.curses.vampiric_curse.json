@@ -11,7 +11,7 @@
   "classification": "canonical",
   "passiveModifiers": [
     {
-      "type": "lifesteal_percent",
+      "type": "dot_lifesteal_percent",
       "value": 0.1
     }
   ]

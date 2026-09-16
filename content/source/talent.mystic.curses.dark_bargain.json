@@ -9,10 +9,24 @@
   "maxRank": 2,
   "pointCostPerRank": 1,
   "classification": "canonical",
-  "passiveModifiers": [
+  "abilityModifications": [
     {
-      "type": "mana_cost_percent",
-      "value": -0.1
+      "abilityId": "ability.mystic.wither",
+      "modifiers": [
+        {
+          "type": "ability_mana_cost_percent",
+          "value": -0.1
+        }
+      ]
+    },
+    {
+      "abilityId": "ability.mystic.evil_eye",
+      "modifiers": [
+        {
+          "type": "ability_mana_cost_percent",
+          "value": -0.1
+        }
+      ]
     }
   ]
 }

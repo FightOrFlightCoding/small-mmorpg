@@ -21,10 +21,11 @@
     "refreshPolicy": "refresh",
     "removalReason": "expired",
     "tags": [
-      "debuff"
+      "debuff",
+      "curse"
     ],
     "school": "none",
-    "statChannel": "damage_taken"
+    "statChannel": "taken_damage"
   },
   "classification": "compile-time-addition",
   "compileTimeAddition": true

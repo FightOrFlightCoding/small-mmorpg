@@ -1,12 +1,14 @@
 import { cooldownTicks, type CombatEvent } from "./combat";
 import { applyCombat } from "./combat_pipeline";
-import { SNAPSHOT_RATE_HZ } from "./movement";
+import { distance, SNAPSHOT_RATE_HZ } from "./movement";
 import type { MatchEnemy, MatchPlayer, StarterZoneState } from "./match_state";
 import { dict } from "./maps";
-import { resourceIdForRole, type EvaluatedStats } from "./stats";
-import { formulaDotTickInterval, formulaHeal } from "./canonical_stats";
+import { evaluateStats, playerStatContext, resourceIdForRole, type EvaluatedStats } from "./stats";
+import { formulaDotTickInterval, formulaHeal, scalePower } from "./canonical_stats";
 import { applyTaunt } from "./threat";
-import { conditionalTalentModifierValue } from "./talent_modifiers";
+import { conditionalTalentModifierValue, passiveTalentModifierValue, resolveAbilityTalentModifiers } from "./talent_modifiers";
+
+export const NEARBY_EFFECT_RADIUS = 80;
 
 export type EffectType =
   | "direct_damage"
@@ -64,6 +66,9 @@ export interface EffectDefinition {
   movementDistance?: number;
   bonusCritChance?: number;
   delay?: number;
+  conditions?: ReadonlyArray<{ type: string; relation?: string }>;
+  healthPercent?: number;
+  shieldBreakHealRatio?: number;
 }
 
 export interface ActiveEffect {
@@ -96,6 +101,7 @@ export interface ActiveEffect {
   nodeId?: string;
   rank?: number;
   expiryTick?: number;
+  shieldBreakHealRatio?: number;
 }
 
 export function resolveMagnitude(formula: MagnitudeFormula, stats: EvaluatedStats | null, fallbackAttack: number): number {
@@ -215,6 +221,9 @@ export function cloneActiveEffect(effect: ActiveEffect): ActiveEffect {
   }
   if (effect.expiryTick !== undefined) {
     cloned.expiryTick = effect.expiryTick;
+  }
+  if (effect.shieldBreakHealRatio !== undefined) {
+    cloned.shieldBreakHealRatio = effect.shieldBreakHealRatio;
   }
   return cloned;
 }
@@ -344,13 +353,42 @@ export function applyEffectDefinition(
 ): void {
   const actor = toEffectSource(source);
   const rank = isMatchPlayer(source) ? rankScale(source, abilityId) : 1;
-  const magnitude = (
-    stats !== null && stats.canonical !== undefined && definition.powerCategory !== undefined
-      ? canonicalBaseMagnitude(definition.magnitude, fallbackAttack)
-      : resolveMagnitude(definition.magnitude, stats, fallbackAttack)
+  let working: EffectDefinition = definition;
+  if (String(definition.type) === "shield") {
+    working = { ...definition, type: "shield_absorb" };
+  }
+  let magnitude = (
+    stats !== null && stats.canonical !== undefined && working.powerCategory !== undefined && working.healthPercent === undefined
+      ? canonicalBaseMagnitude(working.magnitude, fallbackAttack)
+      : resolveMagnitude(working.magnitude, stats, fallbackAttack)
   ) * rank;
+  if (working.healthPercent !== undefined && working.healthPercent > 0) {
+    magnitude = target.maxHealth * working.healthPercent;
+    if (working.type === "direct_heal" && stats !== null && stats.canonical !== undefined && stats.canonical.healDoneProduct > 0) {
+      magnitude *= stats.canonical.healDoneProduct;
+    }
+  } else if (
+    (working.type === "periodic_damage" || working.type === "periodic_heal") &&
+    stats !== null &&
+    stats.canonical !== undefined &&
+    working.powerCategory !== undefined
+  ) {
+    magnitude = scalePower(magnitude, working.powerCategory, stats.values);
+  }
+  if (isMatchPlayer(source) && source.progression !== undefined && state.progressionCatalog !== undefined) {
+    if (working.type === "periodic_damage") {
+      const festering = passiveTalentModifierValue(state.progressionCatalog, source.progression, "dot_tick_rate_percent");
+      if (festering !== 0) {
+        const extra = 1 + festering;
+        working = {
+          ...working,
+          tickRateMultiplier: (working.tickRateMultiplier !== undefined && working.tickRateMultiplier > 0 ? working.tickRateMultiplier : 1) * extra,
+        };
+      }
+    }
+  }
   const haste = stats !== null && stats.hasteMult !== undefined ? stats.hasteMult : 1;
-  const type = String(definition.type);
+  const type = String(working.type);
   if (type === "guaranteed_crit") {
     return;
   }
@@ -364,16 +402,30 @@ export function applyEffectDefinition(
       tick,
       events,
       false,
-      canonicalFormula(state, stats, definition, source, target),
+      canonicalFormula(state, stats, working, source, target),
     );
     return;
   }
   if (type === "direct_heal") {
-    healTarget(state, actor, target, magnitude, abilityId, tick, events);
+    healTarget(
+      state,
+      actor,
+      target,
+      magnitude,
+      abilityId,
+      tick,
+      events,
+      working.healthPercent !== undefined && working.healthPercent > 0
+        ? undefined
+        : canonicalFormula(state, stats, working, source, target),
+    );
+    return;
+  }
+  if (type === "propagate_effect") {
     return;
   }
   if (type === "resource_change") {
-    changeResource(state, target, definition, magnitude, actor, tick, events);
+    changeResource(state, target, working, magnitude, actor, tick, events);
     return;
   }
   if (type === "interrupt") {
@@ -383,7 +435,7 @@ export function applyEffectDefinition(
   if (type === "taunt" && target.kind === "enemy") {
     const enemy = findEnemyById(state, target.id);
     if (enemy !== undefined) {
-      applyTaunt(enemy, actor.id, tick, definition.duration, SNAPSHOT_RATE_HZ, magnitude);
+      applyTaunt(enemy, actor.id, tick, working.duration, SNAPSHOT_RATE_HZ, magnitude);
       events.push({
         type: "threat",
         sourceId: actor.id,
@@ -397,16 +449,19 @@ export function applyEffectDefinition(
         message: "enemy_taunted",
       });
     }
-    applyStatus(target, definition, abilityId, actor, magnitude, tick, events, haste, stats);
+    applyStatus(target, working, abilityId, actor, magnitude, tick, events, haste, stats);
     return;
   }
-  const alreadyBleedRate = definition.statChannel === "bleed_tick_rate" && hasBleedTickRate(target.effects);
-  applyStatus(target, definition, abilityId, actor, magnitude, tick, events, haste, stats);
+  const alreadyBleedRate = working.statChannel === "bleed_tick_rate" && hasBleedTickRate(target.effects);
+  applyStatus(target, working, abilityId, actor, magnitude, tick, events, haste, stats);
   if (type === "stun") {
     interruptLiveCast(state, target, actor, tick, events);
   }
-  if (definition.statChannel === "bleed_tick_rate" && !alreadyBleedRate) {
+  if (working.statChannel === "bleed_tick_rate" && !alreadyBleedRate) {
     retimeTaggedPeriodicsFromSource(state, actor.id, 2, "bleed");
+  }
+  if (type === "shield_absorb" && isMatchPlayer(source) && source.progression !== undefined && state.progressionCatalog !== undefined) {
+    applyMendingWard(state, source, target, working, abilityId, tick, events, stats, fallbackAttack);
   }
 }
 
@@ -518,7 +573,7 @@ function tickTargetEffects(
       }
     }
     if (isShieldEffect(effect) && effect.remainingTicks === 1 && effect.terminalEventSent !== true) {
-      emitShieldTerminal(events, target, effect, "expired");
+      finishShield(state, target, effect, "expired", tick, events);
     }
     effect.remainingTicks -= 1;
     if (effect.remainingTicks > 0) {
@@ -545,7 +600,7 @@ function applyPeriodicTick(
     }
     const actor: EffectSource =
       source !== undefined ? { id: source.userId, kind: "player" } : { id: effect.sourceId, kind: effect.sourceKind };
-    dealDamage(state, actor, target, amount, effect.abilityId, tick, events, true);
+    dealDamage(state, actor, target, amount, effect.abilityId, tick, events, true, undefined, "periodic");
     if (effect.totalRemaining !== undefined) {
       effect.totalRemaining = Math.max(0, effect.totalRemaining - amount);
     }
@@ -565,10 +620,11 @@ function applyPeriodicTick(
       x: target.x,
       y: target.y,
     });
+    applyDotLifesteal(state, effect, amount, tick, events);
     return;
   }
   if (effect.type === "periodic_heal") {
-    healTarget(state, { id: effect.sourceId, kind: effect.sourceKind }, target, amount, effect.abilityId, tick, events);
+    healTarget(state, { id: effect.sourceId, kind: effect.sourceKind }, target, amount, effect.abilityId, tick, events, undefined, "periodic");
   }
 }
 
@@ -604,6 +660,12 @@ function applyStatus(
     statChannel = "movement_speed";
     appliedMagnitude = magnitude * 100;
   }
+  if (statChannel === "damage_dealt") {
+    statChannel = "outgoing_damage";
+  }
+  if (statChannel === "damage_taken") {
+    statChannel = "taken_damage";
+  }
   if (definition.type === "slow" && Math.abs(appliedMagnitude) <= 1) {
     appliedMagnitude = -Math.abs(appliedMagnitude) * 100;
   }
@@ -613,9 +675,12 @@ function applyStatus(
     const ticks = intervalTicks > 0 ? Math.max(1, Math.round(durationTicks / intervalTicks)) : 1;
     appliedMagnitude = ticks > 0 ? intendedTotal / ticks : magnitude;
   }
-  if (definition.type === "shield_absorb" && stats !== null) {
+  if (definition.type === "shield_absorb" && stats !== null && definition.healthPercent === undefined) {
     const spirit = stats.values["stat.spirit"] !== undefined ? stats.values["stat.spirit"] : 0;
     appliedMagnitude = Math.floor(shieldAbsorbFromSpirit(magnitude, spirit));
+  }
+  if (definition.type === "shield_absorb" && definition.healthPercent !== undefined && definition.healthPercent > 0) {
+    appliedMagnitude = Math.floor(magnitude);
   }
   const incoming: ActiveEffect = {
     effectId: definition.id,
@@ -641,6 +706,9 @@ function applyStatus(
     rank: definition.rank,
     expiryTick: tick + (durationTicks > 0 ? durationTicks : 1),
   };
+  if ((incoming.nodeId === undefined || incoming.nodeId.length === 0) && incoming.tags.indexOf("wither") >= 0) {
+    incoming.nodeId = "wither";
+  }
   if (definition.type === "periodic_damage" || definition.type === "periodic_heal") {
     const ticks = intervalTicks > 0 ? Math.max(1, Math.round(durationTicks / intervalTicks)) : 1;
     incoming.baseTickCount = ticks;
@@ -654,6 +722,9 @@ function applyStatus(
     incoming.remainingAbsorb = appliedMagnitude;
     incoming.maxAbsorb = appliedMagnitude;
     incoming.terminalEventSent = false;
+    if (definition.shieldBreakHealRatio !== undefined && definition.shieldBreakHealRatio > 0) {
+      incoming.shieldBreakHealRatio = definition.shieldBreakHealRatio;
+    }
     if (definition.tags.indexOf("shield") < 0) {
       incoming.tags.push("shield");
     }
@@ -718,6 +789,7 @@ function applyRefresh(existing: ActiveEffect, incoming: ActiveEffect): void {
   existing.terminalEventSent = false;
   existing.rank = incoming.rank;
   existing.expiryTick = incoming.expiryTick;
+  existing.shieldBreakHealRatio = incoming.shieldBreakHealRatio;
 }
 
 function findReplaceableEffect(effects: ActiveEffect[], incoming: ActiveEffect): number {
@@ -923,6 +995,7 @@ function dealDamage(
     guaranteedCrit?: boolean;
     bonusCritChance?: number;
   },
+  originTag?: string,
 ): void {
   if (amount <= 0 || target.health <= 0) {
     return;
@@ -957,6 +1030,7 @@ function dealDamage(
       abilityId: abilityId,
       respawnDelaySec: state.playerRespawnDelaySec,
       tickRate: SNAPSHOT_RATE_HZ,
+      originTag: originTag !== undefined ? originTag : isDot ? "periodic" : undefined,
     },
     events,
   );
@@ -986,6 +1060,7 @@ function canonicalFormula(
       canonicalCritChance: number;
       canonicalCritMult: number;
       canonicalOutgoingProduct: number;
+      canonicalHealDoneProduct?: number;
       random: import("./combat_rng").CombatRandom | undefined;
       guaranteedCrit?: boolean;
       bonusCritChance?: number;
@@ -1018,6 +1093,7 @@ function canonicalFormula(
     canonicalCritChance: number;
     canonicalCritMult: number;
     canonicalOutgoingProduct: number;
+    canonicalHealDoneProduct?: number;
     random: import("./combat_rng").CombatRandom | undefined;
     guaranteedCrit?: boolean;
     bonusCritChance?: number;
@@ -1027,6 +1103,7 @@ function canonicalFormula(
     canonicalCritChance: stats.critChance !== undefined ? stats.critChance : 0,
     canonicalCritMult: critMult,
     canonicalOutgoingProduct: stats.canonical.outgoingProduct,
+    canonicalHealDoneProduct: stats.canonical.healDoneProduct,
     random: state.combatRandom,
   };
   if (definition.guaranteedCrit === true) {
@@ -1101,6 +1178,8 @@ function healTarget(
   abilityId: string,
   tick: number,
   events: CombatEvent[],
+  canonical?: ReturnType<typeof canonicalFormula>,
+  originTag?: string,
 ): void {
   if (amount <= 0 || target.health <= 0) {
     return;
@@ -1113,10 +1192,23 @@ function healTarget(
       sourceKind: source.kind,
       targetId: target.id,
       targetKind: target.kind,
-      formula: { base: amount },
+      formula:
+        canonical !== undefined
+          ? {
+              base: amount,
+              powerCategory: canonical.powerCategory,
+              canonicalStats: canonical.canonicalStats,
+              canonicalCritChance: canonical.canonicalCritChance,
+              canonicalCritMult: canonical.canonicalCritMult,
+              canonicalOutgoingProduct: canonical.canonicalOutgoingProduct,
+              canonicalHealDoneProduct: canonical.canonicalHealDoneProduct,
+              random: canonical.random,
+            }
+          : { base: amount },
       tick: tick,
       abilityId: abilityId,
       tickRate: SNAPSHOT_RATE_HZ,
+      originTag: originTag,
     },
     events,
   );
@@ -1192,4 +1284,215 @@ function copyTags(tags: ReadonlyArray<string>): string[] {
     list.push(tags[i]);
   }
   return list;
+}
+
+export function finishShield(
+  state: StarterZoneState,
+  target: EffectTarget,
+  effect: ActiveEffect,
+  reason: "broken" | "expired",
+  tick: number,
+  events: CombatEvent[],
+): void {
+  if (!isShieldEffect(effect) || effect.terminalEventSent === true) {
+    return;
+  }
+  emitShieldTerminal(events, target, effect, reason);
+  const ratio = effect.shieldBreakHealRatio !== undefined ? effect.shieldBreakHealRatio : 0;
+  const absorb = effect.maxAbsorb !== undefined ? effect.maxAbsorb : 0;
+  if (ratio > 0 && absorb > 0 && target.health > 0) {
+    healTarget(
+      state,
+      { id: effect.sourceId, kind: effect.sourceKind },
+      target,
+      absorb * ratio,
+      effect.abilityId,
+      tick,
+      events,
+    );
+  }
+  clearOwnedMendingWard(target, effect.sourceId);
+}
+
+function applyMendingWard(
+  state: StarterZoneState,
+  source: MatchPlayer,
+  target: EffectTarget,
+  shield: EffectDefinition,
+  abilityId: string,
+  tick: number,
+  events: CombatEvent[],
+  stats: EvaluatedStats | null,
+  fallbackAttack: number,
+): void {
+  if (source.progression === undefined || state.progressionCatalog === undefined) {
+    return;
+  }
+  const pct = passiveTalentModifierValue(state.progressionCatalog, source.progression, "shield_max_hp_heal_per_second");
+  if (!(pct > 0) || !(shield.duration > 0) || !(target.maxHealth > 0)) {
+    return;
+  }
+  const ward: EffectDefinition = {
+    id: "mending-ward",
+    type: "periodic_heal",
+    source: "caster",
+    target: "primary",
+    magnitude: { kind: "constant", value: target.maxHealth * pct },
+    duration: shield.duration,
+    tickInterval: 1,
+    stackPolicy: "replace",
+    maxStacks: 1,
+    refreshPolicy: "refresh",
+    removalReason: "expired",
+    tags: ["mending_ward"],
+  };
+  applyEffectDefinition(state, ward, abilityId, source, target, stats, fallbackAttack, tick, events);
+}
+
+function applyDotLifesteal(
+  state: StarterZoneState,
+  effect: ActiveEffect,
+  amount: number,
+  tick: number,
+  events: CombatEvent[],
+): void {
+  if (effect.sourceKind !== "player" || !(amount > 0)) {
+    return;
+  }
+  const player = state.players[effect.sourceId];
+  if (player === undefined || player.progression === undefined || state.progressionCatalog === undefined || player.health <= 0) {
+    return;
+  }
+  const fraction = passiveTalentModifierValue(state.progressionCatalog, player.progression, "dot_lifesteal_percent");
+  if (!(fraction > 0)) {
+    return;
+  }
+  const self = playerAsTarget(player);
+  healTarget(
+    state,
+    { id: player.userId, kind: "player" },
+    self,
+    amount * fraction,
+    effect.abilityId,
+    tick,
+    events,
+    undefined,
+    "lifesteal",
+  );
+  writeTarget(state, self);
+}
+
+export function propagateOwnedWitherOnDeath(
+  state: StarterZoneState,
+  dying: MatchEnemy,
+  tick: number,
+  events: CombatEvent[],
+): void {
+  const effects = dying.effects !== undefined ? dying.effects : [];
+  const seen: { [id: string]: boolean } = {};
+  for (let i = 0; i < effects.length; i++) {
+    const effect = effects[i];
+    if (effect.sourceKind !== "player" || effect.remainingTicks <= 0 || effect.tags.indexOf("wither") < 0) {
+      continue;
+    }
+    if (seen[effect.sourceId] === true) {
+      continue;
+    }
+    const player = state.players[effect.sourceId];
+    if (player === undefined || player.progression === undefined || state.progressionCatalog === undefined) {
+      continue;
+    }
+    if (!(passiveTalentModifierValue(state.progressionCatalog, player.progression, "propagate_on_death") > 0)) {
+      continue;
+    }
+    const nearby = nearestLivingEnemy(state, dying, NEARBY_EFFECT_RADIUS);
+    if (nearby === undefined) {
+      continue;
+    }
+    seen[effect.sourceId] = true;
+    const ability = state.abilitiesById !== undefined ? state.abilitiesById[effect.abilityId] : undefined;
+    if (ability === undefined) {
+      continue;
+    }
+    const talentMods = resolveAbilityTalentModifiers(state.progressionCatalog, player.progression, effect.abilityId, {
+      sourceTags: [],
+    });
+    const stats =
+      player.classId !== undefined
+        ? evaluateStats(
+            state.progressionCatalog,
+            playerStatContext(
+              player.classId,
+              player.progression,
+              player.equipment,
+              player.inventory,
+              state.itemsById,
+              effectModifiersFrom(player.effects),
+            ),
+          )
+        : null;
+    const fallbackAttack =
+      player.derivedAttack !== undefined && player.derivedAttack > 0 ? player.derivedAttack : state.playerAttack;
+    const hopTarget = enemyAsTarget(nearby);
+    for (let e = 0; e < ability.effects.length; e++) {
+      const template = ability.effects[e];
+      if (template.type !== "periodic_damage" || template.tags.indexOf("wither") < 0) {
+        continue;
+      }
+      const resolved: EffectDefinition = {
+        ...template,
+        magnitude: { ...template.magnitude },
+        tags: copyTags(template.tags),
+      };
+      if (resolved.magnitude.value !== undefined && talentMods.damageMultiplier !== 1) {
+        resolved.magnitude.value *= talentMods.damageMultiplier;
+      }
+      applyEffectDefinition(state, resolved, effect.abilityId, player, hopTarget, stats, fallbackAttack, tick, events);
+      if (talentMods.onDotTargetOutgoingPercent !== undefined) {
+        const reduction: EffectDefinition = {
+          id: "wither-r3-outgoing",
+          type: "timed_stat_modifier",
+          source: "caster",
+          target: "primary",
+          magnitude: { kind: "constant", value: talentMods.onDotTargetOutgoingPercent },
+          duration: resolved.duration,
+          tickInterval: 0,
+          stackPolicy: "replace",
+          maxStacks: 1,
+          refreshPolicy: "refresh",
+          removalReason: "expired",
+          tags: ["wither_r3"],
+          statChannel: "outgoing_damage",
+        };
+        applyEffectDefinition(state, reduction, effect.abilityId, player, hopTarget, stats, fallbackAttack, tick, events);
+      }
+    }
+    writeTarget(state, hopTarget);
+  }
+}
+
+function nearestLivingEnemy(state: StarterZoneState, origin: MatchEnemy, radius: number): MatchEnemy | undefined {
+  let best: MatchEnemy | undefined;
+  let bestDist = radius;
+  for (let i = 0; i < state.enemies.length; i++) {
+    const enemy = state.enemies[i];
+    if (enemy.id === origin.id || enemy.health <= 0 || enemy.aiState === "dead") {
+      continue;
+    }
+    const dist = distance(origin.x, origin.y, enemy.x, enemy.y);
+    if (dist <= bestDist) {
+      best = enemy;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
+
+function clearOwnedMendingWard(target: EffectTarget, sourceId: string): void {
+  for (let i = 0; i < target.effects.length; i++) {
+    const effect = target.effects[i];
+    if (effect.sourceId === sourceId && effect.tags.indexOf("mending_ward") >= 0) {
+      effect.remainingTicks = 0;
+    }
+  }
 }

@@ -44,10 +44,11 @@
       "refreshPolicy": "refresh",
       "removalReason": "expired",
       "tags": [
-        "debuff"
+        "debuff",
+        "curse"
       ],
       "school": "none",
-      "statChannel": "damage_taken"
+      "statChannel": "taken_damage"
     }
   ],
   "effectIds": [
@@ -58,7 +59,7 @@
   "soundAssetId": "visual.ability_dot_sound",
   "skillPointCost": 0,
   "maxRank": 1,
-  "runtimeEnabled": false,
+  "runtimeEnabled": true,
   "abilityCategory": "tree_active",
   "ownerClassId": "class.mystic",
   "school": "spell",

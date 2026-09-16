@@ -9,15 +9,10 @@
   "maxRank": 1,
   "pointCostPerRank": 1,
   "classification": "canonical",
-  "abilityModifications": [
+  "passiveModifiers": [
     {
-      "abilityId": "ability.mystic.wither",
-      "modifiers": [
-        {
-          "type": "propagate_effect",
-          "effectId": "effect.mystic.wither.dot"
-        }
-      ]
+      "type": "propagate_on_death",
+      "value": 1
     }
   ]
 }

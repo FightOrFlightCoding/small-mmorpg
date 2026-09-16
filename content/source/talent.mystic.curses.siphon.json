@@ -14,7 +14,7 @@
       "abilityId": "ability.mystic.fateweave",
       "modifiers": [
         {
-          "type": "lifesteal_percent",
+          "type": "on_harm_lifesteal_percent",
           "value": 0.15
         }
       ]
