@@ -43,6 +43,7 @@
       "tags": [
         "dot",
         "wither",
+        "curse",
         "capstone"
       ],
       "school": "spell"
@@ -101,7 +102,7 @@
   "soundAssetId": "visual.ability_dot_sound",
   "skillPointCost": 0,
   "maxRank": 1,
-  "runtimeEnabled": false,
+  "runtimeEnabled": true,
   "abilityCategory": "capstone",
   "ownerClassId": "class.mystic",
   "school": "spell",

@@ -150,6 +150,7 @@ export interface TalentModifierContent {
   type: string;
   value?: number;
   abilityId?: string;
+  effectId?: string;
 }
 
 export interface TalentAbilityModificationContent {
@@ -512,7 +513,8 @@ function percentEffectChannel(channel: string): boolean {
     channel === "attack_speed" ||
     channel === "cast_time" ||
     channel === "auto_attack" ||
-    channel === "movement_speed"
+    channel === "movement_speed" ||
+    channel === "heal_done"
   );
 }
 
@@ -1223,7 +1225,7 @@ function copyTalentModifiers(raw: unknown): TalentModifierContent[] {
     if (value === null || typeof value !== "object" || Array.isArray(value)) {
       continue;
     }
-    const modifier = value as { type?: unknown; value?: unknown; abilityId?: unknown };
+    const modifier = value as { type?: unknown; value?: unknown; abilityId?: unknown; effectId?: unknown };
     if (typeof modifier.type !== "string") {
       continue;
     }
@@ -1233,6 +1235,9 @@ function copyTalentModifiers(raw: unknown): TalentModifierContent[] {
     }
     if (typeof modifier.abilityId === "string") {
       next.abilityId = modifier.abilityId;
+    }
+    if (typeof modifier.effectId === "string") {
+      next.effectId = modifier.effectId;
     }
     copied.push(next);
   }

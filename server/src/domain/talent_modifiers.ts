@@ -56,6 +56,16 @@ export interface ResolvedAbilityModifiers {
   rootDurationOverride: number | undefined;
   radiusMultiplier: number;
   slowTargetOutgoingPercent: number | undefined;
+  healMultiplier: number;
+  absorbMultiplier: number;
+  manaCostMultiplier: number;
+  onHealHotPercent: number;
+  onHitDotPercent: number;
+  afterMendNextHarmPercent: number;
+  allyDamageReduction: number;
+  onDotTargetOutgoingPercent: number | undefined;
+  onHarmLifestealPercent: number;
+  shieldBreakHealPercent: number;
 }
 
 export function passiveTalentModifierValue(
@@ -179,6 +189,16 @@ export function resolveAbilityTalentModifiers(
     rootDurationOverride: undefined,
     radiusMultiplier: 1,
     slowTargetOutgoingPercent: undefined,
+    healMultiplier: 1,
+    absorbMultiplier: 1,
+    manaCostMultiplier: 1,
+    onHealHotPercent: 0,
+    onHitDotPercent: 0,
+    afterMendNextHarmPercent: 0,
+    allyDamageReduction: 0,
+    onDotTargetOutgoingPercent: undefined,
+    onHarmLifestealPercent: 0,
+    shieldBreakHealPercent: 0,
   };
   const nodes = purchasedNodes(catalog, progression);
   for (let i = 0; i < nodes.length; i++) {
@@ -284,7 +304,23 @@ function appendMappedModifiers(
 ): void {
   for (let i = 0; i < modifiers.length; i++) {
     const modifier = modifiers[i];
-    if (modifier.type === "slow_reduces_target_damage_percent") {
+    if (
+      modifier.type === "slow_reduces_target_damage_percent" ||
+      modifier.type === "dot_reduces_target_damage_percent" ||
+      modifier.type === "on_heal_hot_percent" ||
+      modifier.type === "on_hit_dot_percent" ||
+      modifier.type === "after_mend_next_harm_percent" ||
+      modifier.type === "overflow_heal_percent" ||
+      modifier.type === "dot_lifesteal_percent" ||
+      modifier.type === "on_harm_lifesteal_percent" ||
+      modifier.type === "propagate_on_death" ||
+      modifier.type === "shield_max_hp_heal_per_second" ||
+      modifier.type === "dot_tick_rate_percent" ||
+      modifier.type === "ability_heal_percent" ||
+      modifier.type === "ability_absorb_percent" ||
+      modifier.type === "ability_mana_cost_percent" ||
+      modifier.type === "on_shield_break_heal_percent"
+    ) {
       continue;
     }
     let value = finiteValue(modifier.value) * rank;
@@ -322,6 +358,9 @@ function appendMappedModifiers(
       channel = "mana_regen";
       const count = context.ownedCrowdControlCount !== undefined ? context.ownedCrowdControlCount : 0;
       value *= count;
+    } else if (modifier.type === "heal_done_percent") {
+      channel = "heal_done";
+      op = "pct";
     }
     if (channel.length === 0 || !isFinite(value) || value === 0) {
       continue;
@@ -385,6 +424,26 @@ function applyAbilityModifiers(
       output.radiusMultiplier *= 1 + value * rank;
     } else if (modifier.type === "slow_reduces_target_damage_percent") {
       output.slowTargetOutgoingPercent = value * rank;
+    } else if (modifier.type === "ability_heal_percent") {
+      output.healMultiplier *= 1 + value * rank;
+    } else if (modifier.type === "ability_absorb_percent") {
+      output.absorbMultiplier *= 1 + value * rank;
+    } else if (modifier.type === "ability_mana_cost_percent") {
+      output.manaCostMultiplier *= 1 + value * rank;
+    } else if (modifier.type === "on_heal_hot_percent") {
+      output.onHealHotPercent += value * rank;
+    } else if (modifier.type === "on_hit_dot_percent") {
+      output.onHitDotPercent += value * rank;
+    } else if (modifier.type === "after_mend_next_harm_percent") {
+      output.afterMendNextHarmPercent += value * rank;
+    } else if (modifier.type === "damage_reduction_percent") {
+      output.allyDamageReduction += value * rank;
+    } else if (modifier.type === "dot_reduces_target_damage_percent") {
+      output.onDotTargetOutgoingPercent = value * rank;
+    } else if (modifier.type === "on_harm_lifesteal_percent") {
+      output.onHarmLifestealPercent += value * rank;
+    } else if (modifier.type === "on_shield_break_heal_percent") {
+      output.shieldBreakHealPercent += value * rank;
     }
   }
 }

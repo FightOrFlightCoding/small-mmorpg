@@ -1,6 +1,6 @@
 # Progression test plan
 
-PROG-08 implements generic combat mechanics required by all four classes and closes production GCD. Class combat definitions remain later. Existing Foundation/ACCT suites must keep passing. The PROG-01 design-source audit still runs.
+PROG-08 implements generic combat mechanics required by all four classes and closes production GCD. Class combat definitions for Warrior, Marksman, Mage, and Mystic are accepted through PROG-12. Existing Foundation/ACCT suites must keep passing. The PROG-01 design-source audit still runs.
 
 Related: [TEST_CATALOG.md](../TEST_CATALOG.md), [CANONICAL_VALUE_CATALOG.md](CANONICAL_VALUE_CATALOG.md).
 
@@ -22,6 +22,14 @@ Related: [TEST_CATALOG.md](../TEST_CATALOG.md), [CANONICAL_VALUE_CATALOG.md](CAN
 | `server/tests/warrior_balance.test.ts` | Level-10 auto-growth Bulwark ≈14.8 DPS, Berserker ≈16.1 DPS, and Warrior EHP 308.5 within the canonical tolerance |
 
 The full server suite continues to prove canonical talent purchase, respec/reconnect persistence, link-dead behavior, rejected PvP, absent production GCD, and test-only content isolation. No protocol opcode or storage schema changes are required for PROG-09.
+
+## PROG-12 coverage
+
+| File | Covers |
+| --- | --- |
+| `server/tests/mystic_progression.test.ts` | Mystic ATTACK base/interval/INT path, Fateweave dual polarity including self and friendly heals, Compassion, Malice no-crit DoT, Protective Charm SPI absorb / R2 / one R3 terminal heal, Battle Blessing, Devotion, Blessing R2 DR, Mending Ward, Overflow recursion guard, Benediction, Wither eight ticks, Dark Bargain, Evil Eye, Festering, Vampiric Curse, Contagion, Malediction vs Wither R3 as separate sources, Siphon, and respec-compatible ownership |
+| `server/tests/mystic_balance.test.ts` | Level-10 auto-growth Charms solo DPS ≈14.3, party HPS ≈22.2, and Curses DPS ≈17.3 within ±5% |
+| `server/tests/progression_metronome.test.ts` | Mage Arcane Bolt `5 / (1.5/1.12) = 3.73 ≤ 3.8` and the authored Mystic Fateweave miss `12 / (1.8/1.03) ≈ 6.87 > 6.2` |
 
 ## Audit targets (design source — passing now)
 
@@ -78,7 +86,7 @@ Existing tests that must not be weakened: `progression.test.ts`, `xp_hooks.test.
 
 ## Live snapshot (PROG-08)
 
-The audit asserts production `class.*` ids are warrior/marksman/mage/**mystic**, all `rosterSelectable: true`, `test.curve.standard` maxLevel 5 / XP sum 375, production overlay `curve.vibecode.l10` maxLevel 10, Foundation `HOTBAR_SIZE` 8 (test-only), production `CANONICAL_HOTBAR_SIZE` 4, physical classes omit mana on `startingResources`, and Warrior/Marksman/Mage abilities are `runtimeEnabled: true`. Production-class **vitals** use canonical HP/mana formulas. Warrior, Marksman, and Mage ATTACK use their canonical definitions; Mystic ATTACK retains Foundation values until PROG-12. Production KillXP, the L10 curve, free-stat allocation, trainer respec, talent spend, derived ownership, the four-slot production hotbar, and the generic combat engine are live. [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md) owns every remaining gap. `C-hotbar-dual`, `C-unlock-any-ability`, `C-talent-runtime`, and `C-gcd` are RESOLVED.
+The audit asserts production `class.*` ids are warrior/marksman/mage/**mystic**, all `rosterSelectable: true`, `test.curve.standard` maxLevel 5 / XP sum 375, production overlay `curve.vibecode.l10` maxLevel 10, Foundation `HOTBAR_SIZE` 8 (test-only), production `CANONICAL_HOTBAR_SIZE` 4, physical classes omit mana on `startingResources`, and Warrior/Marksman/Mage/Mystic abilities are `runtimeEnabled: true`. Production-class **vitals** use canonical HP/mana formulas. Warrior, Marksman, Mage, and Mystic ATTACK use their canonical definitions. Production KillXP, the L10 curve, free-stat allocation, trainer respec, talent spend, derived ownership, the four-slot production hotbar, and the generic combat engine are live. [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md) owns every remaining gap. `C-hotbar-dual`, `C-unlock-any-ability`, `C-talent-runtime`, `C-gcd`, `C-attack-foundation`, `C-equipment-auto-attack-baseline`, `C-shields-taunt`, and `C-cooldown-recovery-rate` are RESOLVED.
 
 ## Later named closures
 
@@ -107,3 +115,7 @@ Named tests: `server/tests/marksman_progression.test.ts` and `server/tests/marks
 ### PROG-11 Mage, Fire, and Frost
 
 Named tests: `server/tests/mage_progression.test.ts`, `server/tests/mage_balance.test.ts`, and `server/tests/progression_metronome.test.ts`. They cover mana spend/regen, cast interrupt without refund, Kindled Mind cost reduction, Second Spark crit refunds clamped to max, Afterburn on Fireball crits only (DoT never crits), Meteor ground delay and guaranteed crit, Ice Bolt slow ownership, dynamic Rimeguard and Winter Harvest, Flash Freeze root, Absolute Zero incapacitation, every talent rank, Fire/Frost DPS ±5%, and the documented Metronome Law result `5 / (1.5/1.12) = 3.73 ≤ 3.8`.
+
+### PROG-12 Mystic, Charms, and Curses
+
+Named tests: `server/tests/mystic_progression.test.ts`, `server/tests/mystic_balance.test.ts`, and `server/tests/progression_metronome.test.ts`. They cover dual-polarity Fateweave (self/friendly heal, hostile harm), Compassion HoT, Malice no-crit DoT, Protective Charm SPI scaling / break / expiry with one terminal heal, Battle Blessing consume-once, Devotion, Blessing and Blessing R2, Mending Ward, Overflow recursion safety, Wither eight-tick timing and no-crit, Dark Bargain cost reduction, Evil Eye, Festering, Vampiric Curse, Contagion hop, Malediction, Charms DPS/HPS ±5%, Curses DPS ±5%, and the documented Metronome Law miss `12 / (1.8/1.03) ≈ 6.87 > 6.2` (not rebalanced).

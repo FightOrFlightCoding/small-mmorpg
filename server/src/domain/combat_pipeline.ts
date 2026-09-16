@@ -23,7 +23,15 @@ import { noteAddDeath } from "./spawn_controller";
 import { evaluateCanonicalHit, type PowerCategory } from "./canonical_stats";
 import type { CombatRandom } from "./combat_rng";
 import { evaluateStats, playerStatContext } from "./stats";
-import { effectModifiersFrom, ownedCrowdControlCount } from "./effects";
+import {
+  effectModifiersFrom,
+  enemyAsTarget,
+  finishShield,
+  ownedCrowdControlCount,
+  playerAsTarget,
+  propagateOwnedWitherOnDeath,
+  writeTarget,
+} from "./effects";
 
 export const IN_COMBAT_TIMEOUT_TICKS = 50;
 export const COMBAT_APPLY_TTL_TICKS = 6000;
@@ -70,6 +78,7 @@ export interface CombatFormula {
   canonicalDamageReduction?: number;
   canonicalTakenProduct?: number;
   canonicalCritDamageProduct?: number;
+  canonicalHealDoneProduct?: number;
   bonusCritChance?: number;
   isDot?: boolean;
   isShield?: boolean;
@@ -89,6 +98,7 @@ export interface CombatApplyInput {
   eventId?: string;
   respawnDelaySec?: number;
   tickRate?: number;
+  originTag?: string;
 }
 
 export interface CombatStages {
@@ -155,6 +165,7 @@ export function applyCombat(state: StarterZoneState, input: CombatApplyInput, ev
   const absorb = numericOr(input.formula.absorb, 0) + absorbFromEntity(target.effects);
   const evaluated = evaluateCombatFormula(input.formula, input.action, absorb);
   applyCanonicalTargetMitigation(state, input, evaluated);
+  applyEnemyTakenModifiers(state, input, evaluated);
   applyTauntTakenReduction(state, input, evaluated, absorb);
   steps.push("base_magnitude");
   steps.push("source_modifiers");
@@ -162,7 +173,7 @@ export function applyCombat(state: StarterZoneState, input: CombatApplyInput, ev
   steps.push("mitigation");
   if (input.action === "damage") {
     const shieldHit = evaluated.afterMitigation - evaluated.afterShields;
-    consumeVictimShields(state, input.targetId, input.targetKind, shieldHit, events);
+    consumeVictimShields(state, input.targetId, input.targetKind, shieldHit, input.tick, events);
   }
   steps.push("shields");
   steps.push("final_amount");
@@ -215,6 +226,7 @@ export function applyCombat(state: StarterZoneState, input: CombatApplyInput, ev
     remainingHealth: remaining,
     abilityId: input.abilityId,
     crit: evaluated.crit === true,
+    originTag: input.originTag,
     x: target.x,
     y: target.y,
   });
@@ -252,6 +264,7 @@ export function applyCombat(state: StarterZoneState, input: CombatApplyInput, ev
     if (input.targetKind === "enemy") {
       const enemy = findEnemy(state.enemies, input.targetId);
       if (enemy !== null) {
+        propagateOwnedWitherOnDeath(state, enemy, input.tick, events);
         killEnemy(enemy, input.tick, input.sourceId, tickRate, events);
         noteAddDeath(state, enemy);
         events.push({
@@ -294,6 +307,44 @@ export function evaluateCombatFormula(formula: CombatFormula, action: "damage" |
   if (formula.powerCategory !== undefined && formula.canonicalStats !== undefined) {
     return evaluateCanonicalCombatFormula(formula, action, absorb);
   }
+  if (formula.isDot === true) {
+    const base = Math.max(0, numericOr(formula.base, 0));
+    const sourcePercent = numericOr(formula.sourcePercent, 0);
+    const afterSource = base * (1 + sourcePercent);
+    const targetPercent = numericOr(formula.targetPercent, 0);
+    const afterTarget = (afterSource + numericOr(formula.targetFlat, 0)) * (1 + targetPercent);
+    const shield = Math.max(0, absorb);
+    const afterShields = action === "damage" ? Math.max(0, afterTarget - shield) : afterTarget;
+    const minResult = Math.max(0, numericOr(formula.minResult, 0));
+    return {
+      base: base,
+      afterSource: afterSource,
+      afterTarget: afterTarget,
+      afterMitigation: afterTarget,
+      afterShields: afterShields,
+      finalAmount: Math.max(minResult, afterShields),
+      crit: false,
+    };
+  }
+  if (action === "heal") {
+    const base = Math.max(0, numericOr(formula.base, 0));
+    const sourceStat = numericOr(formula.sourceStatValue, 0);
+    const sourceCoeff = numericOr(formula.sourceStatCoefficient, 0);
+    const sourceFlat = numericOr(formula.sourceFlat, 0);
+    const sourcePercent = numericOr(formula.sourcePercent, 0);
+    const afterSource = (base + sourceStat * sourceCoeff + sourceFlat) * (1 + sourcePercent);
+    const afterTarget = (afterSource + numericOr(formula.targetFlat, 0)) * (1 + numericOr(formula.targetPercent, 0));
+    const minResult = Math.max(0, numericOr(formula.minResult, 0));
+    return {
+      base: base,
+      afterSource: afterSource,
+      afterTarget: afterTarget,
+      afterMitigation: afterTarget,
+      afterShields: afterTarget,
+      finalAmount: Math.max(minResult, afterTarget),
+      crit: false,
+    };
+  }
   const base = Math.max(0, Math.floor(numericOr(formula.base, 0)));
   const sourceStat = numericOr(formula.sourceStatValue, 0);
   const sourceCoeff = numericOr(formula.sourceStatCoefficient, 0);
@@ -301,7 +352,7 @@ export function evaluateCombatFormula(formula: CombatFormula, action: "damage" |
   const sourcePercent = numericOr(formula.sourcePercent, 0);
   let afterSource = Math.floor(base + sourceStat * sourceCoeff + sourceFlat);
   afterSource = Math.floor(afterSource * (1 + sourcePercent));
-  if (formula.isDot !== true && formula.critEnabled === true && formula.critForced === true) {
+  if (formula.critEnabled === true && formula.critForced === true) {
     const critMult = numericOr(formula.critMultiplier, 1.5);
     afterSource = Math.floor(afterSource * critMult);
   }
@@ -325,7 +376,7 @@ export function evaluateCombatFormula(formula: CombatFormula, action: "damage" |
     afterMitigation: afterMitigation,
     afterShields: afterShields,
     finalAmount: finalAmount,
-    crit: formula.isDot !== true && formula.critEnabled === true && formula.critForced === true,
+    crit: formula.critEnabled === true && formula.critForced === true,
   };
 }
 
@@ -668,6 +719,29 @@ function applyCanonicalTargetMitigation(
   evaluated.finalAmount = evaluated.afterShields;
 }
 
+function applyEnemyTakenModifiers(
+  state: StarterZoneState,
+  input: CombatApplyInput,
+  evaluated: CombatStages,
+): void {
+  if (input.action !== "damage" || input.targetKind !== "enemy") {
+    return;
+  }
+  const enemy = findEnemy(state.enemies, input.targetId);
+  if (enemy === null) {
+    return;
+  }
+  const taken = effectModifiersFrom(enemy.effects)["taken_damage"];
+  if (taken === undefined || taken === 0) {
+    return;
+  }
+  const absorbed = Math.max(0, evaluated.afterMitigation - evaluated.afterShields);
+  const scaled = evaluated.afterMitigation * (1 + taken);
+  evaluated.afterMitigation = scaled;
+  evaluated.afterShields = Math.max(0, scaled - absorbed);
+  evaluated.finalAmount = evaluated.afterShields;
+}
+
 function absorbFromEntity(
   effects: { tags?: string[]; statChannel?: string; magnitude?: number; stacks?: number; remainingAbsorb?: number }[] | undefined,
 ): number {
@@ -704,27 +778,43 @@ function consumeVictimShields(
   targetId: string,
   targetKind: "player" | "enemy",
   amount: number,
+  tick: number,
   events: CombatEvent[],
 ): void {
   if (!(amount > 0)) {
     return;
   }
-  let remaining = amount;
-  let effects: { remainingAbsorb?: number; magnitude?: number; stacks?: number; tags?: string[]; statChannel?: string; terminalEventSent?: boolean; remainingTicks?: number; sourceId: string; sourceKind: "player" | "enemy"; effectId: string; abilityId: string }[] | undefined;
   if (targetKind === "player") {
     const player = dict(state.players)[targetId];
-    effects = player !== undefined ? player.effects : undefined;
-  } else {
-    const enemy = findEnemy(state.enemies, targetId);
-    effects = enemy !== null ? enemy.effects : undefined;
-  }
-  if (effects === undefined) {
+    if (player === undefined) {
+      return;
+    }
+    const target = playerAsTarget(player);
+    consumeShieldsOnTarget(state, target, amount, tick, events);
+    writeTarget(state, target);
     return;
   }
-  for (let i = 0; i < effects.length; i++) {
-    const effect = effects[i];
+  const enemy = findEnemy(state.enemies, targetId);
+  if (enemy === null) {
+    return;
+  }
+  const target = enemyAsTarget(enemy);
+  consumeShieldsOnTarget(state, target, amount, tick, events);
+  writeTarget(state, target);
+}
+
+function consumeShieldsOnTarget(
+  state: StarterZoneState,
+  target: ReturnType<typeof playerAsTarget>,
+  amount: number,
+  tick: number,
+  events: CombatEvent[],
+): void {
+  let remaining = amount;
+  for (let i = 0; i < target.effects.length; i++) {
+    const effect = target.effects[i];
     const channel = effect.statChannel !== undefined ? String(effect.statChannel) : "";
-    let shielded = channel === "absorb";
+    let shielded = channel === "absorb" || effect.type === "shield_absorb";
     const tags = effect.tags !== undefined ? effect.tags : [];
     for (let t = 0; t < tags.length; t++) {
       if (tags[t] === "shield") {
@@ -745,18 +835,8 @@ function consumeVictimShields(
     effect.magnitude = nextPool;
     remaining -= take;
     if (nextPool <= 0 && effect.terminalEventSent !== true) {
-      effect.terminalEventSent = true;
+      finishShield(state, target, effect, "broken", tick, events);
       effect.remainingTicks = 0;
-      events.push({
-        type: "message",
-        sourceId: effect.sourceId,
-        sourceKind: effect.sourceKind,
-        targetId: targetId,
-        targetKind: targetKind,
-        effectId: effect.effectId,
-        abilityId: effect.abilityId,
-        message: "shield_broken",
-      });
     }
   }
 }
@@ -863,6 +943,7 @@ function evaluateCanonicalCombatFormula(formula: CombatFormula, action: "damage"
     damageReduction: action === "damage" ? numericOr(formula.canonicalDamageReduction, 0) : 0,
     takenProduct: action === "damage" ? numericOr(formula.canonicalTakenProduct, 1) : 1,
     critDamageProduct: numericOr(formula.canonicalCritDamageProduct, 1),
+    healDoneProduct: numericOr(formula.canonicalHealDoneProduct, 1),
     guaranteedCrit: formula.critForced === true,
     bonusCritChance: formula.bonusCritChance,
     isDot: formula.isDot === true,

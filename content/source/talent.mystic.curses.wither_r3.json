@@ -24,7 +24,16 @@
       "abilityId": "ability.mystic.wither",
       "modifiers": [
         {
-          "type": "damage_dealt_percent",
+          "type": "dot_reduces_target_damage_percent",
+          "value": -0.1
+        }
+      ]
+    },
+    {
+      "abilityId": "ability.mystic.malediction",
+      "modifiers": [
+        {
+          "type": "dot_reduces_target_damage_percent",
           "value": -0.1
         }
       ]

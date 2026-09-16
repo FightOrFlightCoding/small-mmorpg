@@ -8,9 +8,9 @@ Undocumented implementation numbers: [progression-implementation-addendum.md](..
 
 ## Last accepted phase and ownership
 
-Last accepted phase: **PROG-11** (Mage, Fire, and Frost on the shared combat path). PROG-10 remains accepted for Marksman/Sniper/Skirmisher. PROG-09 remains accepted for Warrior/Bulwark/Berserker. PROG-12 still owns Mystic combat definitions and ATTACK retune. Foundation v1 / Prompt 35 / ACCT-09 remain accepted. Prompt 18 village/slime combat behavior remains frozen.
+Last accepted phase: **PROG-12** (Mystic, Charms, and Curses on the shared combat path). PROG-11 remains accepted for Mage/Fire/Frost. PROG-10 remains accepted for Marksman/Sniper/Skirmisher. PROG-09 remains accepted for Warrior/Bulwark/Berserker. Foundation v1 / Prompt 35 / ACCT-09 remain accepted. Prompt 18 village/slime combat behavior remains frozen.
 
-PROG-08 extends the project-owned ability/effect/combat pipeline with reusable mechanic handlers, typed combat events, a server-authoritative random interface, independent multi-hit, DoT snapshot/retune, shields, taunt, cooldown recovery, vault movement, and line/cone/radius/delayed-ground targeting. PROG-09 enables `ability.warrior.*`; PROG-10 enables `ability.marksman.*`; PROG-11 enables `ability.mage.*`. ATTACK resolves the class-owned auto-attack definition, not a hotbar ability. Talent content is translated into identified modifiers and conditional ability effects at resolution time, so no generic combat module branches on a class ID. Owned gaps: [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md).
+PROG-08 extends the project-owned ability/effect/combat pipeline with reusable mechanic handlers, typed combat events, a server-authoritative random interface, independent multi-hit, DoT snapshot/retune, shields, taunt, cooldown recovery, vault movement, and line/cone/radius/delayed-ground targeting. PROG-09 enables `ability.warrior.*`; PROG-10 enables `ability.marksman.*`; PROG-11 enables `ability.mage.*`; PROG-12 enables `ability.mystic.*`. ATTACK resolves the class-owned auto-attack definition, not a hotbar ability. Talent content is translated into identified modifiers and conditional ability effects at resolution time, so no generic combat module branches on a class ID. Owned gaps: [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md).
 
 | Concern | Owner | Extend, do not duplicate |
 | --- | --- | --- |
@@ -20,7 +20,7 @@ PROG-08 extends the project-owned ability/effect/combat pipeline with reusable m
 | XP grants | `progression.ts`, `canonical_leveling.ts`, `xp_hooks.ts` | Production KillXP `8+2*level`; test classes keep `xpReward` |
 | Abilities, casts, hotbar | `ability.ts`, `AbilityService`, content `ability` | New skills/talents as content |
 | Effects, DoTs, shields | `effects.ts`, `combat_pipeline.ts`, `canonical_combat.ts` | Haste snapshot, no DoT crit, one terminal shield event |
-| Threat / taunt | `threat.ts`, combat events | Challenge ability later; engine is live |
+| Threat / taunt | `threat.ts`, combat events | Challenge, Protective Charm, and Benediction use the live engine |
 | Combat events / RNG | `combat_events.ts`, `combat_rng.ts` | Handlers subscribe by event; client never rolls |
 | Equipment modifiers | `equipment.ts` channels into `stats.ts` | Keep as a modifier source |
 | Character summaries | `character_catalog.ts` | `classId`, `level`, `branchId`, presence |

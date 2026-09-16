@@ -276,9 +276,11 @@ export function applyMatchLoop(
   tickCasts(next, tick, combatEvents);
   simulateCombatants(next, tick, 1 / MATCH_TICK_RATE, MATCH_TICK_RATE, combatEvents);
   tickCombatFlags(next, tick);
-  applyTalentCombatReactions(next, tick, combatEvents);
+  applyTalentCombatReactions(next, tick, combatEvents, 0);
   interruptDamagedCasters(next, combatEvents, tick);
+  const beforeEffectTicks = combatEvents.length;
   tickEffects(next, tick, combatEvents);
+  applyTalentCombatReactions(next, tick, combatEvents, beforeEffectTicks);
   tickManaRegen(next, 1 / MATCH_TICK_RATE);
   refreshAllDerived(next);
   processEnemyDeathRewards(
@@ -2204,27 +2206,71 @@ function tickAbilityCooldowns(state: StarterZoneState, tick: number): void {
   }
 }
 
-function applyTalentCombatReactions(state: StarterZoneState, tick: number, events: CombatEvent[]): void {
+function applyTalentCombatReactions(state: StarterZoneState, tick: number, events: CombatEvent[], startIndex: number): void {
   if (state.progressionCatalog === undefined) {
     return;
   }
   const initialCount = events.length;
-  for (let i = 0; i < initialCount; i++) {
+  for (let i = startIndex; i < initialCount; i++) {
     const event = events[i];
-    if (event.type !== "hit") {
+    if (event.type === "hit") {
+      const damage = event.damage !== undefined ? event.damage : 0;
+      if (!(damage > 0)) {
+        continue;
+      }
+      if (event.targetKind === "player") {
+        triggerDamageTakenTalents(state, tick, event, damage, events);
+      }
+      if (event.sourceKind === "player" && event.targetKind === "enemy") {
+        triggerDamageDealtTalents(state, tick, event, damage, events);
+      }
       continue;
     }
-    const damage = event.damage !== undefined ? event.damage : 0;
-    if (!(damage > 0)) {
-      continue;
-    }
-    if (event.targetKind === "player") {
-      triggerDamageTakenTalents(state, tick, event, damage, events);
-    }
-    if (event.sourceKind === "player" && event.targetKind === "enemy") {
-      triggerDamageDealtTalents(state, tick, event, damage, events);
+    if (event.type === "heal") {
+      triggerOverflowHeal(state, tick, event, events);
     }
   }
+}
+
+function triggerOverflowHeal(state: StarterZoneState, tick: number, event: CombatEvent, events: CombatEvent[]): void {
+  if (event.sourceKind !== "player" || event.targetKind !== "player") {
+    return;
+  }
+  if (event.sourceId === event.targetId) {
+    return;
+  }
+  if (event.originTag === "overflow" || event.originTag === "lifesteal") {
+    return;
+  }
+  const healing = event.healing !== undefined ? event.healing : 0;
+  if (!(healing > 0)) {
+    return;
+  }
+  const player = state.players[event.sourceId];
+  if (player === undefined || player.progression === undefined || state.progressionCatalog === undefined || player.health <= 0) {
+    return;
+  }
+  const fraction = passiveTalentModifierValue(state.progressionCatalog, player.progression, "overflow_heal_percent");
+  if (!(fraction > 0)) {
+    return;
+  }
+  applyCombat(
+    state,
+    {
+      action: "heal",
+      sourceId: player.userId,
+      sourceKind: "player",
+      targetId: player.userId,
+      targetKind: "player",
+      formula: { base: healing * fraction },
+      tick: tick,
+      abilityId: event.abilityId,
+      eventId: "overflow:" + tick + ":" + player.userId + ":" + event.targetId,
+      tickRate: MATCH_TICK_RATE,
+      originTag: "overflow",
+    },
+    events,
+  );
 }
 
 function triggerDamageTakenTalents(

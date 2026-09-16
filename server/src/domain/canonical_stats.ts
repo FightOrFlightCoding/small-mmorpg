@@ -16,6 +16,7 @@ export const CHANNEL_MAX_HEALTH = "max_health";
 export const CHANNEL_MAX_HEALTH_PERCENT = "max_health_percent";
 export const CHANNEL_MAX_MANA = "max_mana";
 export const CHANNEL_WEAPON_BASE = "weapon_base";
+export const CHANNEL_HEAL_DONE = "heal_done";
 
 export type CanonicalSourceKind =
   | typeof CANONICAL_SOURCE_CLASS_BASE
@@ -62,6 +63,7 @@ export interface CanonicalSnapshot {
   outgoingProduct: number;
   takenProduct: number;
   critDamageProduct: number;
+  healDoneProduct: number;
   modifiers: CanonicalModifier[];
   derived: { [id: string]: number };
 }
@@ -76,6 +78,7 @@ export interface CanonicalHitInput {
   damageReduction: number;
   takenProduct: number;
   critDamageProduct: number;
+  healDoneProduct?: number;
   guaranteedCrit?: boolean;
   bonusCritChance?: number;
   isDot?: boolean;
@@ -372,6 +375,7 @@ export function evaluateCanonicalSnapshot(input: CanonicalStatInput): CanonicalS
   const outgoingProduct = productOfPctModifiers(collapsed, CHANNEL_OUTGOING);
   const takenProduct = productOfPctModifiers(collapsed, CHANNEL_TAKEN);
   const critDamageProduct = productOfPctModifiers(collapsed, CHANNEL_CRIT_DAMAGE);
+  const healDoneProduct = productOfPctModifiers(collapsed, CHANNEL_HEAL_DONE);
   const derived: { [id: string]: number } = {
     "stat.strength": stats["stat.strength"],
     "stat.agility": stats["stat.agility"],
@@ -407,6 +411,7 @@ export function evaluateCanonicalSnapshot(input: CanonicalStatInput): CanonicalS
     outgoingProduct: outgoingProduct,
     takenProduct: takenProduct,
     critDamageProduct: critDamageProduct,
+    healDoneProduct: healDoneProduct,
     modifiers: modifiersWithIdentity,
     derived: derived,
   };
@@ -427,7 +432,11 @@ export function evaluateCanonicalHit(input: CanonicalHitInput): CanonicalHitResu
     : false;
   const critMult = rolled ? input.critMult * input.critDamageProduct : 1;
   const afterCrit = rawScaled * critMult;
-  const afterOutgoing = afterCrit * input.outgoingProduct;
+  const healProduct =
+    input.category === "heal" && input.healDoneProduct !== undefined && input.healDoneProduct > 0
+      ? input.healDoneProduct
+      : 1;
+  const afterOutgoing = afterCrit * input.outgoingProduct * healProduct;
   const afterDamageReduction = afterOutgoing * (1 - input.damageReduction);
   const finalAmount = afterDamageReduction * input.takenProduct;
   return {
@@ -581,6 +590,9 @@ export function normalizeChannel(channel: string): string {
   }
   if (channel === "lifesteal") {
     return "lifesteal";
+  }
+  if (channel === "heal_done") {
+    return CHANNEL_HEAL_DONE;
   }
   if (channel === "reflect") {
     return "reflect";

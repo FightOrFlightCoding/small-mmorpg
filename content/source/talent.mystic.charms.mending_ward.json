@@ -9,15 +9,10 @@
   "maxRank": 1,
   "pointCostPerRank": 1,
   "classification": "canonical",
-  "abilityModifications": [
+  "passiveModifiers": [
     {
-      "abilityId": "ability.mystic.protective_charm",
-      "modifiers": [
-        {
-          "type": "ability_heal_percent",
-          "value": 0.02
-        }
-      ]
+      "type": "shield_max_hp_heal_per_second",
+      "value": 0.02
     }
   ]
 }

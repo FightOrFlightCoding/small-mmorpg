@@ -25,7 +25,7 @@ import {
   syncDerivedAbilityOwnership,
   usesCanonicalTalentRuntime,
 } from "./canonical_talents";
-import { formulaCastTime, scalePower, type CanonicalModifier } from "./canonical_stats";
+import { CANONICAL_SOURCE_TALENT_NODE, formulaCastTime, scalePower, type CanonicalModifier } from "./canonical_stats";
 import { attackSpeedProduct, autoAttackBase, cooldownRecoveryRate, hasteScaledAttackInterval, resetAbilityCooldown, scaledManaCost, scheduleDelayedGround } from "./canonical_combat";
 import { conditionalTalentModifierValue, passiveTalentModifierValue, resolveAbilityTalentModifiers, talentModifiersForContext, talentModifiersForProgression, type TalentModifierContext } from "./talent_modifiers";
 import {
@@ -160,6 +160,9 @@ export function abilityDefinitionsFromContent(abilities: {
       tags: ReadonlyArray<string>;
       statChannel?: string;
       resourceRole?: string;
+      conditions?: ReadonlyArray<{ type: string; relation?: string }>;
+      healthPercent?: number;
+      shieldBreakHealRatio?: number;
     }>;
     animationAssetId: string;
     iconAssetId: string;
@@ -458,7 +461,7 @@ export function useAbility(
   if (!targeting.ok) {
     return remember(targeting.code, false);
   }
-  if (!resourcesAvailable(player, definition, manaCostModifiers(state, player, tick))) {
+  if (!resourcesAvailable(player, definition, manaCostModifiers(state, player, tick, definition.id))) {
     return remember("insufficient_resource", false);
   }
   const cooldownCode = cooldownBlock(player, definition, tick, ignoresGlobalCooldown(state, player));
@@ -466,7 +469,7 @@ export function useAbility(
     return remember(cooldownCode, false);
   }
 
-  spendResources(player, definition, manaCostModifiers(state, player, tick));
+  spendResources(player, definition, manaCostModifiers(state, player, tick, definition.id));
   startCooldowns(player, definition, tick, ignoresGlobalCooldown(state, player));
 
   const stats = casterStats(state, player, tick);
@@ -1035,7 +1038,7 @@ function applyResolvedAbility(
   const targets = collectEffectTargets(state, player, working, targeting);
   for (let e = 0; e < working.effects.length; e++) {
     const effect = working.effects[e];
-    if (String(effect.type) === "guaranteed_crit") {
+    if (String(effect.type) === "guaranteed_crit" || String(effect.type) === "propagate_effect") {
       continue;
     }
     if (effect.type === "forced_movement" || effect.type === "movement") {
@@ -1055,10 +1058,21 @@ function applyResolvedAbility(
           ? Math.floor(effect.hitCount)
           : 1;
     for (let t = 0; t < selected.length; t++) {
+      if (!effectConditionsHold(state, player, selected[t], effect.conditions)) {
+        continue;
+      }
       for (let h = 0; h < hits; h++) {
         const resolved = resolveTalentEffect(state, player, working, effect, selected[t], tick);
         const before = events.length;
-        applyEffectDefinition(state, resolved, working.id, player, selected[t], stats, fallbackAttack, tick, events);
+        const armed =
+          talentMods !== undefined && talentMods.afterMendNextHarmPercent > 0 && resolved.type === "direct_damage"
+            ? consumeBattleBlessing(player)
+            : 1;
+        const applied =
+          armed !== 1 && resolved.magnitude.value !== undefined
+            ? { ...resolved, magnitude: { ...resolved.magnitude, value: resolved.magnitude.value * armed } }
+            : resolved;
+        applyEffectDefinition(state, applied, working.id, player, selected[t], stats, fallbackAttack, tick, events);
         writeTarget(state, selected[t]);
         if (talentMods !== undefined && talentMods.onHitBleedPercent > 0 && effect.type === "direct_damage") {
           applyOnHitBleed(state, player, selected[t], working.id, talentMods.onHitBleedPercent, events, before, tick, stats, fallbackAttack, h);
@@ -1079,6 +1093,28 @@ function applyResolvedAbility(
         }
         if (resolved.type === "slow" && talentMods !== undefined && talentMods.slowTargetOutgoingPercent !== undefined) {
           applySlowOutgoingReduction(state, player, selected[t], working.id, talentMods.slowTargetOutgoingPercent, resolved.duration, tick, events, stats, fallbackAttack);
+        }
+        if (talentMods !== undefined && talentMods.onHitDotPercent > 0 && effect.type === "direct_damage") {
+          applyOnHitDot(state, player, selected[t], working.id, talentMods.onHitDotPercent, events, before, tick, stats, fallbackAttack, h);
+        }
+        if (talentMods !== undefined && talentMods.onHealHotPercent > 0 && effect.type === "direct_heal") {
+          applyOnHealHot(state, player, selected[t], working.id, talentMods.onHealHotPercent, events, before, tick, stats, fallbackAttack, h);
+        }
+        if (talentMods !== undefined && talentMods.onHarmLifestealPercent > 0 && effect.type === "direct_damage") {
+          applyOnHarmLifesteal(state, player, talentMods.onHarmLifestealPercent, events, before, tick);
+        }
+        if (talentMods !== undefined && talentMods.afterMendNextHarmPercent > 0 && effect.type === "direct_heal") {
+          armBattleBlessing(state, player, talentMods.afterMendNextHarmPercent, tick, events, stats, fallbackAttack);
+        }
+        if (resolved.type === "periodic_damage" && talentMods !== undefined && talentMods.onDotTargetOutgoingPercent !== undefined) {
+          applyDotOutgoingReduction(state, player, selected[t], working.id, talentMods.onDotTargetOutgoingPercent, resolved.duration, tick, events, stats, fallbackAttack);
+        }
+        if (
+          (resolved.type === "timed_stat_modifier" || String(effect.type) === "timed_stat_modifier") &&
+          talentMods !== undefined &&
+          talentMods.allyDamageReduction > 0
+        ) {
+          applyAllyDamageReduction(state, player, selected[t], working.id, talentMods.allyDamageReduction, resolved.duration, tick, events, stats, fallbackAttack);
         }
       }
     }
@@ -1320,12 +1356,26 @@ function spendResources(player: MatchPlayer, definition: AbilityDefinition, modi
   player.resources = resources;
 }
 
-function manaCostModifiers(state: StarterZoneState, player: MatchPlayer, tick: number): CanonicalModifier[] {
+function manaCostModifiers(state: StarterZoneState, player: MatchPlayer, tick: number, abilityId?: string): CanonicalModifier[] {
   const identified = identifiedFromChannelMap(effectModifiersFrom(player.effects));
   if (state.progressionCatalog === undefined || player.progression === undefined) {
     return identified;
   }
-  return identified.concat(talentModifiersForContext(state.progressionCatalog, player.progression, actorTalentContext(state, player, tick)));
+  const context = actorTalentContext(state, player, tick);
+  const combined = identified.concat(talentModifiersForContext(state.progressionCatalog, player.progression, context));
+  if (abilityId !== undefined && abilityId.length > 0) {
+    const abilityMods = resolveAbilityTalentModifiers(state.progressionCatalog, player.progression, abilityId, context);
+    if (abilityMods.manaCostMultiplier !== 1) {
+      combined.push({
+        sourceId: abilityId,
+        sourceKind: CANONICAL_SOURCE_TALENT_NODE,
+        channel: "mana_cost",
+        op: "pct",
+        value: abilityMods.manaCostMultiplier - 1,
+      });
+    }
+  }
+  return combined;
 }
 
 function identifiedFromChannelMap(modifiers: { [channel: string]: number }) {
@@ -1531,7 +1581,8 @@ function copyAbility(raw: Parameters<typeof abilityDefinitionsFromContent>[0][st
       rawSchool.school === "melee" ||
       rawSchool.school === "ranged" ||
       rawSchool.school === "spell" ||
-      rawSchool.school === "heal"
+      rawSchool.school === "heal" ||
+      rawSchool.school === "curse"
     ) {
       copied.powerCategory = rawSchool.school;
     }
@@ -1549,6 +1600,9 @@ function copyAbility(raw: Parameters<typeof abilityDefinitionsFromContent>[0][st
       movementKind?: string;
       movementDistance?: number;
       delay?: number;
+      conditions?: ReadonlyArray<{ type: string; relation?: string }>;
+      healthPercent?: number;
+      shieldBreakHealRatio?: number;
     };
     if (typeof extra.hitCount === "number") {
       copied.hitCount = extra.hitCount;
@@ -1570,6 +1624,15 @@ function copyAbility(raw: Parameters<typeof abilityDefinitionsFromContent>[0][st
     }
     if (typeof extra.movementDistance === "number") {
       copied.movementDistance = extra.movementDistance;
+    }
+    if (extra.conditions !== undefined) {
+      copied.conditions = extra.conditions;
+    }
+    if (typeof extra.healthPercent === "number") {
+      copied.healthPercent = extra.healthPercent;
+    }
+    if (typeof extra.shieldBreakHealRatio === "number") {
+      copied.shieldBreakHealRatio = extra.shieldBreakHealRatio;
     }
     effects.push(copied);
   }
@@ -1643,26 +1706,22 @@ export function resolveTalentEffect(
     moving: player.lastMoving === true || (player.lastMovedTick !== undefined && player.lastMovedTick === tick),
     nearestEnemyDistance: nearestHostileDistance(state, player.x, player.y),
   });
-  if (
-    modifiers.damageMultiplier === 1 &&
-    modifiers.durationOverride === undefined &&
-    modifiers.stunDurationOverride === undefined &&
-    modifiers.tauntTakenReduction === undefined &&
-    modifiers.frenzyMaxStacks === undefined &&
-    modifiers.frenzyPerStack === undefined &&
-    modifiers.bonusCritChance === 0 &&
-    modifiers.slowDurationBonus === 0 &&
-    modifiers.rootDurationOverride === undefined
-  ) {
-    return effect;
-  }
   const resolved: EffectDefinition = {
     ...effect,
     magnitude: { ...effect.magnitude },
     tags: effect.tags.slice(),
   };
-  if (effect.type === "direct_damage" && resolved.magnitude.value !== undefined) {
+  if ((effect.type === "direct_damage" || effect.type === "periodic_damage") && resolved.magnitude.value !== undefined) {
     resolved.magnitude.value *= modifiers.damageMultiplier;
+  }
+  if ((effect.type === "direct_heal" || effect.type === "periodic_heal") && resolved.magnitude.value !== undefined) {
+    resolved.magnitude.value *= modifiers.healMultiplier;
+  }
+  if ((effect.type === "shield_absorb" || String(effect.type) === "shield") && resolved.magnitude.value !== undefined) {
+    resolved.magnitude.value *= modifiers.absorbMultiplier;
+  }
+  if ((effect.type === "shield_absorb" || String(effect.type) === "shield") && modifiers.shieldBreakHealPercent > 0) {
+    resolved.shieldBreakHealRatio = modifiers.shieldBreakHealPercent;
   }
   if (modifiers.durationOverride !== undefined) {
     resolved.duration = modifiers.durationOverride;
@@ -2077,6 +2136,284 @@ function applySlowEffect(
     statChannel: "movement_speed",
   };
   applyEffectDefinition(state, slow, abilityId, player, target, stats, fallbackAttack, tick, events);
+  writeTarget(state, target);
+}
+
+function effectConditionsHold(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  target: EffectTarget,
+  conditions: ReadonlyArray<{ type: string; relation?: string }> | undefined,
+): boolean {
+  if (conditions === undefined || conditions.length === 0) {
+    return true;
+  }
+  const relation = classifyTarget(state, player, target.id);
+  for (let i = 0; i < conditions.length; i++) {
+    const condition = conditions[i];
+    if (condition.type !== "target_relation") {
+      return false;
+    }
+    const wanted = condition.relation !== undefined ? condition.relation : "";
+    if (wanted === "hostile") {
+      if (relation !== "hostile") {
+        return false;
+      }
+      continue;
+    }
+    if (wanted === "self") {
+      if (relation !== "self") {
+        return false;
+      }
+      continue;
+    }
+    if (wanted === "friendly") {
+      if (relation !== "self" && relation !== "friendly") {
+        return false;
+      }
+      continue;
+    }
+    if (wanted === "any") {
+      continue;
+    }
+    return false;
+  }
+  return true;
+}
+
+function applyOnHitDot(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  target: EffectTarget,
+  abilityId: string,
+  percent: number,
+  events: CombatEvent[],
+  eventStart: number,
+  tick: number,
+  stats: EvaluatedStats | null,
+  fallbackAttack: number,
+  hitIndex: number,
+): void {
+  let dealt = 0;
+  for (let i = eventStart; i < events.length; i++) {
+    if (events[i].type === "hit" && events[i].targetId === target.id && events[i].damage !== undefined) {
+      dealt += events[i].damage as number;
+    }
+  }
+  if (!(dealt > 0) || !(percent > 0)) {
+    return;
+  }
+  const ache: EffectDefinition = {
+    id: "malice",
+    type: "periodic_damage",
+    source: "caster",
+    target: "primary",
+    magnitude: { kind: "constant", value: (dealt * percent) / 4 },
+    duration: 4,
+    tickInterval: 1,
+    stackPolicy: "replace",
+    maxStacks: 1,
+    refreshPolicy: "refresh",
+    removalReason: "expired",
+    tags: ["malice", "dot"],
+  };
+  applyEffectDefinition(state, ache, abilityId, player, target, stats, fallbackAttack, tick, events);
+  writeTarget(state, target);
+  void hitIndex;
+}
+
+function applyOnHealHot(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  target: EffectTarget,
+  abilityId: string,
+  percent: number,
+  events: CombatEvent[],
+  eventStart: number,
+  tick: number,
+  stats: EvaluatedStats | null,
+  fallbackAttack: number,
+  hitIndex: number,
+): void {
+  let healed = 0;
+  for (let i = eventStart; i < events.length; i++) {
+    if (events[i].type === "heal" && events[i].targetId === target.id && events[i].healing !== undefined) {
+      healed += events[i].healing as number;
+    }
+  }
+  if (!(healed > 0) || !(percent > 0)) {
+    return;
+  }
+  const regen: EffectDefinition = {
+    id: "compassion",
+    type: "periodic_heal",
+    source: "caster",
+    target: "primary",
+    magnitude: { kind: "constant", value: (healed * percent) / 4 },
+    duration: 4,
+    tickInterval: 1,
+    stackPolicy: "replace",
+    maxStacks: 1,
+    refreshPolicy: "refresh",
+    removalReason: "expired",
+    tags: ["compassion", "hot"],
+  };
+  applyEffectDefinition(state, regen, abilityId, player, target, stats, fallbackAttack, tick, events);
+  writeTarget(state, target);
+  void hitIndex;
+}
+
+function applyOnHarmLifesteal(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  percent: number,
+  events: CombatEvent[],
+  eventStart: number,
+  tick: number,
+): void {
+  let dealt = 0;
+  for (let i = eventStart; i < events.length; i++) {
+    if (events[i].type === "hit" && events[i].sourceId === player.userId && events[i].damage !== undefined) {
+      dealt += events[i].damage as number;
+    }
+  }
+  if (!(dealt > 0) || !(percent > 0) || player.health <= 0) {
+    return;
+  }
+  const self = playerAsTarget(player);
+  applyCombat(
+    state,
+    {
+      action: "heal",
+      sourceId: player.userId,
+      sourceKind: "player",
+      targetId: player.userId,
+      targetKind: "player",
+      formula: { base: dealt * percent },
+      tick: tick,
+      abilityId: "talent_siphon",
+      tickRate: SNAPSHOT_RATE_HZ,
+      originTag: "lifesteal",
+    },
+    events,
+  );
+  const next = state.players[player.userId];
+  if (next !== undefined) {
+    self.health = next.health;
+    writeTarget(state, self);
+  }
+}
+
+function consumeBattleBlessing(player: MatchPlayer): number {
+  const effects = player.effects !== undefined ? player.effects : [];
+  for (let i = 0; i < effects.length; i++) {
+    const effect = effects[i];
+    if (effect.remainingTicks <= 0 || effect.tags.indexOf("battle_blessing") < 0) {
+      continue;
+    }
+    const bonus = effect.magnitude;
+    effect.remainingTicks = 0;
+    return 1 + bonus;
+  }
+  return 1;
+}
+
+function armBattleBlessing(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  percent: number,
+  tick: number,
+  events: CombatEvent[],
+  stats: EvaluatedStats | null,
+  fallbackAttack: number,
+): void {
+  if (!(percent > 0)) {
+    return;
+  }
+  const armed: EffectDefinition = {
+    id: "battle-blessing",
+    type: "timed_stat_modifier",
+    source: "caster",
+    target: "self",
+    magnitude: { kind: "constant", value: percent },
+    duration: 30,
+    tickInterval: 0,
+    stackPolicy: "replace",
+    maxStacks: 1,
+    refreshPolicy: "refresh",
+    removalReason: "expired",
+    tags: ["battle_blessing"],
+  };
+  const self = playerAsTarget(player);
+  applyEffectDefinition(state, armed, "talent.battle_blessing", player, self, stats, fallbackAttack, tick, events);
+  writeTarget(state, self);
+}
+
+function applyDotOutgoingReduction(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  target: EffectTarget,
+  abilityId: string,
+  percent: number,
+  durationSec: number,
+  tick: number,
+  events: CombatEvent[],
+  stats: EvaluatedStats | null,
+  fallbackAttack: number,
+): void {
+  if (!(durationSec > 0)) {
+    return;
+  }
+  const reduction: EffectDefinition = {
+    id: "wither-r3-outgoing",
+    type: "timed_stat_modifier",
+    source: "caster",
+    target: "primary",
+    magnitude: { kind: "constant", value: percent },
+    duration: durationSec,
+    tickInterval: 0,
+    stackPolicy: "replace",
+    maxStacks: 1,
+    refreshPolicy: "refresh",
+    removalReason: "expired",
+    tags: ["wither_r3"],
+    statChannel: "outgoing_damage",
+  };
+  applyEffectDefinition(state, reduction, abilityId, player, target, stats, fallbackAttack, tick, events);
+  writeTarget(state, target);
+}
+
+function applyAllyDamageReduction(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  target: EffectTarget,
+  abilityId: string,
+  percent: number,
+  durationSec: number,
+  tick: number,
+  events: CombatEvent[],
+  stats: EvaluatedStats | null,
+  fallbackAttack: number,
+): void {
+  if (!(percent > 0) || !(durationSec > 0)) {
+    return;
+  }
+  const reduction: EffectDefinition = {
+    id: "blessing-dr",
+    type: "timed_stat_modifier",
+    source: "caster",
+    target: "primary",
+    magnitude: { kind: "constant", value: percent },
+    duration: durationSec,
+    tickInterval: 0,
+    stackPolicy: "replace",
+    maxStacks: 1,
+    refreshPolicy: "refresh",
+    removalReason: "expired",
+    tags: ["blessing_dr"],
+    statChannel: "flat_damage_reduction",
+  };
+  applyEffectDefinition(state, reduction, abilityId, player, target, stats, fallbackAttack, tick, events);
   writeTarget(state, target);
 }
 

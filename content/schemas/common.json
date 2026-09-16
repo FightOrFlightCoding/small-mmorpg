@@ -200,7 +200,16 @@
             "dot_tick_rate_percent",
             "lifesteal_percent",
             "mana_refund_percent_of_max",
-            "propagate_effect"
+            "propagate_effect",
+            "on_heal_hot_percent",
+            "on_hit_dot_percent",
+            "after_mend_next_harm_percent",
+            "shield_max_hp_heal_per_second",
+            "overflow_heal_percent",
+            "dot_reduces_target_damage_percent",
+            "dot_lifesteal_percent",
+            "on_harm_lifesteal_percent",
+            "propagate_on_death"
           ]
         },
         "abilityId": { "$ref": "#/$defs/contentId" },

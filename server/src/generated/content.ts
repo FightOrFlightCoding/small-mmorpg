@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "5cea7b29fd80d47f52919d1af156a2fa775db192a92b21bf2d966b82202417dd";
+export const contentHash = "b76111cf9fb663dd04de943d3de5af004249b29c1321fe563bc9eac9d731f2de";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = ["npc.lab_exit","npc.lab_inn","npc.lab_keeper","npc.lab_trainer","npc.lab_vendor","quest.lab_tour","spawn.lab.boss","spawn.lab.caster","spawn.lab.melee","spawn.lab.ranged","test.zone.systems_lab","vendor.lab_general"] as const;
 export const content = {
@@ -1132,7 +1132,7 @@ export const content = {
       ],
       "requiredLevel": 10,
       "resourceCosts": [],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "heal",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_heal_sound",
@@ -1200,7 +1200,7 @@ export const content = {
           "resourceId": "test.resource.mana"
         }
       ],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "heal",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_buff_sound",
@@ -1236,9 +1236,10 @@ export const content = {
           "school": "none",
           "source": "caster",
           "stackPolicy": "replace",
-          "statChannel": "damage_taken",
+          "statChannel": "taken_damage",
           "tags": [
-            "debuff"
+            "debuff",
+            "curse"
           ],
           "target": "primary",
           "tickInterval": 0,
@@ -1268,7 +1269,7 @@ export const content = {
           "resourceId": "test.resource.mana"
         }
       ],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "spell",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_dot_sound",
@@ -1373,7 +1374,7 @@ export const content = {
           "resourceId": "test.resource.mana"
         }
       ],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "spell",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_bolt_sound",
@@ -1416,6 +1417,7 @@ export const content = {
           "tags": [
             "dot",
             "wither",
+            "curse",
             "capstone"
           ],
           "target": "area",
@@ -1484,7 +1486,7 @@ export const content = {
       ],
       "requiredLevel": 10,
       "resourceCosts": [],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "spell",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_dot_sound",
@@ -1553,7 +1555,7 @@ export const content = {
           "resourceId": "test.resource.mana"
         }
       ],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "heal",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_heal_sound",
@@ -1593,7 +1595,8 @@ export const content = {
           "stackPolicy": "replace",
           "tags": [
             "dot",
-            "wither"
+            "wither",
+            "curse"
           ],
           "target": "primary",
           "tickInterval": 1,
@@ -1623,7 +1626,7 @@ export const content = {
           "resourceId": "test.resource.mana"
         }
       ],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "spell",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_dot_sound",
@@ -2943,7 +2946,7 @@ export const content = {
       "ownerClassId": "class.mystic",
       "range": 180,
       "relationFilter": "hostile",
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "scalingStatId": "stat.intelligence",
       "school": "spell",
       "soundAssetId": "visual.ability_bolt_sound",
@@ -4816,9 +4819,10 @@ export const content = {
         "school": "none",
         "source": "caster",
         "stackPolicy": "replace",
-        "statChannel": "damage_taken",
+        "statChannel": "taken_damage",
         "tags": [
-          "debuff"
+          "debuff",
+          "curse"
         ],
         "target": "primary",
         "tickInterval": 0,
@@ -5058,7 +5062,8 @@ export const content = {
         "stackPolicy": "replace",
         "tags": [
           "dot",
-          "wither"
+          "wither",
+          "curse"
         ],
         "target": "primary",
         "tickInterval": 1,
@@ -8520,7 +8525,7 @@ export const content = {
           "abilityId": "ability.mystic.fateweave",
           "modifiers": [
             {
-              "type": "ability_damage_percent",
+              "type": "after_mend_next_harm_percent",
               "value": 0.25
             }
           ]
@@ -8602,17 +8607,6 @@ export const content = {
       "treeId": "tree.mystic.charms"
     },
     "talent.mystic.charms.mending_ward": {
-      "abilityModifications": [
-        {
-          "abilityId": "ability.mystic.protective_charm",
-          "modifiers": [
-            {
-              "type": "ability_heal_percent",
-              "value": 0.02
-            }
-          ]
-        }
-      ],
       "classification": "canonical",
       "descriptionKey": "talent.mystic.charms.mending_ward.description",
       "displayName": "Mending Ward",
@@ -8620,6 +8614,12 @@ export const content = {
       "id": "talent.mystic.charms.mending_ward",
       "kind": "talent_node",
       "maxRank": 1,
+      "passiveModifiers": [
+        {
+          "type": "shield_max_hp_heal_per_second",
+          "value": 0.02
+        }
+      ],
       "pointCostPerRank": 1,
       "tier": 2,
       "treeId": "tree.mystic.charms"
@@ -8634,7 +8634,7 @@ export const content = {
       "maxRank": 1,
       "passiveModifiers": [
         {
-          "type": "lifesteal_percent",
+          "type": "overflow_heal_percent",
           "value": 0.2
         }
       ],
@@ -8704,7 +8704,7 @@ export const content = {
           "abilityId": "ability.mystic.fateweave",
           "modifiers": [
             {
-              "type": "ability_heal_percent",
+              "type": "on_heal_hot_percent",
               "value": 0.2
             }
           ]
@@ -8722,17 +8722,6 @@ export const content = {
       "treeId": "tree.mystic.class"
     },
     "talent.mystic.curses.contagion": {
-      "abilityModifications": [
-        {
-          "abilityId": "ability.mystic.wither",
-          "modifiers": [
-            {
-              "effectId": "effect.mystic.wither.dot",
-              "type": "propagate_effect"
-            }
-          ]
-        }
-      ],
       "classification": "canonical",
       "descriptionKey": "talent.mystic.curses.contagion.description",
       "displayName": "Contagion",
@@ -8740,11 +8729,37 @@ export const content = {
       "id": "talent.mystic.curses.contagion",
       "kind": "talent_node",
       "maxRank": 1,
+      "passiveModifiers": [
+        {
+          "type": "propagate_on_death",
+          "value": 1
+        }
+      ],
       "pointCostPerRank": 1,
       "tier": 3,
       "treeId": "tree.mystic.curses"
     },
     "talent.mystic.curses.dark_bargain": {
+      "abilityModifications": [
+        {
+          "abilityId": "ability.mystic.wither",
+          "modifiers": [
+            {
+              "type": "ability_mana_cost_percent",
+              "value": -0.1
+            }
+          ]
+        },
+        {
+          "abilityId": "ability.mystic.evil_eye",
+          "modifiers": [
+            {
+              "type": "ability_mana_cost_percent",
+              "value": -0.1
+            }
+          ]
+        }
+      ],
       "classification": "canonical",
       "descriptionKey": "talent.mystic.curses.dark_bargain.description",
       "displayName": "Dark Bargain",
@@ -8752,12 +8767,6 @@ export const content = {
       "id": "talent.mystic.curses.dark_bargain",
       "kind": "talent_node",
       "maxRank": 2,
-      "passiveModifiers": [
-        {
-          "type": "mana_cost_percent",
-          "value": -0.1
-        }
-      ],
       "pointCostPerRank": 1,
       "tier": 1,
       "treeId": "tree.mystic.curses"
@@ -8799,7 +8808,7 @@ export const content = {
           "abilityId": "ability.mystic.fateweave",
           "modifiers": [
             {
-              "type": "lifesteal_percent",
+              "type": "on_harm_lifesteal_percent",
               "value": 0.15
             }
           ]
@@ -8826,7 +8835,7 @@ export const content = {
       "maxRank": 1,
       "passiveModifiers": [
         {
-          "type": "lifesteal_percent",
+          "type": "dot_lifesteal_percent",
           "value": 0.1
         }
       ],
@@ -8838,6 +8847,15 @@ export const content = {
       "abilityModifications": [
         {
           "abilityId": "ability.mystic.wither",
+          "modifiers": [
+            {
+              "type": "ability_damage_percent",
+              "value": 0.25
+            }
+          ]
+        },
+        {
+          "abilityId": "ability.mystic.malediction",
           "modifiers": [
             {
               "type": "ability_damage_percent",
@@ -8863,7 +8881,16 @@ export const content = {
           "abilityId": "ability.mystic.wither",
           "modifiers": [
             {
-              "type": "damage_dealt_percent",
+              "type": "dot_reduces_target_damage_percent",
+              "value": -0.1
+            }
+          ]
+        },
+        {
+          "abilityId": "ability.mystic.malediction",
+          "modifiers": [
+            {
+              "type": "dot_reduces_target_damage_percent",
               "value": -0.1
             }
           ]
@@ -8923,7 +8950,7 @@ export const content = {
           "abilityId": "ability.mystic.fateweave",
           "modifiers": [
             {
-              "type": "ability_damage_percent",
+              "type": "on_hit_dot_percent",
               "value": 0.2
             }
           ]
