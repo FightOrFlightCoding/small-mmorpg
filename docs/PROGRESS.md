@@ -1,10 +1,10 @@
 # Progress
 
-Last accepted phase: **PROG-10 — Marksman, Sniper, and Skirmisher Implementation**.
+Last accepted phase: **PROG-11 — Complete Mage, Fire, and Frost Implementation**.
 
 Current phase: none.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. PROG-08 remains accepted. PROG-09 remains accepted. PROG-10 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. PROG-08 remains accepted. PROG-09 remains accepted. PROG-10 remains accepted. PROG-11 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
 
@@ -631,7 +631,39 @@ The intentional Warrior content update changes the shared generated hash to `913
 | Client GdUnit | 283/283, 0 failures, 0 orphans |
 | GitHub `verify` | passed (`0867ac9`, run 35112093346) |
 
-Remaining work is limited to the named PROG-11–12 class implementations and their auto-attack retunes. PROG-10 is recorded below.
+Remaining work is limited to the named PROG-12 Mystic implementation and its auto-attack retune. PROG-11 is recorded below.
+
+## PROG-11 Mage, Fire, and Frost implementation (2026-09-16)
+
+Mage is the third canonical class active in the existing authoritative combat path. `ATTACK` resolves `ability.mage.auto_attack` (6 base spell damage, 2.0s base interval, INT scaling, server-side crit, and Haste timing). Arcane Bolt is granted at level 2. Fireball and Ice Bolt unlock with their branches. Meteor and Absolute Zero unlock at level 10. Flame Wave and Flash Freeze are the buyable tree actives. No generic combat module branches on `class.mage`. No second combat, effect, cooldown, stat, ability, or progression system was added. No client outcome authority, production GCD, or PvP path was added.
+
+Mana is spent at cast start; movement interrupts do not refund. Kindled Mind reduces spell costs by 10%/20%. Afterburn applies only after a Fireball crit, deals 25% of the actual hit over 4s, and never crits. Flame Wave is a cone; R2 leaves 12 INT-scaled burn over 3s. Detonation adds 0.15 spell crit multiplier. Second Spark refunds 8% of maximum mana on eligible crits and clamps to max. Meteor marks ground, resolves after 1.5s, always crits, costs zero mana, and uses a 90s cooldown. Ice Bolt slows 30% for 3s; Deep Chill extends to 4s/5s; R3 adds 20% damage against slowed targets. Numbing Cold is source-owned outgoing reduction on this Mage’s slows. Flash Freeze is instant zero-damage root; R2 is 3s and +50% radius. Rimeguard and Winter Harvest track living enemies this Mage currently slows, roots, or freezes. Absolute Zero fully incapacitates nearby enemies for 4s. The Metronome Law regression is the documented result `5 / (1.5/1.12) = 3.73 ≤ 3.8`.
+
+The intentional Mage content update changes the shared generated hash to `5cea7b29fd80d47f52919d1af156a2fa775db192a92b21bf2d966b82202417dd`. Nearby radius 40 and Flame Wave cone 60° remain the PROG-02 implementation geometry; cone length uses the authored ability range. No storage schema migration is required.
+
+| Gate | Result |
+| --- | --- |
+| Content-build | 25/25; hash `5cea7b29fd80d47f52919d1af156a2fa775db192a92b21bf2d966b82202417dd` |
+| Design audit | 10/10 |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (29 RPCs, 34 storage records, 38 client opcodes) |
+| Server hermetic | 698 passed, 13 skipped; bundle built |
+| Mage mechanics and balance regressions | 13/13 (`mage_progression`, `mage_balance`, `progression_metronome`) |
+| Client GdUnit | 283/283, 0 failures, 0 orphans, `SHELL_LOGIN` |
+| GitHub `verify` | passed (`c233ad1`, run 35130762428) |
+
+Limitations: Mystic combat remains PROG-12. The eight-slot Foundation hotbar remains test-only. Manual Prompt 18 world play was not re-run; live village/slime combat behavior was not changed.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/content.ps1 validate
+powershell -File scripts/test-content.ps1
+powershell -File scripts/content-build.ps1
+powershell -File scripts/test-progression-design.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+```
 
 ## PROG-10 Marksman, Sniper, and Skirmisher implementation (2026-09-16)
 
