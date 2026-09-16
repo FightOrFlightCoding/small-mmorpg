@@ -369,6 +369,7 @@ export function applyEffectDefinition(
     }
   } else if (
     (working.type === "periodic_damage" || working.type === "periodic_heal") &&
+    working.magnitude.kind !== "constant" &&
     stats !== null &&
     stats.canonical !== undefined &&
     working.powerCategory !== undefined

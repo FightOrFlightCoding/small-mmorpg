@@ -314,7 +314,12 @@ function appendMappedModifiers(
       modifier.type === "dot_lifesteal_percent" ||
       modifier.type === "on_harm_lifesteal_percent" ||
       modifier.type === "propagate_on_death" ||
-      modifier.type === "shield_max_hp_heal_per_second"
+      modifier.type === "shield_max_hp_heal_per_second" ||
+      modifier.type === "dot_tick_rate_percent" ||
+      modifier.type === "ability_heal_percent" ||
+      modifier.type === "ability_absorb_percent" ||
+      modifier.type === "ability_mana_cost_percent" ||
+      modifier.type === "on_shield_break_heal_percent"
     ) {
       continue;
     }

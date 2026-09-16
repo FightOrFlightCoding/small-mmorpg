@@ -326,6 +326,25 @@ export function evaluateCombatFormula(formula: CombatFormula, action: "damage" |
       crit: false,
     };
   }
+  if (action === "heal") {
+    const base = Math.max(0, numericOr(formula.base, 0));
+    const sourceStat = numericOr(formula.sourceStatValue, 0);
+    const sourceCoeff = numericOr(formula.sourceStatCoefficient, 0);
+    const sourceFlat = numericOr(formula.sourceFlat, 0);
+    const sourcePercent = numericOr(formula.sourcePercent, 0);
+    const afterSource = (base + sourceStat * sourceCoeff + sourceFlat) * (1 + sourcePercent);
+    const afterTarget = (afterSource + numericOr(formula.targetFlat, 0)) * (1 + numericOr(formula.targetPercent, 0));
+    const minResult = Math.max(0, numericOr(formula.minResult, 0));
+    return {
+      base: base,
+      afterSource: afterSource,
+      afterTarget: afterTarget,
+      afterMitigation: afterTarget,
+      afterShields: afterTarget,
+      finalAmount: Math.max(minResult, afterTarget),
+      crit: false,
+    };
+  }
   const base = Math.max(0, Math.floor(numericOr(formula.base, 0)));
   const sourceStat = numericOr(formula.sourceStatValue, 0);
   const sourceCoeff = numericOr(formula.sourceStatCoefficient, 0);

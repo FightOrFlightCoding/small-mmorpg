@@ -84,6 +84,7 @@ function mystic(
     catalog,
     playerStatContext("class.mystic", progression, emptyEquipment(), emptyInventory(), {}, {}),
   );
+  const hp = stats.maxHealth > 0 ? stats.maxHealth : 170;
   return {
     userId: userId,
     sessionId: "session-" + userId,
@@ -93,8 +94,8 @@ function mystic(
     classId: "class.mystic",
     x: 900,
     y: 400,
-    maxHealth: 1000,
-    health: 500,
+    maxHealth: hp,
+    health: Math.max(1, Math.floor(hp * 0.25)),
     lastProcessedSeq: 0,
     axisX: 0,
     axisY: 0,
@@ -114,10 +115,16 @@ function ally(userId = "ally"): MatchPlayer {
   const player = mystic(10, "", [], {}, userId);
   player.x = 910;
   player.y = 400;
-  player.health = 400;
   player.classId = "class.warrior";
   player.progression = initializeProgression(catalog, "class.warrior");
   player.progression.level = 10;
+  const stats = evaluateStats(
+    catalog,
+    playerStatContext("class.warrior", player.progression, emptyEquipment(), emptyInventory(), {}, {}),
+  );
+  const hp = stats.maxHealth > 0 ? stats.maxHealth : 290;
+  player.maxHealth = hp;
+  player.health = Math.max(1, Math.floor(hp * 0.25));
   player.resources = {};
   return player;
 }
@@ -197,11 +204,16 @@ test("Mystic auto-attack and Fateweave use INT harm, SPI mend, self heal, and ho
   assert.equal(result.state.players.mystic.progression?.hotbarAssignments.indexOf("ability.mystic.auto_attack"), -1);
 
   const beforeHarm = result.state.enemies[0].health;
+  const healthAfterAuto = result.state.players.mystic.health;
   const manaBefore = manaOf(result.state.players.mystic);
-  result = completeCast(result.state, 11, { abilityId: "ability.mystic.fateweave", targetId: "enemy-1", requestId: "mystic-harm-01" });
+  result = run(result.state, 11, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.mystic.fateweave", targetId: "enemy-1", requestId: "mystic-harm-01" })]);
   assert.ok(Math.abs(manaBefore - manaOf(result.state.players.mystic) - (12 - 6.2 / SNAPSHOT_RATE_HZ)) < 0.05);
+  const until = result.state.players.mystic.activeCast?.completionTick as number;
+  for (let tick = 12; tick <= until; tick++) {
+    result = run(result.state, tick);
+  }
   assert.ok(Math.abs(damage(beforeHarm, result.state.enemies[0].health) - formulaSpellHit(20, intel)) < 0.0001);
-  assert.equal(result.state.players.mystic.health, 500);
+  assert.equal(result.state.players.mystic.health, healthAfterAuto);
 
   const beforeSelf = result.state.players.mystic.health;
   result = completeCast(result.state, 40, { abilityId: "ability.mystic.fateweave", targetId: "mystic", requestId: "mystic-self-01" });
@@ -277,13 +289,11 @@ test("Protective Charm scales with SPI, R2 raises absorb 30%, and R3 heals once 
     "talent.mystic.charms.protective_charm_r2": 1,
     "talent.mystic.charms.protective_charm_r3": 1,
   });
-  tank.maxHealth = 4000;
-  tank.health = 3000;
   state = addPlayer(state, tank);
   let result = run(state, 10, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.mystic.protective_charm", targetId: "mystic", requestId: "charm-r3-01" })]);
   result = run(result.state, 11, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.mystic.protective_charm", targetId: "mystic", requestId: "charm-refresh" })]);
   assert.equal(tagged(result.state.players.mystic.effects, "shield").length, 1);
-  result.state.enemies[0].damage = 400;
+  result.state.enemies[0].damage = 80;
   result.state.enemies[0].attackCooldownSec = 0.1;
   result.state.enemies[0].lastAttackTick = -1;
   result.state.enemies[0].aggroTarget = "mystic";
@@ -293,8 +303,8 @@ test("Protective Charm scales with SPI, R2 raises absorb 30%, and R3 heals once 
   assert.equal(tagged(result.state.players.mystic.effects, "shield").length, 0);
   const lost = beforeBreak - result.state.players.mystic.health;
   assert.ok(lost > 0);
-  assert.ok(lost < 400);
-  assert.ok(result.state.players.mystic.health > beforeBreak - 400 + expectedAbsorb * 0.1);
+  assert.ok(lost < 80);
+  assert.ok(result.state.players.mystic.health > beforeBreak - 80 + expectedAbsorb * 0.1);
 
   state = zone();
   const waiting = mystic(10, "branch.mystic.charms", [], {
@@ -357,7 +367,7 @@ test("Mending Ward heals while the Mystic shield lasts, and Overflow cannot recu
   let state = zone();
   state = addPlayer(state, mystic(10, "branch.mystic.charms", [], { "talent.mystic.charms.mending_ward": 1 }));
   state = addPlayer(state, ally());
-  let result = run(state, 10, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.mystic.protective_charm", targetId: "ally", requestId: "ward-01" })]);
+  let result = run(state, 10, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.mystic.protective_charm", targetId: "ally", requestId: "ward-heal-01" })]);
   const wards = tagged(result.state.players.ally.effects, "mending_ward");
   assert.equal(wards.length, 1);
   const beforeAlly = result.state.players.ally.health;
@@ -427,8 +437,12 @@ test("Dark Bargain reduces curse costs and Evil Eye increases damage taken", () 
   const manaBefore = manaOf(state.players.mystic);
   let result = run(state, 10, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.mystic.wither", targetId: "enemy-1", requestId: "bargain-01" })]);
   assert.ok(Math.abs(manaBefore - manaOf(result.state.players.mystic) - (14 * 0.8 - 6.2 / SNAPSHOT_RATE_HZ)) < 0.08);
+  const until = result.state.players.mystic.activeCast?.completionTick as number;
+  for (let tick = 11; tick <= until; tick++) {
+    result = run(result.state, tick);
+  }
 
-  result = run(result.state, 40, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.mystic.evil_eye", targetId: "enemy-1", requestId: "evil-eye-01" })]);
+  result = run(result.state, until + 1, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.mystic.evil_eye", targetId: "enemy-1", requestId: "evil-eye-01" })]);
   assert.equal(tagged(result.state.enemies[0].effects, "debuff").length >= 1, true);
   const before = result.state.enemies[0].health;
   result = run(result.state, 41, [message(ClientOpcode.ATTACK, { targetId: "enemy-1", requestId: "evil-eye-hit" })]);

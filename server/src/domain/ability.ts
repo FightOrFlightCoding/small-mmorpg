@@ -1581,7 +1581,8 @@ function copyAbility(raw: Parameters<typeof abilityDefinitionsFromContent>[0][st
       rawSchool.school === "melee" ||
       rawSchool.school === "ranged" ||
       rawSchool.school === "spell" ||
-      rawSchool.school === "heal"
+      rawSchool.school === "heal" ||
+      rawSchool.school === "curse"
     ) {
       copied.powerCategory = rawSchool.school;
     }
