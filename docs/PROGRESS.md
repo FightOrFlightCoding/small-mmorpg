@@ -649,7 +649,7 @@ The intentional Mage content update changes the shared generated hash to `5cea7b
 | Server hermetic | 698 passed, 13 skipped; bundle built |
 | Mage mechanics and balance regressions | 13/13 (`mage_progression`, `mage_balance`, `progression_metronome`) |
 | Client GdUnit | 283/283, 0 failures, 0 orphans, `SHELL_LOGIN` |
-| GitHub `verify` | passed (`c233ad1`, run 35130762428) |
+| GitHub `verify` | passed (`4b3d188`, run 35131467994) |
 
 Limitations: Mystic combat remains PROG-12. The eight-slot Foundation hotbar remains test-only. Manual Prompt 18 world play was not re-run; live village/slime combat behavior was not changed.
 
