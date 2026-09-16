@@ -1,6 +1,7 @@
 import { assembleAccountExport, supportRecoveryId } from "../domain/account_export";
 import { catalogFromContent } from "../domain/stats";
 import { migrateToCanonicalProgression } from "../domain/progression";
+import { exportProgressionSnapshot } from "../domain/canonical_leftover_migration";
 import { content } from "../generated/content";
 import { readAccountProfile } from "./account_profile_store";
 import { readRoster } from "./roster_store";
@@ -41,13 +42,16 @@ export function buildAccountExportPayload(
     const character = readCharacter(nk, userId, ids[i]);
     const location = readActiveLocation(nk, userId, ids[i]);
     const classId = character !== null && character.classId !== undefined ? character.classId : "";
-    const ensured = migrateToCanonicalProgression(readProgression(nk, userId, ids[i]), classId, nowMs, catalog);
-    if (ensured.changed) {
+    const storedProgression = readProgression(nk, userId, ids[i]);
+    const ensured = migrateToCanonicalProgression(storedProgression, classId, nowMs, catalog);
+    if (ensured.ok && ensured.changed) {
       writeProgression(nk, userId, ensured.progression, ids[i]);
     }
+    const exportedProgression = ensured.ok ? ensured.progression : storedProgression;
     characters.push({
       catalog: character,
-      progression: ensured.progression,
+      progression: exportedProgression,
+      progressionExport: exportedProgression !== null ? exportProgressionSnapshot(exportedProgression) : null,
       inventory: readInventory(nk, userId, ids[i]),
       equipment: readEquipment(nk, userId, ids[i]),
       quests: readQuests(nk, userId, ids[i]),

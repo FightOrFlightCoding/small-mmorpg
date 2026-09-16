@@ -1,6 +1,6 @@
 # Current progression conflicts
 
-**Verification (2026-09-16):** Re-read against `origin/cursor/npc-quest-acceptance` @ `3cb1e35` (contains PROG-08 @ `8f0b949`). Statuses below unchanged except this stamp. **No `BLOCKING` rows.** PROG-08 is **not** on `origin/main` (`dccb539`); merge gap is a release/process issue, not a register rollback.
+**Verification (2026-09-16):** PROG-14 closed `C-legacy-migration` (production leftover reset with notice; `test.*` keep Foundation fields). **No `BLOCKING` rows.** Remaining `DEFERRED` production items belong to PROG-15.
 
 PROG-08 is the accepted generic combat-mechanics path. Remaining live/design gaps are **owned staged work**, not items that will vanish on their own.
 
@@ -9,7 +9,7 @@ Live ownership: [PROGRESSION_ARCHITECTURE.md](PROGRESSION_ARCHITECTURE.md).
 Noncanonical numbers: [progression-implementation-addendum.md](../design/progression-implementation-addendum.md).  
 Final save mapping: [PROGRESSION_MIGRATION_PLAN.md](PROGRESSION_MIGRATION_PLAN.md).
 
-This register does **not** mean PROG-08 failed. Production HP, mana, regen, crit, haste, DR, power-category hit functions, damage order, modifier identity, the level-10 auto-growth sheet, the L10 XP curve, KillXP, automatic growth, free points, auto-assign, milestones, free-stat allocation, trainer respec, class/branch talent spend, derived ability ownership, the four-slot production hotbar, the generic combat engine (events, RNG, DoT/shield/threat/multi-hit, no production GCD), and all four production-class combat definitions are implemented and tested. The test-only 8-slot Foundation `HOTBAR_SIZE` and leftover 3-stat fields remain because later PROG phases own those subsystems.
+This register does **not** mean PROG-08 failed. Production HP, mana, regen, crit, haste, DR, power-category hit functions, damage order, modifier identity, the level-10 auto-growth sheet, the L10 XP curve, KillXP, automatic growth, free points, auto-assign, milestones, free-stat allocation, trainer respec, class/branch talent spend, derived ability ownership, the four-slot production hotbar, the generic combat engine (events, RNG, DoT/shield/threat/multi-hit, no production GCD), all four production-class combat definitions, leftover Foundation-field cleanup, and progression lifecycle persistence are implemented and tested. The test-only 8-slot Foundation `HOTBAR_SIZE` and Foundation 3-stat fields remain only on `test.*` classes.
 
 ## Status values
 
@@ -41,7 +41,7 @@ Every conflict below has **Status**, **Resolution owner**, **Must be resolved by
 | PROG-08 | Canonical combat mechanics (no production GCD) (accepted) |
 | PROG-09–12 | Every class and branch, including auto-attacks (accepted) |
 | PROG-13 | Complete player-facing progression UI (accepted) |
-| PROG-14 | Persistence and lifecycle integration, **final** legacy migration |
+| PROG-14 | Persistence and lifecycle integration, **final** legacy migration (accepted) |
 | PROG-15 | Remove production legacy paths and certify balance |
 
 ## PROG-05 go/no-go
@@ -66,7 +66,7 @@ Proceed to PROG-05 only when every row is true. These are PROG-04 exit criteria,
 | The client cannot submit final stats | `stat_injection` on create/allocate/combat |
 | Every unresolved item has an assigned later phase | this register; no `BLOCKING` rows |
 | Quest XP 20 is recorded as noncanonical content | `project.quest.slime_problem.xp` in the addendum |
-| Legacy migration is marked for final resolution in PROG-14 | `C-legacy-migration` |
+| Legacy leftover Foundation fields are cleaned in PROG-14 | `C-legacy-migration` RESOLVED |
 
 ## PROG-06 go/no-go
 
@@ -316,10 +316,10 @@ Proceed to PROG-09 only when every row is true. These are PROG-08 exit criteria,
 ### C-legacy-migration
 
 - **Conflict:** PROG-03 v1→v2 keeps live 3-stat allocations / unlocks / 8-slot hotbar and leaves canonical `freeStatAllocations` and talent purchases empty. That is acceptable only for development or certification characters. It is not acceptable for real players whose old investment would sit in fields the canonical engine no longer reads. A blob already marked `progressionSchemaVersion` 2 can still contain leftover Foundation fields and must not be skipped forever.
-- **Status:** DEFERRED
+- **Status:** RESOLVED
 - **Resolution owner:** PROG-14 persistence and lifecycle integration.
-- **Must be resolved by:** Before PROG-14 completes. Do not wait for PROG-15 to discover stranded investment.
-- **Closure test:** Before PROG-14, classify every existing character as development/test or real player. Development/test characters may be migrated under deterministic test rules, reset through authorized development tooling, or retained solely for regression compatibility. Real player characters must have old allocation translated deterministically, refunded as equivalent canonical unspent points, or explicitly reset with a visible migration notice. Do not leave old investment in a field the canonical stat engine no longer reads. PROG-14 runs migration logic even for records already marked schema version 2 when they still contain legacy fields (`allocatedAttributes` / live 8-slot `hotbar` / `unlockedAbilityIds` as production authority). Details stay in [PROGRESSION_MIGRATION_PLAN.md](PROGRESSION_MIGRATION_PLAN.md).
+- **Must be resolved by:** Accepted in PROG-14.
+- **Closure test:** `test.*` characters keep Foundation authorities and only bump `progressionSchemaVersion` to **3**. Production `class.*` leftover Foundation authorities are **reset** (cleared), not mapped onto STR and not refunded above the earned `3 * (level - 1)` free-point budget. Visible notice is `leftover_foundation_reset`. Migration still runs for schema-2 blobs that retain leftover fields. Future schema versions are `unsupported_future_version` and are not rewritten. Covered by `server/tests/progression_lifecycle.test.ts`, `server/tests/canonical_progression.test.ts`, and `server/tests/character_lifecycle.test.ts`. Details stay in [PROGRESSION_MIGRATION_PLAN.md](PROGRESSION_MIGRATION_PLAN.md).
 
 ### C-shields-taunt
 

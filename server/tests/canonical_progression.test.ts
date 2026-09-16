@@ -203,16 +203,19 @@ test("physical classes have no mana resource and casters keep a mana pool", () =
   assert.deepEqual(joinedMage.progression?.unlockedAbilityIds, []);
 });
 
-test("v1 warrior migration keeps identity xp and live unlocks and is idempotent", () => {
+test("v1 warrior migration keeps identity xp, resets leftover authorities, and is idempotent", () => {
   const l1 = migrateToCanonicalProgression(v1Warrior(1, 0, 0), "class.warrior", 100, catalog);
   assert.equal(l1.changed, true);
+  assert.equal(l1.ok, true);
   assert.equal(l1.progression.classId, "class.warrior");
   assert.equal(l1.progression.level, 1);
   assert.equal(l1.progression.xpIntoLevel, 0);
   assert.equal(l1.progression.lifetimeXp, 0);
   assert.equal(l1.progression.branchId, "");
-  assert.deepEqual(l1.progression.unlockedAbilityIds, ["test.ability.basic_melee"]);
-  assert.deepEqual(l1.progression.hotbarAssignments, ["ability.warrior.heavy_strike"]);
+  assert.deepEqual(l1.progression.unlockedAbilityIds, []);
+  assert.equal(l1.progression.hotbar, undefined);
+  assert.deepEqual(l1.progression.allocatedAttributes, {});
+  assert.equal(l1.progression.leftoverMigrationNotice, "leftover_foundation_reset");
   const l5 = migrateToCanonicalProgression(v1Warrior(5, 20, 395), "class.warrior", 100, catalog);
   assert.equal(l5.progression.level, 5);
   assert.equal(l5.progression.xpIntoLevel, 20);
@@ -224,10 +227,15 @@ test("v1 warrior migration keeps identity xp and live unlocks and is idempotent"
   assert.deepEqual(l5.progression.purchasedBranchNodeRanks, {});
   assert.equal(unspentClassPoints(l5.progression.purchasedClassNodeIds, 5), 2);
   assert.equal(unspentBranchPoints(l5.progression.purchasedBranchNodeRanks, 5), 1);
+  assert.equal(l5.progression.unlockedAbilityIds.indexOf("ability.warrior.heavy_strike") >= 0, true);
+  assert.equal(l5.progression.unlockedAbilityIds.indexOf("test.ability.basic_melee"), -1);
+  assert.equal(l5.progression.hotbarAssignments[0], "ability.warrior.heavy_strike");
+  assert.equal(l5.progression.hotbarAssignments.length, CANONICAL_HOTBAR_SIZE);
   const view = publicProgression(catalog, "class.warrior", l5.progression, {});
   assert.equal(view.unspentClassPoints, 2);
   assert.equal(view.unspentBranchPoints, 1);
   assert.equal(typeof view.unspentAttributePoints, "number");
+  assert.equal(view.leftoverMigrationNotice, "leftover_foundation_reset");
   const second = migrateToCanonicalProgression(l5.progression, "class.warrior", 200, catalog);
   assert.equal(second.changed, false);
   assert.equal(second.progression.updatedAt, 100);

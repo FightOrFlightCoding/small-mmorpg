@@ -1899,6 +1899,17 @@ func _build_gm_panel() -> void:
 		"remove_test_item",
 		"grant_test_gold",
 		"grant_test_xp",
+		"inspect_progression",
+		"grant_xp_event",
+		"grant_exact_test_xp",
+		"reset_progression_fixture",
+		"set_auto_assign",
+		"open_branch_selection",
+		"reset_full_build",
+		"simulate_level_up",
+		"inspect_active_effects",
+		"inspect_cooldown_recovery",
+		"run_progression_validation",
 		"reset_attribute_allocation",
 		"reset_skill_allocation",
 		"set_quest_state",
@@ -1943,8 +1954,20 @@ func _on_gm_run() -> void:
 	var extra_text := _gm_extra.text.strip_edges()
 	if command == "grant_test_item" or command == "remove_test_item":
 		extra["itemId"] = extra_text
-	elif command == "grant_test_gold" or command == "grant_test_xp":
-		extra["amount"] = int(extra_text)
+	elif command == "grant_test_gold" or command == "grant_test_xp" or command == "grant_exact_test_xp" or command == "grant_xp_event" or command == "simulate_level_up":
+		if command == "grant_xp_event":
+			var event_parts := extra_text.split(",")
+			if event_parts.size() >= 2:
+				extra["eventId"] = event_parts[0]
+				extra["amount"] = int(event_parts[1])
+			else:
+				extra["eventId"] = extra_text
+		else:
+			extra["amount"] = int(extra_text)
+	elif command == "set_auto_assign":
+		extra["enabled"] = extra_text == "1" or extra_text.to_lower() == "true"
+	elif command == "reset_progression_fixture" and not extra_text.is_empty():
+		extra["fixtureId"] = extra_text
 	elif command == "spawn_enemy":
 		extra["spawnId"] = extra_text
 	elif command == "kill_enemy":

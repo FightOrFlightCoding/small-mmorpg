@@ -157,7 +157,7 @@ test("current progression blob stays at save schema 1 without losing allocated p
   assert.equal(second.changed, false);
 });
 
-test("v1 progression migrates to canonical schema 2 without resetting class level or xp", () => {
+test("v1 progression migrates leftover test characters to current schema without resetting class level or xp", () => {
   const fixture = loadFixture("current-v1-alice.json");
   assert.ok(fixture.progression);
   const parsed = storedProgressionFromValue(fixture.progression);

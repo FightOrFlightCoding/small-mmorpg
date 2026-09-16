@@ -62,6 +62,8 @@ export function storedProgressionWriteValue(progression: CharacterProgression): 
     purchasedBranchNodeRanks: progression.purchasedBranchNodeRanks,
     autoAssignEnabled: progression.autoAssignEnabled,
     hotbarAssignments: progression.hotbarAssignments,
+    leftoverMigrationNotice:
+      progression.leftoverMigrationNotice !== undefined ? progression.leftoverMigrationNotice : "",
   };
   if (progression.hotbar !== undefined) {
     gameplay.hotbar = progression.hotbar;
@@ -144,6 +146,8 @@ export function storedProgressionFromValue(value: unknown): CharacterProgression
   progression.purchasedBranchNodeRanks = parseNumberMap(data.purchasedBranchNodeRanks);
   progression.autoAssignEnabled = data.autoAssignEnabled === true;
   progression.hotbarAssignments = parseStringList(data.hotbarAssignments);
+  progression.leftoverMigrationNotice =
+    typeof data.leftoverMigrationNotice === "string" ? data.leftoverMigrationNotice : "";
   if (typeof data.schemaVersion === "number") {
     progression.schemaVersion = data.schemaVersion;
   }

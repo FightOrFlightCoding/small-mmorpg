@@ -178,3 +178,31 @@ test("gm open cave prefers systems lab when the template exists", () => {
   assert.equal(CAVE_ZONE_ID, "zone.cave");
   assert.equal(STARTER_ZONE_ID, "zone.starter");
 });
+
+test("gm progression commands are allowlisted and reject a client set-level command", () => {
+  const parsed = parseGmCommandPayload(
+    JSON.stringify({
+      command: "inspect_progression",
+      reason: "lab inspect",
+      characterId: "char-gm",
+      requestId: "gm-prog",
+    }),
+  );
+  assert.equal(parsed.command, "inspect_progression");
+  const grant = parseGmCommandPayload(
+    JSON.stringify({
+      command: "grant_xp_event",
+      reason: "lab xp",
+      characterId: "char-gm",
+      requestId: "gm-xp",
+      eventId: "gm-event:1",
+      amount: 10,
+    }),
+  );
+  assert.equal(grant.eventId, "gm-event:1");
+  assert.equal(grant.amount, 10);
+  assert.throws(
+    () => parseGmCommandPayload(JSON.stringify({ command: "set_level", reason: "nope", characterId: "c1" })),
+    /unknown_command/,
+  );
+});

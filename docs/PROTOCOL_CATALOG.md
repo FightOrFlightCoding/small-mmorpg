@@ -172,17 +172,17 @@ Tests: `server/tests/cave.test.ts`.
 | Field | Value |
 | --- | --- |
 | Direction | Client → server HTTP RPC |
-| Request | `{ command, reason, characterId, requestId?, x?, y?, itemId?, quantity?, amount?, questId?, status?, stageIndex?, spawnId?, enemyInstanceId?, zoneTemplateId?, tradeId? }` |
+| Request | `{ command, reason, characterId, requestId?, x?, y?, itemId?, quantity?, amount?, questId?, status?, stageIndex?, spawnId?, enemyInstanceId?, zoneTemplateId?, tradeId?, enabled?, eventId?, branchId?, fixtureId? }` |
 | Response | `{ ok, code, command, characterId, result }` |
 | Authority | Server allowlist `gm` / `allowlist`. Debug client UI is presentation only. |
 | Auth | Nakama session (`ctx.userId` required) plus allowlist (`enabled` + userId / customId / email) |
 | Rate limit | None in-app |
 | Payload | Strict keys; `reason` required (max 240, no `token=`) |
-| Idempotency | Command `requestId`; XP grants use `gm:<requestId>` |
+| Idempotency | Command `requestId`; XP grants use named `eventId` or `gm-exact:<requestId>` / `gm-level:<requestId>` / `gm:<requestId>` |
 | Errors | `unauthenticated`, `gm_disabled`, `unauthorized`, `malformed_json`, `unknown_field`, `unknown_command`, `reason_required`, `character_missing`, `email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted`, plus per-command codes |
 | Tests | `server/tests/gm.test.ts`, `client/tests/app/gm_service_test.gd` |
 
-Commands: `inspect_character`, `teleport_character`, `repair_invalid_location`, `grant_test_item`, `remove_test_item`, `grant_test_gold`, `grant_test_xp`, `reset_attribute_allocation`, `reset_skill_allocation`, `set_quest_state`, `reset_quest`, `spawn_enemy`, `kill_enemy`, `open_cave`, `inspect_party`, `cancel_trade`, `view_recent_transaction_audit`. Not match opcodes. `open_cave` may issue a transfer ticket (GM exception to Prompt 29 match-loop tickets). Every call writes `gm_audit`.
+Commands: `inspect_character`, `teleport_character`, `repair_invalid_location`, `grant_test_item`, `remove_test_item`, `grant_test_gold`, `grant_test_xp`, `inspect_progression`, `grant_xp_event`, `grant_exact_test_xp`, `reset_progression_fixture`, `set_auto_assign`, `open_branch_selection`, `reset_full_build`, `simulate_level_up`, `inspect_active_effects`, `inspect_cooldown_recovery`, `run_progression_validation`, `reset_attribute_allocation`, `reset_skill_allocation`, `set_quest_state`, `reset_quest`, `spawn_enemy`, `kill_enemy`, `open_cave`, `inspect_party`, `cancel_trade`, `view_recent_transaction_audit`. Not match opcodes. There is no `set_level` command. `open_cave` may issue a transfer ticket (GM exception to Prompt 29 match-loop tickets). Every call writes `gm_audit`. Progression command contracts: [progression/PROGRESSION_PROTOCOL_CATALOG.md](progression/PROGRESSION_PROTOCOL_CATALOG.md).
 
 ### `session_handshake`
 

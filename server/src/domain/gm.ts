@@ -11,6 +11,7 @@ import {
 } from "./match_state";
 import { depenetrate } from "./movement";
 import { cloneProgression, grantXp } from "./progression";
+import { applyGmProgressionCommand } from "./gm_progression";
 import {
   QUEST_STATUS_ACCEPTED,
   QUEST_STATUS_COMPLETED,
@@ -42,6 +43,17 @@ export const GM_COMMANDS = [
   "remove_test_item",
   "grant_test_gold",
   "grant_test_xp",
+  "inspect_progression",
+  "grant_xp_event",
+  "grant_exact_test_xp",
+  "reset_progression_fixture",
+  "set_auto_assign",
+  "open_branch_selection",
+  "reset_full_build",
+  "simulate_level_up",
+  "inspect_active_effects",
+  "inspect_cooldown_recovery",
+  "run_progression_validation",
   "reset_attribute_allocation",
   "reset_skill_allocation",
   "set_quest_state",
@@ -87,6 +99,10 @@ export interface GmCommandRequest {
   enemyInstanceId?: string;
   zoneTemplateId?: string;
   tradeId?: string;
+  enabled?: boolean;
+  eventId?: string;
+  branchId?: string;
+  fixtureId?: string;
 }
 
 export interface GmAuditRecord {
@@ -196,6 +212,10 @@ export function parseGmCommandPayload(payload: string): GmCommandRequest {
     "enemyInstanceId",
     "zoneTemplateId",
     "tradeId",
+    "enabled",
+    "eventId",
+    "branchId",
+    "fixtureId",
   ];
   const keys = Object.keys(data);
   for (let i = 0; i < keys.length; i++) {
@@ -259,6 +279,18 @@ export function parseGmCommandPayload(payload: string): GmCommandRequest {
   }
   if (typeof data.tradeId === "string") {
     request.tradeId = data.tradeId;
+  }
+  if (typeof data.enabled === "boolean") {
+    request.enabled = data.enabled;
+  }
+  if (typeof data.eventId === "string") {
+    request.eventId = data.eventId;
+  }
+  if (typeof data.branchId === "string") {
+    request.branchId = data.branchId;
+  }
+  if (typeof data.fixtureId === "string") {
+    request.fixtureId = data.fixtureId;
   }
   return request;
 }
@@ -348,6 +380,10 @@ export function applyGmToMatch(
   }
   if (request.command === "grant_test_xp") {
     return grantAdminXp(player, request, state);
+  }
+  const progressionCommand = applyGmProgressionCommand(state, player, request);
+  if (progressionCommand !== null) {
+    return progressionCommand;
   }
   if (request.command === "reset_attribute_allocation") {
     return resetAttributes(player);

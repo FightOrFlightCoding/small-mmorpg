@@ -13,7 +13,7 @@ import {
 import { emptyInventory, itemDefinitionsFromContent } from "../domain/inventory";
 import { questDefinitionsFromContent } from "../domain/quest";
 import { catalogFromContent } from "../domain/stats";
-import { initializeProgression } from "../domain/progression";
+import { initializeProgression, migrateToCanonicalProgression } from "../domain/progression";
 import { cancelTrade, cloneTradeRecord } from "../domain/trade";
 import { TX_REASON_ADMIN_GRANT } from "../domain/transaction";
 import { getPartyState, type PartyActor } from "../domain/party";
@@ -437,6 +437,10 @@ function playerFromStorage(
   const classId = character.classId !== undefined ? character.classId : "";
   const catalog = catalogFromContent(content);
   const existingProgression = readProgression(nk, target.userId, target.characterId);
+  const ensured = migrateToCanonicalProgression(existingProgression, classId, Date.now(), catalog);
+  if (ensured.ok && ensured.changed) {
+    writeProgression(nk, target.userId, ensured.progression, target.characterId);
+  }
   const inventory = readInventory(nk, target.userId, target.characterId);
   return {
     userId: target.userId,
@@ -454,7 +458,7 @@ function playerFromStorage(
     axisY: 0,
     questLog: readQuests(nk, target.userId, target.characterId),
     inventory: inventory !== null ? inventory : emptyInventory(),
-    progression: existingProgression !== null ? existingProgression : initializeProgression(catalog, classId),
+    progression: ensured.ok ? ensured.progression : existingProgression !== null ? existingProgression : initializeProgression(catalog, classId),
     gold: readGold(nk, target.userId),
   };
 }
@@ -563,5 +567,17 @@ function copyOptional(payload: { [key: string]: unknown }, request: GmCommandReq
   }
   if (request.tradeId !== undefined) {
     payload.tradeId = request.tradeId;
+  }
+  if (request.enabled !== undefined) {
+    payload.enabled = request.enabled;
+  }
+  if (request.eventId !== undefined) {
+    payload.eventId = request.eventId;
+  }
+  if (request.branchId !== undefined) {
+    payload.branchId = request.branchId;
+  }
+  if (request.fixtureId !== undefined) {
+    payload.fixtureId = request.fixtureId;
   }
 }

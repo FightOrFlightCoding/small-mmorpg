@@ -53,6 +53,7 @@ import {
   bindJoiningSession,
   checkpointsForTerminate,
   joinHealth,
+  progressionsForTerminate,
   type PositionCheckpoint,
 } from "../domain/persistence";
 import { migrateLegacyCharacterIntoRoster } from "../domain/character_lifecycle";
@@ -583,6 +584,10 @@ export function matchLeave(
       incrementCounter("connectedPlayers", -1);
       continue;
     }
+    if (live.progression !== undefined) {
+      writeProgression(nk, presence.userId, live.progression, live.characterId);
+      logger.info("starter_zone persist progression user_id=%s reason=leave", presence.userId);
+    }
     if (transferring) {
       const persistInventories: { [userId: string]: PlayerInventory } = {};
       const persistTrades: { [tradeId: string]: TradeRecord } = {};
@@ -816,6 +821,12 @@ export function matchTerminate(
 ): { state: StarterMatchRuntimeState } {
   state = hydrateRuntime(state);
   writeCheckpoints(nk, logger, checkpointsForTerminate(state.zone));
+  const terminatedProgression = progressionsForTerminate(state.zone);
+  for (let pg = 0; pg < terminatedProgression.length; pg++) {
+    const persist = terminatedProgression[pg];
+    writeProgression(nk, persist.userId, persist.progression, persist.characterId);
+    logger.info("starter_zone persist progression user_id=%s reason=terminate", persist.userId);
+  }
   const matchId = typeof ctx.matchId === "string" ? ctx.matchId : "";
   const playerIds = Object.keys(dict(state.zone.players));
   for (let i = 0; i < playerIds.length; i++) {
@@ -1588,6 +1599,9 @@ function loadPlayerProgression(
   const catalog = catalogFromContent(content);
   const now = Date.now();
   const ensured = migrateToCanonicalProgression(existing, classId, now, catalog);
+  if (!ensured.ok) {
+    throw new Error(ensured.reason);
+  }
   ensured.progression.schemaVersion = SAVE_SCHEMA_VERSION;
   if (existing === null) {
     ensured.progression.createdAt = now;

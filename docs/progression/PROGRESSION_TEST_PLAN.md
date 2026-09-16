@@ -102,7 +102,7 @@ Accepted. `progression_gcd_absent.test.ts` proves no production class, productio
 
 ### PROG-14 leftover schema-2 fields
 
-Migration must still run for `progressionSchemaVersion` 2 records that contain leftover Foundation authorities (`allocatedAttributes`, live 8-slot `hotbar`, production `unlockedAbilityIds`). Classify development/test vs real player characters. Real-player old investment is translated, refunded as canonical unspent points, or reset with a visible notice.
+Accepted. `server/tests/progression_lifecycle.test.ts` classifies `test.*` vs production, resets production leftover Foundation authorities with `leftover_foundation_reset`, keeps test-class Foundation fields, rejects future versions without rewrite, retries interrupted cleanup, and proves restore/export/purge isolation. Schema number is **3**.
 
 ### PROG-15 GCD production audit
 

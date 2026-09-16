@@ -661,7 +661,7 @@ Warrior and Marksman expose no mana resource. Mage and Mystic use `Mana_max = 20
 
 On max-health change, the already accepted pipeline policy applies: living characters keep current health plus any **increase** in max, then clamp to the new max. Ordinary equipment changes do not refill. Full refill remains create, authorized respawn, inn/healer restore, or an explicit effect. Test classes without canonical `baseStats` keep Foundation `evaluateStats` layers so Prompt 18 cert fixtures stay on `test.class.*` numbers.
 
-Canonical melee/ranged/spell/heal functions exist and are tested independently (`scalePower` / `evaluateCanonicalHit`). Live ATTACK still uses Foundation `test.stat.attack` until PROG-09–12. Remaining live/design gaps are owned in [progression/CURRENT_CONFLICTS.md](progression/CURRENT_CONFLICTS.md): dual hotbars and talent spend closed in PROG-07; production GCD closed in PROG-08 and is audited in PROG-15; leftover schema-2 Foundation fields receive a final real-player policy in PROG-14. Quest slime-problem XP 20 is `project.quest.slime_problem.xp` (noncanonical content).
+Canonical melee/ranged/spell/heal functions exist and are tested independently (`scalePower` / `evaluateCanonicalHit`). Live ATTACK still uses Foundation `test.stat.attack` until PROG-09–12. Remaining live/design gaps are owned in [progression/CURRENT_CONFLICTS.md](progression/CURRENT_CONFLICTS.md): dual hotbars and talent spend closed in PROG-07; production GCD closed in PROG-08 and is audited in PROG-15; leftover schema-2 Foundation fields are reset with notice in PROG-14. Quest slime-problem XP 20 is `project.quest.slime_problem.xp` (noncanonical content).
 
 ## 2026-08-26 — PROG-05 XP curve, automatic growth, milestones, and auto-assignment
 
@@ -736,4 +736,12 @@ PROG-13 adds the player-facing character sheet, allocation, class/branch trees, 
 Equipment contribution and temporary effects are shown as separate rows. When `publicProgression` does not split those channels, the remainder after automatic growth and free allocations is labeled as equipment contribution (including other modifiers), and temporary effects point at the combat HUD. Reference builds are optional §11 copy and never auto-spend. Class cards use generic glyphs, shapes, and themes; final class art is not required and is not added.
 
 Class cannot currently be changed after creation. Closing the level-5 branch chooser leaves the character branchless with persistent HUD guidance. No default branch is selected.
+
+## 2026-09-16 — PROG-14 leftover reset and lifecycle persistence
+
+Production leftover Foundation authorities (`allocatedAttributes`, live 8-slot `hotbar`, Foundation unspent counters, production `test.ability.*` unlocks) are **reset** on load with visible notice `leftover_foundation_reset`. They are not mapped onto STR and are not refunded above the earned free-point budget `3 * (level - 1)`. `test.*` characters keep Foundation fields. `progressionSchemaVersion` becomes **3**. Future versions are `unsupported_future_version` and are not rewritten.
+
+Progression persists on character select, logout/leave, link-dead, ten-second despawn, reconnect, cave enter/exit, public-world transfer, match terminate (server restart), and content-reload migrate. Character Select summaries reread class/level/branch from the blob. Soft-delete restore preserves the record exactly and does not regrant. Account export includes a `progressionExport` snapshot. Permanent deletion and character purge remove the blob; email reuse after deletion cannot inherit progression.
+
+XP, level rewards, automatic growth, point grants, milestone unlocks, talent purchase, respec, kill/quest/party/boss credit remain `eventId` / `requestId` idempotent. Party XP uses existing party-credit eligibility (authoritative enemy level, server-owned elite ×3, no forged membership). Developer tools are `gm_command` only, allowlisted, and audited. There is no player opcode that sets level or stats.
 

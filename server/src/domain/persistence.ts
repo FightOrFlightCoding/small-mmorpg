@@ -338,6 +338,41 @@ export function checkpointsForTerminate(state: StarterZoneState): PositionCheckp
   return checkpoints;
 }
 
+export interface ProgressionPersistRow {
+  userId: string;
+  characterId: string;
+  progression: CharacterProgression;
+}
+
+export function progressionsForTerminate(state: StarterZoneState): ProgressionPersistRow[] {
+  const rows: ProgressionPersistRow[] = [];
+  const liveIds = Object.keys(dict(state.players));
+  for (let i = 0; i < liveIds.length; i++) {
+    const player = state.players[liveIds[i]];
+    if (player.progression === undefined) {
+      continue;
+    }
+    rows.push({
+      userId: player.userId,
+      characterId: player.characterId,
+      progression: cloneProgression(player.progression),
+    });
+  }
+  const parkedIds = Object.keys(dict(state.disconnected));
+  for (let j = 0; j < parkedIds.length; j++) {
+    const parked = state.disconnected[parkedIds[j]].player;
+    if (parked.progression === undefined) {
+      continue;
+    }
+    rows.push({
+      userId: parked.userId,
+      characterId: parked.characterId,
+      progression: cloneProgression(parked.progression),
+    });
+  }
+  return rows;
+}
+
 export function stampRequestTick(ticks: { [requestId: string]: number } | undefined, requestId: string, tick: number): {
   [requestId: string]: number;
 } {

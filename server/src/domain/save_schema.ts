@@ -102,6 +102,7 @@ export const PROGRESSION_SAVE_KEYS = [
   "purchasedBranchNodeRanks",
   "autoAssignEnabled",
   "hotbarAssignments",
+  "leftoverMigrationNotice",
   "selectBranchByRequestId",
   "autoAssignByRequestId",
   "respecByRequestId",
