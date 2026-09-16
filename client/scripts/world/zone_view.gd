@@ -28,7 +28,7 @@ func _add_floor(width: float, height: float, visual: Dictionary) -> void:
 		Vector2(width, height),
 		Vector2(0.0, height),
 	])
-	floor_poly.color = Color(0.49, 0.75, 0.29, 1.0)
+	floor_poly.color = Color(0.12, 0.64, 0.48, 1.0)
 	if visual.get("fallback_color") is Color:
 		floor_poly.color = visual["fallback_color"]
 	add_child(floor_poly)
