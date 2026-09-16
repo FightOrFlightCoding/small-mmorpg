@@ -1,10 +1,10 @@
 # Progress
 
-Last accepted phase: **PROG-09 — Warrior, Bulwark, and Berserker Implementation**.
+Last accepted phase: **PROG-10 — Marksman, Sniper, and Skirmisher Implementation**.
 
 Current phase: none.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. PROG-08 remains accepted. PROG-09 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. PROG-08 remains accepted. PROG-09 remains accepted. PROG-10 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
 
@@ -631,7 +631,38 @@ The intentional Warrior content update changes the shared generated hash to `913
 | Client GdUnit | 283/283, 0 failures, 0 orphans |
 | GitHub `verify` | passed (`0867ac9`, run 35112093346) |
 
-Remaining work is limited to the named PROG-10–12 class implementations and their auto-attack retunes. No PROG-10 work was started.
+Remaining work is limited to the named PROG-11–12 class implementations and their auto-attack retunes. PROG-10 is recorded below.
+
+## PROG-10 Marksman, Sniper, and Skirmisher implementation (2026-09-16)
+
+Marksman is the second canonical class active in the existing authoritative combat path. `ATTACK` resolves `ability.marksman.auto_attack` (10 base ranged damage, 1.8s base interval, AGI scaling, server-side crit, and Haste timing). Aimed Shot is granted at level 2. Sniper Snipe and Skirmisher Barrage unlock with their branches. No generic combat module branches on `class.marksman`. No second combat, effect, cooldown, stat, ability, or progression system was added. No client outcome authority, production GCD, or PvP path was added.
+
+Snipe is a channel that applies on completion: `channelSeconds = 1.5 * (1 + ability_channel_time * rank) / HasteMult`. Auto-attacks pause while aiming; stuns and movement interrupt. Barrage rolls independent crits per arrow. Serrated bleeds are DoTs (never crit) tagged `bleed`; Arrowstorm doubles only those tagged ticks while preserving remaining total. Vault leaps backward along facing and stops at the last valid collision point. Vault R2 caltrops linger at the launch point. Haste does not change stored cooldown duration. Nimble, Sniper's Nest, and Runner's High advance remaining cooldown ticks only while their conditions hold.
+
+The intentional Marksman content update changes the shared generated hash to `e1e03af49b43acdc5242268bd52b2f7ec6e7ec2e794d3dfd93c0b3f8dca6c38f`. Snipe channel order, Killer Instinct melee range, and caltrop radius are recorded as noncanonical implementation values in [design/progression-implementation-addendum.md](design/progression-implementation-addendum.md). No storage schema migration is required.
+
+| Gate | Result |
+| --- | --- |
+| Content-build | 25/25; hash `e1e03af49b43acdc5242268bd52b2f7ec6e7ec2e794d3dfd93c0b3f8dca6c38f` |
+| Design audit | 10/10 |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (29 RPCs, 34 storage records, 38 client opcodes) |
+| Server hermetic | 684 passed, 13 skipped; bundle built |
+| Marksman mechanics and balance regressions | 11/11 (`marksman_progression`, `marksman_balance`) |
+| Client GdUnit | 283/283, 0 failures, 0 orphans, `SHELL_LOGIN` |
+
+Limitations: Mage and Mystic combat remain PROG-11–12. The eight-slot Foundation hotbar remains test-only. Manual Prompt 18 world play was not re-run; live village/slime combat behavior was not changed.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/content.ps1 validate
+powershell -File scripts/test-content.ps1
+powershell -File scripts/content-build.ps1
+powershell -File scripts/test-progression-design.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+```
 
 ## Content production workflow, systems lab, and developer/GM tools acceptance (2026-08-19)
 
