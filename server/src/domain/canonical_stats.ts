@@ -367,7 +367,7 @@ export function evaluateCanonicalSnapshot(input: CanonicalStatInput): CanonicalS
   const critChance = formulaCritChance(stats["stat.precision"]);
   const critMult = formulaCritMult(stats["stat.strength"]) + sumOfAddModifiers(collapsed, "crit_mult_flat");
   const hasteMult = formulaHasteMult(stats["stat.haste"]);
-  const damageReduction = Math.min(0.95, formulaDamageReduction(stats["stat.endurance"]) + sumOfAddModifiers(collapsed, "flat_damage_reduction"));
+  const damageReduction = formulaDamageReduction(stats["stat.endurance"]) + sumOfAddModifiers(collapsed, "flat_damage_reduction");
   const effectiveHp = formulaEffectiveHp(hpMax, damageReduction);
   const outgoingProduct = productOfPctModifiers(collapsed, CHANNEL_OUTGOING);
   const takenProduct = productOfPctModifiers(collapsed, CHANNEL_TAKEN);
