@@ -93,3 +93,24 @@ Record necessary assumptions in `docs/DECISIONS.md`.
 | `scripts/` | Repeatable developer and CI commands, including `scripts/content.ps1` (`validate` / `build` / `diff` / `references` / `unused` / `new` / `copy` / `migrate` / `package`) and backup/export/verify scripts in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). |
 | `tools/` | Content CLI (`tools/content-build`) and Prompt 18 freeze audit (`tools/foundation-audit`). |
 | `docs/` | Binding project contract, including Foundation catalogs, [CONTENT_AUTHORING.md](docs/CONTENT_AUTHORING.md), and after PROG-01 the progression contract under [docs/progression/](docs/progression/) plus [docs/design/rpg-progression-design-v1.0.md](docs/design/rpg-progression-design-v1.0.md). |
+
+<!-- pre-prog09-handover:start -->
+
+## Pre-PROG-09 handover
+
+Repository-grounded verification: **2026-09-16** on branch `cursor/pre-prog09-handover-3970` (PROG line `origin/cursor/npc-quest-acceptance`, not `origin/main`).
+
+Accepted through **PROG-08** only on the PROG line (`docs/PROGRESS.md`). Next phase: **PROG-09 — Complete Warrior, Bulwark, and Berserker Implementation**.
+
+Before PROG-09 work, read:
+
+- [docs/handover/PRE_PROG09_HANDOVER.md](docs/handover/PRE_PROG09_HANDOVER.md)
+- [docs/progression/CURRENT_CONFLICTS.md](docs/progression/CURRENT_CONFLICTS.md)
+- [docs/progression/PROGRESSION_TEST_PLAN.md](docs/progression/PROGRESSION_TEST_PLAN.md)
+- [docs/PROGRESS.md](docs/PROGRESS.md)
+
+Do not start PROG-09 from **`origin/main`** until PROG-08 is merged and PROGRESS matches the PROG line. On the PROG line: baseline server/content/audit tests passed in re-verify; **re-run client GdUnit** locally before claiming full go.
+
+Use the accepted generic combat/effect systems only — no second combat pipeline.
+
+<!-- pre-prog09-handover:end -->
