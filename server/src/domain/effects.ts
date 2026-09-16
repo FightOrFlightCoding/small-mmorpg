@@ -63,6 +63,7 @@ export interface EffectDefinition {
   movementKind?: string;
   movementDistance?: number;
   bonusCritChance?: number;
+  delay?: number;
 }
 
 export interface ActiveEffect {
@@ -239,6 +240,51 @@ export function hasControlTag(effects: ActiveEffect[] | undefined, tag: "stun" |
   return false;
 }
 
+export function ownedCrowdControlCount(
+  enemies: ReadonlyArray<{
+    health: number;
+    effects?: ReadonlyArray<{ sourceId: string; remainingTicks: number; type: string; tags: ReadonlyArray<string> }>;
+  }>,
+  sourceId: string,
+): number {
+  let count = 0;
+  const wanted = String(sourceId);
+  for (let i = 0; i < enemies.length; i++) {
+    if (!(enemies[i].health > 0)) {
+      continue;
+    }
+    if (hasOwnedCrowdControl(enemies[i].effects, wanted)) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+function hasOwnedCrowdControl(
+  effects: ReadonlyArray<{ sourceId: string; remainingTicks: number; type: string; tags: ReadonlyArray<string> }> | undefined,
+  sourceId: string,
+): boolean {
+  if (effects === undefined) {
+    return false;
+  }
+  for (let i = 0; i < effects.length; i++) {
+    const effect = effects[i];
+    if (effect.remainingTicks <= 0 || String(effect.sourceId) !== sourceId) {
+      continue;
+    }
+    if (effect.type === "slow" || effect.type === "root") {
+      return true;
+    }
+    for (let t = 0; t < effect.tags.length; t++) {
+      const tag = effect.tags[t];
+      if (tag === "slow" || tag === "freeze" || tag === "root") {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 export function slowMagnitudeFrom(effects: ActiveEffect[] | undefined): number {
   if (effects == null || !Array.isArray(effects)) {
     return 0;
@@ -305,6 +351,9 @@ export function applyEffectDefinition(
   ) * rank;
   const haste = stats !== null && stats.hasteMult !== undefined ? stats.hasteMult : 1;
   const type = String(definition.type);
+  if (type === "guaranteed_crit") {
+    return;
+  }
   if (type === "direct_damage") {
     dealDamage(
       state,
@@ -554,6 +603,9 @@ function applyStatus(
   if (statChannel === "move_speed") {
     statChannel = "movement_speed";
     appliedMagnitude = magnitude * 100;
+  }
+  if (definition.type === "slow" && Math.abs(appliedMagnitude) <= 1) {
+    appliedMagnitude = -Math.abs(appliedMagnitude) * 100;
   }
   if (definition.type === "periodic_damage" || definition.type === "periodic_heal") {
     const intendedTickCount = baseInterval > 0 && definition.duration > 0 ? definition.duration / baseInterval : 1;

@@ -8,9 +8,9 @@ Undocumented implementation numbers: [progression-implementation-addendum.md](..
 
 ## Last accepted phase and ownership
 
-Last accepted phase: **PROG-10** (Marksman, Sniper, and Skirmisher on the shared combat path). PROG-09 remains accepted for Warrior/Bulwark/Berserker. Mage and Mystic still own their combat definitions and ATTACK retunes in PROG-11–12. Foundation v1 / Prompt 35 / ACCT-09 remain accepted. Prompt 18 village/slime combat behavior remains frozen.
+Last accepted phase: **PROG-11** (Mage, Fire, and Frost on the shared combat path). PROG-10 remains accepted for Marksman/Sniper/Skirmisher. PROG-09 remains accepted for Warrior/Bulwark/Berserker. PROG-12 still owns Mystic combat definitions and ATTACK retune. Foundation v1 / Prompt 35 / ACCT-09 remain accepted. Prompt 18 village/slime combat behavior remains frozen.
 
-PROG-08 extends the project-owned ability/effect/combat pipeline with reusable mechanic handlers, typed combat events, a server-authoritative random interface, independent multi-hit, DoT snapshot/retune, shields, taunt, cooldown recovery, vault movement, and line/cone/radius/delayed-ground targeting. PROG-09 enables `ability.warrior.*`; PROG-10 enables `ability.marksman.*`. ATTACK resolves the class-owned auto-attack definition, not a hotbar ability. Talent content is translated into identified modifiers and conditional ability effects at resolution time, so no generic combat module branches on a class ID. Owned gaps: [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md).
+PROG-08 extends the project-owned ability/effect/combat pipeline with reusable mechanic handlers, typed combat events, a server-authoritative random interface, independent multi-hit, DoT snapshot/retune, shields, taunt, cooldown recovery, vault movement, and line/cone/radius/delayed-ground targeting. PROG-09 enables `ability.warrior.*`; PROG-10 enables `ability.marksman.*`; PROG-11 enables `ability.mage.*`. ATTACK resolves the class-owned auto-attack definition, not a hotbar ability. Talent content is translated into identified modifiers and conditional ability effects at resolution time, so no generic combat module branches on a class ID. Owned gaps: [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md).
 
 | Concern | Owner | Extend, do not duplicate |
 | --- | --- | --- |

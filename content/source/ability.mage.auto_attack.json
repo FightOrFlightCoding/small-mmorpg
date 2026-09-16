@@ -12,7 +12,7 @@
   "range": 180,
   "targetMode": "entity",
   "relationFilter": "hostile",
-  "runtimeEnabled": false,
+  "runtimeEnabled": true,
   "effects": [
     {
       "id": "hit",

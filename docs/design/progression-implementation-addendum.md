@@ -109,3 +109,12 @@ Marksman combat reuses the accepted canonical targeting, effect, cooldown-recove
 | `project.combat.killer_instinct.melee_range` | `40` px | Killer Instinct “no enemy within melee range” | Design says melee range without world units; reuses `project.ability.range.melee` | yes | `server/tests/marksman_progression.test.ts` | no |
 | `project.ability.caltrop.radius` | `40` px | Vault R2 caltrops ground radius | Design places caltrops at launch without a radius; reuses `project.ability.aoe.radius` | yes | `server/tests/marksman_progression.test.ts` | no |
 
+### PROG-11
+
+Mage combat reuses the accepted canonical targeting, effect, mana, delayed-ground, cone, and modifier paths. Geometry below was already recorded in PROG-02 and is now live; these are not new balance numbers.
+
+| Stable ID | Value | Purpose | Reason it was required | Affects balance | Tests using it | Canonical design data |
+| --- | --- | --- | --- | --- | --- | --- |
+| `project.ability.aoe.radius` | `40` px | Flash Freeze, Meteor, and Absolute Zero nearby radius | Design says adjacent/nearby/area without world units; already recorded in PROG-02 | yes | `server/tests/mage_progression.test.ts` | no |
+| `project.ability.cone.angle_deg` | `60` | Flame Wave cone width | Schema requires cone angle; design omits it; already recorded in PROG-02 | yes | `server/tests/mage_progression.test.ts` | no |
+

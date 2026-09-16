@@ -53,7 +53,7 @@
   "soundAssetId": "visual.ability_bolt_sound",
   "skillPointCost": 0,
   "maxRank": 1,
-  "runtimeEnabled": false,
+  "runtimeEnabled": true,
   "abilityCategory": "capstone",
   "ownerClassId": "class.mage",
   "school": "spell",

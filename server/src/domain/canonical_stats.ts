@@ -363,7 +363,7 @@ export function evaluateCanonicalSnapshot(input: CanonicalStatInput): CanonicalS
   const manaMax = usesMana
     ? formulaManaMax(stats["stat.intelligence"], true) + sumOfAddModifiers(collapsed, CHANNEL_MAX_MANA)
     : 0;
-  const manaRegen = formulaManaRegen(stats["stat.spirit"], usesMana);
+  const manaRegen = formulaManaRegen(stats["stat.spirit"], usesMana) + sumOfAddModifiers(collapsed, "mana_regen");
   const critChance = formulaCritChance(stats["stat.precision"]);
   const critMult = formulaCritMult(stats["stat.strength"]) + sumOfAddModifiers(collapsed, "crit_mult_flat");
   const hasteMult = formulaHasteMult(stats["stat.haste"]);

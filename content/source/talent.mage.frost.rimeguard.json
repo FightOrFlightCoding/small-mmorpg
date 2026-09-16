@@ -13,8 +13,7 @@
     {
       "conditions": [
         {
-          "type": "effect_active",
-          "tag": "slow"
+          "type": "owned_crowd_control"
         }
       ],
       "modifiers": [

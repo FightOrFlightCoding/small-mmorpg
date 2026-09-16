@@ -57,7 +57,7 @@
       ],
       "requiredLevel": 10,
       "resourceCosts": [],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "spell",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_bolt_sound",
@@ -125,7 +125,7 @@
           "resourceId": "test.resource.mana"
         }
       ],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "spell",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_bolt_sound",
@@ -195,7 +195,7 @@
           "resourceId": "test.resource.mana"
         }
       ],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "spell",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_bolt_sound",
@@ -266,7 +266,7 @@
           "resourceId": "test.resource.mana"
         }
       ],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "spell",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_bolt_sound",
@@ -334,7 +334,7 @@
           "resourceId": "test.resource.mana"
         }
       ],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "spell",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_bolt_sound",
@@ -426,7 +426,7 @@
           "resourceId": "test.resource.mana"
         }
       ],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "spell",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_bolt_sound",
@@ -516,7 +516,7 @@
       ],
       "requiredLevel": 10,
       "resourceCosts": [],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "spell",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_bolt_sound",
@@ -2842,7 +2842,7 @@
       "ownerClassId": "class.mage",
       "range": 180,
       "relationFilter": "hostile",
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "scalingStatId": "stat.intelligence",
       "school": "spell",
       "soundAssetId": "visual.ability_bolt_sound",
@@ -3852,7 +3852,7 @@
       "visualAssetSetId": "visual.class_warden"
     }
   },
-  "contentHash": "e1e03af49b43acdc5242268bd52b2f7ec6e7ec2e794d3dfd93c0b3f8dca6c38f",
+  "contentHash": "5cea7b29fd80d47f52919d1af156a2fa775db192a92b21bf2d966b82202417dd",
   "derivedStats": {
     "test.stat.attack": {
       "components": [
@@ -7636,7 +7636,7 @@
           "abilityId": "ability.mage.fireball",
           "modifiers": [
             {
-              "type": "ability_damage_percent",
+              "type": "on_crit_dot_percent",
               "value": 0.25
             }
           ]
@@ -7746,8 +7746,12 @@
           "abilityId": "ability.mage.flame_wave",
           "modifiers": [
             {
-              "type": "ability_damage_percent",
+              "type": "on_hit_periodic_base",
               "value": 12
+            },
+            {
+              "type": "on_hit_periodic_duration",
+              "value": 3
             }
           ]
         }
@@ -7954,7 +7958,7 @@
       "maxRank": 1,
       "passiveModifiers": [
         {
-          "type": "damage_dealt_percent",
+          "type": "slow_reduces_target_damage_percent",
           "value": -0.1
         }
       ],
@@ -7968,8 +7972,7 @@
         {
           "conditions": [
             {
-              "tag": "slow",
-              "type": "effect_active"
+              "type": "owned_crowd_control"
             }
           ],
           "modifiers": [
@@ -8000,7 +8003,7 @@
       "maxRank": 1,
       "passiveModifiers": [
         {
-          "type": "mana_regen_flat",
+          "type": "mana_regen_per_controlled_enemy",
           "value": 0.5
         }
       ],

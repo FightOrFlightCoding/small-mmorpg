@@ -7,6 +7,7 @@ import {
   hasControlTag,
   playerAsTarget,
   writeTarget,
+  ownedCrowdControlCount,
   type EffectTarget,
   type EffectDefinition,
   type MagnitudeFormula,
@@ -24,9 +25,9 @@ import {
   syncDerivedAbilityOwnership,
   usesCanonicalTalentRuntime,
 } from "./canonical_talents";
-import { formulaCastTime } from "./canonical_stats";
+import { formulaCastTime, scalePower, type CanonicalModifier } from "./canonical_stats";
 import { attackSpeedProduct, autoAttackBase, cooldownRecoveryRate, hasteScaledAttackInterval, resetAbilityCooldown, scaledManaCost, scheduleDelayedGround } from "./canonical_combat";
-import { conditionalTalentModifierValue, resolveAbilityTalentModifiers, talentModifiersForContext, talentModifiersForProgression, type TalentModifierContext } from "./talent_modifiers";
+import { conditionalTalentModifierValue, passiveTalentModifierValue, resolveAbilityTalentModifiers, talentModifiersForContext, talentModifiersForProgression, type TalentModifierContext } from "./talent_modifiers";
 import {
   evaluateStats,
   identifiedModifiersFromEffectMap,
@@ -55,10 +56,12 @@ export interface AbilityDefinition {
   relationFilter: RelationFilter;
   range: number;
   minimumRange: number;
-  areaShape: "none" | "circle" | "line" | "cone";
+  areaShape: "none" | "circle" | "line" | "cone" | "ground";
   areaRadius: number;
   lineWidth?: number;
   lineLength?: number;
+  coneAngleDegrees?: number;
+  delay?: number;
   castTime: number;
   channelTime: number;
   globalCooldown: number;
@@ -128,6 +131,10 @@ export function abilityDefinitionsFromContent(abilities: {
     minimumRange: number;
     areaShape: string;
     areaRadius: number;
+    lineWidth?: number;
+    lineLength?: number;
+    coneAngleDegrees?: number;
+    delay?: number;
     castTime: number;
     channelTime: number;
     globalCooldown: number;
@@ -451,7 +458,7 @@ export function useAbility(
   if (!targeting.ok) {
     return remember(targeting.code, false);
   }
-  if (!resourcesAvailable(player, definition, effectModifiersFrom(player.effects))) {
+  if (!resourcesAvailable(player, definition, manaCostModifiers(state, player, tick))) {
     return remember("insufficient_resource", false);
   }
   const cooldownCode = cooldownBlock(player, definition, tick, ignoresGlobalCooldown(state, player));
@@ -459,7 +466,7 @@ export function useAbility(
     return remember(cooldownCode, false);
   }
 
-  spendResources(player, definition, effectModifiersFrom(player.effects));
+  spendResources(player, definition, manaCostModifiers(state, player, tick));
   startCooldowns(player, definition, tick, ignoresGlobalCooldown(state, player));
 
   const stats = casterStats(state, player, tick);
@@ -476,7 +483,11 @@ export function useAbility(
   const channelBase =
     definition.channelTime *
     (talentMods !== undefined ? talentMods.channelTimeMultiplier : 1);
-  const castTicks = cooldownTicks(formulaCastTime(definition.castTime, haste), SNAPSHOT_RATE_HZ);
+  const baseCast =
+    talentMods !== undefined && talentMods.castTimeOverride !== undefined
+      ? talentMods.castTimeOverride
+      : definition.castTime;
+  const castTicks = cooldownTicks(formulaCastTime(baseCast, haste), SNAPSHOT_RATE_HZ);
   const channelTicks = cooldownTicks(formulaCastTime(channelBase, haste), SNAPSHOT_RATE_HZ);
   if (castTicks > 0) {
     player.activeCast = {
@@ -1015,9 +1026,18 @@ function applyResolvedAbility(
   const launchX = player.x;
   const launchY = player.y;
   const eventStart = events.length;
-  const targets = collectEffectTargets(state, player, definition, targeting);
-  for (let e = 0; e < definition.effects.length; e++) {
-    const effect = definition.effects[e];
+  const working = scaledAbilityDefinition(definition, talentMods);
+  if (abilityDelaySeconds(working) > 0) {
+    scheduleDelayedAbility(state, player, working, targeting, tick, stats, talentMods);
+    maybeResetCooldownOnKill(player, working, events, eventStart, tick);
+    return;
+  }
+  const targets = collectEffectTargets(state, player, working, targeting);
+  for (let e = 0; e < working.effects.length; e++) {
+    const effect = working.effects[e];
+    if (String(effect.type) === "guaranteed_crit") {
+      continue;
+    }
     if (effect.type === "forced_movement" || effect.type === "movement") {
       const distancePx =
         effect.movementDistance !== undefined && effect.movementDistance > 0 ? effect.movementDistance : 80;
@@ -1036,12 +1056,18 @@ function applyResolvedAbility(
           : 1;
     for (let t = 0; t < selected.length; t++) {
       for (let h = 0; h < hits; h++) {
-        const resolved = resolveTalentEffect(state, player, definition, effect, selected[t], tick);
+        const resolved = resolveTalentEffect(state, player, working, effect, selected[t], tick);
         const before = events.length;
-        applyEffectDefinition(state, resolved, definition.id, player, selected[t], stats, fallbackAttack, tick, events);
+        applyEffectDefinition(state, resolved, working.id, player, selected[t], stats, fallbackAttack, tick, events);
         writeTarget(state, selected[t]);
         if (talentMods !== undefined && talentMods.onHitBleedPercent > 0 && effect.type === "direct_damage") {
-          applyOnHitBleed(state, player, selected[t], definition.id, talentMods.onHitBleedPercent, events, before, tick, stats, fallbackAttack, h);
+          applyOnHitBleed(state, player, selected[t], working.id, talentMods.onHitBleedPercent, events, before, tick, stats, fallbackAttack, h);
+        }
+        if (talentMods !== undefined && talentMods.onCritDotPercent > 0 && effect.type === "direct_damage") {
+          applyOnCritDot(state, player, selected[t], working.id, talentMods.onCritDotPercent, events, before, tick, stats, fallbackAttack, h);
+        }
+        if (talentMods !== undefined && talentMods.onHitPeriodicBase > 0 && talentMods.onHitPeriodicDuration > 0 && effect.type === "direct_damage") {
+          applyOnHitPeriodic(state, player, selected[t], working.id, talentMods.onHitPeriodicBase, talentMods.onHitPeriodicDuration, tick, events, stats, fallbackAttack, h);
         }
         if (
           talentMods !== undefined &&
@@ -1049,15 +1075,19 @@ function applyResolvedAbility(
           talentMods.slowDuration !== undefined &&
           effect.type === "direct_damage"
         ) {
-          applySlowEffect(state, player, selected[t], definition.id, talentMods.slowPercent, talentMods.slowDuration, tick, events, stats, fallbackAttack);
+          applySlowEffect(state, player, selected[t], working.id, talentMods.slowPercent, talentMods.slowDuration, tick, events, stats, fallbackAttack);
+        }
+        if (resolved.type === "slow" && talentMods !== undefined && talentMods.slowTargetOutgoingPercent !== undefined) {
+          applySlowOutgoingReduction(state, player, selected[t], working.id, talentMods.slowTargetOutgoingPercent, resolved.duration, tick, events, stats, fallbackAttack);
         }
       }
     }
   }
   if (talentMods !== undefined && talentMods.slowPercent !== undefined && talentMods.slowDuration !== undefined) {
-    maybeScheduleCaltrops(state, player, definition, launchX, launchY, talentMods.slowPercent, talentMods.slowDuration, tick);
+    maybeScheduleCaltrops(state, player, working, launchX, launchY, talentMods.slowPercent, talentMods.slowDuration, tick);
   }
-  maybeResetCooldownOnKill(player, definition, events, eventStart, tick);
+  refundManaOnCrits(state, player, events, eventStart);
+  maybeResetCooldownOnKill(player, working, events, eventStart, tick);
 }
 
 function applyVaultToPlayer(state: StarterZoneState, player: MatchPlayer, distancePx: number, tick: number): void {
@@ -1105,17 +1135,23 @@ function collectShapedTargets(
     dirY = facing.y;
   }
   const range =
-    definition.areaRadius > 0
-      ? definition.areaRadius
-      : definition.lineLength !== undefined && definition.lineLength > 0
-        ? definition.lineLength
-        : definition.range;
+    shape === "cone"
+      ? Math.max(definition.range, definition.areaRadius)
+      : definition.areaRadius > 0
+        ? definition.areaRadius
+        : definition.lineLength !== undefined && definition.lineLength > 0
+          ? definition.lineLength
+          : definition.range;
   const width = definition.lineWidth !== undefined && definition.lineWidth > 0 ? definition.lineWidth : 12;
   const living = livingEntities(state);
+  const coneHalf =
+    definition.coneAngleDegrees !== undefined && definition.coneAngleDegrees > 0
+      ? (definition.coneAngleDegrees * Math.PI) / 360
+      : Math.PI / 4;
   const hits =
     shape === "line"
       ? entitiesOnLine(living, player.x, player.y, dirX, dirY, range, width)
-      : entitiesInCone(living, player.x, player.y, dirX, dirY, range, Math.PI / 4);
+      : entitiesInCone(living, player.x, player.y, dirX, dirY, range, coneHalf);
   for (let i = 0; i < hits.length; i++) {
     const hit = hits[i];
     const relation = classifyTarget(state, player, hit.id);
@@ -1143,12 +1179,15 @@ function collectEffectTargets(
   definition: AbilityDefinition,
   targeting: { primaryId: string; pointX: number; pointY: number },
 ) {
-  const list = [];
+  const list: EffectTarget[] = [];
   const shape = String(definition.areaShape);
   if (shape === "line" || shape === "cone") {
     return collectShapedTargets(state, player, definition, shape, targeting);
   }
-  if (shape === "circle" && definition.areaRadius > 0) {
+  if (shape === "circle" || shape === "ground") {
+    if (!(definition.areaRadius > 0)) {
+      return list;
+    }
     const originX = targeting.pointX;
     const originY = targeting.pointY;
     const playerIds = Object.keys(state.players);
@@ -1259,28 +1298,34 @@ function targetPose(state: StarterZoneState, targetId: string): { x: number; y: 
   return { x: enemy.x, y: enemy.y };
 }
 
-function resourcesAvailable(player: MatchPlayer, definition: AbilityDefinition, modifiers: { [channel: string]: number }): boolean {
+function resourcesAvailable(player: MatchPlayer, definition: AbilityDefinition, modifiers: ReadonlyArray<CanonicalModifier>): boolean {
   const resources = dict(player.resources);
-  const identified = identifiedFromChannelMap(modifiers);
   for (let i = 0; i < definition.resourceCosts.length; i++) {
     const cost = definition.resourceCosts[i];
     const current = resources[cost.resourceId] !== undefined ? resources[cost.resourceId] : 0;
-    if (current < scaledManaCost(cost.amount, identified)) {
+    if (current < scaledManaCost(cost.amount, modifiers)) {
       return false;
     }
   }
   return true;
 }
 
-function spendResources(player: MatchPlayer, definition: AbilityDefinition, modifiers: { [channel: string]: number }): void {
+function spendResources(player: MatchPlayer, definition: AbilityDefinition, modifiers: ReadonlyArray<CanonicalModifier>): void {
   const resources = dict(player.resources);
-  const identified = identifiedFromChannelMap(modifiers);
   for (let i = 0; i < definition.resourceCosts.length; i++) {
     const cost = definition.resourceCosts[i];
     const current = resources[cost.resourceId] !== undefined ? resources[cost.resourceId] : 0;
-    resources[cost.resourceId] = current - scaledManaCost(cost.amount, identified);
+    resources[cost.resourceId] = current - scaledManaCost(cost.amount, modifiers);
   }
   player.resources = resources;
+}
+
+function manaCostModifiers(state: StarterZoneState, player: MatchPlayer, tick: number): CanonicalModifier[] {
+  const identified = identifiedFromChannelMap(effectModifiersFrom(player.effects));
+  if (state.progressionCatalog === undefined || player.progression === undefined) {
+    return identified;
+  }
+  return identified.concat(talentModifiersForContext(state.progressionCatalog, player.progression, actorTalentContext(state, player, tick)));
 }
 
 function identifiedFromChannelMap(modifiers: { [channel: string]: number }) {
@@ -1503,6 +1548,7 @@ function copyAbility(raw: Parameters<typeof abilityDefinitionsFromContent>[0][st
       cooldownResetOnKill?: boolean;
       movementKind?: string;
       movementDistance?: number;
+      delay?: number;
     };
     if (typeof extra.hitCount === "number") {
       copied.hitCount = extra.hitCount;
@@ -1512,6 +1558,9 @@ function copyAbility(raw: Parameters<typeof abilityDefinitionsFromContent>[0][st
     }
     if (extra.guaranteedCrit === true) {
       copied.guaranteedCrit = true;
+    }
+    if (typeof extra.delay === "number" && extra.delay > 0) {
+      copied.delay = extra.delay;
     }
     if (extra.cooldownResetOnKill === true) {
       copied.cooldownResetOnKill = true;
@@ -1552,12 +1601,18 @@ function copyAbility(raw: Parameters<typeof abilityDefinitionsFromContent>[0][st
     skillPointCost: raw.skillPointCost !== undefined ? raw.skillPointCost : 0,
     maxRank: raw.maxRank !== undefined ? raw.maxRank : 1,
   };
-  const extraAbility = raw as unknown as { lineWidth?: number; lineLength?: number; hitCount?: number };
+  const extraAbility = raw as unknown as { lineWidth?: number; lineLength?: number; hitCount?: number; delay?: number; coneAngleDegrees?: number };
   if (typeof extraAbility.lineWidth === "number") {
     copiedAbility.lineWidth = extraAbility.lineWidth;
   }
   if (typeof extraAbility.lineLength === "number") {
     copiedAbility.lineLength = extraAbility.lineLength;
+  }
+  if (typeof extraAbility.delay === "number" && extraAbility.delay > 0) {
+    copiedAbility.delay = extraAbility.delay;
+  }
+  if (typeof extraAbility.coneAngleDegrees === "number" && extraAbility.coneAngleDegrees > 0) {
+    copiedAbility.coneAngleDegrees = extraAbility.coneAngleDegrees;
   }
   if (typeof extraAbility.hitCount === "number" && extraAbility.hitCount > 1) {
     for (let e = 0; e < copiedAbility.effects.length; e++) {
@@ -1595,7 +1650,9 @@ export function resolveTalentEffect(
     modifiers.tauntTakenReduction === undefined &&
     modifiers.frenzyMaxStacks === undefined &&
     modifiers.frenzyPerStack === undefined &&
-    modifiers.bonusCritChance === 0
+    modifiers.bonusCritChance === 0 &&
+    modifiers.slowDurationBonus === 0 &&
+    modifiers.rootDurationOverride === undefined
   ) {
     return effect;
   }
@@ -1612,6 +1669,12 @@ export function resolveTalentEffect(
   }
   if (effect.type === "stun" && modifiers.stunDurationOverride !== undefined) {
     resolved.duration = modifiers.stunDurationOverride;
+  }
+  if (effect.type === "root" && modifiers.rootDurationOverride !== undefined) {
+    resolved.duration = modifiers.rootDurationOverride;
+  }
+  if (effect.type === "slow" && modifiers.slowDurationBonus !== 0) {
+    resolved.duration += modifiers.slowDurationBonus;
   }
   if (effect.type === "taunt" && modifiers.tauntTakenReduction !== undefined) {
     resolved.magnitude = { kind: "constant", value: modifiers.tauntTakenReduction };
@@ -1678,6 +1741,7 @@ function actorTalentContext(
     standingStillSeconds: standingStillSeconds(player, tick),
     moving: player.lastMoving === true || player.lastMovedTick === tick,
     nearestEnemyDistance: nearestHostileDistance(state, player.x, player.y),
+    ownedCrowdControlCount: ownedCrowdControlCount(state.enemies, player.userId),
   };
   if (targetId !== undefined && targetId.length > 0) {
     const enemy = findEnemy(state.enemies, targetId);
@@ -1704,6 +1768,241 @@ export function standingStillSeconds(player: MatchPlayer, tick: number): number 
   }
   const elapsed = (tick - player.stillSinceTick) / SNAPSHOT_RATE_HZ;
   return elapsed > 0 ? elapsed : 0;
+}
+
+function scaledAbilityDefinition(
+  definition: AbilityDefinition,
+  talentMods: ReturnType<typeof resolveAbilityTalentModifiers> | undefined,
+): AbilityDefinition {
+  if (talentMods === undefined || talentMods.radiusMultiplier === 1) {
+    return definition;
+  }
+  return {
+    ...definition,
+    areaRadius: definition.areaRadius * talentMods.radiusMultiplier,
+    range: definition.targetMode === "self" ? definition.range * talentMods.radiusMultiplier : definition.range,
+  };
+}
+
+function abilityDelaySeconds(definition: AbilityDefinition): number {
+  if (typeof definition.delay === "number" && definition.delay > 0) {
+    return definition.delay;
+  }
+  for (let i = 0; i < definition.effects.length; i++) {
+    const delay = definition.effects[i].delay;
+    if (typeof delay === "number" && delay > 0) {
+      return delay;
+    }
+  }
+  return 0;
+}
+
+function scheduleDelayedAbility(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  definition: AbilityDefinition,
+  targeting: { primaryId: string; pointX: number; pointY: number },
+  tick: number,
+  stats: EvaluatedStats | null,
+  talentMods: ReturnType<typeof resolveAbilityTalentModifiers> | undefined,
+): void {
+  let damageBase = 0;
+  let guaranteedCrit = false;
+  let powerCategory: "melee" | "ranged" | "spell" | "curse" | "heal" | "shield" | undefined;
+  for (let i = 0; i < definition.effects.length; i++) {
+    const effect = definition.effects[i];
+    if (effect.type !== "direct_damage") {
+      continue;
+    }
+    if (typeof effect.magnitude.value === "number" && isFinite(effect.magnitude.value)) {
+      damageBase += effect.magnitude.value;
+    }
+    if (effect.guaranteedCrit === true) {
+      guaranteedCrit = true;
+    }
+    if (effect.powerCategory !== undefined) {
+      powerCategory = effect.powerCategory;
+    }
+  }
+  if (talentMods !== undefined) {
+    damageBase *= talentMods.damageMultiplier;
+  }
+  const pending = state.pendingGroundEffects !== undefined ? state.pendingGroundEffects : [];
+  const delayTicks = cooldownTicks(abilityDelaySeconds(definition), SNAPSHOT_RATE_HZ);
+  const scheduled = scheduleDelayedGround(pending, {
+    id: definition.id + ":" + player.userId + ":" + tick,
+    sourceId: player.userId,
+    sourceKind: "player",
+    abilityId: definition.id,
+    x: targeting.pointX,
+    y: targeting.pointY,
+    radius: definition.areaRadius,
+    resolveTick: tick + delayTicks,
+    effectId: definition.id,
+    directDamageBase: damageBase,
+    guaranteedCrit: guaranteedCrit,
+    powerCategory: powerCategory,
+    canonicalStats: stats !== null ? { ...stats.values } : undefined,
+    canonicalCritChance: stats !== null && stats.critChance !== undefined ? stats.critChance : undefined,
+    canonicalCritMult: stats !== null && stats.critMult !== undefined ? stats.critMult : undefined,
+    canonicalOutgoingProduct: stats !== null && stats.canonical !== undefined ? stats.canonical.outgoingProduct : undefined,
+  });
+  state.pendingGroundEffects = scheduled;
+}
+
+function applyOnCritDot(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  target: EffectTarget,
+  abilityId: string,
+  percent: number,
+  events: CombatEvent[],
+  eventStart: number,
+  tick: number,
+  stats: EvaluatedStats | null,
+  fallbackAttack: number,
+  hitIndex: number,
+): void {
+  let dealt = 0;
+  let crit = false;
+  for (let i = eventStart; i < events.length; i++) {
+    if (events[i].type === "hit" && events[i].targetId === target.id && events[i].damage !== undefined) {
+      dealt += events[i].damage as number;
+      if (events[i].crit === true) {
+        crit = true;
+      }
+    }
+  }
+  if (!crit || !(dealt > 0) || !(percent > 0)) {
+    return;
+  }
+  const perTick = (dealt * percent) / 4;
+  const burn: EffectDefinition = {
+    id: "afterburn-" + tick + "-" + hitIndex + "-" + target.id,
+    type: "periodic_damage",
+    source: "caster",
+    target: "primary",
+    magnitude: { kind: "constant", value: perTick },
+    duration: 4,
+    tickInterval: 1,
+    stackPolicy: "replace",
+    maxStacks: 1,
+    refreshPolicy: "refresh",
+    removalReason: "expired",
+    tags: ["afterburn", "burn"],
+    powerCategory: "spell",
+  };
+  applyEffectDefinition(state, burn, abilityId, player, target, stats, fallbackAttack, tick, events);
+  writeTarget(state, target);
+}
+
+function applyOnHitPeriodic(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  target: EffectTarget,
+  abilityId: string,
+  base: number,
+  durationSec: number,
+  tick: number,
+  events: CombatEvent[],
+  stats: EvaluatedStats | null,
+  fallbackAttack: number,
+  hitIndex: number,
+): void {
+  if (!(base > 0) || !(durationSec > 0)) {
+    return;
+  }
+  const total = stats !== null && stats.canonical !== undefined ? scalePower(base, "spell", stats.values) : base;
+  const perTick = total / durationSec;
+  const burn: EffectDefinition = {
+    id: "on-hit-periodic-" + tick + "-" + hitIndex + "-" + target.id,
+    type: "periodic_damage",
+    source: "caster",
+    target: "primary",
+    magnitude: { kind: "constant", value: perTick },
+    duration: durationSec,
+    tickInterval: 1,
+    stackPolicy: "replace",
+    maxStacks: 1,
+    refreshPolicy: "refresh",
+    removalReason: "expired",
+    tags: ["burn", "fire"],
+    powerCategory: "spell",
+  };
+  applyEffectDefinition(state, burn, abilityId, player, target, stats, fallbackAttack, tick, events);
+  writeTarget(state, target);
+}
+
+function applySlowOutgoingReduction(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  target: EffectTarget,
+  abilityId: string,
+  percent: number,
+  durationSec: number,
+  tick: number,
+  events: CombatEvent[],
+  stats: EvaluatedStats | null,
+  fallbackAttack: number,
+): void {
+  if (!(durationSec > 0)) {
+    return;
+  }
+  const reduction: EffectDefinition = {
+    id: "numbing-" + abilityId,
+    type: "timed_stat_modifier",
+    source: "caster",
+    target: "primary",
+    magnitude: { kind: "constant", value: percent },
+    duration: durationSec,
+    tickInterval: 0,
+    stackPolicy: "replace",
+    maxStacks: 1,
+    refreshPolicy: "refresh",
+    removalReason: "expired",
+    tags: ["numbing"],
+    statChannel: "outgoing_damage",
+  };
+  applyEffectDefinition(state, reduction, abilityId, player, target, stats, fallbackAttack, tick, events);
+  writeTarget(state, target);
+}
+
+function refundManaOnCrits(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  events: CombatEvent[],
+  eventStart: number,
+): void {
+  if (state.progressionCatalog === undefined || player.progression === undefined) {
+    return;
+  }
+  const fraction = passiveTalentModifierValue(state.progressionCatalog, player.progression, "mana_refund_percent_of_max");
+  if (!(fraction > 0)) {
+    return;
+  }
+  let crits = 0;
+  for (let i = eventStart; i < events.length; i++) {
+    if (events[i].type === "hit" && events[i].sourceId === player.userId && events[i].crit === true) {
+      crits += 1;
+    }
+  }
+  if (crits <= 0) {
+    return;
+  }
+  const stats = casterStats(state, player);
+  if (stats === null || !(stats.maxMana > 0)) {
+    return;
+  }
+  const manaId = resourceIdForRole(state.progressionCatalog, "mana");
+  if (manaId.length === 0) {
+    return;
+  }
+  const resources = dict(player.resources);
+  const current = resources[manaId] !== undefined ? resources[manaId] : 0;
+  const refund = stats.maxMana * fraction * crits;
+  const next = current + refund;
+  resources[manaId] = next > stats.maxMana ? stats.maxMana : next;
+  player.resources = resources;
 }
 
 function applyOnHitBleed(

@@ -711,3 +711,11 @@ Snipe is a channel that applies on completion: `channelSeconds = 1.5 * (1 + abil
 
 Haste still does not change stored cooldown duration. Nimble, Sniper's Nest, and Runner's High advance remaining cooldown ticks at `1 + bonus` while their conditions hold. Nest requires two seconds of unchanged authoritative position and ends on movement including Vault. Killer Instinct uses melee range `40`. Mage and Mystic combat remain later.
 
+## 2026-09-16 — PROG-11 Mage, Fire, and Frost
+
+Mage auto-attack, Arcane Bolt, Fireball, Flame Wave, Meteor, Ice Bolt, Flash Freeze, and Absolute Zero are `runtimeEnabled: true` on the existing generic combat path. No generic module branches on `class.mage`.
+
+Mana is spent at cast start; interrupted casts do not refund. Kindled Mind maps `mana_cost_percent` into the shared mana-cost product. Afterburn is an on-crit DoT of 25% of the actual Fireball hit over 4s and never crits. Flame Wave R2 applies 12 INT-scaled periodic burn over 3s. Meteor is delayed-ground AoE that always crits. Ice Bolt fraction slows convert to −30 movement-speed percent. Deep Chill adds +1s/+2s to that slow. Numbing Cold writes source-owned outgoing-damage reduction on slowed enemies. Rimeguard and Winter Harvest key off living enemies this caster currently slows, roots, or freezes. Second Spark refunds 8% of maximum mana on crit hits and clamps to max. Flash Freeze / Meteor / Absolute Zero nearby radius 40 and Flame Wave cone 60° remain the PROG-02 implementation geometry. Flame Wave cone length uses `max(ability range, areaRadius)` so the authored 180 range reaches standard combat distance.
+
+The Metronome Law regression is the documented current result `5 / (1.5/1.12) = 3.73 ≤ 3.8`. Mystic combat remains PROG-12.
+

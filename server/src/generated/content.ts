@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "e1e03af49b43acdc5242268bd52b2f7ec6e7ec2e794d3dfd93c0b3f8dca6c38f";
+export const contentHash = "5cea7b29fd80d47f52919d1af156a2fa775db192a92b21bf2d966b82202417dd";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = ["npc.lab_exit","npc.lab_inn","npc.lab_keeper","npc.lab_trainer","npc.lab_vendor","quest.lab_tour","spawn.lab.boss","spawn.lab.caster","spawn.lab.melee","spawn.lab.ranged","test.zone.systems_lab","vendor.lab_general"] as const;
 export const content = {
@@ -64,7 +64,7 @@ export const content = {
       ],
       "requiredLevel": 10,
       "resourceCosts": [],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "spell",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_bolt_sound",
@@ -132,7 +132,7 @@ export const content = {
           "resourceId": "test.resource.mana"
         }
       ],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "spell",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_bolt_sound",
@@ -202,7 +202,7 @@ export const content = {
           "resourceId": "test.resource.mana"
         }
       ],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "spell",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_bolt_sound",
@@ -273,7 +273,7 @@ export const content = {
           "resourceId": "test.resource.mana"
         }
       ],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "spell",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_bolt_sound",
@@ -341,7 +341,7 @@ export const content = {
           "resourceId": "test.resource.mana"
         }
       ],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "spell",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_bolt_sound",
@@ -433,7 +433,7 @@ export const content = {
           "resourceId": "test.resource.mana"
         }
       ],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "spell",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_bolt_sound",
@@ -523,7 +523,7 @@ export const content = {
       ],
       "requiredLevel": 10,
       "resourceCosts": [],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "spell",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_bolt_sound",
@@ -2849,7 +2849,7 @@ export const content = {
       "ownerClassId": "class.mage",
       "range": 180,
       "relationFilter": "hostile",
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "scalingStatId": "stat.intelligence",
       "school": "spell",
       "soundAssetId": "visual.ability_bolt_sound",
@@ -7624,7 +7624,7 @@ export const content = {
           "abilityId": "ability.mage.fireball",
           "modifiers": [
             {
-              "type": "ability_damage_percent",
+              "type": "on_crit_dot_percent",
               "value": 0.25
             }
           ]
@@ -7734,8 +7734,12 @@ export const content = {
           "abilityId": "ability.mage.flame_wave",
           "modifiers": [
             {
-              "type": "ability_damage_percent",
+              "type": "on_hit_periodic_base",
               "value": 12
+            },
+            {
+              "type": "on_hit_periodic_duration",
+              "value": 3
             }
           ]
         }
@@ -7942,7 +7946,7 @@ export const content = {
       "maxRank": 1,
       "passiveModifiers": [
         {
-          "type": "damage_dealt_percent",
+          "type": "slow_reduces_target_damage_percent",
           "value": -0.1
         }
       ],
@@ -7956,8 +7960,7 @@ export const content = {
         {
           "conditions": [
             {
-              "tag": "slow",
-              "type": "effect_active"
+              "type": "owned_crowd_control"
             }
           ],
           "modifiers": [
@@ -7988,7 +7991,7 @@ export const content = {
       "maxRank": 1,
       "passiveModifiers": [
         {
-          "type": "mana_regen_flat",
+          "type": "mana_regen_per_controlled_enemy",
           "value": 0.5
         }
       ],

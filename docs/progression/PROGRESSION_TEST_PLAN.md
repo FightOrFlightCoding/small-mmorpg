@@ -78,7 +78,7 @@ Existing tests that must not be weakened: `progression.test.ts`, `xp_hooks.test.
 
 ## Live snapshot (PROG-08)
 
-The audit asserts production `class.*` ids are warrior/marksman/mage/**mystic**, all `rosterSelectable: true`, `test.curve.standard` maxLevel 5 / XP sum 375, production overlay `curve.vibecode.l10` maxLevel 10, Foundation `HOTBAR_SIZE` 8 (test-only), production `CANONICAL_HOTBAR_SIZE` 4, physical classes omit mana on `startingResources`, and only canonical Warrior abilities are `runtimeEnabled: true`. Production-class **vitals** use canonical HP/mana formulas. Warrior ATTACK uses its canonical definition; remaining class ATTACK paths retain Foundation values until their named phases. Production KillXP, the L10 curve, free-stat allocation, trainer respec, talent spend, derived ownership, the four-slot production hotbar, and the generic combat engine are live. [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md) owns every remaining gap. `C-hotbar-dual`, `C-unlock-any-ability`, `C-talent-runtime`, and `C-gcd` are RESOLVED.
+The audit asserts production `class.*` ids are warrior/marksman/mage/**mystic**, all `rosterSelectable: true`, `test.curve.standard` maxLevel 5 / XP sum 375, production overlay `curve.vibecode.l10` maxLevel 10, Foundation `HOTBAR_SIZE` 8 (test-only), production `CANONICAL_HOTBAR_SIZE` 4, physical classes omit mana on `startingResources`, and Warrior/Marksman/Mage abilities are `runtimeEnabled: true`. Production-class **vitals** use canonical HP/mana formulas. Warrior, Marksman, and Mage ATTACK use their canonical definitions; Mystic ATTACK retains Foundation values until PROG-12. Production KillXP, the L10 curve, free-stat allocation, trainer respec, talent spend, derived ownership, the four-slot production hotbar, and the generic combat engine are live. [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md) owns every remaining gap. `C-hotbar-dual`, `C-unlock-any-ability`, `C-talent-runtime`, and `C-gcd` are RESOLVED.
 
 ## Later named closures
 
@@ -103,3 +103,7 @@ Search production bundles and runtime paths for `globalCooldown`, `global_cooldo
 ### PROG-10 Marksman, Sniper, and Skirmisher
 
 Named tests: `server/tests/marksman_progression.test.ts` and `server/tests/marksman_balance.test.ts`. They cover aim timing, auto-attack pause, stun interrupt, standing-still and movement detection, independent Barrage crits, bleed total preservation, Vault collision, caltrops, Coup kill reset, every node/rank, respec removal, and Sniper/Skirmisher DPS ±5%.
+
+### PROG-11 Mage, Fire, and Frost
+
+Named tests: `server/tests/mage_progression.test.ts`, `server/tests/mage_balance.test.ts`, and `server/tests/progression_metronome.test.ts`. They cover mana spend/regen, cast interrupt without refund, Kindled Mind cost reduction, Second Spark crit refunds clamped to max, Afterburn on Fireball crits only (DoT never crits), Meteor ground delay and guaranteed crit, Ice Bolt slow ownership, dynamic Rimeguard and Winter Harvest, Flash Freeze root, Absolute Zero incapacitation, every talent rank, Fire/Frost DPS ±5%, and the documented Metronome Law result `5 / (1.5/1.12) = 3.73 ≤ 3.8`.
