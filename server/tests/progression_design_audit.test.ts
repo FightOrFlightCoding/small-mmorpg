@@ -197,16 +197,18 @@ test("live catalog snapshot keeps foundation combat while four production classe
   assert.ok(Object.prototype.hasOwnProperty.call(content.stats, "stat.strength"));
   assert.equal(content.abilities["ability.warrior.heavy_strike"].runtimeEnabled, true);
   assert.equal(content.autoAttacks["ability.warrior.auto_attack"].runtimeEnabled, true);
-  for (const id of Object.keys(content.abilities)) {
+  const abilities = content.abilities as { [id: string]: { runtimeEnabled?: boolean } };
+  for (const id of Object.keys(abilities)) {
     assert.equal(
-      content.abilities[id].runtimeEnabled === true,
+      abilities[id].runtimeEnabled === true,
       id.indexOf("ability.warrior.") === 0,
       "only PROG-09 Warrior abilities are enabled: " + id,
     );
   }
-  for (const id of Object.keys(content.autoAttacks)) {
+  const autoAttacks = content.autoAttacks as { [id: string]: { runtimeEnabled?: boolean } };
+  for (const id of Object.keys(autoAttacks)) {
     assert.equal(
-      content.autoAttacks[id].runtimeEnabled === true,
+      autoAttacks[id].runtimeEnabled === true,
       id === "ability.warrior.auto_attack",
       "only PROG-09 Warrior auto attack is enabled: " + id,
     );
