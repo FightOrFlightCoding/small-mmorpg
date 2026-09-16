@@ -649,6 +649,7 @@ The intentional Marksman content update changes the shared generated hash to `e1
 | Server hermetic | 684 passed, 13 skipped; bundle built |
 | Marksman mechanics and balance regressions | 11/11 (`marksman_progression`, `marksman_balance`) |
 | Client GdUnit | 283/283, 0 failures, 0 orphans, `SHELL_LOGIN` |
+| GitHub `verify` | passed (`108e529`, run 35122418089) |
 
 Limitations: Mage and Mystic combat remain PROG-11–12. The eight-slot Foundation hotbar remains test-only. Manual Prompt 18 world play was not re-run; live village/slime combat behavior was not changed.
 
