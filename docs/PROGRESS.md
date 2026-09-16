@@ -685,7 +685,7 @@ Authorized GM tools (`gm_command`, server allowlist, audited): inspect progressi
 | Foundation audit | `FOUNDATION_AUDIT_OK` (29 RPCs, 34 storage records, 38 client opcodes) |
 | Server hermetic | 739 passed, 13 skipped (Node 22 glob `dist-test/tests/*.test.js`; directory `npm test` still fails on Node 22) |
 | Client GdUnit | 297/297, 0 failures, 0 orphans, `SHELL_LOGIN` |
-| GitHub `verify` | pending |
+| GitHub `verify` | passed (`8a6ed58`, run 35150769811) |
 
 Limitations: Production legacy-path removal and balance certification remain PROG-15. The eight-slot Foundation hotbar remains test-only. Manual Prompt 18 world play was not re-run; live village/slime combat behavior was not changed.
 
