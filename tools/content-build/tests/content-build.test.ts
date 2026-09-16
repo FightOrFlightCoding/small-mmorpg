@@ -121,8 +121,9 @@ test("valid source documents compile to a payload", () => {
   assert.equal(payload.classes["class.mystic"].rosterSelectable, true);
   assert.equal(payload.classes["class.warrior"].baseStats?.["stat.strength"], 8);
   assert.equal(payload.levelCurves["curve.vibecode.l10"].maxLevel, 10);
-  assert.equal(payload.autoAttacks["ability.warrior.auto_attack"].runtimeEnabled, false);
-  assert.equal(payload.abilities["ability.warrior.heavy_strike"].runtimeEnabled, false);
+  assert.equal(payload.autoAttacks["ability.warrior.auto_attack"].runtimeEnabled, true);
+  assert.equal(payload.abilities["ability.warrior.heavy_strike"].runtimeEnabled, true);
+  assert.equal(payload.abilities["ability.mage.arcane_bolt"].runtimeEnabled, false);
   assert.equal(Object.keys(payload.referenceBuilds).length, 16);
   assert.equal(payload.items["item.training_sword"].category, "weapon");
   assert.equal(payload.items["item.slime_gel"].destroyable, false);
