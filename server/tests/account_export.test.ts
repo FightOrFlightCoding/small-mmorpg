@@ -89,24 +89,44 @@ test("assembled export keeps canonical progression fields", () => {
         name: "Scout",
         classId: "class.warrior",
         progression: {
-          progressionSchemaVersion: 2,
+          progressionSchemaVersion: 3,
           classId: "class.warrior",
-          branchId: "",
-          level: 1,
-          xpIntoLevel: 0,
-          lifetimeXp: 0,
-          freeStatAllocations: {},
-          purchasedClassNodeIds: [],
-          purchasedBranchNodeRanks: {},
-          autoAssignEnabled: false,
-          hotbarAssignments: [],
+          branchId: "branch.warrior.berserker",
+          level: 6,
+          xpIntoLevel: 12,
+          lifetimeXp: 900,
+          freeStatAllocations: { "stat.strength": 2 },
+          purchasedClassNodeIds: ["talent.warrior.conditioning"],
+          purchasedBranchNodeRanks: { "talent.warrior.berserker.slaughter": 1 },
+          autoAssignEnabled: true,
+          hotbarAssignments: ["ability.warrior.heavy_strike", "", "", ""],
+        },
+        progressionExport: {
+          classId: "class.warrior",
+          branchId: "branch.warrior.berserker",
+          level: 6,
+          xpIntoLevel: 12,
+          currentXp: 12,
+          lifetimeXp: 900,
+          freeStatAllocations: { "stat.strength": 2 },
+          purchasedClassNodeIds: ["talent.warrior.conditioning"],
+          purchasedBranchNodeRanks: { "talent.warrior.berserker.slaughter": 1 },
+          autoAssignEnabled: true,
+          hotbarAssignments: ["ability.warrior.heavy_strike", "", "", ""],
+          leftoverMigrationNotice: "",
+          progressionSchemaVersion: 3,
         },
       },
     ],
   });
-  const characters = payload.characters as Array<{ progression: { [key: string]: unknown } }>;
+  const characters = payload.characters as Array<{
+    progression: { [key: string]: unknown };
+    progressionExport: { [key: string]: unknown };
+  }>;
   assert.equal(characters[0].progression.classId, "class.warrior");
-  assert.equal(characters[0].progression.progressionSchemaVersion, 2);
-  assert.equal(characters[0].progression.level, 1);
+  assert.equal(characters[0].progression.progressionSchemaVersion, 3);
+  assert.equal(characters[0].progression.level, 6);
+  assert.equal(characters[0].progressionExport.branchId, "branch.warrior.berserker");
+  assert.equal(characters[0].progressionExport.autoAssignEnabled, true);
   assert.equal(exportContainsSecrets(payload), false);
 });

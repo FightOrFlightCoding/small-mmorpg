@@ -1,6 +1,6 @@
 # Progression migration plan
 
-PROG-03 implements the v1 → canonical `progressionSchemaVersion` **2** mapping on load. `SAVE_SCHEMA_VERSION` stays **1**.
+PROG-03 implements the v1 → canonical `progressionSchemaVersion` **2** mapping on load. PROG-14 finishes leftover Foundation-field cleanup and writes `progressionSchemaVersion` **3**. `SAVE_SCHEMA_VERSION` stays **1**.
 
 Related: [MIGRATIONS.md](../MIGRATIONS.md), [PROGRESSION_STORAGE_CATALOG.md](PROGRESSION_STORAGE_CATALOG.md).
 
@@ -46,25 +46,29 @@ Existing characters cannot be left implicit.
 
 Missing progression blob: initialize canonical level 1 for the character's class, then persist.
 
-## PROG-14 final policy (planned)
+## PROG-14 leftover cleanup (implemented)
 
-PROG-03 v2 mapping is **not** the last migration. It keeps live 3-stat allocations, unlocks, and the 8-slot hotbar, and it leaves canonical `freeStatAllocations` and talent purchases empty. That is acceptable for development and certification characters. It is not acceptable as the permanent fate of real player investment.
+PROG-03 v2 mapping is **not** the last migration. It kept live 3-stat allocations, unlocks, and the 8-slot hotbar, and it left canonical `freeStatAllocations` and talent purchases empty. That remains acceptable for development and certification characters (`test.*` classes). It is not the permanent fate of real player investment.
 
-Before PROG-14 completes:
+Chosen policy: **explicit reset with a visible notice**. Do not map `test.attribute.might` onto STR. Do not refund Foundation 3-stat spend as extra canonical unspent points: earned free points stay `3 * (level - 1)` and are calculated, not stored. Clearing unread Foundation authorities leaves that budget intact.
 
-1. Classify every existing character as **development/test** or **real player**.
-2. Development/test characters may be migrated under deterministic test rules, reset through authorized development tooling, or retained solely for regression compatibility.
-3. Real player characters must have old allocation **translated** deterministically, **refunded** as equivalent canonical unspent points, or **explicitly reset** with a visible migration notice.
-4. Do not leave old investment in a field the canonical stat engine no longer reads.
-5. Run migration logic even for records already marked `progressionSchemaVersion` **2** when they still contain leftover Foundation authorities (`allocatedAttributes`, live 8-slot `hotbar`, production `unlockedAbilityIds`). A PROG-03 blob must not be treated as finished merely because its schema number is current.
+1. **Classify.** `test.*` class ids are development/test. Production `class.*` (canonical create-state / `autoAttackId`) are real-player characters.
+2. **Test characters.** Keep Foundation `allocatedAttributes`, live 8-slot `hotbar`, and `test.ability.*` unlocks. Bump `progressionSchemaVersion` to **3** only. Authorized GM `reset_progression_fixture` may wipe a lab character to canonical level 1.
+3. **Production characters.** If the blob is below schema 3 **or** still contains leftover Foundation authorities (`allocatedAttributes`, Foundation unspent counters, live `hotbar`, production `test.ability.*` unlocks, hotbar longer than 4), run leftover cleanup even when the stored schema number is already 2.
+4. **Cleanup.** Copy the first four legal live hotbar slots into `hotbarAssignments` when that array is empty. Clear `allocatedAttributes`, Foundation unspent counters, and live `hotbar`. Recompute production `unlockedAbilityIds` from class, level, branch, and purchased nodes. Set `leftoverMigrationNotice` to `leftover_foundation_reset` when leftover authorities were present. Write `progressionSchemaVersion` **3**.
+5. **Do not regrant.** Level, XP, canonical free allocations, purchased nodes, branch, auto-assign, and `xpByEventId` stay. Missing progression still initializes canonical level 1 once.
+6. **Future versions.** `progressionSchemaVersion` greater than **3** is `unsupported_future_version`. List/export/join must not rewrite the blob. Join fails visibly.
+7. **Idempotent replay.** A second migrate of a finished schema-3 record is a no-op. Interrupted leftover cleanup retries without duplicating canonical spend.
+8. **Lifecycle.** Soft-delete leaves the blob; restore does not re-init starters, regrant rewards, duplicate skills/points, reset branch/hotbar, or refill gold. Character purge and account deletion remove the progression object. Recreating after purge (including reused email on a new account) starts at canonical level 1.
 
-Do not implement this mapping before PROG-14. Details of the chosen translation/refund/reset path are recorded in this file when that phase runs.
+`SAVE_SCHEMA_VERSION` remains **1**. No custom SQL.
 
 ## Fixtures
 
-- `server/tests/fixtures/saves/current-v1-alice.json` — test vanguard L2 with 3-stat allocation; canonical migrate keeps class/level/XP.
-- `server/tests/canonical_progression.test.ts` — warrior L1 and L5 inline v1 blobs, hotbar mapping, caster/physical mana, create idempotency.
+- `server/tests/fixtures/saves/current-v1-alice.json` — test vanguard L2 with 3-stat allocation; leftover pass keeps Foundation fields and bumps schema to 3.
+- `server/tests/canonical_progression.test.ts` — warrior L1 and L5 inline v1 blobs, leftover reset, hotbar mapping, caster/physical mana, create idempotency.
+- `server/tests/progression_lifecycle.test.ts` — vertical-slice vanguard, account-lifecycle leftover, current character, partial blob, future version, interrupted/repeated migrate, four-class party XP, GM tools.
 
 ## Rollout
 
-Follow [DEPLOYMENT.md](../DEPLOYMENT.md): backup → validate → dry-run → server → apply → client → smoke. Maintenance `blockTransactions` if the window is unsafe. No downgrade path once schema 2 is written (existing limitation).
+Follow [DEPLOYMENT.md](../DEPLOYMENT.md): backup → validate → dry-run → server → apply → client → smoke. Maintenance `blockTransactions` if the window is unsafe. No downgrade path once schema 3 is written.

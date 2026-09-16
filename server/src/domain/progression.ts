@@ -9,6 +9,12 @@ import {
   type ProgressionEvent,
 } from "./canonical_leveling";
 import {
+  applyLeftoverFoundationMigration,
+  REASON_OK,
+  REASON_UNSUPPORTED_PROGRESSION_VERSION,
+  type CanonicalMigrationResult,
+} from "./canonical_leftover_migration";
+import {
   CANONICAL_AUTO_ASSIGN_DEFAULT,
   CANONICAL_PROGRESSION_SCHEMA_VERSION,
   CANONICAL_RESPEC_GOLD_PER_LEVEL,
@@ -75,6 +81,7 @@ export interface CharacterProgression {
   purchasedBranchNodeRanks: { [nodeId: string]: number };
   autoAssignEnabled: boolean;
   hotbarAssignments: string[];
+  leftoverMigrationNotice?: string;
   schemaVersion?: number;
   createdAt?: number;
   updatedAt?: number;
@@ -174,6 +181,7 @@ export function emptyProgression(): CharacterProgression {
     purchasedBranchNodeRanks: {},
     autoAssignEnabled: CANONICAL_AUTO_ASSIGN_DEFAULT,
     hotbarAssignments: [],
+    leftoverMigrationNotice: "",
   };
 }
 
@@ -216,6 +224,8 @@ export function cloneProgression(progression: CharacterProgression | undefined):
     purchasedBranchNodeRanks: copyNumberMap(progression.purchasedBranchNodeRanks),
     autoAssignEnabled: progression.autoAssignEnabled === true,
     hotbarAssignments: copyStringList(progression.hotbarAssignments),
+    leftoverMigrationNotice:
+      progression.leftoverMigrationNotice !== undefined ? progression.leftoverMigrationNotice : "",
     schemaVersion: envelope.schemaVersion,
     createdAt: envelope.createdAt,
     updatedAt: envelope.updatedAt,
@@ -280,14 +290,23 @@ export function migrateToCanonicalProgression(
   classId: string,
   nowMs: number,
   catalog?: ProgressionCatalog,
-): { progression: CharacterProgression; changed: boolean } {
+): CanonicalMigrationResult {
   if (existing === null) {
     const created = catalog !== undefined ? initializeProgression(catalog, classId) : emptyProgression();
     created.classId = classId;
     created.createdAt = nowMs;
     created.updatedAt = nowMs;
     created.progressionSchemaVersion = PROGRESSION_SCHEMA_VERSION;
-    return { progression: created, changed: true };
+    created.leftoverMigrationNotice = "";
+    return { progression: created, changed: true, ok: true, reason: REASON_OK };
+  }
+  if (existing.progressionSchemaVersion > PROGRESSION_SCHEMA_VERSION) {
+    return {
+      progression: cloneProgression(existing),
+      changed: false,
+      ok: false,
+      reason: REASON_UNSUPPORTED_PROGRESSION_VERSION,
+    };
   }
   const next = cloneProgression(existing);
   let changed = false;
@@ -295,8 +314,7 @@ export function migrateToCanonicalProgression(
     next.classId = classId;
     changed = true;
   }
-  if (next.progressionSchemaVersion < PROGRESSION_SCHEMA_VERSION) {
-    next.progressionSchemaVersion = PROGRESSION_SCHEMA_VERSION;
+  if (next.progressionSchemaVersion < 2) {
     next.level = clampCanonicalLevel(next.level);
     next.xpIntoLevel = next.currentXp;
     next.freeStatAllocations = {};
@@ -305,6 +323,7 @@ export function migrateToCanonicalProgression(
     next.branchId = "";
     next.autoAssignEnabled = CANONICAL_AUTO_ASSIGN_DEFAULT;
     next.hotbarAssignments = canonicalHotbarFromLive(next.hotbar);
+    next.progressionSchemaVersion = 2;
     next.updatedAt = nowMs;
     if (next.createdAt === undefined || next.createdAt === 0) {
       next.createdAt = nowMs;
@@ -314,7 +333,10 @@ export function migrateToCanonicalProgression(
     next.xpIntoLevel = next.currentXp;
     changed = true;
   }
-  return { progression: next, changed: changed };
+  if (applyLeftoverFoundationMigration(next, classId, nowMs, catalog)) {
+    changed = true;
+  }
+  return { progression: next, changed: changed, ok: true, reason: REASON_OK };
 }
 
 export function grantXp(
@@ -637,6 +659,9 @@ export function publicProgression(
     pendingBranchSelection: pendingBranchSelection(progression.level, progression.branchId),
     canonicalDerived: copyNumberMap(derivedValues),
   };
+  if (progression.leftoverMigrationNotice !== undefined && progression.leftoverMigrationNotice.length > 0) {
+    payload.leftoverMigrationNotice = progression.leftoverMigrationNotice;
+  }
   if (events !== undefined && events.length > 0) {
     payload.events = copyEvents(events);
   }

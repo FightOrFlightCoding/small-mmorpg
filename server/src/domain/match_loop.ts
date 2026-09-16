@@ -751,11 +751,11 @@ function handleValidated(
     return;
   }
   if (parsed.opcode === ClientOpcode.CAVE_ENTER) {
-    handleCaveEnter(parsed, userId, state, tick, outbound, transfers);
+    handleCaveEnter(parsed, userId, state, tick, outbound, transfers, persistProgressionByUser);
     return;
   }
   if (parsed.opcode === ClientOpcode.CAVE_EXIT) {
-    handleCaveExit(parsed, userId, state, tick, outbound, transfers);
+    handleCaveExit(parsed, userId, state, tick, outbound, transfers, persistProgressionByUser);
     return;
   }
   if (isTradeOpcode(parsed.opcode)) {
@@ -1186,6 +1186,7 @@ function handleCaveEnter(
   tick: number,
   outbound: MatchOutbound[],
   transfers: CaveTransferIntent[],
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
 ): void {
   const player = state.players[userId];
   if (player === undefined) {
@@ -1198,6 +1199,9 @@ function handleCaveEnter(
   const prior = dict(player.caveEnterByRequestId)[requestId];
   if (prior !== undefined) {
     if (prior === "ok") {
+      if (player.progression !== undefined) {
+        persistProgressionByUser[userId] = cloneProgression(player.progression);
+      }
       queueCaveTransfer(player, transfers, userId, requestId, "enter", npcId, tick);
       return;
     }
@@ -1232,6 +1236,9 @@ function handleCaveEnter(
     return;
   }
   rememberCaveRequest(player, requestId, "ok");
+  if (player.progression !== undefined) {
+    persistProgressionByUser[userId] = cloneProgression(player.progression);
+  }
   queueCaveTransfer(player, transfers, userId, requestId, "enter", npcId, tick);
 }
 
@@ -1242,6 +1249,7 @@ function handleCaveExit(
   tick: number,
   outbound: MatchOutbound[],
   transfers: CaveTransferIntent[],
+  persistProgressionByUser: { [userId: string]: CharacterProgression },
 ): void {
   const player = state.players[userId];
   if (player === undefined) {
@@ -1254,6 +1262,9 @@ function handleCaveExit(
   const prior = dict(player.caveEnterByRequestId)[requestId];
   if (prior !== undefined) {
     if (prior === "ok") {
+      if (player.progression !== undefined) {
+        persistProgressionByUser[userId] = cloneProgression(player.progression);
+      }
       queueCaveTransfer(player, transfers, userId, requestId, "exit", npcId, tick);
       return;
     }
@@ -1284,6 +1295,9 @@ function handleCaveExit(
     return;
   }
   rememberCaveRequest(player, requestId, "ok");
+  if (player.progression !== undefined) {
+    persistProgressionByUser[userId] = cloneProgression(player.progression);
+  }
   queueCaveTransfer(player, transfers, userId, requestId, "exit", npcId, tick);
 }
 

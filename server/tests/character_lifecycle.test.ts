@@ -17,6 +17,7 @@ import { migrationDefaultClassId, type ClassDefinition } from "../src/domain/cla
 import { catalogFromContent } from "../src/domain/stats";
 import { initializeProgression, migrateToCanonicalProgression, type CharacterProgression } from "../src/domain/progression";
 import { assembleAccountExport } from "../src/domain/account_export";
+import { exportProgressionSnapshot } from "../src/domain/canonical_leftover_migration";
 import {
   CANONICAL_AUTO_ASSIGN_DEFAULT,
   CANONICAL_PROGRESSION_SCHEMA_VERSION,
@@ -517,8 +518,12 @@ test("existing v1 warrior migrates without changing class or resetting xp", () =
   assert.equal(migrated.currentXp, 12);
   assert.equal(migrated.xpIntoLevel, 12);
   assert.equal(migrated.lifetimeXp, 387);
-  assert.deepEqual(migrated.unlockedAbilityIds, ["test.ability.basic_melee"]);
-  assert.deepEqual(migrated.hotbarAssignments, ["ability.warrior.heavy_strike"]);
+  assert.equal(migrated.unlockedAbilityIds.indexOf("ability.warrior.heavy_strike") >= 0, true);
+  assert.equal(migrated.unlockedAbilityIds.indexOf("test.ability.basic_melee"), -1);
+  assert.equal(migrated.hotbar, undefined);
+  assert.deepEqual(migrated.allocatedAttributes, {});
+  assert.equal(migrated.leftoverMigrationNotice, "leftover_foundation_reset");
+  assert.equal(migrated.hotbarAssignments[0], "ability.warrior.heavy_strike");
   assert.deepEqual(migrated.purchasedClassNodeIds, []);
   assert.equal(migrated.branchId, "");
   const again = migrateToCanonicalProgression(migrated, "class.warrior", mem.now + 50, mem.progressionCatalog);
@@ -537,16 +542,22 @@ test("account export includes the canonical progression record without secrets",
       {
         catalog: mem.readCharacter("user-a", "char-a"),
         progression: progression,
+        progressionExport: progression !== null ? exportProgressionSnapshot(progression) : null,
       },
     ],
     gold: 0,
     settings: {},
   });
-  const characters = payload.characters as Array<{ progression: CharacterProgression }>;
+  const characters = payload.characters as Array<{
+    progression: CharacterProgression;
+    progressionExport: { classId: string; level: number };
+  }>;
   assert.equal(characters.length, 1);
   assert.equal(characters[0].progression.classId, "class.mage");
   assert.equal(characters[0].progression.progressionSchemaVersion, CANONICAL_PROGRESSION_SCHEMA_VERSION);
   assert.equal(characters[0].progression.level, 1);
+  assert.equal(characters[0].progressionExport.classId, "class.mage");
+  assert.equal(characters[0].progressionExport.level, 1);
   assert.equal(JSON.stringify(payload).indexOf("hmac"), -1);
 });
 
@@ -754,4 +765,72 @@ test("starting gameplay is initialized once on create and not on restore", () =>
   handleCharacterRestore("user-a", idPayload("char-a"), mem);
   assert.equal(mem.starterGrants, 1);
 });
+
+test("soft-delete restore preserves progression exactly and does not regrant", () => {
+  const mem = new MemoryLifecycle();
+  mem.ids = ["char-keep"];
+  handleCharacterCreate("user-a", createPayload("Keep", "class.warrior"), mem);
+  const before = mem.readProgression("user-a", "char-keep");
+  assert.notEqual(before, null);
+  if (before === null) {
+    return;
+  }
+  before.level = 7;
+  before.currentXp = 40;
+  before.xpIntoLevel = 40;
+  before.lifetimeXp = 2760;
+  before.branchId = "branch.warrior.berserker";
+  before.freeStatAllocations = { "stat.strength": 5 };
+  before.purchasedClassNodeIds = ["talent.warrior.conditioning"];
+  before.purchasedBranchNodeRanks = { "talent.warrior.berserker.slaughter": 1 };
+  before.autoAssignEnabled = true;
+  before.hotbarAssignments = ["ability.warrior.heavy_strike", "ability.warrior.whirlwind", "", ""];
+  before.xpByEventId = {
+    "kill:enemy.green_slime:0:1": { amount: 10, reasonType: "kill", reasonId: "enemy.green_slime" },
+  };
+  mem.writeProgression("user-a", "char-keep", before);
+  const grants = mem.starterGrants;
+  handleCharacterDeleteRequest("user-a", deletePayload("char-keep", "Keep"), mem);
+  const restored = handleCharacterRestore("user-a", idPayload("char-keep"), mem);
+  assert.equal(restored.status, "ACTIVE");
+  assert.equal(restored.level, 7);
+  assert.equal(restored.branchId, "branch.warrior.berserker");
+  assert.equal(mem.starterGrants, grants);
+  const after = mem.readProgression("user-a", "char-keep");
+  assert.equal(after?.level, 7);
+  assert.equal(after?.currentXp, 40);
+  assert.equal(after?.lifetimeXp, 2760);
+  assert.equal(after?.branchId, "branch.warrior.berserker");
+  assert.equal(after?.autoAssignEnabled, true);
+  assert.equal(after?.freeStatAllocations["stat.strength"], 5);
+  assert.deepEqual(after?.purchasedClassNodeIds, ["talent.warrior.conditioning"]);
+  assert.equal(after?.purchasedBranchNodeRanks["talent.warrior.berserker.slaughter"], 1);
+  assert.deepEqual(after?.hotbarAssignments, ["ability.warrior.heavy_strike", "ability.warrior.whirlwind", "", ""]);
+  assert.equal(after?.xpByEventId["kill:enemy.green_slime:0:1"]?.amount, 10);
+});
+
+test("purge then recreate does not inherit previous progression", () => {
+  const mem = new MemoryLifecycle();
+  mem.ids = ["char-old", "char-new"];
+  handleCharacterCreate("user-a", createPayload("Oldie", "class.mage"), mem);
+  const old = mem.readProgression("user-a", "char-old");
+  assert.notEqual(old, null);
+  if (old !== null) {
+    old.level = 8;
+    old.lifetimeXp = 4000;
+    old.branchId = "branch.mage.fire";
+    mem.writeProgression("user-a", "char-old", old);
+  }
+  handleCharacterDeleteRequest("user-a", deletePayload("char-old", "Oldie"), mem);
+  mem.now += SOFT_DELETE_RETENTION_MS + 1;
+  handleCharacterPurge("user-a", idPayload("char-old"), mem);
+  assert.equal(mem.readProgression("user-a", "char-old"), null);
+  handleCharacterCreate("user-a", createPayload("Newbie", "class.mage"), mem);
+  const created = mem.readProgression("user-a", "char-new");
+  assert.equal(created?.level, 1);
+  assert.equal(created?.lifetimeXp, 0);
+  assert.equal(created?.branchId, "");
+  assert.deepEqual(created?.purchasedClassNodeIds, []);
+});
+
 

@@ -58,7 +58,7 @@ Project defaults required to persist the canonical progression record. These num
 
 | Stable ID | Value | Purpose | Reason it was required | Affects balance | Tests using it | Canonical design data |
 | --- | --- | --- | --- | --- | --- | --- |
-| `project.progression.schema_version` | `2` (`progressionSchemaVersion`; `SAVE_SCHEMA_VERSION` stays `1`) | Distinguish canonical progression fields from Foundation v1 blobs | Design field `schema_version` without a numeric value | no | `server/tests/canonical_progression.test.ts` | no |
+| `project.progression.schema_version` | `2` (`progressionSchemaVersion`; `SAVE_SCHEMA_VERSION` stays `1`). PROG-14 writes **3**. | Distinguish canonical progression fields from Foundation v1 blobs | Design field `schema_version` without a numeric value | no | `server/tests/canonical_progression.test.ts` | no |
 | `project.progression.auto_assign_default` | `false` (`CANONICAL_AUTO_ASSIGN_DEFAULT`) | New and migrated characters start with auto-assign off | Design does not specify the create-time default | no | same | no |
 
 ### PROG-04
@@ -126,4 +126,14 @@ Mystic combat reuses the accepted canonical targeting, effect, shield, heal, DoT
 | --- | --- | --- | --- | --- | --- | --- |
 | `project.ability.party.radius` | `80` px | Blessing, Benediction, Malediction, and Contagion nearby radius | Design says nearby without world units; already recorded in PROG-02 | yes | `server/tests/mystic_progression.test.ts` | no |
 | `project.combat.battle_blessing.arm_seconds` | `30` s | Armed Battle Blessing expires if no eligible harm is used | Design says the next eligible harm is consumed once and omits a timeout | no | `server/tests/mystic_progression.test.ts` | no |
+
+### PROG-14
+
+Leftover Foundation-field cleanup is a save-schema policy, not a balance change. Canonical unspent free points remain `3 * (level - 1)`.
+
+| Stable ID | Value | Purpose | Reason it was required | Affects balance | Tests using it | Canonical design data |
+| --- | --- | --- | --- | --- | --- | --- |
+| `project.progression.schema_version` | `3` | Mark leftover Foundation-field cleanup complete | Design `schema_version` has no numeric value; PROG-03 wrote `2` while leftover authorities could remain | no | `server/tests/progression_lifecycle.test.ts` | no |
+| `project.progression.leftover_policy` | `reset_with_notice` | Production leftover 3-stat allocations / live 8-slot hotbar / `test.ability.*` unlocks are cleared | Mapping might→STR is wrong; refunding unread Foundation spend would exceed the earned free-point budget | no | `server/tests/canonical_progression.test.ts` | no |
+| `project.progression.leftover_notice` | `leftover_foundation_reset` | Visible notice on `publicProgression` / export after production leftover cleanup | Design requires a visible notice when old investment is reset | no | `server/tests/progression_lifecycle.test.ts` | no |
 

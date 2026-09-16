@@ -220,5 +220,5 @@ Structured logs may include opcode, rejection reason, user ID, match ID, and `re
 
 **Attack:** A debug Godot build, HUD checkbox, or `--dev-user` flag grants items, gold, teleport, or cave entry.
 
-**Defense:** `gm_command` requires a server allowlist object with `enabled: true` and a matching user id, custom id, or email. Default allowlist is disabled. The debug GM panel only sends the RPC. Failed authorization is `gm_disabled` / `unauthorized` and is audited.
+**Defense:** `gm_command` requires a server allowlist object with `enabled: true` and a matching user id, custom id, or email. Default allowlist is disabled. The debug GM panel only sends the RPC. Failed authorization is `gm_disabled` / `unauthorized` and is audited. There is no player command that sets level or stats.
 

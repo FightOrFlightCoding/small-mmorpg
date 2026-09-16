@@ -8,7 +8,7 @@ Undocumented implementation numbers: [progression-implementation-addendum.md](..
 
 ## Last accepted phase and ownership
 
-Last accepted phase: **PROG-13** (complete player-facing progression UI). PROG-12 remains accepted for Mystic/Charms/Curses on the shared combat path. PROG-11 remains accepted for Mage/Fire/Frost. PROG-10 remains accepted for Marksman/Sniper/Skirmisher. PROG-09 remains accepted for Warrior/Bulwark/Berserker. Foundation v1 / Prompt 35 / ACCT-09 remain accepted. Prompt 18 village/slime combat behavior remains frozen.
+Last accepted phase: **PROG-14** (persistence, leftover Foundation-field cleanup, lifecycle, and authorized GM tools). PROG-13 remains accepted for the player-facing progression UI. PROG-12 remains accepted for Mystic/Charms/Curses on the shared combat path. PROG-11 remains accepted for Mage/Fire/Frost. PROG-10 remains accepted for Marksman/Sniper/Skirmisher. PROG-09 remains accepted for Warrior/Bulwark/Berserker. Foundation v1 / Prompt 35 / ACCT-09 remain accepted. Prompt 18 village/slime combat behavior remains frozen.
 
 PROG-08 extends the project-owned ability/effect/combat pipeline with reusable mechanic handlers, typed combat events, a server-authoritative random interface, independent multi-hit, DoT snapshot/retune, shields, taunt, cooldown recovery, vault movement, and line/cone/radius/delayed-ground targeting. PROG-09 enables `ability.warrior.*`; PROG-10 enables `ability.marksman.*`; PROG-11 enables `ability.mage.*`; PROG-12 enables `ability.mystic.*`. ATTACK resolves the class-owned auto-attack definition, not a hotbar ability. Talent content is translated into identified modifiers and conditional ability effects at resolution time, so no generic combat module branches on a class ID. Owned gaps: [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md).
 
@@ -23,8 +23,10 @@ PROG-08 extends the project-owned ability/effect/combat pipeline with reusable m
 | Threat / taunt | `threat.ts`, combat events | Challenge, Protective Charm, and Benediction use the live engine |
 | Combat events / RNG | `combat_events.ts`, `combat_rng.ts` | Handlers subscribe by event; client never rolls |
 | Equipment modifiers | `equipment.ts` channels into `stats.ts` | Keep as a modifier source |
-| Character summaries | `character_catalog.ts` | `classId`, `level`, `branchId`, presence |
-| Export / delete | `account_export.ts`, `character_purge.ts` (includes `progression`) | Same blobs |
+| Character summaries | `character_catalog.ts` | `classId`, `level`, `branchId`, presence; refresh after persist |
+| Export / delete | `account_export.ts`, `canonical_leftover_migration.ts`, `character_purge.ts` (includes `progression`) | Same blobs; `progressionExport` snapshot |
+| Leftover migration | `canonical_leftover_migration.ts`, `progression.ts` | Schema 3 leftover reset |
+| GM progression tools | `gm_progression.ts`, `gm.ts` | Allowlisted `gm_command` only |
 | Content pipeline | `tools/content-build`, JSON Schema | No `.tres` as source of truth |
 | Design audit | `progression_design_audit.ts` (tests only) | Not imported by the match runtime |
 
@@ -40,11 +42,11 @@ The client sends intentions only (`ALLOCATE_ATTRIBUTES`, `ALLOCATE_ATTRIBUTES_BA
 
 Do not persist calculated statistics as source data. Canonical fields on the existing progression blob:
 
-`progressionSchemaVersion`, `classId`, `branchId`, `level`, `xpIntoLevel`, `lifetimeXp`, `freeStatAllocations`, `purchasedClassNodeIds`, `purchasedBranchNodeRanks`, `autoAssignEnabled`, `hotbarAssignments`, `createdAt`, `updatedAt`.
+`progressionSchemaVersion`, `classId`, `branchId`, `level`, `xpIntoLevel`, `lifetimeXp`, `freeStatAllocations`, `purchasedClassNodeIds`, `purchasedBranchNodeRanks`, `autoAssignEnabled`, `hotbarAssignments`, `leftoverMigrationNotice`, `createdAt`, `updatedAt`.
 
 Point balances and granted design abilities must be reproducible from class, branch, level, allocations, purchased nodes, and content. Cached derived values may exist in the match but must be rebuildable. Canonical records keep `permissionWrite: 0`.
 
-Live Foundation fields remain on the same blob. See [PROGRESSION_STORAGE_CATALOG.md](PROGRESSION_STORAGE_CATALOG.md) and [PROGRESSION_MIGRATION_PLAN.md](PROGRESSION_MIGRATION_PLAN.md).
+Live Foundation fields remain on the same blob for `test.*` classes only. Production leftover copies are cleared on load. See [PROGRESSION_STORAGE_CATALOG.md](PROGRESSION_STORAGE_CATALOG.md) and [PROGRESSION_MIGRATION_PLAN.md](PROGRESSION_MIGRATION_PLAN.md).
 
 ## Invariants (PROG-04 statistics)
 
@@ -83,5 +85,5 @@ No progression, skill-tree, RPG-statistics, cooldown, or ability plugin. No new 
 | PROG-08 | Canonical combat mechanics; no production global cooldown (accepted) |
 | PROG-09–12 | Every class and branch, including auto-attacks (accepted) |
 | PROG-13 | Complete player-facing progression UI (accepted) |
-| PROG-14 | Persistence, lifecycle, final leftover-field migration |
+| PROG-14 | Persistence, lifecycle, final leftover-field migration (accepted) |
 | PROG-15 | Remove production legacy paths and certify balance |

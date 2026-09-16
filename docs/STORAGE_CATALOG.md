@@ -223,17 +223,17 @@ Value: `{ schemaVersion, createdAt, updatedAt, currencies: ["gold"] }`.
 | Scope             | Account-scoped; key `progression_<compactCharacterId>`                                                     |
 | `permissionRead`  | 1                                                                                                          |
 | `permissionWrite` | 0                                                                                                          |
-| Schema version    | 1 (`schemaVersion` envelope) plus `progressionSchemaVersion` **2**                                 |
+| Schema version    | 1 (`schemaVersion` envelope) plus `progressionSchemaVersion` **3**                                 |
 | Creation          | Character create initializes canonical level 1, 0 XP, empty free/class/branch purchases. Missing blobs on join/list/export initialize then persist. |
 | Read              | `character_list`, `matchJoin`, account export, support snapshot                                                                                                |
-| Update            | Kill credit, quest XP, admin domain grant, attribute allocation, ability unlock, hotbar assignment, request-id prune; canonical migrate on load |
+| Update            | Kill credit, quest XP, admin domain grant, attribute allocation, ability unlock, hotbar assignment, request-id prune; leftover migrate on load; persist on leave, terminate, cave enter/exit, return-to-select |
 | Concurrency       | OCC `storageWriteRetry`                                                                                    |
-| Migration         | v1 → canonical v2 on load (class/level/XP preserved). Missing is not join-fatal. Present v0 → v1 save envelope still applies |
+| Migration         | v1 → canonical v2 on load, then leftover Foundation cleanup to v3 (production leftover reset with `leftover_foundation_reset`; `test.*` keep Foundation fields). Missing is not join-fatal. Present v0 → v1 save envelope still applies. Future `progressionSchemaVersion` > 3 is not rewritten. |
 | Deletion          | Soft-delete leaves the blob; character purge and account deletion remove it                                |
 | Client access     | Mirror via `FULL_STATE.progression` / `PROGRESSION_STATE`. Client never sends XP amounts.                  |
 
 
-Value: `{ schemaVersion, createdAt, updatedAt, level, currentXp, lifetimeXp, allocatedAttributes, unspentAttributePoints, unspentSkillPoints, unlockedAbilityIds, hotbar?, abilityRanks?, assignHotbarByRequestId?, unlockAbilityByRequestId?, hotbarRequestTicks?, unlockRequestTicks?, progressionSchemaVersion, xpByEventId, allocateByRequestId, xpEventTicks?, allocateRequestTicks?, classId, branchId, xpIntoLevel, freeStatAllocations, purchasedClassNodeIds, purchasedBranchNodeRanks, autoAssignEnabled, hotbarAssignments, purchaseTalentByRequestId? }`. Allocations are never negative. Point balances and derived stats are calculated, not trusted from the client. Client hotbar state is not proof of ownership. Production ownership is derived from class, level, branch, and purchased nodes.
+Value: `{ schemaVersion, createdAt, updatedAt, level, currentXp, lifetimeXp, allocatedAttributes, unspentAttributePoints, unspentSkillPoints, unlockedAbilityIds, hotbar?, abilityRanks?, assignHotbarByRequestId?, unlockAbilityByRequestId?, hotbarRequestTicks?, unlockRequestTicks?, progressionSchemaVersion, xpByEventId, allocateByRequestId, xpEventTicks?, allocateRequestTicks?, classId, branchId, xpIntoLevel, freeStatAllocations, purchasedClassNodeIds, purchasedBranchNodeRanks, autoAssignEnabled, hotbarAssignments, purchaseTalentByRequestId?, leftoverMigrationNotice? }`. Allocations are never negative. Point balances and derived stats are calculated, not trusted from the client. Client hotbar state is not proof of ownership. Production ownership is derived from class, level, branch, and purchased nodes. Production leftover Foundation authorities are cleared on load.
 
 ## `match` / `starter_zone`
 

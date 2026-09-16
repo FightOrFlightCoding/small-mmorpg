@@ -261,6 +261,9 @@ function loadCanonicalProgressionForCharacter(
   const classId = record.classId !== undefined ? record.classId : "";
   const nowMs = deps.nowMs();
   const ensured = migrateToCanonicalProgression(stored, classId, nowMs, deps.progressionCatalog);
+  if (!ensured.ok) {
+    return stored;
+  }
   if (ensured.changed && deps.writeProgression !== undefined) {
     deps.writeProgression(accountUserId, record.characterId, ensured.progression);
   }
