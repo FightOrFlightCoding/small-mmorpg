@@ -653,8 +653,9 @@ The intentional Mystic content update changes the shared generated hash to `b761
 | Server hermetic | 714 passed, 13 skipped; bundle built |
 | Mystic mechanics and balance regressions | 16/16 (`mystic_progression`, `mystic_balance`, `progression_metronome`) |
 | Client GdUnit | 283/283, 0 failures, 0 orphans, `SHELL_LOGIN` |
+| GitHub `verify` | passed (`e2e23ed`, run 35139125655) |
 
-Limitations: The eight-slot Foundation hotbar remains test-only. Manual Prompt 18 world play was not re-run; live village/slime combat behavior was not changed. GitHub `verify` is recorded when CI on this revision completes.
+Limitations: The eight-slot Foundation hotbar remains test-only. Manual Prompt 18 world play was not re-run; live village/slime combat behavior was not changed.
 
 Reproduction:
 
