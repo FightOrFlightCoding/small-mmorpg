@@ -1135,11 +1135,13 @@ function collectShapedTargets(
     dirY = facing.y;
   }
   const range =
-    definition.areaRadius > 0
-      ? definition.areaRadius
-      : definition.lineLength !== undefined && definition.lineLength > 0
-        ? definition.lineLength
-        : definition.range;
+    shape === "cone"
+      ? Math.max(definition.range, definition.areaRadius)
+      : definition.areaRadius > 0
+        ? definition.areaRadius
+        : definition.lineLength !== undefined && definition.lineLength > 0
+          ? definition.lineLength
+          : definition.range;
   const width = definition.lineWidth !== undefined && definition.lineWidth > 0 ? definition.lineWidth : 12;
   const living = livingEntities(state);
   const coneHalf =
@@ -1177,7 +1179,7 @@ function collectEffectTargets(
   definition: AbilityDefinition,
   targeting: { primaryId: string; pointX: number; pointY: number },
 ) {
-  const list = [];
+  const list: EffectTarget[] = [];
   const shape = String(definition.areaShape);
   if (shape === "line" || shape === "cone") {
     return collectShapedTargets(state, player, definition, shape, targeting);

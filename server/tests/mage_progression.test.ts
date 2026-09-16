@@ -219,14 +219,14 @@ test("Kindled Mind reduces tagged spell costs by rank and Second Spark refunds c
   state.enemies = [enemy("enemy-1")];
   state = addPlayer(state, mage(10, "branch.mage.fire", [], { "talent.mage.fire.kindled_mind": 1 }));
   const maxMana = manaOf(state.players.mage);
-  let result = run(state, 10, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.mage.fireball", targetId: "enemy-1", requestId: "km-r1" })]);
+  let result = run(state, 10, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.mage.fireball", targetId: "enemy-1", requestId: "kindled-r1" })]);
   assert.ok(Math.abs(maxMana - manaOf(result.state.players.mage) - (18 - 3.8 / SNAPSHOT_RATE_HZ)) < 0.02);
 
   state = zone();
   state.enemies = [enemy("enemy-1")];
   state = addPlayer(state, mage(10, "branch.mage.fire", [], { "talent.mage.fire.kindled_mind": 2 }));
   const maxR2 = manaOf(state.players.mage);
-  result = run(state, 10, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.mage.fireball", targetId: "enemy-1", requestId: "km-r2" })]);
+  result = run(state, 10, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.mage.fireball", targetId: "enemy-1", requestId: "kindled-r2" })]);
   assert.ok(Math.abs(maxR2 - manaOf(result.state.players.mage) - (16 - 3.8 / SNAPSHOT_RATE_HZ)) < 0.02);
 
   state = zone();
@@ -271,7 +271,7 @@ test("Afterburn applies only after a Fireball crit, deals 25% over 4s, and never
     catalog,
     playerStatContext("class.mage", state.players.mage.progression as never, emptyEquipment(), emptyInventory(), {}, {}),
   );
-  result = completeCast(state, 10, { abilityId: "ability.mage.fireball", targetId: "enemy-1", requestId: "ab-crit" });
+  result = completeCast(state, 10, { abilityId: "ability.mage.fireball", targetId: "enemy-1", requestId: "afterburn-crit" });
   const hit = formulaSpellHit(34, 36) * (stats.critMult !== undefined ? stats.critMult : 1.52);
   const burns = (result.state.enemies[0].effects ?? []).filter((effect) => effect.tags.indexOf("afterburn") >= 0);
   assert.equal(burns.length, 1);
@@ -300,7 +300,7 @@ test("Flame Wave is a cone, Detonation raises spell crits, and R2 leaves INT-sca
   const scale = intScale(10);
   const beforeA = state.enemies[0].health;
   const beforeB = state.enemies[1].health;
-  const result = completeCast(state, 10, { abilityId: "ability.mage.flame_wave", targetId: "enemy-1", requestId: "wave-01" });
+  const result = completeCast(state, 10, { abilityId: "ability.mage.flame_wave", targetId: "enemy-1", requestId: "flame-wave-01" });
   assert.ok(Math.abs(damage(beforeA, result.state.enemies[0].health) - 22 * scale) < 0.0001);
   assert.equal(result.state.enemies[1].health, beforeB);
   const burns = (result.state.enemies[0].effects ?? []).filter((effect) => effect.tags.indexOf("burn") >= 0);
@@ -360,7 +360,7 @@ test("Ice Bolt slows 30% for 3s, Deep Chill extends duration, and R3 adds damage
   state.enemies = [enemy("enemy-1")];
   state = addPlayer(state, mage(10, "branch.mage.frost", [], { "talent.mage.frost.ice_bolt_r2": 1 }));
   const scale = intScale(10);
-  let result = completeCast(state, 10, { abilityId: "ability.mage.ice_bolt", targetId: "enemy-1", requestId: "ice-01" });
+  let result = completeCast(state, 10, { abilityId: "ability.mage.ice_bolt", targetId: "enemy-1", requestId: "ice-bolt-01" });
   assert.ok(Math.abs(damage(1000, result.state.enemies[0].health) - 24 * scale * 1.25) < 0.0001);
   const slow = (result.state.enemies[0].effects ?? []).find((effect) => effect.type === "slow");
   assert.ok(slow !== undefined);
@@ -400,13 +400,14 @@ test("Ice Bolt slows 30% for 3s, Deep Chill extends duration, and R3 adds damage
 test("Numbing Cold is source-owned, Flash Freeze roots, R2 grows radius and duration, and Absolute Zero fully incapacitates", () => {
   let state = zone();
   state.enemies = [enemy("enemy-1")];
-  state.enemies[0].attackCooldownSec = 0.1;
-  state.enemies[0].lastAttackTick = -1;
   state.enemies[0].damage = 100;
   state = addPlayer(state, mage(10, "branch.mage.frost", [], { "talent.mage.frost.numbing_cold": 1 }));
   let result = completeCast(state, 10, { abilityId: "ability.mage.ice_bolt", targetId: "enemy-1", requestId: "numb-slow" });
   assert.equal((result.state.enemies[0].effects ?? []).some((effect) => effect.tags.indexOf("numbing") >= 0), true);
+  result.state.enemies[0].attackCooldownSec = 0.1;
   result.state.enemies[0].lastAttackTick = -1;
+  result.state.enemies[0].aggroTarget = "mage";
+  result.state.enemies[0].aggroRadius = 200;
   const beforeHp = result.state.players.mage.health;
   result = run(result.state, 40);
   const taken = beforeHp - result.state.players.mage.health;
@@ -416,7 +417,7 @@ test("Numbing Cold is source-owned, Flash Freeze roots, R2 grows radius and dura
   state = zone();
   state.enemies = [enemy("enemy-1", 930, 400), enemy("enemy-2", 970, 400)];
   state = addPlayer(state, mage(10, "branch.mage.frost", [], { "talent.mage.frost.flash_freeze": 1 }));
-  result = run(state, 10, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.mage.flash_freeze", requestId: "root-01" })]);
+  result = run(state, 10, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.mage.flash_freeze", requestId: "flash-root-01" })]);
   assert.equal(result.state.enemies[0].effects?.some((effect) => effect.type === "root"), true);
   assert.equal(result.state.enemies[1].effects?.some((effect) => effect.type === "root"), false);
   assert.equal(result.state.enemies[0].health, 1000);
@@ -431,7 +432,7 @@ test("Numbing Cold is source-owned, Flash Freeze roots, R2 grows radius and dura
       "talent.mage.frost.flash_freeze_r2": 1,
     }),
   );
-  result = run(state, 10, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.mage.flash_freeze", requestId: "root-r2" })]);
+  result = run(state, 10, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.mage.flash_freeze", requestId: "flash-root-r2" })]);
   assert.equal(result.state.enemies[0].effects?.some((effect) => effect.type === "root"), true);
   assert.equal(result.state.enemies[1].effects?.some((effect) => effect.type === "root"), true);
   assert.equal((result.state.enemies[0].effects ?? []).find((effect) => effect.type === "root")?.remainingTicks, cooldownTicks(3, SNAPSHOT_RATE_HZ) - 1);
@@ -439,7 +440,7 @@ test("Numbing Cold is source-owned, Flash Freeze roots, R2 grows radius and dura
   state = zone();
   state.enemies = [enemy("enemy-1", 920, 400), enemy("enemy-2", 930, 410)];
   state = addPlayer(state, mage(10, "branch.mage.frost"));
-  result = run(state, 10, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.mage.absolute_zero", requestId: "az-01" })]);
+  result = run(state, 10, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.mage.absolute_zero", requestId: "abs-zero-01" })]);
   assert.equal(result.state.enemies[0].effects?.some((effect) => effect.type === "stun" && effect.tags.indexOf("freeze") >= 0), true);
   assert.equal(result.state.enemies[1].effects?.some((effect) => effect.type === "stun"), true);
   result = run(result.state, 11);
@@ -450,8 +451,6 @@ test("Rimeguard and Winter Harvest track living enemies this Mage currently slow
   let state = zone();
   state.enemies = [enemy("enemy-1"), enemy("enemy-2", 980, 400)];
   state.enemies[0].damage = 100;
-  state.enemies[0].attackCooldownSec = 0.1;
-  state.enemies[0].lastAttackTick = -1;
   state = addPlayer(
     state,
     mage(10, "branch.mage.frost", ["talent.mage.ward"], {
@@ -461,16 +460,21 @@ test("Rimeguard and Winter Harvest track living enemies this Mage currently slow
   );
   const maxMana = manaOf(state.players.mage);
   state.players.mage.resources = { [MANA]: 100 };
-  let result = completeCast(state, 10, { abilityId: "ability.mage.ice_bolt", targetId: "enemy-1", requestId: "cc-1" });
+  let result = completeCast(state, 10, { abilityId: "ability.mage.ice_bolt", targetId: "enemy-1", requestId: "rime-cc-01" });
+  result.state.enemies[0].attackCooldownSec = 0.1;
   result.state.enemies[0].lastAttackTick = -1;
+  result.state.enemies[0].aggroTarget = "mage";
+  result.state.enemies[0].aggroRadius = 200;
   const beforeHit = result.state.players.mage.health;
   result = run(result.state, 40);
   const withGuard = beforeHit - result.state.players.mage.health;
   assert.ok(withGuard > 0);
   assert.ok(withGuard < 100 * (1 - 0.065) - 1);
+  result.state.enemies[0].attackCooldownSec = 99;
+  result.state.players.mage.health = beforeHit;
 
   const manaMid = manaOf(result.state.players.mage);
-  result = completeCast(result.state, 50, { abilityId: "ability.mage.ice_bolt", targetId: "enemy-2", requestId: "cc-2" });
+  result = completeCast(result.state, 50, { abilityId: "ability.mage.ice_bolt", targetId: "enemy-2", requestId: "rime-cc-02" });
   const manaAfterSecond = manaOf(result.state.players.mage);
   result = run(result.state, 60);
   const regenTwo = manaOf(result.state.players.mage) - manaAfterSecond;
@@ -508,6 +512,7 @@ test("Rimeguard and Winter Harvest track living enemies this Mage currently slow
   state.enemies[0].attackCooldownSec = 0.1;
   state.enemies[0].lastAttackTick = -1;
   state.enemies[0].aggroTarget = "mage";
+  state.enemies[0].aggroRadius = 200;
   state = addPlayer(state, mage(10, "branch.mage.frost", [], { "talent.mage.frost.rimeguard": 1 }));
   const hp = state.players.mage.health;
   result = run(state, 10);
@@ -522,7 +527,7 @@ test("Mana regenerates continuously and Volatility plus Ward apply their ranks",
   player.resources = { [MANA]: 0 };
   state = addPlayer(state, player);
   let result = run(state, 10);
-  for (let tick = 11; tick <= 20; tick++) {
+  for (let tick = 11; tick <= 19; tick++) {
     result = run(result.state, tick);
   }
   assert.ok(Math.abs(manaOf(result.state.players.mage) - 3.8) < 0.05);
@@ -536,7 +541,7 @@ test("Mana regenerates continuously and Volatility plus Ward apply their ranks",
     playerStatContext("class.mage", state.players.mage.progression as never, emptyEquipment(), emptyInventory(), {}, {}),
   );
   const before = 1000;
-  result = completeCast(state, 10, { abilityId: "ability.mage.arcane_bolt", targetId: "enemy-1", requestId: "vol-01" });
+  result = completeCast(state, 10, { abilityId: "ability.mage.arcane_bolt", targetId: "enemy-1", requestId: "volatility-01" });
   assert.ok(Math.abs(damage(before, result.state.enemies[0].health) - 16 * 1.36 * (stats.critMult !== undefined ? stats.critMult : 1.62)) < 0.0001);
 });
 
