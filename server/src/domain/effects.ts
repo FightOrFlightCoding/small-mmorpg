@@ -6,6 +6,7 @@ import { dict } from "./maps";
 import { resourceIdForRole, type EvaluatedStats } from "./stats";
 import { formulaDotTickInterval, formulaHeal } from "./canonical_stats";
 import { applyTaunt } from "./threat";
+import { conditionalTalentModifierValue } from "./talent_modifiers";
 
 export type EffectType =
   | "direct_damage"
@@ -21,7 +22,8 @@ export type EffectType =
   | "taunt"
   | "interrupt"
   | "reflect"
-  | "forced_movement";
+  | "forced_movement"
+  | "passive_stacker";
 
 export type StackPolicy = "replace" | "refresh" | "stack" | "ignore";
 export type RefreshPolicy = "refresh" | "extend" | "ignore";
@@ -262,7 +264,7 @@ export function effectModifiersFrom(effects: ActiveEffect[] | undefined): { [cha
       modifiers["movement_speed"] = current + effect.magnitude * effect.stacks;
       continue;
     }
-    if (effect.type !== "timed_stat_modifier" || effect.statChannel.length === 0) {
+    if ((effect.type !== "timed_stat_modifier" && effect.type !== "passive_stacker") || effect.statChannel.length === 0) {
       continue;
     }
     const current = modifiers[effect.statChannel] !== undefined ? modifiers[effect.statChannel] : 0;
@@ -289,11 +291,15 @@ export function applyEffectDefinition(
 ): void {
   const actor = toEffectSource(source);
   const rank = isMatchPlayer(source) ? rankScale(source, abilityId) : 1;
-  const magnitude = resolveMagnitude(definition.magnitude, stats, fallbackAttack) * rank;
+  const magnitude = (
+    stats !== null && stats.canonical !== undefined && definition.powerCategory !== undefined
+      ? canonicalBaseMagnitude(definition.magnitude, fallbackAttack)
+      : resolveMagnitude(definition.magnitude, stats, fallbackAttack)
+  ) * rank;
   const haste = stats !== null && stats.hasteMult !== undefined ? stats.hasteMult : 1;
   const type = String(definition.type);
   if (type === "direct_damage") {
-    dealDamage(state, actor, target, magnitude, abilityId, tick, events, false);
+    dealDamage(state, actor, target, magnitude, abilityId, tick, events, false, canonicalFormula(state, stats, definition, source));
     return;
   }
   if (type === "direct_heal") {
@@ -819,6 +825,14 @@ function dealDamage(
   tick: number,
   events: CombatEvent[],
   isDot: boolean,
+  canonical?: {
+    powerCategory: "melee" | "ranged" | "spell" | "curse" | "heal" | "shield";
+    canonicalStats: { [id: string]: number };
+    canonicalCritChance: number;
+    canonicalCritMult: number;
+    canonicalOutgoingProduct: number;
+    random: import("./combat_rng").CombatRandom | undefined;
+  },
 ): void {
   if (amount <= 0 || target.health <= 0) {
     return;
@@ -831,7 +845,22 @@ function dealDamage(
       sourceKind: source.kind,
       targetId: target.id,
       targetKind: target.kind,
-      formula: { base: amount, isDot: isDot },
+      formula:
+        canonical !== undefined
+          ? {
+              base: amount,
+              isDot: isDot,
+              powerCategory: canonical.powerCategory,
+              canonicalStats: canonical.canonicalStats,
+              canonicalCritChance: canonical.canonicalCritChance,
+              canonicalCritMult: canonical.canonicalCritMult,
+              canonicalOutgoingProduct: canonical.canonicalOutgoingProduct,
+              canonicalDamageReduction: 0,
+              canonicalTakenProduct: 1,
+              canonicalCritDamageProduct: 1,
+              random: canonical.random,
+            }
+          : { base: amount, isDot: isDot },
       tick: tick,
       abilityId: abilityId,
       respawnDelaySec: state.playerRespawnDelaySec,
@@ -843,6 +872,66 @@ function dealDamage(
     return;
   }
   target.health = result.remainingHealth;
+}
+
+function canonicalBaseMagnitude(formula: MagnitudeFormula, fallbackAttack: number): number {
+  if (typeof formula.value === "number" && isFinite(formula.value)) {
+    return Math.max(0, formula.value);
+  }
+  return Math.max(0, fallbackAttack);
+}
+
+function canonicalFormula(
+  state: StarterZoneState,
+  stats: EvaluatedStats | null,
+  definition: EffectDefinition,
+  source: MatchPlayer | EffectSource,
+):
+  | {
+      powerCategory: "melee" | "ranged" | "spell" | "curse" | "heal" | "shield";
+      canonicalStats: { [id: string]: number };
+      canonicalCritChance: number;
+      canonicalCritMult: number;
+      canonicalOutgoingProduct: number;
+      random: import("./combat_rng").CombatRandom | undefined;
+    }
+  | undefined {
+  if (stats === null || stats.canonical === undefined || definition.powerCategory === undefined) {
+    return undefined;
+  }
+  let critMult = stats.critMult !== undefined ? stats.critMult : 1.5;
+  if (isMatchPlayer(source) && source.progression !== undefined && state.progressionCatalog !== undefined) {
+    critMult += conditionalTalentModifierValue(
+      state.progressionCatalog,
+      source.progression,
+      "crit_damage_flat",
+      { sourceTags: effectTags(source.effects) },
+    );
+  }
+  return {
+    powerCategory: definition.powerCategory,
+    canonicalStats: stats.values,
+    canonicalCritChance: stats.critChance !== undefined ? stats.critChance : 0,
+    canonicalCritMult: critMult,
+    canonicalOutgoingProduct: stats.canonical.outgoingProduct,
+    random: state.combatRandom,
+  };
+}
+
+function effectTags(effects: ActiveEffect[] | undefined): string[] {
+  const tags: string[] = [];
+  const source = effects !== undefined ? effects : [];
+  for (let i = 0; i < source.length; i++) {
+    if (source[i].remainingTicks <= 0) {
+      continue;
+    }
+    for (let t = 0; t < source[i].tags.length; t++) {
+      if (tags.indexOf(source[i].tags[t]) < 0) {
+        tags.push(source[i].tags[t]);
+      }
+    }
+  }
+  return tags;
 }
 
 function healTarget(

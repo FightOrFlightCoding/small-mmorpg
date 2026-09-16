@@ -10,6 +10,7 @@ import {
   type CanonicalModifier,
   type CanonicalSnapshot,
 } from "./canonical_stats";
+import { talentModifiersForProgression } from "./talent_modifiers";
 
 export const STAT_LAYER_ORDER = [
   "class_base",
@@ -139,6 +140,42 @@ export interface TalentNodeContent {
   pointCostPerRank: number;
   prerequisites?: TalentPrerequisiteContent[];
   grantsActiveAbilityId?: string;
+  abilityModifications: TalentAbilityModificationContent[];
+  passiveModifiers: TalentModifierContent[];
+  conditionalModifiers: TalentConditionalModifiersContent[];
+  unlockEffects: TalentUnlockEffectContent[];
+}
+
+export interface TalentModifierContent {
+  type: string;
+  value?: number;
+  abilityId?: string;
+}
+
+export interface TalentAbilityModificationContent {
+  abilityId: string;
+  modifiers: TalentModifierContent[];
+}
+
+export interface TalentConditionalModifiersContent {
+  conditions: Array<{ type: string; comparison?: string; value?: number; tag?: string }>;
+  modifiers: TalentModifierContent[];
+}
+
+export interface TalentUnlockEffectContent {
+  id: string;
+  type: string;
+  source: "caster";
+  target: "self" | "primary" | "area";
+  magnitude: { kind: "constant" | "stat_role" | "stat_id"; value?: number; scale?: number; role?: string; statId?: string };
+  duration: number;
+  tickInterval: number;
+  stackPolicy: "replace" | "refresh" | "stack" | "ignore";
+  maxStacks: number;
+  refreshPolicy: "refresh" | "extend" | "ignore";
+  removalReason: string;
+  tags: string[];
+  conditions: Array<{ type: string; comparison?: string; value?: number; tag?: string }>;
 }
 
 export interface AbilityCategoryContent {
@@ -170,6 +207,8 @@ export interface StatContext {
   percentModifiers: { [channel: string]: number };
   multiplyModifiers: { [channel: string]: number };
   identifiedModifiers?: CanonicalModifier[];
+  purchasedClassNodeIds?: ReadonlyArray<string>;
+  purchasedBranchNodeRanks?: { [id: string]: number };
 }
 
 export interface EvaluatedStats {
@@ -197,6 +236,8 @@ export interface CombatStatTarget {
     level: number;
     allocatedAttributes: { [id: string]: number };
     freeStatAllocations?: { [id: string]: number };
+    purchasedClassNodeIds?: ReadonlyArray<string>;
+    purchasedBranchNodeRanks?: { [id: string]: number };
   };
   equipment?: PlayerEquipment;
   inventory?: PlayerInventory;
@@ -341,7 +382,7 @@ export function evaluateStats(catalog: ProgressionCatalog, ctx: StatContext): Ev
     delete evaluated.values[manaId];
   }
   if (classDef !== undefined && classUsesCanonicalStats(classDef)) {
-    overlayCanonicalStats(evaluated, classDef, ctx, healthId, manaId, usesMana);
+    overlayCanonicalStats(evaluated, classDef, ctx, healthId, manaId, usesMana, catalog);
   }
   return evaluated;
 }
@@ -484,6 +525,8 @@ export function playerStatContext(
     level: number;
     allocatedAttributes: { [id: string]: number };
     freeStatAllocations?: { [id: string]: number };
+    purchasedClassNodeIds?: ReadonlyArray<string>;
+    purchasedBranchNodeRanks?: { [id: string]: number };
   },
   equipment: PlayerEquipment | undefined,
   inventory: PlayerInventory | undefined,
@@ -503,6 +546,8 @@ export function playerStatContext(
     identifiedModifiers: identifiedModifiersFromGear(equipment, inventory, itemsById).concat(
       identifiedModifiersFromEffectMap(effects),
     ),
+    purchasedClassNodeIds: progression.purchasedClassNodeIds,
+    purchasedBranchNodeRanks: progression.purchasedBranchNodeRanks,
   };
 }
 
@@ -544,6 +589,14 @@ export function syncCombatStatsFromPipeline(
     identifiedModifiers: identifiedModifiersFromGear(target.equipment, target.inventory, itemsById).concat(
       identifiedModifiersFromEffectMap(effectModifiers !== undefined ? effectModifiers : emptyModifierMap()),
     ),
+    purchasedClassNodeIds:
+      target.progression !== undefined && target.progression.purchasedClassNodeIds !== undefined
+        ? target.progression.purchasedClassNodeIds
+        : [],
+    purchasedBranchNodeRanks:
+      target.progression !== undefined && target.progression.purchasedBranchNodeRanks !== undefined
+        ? target.progression.purchasedBranchNodeRanks
+        : {},
   });
   const previousMax = target.maxHealth;
   target.maxHealth = evaluated.maxHealth;
@@ -577,11 +630,21 @@ function overlayCanonicalStats(
   healthId: string,
   manaId: string,
   usesMana: boolean,
+  catalog: ProgressionCatalog,
 ): void {
   const free =
     ctx.freeStatAllocations !== undefined ? ctx.freeStatAllocations : {};
+  const talentModifiers = talentModifiersForProgression(catalog, {
+    purchasedClassNodeIds: ctx.purchasedClassNodeIds !== undefined ? ctx.purchasedClassNodeIds : [],
+    purchasedBranchNodeRanks: ctx.purchasedBranchNodeRanks !== undefined ? ctx.purchasedBranchNodeRanks : {},
+  });
   const snapshot = evaluateCanonicalSnapshot(
-    canonicalInputFromClass(classDef, ctx.level, free, ctx.identifiedModifiers !== undefined ? ctx.identifiedModifiers : []),
+    canonicalInputFromClass(
+      classDef,
+      ctx.level,
+      free,
+      (ctx.identifiedModifiers !== undefined ? ctx.identifiedModifiers : []).concat(talentModifiers),
+    ),
   );
   evaluated.canonical = snapshot;
   evaluated.maxHealth = snapshot.hpMax;
@@ -1045,6 +1108,10 @@ function copyTalentNodes(input: { [id: string]: unknown } | undefined): { [id: s
       pointCostPerRank?: unknown;
       prerequisites?: unknown;
       grantsActiveAbilityId?: unknown;
+      abilityModifications?: unknown;
+      passiveModifiers?: unknown;
+      conditionalModifiers?: unknown;
+      unlockEffects?: unknown;
     };
     if (typeof def.id !== "string" || typeof def.treeId !== "string") {
       continue;
@@ -1055,6 +1122,10 @@ function copyTalentNodes(input: { [id: string]: unknown } | undefined): { [id: s
       tier: typeof def.tier === "number" ? def.tier : 1,
       maxRank: typeof def.maxRank === "number" ? def.maxRank : 1,
       pointCostPerRank: typeof def.pointCostPerRank === "number" ? def.pointCostPerRank : 1,
+      abilityModifications: [],
+      passiveModifiers: [],
+      conditionalModifiers: [],
+      unlockEffects: [],
     };
     if (Array.isArray(def.prerequisites)) {
       const prereqs: TalentPrerequisiteContent[] = [];
@@ -1073,9 +1144,151 @@ function copyTalentNodes(input: { [id: string]: unknown } | undefined): { [id: s
     if (typeof def.grantsActiveAbilityId === "string" && def.grantsActiveAbilityId.length > 0) {
       node.grantsActiveAbilityId = def.grantsActiveAbilityId;
     }
+    node.abilityModifications = copyTalentAbilityModifications(def.abilityModifications);
+    node.passiveModifiers = copyTalentModifiers(def.passiveModifiers);
+    node.conditionalModifiers = copyTalentConditionalModifiers(def.conditionalModifiers);
+    node.unlockEffects = copyTalentUnlockEffects(def.unlockEffects);
     out[ids[i]] = node;
   }
   return out;
+}
+
+function copyTalentUnlockEffects(raw: unknown): TalentUnlockEffectContent[] {
+  const copied: TalentUnlockEffectContent[] = [];
+  if (!Array.isArray(raw)) {
+    return copied;
+  }
+  for (let i = 0; i < raw.length; i++) {
+    const value = raw[i];
+    if (value === null || typeof value !== "object" || Array.isArray(value)) {
+      continue;
+    }
+    const effect = value as { [key: string]: unknown };
+    const magnitude = effect.magnitude as { [key: string]: unknown } | undefined;
+    if (
+      typeof effect.id !== "string" ||
+      typeof effect.type !== "string" ||
+      (effect.target !== "self" && effect.target !== "primary" && effect.target !== "area") ||
+      magnitude === undefined ||
+      (magnitude.kind !== "constant" && magnitude.kind !== "stat_role" && magnitude.kind !== "stat_id") ||
+      typeof effect.duration !== "number" ||
+      typeof effect.tickInterval !== "number" ||
+      !Array.isArray(effect.tags)
+    ) {
+      continue;
+    }
+    const conditions = copyTalentConditionalModifiers([{ conditions: effect.conditions, modifiers: [] }]);
+    copied.push({
+      id: effect.id,
+      type: effect.type,
+      source: "caster",
+      target: effect.target,
+      magnitude: {
+        kind: magnitude.kind,
+        value: typeof magnitude.value === "number" ? magnitude.value : undefined,
+        scale: typeof magnitude.scale === "number" ? magnitude.scale : undefined,
+        role: typeof magnitude.role === "string" ? magnitude.role : undefined,
+        statId: typeof magnitude.statId === "string" ? magnitude.statId : undefined,
+      },
+      duration: effect.duration,
+      tickInterval: effect.tickInterval,
+      stackPolicy: effect.stackPolicy === "refresh" || effect.stackPolicy === "stack" || effect.stackPolicy === "ignore" ? effect.stackPolicy : "replace",
+      maxStacks: typeof effect.maxStacks === "number" ? effect.maxStacks : 1,
+      refreshPolicy: effect.refreshPolicy === "extend" || effect.refreshPolicy === "ignore" ? effect.refreshPolicy : "refresh",
+      removalReason: typeof effect.removalReason === "string" ? effect.removalReason : "expired",
+      tags: effect.tags.filter((tag): tag is string => typeof tag === "string"),
+      conditions: conditions.length > 0 ? conditions[0].conditions : [],
+    });
+  }
+  return copied;
+}
+
+function copyTalentModifiers(raw: unknown): TalentModifierContent[] {
+  const copied: TalentModifierContent[] = [];
+  if (!Array.isArray(raw)) {
+    return copied;
+  }
+  for (let i = 0; i < raw.length; i++) {
+    const value = raw[i];
+    if (value === null || typeof value !== "object" || Array.isArray(value)) {
+      continue;
+    }
+    const modifier = value as { type?: unknown; value?: unknown; abilityId?: unknown };
+    if (typeof modifier.type !== "string") {
+      continue;
+    }
+    const next: TalentModifierContent = { type: modifier.type };
+    if (typeof modifier.value === "number" && isFinite(modifier.value)) {
+      next.value = modifier.value;
+    }
+    if (typeof modifier.abilityId === "string") {
+      next.abilityId = modifier.abilityId;
+    }
+    copied.push(next);
+  }
+  return copied;
+}
+
+function copyTalentAbilityModifications(raw: unknown): TalentAbilityModificationContent[] {
+  const copied: TalentAbilityModificationContent[] = [];
+  if (!Array.isArray(raw)) {
+    return copied;
+  }
+  for (let i = 0; i < raw.length; i++) {
+    const value = raw[i];
+    if (value === null || typeof value !== "object" || Array.isArray(value)) {
+      continue;
+    }
+    const modification = value as { abilityId?: unknown; modifiers?: unknown };
+    if (typeof modification.abilityId !== "string") {
+      continue;
+    }
+    copied.push({ abilityId: modification.abilityId, modifiers: copyTalentModifiers(modification.modifiers) });
+  }
+  return copied;
+}
+
+function copyTalentConditionalModifiers(raw: unknown): TalentConditionalModifiersContent[] {
+  const copied: TalentConditionalModifiersContent[] = [];
+  if (!Array.isArray(raw)) {
+    return copied;
+  }
+  for (let i = 0; i < raw.length; i++) {
+    const value = raw[i];
+    if (value === null || typeof value !== "object" || Array.isArray(value)) {
+      continue;
+    }
+    const conditional = value as { conditions?: unknown; modifiers?: unknown };
+    if (!Array.isArray(conditional.conditions)) {
+      continue;
+    }
+    const conditions: Array<{ type: string; comparison?: string; value?: number; tag?: string }> = [];
+    for (let c = 0; c < conditional.conditions.length; c++) {
+      const rawCondition = conditional.conditions[c];
+      if (rawCondition === null || typeof rawCondition !== "object" || Array.isArray(rawCondition)) {
+        continue;
+      }
+      const condition = rawCondition as { type?: unknown; comparison?: unknown; value?: unknown; tag?: unknown };
+      if (typeof condition.type !== "string") {
+        continue;
+      }
+      const next: { type: string; comparison?: string; value?: number; tag?: string } = { type: condition.type };
+      if (typeof condition.comparison === "string") {
+        next.comparison = condition.comparison;
+      }
+      if (typeof condition.value === "number" && isFinite(condition.value)) {
+        next.value = condition.value;
+      }
+      if (typeof condition.tag === "string") {
+        next.tag = condition.tag;
+      }
+      conditions.push(next);
+    }
+    if (conditions.length > 0) {
+      copied.push({ conditions: conditions, modifiers: copyTalentModifiers(conditional.modifiers) });
+    }
+  }
+  return copied;
 }
 
 function copyAbilityCategories(input: { [id: string]: unknown } | undefined): { [id: string]: AbilityCategoryContent } {

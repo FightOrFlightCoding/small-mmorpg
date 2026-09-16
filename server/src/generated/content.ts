@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "3b57502b4a197972c970420cd7b2a5a74955311b5840be0b4d184843c24e3320";
+export const contentHash = "913d28c51ea050509cf4eb57acbfd149012d56a6b3b354ff806d48bc8f1a47c6";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = ["npc.lab_exit","npc.lab_inn","npc.lab_keeper","npc.lab_trainer","npc.lab_vendor","quest.lab_tour","spawn.lab.boss","spawn.lab.caster","spawn.lab.melee","spawn.lab.ranged","test.zone.systems_lab","vendor.lab_general"] as const;
 export const content = {
@@ -1710,7 +1710,7 @@ export const content = {
       ],
       "requiredLevel": 10,
       "resourceCosts": [],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "none",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_buff_sound",
@@ -1796,7 +1796,7 @@ export const content = {
       ],
       "requiredLevel": 5,
       "resourceCosts": [],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "melee",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_buff_sound",
@@ -1832,9 +1832,11 @@ export const content = {
           "school": "none",
           "source": "caster",
           "stackPolicy": "stack",
+          "statChannel": "attack_speed",
           "tags": [
             "frenzy",
-            "passive"
+            "passive",
+            "frenzy_qualifying"
           ],
           "target": "self",
           "tickInterval": 0,
@@ -1859,7 +1861,7 @@ export const content = {
       ],
       "requiredLevel": 1,
       "resourceCosts": [],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "none",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_buff_sound",
@@ -1898,7 +1900,8 @@ export const content = {
           "source": "caster",
           "stackPolicy": "replace",
           "tags": [
-            "melee"
+            "melee",
+            "frenzy_qualifying"
           ],
           "target": "primary",
           "tickInterval": 0,
@@ -1922,7 +1925,7 @@ export const content = {
       ],
       "requiredLevel": 2,
       "resourceCosts": [],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "melee",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_melee_sound",
@@ -1963,7 +1966,8 @@ export const content = {
           "source": "caster",
           "stackPolicy": "replace",
           "tags": [
-            "melee"
+            "melee",
+            "frenzy_qualifying"
           ],
           "target": "primary",
           "tickInterval": 0,
@@ -2028,7 +2032,7 @@ export const content = {
       ],
       "requiredLevel": 5,
       "resourceCosts": [],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "melee",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_melee_sound",
@@ -2092,7 +2096,7 @@ export const content = {
       ],
       "requiredLevel": 10,
       "resourceCosts": [],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "none",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_buff_sound",
@@ -2131,7 +2135,8 @@ export const content = {
           "source": "caster",
           "stackPolicy": "replace",
           "tags": [
-            "melee"
+            "melee",
+            "frenzy_qualifying"
           ],
           "target": "area",
           "tickInterval": 0,
@@ -2156,7 +2161,7 @@ export const content = {
       ],
       "requiredLevel": 5,
       "resourceCosts": [],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "melee",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_melee_sound",
@@ -2971,7 +2976,8 @@ export const content = {
           "source": "caster",
           "stackPolicy": "replace",
           "tags": [
-            "melee"
+            "melee",
+            "frenzy_qualifying"
           ],
           "target": "primary",
           "tickInterval": 0,
@@ -2985,7 +2991,7 @@ export const content = {
       "ownerClassId": "class.warrior",
       "range": 40,
       "relationFilter": "hostile",
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "scalingStatId": "stat.strength",
       "school": "melee",
       "soundAssetId": "visual.ability_melee_sound",
@@ -9157,8 +9163,8 @@ export const content = {
           "abilityId": "ability.warrior.challenge",
           "modifiers": [
             {
-              "type": "damage_dealt_percent",
-              "value": -0.1
+              "type": "taunt_damage_taken_percent",
+              "value": 0.1
             }
           ]
         }
@@ -9222,23 +9228,6 @@ export const content = {
     },
     "talent.warrior.bulwark.last_stand": {
       "classification": "canonical",
-      "conditionalModifiers": [
-        {
-          "conditions": [
-            {
-              "comparison": "below",
-              "type": "target_health_percent",
-              "value": 20
-            }
-          ],
-          "modifiers": [
-            {
-              "type": "max_hp_percent",
-              "value": 0.25
-            }
-          ]
-        }
-      ],
       "descriptionKey": "talent.warrior.bulwark.last_stand.description",
       "displayName": "Last Stand",
       "displayNameKey": "talent.warrior.bulwark.last_stand.display_name",
@@ -9247,20 +9236,38 @@ export const content = {
       "maxRank": 1,
       "pointCostPerRank": 1,
       "tier": 3,
-      "treeId": "tree.warrior.bulwark"
+      "treeId": "tree.warrior.bulwark",
+      "unlockEffects": [
+        {
+          "conditions": [
+            {
+              "comparison": "below",
+              "type": "target_health_percent",
+              "value": 20
+            }
+          ],
+          "duration": 0,
+          "id": "last_stand_heal",
+          "magnitude": {
+            "kind": "stat_role",
+            "role": "max_health",
+            "scale": 0.25
+          },
+          "maxStacks": 1,
+          "refreshPolicy": "ignore",
+          "removalReason": "expired",
+          "source": "caster",
+          "stackPolicy": "ignore",
+          "tags": [
+            "last_stand"
+          ],
+          "target": "self",
+          "tickInterval": 0,
+          "type": "direct_heal"
+        }
+      ]
     },
     "talent.warrior.bulwark.punishment": {
-      "abilityModifications": [
-        {
-          "abilityId": "ability.warrior.heavy_strike",
-          "modifiers": [
-            {
-              "type": "ability_damage_percent",
-              "value": 0.25
-            }
-          ]
-        }
-      ],
       "classification": "canonical",
       "conditionalModifiers": [
         {

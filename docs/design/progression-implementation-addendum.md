@@ -87,3 +87,15 @@ Trainer NPC ids and the runtime `respec` overlay. Gold `50 × level` is canonica
 | `project.npc.respec_trainers` | `npc.test_innkeeper`, `npc.lab_trainer` | Runtime overlay of generic NPC service `respec` | Design requires a trainer NPC; authored NPC documents have no `respec` row and must not be rebuilt this phase | no (who may offer the service) | `server/tests/progression_respec.test.ts` | no |
 | `project.allocate.batch_max_entries` | `16` | Max rows in `ALLOCATE_ATTRIBUTES_BATCH` | Design does not specify a batch size; protocol needs a finite cap | no | `server/tests/protocol.test.ts` | no |
 
+### PROG-09
+
+Warrior combat reuses the accepted canonical targeting, effect, threat, cooldown-recovery, modifier, and event paths. The following units and tags were omitted from the design; they are implementation values, not canonical balance data.
+
+| Stable ID | Value | Purpose | Reason it was required | Affects balance | Tests using it | Canonical design data |
+| --- | --- | --- | --- | --- | --- | --- |
+| `project.ability.radius.challenge` | `40` px | Challenge nearby-enemy taunt radius | Design says “nearby” without world units; reuses `project.ability.aoe.radius` | yes | `server/tests/warrior_progression.test.ts` | no |
+| `project.ability.radius.whirlwind` | `40` px | Whirlwind melee AoE radius | Design says melee AoE without world units; reuses `project.ability.aoe.radius` | yes | `server/tests/warrior_progression.test.ts` | no |
+| `project.ability.range.shield_bash` | `40` px | Shield Bash melee range | Design gives melee only; reuses `project.ability.range.melee` | yes | `server/tests/warrior_progression.test.ts` | no |
+| `project.combat.tag.frenzy_qualifying` | direct melee damage from Warrior auto-attack, Heavy Strike, Shield Bash, and Whirlwind | Identifies hits that add Frenzy and qualify for Bloodthirst | Design says “qualifying hits” and “attacks” without an event classifier | no | `server/tests/warrior_progression.test.ts` | no |
+| `project.combat.tag.frenzy` | active Frenzy stack effect | Gates Bloodlust and Bloodthirst while at least one stack remains | Design names Frenzy but not its runtime effect tag | no | `server/tests/warrior_progression.test.ts` | no |
+

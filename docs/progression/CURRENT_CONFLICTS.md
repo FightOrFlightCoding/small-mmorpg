@@ -155,11 +155,11 @@ Proceed to PROG-09 only when every row is true. These are PROG-08 exit criteria,
 
 ### C-attack-foundation
 
-- **Conflict:** Live ATTACK uses Foundation `test.stat.attack` (might + gear). Canonical auto-attacks are not live. ATTACK does not roll canonical crit.
+- **Conflict:** Live ATTACK still uses Foundation `test.stat.attack` for Marksman, Mage, and Mystic. Warrior ATTACK uses its canonical base damage, STR scaling, Haste-scaled interval, server-side crit roll, and talent modifiers.
 - **Status:** DEFERRED
-- **Resolution owner:** PROG-09 through PROG-12 class implementations. Generic hit, crit, and multi-hit helpers exist from PROG-04/PROG-08.
+- **Resolution owner:** PROG-10 through PROG-12 class implementations. Warrior closed in PROG-09.
 - **Must be resolved by:** Before PROG-13 UI certification.
-- **Closure test:** Every production class auto-attack uses its canonical base damage, interval, scaling stat, haste behavior, crit behavior, and server authority. No `class.*` character damage reads `test.stat.attack`.
+- **Closure test:** `server/tests/warrior_progression.test.ts` closes Warrior. Every remaining production class must use its canonical base damage, interval, scaling stat, haste behavior, crit behavior, and server authority; no completed-class ATTACK path reads `test.stat.attack`.
 
 ### C-roster-four-classes
 
@@ -235,9 +235,9 @@ Proceed to PROG-09 only when every row is true. These are PROG-08 exit criteria,
 
 ### C-cooldown-recovery-rate
 
-- **Conflict:** No live cooldown-recovery talents. Design Relentless/Nimble/Nest/Runner advance timers at `1+bonus`. The engine rate is implemented; those nodes are not live.
+- **Conflict:** Berserker Relentless is live at `1 + 10%/20%`; Nimble, Sniper's Nest, and Runner's High remain unwired.
 - **Status:** DEFERRED
-- **Resolution owner:** PROG-09 through PROG-12 (those talents). Engine + tests: PROG-08.
+- **Resolution owner:** PROG-10 through PROG-12. Berserker closed in PROG-09; engine + tests remain PROG-08.
 - **Must be resolved by:** Before PROG-13, for any live talent that grants cooldown recovery.
 - **Closure test:** Those nodes multiply cooldown remaining-tick consumption. Haste still does not change stored cooldown duration. Covered for the engine by `server/tests/canonical_combat.test.ts`.
 
@@ -279,23 +279,23 @@ Proceed to PROG-09 only when every row is true. These are PROG-08 exit criteria,
 - **Status:** RESOLVED
 - **Resolution owner:** PROG-01 interpretation; PROG-03 migration strips `ability.warrior.frenzy` from canonical `hotbarAssignments`. Combat behavior is `C-frenzy-combat`.
 - **Must be resolved by:** Accepted as a reading. PROG-07 owns the production hotbar; Frenzy remains excluded from it.
-- **Closure test:** Interpretations doc plus migration strip. Live code has no Frenzy combat behavior until `C-frenzy-combat`.
+- **Closure test:** Interpretations doc plus migration strip. `server/tests/warrior_progression.test.ts` proves the live passive combat behavior.
 
 ### C-frenzy-combat
 
-- **Conflict:** Live code has no Frenzy combat behavior.
-- **Status:** DEFERRED
+- **Conflict:** Frenzy needed a live qualifying-hit stacker without becoming a hotbar active.
+- **Status:** RESOLVED
 - **Resolution owner:** PROG-09 Warrior / Berserker.
-- **Must be resolved by:** Before PROG-13 for Berserker certification.
-- **Closure test:** Frenzy is a passive stacker, not a hotbar active, with the design stack/drop rules.
+- **Must be resolved by:** Accepted in PROG-09.
+- **Closure test:** `server/tests/warrior_progression.test.ts` proves the passive, maximum-rank replacement, expiry, and Bloodthirst gate.
 
 ### C-equipment-auto-attack-baseline
 
-- **Conflict:** Live equipment is an identified modifier source in `canonical_stats.ts`. Training sword / attack-from-might still disagree with §9 auto-attack baselines.
+- **Conflict:** Training sword / attack-from-might still disagree with §9 auto-attack baselines for unimplemented classes. Warrior ignores Foundation attack as its auto-attack base while retaining identified equipment modifiers.
 - **Status:** DEFERRED
-- **Resolution owner:** PROG-09 through PROG-12 auto-attack retune.
+- **Resolution owner:** PROG-10 through PROG-12 auto-attack retune; Warrior closed in PROG-09.
 - **Must be resolved by:** Before PROG-13.
-- **Closure test:** Production auto-attack baselines match §9. Outgoing and taken percentage modifiers from different sources still multiply; higher ranks of the same talent node still replace.
+- **Closure test:** `server/tests/warrior_progression.test.ts` closes the Warrior baseline. Remaining production auto-attack baselines must match §9; outgoing and taken percentage modifiers from different sources still multiply and same-node ranks replace.
 
 ### C-talent-runtime
 
@@ -323,8 +323,8 @@ Proceed to PROG-09 only when every row is true. These are PROG-08 exit criteria,
 
 ### C-shields-taunt
 
-- **Conflict:** Live absorb uses effect tags (`shield` / `absorb` channel); threat tables and heal threat exist. The generic shield/taunt engine is live. Design Protective Charm / Benediction / Challenge are not wired as class abilities.
+- **Conflict:** The generic shield/taunt engine is live. Challenge is wired through it; Protective Charm and Benediction remain unwired.
 - **Status:** DEFERRED
-- **Resolution owner:** PROG-09–12. Extend existing `effects.ts` / `threat.ts`; do not add a second combat pipeline.
+- **Resolution owner:** PROG-10–12. Challenge closed in PROG-09; extend existing `effects.ts` / `threat.ts`, never a second pipeline.
 - **Must be resolved by:** Before PROG-13 for the classes that own those skills.
-- **Closure test:** Those abilities use the single combat pipeline. Shields use SPI scaling and do not crit unless content sets `shieldCanCrit`. Engine coverage: `server/tests/progression_combat_mechanics.test.ts`.
+- **Closure test:** `server/tests/warrior_progression.test.ts` proves Challenge’s radius taunt, DR ranks, and taunted-source reduction. Remaining abilities use the same pipeline; shields use SPI scaling and do not crit unless content sets `shieldCanCrit`.

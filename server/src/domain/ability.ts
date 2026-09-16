@@ -1,5 +1,5 @@
-import { cooldownTicks, findEnemy, NEVER_ATTACKED_TICK, type CombatEvent } from "./combat";
-import { applyPlayerAttack } from "./combat_pipeline";
+import { cooldownTicks, findEnemy, isCooldownReady, NEVER_ATTACKED_TICK, rememberAttack, type CombatEvent } from "./combat";
+import { applyCombat, applyPlayerAttack } from "./combat_pipeline";
 import {
   applyEffectDefinition,
   effectModifiersFrom,
@@ -7,6 +7,7 @@ import {
   hasControlTag,
   playerAsTarget,
   writeTarget,
+  type EffectTarget,
   type EffectDefinition,
   type MagnitudeFormula,
 } from "./effects";
@@ -17,13 +18,15 @@ import type { MatchPlayer, StarterZoneState } from "./match_state";
 import { cloneProgression, type CharacterProgression } from "./progression";
 import { usesCanonicalCreateState } from "./canonical_progression";
 import {
+  ABILITY_CATEGORY_PASSIVE,
   assignCanonicalHotbar,
   publicCanonicalHotbar,
   syncDerivedAbilityOwnership,
   usesCanonicalTalentRuntime,
 } from "./canonical_talents";
 import { formulaCastTime } from "./canonical_stats";
-import { cooldownRecoveryRate, scaledManaCost } from "./canonical_combat";
+import { attackSpeedProduct, autoAttackBase, cooldownRecoveryRate, hasteScaledAttackInterval, scaledManaCost } from "./canonical_combat";
+import { conditionalTalentModifierValue, resolveAbilityTalentModifiers, talentModifiersForProgression } from "./talent_modifiers";
 import {
   evaluateStats,
   identifiedModifiersFromEffectMap,
@@ -70,6 +73,16 @@ export interface AbilityDefinition {
   soundAssetId: string;
   skillPointCost: number;
   maxRank: number;
+}
+
+export interface AutoAttackDefinition {
+  id: string;
+  ownerClassId: string;
+  baseDamage: number;
+  interval: number;
+  range: number;
+  school: "melee" | "ranged" | "spell";
+  tags: string[];
 }
 
 export interface ActiveCast {
@@ -155,6 +168,57 @@ export function abilityDefinitionsFromContent(abilities: {
     map[ids[i]] = copyAbility(abilities[ids[i]]);
   }
   return map;
+}
+
+export function autoAttackDefinitionsFromContent(autoAttacks: {
+  [id: string]: {
+    id: string;
+    ownerClassId: string;
+    baseDamage: number;
+    interval: number;
+    range: number;
+    school: string;
+    effects?: ReadonlyArray<{ tags?: ReadonlyArray<string> }>;
+    runtimeEnabled?: boolean;
+  };
+}): { [id: string]: AutoAttackDefinition } {
+  const map: { [id: string]: AutoAttackDefinition } = {};
+  const ids = Object.keys(autoAttacks);
+  for (let i = 0; i < ids.length; i++) {
+    const raw = autoAttacks[ids[i]];
+    if (raw.runtimeEnabled === false) {
+      continue;
+    }
+    if (raw.school !== "melee" && raw.school !== "ranged" && raw.school !== "spell") {
+      continue;
+    }
+    map[raw.id] = {
+      id: raw.id,
+      ownerClassId: raw.ownerClassId,
+      baseDamage: raw.baseDamage,
+      interval: raw.interval,
+      range: raw.range,
+      school: raw.school,
+      tags: autoAttackTags(raw.effects),
+    };
+  }
+  return map;
+}
+
+function autoAttackTags(effects: ReadonlyArray<{ tags?: ReadonlyArray<string> }> | undefined): string[] {
+  const tags: string[] = [];
+  if (effects === undefined) {
+    return tags;
+  }
+  for (let i = 0; i < effects.length; i++) {
+    const source = effects[i].tags !== undefined ? effects[i].tags as ReadonlyArray<string> : [];
+    for (let t = 0; t < source.length; t++) {
+      if (tags.indexOf(source[t]) < 0) {
+        tags.push(source[t]);
+      }
+    }
+  }
+  return tags;
 }
 
 export function emptyHotbar(): string[] {
@@ -358,6 +422,13 @@ export function useAbility(
   const definition = state.abilitiesById !== undefined ? state.abilitiesById[input.abilityId] : undefined;
   if (definition === undefined) {
     return remember("invalid_id", false);
+  }
+  if (
+    state.progressionCatalog !== undefined &&
+    state.progressionCatalog.abilities[definition.id] !== undefined &&
+    state.progressionCatalog.abilities[definition.id].category === ABILITY_CATEGORY_PASSIVE
+  ) {
+    return remember("ability_passive", false);
   }
   if (!isAbilityUnlocked(player.progression, definition.id)) {
     return remember("ability_locked", false);
@@ -610,6 +681,10 @@ export function useLegacyAttackOrAbility(
   attackRange: number,
   attackCooldownSec: number,
 ): AbilityDecision {
+  const canonical = useCanonicalAutoAttack(state, userId, targetId, requestId, tick, events);
+  if (canonical !== null) {
+    return canonical;
+  }
   const basicId = state.basicAbilityId !== undefined ? state.basicAbilityId : "";
   const hasAbility = basicId.length > 0 && state.abilitiesById !== undefined && state.abilitiesById[basicId] !== undefined;
   const player = state.players[userId];
@@ -632,6 +707,107 @@ export function useLegacyAttackOrAbility(
     events,
   );
   return { ok: decision.ok, code: decision.code, replay: decision.replay };
+}
+
+function useCanonicalAutoAttack(
+  state: StarterZoneState,
+  userId: string,
+  targetId: string,
+  requestId: string,
+  tick: number,
+  events: CombatEvent[],
+): AbilityDecision | null {
+  const player = state.players[userId];
+  if (player === undefined || player.classId === undefined || player.progression === undefined || state.progressionCatalog === undefined) {
+    return null;
+  }
+  const classDef = state.progressionCatalog.classes[player.classId];
+  const autoAttackId = classDef !== undefined && classDef.autoAttackId !== undefined ? classDef.autoAttackId : "";
+  const definition = state.autoAttacksById !== undefined ? state.autoAttacksById[autoAttackId] : undefined;
+  if (definition === undefined) {
+    return null;
+  }
+  if (player.lastAttackRequestId === requestId && player.lastAttackRequestId !== "") {
+    return {
+      ok: player.lastAttackResultOk === true,
+      code: player.lastAttackResultCode !== undefined && player.lastAttackResultCode.length > 0 ? player.lastAttackResultCode : "ok",
+      replay: true,
+    };
+  }
+  if (player.health <= 0) {
+    rememberAttack(player, requestId, "player_dead", false);
+    return { ok: false, code: "player_dead", replay: false };
+  }
+  const target = findEnemy(state.enemies, targetId);
+  if (target === null) {
+    rememberAttack(player, requestId, "invalid_target", false);
+    return { ok: false, code: "invalid_target", replay: false };
+  }
+  if (target.health <= 0 || target.aiState === "dead") {
+    rememberAttack(player, requestId, "target_dead", false);
+    return { ok: false, code: "target_dead", replay: false };
+  }
+  if (distance(player.x, player.y, target.x, target.y) > definition.range) {
+    rememberAttack(player, requestId, "out_of_range", false);
+    return { ok: false, code: "out_of_range", replay: false };
+  }
+  const stats = casterStats(state, player);
+  const haste = stats !== null && stats.hasteMult !== undefined ? stats.hasteMult : 1;
+  const attackSpeed = stats !== null && stats.canonical !== undefined
+    ? attackSpeedProduct(stats.canonical.modifiers)
+    : 1;
+  const interval = hasteScaledAttackInterval(definition.interval, haste, attackSpeed);
+  if (!isCooldownReady(player.lastAttackTick !== undefined ? player.lastAttackTick : NEVER_ATTACKED_TICK, tick, cooldownTicks(interval, SNAPSHOT_RATE_HZ))) {
+    rememberAttack(player, requestId, "on_cooldown", false);
+    return { ok: false, code: "on_cooldown", replay: false };
+  }
+  const base = stats !== null && stats.canonical !== undefined
+    ? autoAttackBase(definition.baseDamage, stats.canonical.modifiers)
+    : definition.baseDamage;
+  const result = applyCombat(
+    state,
+    {
+      action: "damage",
+      sourceId: player.userId,
+      sourceKind: "player",
+      targetId: target.id,
+      targetKind: "enemy",
+      formula:
+        stats !== null && stats.canonical !== undefined
+          ? {
+              base: base,
+              powerCategory: definition.school,
+              canonicalStats: stats.values,
+              canonicalCritChance: stats.critChance,
+              canonicalCritMult:
+                (stats.critMult !== undefined ? stats.critMult : 1.5) +
+                conditionalTalentModifierValue(
+                  state.progressionCatalog,
+                  player.progression,
+                  "crit_damage_flat",
+                  { sourceTags: activeTags(player.effects) },
+                ),
+              canonicalOutgoingProduct: stats.canonical.outgoingProduct,
+              canonicalDamageReduction: 0,
+              canonicalTakenProduct: 1,
+              canonicalCritDamageProduct: 1,
+              random: state.combatRandom,
+            }
+          : { base: base },
+      tick: tick,
+      eventId: "atk:" + requestId,
+      abilityId: definition.id,
+      tickRate: SNAPSHOT_RATE_HZ,
+    },
+    events,
+  );
+  if (!result.ok) {
+    rememberAttack(player, requestId, result.code, false);
+    return { ok: false, code: result.code, replay: false };
+  }
+  player.lastAttackTick = tick;
+  rememberAttack(player, requestId, "ok", true);
+  return { ok: true, code: "ok", replay: false };
 }
 
 export function publicAbilityState(
@@ -790,7 +966,8 @@ function applyResolvedAbility(
     const hits = effect.hitCount !== undefined && effect.hitCount > 1 ? Math.floor(effect.hitCount) : 1;
     for (let t = 0; t < selected.length; t++) {
       for (let h = 0; h < hits; h++) {
-        applyEffectDefinition(state, effect, definition.id, player, selected[t], stats, fallbackAttack, tick, events);
+        const resolved = resolveTalentEffect(state, player, definition, effect, selected[t]);
+        applyEffectDefinition(state, resolved, definition.id, player, selected[t], stats, fallbackAttack, tick, events);
         writeTarget(state, selected[t]);
       }
     }
@@ -1038,9 +1215,13 @@ function startCooldowns(player: MatchPlayer, definition: AbilityDefinition, tick
   }
 }
 
-export function tickAbilityCooldownRecovery(player: MatchPlayer, tick: number): void {
+export function tickAbilityCooldownRecovery(player: MatchPlayer, tick: number, catalog?: ProgressionCatalog): void {
   const modifiers = effectModifiersFrom(player.effects);
-  const identified = identifiedFromChannelMap(modifiers);
+  const identified = identifiedFromChannelMap(modifiers).concat(
+    catalog !== undefined && player.progression !== undefined
+      ? talentModifiersForProgression(catalog, player.progression)
+      : [],
+  );
   const rate = cooldownRecoveryRate(identified);
   const map = dict(player.abilityCooldowns);
   const ids = Object.keys(map);
@@ -1196,6 +1377,15 @@ function copyAbility(raw: Parameters<typeof abilityDefinitionsFromContent>[0][st
       removalReason: effect.removalReason,
       tags: effectTags,
     };
+    const rawSchool = effect as unknown as { school?: unknown };
+    if (
+      rawSchool.school === "melee" ||
+      rawSchool.school === "ranged" ||
+      rawSchool.school === "spell" ||
+      rawSchool.school === "heal"
+    ) {
+      copied.powerCategory = rawSchool.school;
+    }
     if (effect.statChannel !== undefined) {
       copied.statChannel = effect.statChannel;
     }
@@ -1239,6 +1429,77 @@ function copyAbility(raw: Parameters<typeof abilityDefinitionsFromContent>[0][st
     skillPointCost: raw.skillPointCost !== undefined ? raw.skillPointCost : 0,
     maxRank: raw.maxRank !== undefined ? raw.maxRank : 1,
   };
+}
+
+export function resolveTalentEffect(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  ability: AbilityDefinition,
+  effect: EffectDefinition,
+  target: EffectTarget,
+): EffectDefinition {
+  if (state.progressionCatalog === undefined || player.progression === undefined) {
+    return effect;
+  }
+  const sourceTags = activeTags(player.effects);
+  const modifiers = resolveAbilityTalentModifiers(state.progressionCatalog, player.progression, ability.id, {
+    sourceTags: sourceTags,
+    target: { health: target.health, maxHealth: target.maxHealth, tags: activeTags(target.effects) },
+  });
+  if (
+    modifiers.damageMultiplier === 1 &&
+    modifiers.durationOverride === undefined &&
+    modifiers.stunDurationOverride === undefined &&
+    modifiers.tauntTakenReduction === undefined &&
+    modifiers.frenzyMaxStacks === undefined &&
+    modifiers.frenzyPerStack === undefined
+  ) {
+    return effect;
+  }
+  const resolved: EffectDefinition = {
+    ...effect,
+    magnitude: { ...effect.magnitude },
+    tags: effect.tags.slice(),
+  };
+  if (effect.type === "direct_damage" && resolved.magnitude.value !== undefined) {
+    resolved.magnitude.value *= modifiers.damageMultiplier;
+  }
+  if (modifiers.durationOverride !== undefined) {
+    resolved.duration = modifiers.durationOverride;
+  }
+  if (effect.type === "stun" && modifiers.stunDurationOverride !== undefined) {
+    resolved.duration = modifiers.stunDurationOverride;
+  }
+  if (effect.type === "taunt" && modifiers.tauntTakenReduction !== undefined) {
+    resolved.magnitude = { kind: "constant", value: modifiers.tauntTakenReduction };
+  }
+  if (effect.type === "passive_stacker") {
+    if (modifiers.frenzyMaxStacks !== undefined) {
+      resolved.maxStacks = modifiers.frenzyMaxStacks;
+    }
+    if (modifiers.frenzyPerStack !== undefined) {
+      resolved.magnitude = { kind: "constant", value: modifiers.frenzyPerStack };
+    }
+  }
+  return resolved;
+}
+
+function activeTags(effects: ReadonlyArray<{ tags: ReadonlyArray<string>; remainingTicks: number }> | undefined): string[] {
+  const tags: string[] = [];
+  if (effects === undefined) {
+    return tags;
+  }
+  for (let i = 0; i < effects.length; i++) {
+    if (effects[i].remainingTicks <= 0) {
+      continue;
+    }
+    for (let t = 0; t < effects[i].tags.length; t++) {
+      if (tags.indexOf(effects[i].tags[t]) < 0) {
+        tags.push(effects[i].tags[t]);
+      }
+    }
+  }
+  return tags;
 }
 
 function copyMagnitude(raw: MagnitudeFormula): MagnitudeFormula {

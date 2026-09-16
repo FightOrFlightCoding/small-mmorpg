@@ -271,7 +271,7 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 | Field | Value |
 | --- | --- |
 | Body | `{ protocolVersion, targetId, requestId }` |
-| Authority | Server derived attack, range, cooldown. When the catalog and unlock exist, ATTACK uses `player.base.basicAbilityId`; otherwise Prompt 18 `applyPlayerAttack`. |
+| Authority | Server derived attack, range, cooldown. A production class with an enabled canonical `autoAttackId` resolves that data-defined attack (Warrior in PROG-09); it is never a hotbar ability. Other catalog/basic and Prompt 18 paths remain until their named class phases. |
 | Idempotency | Same `requestId` does not hit twice |
 | Errors | `on_cooldown`, `out_of_range`, `invalid_target`, `target_dead`, `player_dead`, `stat_injection:damage`, `stat_injection:crit` |
 | Tests | `combat.test.ts`, `security.test.ts`, `combat_client_test.gd`, `progression.test.ts`, `progression_combat_mechanics.test.ts` |

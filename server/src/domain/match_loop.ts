@@ -45,12 +45,12 @@ import {
   type RewardCommitter,
 } from "./quest_reward";
 import { type CombatEvent } from "./combat";
-import { assignHotbar, cancelCast, interruptCast, interruptMovingCasters, interruptOnDamage, publicAbilityState, tickAbilityCooldownRecovery, tickCasts, unlockAbility, useAbility, useLegacyAttackOrAbility } from "./ability";
-import { applyReleaseRespawn, tickCombatFlags } from "./combat_pipeline";
+import { assignHotbar, cancelCast, interruptCast, interruptMovingCasters, interruptOnDamage, publicAbilityState, resolveTalentEffect, tickAbilityCooldownRecovery, tickCasts, unlockAbility, useAbility, useLegacyAttackOrAbility } from "./ability";
+import { applyCombat, applyReleaseRespawn, tickCombatFlags } from "./combat_pipeline";
 import { applySetTarget } from "./targeting";
 import { applyServerXpGrant, killXpGrantFromEnemy, questXpGrant, type TrustedXpGrant } from "./xp_hooks";
-import { effectModifiersFrom, hasControlTag, tickEffects } from "./effects";
-import { dueDelayedGround } from "./canonical_combat";
+import { applyEffectDefinition, effectModifiersFrom, hasControlTag, playerAsTarget, tickEffects, writeTarget, type EffectDefinition } from "./effects";
+import { dueDelayedGround, tryConsumeOncePerCombat } from "./canonical_combat";
 import { entitiesInRadius } from "./targeting";
 import { simulateCombatants } from "./enemy_ai";
 import { publicInventory, applyDestroyItem, applyMoveItem, applySplitStack, emptyInventory, type PlayerInventory } from "./inventory";
@@ -124,6 +124,7 @@ import {
   syncCombatStatsFromPipeline,
 } from "./stats";
 import { formulaAttackInterval, regenerateMana } from "./canonical_stats";
+import { conditionalTalentModifierValue, passiveTalentModifierValue, talentUnlockEffectsForContext } from "./talent_modifiers";
 
 export interface MatchOutbound {
   opcode: number;
@@ -274,6 +275,7 @@ export function applyMatchLoop(
   tickCasts(next, tick, combatEvents);
   simulateCombatants(next, tick, 1 / MATCH_TICK_RATE, MATCH_TICK_RATE, combatEvents);
   tickCombatFlags(next, tick);
+  applyTalentCombatReactions(next, tick, combatEvents);
   interruptDamagedCasters(next, combatEvents, tick);
   tickEffects(next, tick, combatEvents);
   tickManaRegen(next, 1 / MATCH_TICK_RATE);
@@ -2181,8 +2183,262 @@ function simulateMovement(state: StarterZoneState, dt: number): void {
 function tickAbilityCooldowns(state: StarterZoneState, tick: number): void {
   const ids = Object.keys(state.players);
   for (let i = 0; i < ids.length; i++) {
-    tickAbilityCooldownRecovery(state.players[ids[i]], tick);
+    tickAbilityCooldownRecovery(state.players[ids[i]], tick, state.progressionCatalog);
   }
+}
+
+function applyTalentCombatReactions(state: StarterZoneState, tick: number, events: CombatEvent[]): void {
+  if (state.progressionCatalog === undefined) {
+    return;
+  }
+  const initialCount = events.length;
+  for (let i = 0; i < initialCount; i++) {
+    const event = events[i];
+    if (event.type !== "hit") {
+      continue;
+    }
+    const damage = event.damage !== undefined ? event.damage : 0;
+    if (!(damage > 0)) {
+      continue;
+    }
+    if (event.targetKind === "player") {
+      triggerDamageTakenTalents(state, tick, event, damage, events);
+    }
+    if (event.sourceKind === "player" && event.targetKind === "enemy") {
+      triggerDamageDealtTalents(state, tick, event, damage, events);
+    }
+  }
+}
+
+function triggerDamageTakenTalents(
+  state: StarterZoneState,
+  tick: number,
+  event: CombatEvent,
+  damage: number,
+  events: CombatEvent[],
+): void {
+  const player = state.players[event.targetId];
+  if (player === undefined || player.progression === undefined || state.progressionCatalog === undefined) {
+    return;
+  }
+  const sourceTags = activeEffectTags(player.effects);
+  const beforeHealth = (event.remainingHealth !== undefined ? event.remainingHealth : player.health) + damage;
+  const max = player.maxHealth > 0 ? player.maxHealth : 1;
+  const crossedThreshold = beforeHealth / max >= 0.2 && player.health / max < 0.2;
+  if (crossedThreshold) {
+    const once = player.oncePerCombatUsed !== undefined ? player.oncePerCombatUsed : {};
+    const effects = talentUnlockEffectsForContext(state.progressionCatalog, player.progression, {
+      sourceTags: sourceTags,
+      target: { health: player.health, maxHealth: player.maxHealth, tags: sourceTags },
+    });
+    for (let e = 0; e < effects.length; e++) {
+      const key = "talent:" + effects[e].id;
+      if (!tryConsumeOncePerCombat(once, key)) {
+        continue;
+      }
+      player.oncePerCombatUsed = once;
+      const target = playerAsTarget(player);
+      applyEffectDefinition(
+        state,
+        effects[e] as EffectDefinition,
+        "talent:" + effects[e].id,
+        player,
+        target,
+        playerStats(state, player),
+        player.derivedAttack !== undefined ? player.derivedAttack : state.playerAttack,
+        tick,
+        events,
+      );
+      writeTarget(state, target);
+    }
+  }
+
+  if (event.sourceKind !== "enemy" || !isMeleeEnemyHit(state, event)) {
+    return;
+  }
+  const fraction = passiveTalentModifierValue(state.progressionCatalog, player.progression, "reflect_melee_percent");
+  if (!(fraction > 0)) {
+    return;
+  }
+  applyCombat(
+    state,
+    {
+      action: "damage",
+      sourceId: player.userId,
+      sourceKind: "player",
+      targetId: event.sourceId,
+      targetKind: "enemy",
+      formula: { base: damage * fraction },
+      tick: tick,
+      abilityId: "talent_reflect",
+      eventId: "reflect:" + tick + ":" + player.userId + ":" + event.sourceId,
+      tickRate: MATCH_TICK_RATE,
+    },
+    events,
+  );
+}
+
+function triggerDamageDealtTalents(
+  state: StarterZoneState,
+  tick: number,
+  event: CombatEvent,
+  damage: number,
+  events: CombatEvent[],
+): void {
+  const player = state.players[event.sourceId];
+  if (player === undefined || player.progression === undefined || state.progressionCatalog === undefined) {
+    return;
+  }
+  const abilityTags = eventAbilityTags(state, event.abilityId);
+  if (abilityTags.indexOf("frenzy_qualifying") < 0) {
+    return;
+  }
+  applyPassiveStackers(state, player, event.abilityId, abilityTags, tick, events);
+  const sourceTags = activeEffectTags(player.effects);
+  const fraction = conditionalTalentModifierValue(
+    state.progressionCatalog,
+    player.progression,
+    "lifesteal_percent",
+    { sourceTags: sourceTags },
+  );
+  if (!(fraction > 0)) {
+    return;
+  }
+  applyCombat(
+    state,
+    {
+      action: "heal",
+      sourceId: player.userId,
+      sourceKind: "player",
+      targetId: player.userId,
+      targetKind: "player",
+      formula: { base: damage * fraction },
+      tick: tick,
+      abilityId: event.abilityId,
+      eventId: "lifesteal:" + tick + ":" + player.userId + ":" + event.targetId,
+      tickRate: MATCH_TICK_RATE,
+    },
+    events,
+  );
+}
+
+function applyPassiveStackers(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  abilityId: string | undefined,
+  qualifyingTags: ReadonlyArray<string>,
+  tick: number,
+  events: CombatEvent[],
+): void {
+  if (state.abilitiesById === undefined || player.progression === undefined || state.progressionCatalog === undefined) {
+    return;
+  }
+  const owned = player.progression.unlockedAbilityIds;
+  for (let i = 0; i < owned.length; i++) {
+    const passive = state.abilitiesById[owned[i]];
+    if (
+      passive === undefined ||
+      state.progressionCatalog.abilities[passive.id] === undefined ||
+      state.progressionCatalog.abilities[passive.id].category !== "passive"
+    ) {
+      continue;
+    }
+    for (let e = 0; e < passive.effects.length; e++) {
+      const effect = passive.effects[e];
+      if (effect.type !== "passive_stacker" || !sharesTag(effect.tags, qualifyingTags)) {
+        continue;
+      }
+      const target = playerAsTarget(player);
+      applyEffectDefinition(
+        state,
+        resolveTalentEffect(state, player, passive, effect, target),
+        abilityId !== undefined ? abilityId : passive.id,
+        player,
+        target,
+        playerStats(state, player),
+        player.derivedAttack !== undefined ? player.derivedAttack : state.playerAttack,
+        tick,
+        events,
+      );
+      writeTarget(state, target);
+    }
+  }
+}
+
+function playerStats(state: StarterZoneState, player: MatchPlayer) {
+  if (state.progressionCatalog === undefined || player.classId === undefined || player.progression === undefined) {
+    return null;
+  }
+  return evaluateStats(
+    state.progressionCatalog,
+    playerStatContext(
+      player.classId,
+      player.progression,
+      player.equipment,
+      player.inventory,
+      state.itemsById,
+      effectModifiersFrom(player.effects),
+    ),
+  );
+}
+
+function activeEffectTags(effects: MatchPlayer["effects"]): string[] {
+  const tags: string[] = [];
+  const source = effects !== undefined ? effects : [];
+  for (let i = 0; i < source.length; i++) {
+    if (source[i].remainingTicks <= 0) {
+      continue;
+    }
+    for (let t = 0; t < source[i].tags.length; t++) {
+      if (tags.indexOf(source[i].tags[t]) < 0) {
+        tags.push(source[i].tags[t]);
+      }
+    }
+  }
+  return tags;
+}
+
+function eventAbilityTags(state: StarterZoneState, abilityId: string | undefined): string[] {
+  const tags: string[] = [];
+  if (abilityId === undefined) {
+    return tags;
+  }
+  const ability = state.abilitiesById !== undefined ? state.abilitiesById[abilityId] : undefined;
+  if (ability !== undefined) {
+    for (let e = 0; e < ability.effects.length; e++) {
+      for (let t = 0; t < ability.effects[e].tags.length; t++) {
+        if (tags.indexOf(ability.effects[e].tags[t]) < 0) {
+          tags.push(ability.effects[e].tags[t]);
+        }
+      }
+    }
+  }
+  const auto = state.autoAttacksById !== undefined ? state.autoAttacksById[abilityId] : undefined;
+  if (auto !== undefined) {
+    for (let t = 0; t < auto.tags.length; t++) {
+      if (tags.indexOf(auto.tags[t]) < 0) {
+        tags.push(auto.tags[t]);
+      }
+    }
+  }
+  return tags;
+}
+
+function sharesTag(left: ReadonlyArray<string>, right: ReadonlyArray<string>): boolean {
+  for (let i = 0; i < left.length; i++) {
+    if (right.indexOf(left[i]) >= 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isMeleeEnemyHit(state: StarterZoneState, event: CombatEvent): boolean {
+  const enemy = findMatchEnemy(state, event.sourceId);
+  if (enemy === null) {
+    return false;
+  }
+  return enemy.aiProfileId === undefined || enemy.aiProfileId === "test.ai.melee";
 }
 
 function tickDelayedGround(state: StarterZoneState, tick: number, events: CombatEvent[]): void {

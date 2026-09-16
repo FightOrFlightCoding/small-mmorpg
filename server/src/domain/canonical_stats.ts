@@ -13,6 +13,7 @@ export const CHANNEL_OUTGOING = "outgoing_damage";
 export const CHANNEL_TAKEN = "taken_damage";
 export const CHANNEL_CRIT_DAMAGE = "crit_damage";
 export const CHANNEL_MAX_HEALTH = "max_health";
+export const CHANNEL_MAX_HEALTH_PERCENT = "max_health_percent";
 export const CHANNEL_MAX_MANA = "max_mana";
 export const CHANNEL_WEAPON_BASE = "weapon_base";
 
@@ -357,15 +358,16 @@ export function evaluateCanonicalSnapshot(input: CanonicalStatInput): CanonicalS
     modifiersWithIdentity.push(collapsed[i]);
   }
   const usesMana = input.usesMana;
-  const hpMax = formulaHpMax(stats["stat.vitality"]) + sumOfAddModifiers(collapsed, CHANNEL_MAX_HEALTH);
+  const hpBase = formulaHpMax(stats["stat.vitality"]) + sumOfAddModifiers(collapsed, CHANNEL_MAX_HEALTH);
+  const hpMax = hpBase * productOfPctModifiers(collapsed, CHANNEL_MAX_HEALTH_PERCENT);
   const manaMax = usesMana
     ? formulaManaMax(stats["stat.intelligence"], true) + sumOfAddModifiers(collapsed, CHANNEL_MAX_MANA)
     : 0;
   const manaRegen = formulaManaRegen(stats["stat.spirit"], usesMana);
   const critChance = formulaCritChance(stats["stat.precision"]);
-  const critMult = formulaCritMult(stats["stat.strength"]);
+  const critMult = formulaCritMult(stats["stat.strength"]) + sumOfAddModifiers(collapsed, "crit_mult_flat");
   const hasteMult = formulaHasteMult(stats["stat.haste"]);
-  const damageReduction = formulaDamageReduction(stats["stat.endurance"]);
+  const damageReduction = Math.min(0.95, formulaDamageReduction(stats["stat.endurance"]) + sumOfAddModifiers(collapsed, "flat_damage_reduction"));
   const effectiveHp = formulaEffectiveHp(hpMax, damageReduction);
   const outgoingProduct = productOfPctModifiers(collapsed, CHANNEL_OUTGOING);
   const takenProduct = productOfPctModifiers(collapsed, CHANNEL_TAKEN);
@@ -541,6 +543,9 @@ export function normalizeChannel(channel: string): string {
   if (channel === "max_health" || channel === "health") {
     return CHANNEL_MAX_HEALTH;
   }
+  if (channel === "max_health_percent") {
+    return CHANNEL_MAX_HEALTH_PERCENT;
+  }
   if (channel === "max_mana" || channel === "mana") {
     return CHANNEL_MAX_MANA;
   }
@@ -566,6 +571,9 @@ export function normalizeChannel(channel: string): string {
     return "crit_chance";
   }
   if (channel === "flat_damage_reduction") {
+    return "flat_damage_reduction";
+  }
+  if (channel === "damage_reduction") {
     return "flat_damage_reduction";
   }
   if (channel === "auto_attack") {

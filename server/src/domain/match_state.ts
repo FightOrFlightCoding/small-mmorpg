@@ -34,6 +34,7 @@ import {
   type ActiveCast,
 } from "./ability";
 import { cloneActiveEffects, effectModifiersFrom, hasControlTag, type ActiveEffect, type EffectDefinition } from "./effects";
+import { productionRandom, type CombatRandom } from "./combat_rng";
 import { buildInitialCombatants, cloneEnemyCombatFields, cloneSpawns } from "./spawn_controller";
 import type { AiProfileContent } from "./threat";
 import type { LootTableDefinition } from "./loot_table";
@@ -284,9 +285,11 @@ export interface StarterZoneState {
   classEquipmentTags?: { [classId: string]: string[] };
   inventoryCapacity?: number;
   abilitiesById?: { [id: string]: AbilityDefinition };
+  autoAttacksById?: { [id: string]: import("./ability").AutoAttackDefinition };
   basicAbilityId?: string;
   classTags?: { [classId: string]: string[] };
   combatApplyByEventId?: { [eventId: string]: CombatApplyRecord };
+  combatRandom?: CombatRandom;
   pendingGroundEffects?: Array<{
     id: string;
     sourceId: string;
@@ -396,6 +399,7 @@ export interface StarterZoneCatalogExtras {
   classEquipmentTags?: { [classId: string]: string[] };
   inventoryCapacity?: number;
   abilitiesById?: { [id: string]: AbilityDefinition };
+  autoAttacksById?: { [id: string]: import("./ability").AutoAttackDefinition };
   basicAbilityId?: string;
   classTags?: { [classId: string]: string[] };
   spawnsById?: { [id: string]: SpawnContent };
@@ -537,9 +541,11 @@ export function createStarterZoneState(
       INVENTORY_CAPACITY,
     ),
     abilitiesById: extras.abilitiesById,
+    autoAttacksById: extras.autoAttacksById,
     basicAbilityId: extras.basicAbilityId !== undefined ? extras.basicAbilityId : playerContent.basicAbilityId,
     classTags: extras.classTags,
     combatApplyByEventId: {},
+    combatRandom: productionRandom(),
     partyByCharacterId: {},
     pendingInvitesByCharacterId: {},
     groupCreditRules: extras.groupCreditRules,
@@ -889,9 +895,11 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     classEquipmentTags: state.classEquipmentTags,
     inventoryCapacity: state.inventoryCapacity,
     abilitiesById: state.abilitiesById,
+    autoAttacksById: state.autoAttacksById,
     basicAbilityId: state.basicAbilityId,
     classTags: state.classTags,
     combatApplyByEventId: cloneCombatApplyMap(state.combatApplyByEventId),
+    combatRandom: state.combatRandom,
     pendingGroundEffects: clonePendingGround(state.pendingGroundEffects),
     partyByCharacterId: clonePartyCache(state.partyByCharacterId),
     pendingInvitesByCharacterId: clonePendingInvites(state.pendingInvitesByCharacterId),

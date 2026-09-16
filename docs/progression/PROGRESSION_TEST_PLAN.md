@@ -14,6 +14,15 @@ Related: [TEST_CATALOG.md](../TEST_CATALOG.md), [CANONICAL_VALUE_CATALOG.md](CAN
 
 `server/tests/progression_design_audit.test.ts` remains the design-source audit. `server/tests/progression_xp_curve.test.ts` and `server/tests/progression_timeline.test.ts` cover PROG-05. `server/tests/progression_respec.test.ts` covers PROG-06. Foundation XP assertions in `progression.test.ts` use `test.class.vanguard`.
 
+## PROG-09 coverage
+
+| File | Covers |
+| --- | --- |
+| `server/tests/warrior_progression.test.ts` | Warrior ATTACK base/interval/STR/crit path, Heavy Strike and class nodes, every Bulwark and Berserker talent, passive Frenzy rank/expiry, no passive hotbar use, taunt-scoped reduction, reflect and lifesteal recursion guards, respec-compatible derived ownership, and PvE-only targeting |
+| `server/tests/warrior_balance.test.ts` | Level-10 auto-growth Bulwark ≈14.8 DPS, Berserker ≈16.1 DPS, and Warrior EHP 308.5 within the canonical tolerance |
+
+The full server suite continues to prove canonical talent purchase, respec/reconnect persistence, link-dead behavior, rejected PvP, absent production GCD, and test-only content isolation. No protocol opcode or storage schema changes are required for PROG-09.
+
 ## Audit targets (design source — passing now)
 
 | Target | Check | Test |
@@ -69,7 +78,7 @@ Existing tests that must not be weakened: `progression.test.ts`, `xp_hooks.test.
 
 ## Live snapshot (PROG-08)
 
-The audit asserts production `class.*` ids are warrior/marksman/mage/**mystic**, all `rosterSelectable: true`, `test.curve.standard` maxLevel 5 / XP sum 375, production overlay `curve.vibecode.l10` maxLevel 10, Foundation `HOTBAR_SIZE` 8 (test-only), production `CANONICAL_HOTBAR_SIZE` 4, physical classes omit mana on `startingResources`, and canonical abilities have `runtimeEnabled: false`. Production-class **vitals** use canonical HP/mana formulas. Live ATTACK still uses Foundation numbers. Production KillXP, the L10 curve, free-stat allocation, trainer respec, talent spend, derived ownership, the four-slot production hotbar, and the generic combat engine are live. [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md) owns every remaining gap. `C-hotbar-dual`, `C-unlock-any-ability`, `C-talent-runtime`, and `C-gcd` are RESOLVED.
+The audit asserts production `class.*` ids are warrior/marksman/mage/**mystic**, all `rosterSelectable: true`, `test.curve.standard` maxLevel 5 / XP sum 375, production overlay `curve.vibecode.l10` maxLevel 10, Foundation `HOTBAR_SIZE` 8 (test-only), production `CANONICAL_HOTBAR_SIZE` 4, physical classes omit mana on `startingResources`, and only canonical Warrior abilities are `runtimeEnabled: true`. Production-class **vitals** use canonical HP/mana formulas. Warrior ATTACK uses its canonical definition; remaining class ATTACK paths retain Foundation values until their named phases. Production KillXP, the L10 curve, free-stat allocation, trainer respec, talent spend, derived ownership, the four-slot production hotbar, and the generic combat engine are live. [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md) owns every remaining gap. `C-hotbar-dual`, `C-unlock-any-ability`, `C-talent-runtime`, and `C-gcd` are RESOLVED.
 
 ## Later named closures
 

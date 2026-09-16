@@ -64,7 +64,7 @@ import { liveGameplayLease, markLeaseLeaving, serverInstanceIdentifier, LINK_DEA
 import { readSelection, writeSelection } from "./selection_store";
 import { catalogFromContent, syncCombatStatsFromPipeline } from "../domain/stats";
 import { initializeProgression, migrateToCanonicalProgression } from "../domain/progression";
-import { abilityDefinitionsFromContent, prepareJoinedPlayerAbilities, startingAbilitiesForClass } from "../domain/ability";
+import { abilityDefinitionsFromContent, autoAttackDefinitionsFromContent, prepareJoinedPlayerAbilities, startingAbilitiesForClass } from "../domain/ability";
 import { spawnDefinitionsFromContent } from "../domain/spawn_controller";
 import { aiProfilesFromContent } from "../domain/threat";
 import { lootTablesFromContent } from "../domain/loot_table";
@@ -147,6 +147,7 @@ export function matchInit(
       inventoryCapacity:
         typeof content.player.inventoryCapacity === "number" ? content.player.inventoryCapacity : INVENTORY_CAPACITY,
       abilitiesById: abilityDefinitionsFromContent(content.abilities),
+      autoAttacksById: autoAttackDefinitionsFromContent(content.autoAttacks),
       basicAbilityId: content.player.basicAbilityId,
       classTags: classTagsFromContent(content.classes),
       spawnsById: spawnDefinitionsFromContent(content.spawns),
@@ -1382,6 +1383,7 @@ function persistGmFromMatch(
 
 function bindContentCatalogs(zone: StarterZoneState): void {
   zone.abilitiesById = abilityDefinitionsFromContent(content.abilities);
+  zone.autoAttacksById = autoAttackDefinitionsFromContent(content.autoAttacks);
   zone.basicAbilityId = content.player.basicAbilityId;
   zone.progressionCatalog = catalogFromContent(content);
   zone.classTags = classTagsFromContent(content.classes);
@@ -1407,6 +1409,7 @@ function bindContentCatalogs(zone: StarterZoneState): void {
 
 function stripContentCatalogs(zone: StarterZoneState): void {
   zone.abilitiesById = undefined;
+  zone.autoAttacksById = undefined;
   zone.progressionCatalog = undefined;
   zone.classTags = undefined;
   zone.equipmentSlotsByTag = undefined;

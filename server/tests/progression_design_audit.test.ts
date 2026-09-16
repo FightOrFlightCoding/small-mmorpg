@@ -195,7 +195,22 @@ test("live catalog snapshot keeps foundation combat while four production classe
   assert.ok(mageResources["test.resource.mana"] > 0);
   assert.ok(mysticResources["test.resource.mana"] > 0);
   assert.ok(Object.prototype.hasOwnProperty.call(content.stats, "stat.strength"));
-  assert.equal(content.abilities["ability.warrior.heavy_strike"].runtimeEnabled, false);
+  assert.equal(content.abilities["ability.warrior.heavy_strike"].runtimeEnabled, true);
+  assert.equal(content.autoAttacks["ability.warrior.auto_attack"].runtimeEnabled, true);
+  for (const id of Object.keys(content.abilities)) {
+    assert.equal(
+      content.abilities[id].runtimeEnabled === true,
+      id.indexOf("ability.warrior.") === 0,
+      "only PROG-09 Warrior abilities are enabled: " + id,
+    );
+  }
+  for (const id of Object.keys(content.autoAttacks)) {
+    assert.equal(
+      content.autoAttacks[id].runtimeEnabled === true,
+      id === "ability.warrior.auto_attack",
+      "only PROG-09 Warrior auto attack is enabled: " + id,
+    );
+  }
   const conflicts = readRepoFile("docs/progression/CURRENT_CONFLICTS.md");
   assert.equal(conflicts.indexOf("class.mystic") >= 0, true);
   assert.equal(conflicts.indexOf("HOTBAR_SIZE") >= 0, true);

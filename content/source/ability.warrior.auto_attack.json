@@ -12,7 +12,7 @@
   "range": 40,
   "targetMode": "entity",
   "relationFilter": "hostile",
-  "runtimeEnabled": false,
+  "runtimeEnabled": true,
   "effects": [
     {
       "id": "hit",
@@ -32,7 +32,8 @@
       "refreshPolicy": "refresh",
       "removalReason": "expired",
       "tags": [
-        "melee"
+        "melee",
+        "frenzy_qualifying"
       ],
       "school": "melee"
     }

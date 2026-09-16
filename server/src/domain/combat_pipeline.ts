@@ -22,6 +22,8 @@ import { addDamageThreat, applyHealThreatToEnemies, profileForEnemy, tauntDamage
 import { noteAddDeath } from "./spawn_controller";
 import { evaluateCanonicalHit, type PowerCategory } from "./canonical_stats";
 import type { CombatRandom } from "./combat_rng";
+import { evaluateStats, playerStatContext } from "./stats";
+import { effectModifiersFrom } from "./effects";
 
 export const IN_COMBAT_TIMEOUT_TICKS = 50;
 export const COMBAT_APPLY_TTL_TICKS = 6000;
@@ -151,6 +153,7 @@ export function applyCombat(state: StarterZoneState, input: CombatApplyInput, ev
 
   const absorb = numericOr(input.formula.absorb, 0) + absorbFromEntity(target.effects);
   const evaluated = evaluateCombatFormula(input.formula, input.action, absorb);
+  applyCanonicalTargetMitigation(state, input, evaluated);
   applyTauntTakenReduction(state, input, evaluated, absorb);
   steps.push("base_magnitude");
   steps.push("source_modifiers");
@@ -622,6 +625,40 @@ function applyTauntTakenReduction(
   evaluated.afterShields = Math.max(0, scaled - shield);
   const minResult = Math.max(0, numericOr(input.formula.minResult, 0));
   evaluated.finalAmount = Math.max(minResult, evaluated.afterShields);
+}
+
+function applyCanonicalTargetMitigation(
+  state: StarterZoneState,
+  input: CombatApplyInput,
+  evaluated: CombatStages,
+): void {
+  if (input.action !== "damage" || input.targetKind !== "player" || state.progressionCatalog === undefined) {
+    return;
+  }
+  const player = state.players[input.targetId];
+  if (player === undefined || player.classId === undefined || player.progression === undefined) {
+    return;
+  }
+  const stats = evaluateStats(
+    state.progressionCatalog,
+    playerStatContext(
+      player.classId,
+      player.progression,
+      player.equipment,
+      player.inventory,
+      state.itemsById,
+      effectModifiersFrom(player.effects),
+    ),
+  );
+  if (stats.canonical === undefined) {
+    return;
+  }
+  const absorbed = Math.max(0, evaluated.afterMitigation - evaluated.afterShields);
+  const reduction = stats.damageReduction !== undefined ? stats.damageReduction : 0;
+  const scaled = evaluated.afterMitigation * (1 - reduction) * stats.canonical.takenProduct;
+  evaluated.afterMitigation = scaled;
+  evaluated.afterShields = Math.max(0, scaled - absorbed);
+  evaluated.finalAmount = evaluated.afterShields;
 }
 
 function absorbFromEntity(

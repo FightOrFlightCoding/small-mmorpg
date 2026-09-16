@@ -40,9 +40,11 @@
       "removalReason": "expired",
       "tags": [
         "frenzy",
-        "passive"
+        "passive",
+        "frenzy_qualifying"
       ],
-      "school": "none"
+      "school": "none",
+      "statChannel": "attack_speed"
     }
   ],
   "effectIds": [
@@ -53,7 +55,7 @@
   "soundAssetId": "visual.ability_buff_sound",
   "skillPointCost": 0,
   "maxRank": 1,
-  "runtimeEnabled": false,
+  "runtimeEnabled": true,
   "abilityCategory": "passive",
   "ownerClassId": "class.warrior",
   "school": "none",

@@ -24,8 +24,8 @@
       "abilityId": "ability.warrior.challenge",
       "modifiers": [
         {
-          "type": "damage_dealt_percent",
-          "value": -0.1
+          "type": "taunt_damage_taken_percent",
+          "value": 0.1
         }
       ]
     }

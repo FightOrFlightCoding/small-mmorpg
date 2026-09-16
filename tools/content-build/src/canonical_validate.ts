@@ -579,9 +579,6 @@ function checkAbilityShape(payload: ContentPayload, ability: AbilityDef, issues:
       issues.push(issue("missing_reference:" + effectIds[i]));
     }
   }
-  if (ability.id.indexOf("ability.") === 0 && ability.runtimeEnabled !== false) {
-    issues.push(issue("runtime_enabled:" + ability.id));
-  }
 }
 
 function checkEffectBody(def: EffectDefinitionDef, issues: ContentIssue[]): void {
@@ -613,9 +610,6 @@ function checkAutoAttack(payload: ContentPayload, attack: AutoAttackDefinitionDe
   }
   if (!payload.stats[attack.scalingStatId]) {
     issues.push(issue("missing_reference:" + attack.scalingStatId));
-  }
-  if (attack.runtimeEnabled !== false) {
-    issues.push(issue("runtime_enabled:" + attack.id));
   }
 }
 

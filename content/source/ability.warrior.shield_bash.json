@@ -41,7 +41,8 @@
       "refreshPolicy": "refresh",
       "removalReason": "expired",
       "tags": [
-        "melee"
+        "melee",
+        "frenzy_qualifying"
       ],
       "school": "melee"
     },
@@ -96,7 +97,7 @@
   "soundAssetId": "visual.ability_melee_sound",
   "skillPointCost": 0,
   "maxRank": 1,
-  "runtimeEnabled": false,
+  "runtimeEnabled": true,
   "abilityCategory": "tree_active",
   "ownerClassId": "class.warrior",
   "school": "melee",

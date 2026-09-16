@@ -9,17 +9,6 @@
   "maxRank": 1,
   "pointCostPerRank": 1,
   "classification": "canonical",
-  "abilityModifications": [
-    {
-      "abilityId": "ability.warrior.heavy_strike",
-      "modifiers": [
-        {
-          "type": "ability_damage_percent",
-          "value": 0.25
-        }
-      ]
-    }
-  ],
   "conditionalModifiers": [
     {
       "conditions": [
