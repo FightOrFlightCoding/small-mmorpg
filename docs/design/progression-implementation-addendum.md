@@ -99,3 +99,13 @@ Warrior combat reuses the accepted canonical targeting, effect, threat, cooldown
 | `project.combat.tag.frenzy_qualifying` | direct melee damage from Warrior auto-attack, Heavy Strike, Shield Bash, and Whirlwind | Identifies hits that add Frenzy and qualify for Bloodthirst | Design says “qualifying hits” and “attacks” without an event classifier | no | `server/tests/warrior_progression.test.ts` | no |
 | `project.combat.tag.frenzy` | active Frenzy stack effect | Gates Bloodlust and Bloodthirst while at least one stack remains | Design names Frenzy but not its runtime effect tag | no | `server/tests/warrior_progression.test.ts` | no |
 
+### PROG-10
+
+Marksman combat reuses the accepted canonical targeting, effect, cooldown-recovery, modifier, channel, vault, independent-hit, and delayed-ground paths. The following units and calculation order were omitted from the design; they are implementation values, not canonical balance data.
+
+| Stable ID | Value | Purpose | Reason it was required | Affects balance | Tests using it | Canonical design data |
+| --- | --- | --- | --- | --- | --- | --- |
+| `project.combat.snipe.channel_order` | `channelSeconds = 1.5 * (1 + ability_channel_time * rank) / HasteMult` | Steady Hands reduces base aim duration multiplicatively, then Haste divides | Design says Haste reduces the channel and Steady Hands −15%/−30% without an order | yes | `server/tests/marksman_progression.test.ts` | no |
+| `project.combat.killer_instinct.melee_range` | `40` px | Killer Instinct “no enemy within melee range” | Design says melee range without world units; reuses `project.ability.range.melee` | yes | `server/tests/marksman_progression.test.ts` | no |
+| `project.ability.caltrop.radius` | `40` px | Vault R2 caltrops ground radius | Design places caltrops at launch without a radius; reuses `project.ability.aoe.radius` | yes | `server/tests/marksman_progression.test.ts` | no |
+

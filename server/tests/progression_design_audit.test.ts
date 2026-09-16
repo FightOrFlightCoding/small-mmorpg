@@ -197,20 +197,22 @@ test("live catalog snapshot keeps foundation combat while four production classe
   assert.ok(Object.prototype.hasOwnProperty.call(content.stats, "stat.strength"));
   assert.equal(content.abilities["ability.warrior.heavy_strike"].runtimeEnabled, true);
   assert.equal(content.autoAttacks["ability.warrior.auto_attack"].runtimeEnabled, true);
+  assert.equal(content.abilities["ability.marksman.aimed_shot"].runtimeEnabled, true);
+  assert.equal(content.autoAttacks["ability.marksman.auto_attack"].runtimeEnabled, true);
   const abilities = content.abilities as { [id: string]: { runtimeEnabled?: boolean } };
   for (const id of Object.keys(abilities)) {
     assert.equal(
       abilities[id].runtimeEnabled === true,
-      id.indexOf("ability.warrior.") === 0,
-      "only PROG-09 Warrior abilities are enabled: " + id,
+      id.indexOf("ability.warrior.") === 0 || id.indexOf("ability.marksman.") === 0,
+      "only PROG-09 Warrior and PROG-10 Marksman abilities are enabled: " + id,
     );
   }
   const autoAttacks = content.autoAttacks as { [id: string]: { runtimeEnabled?: boolean } };
   for (const id of Object.keys(autoAttacks)) {
     assert.equal(
       autoAttacks[id].runtimeEnabled === true,
-      id === "ability.warrior.auto_attack",
-      "only PROG-09 Warrior auto attack is enabled: " + id,
+      id === "ability.warrior.auto_attack" || id === "ability.marksman.auto_attack",
+      "only Warrior and Marksman auto attacks are enabled: " + id,
     );
   }
   const conflicts = readRepoFile("docs/progression/CURRENT_CONFLICTS.md");

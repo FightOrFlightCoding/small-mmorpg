@@ -76,7 +76,7 @@
   "soundAssetId": "visual.ability_buff_sound",
   "skillPointCost": 0,
   "maxRank": 1,
-  "runtimeEnabled": false,
+  "runtimeEnabled": true,
   "abilityCategory": "tree_active",
   "ownerClassId": "class.marksman",
   "school": "none",

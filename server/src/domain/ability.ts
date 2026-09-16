@@ -13,7 +13,7 @@ import {
 } from "./effects";
 import { dict } from "./maps";
 import { distance, lineBlocked, resolveVault, SNAPSHOT_RATE_HZ } from "./movement";
-import { entitiesInCone, entitiesOnLine, facingVector, livingEntities } from "./targeting";
+import { entitiesInCone, entitiesOnLine, facingVector, livingEntities, nearestHostileDistance } from "./targeting";
 import type { MatchPlayer, StarterZoneState } from "./match_state";
 import { cloneProgression, type CharacterProgression } from "./progression";
 import { usesCanonicalCreateState } from "./canonical_progression";
@@ -25,8 +25,8 @@ import {
   usesCanonicalTalentRuntime,
 } from "./canonical_talents";
 import { formulaCastTime } from "./canonical_stats";
-import { attackSpeedProduct, autoAttackBase, cooldownRecoveryRate, hasteScaledAttackInterval, scaledManaCost } from "./canonical_combat";
-import { conditionalTalentModifierValue, resolveAbilityTalentModifiers, talentModifiersForProgression } from "./talent_modifiers";
+import { attackSpeedProduct, autoAttackBase, cooldownRecoveryRate, hasteScaledAttackInterval, resetAbilityCooldown, scaledManaCost, scheduleDelayedGround } from "./canonical_combat";
+import { conditionalTalentModifierValue, resolveAbilityTalentModifiers, talentModifiersForContext, talentModifiersForProgression, type TalentModifierContext } from "./talent_modifiers";
 import {
   evaluateStats,
   identifiedModifiersFromEffectMap,
@@ -57,6 +57,8 @@ export interface AbilityDefinition {
   minimumRange: number;
   areaShape: "none" | "circle" | "line" | "cone";
   areaRadius: number;
+  lineWidth?: number;
+  lineLength?: number;
   castTime: number;
   channelTime: number;
   globalCooldown: number;
@@ -97,6 +99,7 @@ export interface ActiveCast {
   phase: "casting" | "channeling";
   interruptReason: string;
   requestId: string;
+  resolveAtEnd?: boolean;
 }
 
 export interface AbilityDecision {
@@ -245,6 +248,7 @@ export function cloneActiveCast(cast: ActiveCast | undefined): ActiveCast | unde
     phase: cast.phase,
     interruptReason: cast.interruptReason,
     requestId: cast.requestId,
+    resolveAtEnd: cast.resolveAtEnd === true,
   };
 }
 
@@ -457,12 +461,23 @@ export function useAbility(
 
   spendResources(player, definition, effectModifiersFrom(player.effects));
   startCooldowns(player, definition, tick, ignoresGlobalCooldown(state, player));
-  player.lastAttackTick = tick;
 
-  const stats = casterStats(state, player);
+  const stats = casterStats(state, player, tick);
   const haste = stats !== null && stats.hasteMult !== undefined ? stats.hasteMult : 1;
+  const talentMods =
+    state.progressionCatalog !== undefined && player.progression !== undefined
+      ? resolveAbilityTalentModifiers(
+          state.progressionCatalog,
+          player.progression,
+          definition.id,
+          actorTalentContext(state, player, tick, targeting.primaryId),
+        )
+      : undefined;
+  const channelBase =
+    definition.channelTime *
+    (talentMods !== undefined ? talentMods.channelTimeMultiplier : 1);
   const castTicks = cooldownTicks(formulaCastTime(definition.castTime, haste), SNAPSHOT_RATE_HZ);
-  const channelTicks = cooldownTicks(formulaCastTime(definition.channelTime, haste), SNAPSHOT_RATE_HZ);
+  const channelTicks = cooldownTicks(formulaCastTime(channelBase, haste), SNAPSHOT_RATE_HZ);
   if (castTicks > 0) {
     player.activeCast = {
       abilityId: definition.id,
@@ -477,9 +492,9 @@ export function useAbility(
       interruptReason: "",
       requestId: input.requestId,
     };
+    player.lastAttackTick = tick;
     return remember("ok", true);
   }
-  applyResolvedAbility(state, player, definition, targeting, tick, events);
   if (channelTicks > 0) {
     player.activeCast = {
       abilityId: definition.id,
@@ -488,13 +503,17 @@ export function useAbility(
       targetX: targeting.pointX,
       targetY: targeting.pointY,
       startTick: tick,
-      completionTick: tick,
+      completionTick: tick + channelTicks,
       channelUntilTick: tick + channelTicks,
       phase: "channeling",
       interruptReason: "",
       requestId: input.requestId,
+      resolveAtEnd: true,
     };
+    return remember("ok", true);
   }
+  applyResolvedAbility(state, player, definition, targeting, tick, events);
+  player.lastAttackTick = tick;
   return remember("ok", true);
 }
 
@@ -543,6 +562,10 @@ export function tickCasts(state: StarterZoneState, tick: number, events: CombatE
     if (cast === undefined || cast.interruptReason !== "") {
       continue;
     }
+    if (hasControlTag(player.effects, "stun")) {
+      interruptCast(player, "stun", tick, events);
+      continue;
+    }
     if (cast.phase === "casting" && tick >= cast.completionTick) {
       const definition = state.abilitiesById !== undefined ? state.abilitiesById[cast.abilityId] : undefined;
       if (definition !== undefined) {
@@ -554,6 +577,7 @@ export function tickCasts(state: StarterZoneState, tick: number, events: CombatE
           pointY: cast.targetY,
         };
         applyResolvedAbility(state, player, definition, targeting, tick, events);
+        player.lastAttackTick = tick;
       }
       if (cast.channelUntilTick > tick) {
         cast.phase = "channeling";
@@ -563,6 +587,20 @@ export function tickCasts(state: StarterZoneState, tick: number, events: CombatE
       continue;
     }
     if (cast.phase === "channeling" && (cast.channelUntilTick <= 0 || tick >= cast.channelUntilTick)) {
+      if (cast.resolveAtEnd === true) {
+        const definition = state.abilitiesById !== undefined ? state.abilitiesById[cast.abilityId] : undefined;
+        if (definition !== undefined) {
+          const targeting = {
+            ok: true,
+            code: "ok",
+            primaryId: cast.targetId,
+            pointX: cast.targetX,
+            pointY: cast.targetY,
+          };
+          applyResolvedAbility(state, player, definition, targeting, tick, events);
+          player.lastAttackTick = tick;
+        }
+      }
       player.activeCast = undefined;
     }
   }
@@ -738,6 +776,10 @@ function useCanonicalAutoAttack(
     rememberAttack(player, requestId, "player_dead", false);
     return { ok: false, code: "player_dead", replay: false };
   }
+  if (player.activeCast !== undefined && player.activeCast.interruptReason === "") {
+    rememberAttack(player, requestId, "already_casting", false);
+    return { ok: false, code: "already_casting", replay: false };
+  }
   const target = findEnemy(state.enemies, targetId);
   if (target === null) {
     rememberAttack(player, requestId, "invalid_target", false);
@@ -751,7 +793,7 @@ function useCanonicalAutoAttack(
     rememberAttack(player, requestId, "out_of_range", false);
     return { ok: false, code: "out_of_range", replay: false };
   }
-  const stats = casterStats(state, player);
+  const stats = casterStats(state, player, tick);
   const haste = stats !== null && stats.hasteMult !== undefined ? stats.hasteMult : 1;
   const attackSpeed = stats !== null && stats.canonical !== undefined
     ? attackSpeedProduct(stats.canonical.modifiers)
@@ -785,7 +827,13 @@ function useCanonicalAutoAttack(
                   state.progressionCatalog,
                   player.progression,
                   "crit_damage_flat",
-                  { sourceTags: activeTags(player.effects) },
+                  {
+                    sourceTags: activeTags(player.effects),
+                    target: { health: target.health, maxHealth: target.maxHealth, tags: activeTags(target.effects) },
+                    nearestEnemyDistance: 0,
+                    standingStillSeconds: 0,
+                    moving: false,
+                  },
                 ),
               canonicalOutgoingProduct: stats.canonical.outgoingProduct,
               canonicalDamageReduction: 0,
@@ -952,35 +1000,71 @@ function applyResolvedAbility(
   tick: number,
   events: CombatEvent[],
 ): void {
-  const stats = casterStats(state, player);
+  const stats = casterStats(state, player, tick);
   const fallbackAttack =
     player.derivedAttack !== undefined && player.derivedAttack > 0 ? player.derivedAttack : state.playerAttack;
+  const talentMods =
+    state.progressionCatalog !== undefined && player.progression !== undefined
+      ? resolveAbilityTalentModifiers(
+          state.progressionCatalog,
+          player.progression,
+          definition.id,
+          actorTalentContext(state, player, tick, targeting.primaryId),
+        )
+      : undefined;
+  const launchX = player.x;
+  const launchY = player.y;
+  const eventStart = events.length;
   const targets = collectEffectTargets(state, player, definition, targeting);
   for (let e = 0; e < definition.effects.length; e++) {
     const effect = definition.effects[e];
-    if (effect.type === "forced_movement") {
-      applyVaultToPlayer(state, player, targeting.primaryId, effect.magnitude.value !== undefined ? effect.magnitude.value : 80);
+    if (effect.type === "forced_movement" || effect.type === "movement") {
+      const distancePx =
+        effect.movementDistance !== undefined && effect.movementDistance > 0 ? effect.movementDistance : 80;
+      applyVaultToPlayer(state, player, distancePx, tick);
+      continue;
+    }
+    if (effect.type === "cooldown_reset_on_kill") {
       continue;
     }
     const selected = targetsForEffect(player, effect.target, targeting.primaryId, targets);
-    const hits = effect.hitCount !== undefined && effect.hitCount > 1 ? Math.floor(effect.hitCount) : 1;
+    const hits =
+      talentMods !== undefined && talentMods.hitCountOverride !== undefined
+        ? Math.max(1, Math.floor(talentMods.hitCountOverride))
+        : effect.hitCount !== undefined && effect.hitCount > 1
+          ? Math.floor(effect.hitCount)
+          : 1;
     for (let t = 0; t < selected.length; t++) {
       for (let h = 0; h < hits; h++) {
-        const resolved = resolveTalentEffect(state, player, definition, effect, selected[t]);
+        const resolved = resolveTalentEffect(state, player, definition, effect, selected[t], tick);
+        const before = events.length;
         applyEffectDefinition(state, resolved, definition.id, player, selected[t], stats, fallbackAttack, tick, events);
         writeTarget(state, selected[t]);
+        if (talentMods !== undefined && talentMods.onHitBleedPercent > 0 && effect.type === "direct_damage") {
+          applyOnHitBleed(state, player, selected[t], definition.id, talentMods.onHitBleedPercent, events, before, tick, stats, fallbackAttack, h);
+        }
+        if (
+          talentMods !== undefined &&
+          talentMods.slowPercent !== undefined &&
+          talentMods.slowDuration !== undefined &&
+          effect.type === "direct_damage"
+        ) {
+          applySlowEffect(state, player, selected[t], definition.id, talentMods.slowPercent, talentMods.slowDuration, tick, events, stats, fallbackAttack);
+        }
       }
     }
   }
+  if (talentMods !== undefined && talentMods.slowPercent !== undefined && talentMods.slowDuration !== undefined) {
+    maybeScheduleCaltrops(state, player, definition, launchX, launchY, talentMods.slowPercent, talentMods.slowDuration, tick);
+  }
+  maybeResetCooldownOnKill(player, definition, events, eventStart, tick);
 }
 
-function applyVaultToPlayer(state: StarterZoneState, player: MatchPlayer, targetId: string, distancePx: number): void {
-  let dirX = player.facingX !== undefined ? player.facingX : 0;
-  let dirY = player.facingY !== undefined ? player.facingY : 1;
-  const pose = targetPose(state, targetId);
-  if (pose !== null && (targetId !== player.userId)) {
-    dirX = player.x - pose.x;
-    dirY = player.y - pose.y;
+function applyVaultToPlayer(state: StarterZoneState, player: MatchPlayer, distancePx: number, tick: number): void {
+  let dirX = -(player.facingX !== undefined ? player.facingX : 0);
+  let dirY = -(player.facingY !== undefined ? player.facingY : 1);
+  if (dirX === 0 && dirY === 0) {
+    dirY = -1;
   }
   const next = resolveVault(
     player.x,
@@ -992,6 +1076,10 @@ function applyVaultToPlayer(state: StarterZoneState, player: MatchPlayer, target
     state.collisions,
     state.walkableBounds,
   );
+  if (next.x !== player.x || next.y !== player.y) {
+    player.lastMovedTick = tick;
+    player.stillSinceTick = tick;
+  }
   player.x = next.x;
   player.y = next.y;
 }
@@ -1001,20 +1089,33 @@ function collectShapedTargets(
   player: MatchPlayer,
   definition: AbilityDefinition,
   shape: string,
+  targeting: { primaryId: string; pointX: number; pointY: number },
 ) {
   const list = [];
-  const facing = facingVector(
-    player.facingX !== undefined ? player.facingX : 0,
-    player.facingY !== undefined ? player.facingY : 0,
-    0,
-    1,
-  );
-  const range = definition.areaRadius > 0 ? definition.areaRadius : definition.range;
+  let dirX = targeting.pointX - player.x;
+  let dirY = targeting.pointY - player.y;
+  if (dirX === 0 && dirY === 0) {
+    const facing = facingVector(
+      player.facingX !== undefined ? player.facingX : 0,
+      player.facingY !== undefined ? player.facingY : 0,
+      0,
+      1,
+    );
+    dirX = facing.x;
+    dirY = facing.y;
+  }
+  const range =
+    definition.areaRadius > 0
+      ? definition.areaRadius
+      : definition.lineLength !== undefined && definition.lineLength > 0
+        ? definition.lineLength
+        : definition.range;
+  const width = definition.lineWidth !== undefined && definition.lineWidth > 0 ? definition.lineWidth : 12;
   const living = livingEntities(state);
   const hits =
     shape === "line"
-      ? entitiesOnLine(living, player.x, player.y, facing.x, facing.y, range, 12)
-      : entitiesInCone(living, player.x, player.y, facing.x, facing.y, range, Math.PI / 4);
+      ? entitiesOnLine(living, player.x, player.y, dirX, dirY, range, width)
+      : entitiesInCone(living, player.x, player.y, dirX, dirY, range, Math.PI / 4);
   for (let i = 0; i < hits.length; i++) {
     const hit = hits[i];
     const relation = classifyTarget(state, player, hit.id);
@@ -1045,7 +1146,7 @@ function collectEffectTargets(
   const list = [];
   const shape = String(definition.areaShape);
   if (shape === "line" || shape === "cone") {
-    return collectShapedTargets(state, player, definition, shape);
+    return collectShapedTargets(state, player, definition, shape, targeting);
   }
   if (shape === "circle" && definition.areaRadius > 0) {
     const originX = targeting.pointX;
@@ -1215,11 +1316,13 @@ function startCooldowns(player: MatchPlayer, definition: AbilityDefinition, tick
   }
 }
 
-export function tickAbilityCooldownRecovery(player: MatchPlayer, tick: number, catalog?: ProgressionCatalog): void {
+export function tickAbilityCooldownRecovery(player: MatchPlayer, tick: number, catalog?: ProgressionCatalog, context?: TalentModifierContext): void {
   const modifiers = effectModifiersFrom(player.effects);
   const identified = identifiedFromChannelMap(modifiers).concat(
     catalog !== undefined && player.progression !== undefined
-      ? talentModifiersForProgression(catalog, player.progression)
+      ? context !== undefined
+        ? talentModifiersForContext(catalog, player.progression, context)
+        : talentModifiersForProgression(catalog, player.progression)
       : [],
   );
   const rate = cooldownRecoveryRate(identified);
@@ -1252,7 +1355,7 @@ function ignoresGlobalCooldownPlayer(catalog: ProgressionCatalog | undefined, cl
   return usesCanonicalTalentRuntime(catalog, classId);
 }
 
-function casterStats(state: StarterZoneState, player: MatchPlayer): EvaluatedStats | null {
+function casterStats(state: StarterZoneState, player: MatchPlayer, tick?: number): EvaluatedStats | null {
   if (state.progressionCatalog === undefined || player.classId === undefined || player.progression === undefined) {
     return null;
   }
@@ -1263,6 +1366,7 @@ function casterStats(state: StarterZoneState, player: MatchPlayer): EvaluatedSta
     player.inventory,
     state.itemsById,
     effectModifiersFrom(player.effects),
+    tick !== undefined ? actorTalentContext(state, player, tick) : undefined,
   ));
 }
 
@@ -1392,16 +1496,35 @@ function copyAbility(raw: Parameters<typeof abilityDefinitionsFromContent>[0][st
     if (effect.resourceRole !== undefined) {
       copied.resourceRole = effect.resourceRole;
     }
-    const extra = effect as unknown as { hitCount?: number; tickRateMultiplier?: number };
+    const extra = effect as unknown as {
+      hitCount?: number;
+      tickRateMultiplier?: number;
+      guaranteedCrit?: boolean;
+      cooldownResetOnKill?: boolean;
+      movementKind?: string;
+      movementDistance?: number;
+    };
     if (typeof extra.hitCount === "number") {
       copied.hitCount = extra.hitCount;
     }
     if (typeof extra.tickRateMultiplier === "number") {
       copied.tickRateMultiplier = extra.tickRateMultiplier;
     }
+    if (extra.guaranteedCrit === true) {
+      copied.guaranteedCrit = true;
+    }
+    if (extra.cooldownResetOnKill === true) {
+      copied.cooldownResetOnKill = true;
+    }
+    if (typeof extra.movementKind === "string") {
+      copied.movementKind = extra.movementKind;
+    }
+    if (typeof extra.movementDistance === "number") {
+      copied.movementDistance = extra.movementDistance;
+    }
     effects.push(copied);
   }
-  return {
+  const copiedAbility: AbilityDefinition = {
     id: raw.id,
     displayName: raw.displayName,
     displayNameKey: raw.displayNameKey,
@@ -1429,6 +1552,21 @@ function copyAbility(raw: Parameters<typeof abilityDefinitionsFromContent>[0][st
     skillPointCost: raw.skillPointCost !== undefined ? raw.skillPointCost : 0,
     maxRank: raw.maxRank !== undefined ? raw.maxRank : 1,
   };
+  const extraAbility = raw as unknown as { lineWidth?: number; lineLength?: number; hitCount?: number };
+  if (typeof extraAbility.lineWidth === "number") {
+    copiedAbility.lineWidth = extraAbility.lineWidth;
+  }
+  if (typeof extraAbility.lineLength === "number") {
+    copiedAbility.lineLength = extraAbility.lineLength;
+  }
+  if (typeof extraAbility.hitCount === "number" && extraAbility.hitCount > 1) {
+    for (let e = 0; e < copiedAbility.effects.length; e++) {
+      if (copiedAbility.effects[e].hitCount === undefined) {
+        copiedAbility.effects[e].hitCount = extraAbility.hitCount;
+      }
+    }
+  }
+  return copiedAbility;
 }
 
 export function resolveTalentEffect(
@@ -1437,6 +1575,7 @@ export function resolveTalentEffect(
   ability: AbilityDefinition,
   effect: EffectDefinition,
   target: EffectTarget,
+  tick?: number,
 ): EffectDefinition {
   if (state.progressionCatalog === undefined || player.progression === undefined) {
     return effect;
@@ -1445,6 +1584,9 @@ export function resolveTalentEffect(
   const modifiers = resolveAbilityTalentModifiers(state.progressionCatalog, player.progression, ability.id, {
     sourceTags: sourceTags,
     target: { health: target.health, maxHealth: target.maxHealth, tags: activeTags(target.effects) },
+    standingStillSeconds: tick !== undefined ? standingStillSeconds(player, tick) : 0,
+    moving: player.lastMoving === true || (player.lastMovedTick !== undefined && player.lastMovedTick === tick),
+    nearestEnemyDistance: nearestHostileDistance(state, player.x, player.y),
   });
   if (
     modifiers.damageMultiplier === 1 &&
@@ -1452,7 +1594,8 @@ export function resolveTalentEffect(
     modifiers.stunDurationOverride === undefined &&
     modifiers.tauntTakenReduction === undefined &&
     modifiers.frenzyMaxStacks === undefined &&
-    modifiers.frenzyPerStack === undefined
+    modifiers.frenzyPerStack === undefined &&
+    modifiers.bonusCritChance === 0
   ) {
     return effect;
   }
@@ -1480,6 +1623,9 @@ export function resolveTalentEffect(
     if (modifiers.frenzyPerStack !== undefined) {
       resolved.magnitude = { kind: "constant", value: modifiers.frenzyPerStack };
     }
+  }
+  if (modifiers.bonusCritChance !== 0) {
+    resolved.bonusCritChance = (resolved.bonusCritChance !== undefined ? resolved.bonusCritChance : 0) + modifiers.bonusCritChance;
   }
   return resolved;
 }
@@ -1519,4 +1665,186 @@ function copyMagnitude(raw: MagnitudeFormula): MagnitudeFormula {
     copied.statId = raw.statId;
   }
   return copied;
+}
+
+function actorTalentContext(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  tick: number,
+  targetId?: string,
+): TalentModifierContext {
+  const context: TalentModifierContext = {
+    sourceTags: activeTags(player.effects),
+    standingStillSeconds: standingStillSeconds(player, tick),
+    moving: player.lastMoving === true || player.lastMovedTick === tick,
+    nearestEnemyDistance: nearestHostileDistance(state, player.x, player.y),
+  };
+  if (targetId !== undefined && targetId.length > 0) {
+    const enemy = findEnemy(state.enemies, targetId);
+    if (enemy !== null) {
+      context.target = {
+        health: enemy.health,
+        maxHealth: enemy.maxHealth,
+        tags: activeTags(enemy.effects),
+      };
+    } else if (targetId === player.userId) {
+      context.target = {
+        health: player.health,
+        maxHealth: player.maxHealth,
+        tags: activeTags(player.effects),
+      };
+    }
+  }
+  return context;
+}
+
+export function standingStillSeconds(player: MatchPlayer, tick: number): number {
+  if (player.stillSinceTick === undefined) {
+    return 0;
+  }
+  const elapsed = (tick - player.stillSinceTick) / SNAPSHOT_RATE_HZ;
+  return elapsed > 0 ? elapsed : 0;
+}
+
+function applyOnHitBleed(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  target: EffectTarget,
+  abilityId: string,
+  percent: number,
+  events: CombatEvent[],
+  eventStart: number,
+  tick: number,
+  stats: EvaluatedStats | null,
+  fallbackAttack: number,
+  hitIndex: number,
+): void {
+  let dealt = 0;
+  for (let i = eventStart; i < events.length; i++) {
+    if (events[i].type === "hit" && events[i].targetId === target.id && events[i].damage !== undefined) {
+      dealt += events[i].damage as number;
+    }
+  }
+  if (!(dealt > 0) || !(percent > 0)) {
+    return;
+  }
+  const perTick = (dealt * percent) / 4;
+  const bleedRate = effectModifiersFrom(player.effects)["bleed_tick_rate"];
+  const bleed: EffectDefinition = {
+    id: "bleed-" + tick + "-" + hitIndex + "-" + target.id,
+    type: "periodic_damage",
+    source: "caster",
+    target: "primary",
+    magnitude: { kind: "constant", value: perTick },
+    duration: 4,
+    tickInterval: 1,
+    stackPolicy: "replace",
+    maxStacks: 1,
+    refreshPolicy: "refresh",
+    removalReason: "expired",
+    tags: ["bleed"],
+    powerCategory: "ranged",
+    tickRateMultiplier: bleedRate !== undefined && bleedRate > 0 ? 2 : 1,
+  };
+  applyEffectDefinition(state, bleed, abilityId, player, target, stats, fallbackAttack, tick, events);
+  writeTarget(state, target);
+}
+
+function applySlowEffect(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  target: EffectTarget,
+  abilityId: string,
+  slowPercent: number,
+  durationSec: number,
+  tick: number,
+  events: CombatEvent[],
+  stats: EvaluatedStats | null,
+  fallbackAttack: number,
+): void {
+  const slow: EffectDefinition = {
+    id: "slow-" + abilityId,
+    type: "slow",
+    source: "caster",
+    target: "primary",
+    magnitude: { kind: "constant", value: -slowPercent * 100 },
+    duration: durationSec,
+    tickInterval: 0,
+    stackPolicy: "replace",
+    maxStacks: 1,
+    refreshPolicy: "refresh",
+    removalReason: "expired",
+    tags: ["slow"],
+    statChannel: "movement_speed",
+  };
+  applyEffectDefinition(state, slow, abilityId, player, target, stats, fallbackAttack, tick, events);
+  writeTarget(state, target);
+}
+
+function maybeScheduleCaltrops(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  definition: AbilityDefinition,
+  launchX: number,
+  launchY: number,
+  slowPercent: number,
+  slowDuration: number,
+  tick: number,
+): void {
+  let isVault = false;
+  for (let i = 0; i < definition.effects.length; i++) {
+    if (definition.effects[i].type === "forced_movement" || definition.effects[i].type === "movement") {
+      isVault = true;
+      break;
+    }
+  }
+  if (!isVault) {
+    return;
+  }
+  const pending = state.pendingGroundEffects !== undefined ? state.pendingGroundEffects : [];
+  state.pendingGroundEffects = scheduleDelayedGround(pending, {
+    id: "caltrop:" + player.userId + ":" + tick,
+    sourceId: player.userId,
+    sourceKind: "player",
+    abilityId: definition.id,
+    x: launchX,
+    y: launchY,
+    radius: 40,
+    resolveTick: tick,
+    effectId: "caltrop",
+    expireTick: tick + cooldownTicks(slowDuration, SNAPSHOT_RATE_HZ),
+    slowPercent: slowPercent,
+    slowDurationSec: slowDuration,
+  });
+}
+
+function maybeResetCooldownOnKill(
+  player: MatchPlayer,
+  definition: AbilityDefinition,
+  events: CombatEvent[],
+  eventStart: number,
+  tick: number,
+): void {
+  let resetOnKill = false;
+  for (let i = 0; i < definition.effects.length; i++) {
+    if (definition.effects[i].type === "cooldown_reset_on_kill" || definition.effects[i].cooldownResetOnKill === true) {
+      resetOnKill = true;
+      break;
+    }
+  }
+  if (!resetOnKill) {
+    return;
+  }
+  for (let i = eventStart; i < events.length; i++) {
+    const event = events[i];
+    if (event.type !== "hit" || event.abilityId !== definition.id) {
+      continue;
+    }
+    if (event.remainingHealth === 0) {
+      const map = dict(player.abilityCooldowns);
+      resetAbilityCooldown(map, definition.id, tick);
+      player.abilityCooldowns = map;
+      return;
+    }
+  }
 }

@@ -703,3 +703,11 @@ Production classes ignore GCD remaining. Foundation `test.ability.*` may keep a 
 
 Side walk mid-frames pull the original contact stance together under the body with no high kick (original backed up as `c01_move_original.png`), so side gait reads plant → gather → plant. Rebuild with `scripts/build_c01_low_pass_frames.py`, then Godot SpriteFrames. Side playback uses near-even frame durations; `WorldAvatar` does not bob side walk (bounce read as strut).
 
+## 2026-09-16 — PROG-10 Marksman, Sniper, and Skirmisher
+
+Marksman auto-attack, Aimed Shot, Snipe, Piercing Shot, Coup de Grâce, Barrage, Vault, and Arrowstorm are `runtimeEnabled: true` on the existing generic combat path. No generic module branches on `class.marksman`.
+
+Snipe is a channel that applies on completion: `channelSeconds = 1.5 * (1 + ability_channel_time * rank) / HasteMult` (Steady Hands first, then Haste). Auto-attacks and other casts are blocked while aiming. Stuns and movement interrupt the channel. Barrage rolls independent crits per arrow. Serrated bleeds are DoTs (no crit) tagged `bleed`; Arrowstorm doubles only those tagged ticks while preserving remaining total. Vault leaps backward along facing and stops at the last valid collision point. Vault R2 caltrops are a lingering delayed-ground slow at the launch point.
+
+Haste still does not change stored cooldown duration. Nimble, Sniper's Nest, and Runner's High advance remaining cooldown ticks at `1 + bonus` while their conditions hold. Nest requires two seconds of unchanged authoritative position and ends on movement including Vault. Killer Instinct uses melee range `40`. Mage and Mystic combat remain later.
+

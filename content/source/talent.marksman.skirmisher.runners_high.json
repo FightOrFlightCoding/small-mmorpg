@@ -9,10 +9,19 @@
   "maxRank": 1,
   "pointCostPerRank": 1,
   "classification": "canonical",
-  "passiveModifiers": [
+  "conditionalModifiers": [
     {
-      "type": "cooldown_recovery_percent",
-      "value": 0.15
+      "conditions": [
+        {
+          "type": "moving"
+        }
+      ],
+      "modifiers": [
+        {
+          "type": "cooldown_recovery_percent",
+          "value": 0.15
+        }
+      ]
     }
   ]
 }

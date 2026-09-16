@@ -155,6 +155,9 @@ export interface DelayedGroundEffect {
   resolveTick: number;
   effectId: string;
   originTag?: CombatOriginTag;
+  expireTick?: number;
+  slowPercent?: number;
+  slowDurationSec?: number;
 }
 
 export interface OncePerCombatTable {

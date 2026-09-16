@@ -108,6 +108,8 @@ export interface MatchPlayer {
   facingY?: number;
   oncePerCombatUsed?: { [id: string]: boolean };
   lastMoving?: boolean;
+  lastMovedTick?: number;
+  stillSinceTick?: number;
   hostileTargetId?: string;
   friendlyTargetId?: string;
   bindX?: number;
@@ -300,6 +302,9 @@ export interface StarterZoneState {
     radius: number;
     resolveTick: number;
     effectId: string;
+    expireTick?: number;
+    slowPercent?: number;
+    slowDurationSec?: number;
   }>;
   partyByCharacterId?: { [characterId: string]: MatchPartyCache };
   pendingInvitesByCharacterId?: {
@@ -810,6 +815,8 @@ function cloneMatchPlayer(p: MatchPlayer, state: StarterZoneState): MatchPlayer 
     facingY: typeof p.facingY === "number" && isFinite(p.facingY) ? p.facingY : 1,
     oncePerCombatUsed: dict(p.oncePerCombatUsed),
     lastMoving: p.lastMoving === true,
+    lastMovedTick: typeof p.lastMovedTick === "number" && isFinite(p.lastMovedTick) ? p.lastMovedTick : undefined,
+    stillSinceTick: typeof p.stillSinceTick === "number" && isFinite(p.stillSinceTick) ? p.stillSinceTick : undefined,
     hostileTargetId: p.hostileTargetId != null ? String(p.hostileTargetId) : "",
     friendlyTargetId: p.friendlyTargetId != null ? String(p.friendlyTargetId) : "",
     bindX: typeof p.bindX === "number" && isFinite(p.bindX) ? p.bindX : undefined,
@@ -1213,6 +1220,9 @@ function clonePendingGround(
         radius: number;
         resolveTick: number;
         effectId: string;
+        expireTick?: number;
+        slowPercent?: number;
+        slowDurationSec?: number;
       }>
     | undefined,
 ): Array<{
@@ -1225,6 +1235,9 @@ function clonePendingGround(
   radius: number;
   resolveTick: number;
   effectId: string;
+  expireTick?: number;
+  slowPercent?: number;
+  slowDurationSec?: number;
 }> {
   const next: Array<{
     id: string;
@@ -1236,13 +1249,16 @@ function clonePendingGround(
     radius: number;
     resolveTick: number;
     effectId: string;
+    expireTick?: number;
+    slowPercent?: number;
+    slowDurationSec?: number;
   }> = [];
   if (list === undefined) {
     return next;
   }
   for (let i = 0; i < list.length; i++) {
     const row = list[i];
-    next.push({
+    const cloned: (typeof next)[number] = {
       id: String(row.id),
       sourceId: String(row.sourceId),
       sourceKind: row.sourceKind === "enemy" ? "enemy" : "player",
@@ -1252,7 +1268,17 @@ function clonePendingGround(
       radius: typeof row.radius === "number" && isFinite(row.radius) ? row.radius : 0,
       resolveTick: typeof row.resolveTick === "number" && isFinite(row.resolveTick) ? row.resolveTick : 0,
       effectId: String(row.effectId),
-    });
+    };
+    if (typeof row.expireTick === "number" && isFinite(row.expireTick)) {
+      cloned.expireTick = row.expireTick;
+    }
+    if (typeof row.slowPercent === "number" && isFinite(row.slowPercent)) {
+      cloned.slowPercent = row.slowPercent;
+    }
+    if (typeof row.slowDurationSec === "number" && isFinite(row.slowDurationSec)) {
+      cloned.slowDurationSec = row.slowDurationSec;
+    }
+    next.push(cloned);
   }
   return next;
 }
