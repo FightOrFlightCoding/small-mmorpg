@@ -39,6 +39,8 @@ func handle_character_switch(character_id: String) -> void:
 	WindowManager.close(WindowManager.TRADE)
 	WindowManager.close(WindowManager.GM)
 	WindowManager.close(WindowManager.SETTINGS)
+	WindowManager.close(WindowManager.CHARACTER)
+	ProgressionService.clear_pending_allocations()
 	HudController.sync_windows()
 	ui_state_changed.emit()
 

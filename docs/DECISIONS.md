@@ -729,3 +729,11 @@ Wither deals 36 INT-scaled damage over eight ticks in 8s, 1.5s cast, 14 mana, ne
 
 The Mystic Metronome Law regression is the documented authored miss `12 / (1.8 / 1.03) ≈ 6.87 > 6.2`. Fateweave is not rebalanced. Battle Blessing arm duration 30s is recorded in the implementation addendum. Nearby Blessing/Benediction/Malediction/Contagion radius 80 remains the PROG-02 party radius.
 
+## 2026-09-16 — PROG-13 progression UI is never authoritative
+
+PROG-13 adds the player-facing character sheet, allocation, class/branch trees, ability book, reference builds, branch chooser, trainer respec confirmation, and skippable level-up toast. The client still sends only PROG-06/07 intentions. Derived totals, gold cost, ranks, and hotbar contents are taken from the last confirmed server payload.
+
+Equipment contribution and temporary effects are shown as separate rows. When `publicProgression` does not split those channels, the remainder after automatic growth and free allocations is labeled as equipment contribution (including other modifiers), and temporary effects point at the combat HUD. Reference builds are optional §11 copy and never auto-spend. Class cards use generic glyphs, shapes, and themes; final class art is not required and is not added.
+
+Class cannot currently be changed after creation. Closing the level-5 branch chooser leaves the character branchless with persistent HUD guidance. No default branch is selected.
+
