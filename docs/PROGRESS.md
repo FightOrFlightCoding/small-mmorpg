@@ -1,10 +1,10 @@
 # Progress
 
-Last accepted phase: **PROG-11 — Complete Mage, Fire, and Frost Implementation**.
+Last accepted phase: **PROG-12 — Complete Mystic, Charms, and Curses Implementation**.
 
 Current phase: none.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. PROG-08 remains accepted. PROG-09 remains accepted. PROG-10 remains accepted. PROG-11 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. PROG-08 remains accepted. PROG-09 remains accepted. PROG-10 remains accepted. PROG-11 remains accepted. PROG-12 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
 
@@ -631,7 +631,42 @@ The intentional Warrior content update changes the shared generated hash to `913
 | Client GdUnit | 283/283, 0 failures, 0 orphans |
 | GitHub `verify` | passed (`0867ac9`, run 35112093346) |
 
-Remaining work is limited to the named PROG-12 Mystic implementation and its auto-attack retune. PROG-11 is recorded below.
+Remaining work is limited to later named PROG phases. PROG-12 is recorded below.
+
+## PROG-12 Mystic, Charms, and Curses implementation (2026-09-16)
+
+Mystic is the fourth canonical class active in the existing authoritative combat path. `ATTACK` resolves `ability.mystic.auto_attack` (6 base spell damage, 2.0s base interval, INT scaling, server-side crit, and Haste timing). Fateweave is granted at level 2. Protective Charm, Blessing, Wither, and Evil Eye unlock with class and branch nodes. Benediction and Malediction unlock at level 10. No generic combat module branches on `class.mystic`. No second combat, effect, cooldown, stat, ability, or progression system was added. No client outcome authority, production GCD, or PvP path was added.
+
+Target relation selects Fateweave polarity: hostile 20 INT spell harm, ally or self 22 SPI heal, 1.8s cast, 12 mana. R2 raises both polarities 25%. Compassion adds a 20%/4s HoT after an eligible mend. Malice adds a 20%/4s DoT after an eligible harm; that DoT never crits. Protective Charm is 40 SPI absorb, 18 mana, 8s cooldown, 6s duration; R2 +30% absorb; R3 heals 15% of absorb once on break or natural expiry (refresh/replace cannot duplicate the terminal heal). Battle Blessing arms after an eligible mend and is consumed once on the next eligible harm (+25%). Devotion is +8%/+16% healing. Blessing is 25 mana / 20s cooldown, nearby allies +10% damage for 10s; R2 also +8 percentage points of damage reduction. Mending Ward regenerates 2% of target maximum HP per second while this Mystic’s shield remains. Overflow heals the Mystic for 20% of healing dealt to others and cannot recurse. Benediction heals nearby allies for 30% maximum HP and shields 10% maximum HP for 4s at zero mana with a 90s cooldown.
+
+Wither deals 36 INT-scaled damage over eight ticks in 8s, 1.5s cast, 14 mana, never crits. R2 +25% total. R3 makes affected enemies deal 10% less damage. Siphon heals 15% of Fateweave harm. Dark Bargain reduces tagged curse costs 10%/20%. Evil Eye is 15 mana / 12s cooldown and makes the target take 15% more damage for 8s. Festering increases this Mystic’s DoT tick rate 20% without changing total damage. Vampiric Curse heals 10% of this Mystic’s DoT damage and cannot recurse. Contagion transfers Wither at full remaining design duration to one valid nearby enemy on death (server-authoritative, idempotent). Malediction applies the current Wither rank to all eligible nearby enemies and they deal 15% less damage while that Wither runs; Wither R3 and Malediction reductions remain separate sources. Malediction is zero mana / 90s cooldown.
+
+The Mystic Metronome Law regression is the documented authored miss `12 / (1.8 / 1.03) ≈ 6.87 > 6.2`. Fateweave is not rebalanced. Charms solo DPS ≈14.3, party HPS ≈22.2, and Curses DPS ≈17.3 stay within ±5%.
+
+The intentional Mystic content update changes the shared generated hash to `b76111cf9fb663dd04de943d3de5af004249b29c1321fe563bc9eac9d731f2de`. Nearby Blessing/Benediction/Malediction/Contagion radius 80 and Battle Blessing arm duration 30s are recorded as noncanonical implementation values in [design/progression-implementation-addendum.md](design/progression-implementation-addendum.md). No storage schema migration is required.
+
+| Gate | Result |
+| --- | --- |
+| Content-build | 25/25; hash `b76111cf9fb663dd04de943d3de5af004249b29c1321fe563bc9eac9d731f2de` |
+| Design audit | 10/10 |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (29 RPCs, 34 storage records, 38 client opcodes) |
+| Server hermetic | 714 passed, 13 skipped; bundle built |
+| Mystic mechanics and balance regressions | 16/16 (`mystic_progression`, `mystic_balance`, `progression_metronome`) |
+| Client GdUnit | 283/283, 0 failures, 0 orphans, `SHELL_LOGIN` |
+
+Limitations: The eight-slot Foundation hotbar remains test-only. Manual Prompt 18 world play was not re-run; live village/slime combat behavior was not changed. GitHub `verify` is recorded when CI on this revision completes.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/content.ps1 validate
+powershell -File scripts/test-content.ps1
+powershell -File scripts/content-build.ps1
+powershell -File scripts/test-progression-design.ps1
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+```
 
 ## PROG-11 Mage, Fire, and Frost implementation (2026-09-16)
 

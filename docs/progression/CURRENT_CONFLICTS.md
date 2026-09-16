@@ -9,7 +9,7 @@ Live ownership: [PROGRESSION_ARCHITECTURE.md](PROGRESSION_ARCHITECTURE.md).
 Noncanonical numbers: [progression-implementation-addendum.md](../design/progression-implementation-addendum.md).  
 Final save mapping: [PROGRESSION_MIGRATION_PLAN.md](PROGRESSION_MIGRATION_PLAN.md).
 
-This register does **not** mean PROG-08 failed. Production HP, mana, regen, crit, haste, DR, power-category hit functions, damage order, modifier identity, the level-10 auto-growth sheet, the L10 XP curve, KillXP, automatic growth, free points, auto-assign, milestones, free-stat allocation, trainer respec, class/branch talent spend, derived ability ownership, the four-slot production hotbar, and the generic combat engine (events, RNG, DoT/shield/threat/multi-hit, no production GCD) are implemented and tested. Live ATTACK, the test-only 8-slot Foundation `HOTBAR_SIZE`, leftover 3-stat fields, and class-specific combat remain because later PROG phases own those subsystems.
+This register does **not** mean PROG-08 failed. Production HP, mana, regen, crit, haste, DR, power-category hit functions, damage order, modifier identity, the level-10 auto-growth sheet, the L10 XP curve, KillXP, automatic growth, free points, auto-assign, milestones, free-stat allocation, trainer respec, class/branch talent spend, derived ability ownership, the four-slot production hotbar, the generic combat engine (events, RNG, DoT/shield/threat/multi-hit, no production GCD), and all four production-class combat definitions are implemented and tested. The test-only 8-slot Foundation `HOTBAR_SIZE` and leftover 3-stat fields remain because later PROG phases own those subsystems.
 
 ## Status values
 
@@ -155,11 +155,11 @@ Proceed to PROG-09 only when every row is true. These are PROG-08 exit criteria,
 
 ### C-attack-foundation
 
-- **Conflict:** Live ATTACK still uses Foundation `test.stat.attack` for Mystic. Warrior, Marksman, and Mage ATTACK use canonical base damage, scaling, Haste-scaled interval, server-side crit roll, and talent modifiers.
-- **Status:** DEFERRED
-- **Resolution owner:** PROG-12 Mystic implementation. Warrior closed in PROG-09. Marksman closed in PROG-10. Mage closed in PROG-11.
-- **Must be resolved by:** Before PROG-13 UI certification.
-- **Closure test:** `server/tests/warrior_progression.test.ts` closes Warrior. `server/tests/marksman_progression.test.ts` closes Marksman. `server/tests/mage_progression.test.ts` closes Mage. Every remaining production class must use its canonical base damage, interval, scaling stat, haste behavior, crit behavior, and server authority; no completed-class ATTACK path reads `test.stat.attack`.
+- **Conflict:** Live ATTACK used Foundation `test.stat.attack` until each production class was retuned. Warrior, Marksman, Mage, and Mystic ATTACK now use canonical base damage, scaling, Haste-scaled interval, server-side crit roll, and talent modifiers.
+- **Status:** RESOLVED
+- **Resolution owner:** PROG-12 Mystic implementation. Warrior closed in PROG-09. Marksman closed in PROG-10. Mage closed in PROG-11. Mystic closed in PROG-12.
+- **Must be resolved by:** Accepted in PROG-12.
+- **Closure test:** `server/tests/warrior_progression.test.ts` closes Warrior. `server/tests/marksman_progression.test.ts` closes Marksman. `server/tests/mage_progression.test.ts` closes Mage. `server/tests/mystic_progression.test.ts` closes Mystic. No production `class.*` ATTACK path reads `test.stat.attack`.
 
 ### C-roster-four-classes
 
@@ -235,10 +235,10 @@ Proceed to PROG-09 only when every row is true. These are PROG-08 exit criteria,
 
 ### C-cooldown-recovery-rate
 
-- **Conflict:** Relentless, Nimble, Sniper's Nest, and Runner's High are live at `1 + bonus` remaining-tick consumption. Mage has no cooldown-recovery nodes. Mystic cooldown-recovery nodes remain later.
-- **Status:** DEFERRED
-- **Resolution owner:** PROG-12. Warrior closed in PROG-09; Marksman closed in PROG-10; Mage closed in PROG-11 with no CDR nodes; engine + tests remain PROG-08.
-- **Must be resolved by:** Before PROG-13, for any live talent that grants cooldown recovery.
+- **Conflict:** Relentless, Nimble, Sniper's Nest, and Runner's High consume remaining cooldown ticks at `1 + bonus`. Mage and Mystic have no cooldown-recovery nodes.
+- **Status:** RESOLVED
+- **Resolution owner:** PROG-12. Warrior closed in PROG-09; Marksman closed in PROG-10; Mage closed in PROG-11 with no CDR nodes; Mystic closed in PROG-12 with no CDR nodes; engine + tests remain PROG-08.
+- **Must be resolved by:** Accepted in PROG-12.
 - **Closure test:** Those nodes multiply cooldown remaining-tick consumption. Haste still does not change stored cooldown duration. Covered for the engine by `server/tests/canonical_combat.test.ts` and for Marksman by `server/tests/marksman_progression.test.ts`.
 
 ### C-gcd
@@ -291,11 +291,11 @@ Proceed to PROG-09 only when every row is true. These are PROG-08 exit criteria,
 
 ### C-equipment-auto-attack-baseline
 
-- **Conflict:** Training sword / attack-from-might still disagree with §9 auto-attack baselines for unimplemented classes. Warrior, Marksman, and Mage ignore Foundation attack as their auto-attack base while retaining identified equipment modifiers.
-- **Status:** DEFERRED
-- **Resolution owner:** PROG-12 auto-attack retune; Warrior closed in PROG-09; Marksman closed in PROG-10; Mage closed in PROG-11.
-- **Must be resolved by:** Before PROG-13.
-- **Closure test:** `server/tests/warrior_progression.test.ts` closes the Warrior baseline. `server/tests/marksman_progression.test.ts` closes the Marksman baseline. `server/tests/mage_progression.test.ts` closes the Mage baseline. Remaining production auto-attack baselines must match §9; outgoing and taken percentage modifiers from different sources still multiply and same-node ranks replace.
+- **Conflict:** Training sword / attack-from-might disagreed with §9 auto-attack baselines while production classes still read Foundation attack. Warrior, Marksman, Mage, and Mystic ignore Foundation attack as their auto-attack base while retaining identified equipment modifiers.
+- **Status:** RESOLVED
+- **Resolution owner:** PROG-12 auto-attack retune; Warrior closed in PROG-09; Marksman closed in PROG-10; Mage closed in PROG-11; Mystic closed in PROG-12.
+- **Must be resolved by:** Accepted in PROG-12.
+- **Closure test:** `server/tests/warrior_progression.test.ts` closes the Warrior baseline. `server/tests/marksman_progression.test.ts` closes the Marksman baseline. `server/tests/mage_progression.test.ts` closes the Mage baseline. `server/tests/mystic_progression.test.ts` closes the Mystic baseline. Production auto-attack baselines match §9; outgoing and taken percentage modifiers from different sources still multiply and same-node ranks replace.
 
 ### C-talent-runtime
 
@@ -323,8 +323,8 @@ Proceed to PROG-09 only when every row is true. These are PROG-08 exit criteria,
 
 ### C-shields-taunt
 
-- **Conflict:** The generic shield/taunt engine is live. Challenge is wired through it; Protective Charm and Benediction remain unwired.
-- **Status:** DEFERRED
-- **Resolution owner:** PROG-10–12. Challenge closed in PROG-09; extend existing `effects.ts` / `threat.ts`, never a second pipeline.
-- **Must be resolved by:** Before PROG-13 for the classes that own those skills.
-- **Closure test:** `server/tests/warrior_progression.test.ts` proves Challenge’s radius taunt, DR ranks, and taunted-source reduction. Remaining abilities use the same pipeline; shields use SPI scaling and do not crit unless content sets `shieldCanCrit`.
+- **Conflict:** The generic shield/taunt engine is live. Challenge, Protective Charm, and Benediction must use it without a second pipeline.
+- **Status:** RESOLVED
+- **Resolution owner:** PROG-12. Challenge closed in PROG-09; Protective Charm and Benediction closed in PROG-12; extend existing `effects.ts` / `threat.ts`, never a second pipeline.
+- **Must be resolved by:** Accepted in PROG-12.
+- **Closure test:** `server/tests/warrior_progression.test.ts` proves Challenge’s radius taunt, DR ranks, and taunted-source reduction. `server/tests/mystic_progression.test.ts` proves Protective Charm SPI absorb, one terminal heal, and Benediction percent shields. Remaining abilities use the same pipeline; shields use SPI scaling and do not crit unless content sets `shieldCanCrit`.

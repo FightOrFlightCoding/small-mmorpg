@@ -118,3 +118,12 @@ Mage combat reuses the accepted canonical targeting, effect, mana, delayed-groun
 | `project.ability.aoe.radius` | `40` px | Flash Freeze, Meteor, and Absolute Zero nearby radius | Design says adjacent/nearby/area without world units; already recorded in PROG-02 | yes | `server/tests/mage_progression.test.ts` | no |
 | `project.ability.cone.angle_deg` | `60` | Flame Wave cone width | Schema requires cone angle; design omits it; already recorded in PROG-02 | yes | `server/tests/mage_progression.test.ts` | no |
 
+### PROG-12
+
+Mystic combat reuses the accepted canonical targeting, effect, shield, heal, DoT, and modifier paths. Nearby party radius below was already recorded in PROG-02 and is now live; Battle Blessing arm duration is an implementation timeout, not a canonical balance number.
+
+| Stable ID | Value | Purpose | Reason it was required | Affects balance | Tests using it | Canonical design data |
+| --- | --- | --- | --- | --- | --- | --- |
+| `project.ability.party.radius` | `80` px | Blessing, Benediction, Malediction, and Contagion nearby radius | Design says nearby without world units; already recorded in PROG-02 | yes | `server/tests/mystic_progression.test.ts` | no |
+| `project.combat.battle_blessing.arm_seconds` | `30` s | Armed Battle Blessing expires if no eligible harm is used | Design says the next eligible harm is consumed once and omits a timeout | no | `server/tests/mystic_progression.test.ts` | no |
+
