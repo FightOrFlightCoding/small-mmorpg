@@ -39,8 +39,8 @@ Every conflict below has **Status**, **Resolution owner**, **Must be resolved by
 | PROG-06 | Manual free-stat allocation and trainer respec (accepted) |
 | PROG-07 | Class/branch talent spend, ownership, **one** production hotbar (accepted) |
 | PROG-08 | Canonical combat mechanics (no production GCD) (accepted) |
-| PROG-09–12 | Every class and branch, including auto-attacks |
-| PROG-13 | Complete player-facing progression UI |
+| PROG-09–12 | Every class and branch, including auto-attacks (accepted) |
+| PROG-13 | Complete player-facing progression UI (accepted) |
 | PROG-14 | Persistence and lifecycle integration, **final** legacy migration |
 | PROG-15 | Remove production legacy paths and certify balance |
 

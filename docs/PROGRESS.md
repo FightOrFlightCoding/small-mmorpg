@@ -1,10 +1,10 @@
 # Progress
 
-Last accepted phase: **PROG-12 — Complete Mystic, Charms, and Curses Implementation**.
+Last accepted phase: **PROG-13 — Complete Character Progression and Skill-Tree UI**.
 
 Current phase: none.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. PROG-08 remains accepted. PROG-09 remains accepted. PROG-10 remains accepted. PROG-11 remains accepted. PROG-12 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. PROG-08 remains accepted. PROG-09 remains accepted. PROG-10 remains accepted. PROG-11 remains accepted. PROG-12 remains accepted. PROG-13 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
 
@@ -631,7 +631,39 @@ The intentional Warrior content update changes the shared generated hash to `913
 | Client GdUnit | 283/283, 0 failures, 0 orphans |
 | GitHub `verify` | passed (`0867ac9`, run 35112093346) |
 
-Remaining work is limited to later named PROG phases. PROG-12 is recorded below.
+Remaining work is limited to later named PROG phases. PROG-13 is recorded below.
+
+## PROG-13 character progression and skill-tree UI (2026-09-16)
+
+The player-facing progression UI is complete on the existing PROG-06/07 opcodes. The client still sends intentions only (`ALLOCATE_ATTRIBUTES`, `ALLOCATE_ATTRIBUTES_BATCH`, `SET_AUTO_ASSIGN`, `AUTO_ASSIGN_UNSPENT_POINTS`, `SELECT_BRANCH`, `PURCHASE_TALENT`, `ASSIGN_HOTBAR`, `TRAINER_RESPEC`). It never submits XP, level, derived totals, gold cost, ranks, or respec results as facts. Canonical values come from `publicProgression` and ability state.
+
+Character creation shows four class cards (Warrior, Mage, Marksman, Mystic) with name, role, resource type, generic glyph/shape/theme, identity copy, and confirmation that class cannot currently be changed. No final class art and no balance promises.
+
+The character sheet shows class, branch, level, XP bar, current XP, XP to next, lifetime XP in development details, eight base stats with automatic growth / free allocations / equipment contribution / temporary effects / final total, derived HP, caster-only mana and regeneration, crit chance, crit multiplier, haste, damage reduction, and unspent free/class/branch points. Physical classes omit mana. Allocation uses plus controls, a pending batch, remaining-point preview, confirm/cancel, auto-assign toggle, assign-current-unspent, and server error recovery. Committed points cannot be decremented except by trainer respec.
+
+Level-up presentation is a skippable toast covering level gained, automatic stats, free/class/branch points, milestone unlocks, branch choice, and level cap. The level-5 branch chooser shows exactly two branches, requires confirmation, selects no default, and leaves the character branchless with persistent guidance if closed. Class trees show three nodes and two earned points. Branch trees show eight nodes, nine point-slots, tiers, ranks, active markers, textual prerequisites, spend/available, lock reasons, and level-9 Tier-3 guidance. Visual adjacency is not treated as a prerequisite.
+
+The ability book lists auto-attack separately from owned actives, passives, locked milestones, and purchased talent actives, including cooldown, cast time, mana cost, rank notes, and source. The production hotbar has four slots; passives and auto-attack cannot occupy them; assignment is reconciled by the server. Reference builds from design §11 are optional nonbinding copy and do not auto-spend. Trainer respec confirmation shows gold cost, what resets, what remains, resulting unspent points, insufficient gold, and branch reselection when level ≥ 5.
+
+Keyboard focus, UI scale, color-independent lock labels, tooltips, long wrapping copy, no double confirm, request timeout restore, reconnect window restore, character-switch clearing, and link-dead blocking are covered. Foundation left-column +1 allocate/unlock remains for `class.one` tests. Content was not rebuilt; hash is unchanged.
+
+| Gate | Result |
+| --- | --- |
+| Content hash | unchanged `b76111cf9fb663dd04de943d3de5af004249b29c1321fe563bc9eac9d731f2de` |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (29 RPCs, 34 storage records, 38 client opcodes) |
+| Server hermetic | 714 passed, 13 skipped |
+| Client GdUnit | 297/297, 0 failures, 0 orphans, `SHELL_LOGIN` |
+| PROG-13 UI suite | 14/14 (`client/tests/app/progression_ui_test.gd`) |
+
+Limitations: Persistence leftover-field migration remains PROG-14. Production legacy-path removal and balance certification remain PROG-15. Final class art is not required. Equipment vs temporary effects uses the remainder of derived minus automatic minus free until `publicProgression` splits those channels. Manual Prompt 18 world play was not re-run; live village/slime combat behavior was not changed.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+```
 
 ## PROG-12 Mystic, Charms, and Curses implementation (2026-09-16)
 

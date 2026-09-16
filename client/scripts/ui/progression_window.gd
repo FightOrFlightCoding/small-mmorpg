@@ -177,11 +177,12 @@ func _build() -> void:
 
 func _build_sheet() -> Control:
 	var scroll := _scroll("Sheet")
-	var box: VBoxContainer = scroll.get_child(0)
+	var box := scroll.get_child(0) as VBoxContainer
 	_xp_bar = ProgressBar.new()
 	_xp_bar.name = "XpBar"
 	_xp_bar.min_value = 0
 	_xp_bar.max_value = 1
+	_xp_bar.step = 0.0001
 	_xp_bar.show_percentage = false
 	_xp_bar.custom_minimum_size = Vector2(0, 18)
 	_xp_current = _label("XpCurrent", "Current XP: 0")
@@ -211,7 +212,7 @@ func _build_sheet() -> Control:
 
 func _build_allocate() -> Control:
 	var scroll := _scroll("Allocate")
-	var box: VBoxContainer = scroll.get_child(0)
+	var box := scroll.get_child(0) as VBoxContainer
 	var help := _label("AllocateHelp", "Plus adds a pending point. Already committed points cannot be decremented except by trainer respec. Confirm sends one batch. Preview totals are not authority.")
 	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_allocate_remaining = _label("RemainingPreview", "Remaining: 0")
@@ -251,7 +252,7 @@ func _build_allocate() -> Control:
 
 func _build_class_tab() -> Control:
 	var scroll := _scroll("Class")
-	var box: VBoxContainer = scroll.get_child(0)
+	var box := scroll.get_child(0) as VBoxContainer
 	_class_tree_meta = _label("ClassTreeMeta", "")
 	_class_tree_meta.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_class_tree_host = VBoxContainer.new()
@@ -263,7 +264,7 @@ func _build_class_tab() -> Control:
 
 func _build_branch_tab() -> Control:
 	var scroll := _scroll("Branch")
-	var box: VBoxContainer = scroll.get_child(0)
+	var box := scroll.get_child(0) as VBoxContainer
 	_branch_guidance = _label("BranchGuidance", "")
 	_branch_guidance.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_choose_branch = Button.new()
@@ -284,7 +285,7 @@ func _build_branch_tab() -> Control:
 
 func _build_abilities() -> Control:
 	var scroll := _scroll("Abilities")
-	var box: VBoxContainer = scroll.get_child(0)
+	var box := scroll.get_child(0) as VBoxContainer
 	_auto_attack_label = _label("AutoAttack", "Auto-attack: —")
 	_auto_attack_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_ability_actives = VBoxContainer.new()
@@ -309,7 +310,7 @@ func _build_abilities() -> Control:
 
 func _build_builds() -> Control:
 	var scroll := _scroll("Builds")
-	var box: VBoxContainer = scroll.get_child(0)
+	var box := scroll.get_child(0) as VBoxContainer
 	var help := _label("BuildHelp", "Optional, nonbinding reference-build guidance. The UI never auto-spends from a reference build.")
 	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_builds_host = VBoxContainer.new()
@@ -413,7 +414,7 @@ func _rebuild_derived() -> void:
 
 
 func _derived_line(stat_id: String, _required: bool) -> Label:
-	var value := ProgressionService.derived.get(stat_id, 0)
+	var value: Variant = ProgressionService.derived.get(stat_id, 0)
 	return _label(stat_id.replace(".", "_"), "%s: %s" % [
 		ProgressionCatalog.derived_label(stat_id),
 		ProgressionCatalog.format_derived(stat_id, value),
@@ -513,13 +514,13 @@ func _rebuild_tree(host: VBoxContainer, tree_id: String, show_tiers: bool) -> vo
 	if tree_id.is_empty():
 		host.add_child(_label("Empty", "No tree for this class."))
 		return
-	var grouped := {}
+	var grouped: Dictionary = {}
 	for node in ProgressionCatalog.tree_nodes(tree_id):
 		var tier := int((node as Dictionary).get("tier", 1))
 		if not grouped.has(tier):
 			grouped[tier] = []
 		(grouped[tier] as Array).append(node)
-	var tiers := grouped.keys()
+	var tiers: Array = grouped.keys()
 	tiers.sort()
 	for tier in tiers:
 		if show_tiers:

@@ -546,7 +546,7 @@ static func ability_detail_text(ability_id: String, rank: int) -> String:
 
 static func event_lines(events: Array, new_level: int) -> PackedStringArray:
 	var lines := PackedStringArray()
-	var seen := {}
+	var seen: Dictionary = {}
 	for entry in events:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
