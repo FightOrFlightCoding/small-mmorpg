@@ -42,10 +42,10 @@ func request_heal() -> void:
 	NetworkService.send_inn_rest(last_npc_id, "healer")
 
 
-func request_respec() -> void:
+func request_respec() -> String:
 	if last_npc_id.is_empty():
-		return
-	ProgressionService.request_respec(last_npc_id)
+		return ""
+	return ProgressionService.request_respec(last_npc_id)
 
 
 func _on_interaction_result(payload: Dictionary) -> void:

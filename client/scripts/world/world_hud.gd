@@ -115,6 +115,11 @@ var _menu_return: Button
 var _menu_logout: Button
 var _menu_quit: Button
 var _menu_button: Button
+var progression_window: ProgressionWindow
+var level_up_toast: LevelUpToast
+var _auto_attack: Label
+var _sheet_button: Button
+var _branch_banner: Label
 
 
 func _ready() -> void:
@@ -169,10 +174,15 @@ func _ready() -> void:
 		WalletService.notice_received.connect(_on_notice)
 	if not ProgressionService.progression_changed.is_connected(refresh_progression):
 		ProgressionService.progression_changed.connect(refresh_progression)
+	if not ProgressionService.level_up_events.is_connected(_on_level_up_events):
+		ProgressionService.level_up_events.connect(_on_level_up_events)
 	if not AbilityService.abilities_changed.is_connected(refresh_abilities):
 		AbilityService.abilities_changed.connect(refresh_abilities)
 	_bind_hotbar()
 	refresh_abilities()
+	_build_progression_window()
+	_build_auto_attack()
+	_add_character_sheet_button()
 	_build_vendor_panel()
 	_build_inn_panel()
 	_build_cave_panel()
@@ -399,6 +409,9 @@ func refresh_wallet() -> void:
 
 
 func refresh_progression() -> void:
+	if _branch_banner != null:
+		_branch_banner.visible = ProgressionService.pending_branch_selection
+		_branch_banner.text = "No branch selected. Open the character sheet and confirm a branch. Closing the chooser leaves you branchless."
 	if _progression_summary != null:
 		var branch_hint := ""
 		if ProgressionService.pending_branch_selection:
@@ -533,10 +546,27 @@ func _bind_hotbar() -> void:
 			if not (button as Button).mouse_entered.is_connected(_on_hotbar_hover):
 				(button as Button).mouse_entered.connect(_on_hotbar_hover.bind(i))
 				(button as Button).mouse_exited.connect(func() -> void: TooltipService.hide_tooltip())
+			if not (button as Button).gui_input.is_connected(_on_hotbar_gui_input):
+				(button as Button).gui_input.connect(_on_hotbar_gui_input.bind(i))
 
 
 func _on_hotbar_pressed(slot_index: int) -> void:
+	if DragDropService.active:
+		return
 	AbilityService.try_hotbar(slot_index)
+
+
+func _on_hotbar_gui_input(event: InputEvent, slot_index: int) -> void:
+	if not (event is InputEventMouseButton) or not event.pressed:
+		return
+	if (event as InputEventMouseButton).button_index != MOUSE_BUTTON_LEFT:
+		return
+	if not DragDropService.active:
+		return
+	var ability_id := String(DragDropService.payload.get("abilityId", ""))
+	AbilityService.request_assign_hotbar(slot_index, ability_id)
+	DragDropService.complete()
+	get_viewport().set_input_as_handled()
 
 
 func _on_hotbar_hover(slot_index: int) -> void:
@@ -571,7 +601,8 @@ func _refresh_hotbar() -> void:
 				label = "%s\n--" % label
 		(button as Button).text = label
 		(button as Button).visible = i < AbilityService.hotbar.size()
-		(button as Button).disabled = ability_id.is_empty()
+		(button as Button).disabled = false
+	_refresh_auto_attack()
 
 
 func _refresh_cast_bar() -> void:
@@ -761,6 +792,8 @@ func _exit_tree() -> void:
 		WalletService.notice_received.disconnect(_on_notice)
 	if ProgressionService.progression_changed.is_connected(refresh_progression):
 		ProgressionService.progression_changed.disconnect(refresh_progression)
+	if ProgressionService.level_up_events.is_connected(_on_level_up_events):
+		ProgressionService.level_up_events.disconnect(_on_level_up_events)
 	if AbilityService.abilities_changed.is_connected(refresh_abilities):
 		AbilityService.abilities_changed.disconnect(refresh_abilities)
 
@@ -1635,6 +1668,12 @@ func _on_party_chat_send() -> void:
 
 
 func set_panel_visible(window_id: String, visible: bool) -> void:
+	if window_id == WindowManager.CHARACTER and progression_window != null:
+		if visible:
+			progression_window.show_window()
+		else:
+			progression_window.hide_window()
+		return
 	var node := _panel_node(window_id)
 	if node != null:
 		node.visible = visible
@@ -1782,7 +1821,9 @@ func _panel_node(window_id: String) -> Control:
 	match window_id:
 		WindowManager.INVENTORY, WindowManager.EQUIPMENT:
 			return get_node_or_null("Root/Inventory")
-		WindowManager.CHARACTER, WindowManager.ATTRIBUTES, WindowManager.SKILLS:
+		WindowManager.CHARACTER:
+			return progression_window
+		WindowManager.ATTRIBUTES, WindowManager.SKILLS:
 			return get_node_or_null("Root/LeftColumn/Progression")
 		WindowManager.QUEST_JOURNAL:
 			return get_node_or_null("Root/Journal")
@@ -1955,8 +1996,9 @@ func _build_inn_panel() -> void:
 	heal.pressed.connect(func() -> void: InnService.request_heal())
 	vbox.add_child(heal)
 	var respec := Button.new()
+	respec.name = "Respec"
 	respec.text = "Respec"
-	respec.pressed.connect(func() -> void: InnService.request_respec())
+	respec.pressed.connect(_on_inn_respec_pressed)
 	vbox.add_child(respec)
 	var close := Button.new()
 	close.text = "Close"
@@ -2244,5 +2286,94 @@ func _build_game_menu() -> void:
 	_game_menu.add_child(panel)
 	add_child(_game_menu)
 	_refresh_game_menu_status()
+
+
+func _build_progression_window() -> void:
+	if progression_window != null:
+		return
+	progression_window = ProgressionWindow.new()
+	progression_window.name = "ProgressionWindow"
+	add_child(progression_window)
+	level_up_toast = LevelUpToast.new()
+	level_up_toast.name = "LevelUpToast"
+	level_up_toast.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	level_up_toast.offset_left = -360
+	level_up_toast.offset_top = 16
+	level_up_toast.offset_right = -16
+	level_up_toast.offset_bottom = 160
+	add_child(level_up_toast)
+	_branch_banner = Label.new()
+	_branch_banner.name = "BranchBanner"
+	_branch_banner.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_branch_banner.visible = false
+	_branch_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_branch_banner.offset_top = 150
+	_branch_banner.offset_left = 16
+	_branch_banner.offset_right = -16
+	_branch_banner.offset_bottom = 190
+	if has_node("Root"):
+		$Root.add_child(_branch_banner)
+
+
+func _build_auto_attack() -> void:
+	if _auto_attack != null or not has_node("Root"):
+		return
+	_auto_attack = Label.new()
+	_auto_attack.name = "AutoAttack"
+	_auto_attack.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_auto_attack.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_auto_attack.anchor_left = 0.0
+	_auto_attack.anchor_right = 1.0
+	_auto_attack.anchor_top = 1.0
+	_auto_attack.anchor_bottom = 1.0
+	_auto_attack.offset_left = 16
+	_auto_attack.offset_right = -16
+	_auto_attack.offset_top = -150
+	_auto_attack.offset_bottom = -114
+	$Root.add_child(_auto_attack)
+	_refresh_auto_attack()
+
+
+func _add_character_sheet_button() -> void:
+	if _sheet_button != null or _settings_button == null:
+		return
+	var host := _settings_button.get_parent()
+	if host == null:
+		return
+	_sheet_button = Button.new()
+	_sheet_button.name = "CharacterSheetButton"
+	_sheet_button.text = "Character"
+	_sheet_button.focus_mode = Control.FOCUS_ALL
+	_sheet_button.pressed.connect(func() -> void: HudController.toggle_panel(WindowManager.CHARACTER))
+	host.add_child(_sheet_button)
+	host.move_child(_sheet_button, _settings_button.get_index())
+
+
+func _on_inn_respec_pressed() -> void:
+	if progression_window == null:
+		_build_progression_window()
+	WindowManager.open(WindowManager.CHARACTER)
+	if progression_window != null:
+		progression_window.present_respec()
+
+
+func _on_level_up_events(lines: PackedStringArray) -> void:
+	if level_up_toast == null:
+		return
+	level_up_toast.present(lines)
+	if ProgressionService.pending_branch_selection and progression_window != null and progression_window.visible:
+		progression_window.present_branch_modal()
+
+
+func _refresh_auto_attack() -> void:
+	if _auto_attack == null:
+		return
+	var auto_id := String(ProgressionCatalog.class_record(ProgressionService.class_id).get("autoAttackId", ""))
+	if auto_id.is_empty():
+		_auto_attack.text = "Auto-attack: —"
+		return
+	var definition := AbilityService.ability_definition(auto_id)
+	_auto_attack.text = "Auto-attack: %s" % String(definition.get("displayName", auto_id))
+	_auto_attack.tooltip_text = ProgressionCatalog.ability_detail_text(auto_id, 1)
 
 
