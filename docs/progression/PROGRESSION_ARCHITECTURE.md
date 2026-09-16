@@ -8,7 +8,7 @@ Undocumented implementation numbers: [progression-implementation-addendum.md](..
 
 ## Last accepted phase and ownership
 
-Last accepted phase: **PROG-13** (complete player-facing progression UI). PROG-14 implements leftover Foundation-field cleanup (`progressionSchemaVersion` **3**), lifecycle persistence, party XP integration, account export/deletion, and authorized GM progression tools. PROG-12 remains accepted for Mystic/Charms/Curses on the shared combat path. PROG-11 remains accepted for Mage/Fire/Frost. PROG-10 remains accepted for Marksman/Sniper/Skirmisher. PROG-09 remains accepted for Warrior/Bulwark/Berserker. Foundation v1 / Prompt 35 / ACCT-09 remain accepted. Prompt 18 village/slime combat behavior remains frozen.
+Last accepted phase: **PROG-14** (persistence, leftover Foundation-field cleanup, lifecycle, and authorized GM tools). PROG-13 remains accepted for the player-facing progression UI. PROG-12 remains accepted for Mystic/Charms/Curses on the shared combat path. PROG-11 remains accepted for Mage/Fire/Frost. PROG-10 remains accepted for Marksman/Sniper/Skirmisher. PROG-09 remains accepted for Warrior/Bulwark/Berserker. Foundation v1 / Prompt 35 / ACCT-09 remain accepted. Prompt 18 village/slime combat behavior remains frozen.
 
 PROG-08 extends the project-owned ability/effect/combat pipeline with reusable mechanic handlers, typed combat events, a server-authoritative random interface, independent multi-hit, DoT snapshot/retune, shields, taunt, cooldown recovery, vault movement, and line/cone/radius/delayed-ground targeting. PROG-09 enables `ability.warrior.*`; PROG-10 enables `ability.marksman.*`; PROG-11 enables `ability.mage.*`; PROG-12 enables `ability.mystic.*`. ATTACK resolves the class-owned auto-attack definition, not a hotbar ability. Talent content is translated into identified modifiers and conditional ability effects at resolution time, so no generic combat module branches on a class ID. Owned gaps: [CURRENT_CONFLICTS.md](CURRENT_CONFLICTS.md).
 
@@ -85,5 +85,5 @@ No progression, skill-tree, RPG-statistics, cooldown, or ability plugin. No new 
 | PROG-08 | Canonical combat mechanics; no production global cooldown (accepted) |
 | PROG-09–12 | Every class and branch, including auto-attacks (accepted) |
 | PROG-13 | Complete player-facing progression UI (accepted) |
-| PROG-14 | Persistence, lifecycle, final leftover-field migration |
+| PROG-14 | Persistence, lifecycle, final leftover-field migration (accepted) |
 | PROG-15 | Remove production legacy paths and certify balance |

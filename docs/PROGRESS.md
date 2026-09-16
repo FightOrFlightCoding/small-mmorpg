@@ -1,10 +1,10 @@
 # Progress
 
-Last accepted phase: **PROG-13 — Complete Character Progression and Skill-Tree UI**.
+Last accepted phase: **PROG-14 — Persistence, Multiplayer, Rewards, Account Lifecycle, and Developer Tools**.
 
 Current phase: none.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. PROG-08 remains accepted. PROG-09 remains accepted. PROG-10 remains accepted. PROG-11 remains accepted. PROG-12 remains accepted. PROG-13 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. PROG-08 remains accepted. PROG-09 remains accepted. PROG-10 remains accepted. PROG-11 remains accepted. PROG-12 remains accepted. PROG-13 remains accepted. PROG-14 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
 
@@ -656,13 +656,46 @@ Keyboard focus, UI scale, color-independent lock labels, tooltips, long wrapping
 | PROG-13 UI suite | 14/14 (`client/tests/app/progression_ui_test.gd`) |
 | GitHub `verify` | passed (`3780a75`, run 35146268952) |
 
-Limitations: Persistence leftover-field migration remains PROG-14. Production legacy-path removal and balance certification remain PROG-15. Final class art is not required. Equipment vs temporary effects uses the remainder of derived minus automatic minus free until `publicProgression` splits those channels. Manual Prompt 18 world play was not re-run; live village/slime combat behavior was not changed.
+Limitations: Production leftover-field migration is PROG-14. Production legacy-path removal and balance certification remain PROG-15. Final class art is not required. Equipment vs temporary effects uses the remainder of derived minus automatic minus free until `publicProgression` splits those channels. Manual Prompt 18 world play was not re-run; live village/slime combat behavior was not changed.
 
 Reproduction:
 
 ```powershell
 powershell -File scripts/test-audit.ps1
 powershell -File scripts/test-server.ps1
+powershell -File scripts/test-client.ps1
+```
+
+## PROG-14 persistence, leftover migration, and developer tools (2026-09-16)
+
+Progression survives the accepted lifecycle: return to Character Select, logout/leave, link-dead, ten-second despawn, reconnect, cave transfer, public-world transfer, server restart (`matchTerminate`), content-reload migrate, soft deletion, restoration, account export, and account deletion. Character Select summaries reread class, level, and branch from the persisted blob after level gain, branch choice, respec, reconnect, and restart.
+
+`progressionSchemaVersion` is **3**. `SAVE_SCHEMA_VERSION` stays **1**. `test.*` characters keep Foundation authorities. Production leftover `allocatedAttributes`, live 8-slot `hotbar`, Foundation unspent counters, and `test.ability.*` unlocks are reset with notice `leftover_foundation_reset`. Canonical unspent free points stay `3 * (level - 1)`. Future versions are `unsupported_future_version` and are not rewritten. Interrupted leftover cleanup retries without duplicating spend.
+
+XP grants, level rewards, automatic growth, free/class/branch points, basic/signature/capstone unlocks, talent purchase, respec, enemy kill credit, quest XP, party XP, and boss kill XP remain `eventId` / `requestId` idempotent. Party credit uses existing eligibility: forged membership is ignored, dead/out-of-range members are skipped, enemy level is authoritative, elite ×3 is server-owned. Eligible party members receive XP once. Mystic friendly abilities and Warrior taunt stay on the existing relation/threat paths. PvP remains disabled.
+
+Soft-delete restore preserves level, XP, branch, talents, hotbar, auto-assign, and grant maps and does not regrant starters or refill gold. Account export includes a `progressionExport` snapshot (class, branch, level, XP, allocations, purchased nodes, auto-assign, hotbar). Permanent deletion and character purge remove every progression record. Recreating after purge does not inherit progression.
+
+Authorized GM tools (`gm_command`, server allowlist, audited): inspect progression, grant XP event, grant exact test XP, reset progression fixture, set auto-assign, grant test gold, open branch selection, reset full build through canonical respec (no gold), simulate level-up, inspect active effects, inspect cooldown recovery, and run progression validation. There is no `set_level` command. Debug HUD is presentation only. Content was not rebuilt; hash is unchanged. `C-legacy-migration` is RESOLVED.
+
+| Gate | Result |
+| --- | --- |
+| Content hash | unchanged `b76111cf9fb663dd04de943d3de5af004249b29c1321fe563bc9eac9d731f2de` |
+| Design audit | 10/10 (`server/tests/progression_design_audit.test.ts`) |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (29 RPCs, 34 storage records, 38 client opcodes) |
+| Server hermetic | 739 passed, 13 skipped (Node 22 glob `dist-test/tests/*.test.js`; directory `npm test` still fails on Node 22) |
+| Client GdUnit | 297/297, 0 failures, 0 orphans, `SHELL_LOGIN` |
+| GitHub `verify` | pending |
+
+Limitations: Production legacy-path removal and balance certification remain PROG-15. The eight-slot Foundation hotbar remains test-only. Manual Prompt 18 world play was not re-run; live village/slime combat behavior was not changed.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-progression-design.ps1
+npx tsc -p tsconfig.test.json
+node --test dist-test/tests/*.test.js
 powershell -File scripts/test-client.ps1
 ```
 
