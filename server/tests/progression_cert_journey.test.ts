@@ -299,10 +299,11 @@ test("complete functional journey for every production class via authorized serv
     progression = secondBranch.progression;
     assert.ok(progression.unlockedAbilityIds.indexOf(catalog.branches[spec.branchB].signatureAbilityId) >= 0);
 
-    for (let n = 0; n < spec.spendB.length; n++) {
+    for (let n = 0; n < spec.spendB.length - 1; n++) {
       progression = grantTo(progression, spec.classId, 5 + n, spec.classId + "-bn-" + String(n));
       progression = buy(progression, spec.classId, spec.treeB, spec.spendB[n], spec.classId + "-t-" + spec.spendB[n]);
     }
+    progression = grantTo(progression, spec.classId, 8, spec.classId + "-l8");
     const early = applyCanonicalTalentPurchase(progression, catalog, spec.classId, {
       treeId: spec.treeB,
       nodeId: spec.t3,
@@ -311,6 +312,13 @@ test("complete functional journey for every production class via authorized serv
     });
     assert.equal(early.ok, false);
     assert.equal(early.code, "level_restricted");
+    progression = buy(
+      progression,
+      spec.classId,
+      spec.treeB,
+      spec.spendB[spec.spendB.length - 1],
+      spec.classId + "-t-" + spec.spendB[spec.spendB.length - 1],
+    );
     progression = grantTo(progression, spec.classId, 9, spec.classId + "-l9");
     progression = buy(progression, spec.classId, spec.treeB, spec.t3, spec.classId + "-t3");
     progression = grantTo(progression, spec.classId, 10, spec.classId + "-l10");

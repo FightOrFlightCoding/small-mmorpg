@@ -200,9 +200,9 @@ test("four-class party certifies taunt spell mana ranged heal pvp xp and disconn
   const x = 960;
   const y = 400;
   const warrior = classPlayer("class.warrior", "warrior", x - 20, y, "branch.warrior.bulwark", [], {});
-  const mage = classPlayer("class.mage", "mage", x - 24, y, "branch.mage.fire", [], {});
-  const marksman = classPlayer("class.marksman", "marksman", x - 150, y, "branch.marksman.sniper", [], {});
-  const mystic = classPlayer("class.mystic", "mystic", x - 16, y, "branch.mystic.charms", [], {});
+  const mage = classPlayer("class.mage", "mage", x - 60, y - 40, "branch.mage.fire", [], {});
+  const marksman = classPlayer("class.marksman", "marksman", x - 150, y + 40, "branch.marksman.sniper", [], {});
+  const mystic = classPlayer("class.mystic", "mystic", x - 16, y - 30, "branch.mystic.charms", [], {});
   mystic.health = Math.max(1, Math.floor(mystic.maxHealth * 0.4));
   warrior.health = Math.max(1, Math.floor(warrior.maxHealth * 0.5));
   const members = [warrior, mage, marksman, mystic];
@@ -217,9 +217,17 @@ test("four-class party certifies taunt spell mana ranged heal pvp xp and disconn
   assert.equal(result.state.enemies[0].tauntSourceId, "warrior");
 
   const manaBefore = manaOf(result.state.players.mage);
-  result = completeCast(result.state, 11, { abilityId: "ability.mage.arcane_bolt", targetId: "enemy-1", requestId: "party-bolt" }, "mage");
-  assert.ok(result.state.enemies[0].health < 1000);
+  result = run(result.state, 11, [message(ClientOpcode.USE_ABILITY, { abilityId: "ability.mage.arcane_bolt", targetId: "enemy-1", requestId: "party-bolt" }, "mage")]);
+  assert.equal(actionCode(result), "ok", "mage bolt");
   assert.ok(manaOf(result.state.players.mage) < manaBefore);
+  const boltCast = result.state.players.mage?.activeCast;
+  if (boltCast !== undefined && boltCast.interruptReason === "") {
+    const until = boltCast.completionTick;
+    for (let tick = 12; tick <= until; tick++) {
+      result = run(result.state, tick);
+    }
+  }
+  assert.ok(result.state.enemies[0].health < 1000);
 
   const beforeRanged = result.state.enemies[0].health;
   result = run(result.state, 20, [

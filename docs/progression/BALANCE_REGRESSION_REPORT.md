@@ -18,19 +18,25 @@ Tolerance: **±5%** versus design §12. Auto-growth only, signature included, no
 
 ## §12 DPS / HPS targets
 
-| Branch | Target DPS | Party HPS | Notes |
-| --- | --- | --- | --- |
-| Sniper | 19.0 | — | Autos pause per Snipe |
-| Skirmisher | 18.9 | — | |
-| Fire | 18.8 | — | Spender until OOM, then Arcane Bolt |
-| Frost | 17.6 | — | Ice Bolt then Arcane Bolt |
-| Curses | 17.3 | — | Wither cycle + Fateweave fillers |
-| Berserker | 16.1 | — | Crit EV on physical hits |
-| Bulwark | 14.8 | — | |
-| Charms solo | 14.3 | — | Fateweave harm |
-| Charms party | — | 22.2 | 15.9 mend stream + 6.3 charm amortized. Mana pressure is reported; the design methodology is not rebalanced for OOM |
+Live analytic results from `npm run simulate -- --mode analytic` (auto-growth only, signature on, no tree nodes, 60s). Tolerance ±5%.
+
+| Branch | Target | Live analytic | Delta | Notes |
+| --- | --- | --- | --- | --- |
+| Sniper | 19.0 DPS | 19.033 | +0.2% | Autos pause per Snipe; crit EV |
+| Skirmisher | 18.9 DPS | 18.939 | +0.2% | |
+| Fire | 18.8 DPS | 18.759 | −0.2% | Fireball until OOM at 31.8s, then Arcane Bolt |
+| Frost | 17.6 DPS | 17.590 | −0.1% | Ice Bolt until OOM at 35.7s |
+| Curses | 17.3 DPS | 17.368 | +0.4% | Wither replace-cycle + Fateweave harm fillers; OOM 98s |
+| Berserker | 16.1 DPS | 16.097 | 0.0% | Crit EV on physical hits |
+| Bulwark | 14.8 DPS | 14.830 | +0.2% | |
+| Charms solo | 14.3 DPS | 14.302 | 0.0% | Fateweave harm |
+| Charms party | 22.2 HPS | 22.162 | −0.2% | Mend stream + charm amortized. OOM at 39.8s is reported, not rebalanced |
 
 Crit expected value is `1 + CritChance * (CritMult - 1)`. Sniper 18.44 × 1.0324 ≈ 19.0.
+
+Seeded mode (seed 34) stays within 15% of analytic EV. Curses uses canonical `replace` stacking: one Wither at a time, recast when the DoT expires. Overlapping Wither stacks are a simulator defect, not a class DPS buff.
+
+Charms TTK versus the 120 HP §13 mob is **8.391s**. Design §12 lists 6.3–8.1s across branches. 8.391 is 3.6% above 8.1 and inside the cert ±5% band on that upper bound. This is a source-level sheet discrepancy; slime HP and Fateweave were not retuned.
 
 ## Cross-checks
 

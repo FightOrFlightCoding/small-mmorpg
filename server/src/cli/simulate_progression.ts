@@ -57,9 +57,22 @@ function main(argv: string[]): void {
         durationSec: duration,
         seed: seed,
         trace: trace,
-        partyHeal: branchIds[i] === "branch.mystic.charms",
       }),
     );
+    if (branchIds[i] === "branch.mystic.charms") {
+      results.push(
+        simulateProgressionFight({
+          catalog: catalog,
+          content: bundle,
+          branchId: branchIds[i],
+          mode: mode,
+          durationSec: duration,
+          seed: seed,
+          trace: trace,
+          partyHeal: true,
+        }),
+      );
+    }
   }
   const body = json ? formatJsonResult(results) : formatHumanReport(results);
   if (out !== undefined && out.length > 0) {

@@ -136,6 +136,17 @@ interface ResolvedAbility {
   category: PowerCategory;
   base: number;
   totalDotBase: number;
+  tickCount: number;
+  tickInterval: number;
+}
+
+interface DotState {
+  abilityId: string;
+  remaining: number;
+  ticks: number;
+  interval: number;
+  next: number;
+  amountPerTick: number;
 }
 
 interface AutoResolved {
@@ -199,8 +210,10 @@ export function formatHumanReport(results: ReadonlyArray<SimulationResult>): str
   for (let i = 0; i < results.length; i++) {
     const row = results[i];
     const target = SECTION_12_TARGETS[row.branchId];
-    lines.push(row.branchId + " (" + row.mode + ")");
-    lines.push("  DPS " + round3(row.dps) + (target !== undefined ? " target " + String(target.dps) : ""));
+    lines.push(row.branchId + " (" + row.mode + (row.partyHps > 0 && row.dps <= 0 ? ", party heal" : "") + ")");
+    if (!(row.partyHps > 0 && row.dps <= 0)) {
+      lines.push("  DPS " + round3(row.dps) + (target !== undefined ? " target " + String(target.dps) : ""));
+    }
     if (row.partyHps > 0) {
       lines.push(
         "  party HPS " +
@@ -305,6 +318,22 @@ function runAnalytic(
     const drain = spend - snapshot.manaRegen;
     oomAt = drain > 0 && snapshot.manaMax > 0 ? snapshot.manaMax / drain : null;
     manaEnd = oomAt !== null && oomAt < duration ? 0 : Math.max(0, snapshot.manaMax - Math.max(0, drain) * duration);
+    if (input.trace === true) {
+      traces.push({
+        time: 0,
+        kind: "analytic_heal",
+        abilityId: basic.id,
+        amount: healing,
+        notes: "mend stream",
+      });
+      traces.push({
+        time: 0,
+        kind: "analytic_shield",
+        abilityId: signature.id,
+        amount: absorb,
+        notes: "charm amortized",
+      });
+    }
   } else if (rotation.usesMana && basic !== null && (signature === null || signature.isShield || signature.base <= 0) && (signature === null || !signature.isDot)) {
     const rate = expectedAmount(snapshot, basic, true) / (basic.occupy > 0 ? basic.occupy : 1);
     const drain = basic.manaCost / (basic.occupy > 0 ? basic.occupy : 1) - snapshot.manaRegen;
@@ -312,6 +341,15 @@ function runAnalytic(
     const live = oomAt !== null && oomAt < duration ? oomAt : duration;
     damage = rate * live;
     manaEnd = oomAt !== null && oomAt < duration ? 0 : Math.max(0, snapshot.manaMax - Math.max(0, drain) * duration);
+    if (input.trace === true) {
+      traces.push({
+        time: 0,
+        kind: "analytic_filler",
+        abilityId: basic.id,
+        amount: rate,
+        notes: "live " + round3(live) + "s",
+      });
+    }
   } else if (rotation.usesMana && basic !== null && signature !== null && signature.manaCost > 0 && signature.occupy > 0 && signature.base > 0) {
     const spenderDps = expectedAmount(snapshot, signature, true) / signature.occupy;
     const fillerDps = expectedAmount(snapshot, basic, true) / (basic.occupy > 0 ? basic.occupy : 1);
@@ -349,6 +387,15 @@ function runAnalytic(
         const window = signature.cooldown > 0 ? signature.cooldown : signature.occupy > 0 ? signature.occupy : 1;
         damage += (expectedAmount(snapshot, signature, true) / window) * duration;
       }
+    }
+    if (input.trace === true) {
+      traces.push({
+        time: 0,
+        kind: "analytic_physical",
+        abilityId: auto !== null ? auto.id : rotation.signatureId,
+        amount: damage,
+        notes: "auto plus abilities over " + String(duration) + "s",
+      });
     }
   }
 
@@ -390,7 +437,7 @@ function runSeeded(
   let signatureCd = 0;
   let frenzyStacks = 0;
   let frenzyExpire = 0;
-  const dots: Array<{ remaining: number; ticks: number; interval: number; next: number; amountPerTick: number }> = [];
+  const dots: DotState[] = [];
 
   while (time < duration - 1e-9) {
     const speed = frenzyAttackSpeed(rotation.frenzy, frenzyStacks, frenzyPerStack, frenzyMax);
@@ -428,7 +475,7 @@ function runSeeded(
     }
     const canSig = signature !== null && time + 1e-9 >= signatureCd && canAfford(mana, signature.manaCost);
     const canBasic = basic !== null && time + 1e-9 >= basicCd && canAfford(mana, basic.manaCost);
-    if (canSig && shouldPreferSignature(rotation, signature, mana) && signature !== null) {
+    if (canSig && shouldPreferSignature(rotation, signature, mana, dots) && signature !== null) {
       const landed = applyResolved(signature, snapshot, random);
       mana -= signature.manaCost;
       if (signature.manaCost > 0 && mana <= 1e-9 && oomAt === null) {
@@ -571,6 +618,8 @@ function resolveAbility(
       category: "spell",
       base: 0,
       totalDotBase: 0,
+      tickCount: 0,
+      tickInterval: 0,
     };
   }
   const isDot = effect.type === "periodic_damage" || effect.type === "periodic_heal";
@@ -600,6 +649,8 @@ function resolveAbility(
     category: powerCategoryOf(effect),
     base: scaledBase,
     totalDotBase: isDot ? scaledBase * ticks : 0,
+    tickCount: isDot ? ticks : 0,
+    tickInterval: isDot ? effect.tickInterval : 0,
   };
 }
 
@@ -746,7 +797,12 @@ function canAfford(mana: number, cost: number): boolean {
   return cost <= 0 || mana + 1e-9 >= cost;
 }
 
-function shouldPreferSignature(rotation: Rotation, signature: ResolvedAbility | null, mana: number): boolean {
+function shouldPreferSignature(
+  rotation: Rotation,
+  signature: ResolvedAbility | null,
+  mana: number,
+  dots: ReadonlyArray<DotState>,
+): boolean {
   if (signature === null) {
     return false;
   }
@@ -756,10 +812,22 @@ function shouldPreferSignature(rotation: Rotation, signature: ResolvedAbility | 
   if (rotation.frenzy) {
     return false;
   }
-  if (signature.base <= 0 && !signature.isDot) {
+  if (signature.isDot) {
+    return !hasActiveDot(dots, signature.id) && canAfford(mana, signature.manaCost);
+  }
+  if (signature.base <= 0) {
     return false;
   }
   return canAfford(mana, signature.manaCost);
+}
+
+function hasActiveDot(dots: ReadonlyArray<DotState>, abilityId: string): boolean {
+  for (let i = 0; i < dots.length; i++) {
+    if (dots[i].abilityId === abilityId && dots[i].ticks > 0) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function frenzyAttackSpeed(enabled: boolean, stacks: number, perStack: number, maxStacks: number): number {
@@ -781,19 +849,20 @@ function dotDuration(ability: AbilityDefinition, snapshot: CanonicalSnapshot): n
   return ability.individualCooldown > 0 ? ability.individualCooldown : 8;
 }
 
-function queueDot(
-  dots: Array<{ remaining: number; ticks: number; interval: number; next: number; amountPerTick: number }>,
-  ability: ResolvedAbility,
-  snapshot: CanonicalSnapshot,
-  time: number,
-): void {
+function queueDot(dots: DotState[], ability: ResolvedAbility, snapshot: CanonicalSnapshot, time: number): void {
   if (!ability.isDot || ability.totalDotBase <= 0) {
     return;
   }
   const total = scalePower(ability.totalDotBase, ability.category, snapshot.stats);
-  const ticks = 8;
-  const interval = 1 / snapshot.hasteMult;
+  const ticks = ability.tickCount > 0 ? ability.tickCount : 8;
+  const interval = (ability.tickInterval > 0 ? ability.tickInterval : 1) / snapshot.hasteMult;
+  for (let i = dots.length - 1; i >= 0; i--) {
+    if (dots[i].abilityId === ability.id) {
+      dots.splice(i, 1);
+    }
+  }
   dots.push({
+    abilityId: ability.id,
     remaining: total,
     ticks: ticks,
     interval: interval,
@@ -802,7 +871,7 @@ function queueDot(
   });
 }
 
-function nextDotTime(dots: Array<{ next: number; ticks: number }>, duration: number): number {
+function nextDotTime(dots: ReadonlyArray<DotState>, duration: number): number {
   let soonest = duration;
   for (let i = 0; i < dots.length; i++) {
     if (dots[i].ticks > 0 && dots[i].next < soonest) {
@@ -812,11 +881,7 @@ function nextDotTime(dots: Array<{ next: number; ticks: number }>, duration: num
   return soonest;
 }
 
-function advanceDots(
-  dots: Array<{ remaining: number; ticks: number; interval: number; next: number; amountPerTick: number }>,
-  time: number,
-  onTick: (amount: number) => void,
-): void {
+function advanceDots(dots: DotState[], time: number, onTick: (amount: number) => void): void {
   for (let i = 0; i < dots.length; i++) {
     const dot = dots[i];
     while (dot.ticks > 0 && dot.next <= time + 1e-9) {

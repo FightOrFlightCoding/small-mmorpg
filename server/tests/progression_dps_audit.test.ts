@@ -73,10 +73,15 @@ test("section 12 analytic DPS and HPS stay within ±5% of the canonical table", 
   for (let i = 0; i < BRANCHES.length; i++) {
     const branchId = BRANCHES[i];
     const target = SECTION_12_TARGETS[branchId];
-    const result = analytic(branchId, { partyHeal: branchId === "branch.mystic.charms" });
+    const result = analytic(branchId);
     assert.equal(withinTolerance(result.dps, target.dps), true, branchId + " dps " + String(result.dps));
+    if (target.hps !== undefined) {
+      const healer = analytic(branchId, { partyHeal: true });
+      assert.equal(withinTolerance(healer.hps, target.hps), true, branchId + " hps " + String(healer.hps));
+    }
     if (target.partyHps !== undefined) {
-      assert.equal(withinTolerance(result.partyHps, target.partyHps), true, branchId + " party hps " + String(result.partyHps));
+      const party = analytic(branchId, { partyHeal: true });
+      assert.equal(withinTolerance(party.partyHps, target.partyHps), true, branchId + " party hps " + String(party.partyHps));
     }
   }
 });
@@ -84,14 +89,13 @@ test("section 12 analytic DPS and HPS stay within ±5% of the canonical table", 
 test("seeded event simulation is deterministic and stays near the analytic EV", () => {
   for (let i = 0; i < BRANCHES.length; i++) {
     const branchId = BRANCHES[i];
-    const a = analytic(branchId, { partyHeal: branchId === "branch.mystic.charms" });
+    const a = analytic(branchId);
     const first = simulateProgressionFight({
       catalog: catalog,
       content: bundle,
       branchId: branchId,
       mode: "seeded",
       seed: 34,
-      partyHeal: branchId === "branch.mystic.charms",
       trace: true,
     });
     const second = simulateProgressionFight({
@@ -100,10 +104,10 @@ test("seeded event simulation is deterministic and stays near the analytic EV", 
       branchId: branchId,
       mode: "seeded",
       seed: 34,
-      partyHeal: branchId === "branch.mystic.charms",
     });
     assert.equal(first.dps, second.dps, branchId);
     assert.ok(first.traces.length > 0, branchId + " trace");
+    assert.ok(a.traces.length > 0, branchId + " analytic trace");
     if (a.dps > 0) {
       assert.equal(withinTolerance(first.dps, a.dps, 0.15), true, branchId + " seeded " + String(first.dps) + " vs analytic " + String(a.dps));
     }
@@ -236,13 +240,6 @@ test("tier-3 lockout max actives DoT no-crit and haste-independent cooldowns sti
     requestId: "t2a",
   });
   assert.equal(t2a.ok, true);
-  const t2b = applyCanonicalTalentPurchase(progression, catalog, "class.warrior", {
-    treeId: "tree.warrior.berserker",
-    nodeId: "talent.warrior.berserker.whirlwind",
-    requestedRank: 1,
-    requestId: "t2b",
-  });
-  assert.equal(t2b.ok, true);
   const earlyT3 = applyCanonicalTalentPurchase(progression, catalog, "class.warrior", {
     treeId: "tree.warrior.berserker",
     nodeId: "talent.warrior.berserker.bloodthirst",
@@ -251,6 +248,13 @@ test("tier-3 lockout max actives DoT no-crit and haste-independent cooldowns sti
   });
   assert.equal(earlyT3.ok, false);
   assert.equal(earlyT3.code, "level_restricted");
+  const t2b = applyCanonicalTalentPurchase(progression, catalog, "class.warrior", {
+    treeId: "tree.warrior.berserker",
+    nodeId: "talent.warrior.berserker.whirlwind",
+    requestedRank: 1,
+    requestId: "t2b",
+  });
+  assert.equal(t2b.ok, true);
   const toTen = grantXp(progression, catalog, "class.warrior", {
     characterId: "char-cert",
     amount: 2700 + 2260,
@@ -290,6 +294,19 @@ test("tier-3 lockout max actives DoT no-crit and haste-independent cooldowns sti
   assert.equal(hasteDoesNotChangeCooldown(remaining, 2), remaining);
   const mage = L10_REFERENCE.mage;
   assert.equal(formulaCastTime(1.5, mage.hasteMult) < 1.5, true);
+});
+
+test("seeded Curses replaces Wither instead of stacking overlapping DoTs", () => {
+  const a = analytic("branch.mystic.curses");
+  const seeded = simulateProgressionFight({
+    catalog: catalog,
+    content: bundle,
+    branchId: "branch.mystic.curses",
+    mode: "seeded",
+    seed: 34,
+  });
+  assert.equal(withinTolerance(seeded.dps, a.dps, 0.15), true, "curses stacked " + String(seeded.dps) + " vs " + String(a.dps));
+  assert.ok(seeded.dps < a.dps * 1.2);
 });
 
 test("simulator JSON and human reports are finite", () => {

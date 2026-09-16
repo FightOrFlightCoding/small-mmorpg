@@ -14,7 +14,9 @@ Mystic Fateweave is an **authored miss**: `12 / (1.8 / 1.03) ≈ 6.87 > 6.2` reg
 
 ## Charms party HPS methodology
 
-§12 party HPS 22.2 is mend stream 15.9 + charm amortized 6.3. The analytic cert path follows that methodology and reports mana pressure instead of silently cutting HPS for OOM.
+§12 party HPS 22.2 is mend stream 15.9 + charm amortized 6.3. The analytic cert path follows that methodology and reports mana pressure instead of silently cutting HPS for OOM. Live party HPS is 22.162; OOM at 39.8s is reported.
+
+Charms solo TTK versus the 120 HP §13 mob is 8.391s. Design §12 lists 6.3–8.1s across branches. 8.391 is 3.6% above 8.1 and inside the cert ±5% band. This is a source-level sheet discrepancy; Fateweave and slime HP were not retuned.
 
 ## Noncanonical content
 
