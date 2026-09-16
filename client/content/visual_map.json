@@ -1,7 +1,7 @@
 {
   "visual.zone_starter": {
-    "texture": "res://assets/third_party/kenney_rpg_base/PNG/rpgTile019.png",
-    "fallback_color": "#7CBF4A",
+    "texture": "res://assets/environment/starter/grass_ground_variants.png",
+    "fallback_color": "#1FA37A",
     "obstacle_texture": "res://assets/third_party/kenney_rpg_base/PNG/rpgTile080.png",
     "obstacle_fallback_color": "#5A4638"
   },
