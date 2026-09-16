@@ -45,11 +45,11 @@ import {
   type RewardCommitter,
 } from "./quest_reward";
 import { type CombatEvent } from "./combat";
-import { assignHotbar, cancelCast, interruptCast, interruptMovingCasters, interruptOnDamage, publicAbilityState, resolveTalentEffect, tickAbilityCooldownRecovery, tickCasts, unlockAbility, useAbility, useLegacyAttackOrAbility } from "./ability";
+import { assignHotbar, cancelCast, interruptCast, interruptMovingCasters, interruptOnDamage, publicAbilityState, resolveTalentEffect, standingStillSeconds, tickAbilityCooldownRecovery, tickCasts, unlockAbility, useAbility, useLegacyAttackOrAbility } from "./ability";
 import { applyCombat, applyReleaseRespawn, tickCombatFlags } from "./combat_pipeline";
 import { applySetTarget } from "./targeting";
 import { applyServerXpGrant, killXpGrantFromEnemy, questXpGrant, type TrustedXpGrant } from "./xp_hooks";
-import { applyEffectDefinition, effectModifiersFrom, hasControlTag, playerAsTarget, tickEffects, writeTarget, type EffectDefinition } from "./effects";
+import { applyEffectDefinition, effectModifiersFrom, enemyAsTarget, hasControlTag, playerAsTarget, tickEffects, writeTarget, type EffectDefinition } from "./effects";
 import { dueDelayedGround, tryConsumeOncePerCombat } from "./canonical_combat";
 import { entitiesInRadius } from "./targeting";
 import { simulateCombatants } from "./enemy_ai";
@@ -123,8 +123,8 @@ import {
   resourceIdForRole,
   syncCombatStatsFromPipeline,
 } from "./stats";
-import { formulaAttackInterval, regenerateMana } from "./canonical_stats";
-import { conditionalTalentModifierValue, passiveTalentModifierValue, talentUnlockEffectsForContext } from "./talent_modifiers";
+import { formulaAttackInterval, productOfPctModifiers, regenerateMana } from "./canonical_stats";
+import { conditionalTalentModifierValue, passiveTalentModifierValue, talentModifiersForContext, talentUnlockEffectsForContext } from "./talent_modifiers";
 
 export interface MatchOutbound {
   opcode: number;
@@ -269,6 +269,7 @@ export function applyMatchLoop(
 
   const previousPos = capturePlayerPositions(next);
   simulateMovement(next, 1 / MATCH_TICK_RATE);
+  updateStandingStill(next, previousPos, tick);
   tickAbilityCooldowns(next, tick);
   tickDelayedGround(next, tick, combatEvents);
   interruptMovingCasters(next, previousPos, tick, combatEvents);
@@ -2152,7 +2153,13 @@ function simulateMovement(state: StarterZoneState, dt: number): void {
     }
     const modifiers = effectModifiersFrom(player.effects);
     const speedBonus = modifiers["movement_speed"] !== undefined ? modifiers["movement_speed"] : 0;
-    let speed = state.moveSpeed * (1 + speedBonus / 100);
+    let talentMove = 1;
+    if (state.progressionCatalog !== undefined && player.progression !== undefined) {
+      talentMove = productOfPctModifiers(talentModifiersForContext(state.progressionCatalog, player.progression, {
+        sourceTags: [],
+      }), "movement_speed");
+    }
+    let speed = state.moveSpeed * (1 + speedBonus / 100) * talentMove;
     if (speed < 0) {
       speed = 0;
     }
@@ -2183,7 +2190,16 @@ function simulateMovement(state: StarterZoneState, dt: number): void {
 function tickAbilityCooldowns(state: StarterZoneState, tick: number): void {
   const ids = Object.keys(state.players);
   for (let i = 0; i < ids.length; i++) {
-    tickAbilityCooldownRecovery(state.players[ids[i]], tick, state.progressionCatalog);
+    const player = state.players[ids[i]];
+    const context =
+      player.progression !== undefined
+        ? {
+            sourceTags: activeEffectTags(player.effects),
+            standingStillSeconds: standingStillSeconds(player, tick),
+            moving: player.lastMoving === true || player.lastMovedTick === tick,
+          }
+        : undefined;
+    tickAbilityCooldownRecovery(player, tick, state.progressionCatalog, context);
   }
 }
 
@@ -2444,7 +2460,7 @@ function isMeleeEnemyHit(state: StarterZoneState, event: CombatEvent): boolean {
 function tickDelayedGround(state: StarterZoneState, tick: number, events: CombatEvent[]): void {
   const pending = state.pendingGroundEffects !== undefined ? state.pendingGroundEffects : [];
   const split = dueDelayedGround(pending, tick);
-  state.pendingGroundEffects = split.remaining;
+  const remaining = split.remaining.slice();
   for (let i = 0; i < split.due.length; i++) {
     const due = split.due[i];
     const hits = entitiesInRadius(state, due.x, due.y, due.radius);
@@ -2460,8 +2476,18 @@ function tickDelayedGround(state: StarterZoneState, tick: number, events: Combat
         y: due.y,
         message: "delayed_ground",
       });
+      if (due.slowPercent !== undefined && due.slowDurationSec !== undefined && hits[h].kind === "enemy") {
+        applyCaltropSlow(state, due.sourceId, hits[h].id, due.abilityId, due.slowPercent, due.slowDurationSec, tick, events);
+      }
+    }
+    if (due.expireTick !== undefined && due.expireTick > tick) {
+      remaining.push({
+        ...due,
+        resolveTick: tick + 1,
+      });
     }
   }
+  state.pendingGroundEffects = remaining;
 }
 
 export function snapshotForOthers(state: StarterZoneState, tick: number, fromUserId: string): MatchOutbound {
@@ -2962,6 +2988,73 @@ function capturePlayerPositions(state: StarterZoneState): { [userId: string]: { 
     map[player.userId] = { x: player.x, y: player.y };
   }
   return map;
+}
+
+function updateStandingStill(
+  state: StarterZoneState,
+  previous: { [userId: string]: { x: number; y: number } },
+  tick: number,
+): void {
+  const ids = Object.keys(state.players);
+  for (let i = 0; i < ids.length; i++) {
+    const player = state.players[ids[i]];
+    const before = previous[player.userId];
+    const moved =
+      (before !== undefined && (player.x !== before.x || player.y !== before.y)) || player.lastMovedTick === tick;
+    if (moved) {
+      player.stillSinceTick = tick;
+      player.lastMovedTick = tick;
+    } else if (player.stillSinceTick === undefined) {
+      player.stillSinceTick = tick;
+    }
+  }
+}
+
+function applyCaltropSlow(
+  state: StarterZoneState,
+  sourceId: string,
+  enemyId: string,
+  abilityId: string,
+  slowPercent: number,
+  durationSec: number,
+  tick: number,
+  events: CombatEvent[],
+): void {
+  const enemy = findMatchEnemy(state, enemyId);
+  if (enemy === null) {
+    return;
+  }
+  const source = state.players[sourceId];
+  if (source === undefined) {
+    return;
+  }
+  const target = enemyAsTarget(enemy);
+  applyEffectDefinition(
+    state,
+    {
+      id: "caltrop-slow",
+      type: "slow",
+      source: "caster",
+      target: "primary",
+      magnitude: { kind: "constant", value: -slowPercent * 100 },
+      duration: durationSec,
+      tickInterval: 0,
+      stackPolicy: "replace",
+      maxStacks: 1,
+      refreshPolicy: "refresh",
+      removalReason: "expired",
+      tags: ["slow", "caltrop"],
+      statChannel: "movement_speed",
+    },
+    abilityId,
+    source,
+    target,
+    playerStats(state, source),
+    source.derivedAttack !== undefined ? source.derivedAttack : state.playerAttack,
+    tick,
+    events,
+  );
+  writeTarget(state, target);
 }
 
 function interruptDamagedCasters(state: StarterZoneState, events: CombatEvent[], tick: number): void {

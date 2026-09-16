@@ -14,7 +14,7 @@
       "abilityId": "ability.marksman.barrage",
       "modifiers": [
         {
-          "type": "ability_damage_percent",
+          "type": "on_hit_bleed_percent",
           "value": 0.2
         }
       ]

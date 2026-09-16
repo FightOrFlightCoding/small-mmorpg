@@ -115,6 +115,21 @@ export function entitiesInRadius(
   return list;
 }
 
+export function nearestHostileDistance(state: StarterZoneState, originX: number, originY: number): number {
+  let best = Number.POSITIVE_INFINITY;
+  for (let e = 0; e < state.enemies.length; e++) {
+    const enemy = state.enemies[e];
+    if (enemy.health <= 0 || enemy.aiState === "dead") {
+      continue;
+    }
+    const dist = distance(originX, originY, enemy.x, enemy.y);
+    if (dist < best) {
+      best = dist;
+    }
+  }
+  return best;
+}
+
 export function resolveTargetQuery(
   state: StarterZoneState,
   actorUserId: string,

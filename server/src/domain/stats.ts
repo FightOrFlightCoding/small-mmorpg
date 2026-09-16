@@ -10,7 +10,7 @@ import {
   type CanonicalModifier,
   type CanonicalSnapshot,
 } from "./canonical_stats";
-import { talentModifiersForProgression } from "./talent_modifiers";
+import { talentModifiersForContext, talentModifiersForProgression, type TalentModifierContext } from "./talent_modifiers";
 
 export const STAT_LAYER_ORDER = [
   "class_base",
@@ -158,7 +158,7 @@ export interface TalentAbilityModificationContent {
 }
 
 export interface TalentConditionalModifiersContent {
-  conditions: Array<{ type: string; comparison?: string; value?: number; tag?: string }>;
+  conditions: Array<{ type: string; comparison?: string; value?: number; tag?: string; range?: number; duration?: number }>;
   modifiers: TalentModifierContent[];
 }
 
@@ -175,7 +175,7 @@ export interface TalentUnlockEffectContent {
   refreshPolicy: "refresh" | "extend" | "ignore";
   removalReason: string;
   tags: string[];
-  conditions: Array<{ type: string; comparison?: string; value?: number; tag?: string }>;
+  conditions: Array<{ type: string; comparison?: string; value?: number; tag?: string; range?: number; duration?: number }>;
 }
 
 export interface AbilityCategoryContent {
@@ -209,6 +209,7 @@ export interface StatContext {
   identifiedModifiers?: CanonicalModifier[];
   purchasedClassNodeIds?: ReadonlyArray<string>;
   purchasedBranchNodeRanks?: { [id: string]: number };
+  talentContext?: TalentModifierContext;
 }
 
 export interface EvaluatedStats {
@@ -532,9 +533,10 @@ export function playerStatContext(
   inventory: PlayerInventory | undefined,
   itemsById: { [id: string]: ItemDefinition },
   effectModifiers?: { [channel: string]: number },
+  talentContext?: TalentModifierContext,
 ): StatContext {
   const effects = effectModifiers !== undefined ? effectModifiers : emptyModifierMap();
-  return {
+  const context: StatContext = {
     classId: classId,
     level: progression.level,
     allocatedAttributes: progression.allocatedAttributes,
@@ -549,6 +551,10 @@ export function playerStatContext(
     purchasedClassNodeIds: progression.purchasedClassNodeIds,
     purchasedBranchNodeRanks: progression.purchasedBranchNodeRanks,
   };
+  if (talentContext !== undefined) {
+    context.talentContext = talentContext;
+  }
+  return context;
 }
 
 export function syncCombatStatsFromPipeline(
@@ -634,10 +640,14 @@ function overlayCanonicalStats(
 ): void {
   const free =
     ctx.freeStatAllocations !== undefined ? ctx.freeStatAllocations : {};
-  const talentModifiers = talentModifiersForProgression(catalog, {
+  const progression = {
     purchasedClassNodeIds: ctx.purchasedClassNodeIds !== undefined ? ctx.purchasedClassNodeIds : [],
     purchasedBranchNodeRanks: ctx.purchasedBranchNodeRanks !== undefined ? ctx.purchasedBranchNodeRanks : {},
-  });
+  };
+  const talentModifiers =
+    ctx.talentContext !== undefined
+      ? talentModifiersForContext(catalog, progression, ctx.talentContext)
+      : talentModifiersForProgression(catalog, progression);
   const snapshot = evaluateCanonicalSnapshot(
     canonicalInputFromClass(
       classDef,
@@ -1262,17 +1272,24 @@ function copyTalentConditionalModifiers(raw: unknown): TalentConditionalModifier
     if (!Array.isArray(conditional.conditions)) {
       continue;
     }
-    const conditions: Array<{ type: string; comparison?: string; value?: number; tag?: string }> = [];
+    const conditions: Array<{ type: string; comparison?: string; value?: number; tag?: string; range?: number; duration?: number }> = [];
     for (let c = 0; c < conditional.conditions.length; c++) {
       const rawCondition = conditional.conditions[c];
       if (rawCondition === null || typeof rawCondition !== "object" || Array.isArray(rawCondition)) {
         continue;
       }
-      const condition = rawCondition as { type?: unknown; comparison?: unknown; value?: unknown; tag?: unknown };
+      const condition = rawCondition as {
+        type?: unknown;
+        comparison?: unknown;
+        value?: unknown;
+        tag?: unknown;
+        range?: unknown;
+        duration?: unknown;
+      };
       if (typeof condition.type !== "string") {
         continue;
       }
-      const next: { type: string; comparison?: string; value?: number; tag?: string } = { type: condition.type };
+      const next: { type: string; comparison?: string; value?: number; tag?: string; range?: number; duration?: number } = { type: condition.type };
       if (typeof condition.comparison === "string") {
         next.comparison = condition.comparison;
       }
@@ -1281,6 +1298,12 @@ function copyTalentConditionalModifiers(raw: unknown): TalentConditionalModifier
       }
       if (typeof condition.tag === "string") {
         next.tag = condition.tag;
+      }
+      if (typeof condition.range === "number" && isFinite(condition.range)) {
+        next.range = condition.range;
+      }
+      if (typeof condition.duration === "number" && isFinite(condition.duration)) {
+        next.duration = condition.duration;
       }
       conditions.push(next);
     }

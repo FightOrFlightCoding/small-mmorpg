@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "913d28c51ea050509cf4eb57acbfd149012d56a6b3b354ff806d48bc8f1a47c6";
+export const contentHash = "e1e03af49b43acdc5242268bd52b2f7ec6e7ec2e794d3dfd93c0b3f8dca6c38f";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = ["npc.lab_exit","npc.lab_inn","npc.lab_keeper","npc.lab_trainer","npc.lab_vendor","quest.lab_tour","spawn.lab.boss","spawn.lab.caster","spawn.lab.melee","spawn.lab.ranged","test.zone.systems_lab","vendor.lab_general"] as const;
 export const content = {
@@ -586,7 +586,7 @@ export const content = {
       ],
       "requiredLevel": 2,
       "resourceCosts": [],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "ranged",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_bolt_sound",
@@ -673,7 +673,7 @@ export const content = {
       ],
       "requiredLevel": 10,
       "resourceCosts": [],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "none",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_buff_sound",
@@ -741,7 +741,7 @@ export const content = {
       ],
       "requiredLevel": 5,
       "resourceCosts": [],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "ranged",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_bolt_sound",
@@ -829,7 +829,7 @@ export const content = {
       ],
       "requiredLevel": 10,
       "resourceCosts": [],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "ranged",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_bolt_sound",
@@ -895,7 +895,7 @@ export const content = {
       ],
       "requiredLevel": 5,
       "resourceCosts": [],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "ranged",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_bolt_sound",
@@ -959,7 +959,7 @@ export const content = {
       ],
       "requiredLevel": 5,
       "resourceCosts": [],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "ranged",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_bolt_sound",
@@ -1045,7 +1045,7 @@ export const content = {
       ],
       "requiredLevel": 5,
       "resourceCosts": [],
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "school": "none",
       "skillPointCost": 0,
       "soundAssetId": "visual.ability_buff_sound",
@@ -2896,7 +2896,7 @@ export const content = {
       "ownerClassId": "class.marksman",
       "range": 180,
       "relationFilter": "hostile",
-      "runtimeEnabled": false,
+      "runtimeEnabled": true,
       "scalingStatId": "stat.agility",
       "school": "ranged",
       "soundAssetId": "visual.ability_bolt_sound",
@@ -8167,18 +8167,27 @@ export const content = {
     },
     "talent.marksman.skirmisher.runners_high": {
       "classification": "canonical",
+      "conditionalModifiers": [
+        {
+          "conditions": [
+            {
+              "type": "moving"
+            }
+          ],
+          "modifiers": [
+            {
+              "type": "cooldown_recovery_percent",
+              "value": 0.15
+            }
+          ]
+        }
+      ],
       "descriptionKey": "talent.marksman.skirmisher.runners_high.description",
       "displayName": "Runner's High",
       "displayNameKey": "talent.marksman.skirmisher.runners_high.display_name",
       "id": "talent.marksman.skirmisher.runners_high",
       "kind": "talent_node",
       "maxRank": 1,
-      "passiveModifiers": [
-        {
-          "type": "cooldown_recovery_percent",
-          "value": 0.15
-        }
-      ],
       "pointCostPerRank": 1,
       "tier": 3,
       "treeId": "tree.marksman.skirmisher"
@@ -8189,7 +8198,7 @@ export const content = {
           "abilityId": "ability.marksman.barrage",
           "modifiers": [
             {
-              "type": "ability_damage_percent",
+              "type": "on_hit_bleed_percent",
               "value": 0.2
             }
           ]

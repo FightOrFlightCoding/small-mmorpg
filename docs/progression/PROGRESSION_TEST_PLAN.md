@@ -99,3 +99,7 @@ Migration must still run for `progressionSchemaVersion` 2 records that contain l
 ### PROG-15 GCD production audit
 
 Search production bundles and runtime paths for `globalCooldown`, `global_cooldown`, and `gcd`. Fail certification if any production progression ability depends on them. Named test: `server/tests/progression_gcd_audit.test.ts`.
+
+### PROG-10 Marksman, Sniper, and Skirmisher
+
+Named tests: `server/tests/marksman_progression.test.ts` and `server/tests/marksman_balance.test.ts`. They cover aim timing, auto-attack pause, stun interrupt, standing-still and movement detection, independent Barrage crits, bleed total preservation, Vault collision, caltrops, Coup kill reset, every node/rank, respec removal, and Sniper/Skirmisher DPS ±5%.

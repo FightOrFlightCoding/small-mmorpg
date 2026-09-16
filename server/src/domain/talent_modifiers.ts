@@ -20,6 +20,18 @@ export interface TalentConditionTarget {
 export interface TalentModifierContext {
   sourceTags: ReadonlyArray<string>;
   target?: TalentConditionTarget;
+  standingStillSeconds?: number;
+  moving?: boolean;
+  nearestEnemyDistance?: number;
+}
+
+export interface TalentCondition {
+  type: string;
+  comparison?: string;
+  value?: number;
+  tag?: string;
+  range?: number;
+  duration?: number;
 }
 
 export interface ResolvedAbilityModifiers {
@@ -29,6 +41,12 @@ export interface ResolvedAbilityModifiers {
   tauntTakenReduction: number | undefined;
   frenzyMaxStacks: number | undefined;
   frenzyPerStack: number | undefined;
+  channelTimeMultiplier: number;
+  hitCountOverride: number | undefined;
+  bonusCritChance: number;
+  slowPercent: number | undefined;
+  slowDuration: number | undefined;
+  onHitBleedPercent: number;
 }
 
 export function passiveTalentModifierValue(
@@ -102,11 +120,25 @@ export function talentModifiersForProgression(
   catalog: ProgressionCatalog,
   progression: Pick<CharacterProgression, "purchasedClassNodeIds" | "purchasedBranchNodeRanks"> | { purchasedClassNodeIds: ReadonlyArray<string>; purchasedBranchNodeRanks: { [id: string]: number } },
 ): CanonicalModifier[] {
+  return talentModifiersForContext(catalog, progression, { sourceTags: [] });
+}
+
+export function talentModifiersForContext(
+  catalog: ProgressionCatalog,
+  progression: Pick<CharacterProgression, "purchasedClassNodeIds" | "purchasedBranchNodeRanks"> | { purchasedClassNodeIds: ReadonlyArray<string>; purchasedBranchNodeRanks: { [id: string]: number } },
+  context: TalentModifierContext,
+): CanonicalModifier[] {
   const modifiers: CanonicalModifier[] = [];
   const nodes = purchasedNodes(catalog, progression);
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
-    appendPassiveModifiers(modifiers, node.id, node.rank, node.modifiers);
+    appendMappedModifiers(modifiers, node.id, node.rank, node.modifiers);
+    for (let c = 0; c < node.conditionalModifiers.length; c++) {
+      if (!conditionsHold(node.conditionalModifiers[c].conditions, context)) {
+        continue;
+      }
+      appendMappedModifiers(modifiers, node.id, node.rank, node.conditionalModifiers[c].modifiers);
+    }
   }
   return modifiers;
 }
@@ -124,6 +156,12 @@ export function resolveAbilityTalentModifiers(
     tauntTakenReduction: undefined,
     frenzyMaxStacks: undefined,
     frenzyPerStack: undefined,
+    channelTimeMultiplier: 1,
+    hitCountOverride: undefined,
+    bonusCritChance: 0,
+    slowPercent: undefined,
+    slowDuration: undefined,
+    onHitBleedPercent: 0,
   };
   const nodes = purchasedNodes(catalog, progression);
   for (let i = 0; i < nodes.length; i++) {
@@ -153,7 +191,65 @@ export function resolveAbilityTalentModifiers(
   return result;
 }
 
-function appendPassiveModifiers(
+export function conditionsHold(
+  conditions: ReadonlyArray<TalentCondition>,
+  context: TalentModifierContext,
+): boolean {
+  for (let i = 0; i < conditions.length; i++) {
+    const condition = conditions[i];
+    if (condition.type === "effect_active" || condition.type === "source_has_tag") {
+      if (context.sourceTags.indexOf(String(condition.tag)) < 0) {
+        return false;
+      }
+      continue;
+    }
+    if (condition.type === "target_has_tag") {
+      if (context.target === undefined || context.target.tags.indexOf(String(condition.tag)) < 0) {
+        return false;
+      }
+      continue;
+    }
+    if (condition.type === "target_health_percent") {
+      if (context.target === undefined) {
+        return false;
+      }
+      const max = context.target.maxHealth > 0 ? context.target.maxHealth : 1;
+      const actual = (context.target.health / max) * 100;
+      const wanted = finiteValue(condition.value);
+      if (!compare(actual, wanted, condition.comparison)) {
+        return false;
+      }
+      continue;
+    }
+    if (condition.type === "standing_still") {
+      const needed = finiteValue(condition.duration);
+      const actual = context.standingStillSeconds !== undefined ? context.standingStillSeconds : 0;
+      if (!(actual >= needed)) {
+        return false;
+      }
+      continue;
+    }
+    if (condition.type === "moving") {
+      if (context.moving !== true) {
+        return false;
+      }
+      continue;
+    }
+    if (condition.type === "no_enemy_in_range") {
+      if (context.nearestEnemyDistance === undefined || !isFinite(context.nearestEnemyDistance)) {
+        return false;
+      }
+      if (!(context.nearestEnemyDistance > finiteValue(condition.range))) {
+        return false;
+      }
+      continue;
+    }
+    return false;
+  }
+  return true;
+}
+
+function appendMappedModifiers(
   output: CanonicalModifier[],
   nodeId: string,
   rank: number,
@@ -182,6 +278,9 @@ function appendPassiveModifiers(
       channel = "cooldown_recovery";
     } else if (modifier.type === "crit_damage_flat") {
       channel = CHANNEL_CRIT_MULT_FLAT;
+    } else if (modifier.type === "move_speed_percent") {
+      channel = "movement_speed";
+      op = "pct";
     }
     if (channel.length === 0 || !isFinite(value)) {
       continue;
@@ -218,41 +317,20 @@ function applyAbilityModifiers(
       output.frenzyMaxStacks = value;
     } else if (modifier.type === "frenzy_per_stack_percent") {
       output.frenzyPerStack = value;
+    } else if (modifier.type === "ability_channel_time") {
+      output.channelTimeMultiplier *= 1 + value * rank;
+    } else if (modifier.type === "ability_hit_count") {
+      output.hitCountOverride = value;
+    } else if (modifier.type === "ability_crit_chance_flat") {
+      output.bonusCritChance += value * rank;
+    } else if (modifier.type === "ability_slow_percent") {
+      output.slowPercent = value * rank;
+    } else if (modifier.type === "ability_slow_duration") {
+      output.slowDuration = value;
+    } else if (modifier.type === "on_hit_bleed_percent") {
+      output.onHitBleedPercent += value * rank;
     }
   }
-}
-
-function conditionsHold(
-  conditions: ReadonlyArray<{ type: string; comparison?: string; value?: number; tag?: string }>,
-  context: TalentModifierContext,
-): boolean {
-  for (let i = 0; i < conditions.length; i++) {
-    const condition = conditions[i];
-    if (condition.type === "effect_active" || condition.type === "source_has_tag") {
-      if (context.sourceTags.indexOf(String(condition.tag)) < 0) {
-        return false;
-      }
-      continue;
-    }
-    if (condition.type === "target_has_tag") {
-      if (context.target === undefined || context.target.tags.indexOf(String(condition.tag)) < 0) {
-        return false;
-      }
-      continue;
-    }
-    if (condition.type === "target_health_percent") {
-      if (context.target === undefined) {
-        return false;
-      }
-      const max = context.target.maxHealth > 0 ? context.target.maxHealth : 1;
-      const actual = (context.target.health / max) * 100;
-      const wanted = finiteValue(condition.value);
-      if (!compare(actual, wanted, condition.comparison)) {
-        return false;
-      }
-    }
-  }
-  return true;
 }
 
 function compare(actual: number, expected: number, comparison: string | undefined): boolean {

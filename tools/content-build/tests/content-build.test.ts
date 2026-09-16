@@ -123,6 +123,8 @@ test("valid source documents compile to a payload", () => {
   assert.equal(payload.levelCurves["curve.vibecode.l10"].maxLevel, 10);
   assert.equal(payload.autoAttacks["ability.warrior.auto_attack"].runtimeEnabled, true);
   assert.equal(payload.abilities["ability.warrior.heavy_strike"].runtimeEnabled, true);
+  assert.equal(payload.autoAttacks["ability.marksman.auto_attack"].runtimeEnabled, true);
+  assert.equal(payload.abilities["ability.marksman.aimed_shot"].runtimeEnabled, true);
   assert.equal(payload.abilities["ability.mage.arcane_bolt"].runtimeEnabled, false);
   assert.equal(Object.keys(payload.referenceBuilds).length, 16);
   assert.equal(payload.items["item.training_sword"].category, "weapon");
