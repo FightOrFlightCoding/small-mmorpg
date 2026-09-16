@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/player_avatar.gd" id="1"]
+[ext_resource type="SpriteFrames" path="res://assets/characters/c01/c01_walk_frames.tres" id="2"]
 
 [node name="PlayerAvatar" type="Node2D"]
 script = ExtResource("1")
@@ -12,6 +13,13 @@ polygon = PackedVector2Array(-12, -12, 12, -12, 12, 12, -12, 12)
 [node name="Sprite" type="Sprite2D" parent="."]
 visible = false
 scale = Vector2(0.5, 0.5)
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+texture_filter = 1
+sprite_frames = ExtResource("2")
+animation = &"walk_down"
+offset = Vector2(0, -38)
+scale = Vector2(0.375, 0.375)
 
 [node name="NameLabel" type="Label" parent="."]
 offset_left = -48.0

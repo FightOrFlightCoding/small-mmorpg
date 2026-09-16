@@ -1,0 +1,26 @@
+{
+  "id": "vendor.test_general",
+  "kind": "vendor",
+  "displayName": "Test General Goods",
+  "stock": [
+    {
+      "itemId": "item.test_potion",
+      "buyPrice": 10,
+      "classRequirements": [],
+      "levelRequirement": 0
+    },
+    {
+      "itemId": "item.training_sword",
+      "buyPrice": 15,
+      "classRequirements": [],
+      "levelRequirement": 0
+    },
+    {
+      "itemId": "item.test_vanguard_mail",
+      "buyPrice": 40,
+      "classRequirements": ["test.class.vanguard"],
+      "levelRequirement": 2
+    }
+  ],
+  "sellMultiplier": 0.5
+}

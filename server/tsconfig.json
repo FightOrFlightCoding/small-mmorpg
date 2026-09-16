@@ -16,5 +16,5 @@
   },
   "files": ["./node_modules/nakama-runtime/index.d.ts"],
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "build", "tests", "dist-test"]
+    "exclude": ["node_modules", "build", "tests", "dist-test", "src/cli"]
 }

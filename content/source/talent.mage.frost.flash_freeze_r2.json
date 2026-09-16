@@ -1,0 +1,37 @@
+{
+  "id": "talent.mage.frost.flash_freeze_r2",
+  "kind": "talent_node",
+  "displayName": "Flash Freeze R2",
+  "displayNameKey": "talent.mage.frost.flash_freeze_r2.display_name",
+  "descriptionKey": "talent.mage.frost.flash_freeze_r2.description",
+  "treeId": "tree.mage.frost",
+  "tier": 3,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "prerequisites": [
+    {
+      "nodeId": "talent.mage.frost.flash_freeze",
+      "minRank": 1
+    }
+  ],
+  "rankReplacement": {
+    "nodeId": "talent.mage.frost.flash_freeze",
+    "abilityId": "ability.mage.flash_freeze"
+  },
+  "abilityModifications": [
+    {
+      "abilityId": "ability.mage.flash_freeze",
+      "modifiers": [
+        {
+          "type": "ability_root_duration",
+          "value": 3
+        },
+        {
+          "type": "ability_radius_percent",
+          "value": 0.5
+        }
+      ]
+    }
+  ]
+}

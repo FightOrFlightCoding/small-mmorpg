@@ -22,6 +22,17 @@ test("health response has the required shape", () => {
   assert.deepEqual(body.rpcs, REGISTERED_RPC_IDS);
   assert.ok(body.rpcs.includes("character_bootstrap"));
   assert.ok(body.rpcs.includes("find_or_create_starter_zone"));
+  assert.ok(body.rpcs.includes("request_cave_entry"));
+  assert.ok(body.rpcs.includes("find_or_create_owned_cave"));
+  assert.ok(body.rpcs.includes("request_cave_exit"));
+  assert.ok(body.rpcs.includes("session_handshake"));
+  assert.ok(body.rpcs.includes("ops_status"));
+  assert.ok(body.rpcs.includes("ops_set_maintenance"));
+  assert.ok(body.rpcs.includes("acct_compat_probe"));
+  assert.ok(body.rpcs.includes("auth_gateway"));
+  assert.equal(body.server_version, "1.0.0");
+  assert.equal(body.environment, "local");
+  assert.equal(body.maintenance, false);
   assert.match(body.content_version, /^[a-f0-9]{64}$/);
 });
 

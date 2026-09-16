@@ -1,0 +1,23 @@
+{
+  "id": "talent.mystic.curses.contagion",
+  "kind": "talent_node",
+  "displayName": "Contagion",
+  "displayNameKey": "talent.mystic.curses.contagion.display_name",
+  "descriptionKey": "talent.mystic.curses.contagion.description",
+  "treeId": "tree.mystic.curses",
+  "tier": 3,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "abilityModifications": [
+    {
+      "abilityId": "ability.mystic.wither",
+      "modifiers": [
+        {
+          "type": "propagate_effect",
+          "effectId": "effect.mystic.wither.dot"
+        }
+      ]
+    }
+  ]
+}

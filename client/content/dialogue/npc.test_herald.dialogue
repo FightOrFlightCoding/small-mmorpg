@@ -1,0 +1,9 @@
+~ start
+Herald: I keep test errands, not stories. Ask if you need a task.
+- I will take a talk errand.
+	do QuestService.request_accept("quest.test.talk")
+	Herald: Then speak with me again when you are ready to finish it.
+	=> END
+- Not now.
+	Herald: Suit yourself.
+	=> END

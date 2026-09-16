@@ -1,0 +1,25 @@
+{
+  "id": "quest.test.kill",
+  "kind": "quest",
+  "displayName": "Test Kill",
+  "category": "side",
+  "acceptNpcId": "npc.test_herald",
+  "turnInNpcId": "npc.test_herald",
+  "objectives": [
+    {
+      "type": "kill_enemy",
+      "enemyId": "enemy.green_slime",
+      "enemyTags": ["slime"],
+      "quantity": 1,
+      "zoneId": "zone.starter",
+      "partyCreditPolicy": "solo"
+    }
+  ],
+  "consume": [],
+  "rewards": {
+    "gold": 2,
+    "xp": 2,
+    "items": []
+  },
+  "completeOnce": true
+}

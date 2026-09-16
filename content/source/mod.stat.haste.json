@@ -1,0 +1,10 @@
+{
+  "id": "mod.stat.haste",
+  "kind": "equipment_modifier_category",
+  "displayName": "Haste",
+  "displayNameKey": "mod.stat.haste.display_name",
+  "descriptionKey": "mod.stat.haste.description",
+  "statId": "stat.haste",
+  "channel": "stat.haste",
+  "classification": "canonical"
+}

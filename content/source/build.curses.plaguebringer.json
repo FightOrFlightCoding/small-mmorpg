@@ -1,0 +1,18 @@
+{
+  "id": "build.curses.plaguebringer",
+  "kind": "reference_build",
+  "displayName": "Plaguebringer",
+  "displayNameKey": "build.curses.plaguebringer.display_name",
+  "descriptionKey": "build.curses.plaguebringer.description",
+  "branchId": "branch.mystic.curses",
+  "statPriority": [
+    "stat.intelligence",
+    "stat.haste"
+  ],
+  "identityKey": "build.curses.plaguebringer.identity",
+  "pairedNodeIds": [
+    "talent.mystic.curses.festering",
+    "talent.mystic.curses.contagion"
+  ],
+  "classification": "canonical"
+}

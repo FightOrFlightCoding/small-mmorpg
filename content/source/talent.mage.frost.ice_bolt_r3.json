@@ -1,0 +1,39 @@
+{
+  "id": "talent.mage.frost.ice_bolt_r3",
+  "kind": "talent_node",
+  "displayName": "Ice Bolt R3",
+  "displayNameKey": "talent.mage.frost.ice_bolt_r3.display_name",
+  "descriptionKey": "talent.mage.frost.ice_bolt_r3.description",
+  "treeId": "tree.mage.frost",
+  "tier": 2,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "prerequisites": [
+    {
+      "nodeId": "talent.mage.frost.ice_bolt_r2",
+      "minRank": 1
+    }
+  ],
+  "rankReplacement": {
+    "nodeId": "talent.mage.frost.ice_bolt_r2",
+    "abilityId": "ability.mage.ice_bolt"
+  },
+  "conditionalModifiers": [
+    {
+      "conditions": [
+        {
+          "type": "target_has_tag",
+          "tag": "slow"
+        }
+      ],
+      "modifiers": [
+        {
+          "type": "ability_damage_percent",
+          "abilityId": "ability.mage.ice_bolt",
+          "value": 0.2
+        }
+      ]
+    }
+  ]
+}

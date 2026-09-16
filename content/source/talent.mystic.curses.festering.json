@@ -1,0 +1,18 @@
+{
+  "id": "talent.mystic.curses.festering",
+  "kind": "talent_node",
+  "displayName": "Festering",
+  "displayNameKey": "talent.mystic.curses.festering.display_name",
+  "descriptionKey": "talent.mystic.curses.festering.description",
+  "treeId": "tree.mystic.curses",
+  "tier": 2,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "dot_tick_rate_percent",
+      "value": 0.2
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "id": "ability.mystic.protective_charm",
+  "kind": "ability",
+  "displayName": "Protective Charm",
+  "displayNameKey": "ability.mystic.protective_charm.display_name",
+  "descriptionKey": "ability.mystic.protective_charm.description",
+  "targetMode": "entity",
+  "relationFilter": "friendly",
+  "range": 180,
+  "minimumRange": 0,
+  "areaShape": "none",
+  "areaRadius": 0,
+  "castTime": 0,
+  "channelTime": 0,
+  "globalCooldown": 0,
+  "individualCooldown": 8,
+  "resourceCosts": [
+    {
+      "resourceId": "test.resource.mana",
+      "amount": 18
+    }
+  ],
+  "movementInterruptsCast": false,
+  "damageInterruptsCast": false,
+  "requiredLevel": 5,
+  "requiredClassTags": [
+    "class.mystic"
+  ],
+  "prerequisites": [],
+  "effects": [
+    {
+      "id": "shield",
+      "type": "shield",
+      "source": "caster",
+      "target": "primary",
+      "magnitude": {
+        "kind": "stat_id",
+        "statId": "stat.spirit",
+        "value": 40,
+        "scale": 0.01
+      },
+      "duration": 6,
+      "tickInterval": 0,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "shield"
+      ],
+      "school": "heal"
+    }
+  ],
+  "effectIds": [
+    "effect.mystic.protective_charm.shield"
+  ],
+  "animationAssetId": "visual.ability_heal",
+  "iconAssetId": "visual.ability_heal_icon",
+  "soundAssetId": "visual.ability_heal_sound",
+  "skillPointCost": 0,
+  "maxRank": 1,
+  "runtimeEnabled": false,
+  "abilityCategory": "signature",
+  "ownerClassId": "class.mystic",
+  "school": "heal",
+  "classification": "canonical",
+  "compileTimeAddition": false,
+  "ownerBranchId": "branch.mystic.charms"
+}

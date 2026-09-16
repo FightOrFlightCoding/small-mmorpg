@@ -1,0 +1,29 @@
+{
+  "id": "talent.warrior.bulwark.last_stand",
+  "kind": "talent_node",
+  "displayName": "Last Stand",
+  "displayNameKey": "talent.warrior.bulwark.last_stand.display_name",
+  "descriptionKey": "talent.warrior.bulwark.last_stand.description",
+  "treeId": "tree.warrior.bulwark",
+  "tier": 3,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "conditionalModifiers": [
+    {
+      "conditions": [
+        {
+          "type": "target_health_percent",
+          "comparison": "below",
+          "value": 20
+        }
+      ],
+      "modifiers": [
+        {
+          "type": "max_hp_percent",
+          "value": 0.25
+        }
+      ]
+    }
+  ]
+}

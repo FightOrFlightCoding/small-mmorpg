@@ -1,0 +1,23 @@
+{
+  "id": "quest.test.enter",
+  "kind": "quest",
+  "displayName": "Test Enter",
+  "category": "side",
+  "acceptNpcId": "npc.test_herald",
+  "turnInNpcId": "npc.test_herald",
+  "objectives": [
+    {
+      "type": "enter_location",
+      "zoneId": "zone.starter",
+      "location": { "x": 60, "y": 620, "width": 80, "height": 80 },
+      "quantity": 1
+    }
+  ],
+  "consume": [],
+  "rewards": {
+    "gold": 1,
+    "xp": 1,
+    "items": []
+  },
+  "completeOnce": true
+}

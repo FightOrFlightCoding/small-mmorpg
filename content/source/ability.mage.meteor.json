@@ -1,0 +1,90 @@
+{
+  "id": "ability.mage.meteor",
+  "kind": "ability",
+  "displayName": "Meteor",
+  "displayNameKey": "ability.mage.meteor.display_name",
+  "descriptionKey": "ability.mage.meteor.description",
+  "targetMode": "ground_point",
+  "relationFilter": "hostile",
+  "range": 180,
+  "minimumRange": 0,
+  "areaShape": "ground",
+  "areaRadius": 40,
+  "castTime": 0,
+  "channelTime": 0,
+  "globalCooldown": 0,
+  "individualCooldown": 90,
+  "resourceCosts": [],
+  "movementInterruptsCast": false,
+  "damageInterruptsCast": false,
+  "requiredLevel": 10,
+  "requiredClassTags": [
+    "class.mage"
+  ],
+  "prerequisites": [],
+  "effects": [
+    {
+      "id": "blast",
+      "type": "direct_damage",
+      "source": "caster",
+      "target": "area",
+      "magnitude": {
+        "kind": "stat_id",
+        "statId": "stat.intelligence",
+        "value": 60,
+        "scale": 0.01
+      },
+      "duration": 0,
+      "tickInterval": 0,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "spell",
+        "fire",
+        "capstone"
+      ],
+      "school": "spell",
+      "delay": 1.5,
+      "guaranteedCrit": true
+    },
+    {
+      "id": "always_crit",
+      "type": "guaranteed_crit",
+      "source": "caster",
+      "target": "primary",
+      "magnitude": {
+        "kind": "constant",
+        "value": 0
+      },
+      "duration": 0,
+      "tickInterval": 0,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "crit"
+      ],
+      "school": "spell"
+    }
+  ],
+  "effectIds": [
+    "effect.mage.meteor.blast",
+    "effect.mage.meteor.always_crit"
+  ],
+  "animationAssetId": "visual.ability_bolt",
+  "iconAssetId": "visual.ability_bolt_icon",
+  "soundAssetId": "visual.ability_bolt_sound",
+  "skillPointCost": 0,
+  "maxRank": 1,
+  "runtimeEnabled": false,
+  "abilityCategory": "capstone",
+  "ownerClassId": "class.mage",
+  "school": "spell",
+  "classification": "canonical",
+  "compileTimeAddition": false,
+  "ownerBranchId": "branch.mage.fire",
+  "delay": 1.5
+}

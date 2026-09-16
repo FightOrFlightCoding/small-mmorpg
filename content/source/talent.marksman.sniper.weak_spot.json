@@ -1,0 +1,29 @@
+{
+  "id": "talent.marksman.sniper.weak_spot",
+  "kind": "talent_node",
+  "displayName": "Weak Spot",
+  "displayNameKey": "talent.marksman.sniper.weak_spot.display_name",
+  "descriptionKey": "talent.marksman.sniper.weak_spot.description",
+  "treeId": "tree.marksman.sniper",
+  "tier": 1,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "conditionalModifiers": [
+    {
+      "conditions": [
+        {
+          "type": "target_health_percent",
+          "comparison": "above",
+          "value": 80
+        }
+      ],
+      "modifiers": [
+        {
+          "type": "ability_damage_percent",
+          "value": 0.3
+        }
+      ]
+    }
+  ]
+}

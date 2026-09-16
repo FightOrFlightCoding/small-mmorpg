@@ -1,0 +1,18 @@
+{
+  "id": "talent.mystic.curses.vampiric_curse",
+  "kind": "talent_node",
+  "displayName": "Vampiric Curse",
+  "displayNameKey": "talent.mystic.curses.vampiric_curse.display_name",
+  "descriptionKey": "talent.mystic.curses.vampiric_curse.description",
+  "treeId": "tree.mystic.curses",
+  "tier": 3,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "lifesteal_percent",
+      "value": 0.1
+    }
+  ]
+}

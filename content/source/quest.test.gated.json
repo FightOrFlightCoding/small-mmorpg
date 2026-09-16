@@ -1,0 +1,26 @@
+{
+  "id": "quest.test.gated",
+  "kind": "quest",
+  "displayName": "Test Gated",
+  "category": "side",
+  "acceptNpcId": "npc.test_herald",
+  "turnInNpcId": "npc.test_herald",
+  "prerequisites": {
+    "questIds": ["quest.test.talk"],
+    "minLevel": 1
+  },
+  "objectives": [
+    {
+      "type": "talk_to_npc",
+      "npcId": "npc.test_herald",
+      "quantity": 1
+    }
+  ],
+  "consume": [],
+  "rewards": {
+    "gold": 1,
+    "xp": 1,
+    "items": []
+  },
+  "completeOnce": true
+}

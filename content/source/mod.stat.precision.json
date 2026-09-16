@@ -1,0 +1,10 @@
+{
+  "id": "mod.stat.precision",
+  "kind": "equipment_modifier_category",
+  "displayName": "Precision",
+  "displayNameKey": "mod.stat.precision.display_name",
+  "descriptionKey": "mod.stat.precision.description",
+  "statId": "stat.precision",
+  "channel": "stat.precision",
+  "classification": "canonical"
+}

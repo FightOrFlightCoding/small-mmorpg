@@ -1,0 +1,16 @@
+[remap]
+
+importer="dialogue_manager"
+importer_version=15
+type="Resource"
+uid="uid://danyxl5b48pi4"
+path="res://.godot/imported/npc.proof_giver.dialogue-0e33f59654e460a6889cb70fc5a1e2fb.tres"
+
+[deps]
+
+source_file="res://content/dialogue/npc.proof_giver.dialogue"
+dest_files=["res://.godot/imported/npc.proof_giver.dialogue-0e33f59654e460a6889cb70fc5a1e2fb.tres"]
+
+[params]
+
+defaults=true

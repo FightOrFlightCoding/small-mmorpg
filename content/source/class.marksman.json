@@ -1,0 +1,67 @@
+{
+  "id": "class.marksman",
+  "kind": "class",
+  "displayName": "Marksman",
+  "shortDescription": "Ranged damage. Provisional stats and loadout.",
+  "displayNameKey": "class.marksman.display_name",
+  "shortDescriptionKey": "class.marksman.short_description",
+  "longDescriptionKey": "class.marksman.long_description",
+  "roleSummaryKey": "class.marksman.role_summary",
+  "placeholderIconAssetId": "visual.class_marksman",
+  "placeholderVisualSetId": "visual.class_marksman",
+  "placeholderThemeKey": "theme.class.marksman",
+  "selectOrder": 2,
+  "visualAssetSetId": "visual.class_marksman",
+  "progressionId": "progression.marksman",
+  "levelCurveId": "test.curve.standard",
+  "startingAttributes": {
+    "test.attribute.might": 5,
+    "test.attribute.vitality": 5,
+    "test.attribute.focus": 4
+  },
+  "startingResources": {
+    "test.resource.health": 90
+  },
+  "attributePointPolicy": { "pointsAtCreate": 0 },
+  "skillPointPolicy": { "pointsAtCreate": 0 },
+  "startingEquipment": [
+    { "itemId": "item.training_sword", "quantity": 1 }
+  ],
+  "startingAbilities": ["test.ability.basic_melee", "test.ability.ranged_bolt"],
+  "allowedEquipmentTags": ["main_hand", "head", "chest", "legs", "feet"],
+  "tags": ["marksman", "ranged", "provisional"],
+  "descriptionKey": "class.marksman.long_description",
+  "rosterSelectable": true,
+  "visualSetId": "visual.class_marksman",
+  "canonicalLevelCurveId": "curve.vibecode.l10",
+  "baseStats": {
+    "stat.strength": 4,
+    "stat.agility": 9,
+    "stat.intelligence": 3,
+    "stat.spirit": 3,
+    "stat.vitality": 6,
+    "stat.precision": 3,
+    "stat.haste": 3,
+    "stat.endurance": 3
+  },
+  "automaticGrowth": {
+    "stat.strength": 0,
+    "stat.agility": 3,
+    "stat.intelligence": 0,
+    "stat.spirit": 0,
+    "stat.vitality": 1,
+    "stat.precision": 1,
+    "stat.haste": 1,
+    "stat.endurance": 0
+  },
+  "autoAssignTemplate": {
+    "amounts": { "stat.agility": 2, "stat.precision": 1 },
+    "classification": "compile-time-addition",
+    "compileTimeAddition": true
+  },
+  "resourceType": "resource.none",
+  "autoAttackId": "ability.marksman.auto_attack",
+  "basicAbilityId": "ability.marksman.aimed_shot",
+  "classTreeId": "tree.marksman.class",
+  "branchIds": ["branch.marksman.sniper", "branch.marksman.skirmisher"]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "test.ai.ranged",
+  "kind": "ai_profile",
+  "displayName": "Ranged",
+  "style": "ranged",
+  "acquireMode": "nearest",
+  "damageThreatWeight": 1,
+  "healThreatWeight": 0.5,
+  "generateHealThreat": true,
+  "threatSwitchRatio": 1.1,
+  "preferredRange": 140,
+  "kiteRange": 80,
+  "resetHealthOnReturn": false,
+  "resetThreatOnReturn": true
+}

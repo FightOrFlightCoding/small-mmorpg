@@ -1,0 +1,31 @@
+{
+  "id": "effect.mystic.evil_eye.taken",
+  "kind": "effect_definition",
+  "displayName": "taken",
+  "displayNameKey": "effect.mystic.evil_eye.taken.display_name",
+  "descriptionKey": "effect.mystic.evil_eye.taken.description",
+  "ownerAbilityId": "ability.mystic.evil_eye",
+  "effect": {
+    "id": "taken",
+    "type": "timed_stat_modifier",
+    "source": "caster",
+    "target": "primary",
+    "magnitude": {
+      "kind": "constant",
+      "value": 0.15
+    },
+    "duration": 8,
+    "tickInterval": 0,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "debuff"
+    ],
+    "school": "none",
+    "statChannel": "damage_taken"
+  },
+  "classification": "compile-time-addition",
+  "compileTimeAddition": true
+}

@@ -1,0 +1,210 @@
+# Test catalog
+
+Prompt 18 automated suites plus the Prompt 19 freeze audit, Prompt 21 account/character coverage, Prompt 22 progression coverage, Prompt 23 economy coverage, Prompt 24 ability coverage, Prompt 25 combat-pipeline coverage, Prompt 26 enemy/spawn/AI/loot/boss coverage, Prompt 27 NPC/quest/vendor/inn coverage, Prompt 28 party/chat/group-credit/loot coverage, Prompt 29 public-world/cave/transfer/reconnect coverage, Prompt 30 nearby trade coverage, Prompt 31 UI/settings/asset-contract coverage, Prompt 32 content-CLI / systems-lab / GM coverage, Prompt 33 environment / handshake / maintenance / backup-restore coverage, Prompt 34 security / fuzz / rate-limit / capacity / soak / five-client certification, Prompt 35 existing-save / content-only / asset-manifest / five-client resume certification, ACCT-09 account lifecycle security / failure / distribution certification, PROG-01 canonical progression design audit, PROG-02 canonical shared content schemas, PROG-03 four-class creation plus progression-state migration, PROG-04 canonical statistics, derived values, and resource engine, PROG-05 XP curve, automatic growth, milestones, and auto-assignment, PROG-06 manual stat allocation and trainer respec, PROG-07 branch choice, talent trees, ability ownership, and hotbar rules, and PROG-08 generic combat mechanics required by all four classes. Do not weaken these tests.
+
+Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDATION_BASELINE.md).
+
+## Gates
+
+| Command | What it proves |
+| --- | --- |
+| `scripts/test-content` | Content-build tests + matching `contentHash` (development-only exclusion, diff, trace, templates, unused, CSV round-trip) |
+| `scripts/test-audit` | Catalog vs code: storage, opcodes, pins, vendor dirty (non-import), player `schemaVersion` presence, test-content leakage, hardcoded ID allowlist |
+| `scripts/test-server` | Nakama domain tests |
+| `scripts/test-client` | Import, `SHELL_LOGIN`, GdUnit, 0 orphans |
+| `scripts/test-e2e` | Live two-client journey `E2E_SLICE_OK` |
+| `scripts/test-capacity` | Domain capacity report: 20 public-world characters + cave instances |
+| `scripts/test-soak` | Short automated soak; `-DurationSec 3600` for manual certification |
+| `scripts/test-cert-journey` | Live five-client journey `CERT_FIVE_OK`, backend restart, `CERT_FIVE_RESUME_OK` |
+| `scripts/test-failure` | Domain failure tests; `-Live` restarts Nakama/Postgres in a disposable stack |
+| `scripts/test-account-compat` | Domain account helpers plus live Nakama 3.40.0 lifecycle proofs (starts the stack if needed) |
+| `scripts/test-auth-gateway` | Auth-gateway hermetic suite; live HTTP-key ping when Nakama is up |
+| `scripts/test-account-lifecycle` | ACCT-09 hermetic lifecycle gate (setup, content, server/gateway builds, server + gateway + client tests). `-StartStack` / `-ExportRelease` / `-LiveFailure` optional |
+| `scripts/test-progression-design` | Canonical design markdown + contract docs + live snapshot (four selectable `class.*` ids, physical classes without mana) |
+| `scripts/test-all` | setup + content, audit, server, client, e2e, capacity, soak, five-client, backup |
+| `scripts/test-backup` | Dump local `nakama`, restore into `nakama_restore_drill`, verify table counts |
+| `scripts/verify-release` | Content, audit, server, migrations, client, backup drill |
+
+## Content-build (`tools/content-build/tests`)
+
+| Test | Coverage |
+| --- | --- |
+| valid source | Slice documents compile |
+| duplicate IDs | `duplicate_id` |
+| missing references | `missing_reference` |
+| invalid ranges | `invalid_range` |
+| nonfinite numbers | `nonfinite` |
+| unknown equipment slot | `unknown_equipment_slot` |
+| duplicate quest reward | `duplicate_quest_reward` |
+| deterministic generation | byte-identical reruns |
+| matching hashes | client/server digest |
+| no absolute paths | generated files |
+| development-only exclusion | production payload omits `developmentOnly`; systems lab excluded; proof token included |
+| hash ignores timestamp | `buildTimestamp` not in artifacts or hash |
+| diff / trace | added/removed/changed ids; inbound/outbound refs |
+| definition schema version | mismatched per-kind version rejected |
+| templates / copy / unused / CSV | `content new` schema-valid starters; copy; unused leather cap; CSV round-trip |
+| leakage / cycles / missing assets | development leakage, cyclic prerequisites, missing visual ids |
+| canonical base-array total | `base_array_total:class.warrior` when §6 base stats do not sum to 34 |
+
+## Server (`server/tests`)
+
+| File | Coverage | VS |
+| --- | --- | --- |
+| `protocol.test.ts` | opcodes, unknown fields, injection, payload size, version/hash | VS-T1, T5, T9 |
+| `fixtures/malformed_messages.ts` | malformed JSON corpus | VS-T1 |
+| `movement.test.ts` | teleport/overspeed, seq, wall depenetration, living-player and NPC blockers | VS-T2 |
+| `combat.test.ts` | server damage, cooldown, death, slime AI | VS-T3 |
+| `combat_pipeline.test.ts` | pipeline order, healing, defense, modifiers, periodic, death, dead restrictions, respawn, bind fallback, duplicate event, invalid target, PvP, cast interrupt, reconnect while dead, canonical power-category scaling independent of ATTACK | |
+| `spawn_controller.test.ts` | always slime, manual create, duplicate spawn, in-place respawn, group reset | |
+| `enemy_ai.test.ts` | melee/ranged/caster AI, stun, threat switch, heal threat, leash without HP restore | |
+| `loot_table.test.ts` | guaranteed/chance/weighted/empty rolls, duplicate death loot/XP, party-credit hook | |
+| `boss.test.ts` | two-phase test boss, wipe reset, leash reset | |
+| `targeting.test.ts` | self/hostile/friendly/ground/area queries; SET_TARGET | |
+| `xp_hooks.test.ts` | trusted grant interface, kill/quest event ids, idempotency | |
+| `inventory.test.ts` | pickup, stack merge/split/move, destroy, locks, capacity, Prompt 18 instance ids | VS-T4, T5 |
+| `equipment.test.ts` | weapons/armor slots, class/level/lock, derived attack | VS-T5 |
+| `transaction.test.ts` | gold add/remove/insufficient, idempotency, OCC, audit, in-memory committer | |
+| `quest.test.ts` | accept, already_accepted, talk/kill/collect/enter/stages/prereq | VS-T6 |
+| `quest_reward.test.ts` | turn-in, `multiUpdate` fake, duplicate reward | VS-T4, T6, T7 |
+| `quest_store.test.ts` | serialize/load | |
+| `vendor.test.ts` | buy, sell, insufficient gold, full inventory, equipped locked, unsellable, idempotent | |
+| `inn.test.ts` | rest heal+bind, insufficient gold, healer, reconnect bind, cave enter queues transfer | |
+| `cave.test.ts` | public-world discovery, concurrent create, solo/party cave, shared instance, non-member deny, ticket reuse/expiry/wrong character, presence conflict, disconnect/reconnect grace, fallback after expire, exit, wipe, boss completion, empty terminate, stale recover, party-disband expire | |
+| `interaction.test.ts` | range, dead player, dialogueId/services extras | |
+| `security.test.ts` | mapped attacks, rate limits | VS-T1–T6, T9 |
+| `match.test.ts` | join, empty shutdown, FULL_STATE | VS-T9 |
+| `character.test.ts` | bootstrap wrapper, `permissionWrite: 0` | |
+| `character_lifecycle.test.ts` | create warrior/marksman/mage/mystic, invalid class, client stat/level injection, five slots, sixth rejected, invalid name, case-insensitive and concurrent `name_taken`, duplicate create, canonical L1 persist, v1 migrate, export shape, foreign/soft-deleted select, ticket expiry/replay, delete/lease/restore/purge (progression removed), Prompt 18 migrate, starter init once | |
+| `canonical_progression.test.ts` | L1 arrays, caster/physical mana, production create skips starters, v1→v2 migrate idempotent, missing blob, hotbar mapping, storage round-trip | |
+| `progression_formulas.test.ts` | §4 formulas including melee/ranged/spell/curse/heal/shield, L1 arrays, equipment/effect identity, rank replace, source multiply, no caps, mana regen, haste vs cooldown, damage order, DoT total-damage identity, DoT/shield crit rules, nonfinite rejection | |
+| `progression_l10_sheet.test.ts` | §6.3 auto-growth reference sheet for all four classes | |
+| `progression_xp_curve.test.ts` | L10 XP transitions, 11100 total, KillXP, elite XP, production curve overlay | |
+| `progression_timeline.test.ts` | multi-level, duplicate event, cap overflow, growth, free points, auto-assign, pending branch, L10 without branch, storage round-trip, character-select level | |
+| `progression_respec.test.ts` | eight-stat allocate, batch atomicity, overspend/unknown/neg/zero/duplicate, no caps, trainer respec cost 50×level, gold idempotency, combat/trade/range rejection, hotbar/branch cleanup, derived recalc, reconnect persist | |
+| `progression_talent_trees.test.ts` | class points L3/L4, third class node rejected, branch before 5, wrong-class branch, signature/capstone, branch points, tier 2/3, T3 before 9, rank dependency, active unlock/R2, duplicate purchase, respec cleanup, reconnect | |
+| `progression_hotbar_ceiling.test.ts` | max 4 production actives, auto-attack separate, no production unlock-any, hotbar validation | |
+| `progression_frenzy_passive.test.ts` | Frenzy owned as signature, not a hotbar active, `ability_passive` | |
+| `combat_rng.test.ts` | Seeded/scripted/production combat random; client never submits rolls | |
+| `combat_events.test.ts` | Canonical combat event types and handler subscription | |
+| `canonical_combat.test.ts` | Mechanic kinds, no class-name checks, haste vs cooldown recovery, independent multi-hit, reflect/overflow, conditions | |
+| `progression_combat_mechanics.test.ts` | Shields, taunt, line/cone/vault, delayed ground, SPI absorb, interrupt, no client crits | |
+| `progression_dot_haste.test.ts` | DoT never crits; haste/festering preserve total; tagged bleeds | |
+| `progression_gcd_absent.test.ts` | Production abilities/classes ignore GCD; test melee may keep GCD | |
+| `gameplay_lease.test.ts` | exclusive acquire, concurrent second acquire, two sessions, second character blocked, ENTERING timeout, stale missing match, link-dead timestamps, no movement, despawn boundary, emptyTicks after expire, Nakama ping/pong detection window, safe leave, combat reject, join reject, catalog countdown, Play disabled, entry after release, no duplicate snapshot avatars | |
+| `starter_zone_registry.test.ts` | canonical match id | |
+| `persistence.test.ts` | checkpoints, link-dead avatar, no session rebind, seq reset, Nakama null maps/extras on tick 0 | VS-M5 automated analog |
+| `migration.test.ts` | v0→v1, retry, future version, missing version, null schemaVersion, corrupt, completed quest, equipment, gold | |
+| `chat.test.ts` | RT hooks | |
+| `content.test.ts` | generated catalog shape | VS-T8 analog |
+| `progression.test.ts` | Foundation XP thresholds on `test.class.vanguard`, allocate, derived-stat order, equipment/effect hooks, Prompt 18 migrate, reconnect FULL_STATE | |
+| `progression_design_audit.test.ts` | Canonical design file present; four classes / eight branches / 34+6 budgets / 11100 XP / trees / Frenzy passive; catalog IDs; live snapshot (four selectable classes; test curve cap 5 / production overlay cap 10 / hotbar 8; physical classes omit mana); owned conflict register | |
+| `ability.test.ts` | locked use, valid melee, ATTACK wrapper, range, PvP, relation, resource, ICD/GCD, duplicate request, movement/damage interrupt, cancel, heal, DoT, stack policies, expiration, unlock, hotbar, reconnect clears casts, null magnitude scale, catalog strip/rebind | |
+| `party.test.ts` | create, invite, accept, decline, expired invite, party full, already in party, leave, kick, promote, leader disconnect, grace reconnect, all-absent disband, forged membership, duplicate requestId, create-declines-pending, accept-leaves-current, ghost-member prune, match-cache eviction | |
+| `party_credit_loot.test.ts` | group kill XP, out-of-range member, group quest credit, personal loot, server-assigned loot, duplicate death event | |
+| `trade.test.ts` | invite, decline, item+gold commit once, offer change clears acceptance, revision mismatch, unowned/non-tradeable/locked, insufficient gold, full inventory, duplicate commit, disconnect, transfer, death, timeout, concurrent destroy, interrupted recovery, audit | |
+| `health.test.ts` | `vibecode_health` plus handshake/ops RPC ids | |
+| `gm.test.ts` | allowlist default disabled, user authorization, payload parse, audit fields, teleport/grant, cave template fallback to `zone.cave` | |
+| `environment.test.ts` | Four distinct env presets vs committed JSON; no passwords in JSON | |
+| `compatibility.test.ts` | Handshake/join client too old/new, protocol/content mismatch, maintenance skip on handshake | |
+| `maintenance.test.ts` | Patch parse, rejectJoins, transaction window, shutdown warn | |
+| `recovery.test.ts` | Nine procedures, production overwrite token, log redaction | |
+| `auth_hooks.test.ts` | Closed production registration; local device auth allowed; auth rate limit | |
+| `auth_privacy.test.ts` | Login error sanitization; registration `email_taken` | |
+| `security_catalog.test.ts` | Every Prompt 34 attack id has a seven-field control and a test file | |
+| `fuzz.test.ts` | Deterministic malformed corpus; no crash or gold/item mutate | |
+| `session_rate.test.ts` | Auth/chat/party and character create/name/select session windows | |
+| `cert_load.test.ts` | Capacity 20+caves report; short soak cleanup | |
+| `cert_failure.test.ts` | Disconnect, delayed/duplicate messages, cave terminate, stale presence, transfer leave, trade recover | |
+| `cert_content.test.ts` | Content-only cert pack present; `quest.cert_scout` accept/kill/turn-in; vendor buy `item.cert_mail` | |
+| `existing_save_cert.test.ts` | Prompt 18, p20, p21, and current fixtures keep quest, gear, gold, pose; second migrate does not duplicate; v1 progression migrates to schema 2 without resetting class/level/XP | |
+| `account_deletion.test.ts` | Fence, phrase, 7-phase saga resume, replay-by-user-id, stale index after delete; character purge removes progression | |
+| `account_export.test.ts` | Support Recovery ID format; secret and foreign-data filters; canonical progression fields exported | |
+| `email.test.ts` | Canonical email trim/lowercase; plus-tags and dots preserved | |
+| `hmac.test.ts` | Pure SHA-256/HMAC match Node crypto (Nakama JS has no `crypto`) | |
+| `account_compat.test.ts` | HMAC index object shape; lookup rejects missing/multiple/stale hits | |
+| `account_gate.test.ts` | Playable-account guard; login EMAIL_VERIFICATION_REQUIRED after credentials; unverified cleanup; internal usernames; legacy profile inference | |
+| `rpc_error.test.ts` | RPC adapters return `{ok:false,code}` JSON; stacked `Error` messages collapse to a domain code; hooks still throw strings | |
+| `rpc_error.live.test.ts` | Live unverified `character_list` is HTTP 200 `{ok:false,code}` with no `stackTrace` / `index.js`; skipped unless `ACCT_RPC_LIVE=1` | |
+| `account_compat.live.test.ts` | Live Nakama 3.40.0 proofs; skipped unless `ACCT_COMPAT_LIVE=1` | |
+| `gateway_assertion.test.ts` | HTTP-key vs session distinction; assertion tamper/replay/skew | |
+| `auth_challenge.test.ts` | Hash-only challenges; single-use; idempotent consume; expiry; attempt lock | |
+| `account_security_catalog.test.ts` | ACCT-09 85-threat matrix: validation, rate limit, idempotency, error, test file, audit | |
+| `account_failure_catalog.test.ts` | ACCT-09 failure mappings and named rate-action coverage | |
+| `account_audit.test.ts` | Account audit lines drop password, refresh, and codes | |
+| `auth_gateway_rpc.test.ts` | Session reject; missing assertion; signed HTTP-key ping; `support_snapshot` never returns email | |
+| `auth_gateway.live.test.ts` | Live HTTP-key ping and session `gateway_rpc_forbidden` as HTTP 200 JSON without `stackTrace`; skipped unless `ACCT_GATEWAY_LIVE=1` | |
+
+## Auth gateway (`auth-gateway/tests`)
+
+| File | Coverage |
+| --- | --- |
+| `gateway.test.ts` | Health/ready, missing production config, oversized/invalid JSON, request ids, redaction, rate limits, register/verify, duplicate/concurrent register, legal/password validation, unverified/disabled/deleting login, refresh/logout/logout-all, CLOSED/INVITE_ONLY, unverified cleanup, email failure without deleting the account, reset non-enumeration and uniform timing, reset success/expiry/wrong-code/lock/replay, session revocation without auto-login, password change, email-change success/duplicate/expiry/rollback, forgotten-email help, admin-only support lookup, account status fields, export request/auth/expiry/secret exclusion, deletion gates (password/code/phrase/busy/trade/transfer), HTML confirm does not delete, saga resume, email reuse with new user id |
+| `lifecycle_cert.test.ts` | Five independent accounts register/verify/login; duplicate email; logout-all; password reset; email change; deleted-email reuse |
+| `rate_catalog.test.ts` | Named public rate policies, retry guidance without enumeration, no permanent lockout, audit sanitizer |
+| `email.test.ts` | Memory success/failure; SendGrid 202 vs HTTP error |
+| `assertion.test.ts` | Signed RPC envelope |
+
+Reproduction: `powershell -File scripts/test-auth-gateway.ps1`
+
+## Client GdUnit (`client/tests`)
+
+| File | Coverage | VS |
+| --- | --- | --- |
+| `compatibility/compatibility_test.gd` | addons load | |
+| `content_registry_test.gd` | catalog IDs, hash | VS-T8 |
+| `error_state_test.gd` | visible errors, no hang | VS-M4 |
+| `scene_router_test.gd` / `shell_scenes_test.gd` | boot/login/register/verify/unavailable/disabled/forgot-password/reset/change-password/change-email/forgot-email/account-delete/deleted/character/world | VS-T8 |
+| `auth_flow_test.gd` | gateway email register/login/verify routing, invalid credentials, session refresh, logout/logout-all, unverified gameplay reject, release-gated device auth, tickets, password reset without auto-login, password change, email change, slot limit 5, inbox delivery copy | VS-M4 |
+| `character_select_ui_test.gd` | five slot positions, four production class cards, Create / Recently Deleted / Account Settings, export/delete copy, hidden user id, link-dead countdown disables Play | |
+| `account_service_test.gd` | error mapping including unknown `Reference: <request ID>`, RPC stack sanitization, password strength, credential store unavailable, remember-email, revoked refresh does not loop, failed logout-all keeps the session, reset confirm has no tokens, forgotten-email reveals no address, canonical change-password/email/export/delete paths, click-only delete confirm, inbox delivery copy | |
+| `account_ux_test.gd` | keyboard/tab order, loading and double-submit, back navigation, session-expired/verification transitions, five character cards, full-slot restore, link-dead copy, account-delete click-only, unknown error mapping, server-unavailable, email-provider delay, no duplicate `connect_once` | |
+| `dev_identity_test.gd` | Alice/Bob ids | |
+| `protocol_test.gd` | client opcodes match including 38 | VS-T9 |
+| `zone_join_test.gd` | FULL_STATE gate, mismatch fatal, duplicate join recoverable, resync, chat join failure, logout leaves chat after opcode 32 ack, failed safe leave stays in world | VS-T9 analog |
+| `movement_client_test.gd` / `prediction_test.gd` | prediction/reconcile, look-ahead vs snap-back, diagonal display, wall depenetration, player blockers | |
+| `entity_registry_test.gd` / `world_render_test.gd` | presentation; player C01 walk SpriteFrames (4-dir) and frame advance under pose-only updates; trade panel does not cover Party/Progression/chat; trade name resolves to nearby userId; quit dialog safe/unsafe | VS-M1 analog |
+| `interaction_client_test.gd` | INTERACT, dialogue after result | |
+| `quest_service_test.gd` | accept/turn-in intents | VS-T6 analog |
+| `vendor_inn_service_test.gd` | vendor buy/sell, inn rest, cave enter; no client prices | |
+| `cave_service_test.gd` | enter/exit opcodes, transfer metadata, overlay copy | |
+| `inventory_service_test.gd` / `equipment_service_test.gd` / `wallet_service_test.gd` / `progression_service_test.gd` | mirrors; unlock buttons survive HUD refresh | VS-T5, T8 |
+| `combat_client_test.gd` | attack intent, target frame with AI `state`, death overlay, combat `message`, SET_TARGET / RELEASE | VS-T3 analog |
+| `ability_service_test.gd` | use/ground-target intentions, canonical hotbar/cooldown/cast bar, production 4-slot + Frenzy excluded, production GCD remaining ignored | |
+| `party_service_test.gd` | create/invite/kick/promote/disband RPCs without member lists; party_full; party chat `partyId`; HUD leader/HP/connection/Label; accept-while-in-party; party RPC does not open login modal | |
+| `trade_service_test.gd` | invite/offer/gold/accept/cancel intentions; offer-change warning; completed result without local grant; HUD invite by typed character name | |
+| `chat_client_test.gd` | Label, no BBCode; party payload | |
+| `reconnect_test.gd` | overlay Connection lost / Logging out; socket restore without match rebind; seq adopt | |
+| `ui_shell_test.gd` | window focus/exclusivity; duplicate `connect_once`; rejected drag/drop; reconnect window restore; settings persistence without credentials; input conflicts; missing-asset fallback; 4/8-dir animation-set validation; UI after character switch and zone transfer; GM window closeable | |
+| `gm_service_test.gd` | `gm_command` RPC intention; local gold unchanged; debug flag is not authority | |
+| `handshake_test.gd` | Session handshake; fatal version/content mismatch; maintenance login without world entry | |
+| `auth_privacy_test.gd` | Login does not leak whether an email exists | |
+| `e2e_hooks_test.gd` | `--e2e-slice`, `--cert-five`, and `--cert-five-resume` required | VS-T10 helper |
+| `asset_cert_test.gd` | Asset-manifest replacements for character, enemy, NPC, item icon, ability icon, tileset, SFX | |
+| `account_release_audit_test.gd` | Release hides Alice/Bob and local gateway URL; debug local copy does not mention Mailpit; `--gateway-url=` override | |
+
+`fake_network_backend.gd` is a test double, not a suite.
+
+## E2E
+
+| Driver | Coverage | VS |
+| --- | --- | --- |
+| `client/scripts/e2e/slice_journey.gd` | Full two-identity loop | VS-T10, VS-M1–M3, M5 analog |
+| `client/scripts/e2e/cert_journey.gd` | Five-identity auth, two classes, combat, loot, quest, vendor buy/sell, inn, armor, party, zone/party chat, cave reconnect, boss, allocate/unlock, item-and-gold trade, logout, resume | |
+
+## Prompt 19 audit
+
+| Check | Mechanism |
+| --- | --- |
+| Undocumented storage | Scan `server/src` collections/keys vs `expected.json` |
+| Duplicate protocol ids | Parse TS + GDScript opcode tables |
+| Client-writable canonical records | `permissionWrite` numeric must be 0; no client `write_storage` |
+| Unpinned foundational deps | Exact `typescript`, `ajv`, `nakama-runtime`; caret build tools must stay caret + lockfile present |
+| Vendor addon edits | `git diff HEAD -- client/addons` excluding `.import`/`.uid` |
+| Generated content mismatch | bundle vs `content.ts` vs frozen digest |
+| Missing schema versions | Player write builders include `schemaVersion`; Prompt 18 v0 blobs migrate on load |
+| Test-content leakage | `content/source` file set equals production list |
+
+## Manual (Prompt 18)
+
+VS-M1–M5 remain defined in [VERTICAL_SLICE.md](VERTICAL_SLICE.md). Graphical two-client play is `scripts/run-two-clients.ps1`.

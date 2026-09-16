@@ -1,0 +1,18 @@
+{
+  "id": "build.fire.meteor",
+  "kind": "reference_build",
+  "displayName": "Meteor",
+  "displayNameKey": "build.fire.meteor.display_name",
+  "descriptionKey": "build.fire.meteor.description",
+  "branchId": "branch.mage.fire",
+  "statPriority": [
+    "stat.intelligence",
+    "stat.precision"
+  ],
+  "identityKey": "build.fire.meteor.identity",
+  "pairedNodeIds": [
+    "talent.mage.fire.detonation",
+    "talent.mage.fire.second_spark"
+  ],
+  "classification": "canonical"
+}

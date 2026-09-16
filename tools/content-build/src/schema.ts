@@ -2,8 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import Ajv2020, { type ErrorObject, type ValidateFunction } from "ajv/dist/2020";
 import { issue, type ContentIssue } from "./issues";
-
-const SCHEMA_FILES = ["common.json", "player.json", "item.json", "npc.json", "enemy.json", "quest.json", "zone.json"];
+import { DEFAULT_MANIFEST, schemaFilesForManifest, type ContentPackageManifest } from "./registry";
 
 const KIND_SCHEMA: Record<string, string> = {
   player: "https://vibecode.local/content-schemas/player.json",
@@ -12,12 +11,36 @@ const KIND_SCHEMA: Record<string, string> = {
   enemy: "https://vibecode.local/content-schemas/enemy.json",
   quest: "https://vibecode.local/content-schemas/quest.json",
   zone: "https://vibecode.local/content-schemas/zone.json",
+  class: "https://vibecode.local/content-schemas/class.json",
+  attribute: "https://vibecode.local/content-schemas/attribute.json",
+  resource: "https://vibecode.local/content-schemas/resource.json",
+  derived_stat: "https://vibecode.local/content-schemas/derived_stat.json",
+  level_curve: "https://vibecode.local/content-schemas/level_curve.json",
+  class_progression: "https://vibecode.local/content-schemas/class_progression.json",
+  equipment_slot: "https://vibecode.local/content-schemas/equipment_slot.json",
+  ability: "https://vibecode.local/content-schemas/ability.json",
+  stat_definition: "https://vibecode.local/content-schemas/stat_definition.json",
+  branch_definition: "https://vibecode.local/content-schemas/branch_definition.json",
+  progression_timeline: "https://vibecode.local/content-schemas/progression_timeline.json",
+  auto_attack_definition: "https://vibecode.local/content-schemas/auto_attack_definition.json",
+  effect_definition: "https://vibecode.local/content-schemas/effect_definition.json",
+  talent_tree: "https://vibecode.local/content-schemas/talent_tree.json",
+  talent_node: "https://vibecode.local/content-schemas/talent_node.json",
+  reference_build: "https://vibecode.local/content-schemas/reference_build.json",
+  enemy_scaling_profile: "https://vibecode.local/content-schemas/enemy_scaling_profile.json",
+  xp_reward: "https://vibecode.local/content-schemas/xp_reward.json",
+  equipment_modifier_category: "https://vibecode.local/content-schemas/equipment_modifier_category.json",
+  ai_profile: "https://vibecode.local/content-schemas/ai_profile.json",
+  loot_table: "https://vibecode.local/content-schemas/loot_table.json",
+  spawn: "https://vibecode.local/content-schemas/spawn.json",
+  vendor: "https://vibecode.local/content-schemas/vendor.json",
 };
 
-export function loadAjv(schemaDir: string): Ajv2020 {
+export function loadAjv(schemaDir: string, manifest: ContentPackageManifest = DEFAULT_MANIFEST): Ajv2020 {
   const ajv = new Ajv2020({ allErrors: true, strict: true, validateFormats: false });
-  for (let i = 0; i < SCHEMA_FILES.length; i++) {
-    const name = SCHEMA_FILES[i];
+  const files = schemaFilesForManifest(manifest);
+  for (let i = 0; i < files.length; i++) {
+    const name = files[i];
     const parsed = JSON.parse(readFileSync(join(schemaDir, name), "utf8")) as object;
     ajv.addSchema(parsed);
   }
@@ -59,8 +82,11 @@ function fieldName(instancePath: string): string {
   return parts.length === 0 ? "" : parts[parts.length - 1];
 }
 
-export function validatorForKind(ajv: Ajv2020, kind: string): ValidateFunction | null {
-  const schemaId = KIND_SCHEMA[kind];
+export function validatorForKind(ajv: Ajv2020, kind: string, manifest: ContentPackageManifest = DEFAULT_MANIFEST): ValidateFunction | null {
+  const entry = manifest.kinds[kind];
+  const schemaId = entry
+    ? "https://vibecode.local/content-schemas/" + entry.schema
+    : KIND_SCHEMA[kind];
   if (!schemaId) {
     return null;
   }

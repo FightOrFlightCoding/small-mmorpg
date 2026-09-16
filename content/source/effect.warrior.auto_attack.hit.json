@@ -1,0 +1,32 @@
+{
+  "id": "effect.warrior.auto_attack.hit",
+  "kind": "effect_definition",
+  "displayName": "hit",
+  "displayNameKey": "effect.warrior.auto_attack.hit.display_name",
+  "descriptionKey": "effect.warrior.auto_attack.hit.description",
+  "ownerAbilityId": "ability.warrior.auto_attack",
+  "effect": {
+    "id": "hit",
+    "type": "direct_damage",
+    "source": "caster",
+    "target": "primary",
+    "magnitude": {
+      "kind": "stat_id",
+      "statId": "stat.strength",
+      "value": 12,
+      "scale": 0.01
+    },
+    "duration": 0,
+    "tickInterval": 0,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "melee"
+    ],
+    "school": "melee"
+  },
+  "classification": "canonical",
+  "compileTimeAddition": false
+}

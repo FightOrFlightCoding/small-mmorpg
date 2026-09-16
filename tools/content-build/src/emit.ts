@@ -2,14 +2,115 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { canonicalize } from "./canonical";
 import { hashCanonical } from "./hash";
-import type { ContentBundle, ContentPayload } from "./types";
+import { DEFAULT_MANIFEST, type ContentPackageManifest } from "./registry";
+import type { ContentBundle, ContentPackage, ContentPayload } from "./types";
 
 export const CONTENT_SCHEMA_VERSION = 1;
 
-export function buildBundle(payload: ContentPayload): ContentBundle {
-  const canonicalPayload = canonicalize(payload) as ContentPayload;
+export interface BuildPackageOptions {
+  manifest?: ContentPackageManifest;
+  developmentOnly?: string[];
+  buildTimestamp?: string;
+}
+
+export function hashedPayload(payload: ContentPayload): ContentPayload {
+  return canonicalize(payload) as ContentPayload;
+}
+
+export function hashContentPayload(payload: ContentPayload): string {
+  return hashCanonical(hashedPayload(payload));
+}
+
+export function buildPackage(payload: ContentPayload, options: BuildPackageOptions = {}): ContentPackage {
+  const manifest = options.manifest ?? DEFAULT_MANIFEST;
+  const canonicalPayload = hashedPayload(payload);
   const contentHash = hashCanonical(canonicalPayload);
-  return { schemaVersion: CONTENT_SCHEMA_VERSION, contentHash, ...canonicalPayload };
+  const developmentOnly = options.developmentOnly ?? [];
+  const buildTimestamp = options.buildTimestamp ?? "";
+  return {
+    packageId: manifest.packageId,
+    packageVersion: manifest.packageVersion,
+    schemaVersion: manifest.schemaVersion,
+    contentHash: contentHash,
+    buildTimestamp: buildTimestamp,
+    minimumProtocolVersion: manifest.minimumProtocolVersion,
+    developmentOnly: developmentOnly.slice().sort(),
+    definitions: canonicalPayload,
+    player: canonicalPayload.player,
+    items: canonicalPayload.items,
+    npcs: canonicalPayload.npcs,
+    enemies: canonicalPayload.enemies,
+    quests: canonicalPayload.quests,
+    zones: canonicalPayload.zones,
+    classes: canonicalPayload.classes,
+    attributes: canonicalPayload.attributes,
+    resources: canonicalPayload.resources,
+    derivedStats: canonicalPayload.derivedStats,
+    levelCurves: canonicalPayload.levelCurves,
+    classProgressions: canonicalPayload.classProgressions,
+    equipmentSlots: canonicalPayload.equipmentSlots,
+    abilities: canonicalPayload.abilities,
+    stats: canonicalPayload.stats,
+    branches: canonicalPayload.branches,
+    progressionTimelines: canonicalPayload.progressionTimelines,
+    autoAttacks: canonicalPayload.autoAttacks,
+    effectDefinitions: canonicalPayload.effectDefinitions,
+    talentTrees: canonicalPayload.talentTrees,
+    talentNodes: canonicalPayload.talentNodes,
+    referenceBuilds: canonicalPayload.referenceBuilds,
+    enemyScalingProfiles: canonicalPayload.enemyScalingProfiles,
+    xpRewards: canonicalPayload.xpRewards,
+    equipmentModifierCategories: canonicalPayload.equipmentModifierCategories,
+    aiProfiles: canonicalPayload.aiProfiles,
+    lootTables: canonicalPayload.lootTables,
+    spawns: canonicalPayload.spawns,
+    vendors: canonicalPayload.vendors,
+  };
+}
+
+export function buildBundle(payload: ContentPayload, options: BuildPackageOptions = {}): ContentBundle {
+  const pkg = buildPackage(payload, options);
+  return toContentBundle(pkg);
+}
+
+export function toContentBundle(pkg: ContentPackage): ContentBundle {
+  return {
+    packageId: pkg.packageId,
+    packageVersion: pkg.packageVersion,
+    schemaVersion: pkg.schemaVersion,
+    contentHash: pkg.contentHash,
+    minimumProtocolVersion: pkg.minimumProtocolVersion,
+    developmentOnly: pkg.developmentOnly,
+    player: pkg.player,
+    items: pkg.items,
+    npcs: pkg.npcs,
+    enemies: pkg.enemies,
+    quests: pkg.quests,
+    zones: pkg.zones,
+    classes: pkg.classes,
+    attributes: pkg.attributes,
+    resources: pkg.resources,
+    derivedStats: pkg.derivedStats,
+    levelCurves: pkg.levelCurves,
+    classProgressions: pkg.classProgressions,
+    equipmentSlots: pkg.equipmentSlots,
+    abilities: pkg.abilities,
+    stats: pkg.stats,
+    branches: pkg.branches,
+    progressionTimelines: pkg.progressionTimelines,
+    autoAttacks: pkg.autoAttacks,
+    effectDefinitions: pkg.effectDefinitions,
+    talentTrees: pkg.talentTrees,
+    talentNodes: pkg.talentNodes,
+    referenceBuilds: pkg.referenceBuilds,
+    enemyScalingProfiles: pkg.enemyScalingProfiles,
+    xpRewards: pkg.xpRewards,
+    equipmentModifierCategories: pkg.equipmentModifierCategories,
+    aiProfiles: pkg.aiProfiles,
+    lootTables: pkg.lootTables,
+    spawns: pkg.spawns,
+    vendors: pkg.vendors,
+  };
 }
 
 export function emitClientJson(bundle: ContentBundle): string {
@@ -24,12 +125,39 @@ export function emitServerModule(bundle: ContentBundle): string {
     enemies: bundle.enemies,
     quests: bundle.quests,
     zones: bundle.zones,
+    classes: bundle.classes,
+    attributes: bundle.attributes,
+    resources: bundle.resources,
+    derivedStats: bundle.derivedStats,
+    levelCurves: bundle.levelCurves,
+    classProgressions: bundle.classProgressions,
+    equipmentSlots: bundle.equipmentSlots,
+    abilities: bundle.abilities,
+    stats: bundle.stats,
+    branches: bundle.branches,
+    progressionTimelines: bundle.progressionTimelines,
+    autoAttacks: bundle.autoAttacks,
+    effectDefinitions: bundle.effectDefinitions,
+    talentTrees: bundle.talentTrees,
+    talentNodes: bundle.talentNodes,
+    referenceBuilds: bundle.referenceBuilds,
+    enemyScalingProfiles: bundle.enemyScalingProfiles,
+    xpRewards: bundle.xpRewards,
+    equipmentModifierCategories: bundle.equipmentModifierCategories,
+    aiProfiles: bundle.aiProfiles,
+    lootTables: bundle.lootTables,
+    spawns: bundle.spawns,
+    vendors: bundle.vendors,
   };
   const body = JSON.stringify(canonicalize(payload), null, 2);
   return [
     "/* Generated by tools/content-build. Do not edit. */",
+    "export const packageId = " + JSON.stringify(bundle.packageId) + ";",
+    "export const packageVersion = " + JSON.stringify(bundle.packageVersion) + ";",
     "export const schemaVersion = " + String(bundle.schemaVersion) + ";",
     "export const contentHash = " + JSON.stringify(bundle.contentHash) + ";",
+    "export const minimumProtocolVersion = " + String(bundle.minimumProtocolVersion) + ";",
+    "export const developmentOnly = " + JSON.stringify(bundle.developmentOnly) + " as const;",
     "export const content = " + body + " as const;",
     "export type Content = typeof content;",
     "",

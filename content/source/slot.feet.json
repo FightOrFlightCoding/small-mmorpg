@@ -1,0 +1,7 @@
+{
+  "id": "slot.feet",
+  "kind": "equipment_slot",
+  "tag": "feet",
+  "displayName": "Feet",
+  "allowedCategories": ["armor"]
+}

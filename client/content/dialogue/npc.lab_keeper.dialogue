@@ -1,0 +1,8 @@
+~ start
+Keeper: This is the systems lab. Form a party, trade with a second client, then walk the tour.
+- I will take the lab tour.
+	do QuestService.request_accept("quest.lab_tour")
+	Keeper: Kill the melee dummy, collect cloth, stand by the trainer, defeat the boss, and return.
+	=> END
+- Not now.
+	=> END

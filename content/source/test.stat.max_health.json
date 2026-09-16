@@ -1,0 +1,16 @@
+{
+  "id": "test.stat.max_health",
+  "kind": "derived_stat",
+  "displayName": "Max Health",
+  "role": "max_health",
+  "components": [
+    { "layer": "class_base", "source": "starting_resource", "id": "test.resource.health" },
+    { "layer": "level_growth", "source": "resource_growth", "id": "test.resource.health" },
+    { "layer": "allocated_attributes", "id": "test.attribute.vitality", "weight": 5 },
+    { "layer": "equipment", "channel": "max_health" },
+    { "layer": "effects", "channel": "max_health" },
+    { "layer": "percent", "channel": "max_health" },
+    { "layer": "multiply", "channel": "max_health" },
+    { "layer": "clamp", "min": 1, "max": 9999 }
+  ]
+}

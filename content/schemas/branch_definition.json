@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/branch_definition.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "classId",
+    "displayName",
+    "displayNameKey",
+    "roleKey",
+    "signatureAbilityId",
+    "capstoneAbilityId",
+    "branchTreeId",
+    "recommendedBuildIds"
+  ],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "branch_definition" },
+    "classId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "displayNameKey": { "type": "string", "minLength": 1 },
+    "descriptionKey": { "type": "string", "minLength": 1 },
+    "roleKey": { "type": "string", "minLength": 1 },
+    "signatureAbilityId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "capstoneAbilityId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "branchTreeId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "recommendedBuildIds": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+    },
+    "classification": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentClassification" },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+  }
+}

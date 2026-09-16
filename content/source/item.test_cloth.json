@@ -1,0 +1,20 @@
+{
+  "id": "item.test_cloth",
+  "kind": "item",
+  "displayName": "Test Cloth",
+  "displayNameKey": "item.test_cloth.name",
+  "descriptionKey": "item.test_cloth.desc",
+  "visualId": "visual.item_cloth",
+  "iconAssetId": "visual.item_cloth",
+  "worldAssetId": "visual.item_cloth",
+  "category": "material",
+  "maxStack": 20,
+  "tradeable": true,
+  "destroyable": true,
+  "uniquePolicy": "none",
+  "classRequirements": [],
+  "levelRequirement": 0,
+  "attackBonus": 0,
+  "statModifiers": [],
+  "sellValue": 1
+}

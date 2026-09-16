@@ -153,6 +153,42 @@ Upgrade policy for every row: **locked**. A later phase may change a pin only by
 | Executes on | Build tooling |
 | Upgrade policy | Locked |
 
+## Auth gateway (Node)
+
+| Field | Value |
+| --- | --- |
+| Purpose | Trusted public HTTP boundary for registration, verification, recovery, and account deletion |
+| Version | Node 20.20.2 (Docker `node:20.20.2-alpine`); TypeScript 5.8.3; Fastify 5.6.1 |
+| Official source | https://hub.docker.com/_/node , https://www.npmjs.com/package/fastify |
+| License | MIT |
+| Installation | `auth-gateway/` with `package-lock.json`. Local Compose service `auth-gateway` on host port 8787 |
+| Executes on | Separate Node process. Not bundled into Nakama |
+| Upgrade policy | Locked |
+
+## Mailpit (automated-test email capture)
+
+| Field | Value |
+| --- | --- |
+| Purpose | Isolated SMTP capture for automated-test Compose only |
+| Version | v1.30.7 |
+| Official source | Docker `axllent/mailpit:v1.30.7` |
+| License | MIT |
+| Installation | `infra/docker-compose.automated-test.yml` service `mailpit`. UI http://127.0.0.1:8125 , SMTP 1125 |
+| Executes on | `automated_test` Compose only |
+| Upgrade policy | Locked |
+
+## SendGrid (player email)
+
+| Field | Value |
+| --- | --- |
+| Purpose | `EmailProvider` adapter over HTTPS `POST /v3/mail/send` for verification, recovery, email-change, and deletion mail |
+| Version | HTTP API v3 (no SDK) |
+| Official source | https://docs.sendgrid.com/api-reference/mail-send/mail-send |
+| License | SendGrid terms; adapter is project-owned |
+| Installation | `SENDGRID_API_KEY` in gitignored env (`infra/.env.local`, staging, production). No npm package |
+| Executes on | Auth gateway in local Compose, staging, and production |
+| Upgrade policy | Locked |
+
 ## Rollup + Babel (Nakama JS bundle)
 
 | Field | Value |
@@ -255,3 +291,18 @@ Expected: content-build tests 9/9, generator prints `content_hash=` plus a 64-ch
 | Upgrade policy | Locked |
 
 Installed-tree SHA-256 values are SHA-256 of a sorted `hash length relative-path` listing of every file in the addon folder as extracted from the pinned archive, before Godot generated extra `.uid`/`.import` sidecars.
+
+## Reproduction commands (vertical slice gate)
+
+From the repo root, with Node `>=20.20.0`, Docker Desktop, and Godot 4.7.1:
+
+```powershell
+powershell -File scripts/test-all.ps1
+```
+
+```bash
+bash scripts/test-all.sh
+```
+
+Expected: content tests pass and hashes match (`e25c7589697354405e85712f6b166bdfd202eeb38e08b26d10e26451957dc682` for the current source; Prompt 18 freeze snapshot remains `3db1de356fc85fb6eb96489ddc04f47049b906ef915d2baa241cae38159a6e85`), `FOUNDATION_AUDIT_OK`, server tests pass, client prints `SHELL_LOGIN` and GdUnit4 passes with 0 orphans, then `E2E_SLICE_OK`. Any failed step exits nonzero. The e2e driver starts Nakama if the health RPC is down.
+

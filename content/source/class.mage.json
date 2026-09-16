@@ -1,0 +1,68 @@
+{
+  "id": "class.mage",
+  "kind": "class",
+  "displayName": "Mage",
+  "shortDescription": "Arcane caster. Provisional stats and loadout.",
+  "displayNameKey": "class.mage.display_name",
+  "shortDescriptionKey": "class.mage.short_description",
+  "longDescriptionKey": "class.mage.long_description",
+  "roleSummaryKey": "class.mage.role_summary",
+  "placeholderIconAssetId": "visual.class_mage",
+  "placeholderVisualSetId": "visual.class_mage",
+  "placeholderThemeKey": "theme.class.mage",
+  "selectOrder": 3,
+  "visualAssetSetId": "visual.class_mage",
+  "progressionId": "progression.mage",
+  "levelCurveId": "test.curve.standard",
+  "startingAttributes": {
+    "test.attribute.might": 2,
+    "test.attribute.vitality": 4,
+    "test.attribute.focus": 7
+  },
+  "startingResources": {
+    "test.resource.health": 80,
+    "test.resource.mana": 60
+  },
+  "attributePointPolicy": { "pointsAtCreate": 0 },
+  "skillPointPolicy": { "pointsAtCreate": 0 },
+  "startingEquipment": [
+    { "itemId": "item.training_sword", "quantity": 1 }
+  ],
+  "startingAbilities": ["test.ability.basic_melee", "test.ability.ranged_bolt"],
+  "allowedEquipmentTags": ["main_hand", "head", "chest", "legs", "feet"],
+  "tags": ["mage", "caster", "provisional"],
+  "descriptionKey": "class.mage.long_description",
+  "rosterSelectable": true,
+  "visualSetId": "visual.class_mage",
+  "canonicalLevelCurveId": "curve.vibecode.l10",
+  "baseStats": {
+    "stat.strength": 2,
+    "stat.agility": 4,
+    "stat.intelligence": 9,
+    "stat.spirit": 5,
+    "stat.vitality": 5,
+    "stat.precision": 3,
+    "stat.haste": 3,
+    "stat.endurance": 3
+  },
+  "automaticGrowth": {
+    "stat.strength": 0,
+    "stat.agility": 0,
+    "stat.intelligence": 3,
+    "stat.spirit": 1,
+    "stat.vitality": 1,
+    "stat.precision": 0,
+    "stat.haste": 1,
+    "stat.endurance": 0
+  },
+  "autoAssignTemplate": {
+    "amounts": { "stat.intelligence": 2, "stat.haste": 1 },
+    "classification": "compile-time-addition",
+    "compileTimeAddition": true
+  },
+  "resourceType": "test.resource.mana",
+  "autoAttackId": "ability.mage.auto_attack",
+  "basicAbilityId": "ability.mage.arcane_bolt",
+  "classTreeId": "tree.mage.class",
+  "branchIds": ["branch.mage.fire", "branch.mage.frost"]
+}

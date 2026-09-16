@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/progression_timeline.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "displayNameKey",
+    "levelCurveId",
+    "automaticGrowthPerLevel",
+    "freePointsPerLevel",
+    "classPoints",
+    "branchPoints",
+    "tierGates",
+    "unlocks"
+  ],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "progression_timeline" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "displayNameKey": { "type": "string", "minLength": 1 },
+    "descriptionKey": { "type": "string", "minLength": 1 },
+    "levelCurveId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "automaticGrowthPerLevel": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+    "freePointsPerLevel": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
+    "classPoints": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
+    "branchPoints": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
+    "tierGates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tier", "minPointsSpent"],
+        "properties": {
+          "tier": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+          "minLevel": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+          "minPointsSpent": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" }
+        }
+      }
+    },
+    "unlocks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["level", "grant"],
+        "properties": {
+          "level": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+          "grant": {
+            "type": "string",
+            "enum": ["auto_attack", "basic_ability", "class_point", "branch_unlock", "branch_point", "capstone"]
+          }
+        }
+      }
+    },
+    "classification": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentClassification" },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+  }
+}

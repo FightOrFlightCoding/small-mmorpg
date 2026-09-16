@@ -1,0 +1,14 @@
+{
+  "id": "loot.test_ranged",
+  "kind": "loot_table",
+  "displayName": "Test Ranged",
+  "ownershipPolicy": "ground_free",
+  "entries": [
+    {
+      "itemDefinitionId": "item.test_pebble",
+      "minimumQuantity": 1,
+      "maximumQuantity": 2,
+      "chance": 0.5
+    }
+  ]
+}

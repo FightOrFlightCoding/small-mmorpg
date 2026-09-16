@@ -1,0 +1,9 @@
+{
+  "id": "test.curve.standard",
+  "kind": "level_curve",
+  "maxLevel": 5,
+  "xpRequired": [50, 75, 100, 150],
+  "attributePointsPerLevel": [1, 1, 1, 1],
+  "skillPointsPerLevel": [1, 1, 1, 1],
+  "automaticUnlocks": []
+}

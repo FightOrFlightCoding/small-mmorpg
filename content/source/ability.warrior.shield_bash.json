@@ -1,0 +1,106 @@
+{
+  "id": "ability.warrior.shield_bash",
+  "kind": "ability",
+  "displayName": "Shield Bash",
+  "displayNameKey": "ability.warrior.shield_bash.display_name",
+  "descriptionKey": "ability.warrior.shield_bash.description",
+  "targetMode": "entity",
+  "relationFilter": "hostile",
+  "range": 40,
+  "minimumRange": 0,
+  "areaShape": "none",
+  "areaRadius": 0,
+  "castTime": 0,
+  "channelTime": 0,
+  "globalCooldown": 0,
+  "individualCooldown": 12,
+  "resourceCosts": [],
+  "movementInterruptsCast": false,
+  "damageInterruptsCast": false,
+  "requiredLevel": 5,
+  "requiredClassTags": [
+    "class.warrior"
+  ],
+  "prerequisites": [],
+  "effects": [
+    {
+      "id": "hit",
+      "type": "direct_damage",
+      "source": "caster",
+      "target": "primary",
+      "magnitude": {
+        "kind": "stat_id",
+        "statId": "stat.strength",
+        "value": 10,
+        "scale": 0.01
+      },
+      "duration": 0,
+      "tickInterval": 0,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "melee"
+      ],
+      "school": "melee"
+    },
+    {
+      "id": "interrupt",
+      "type": "interrupt",
+      "source": "caster",
+      "target": "primary",
+      "magnitude": {
+        "kind": "constant",
+        "value": 0
+      },
+      "duration": 0,
+      "tickInterval": 0,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "interrupt"
+      ],
+      "school": "melee"
+    },
+    {
+      "id": "stun",
+      "type": "stun",
+      "source": "caster",
+      "target": "primary",
+      "magnitude": {
+        "kind": "constant",
+        "value": 0
+      },
+      "duration": 1,
+      "tickInterval": 0,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "control"
+      ],
+      "school": "melee"
+    }
+  ],
+  "effectIds": [
+    "effect.warrior.shield_bash.hit",
+    "effect.warrior.shield_bash.interrupt",
+    "effect.warrior.shield_bash.stun"
+  ],
+  "animationAssetId": "visual.ability_melee",
+  "iconAssetId": "visual.ability_melee_icon",
+  "soundAssetId": "visual.ability_melee_sound",
+  "skillPointCost": 0,
+  "maxRank": 1,
+  "runtimeEnabled": false,
+  "abilityCategory": "tree_active",
+  "ownerClassId": "class.warrior",
+  "school": "melee",
+  "classification": "compile-time-addition",
+  "compileTimeAddition": true,
+  "ownerBranchId": "branch.warrior.bulwark"
+}

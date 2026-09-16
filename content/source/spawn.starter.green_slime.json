@@ -1,0 +1,12 @@
+{
+  "id": "spawn.starter.green_slime",
+  "kind": "spawn",
+  "zoneId": "zone.starter",
+  "enemyId": "enemy.green_slime",
+  "x": 960,
+  "y": 400,
+  "spawnCount": 1,
+  "respawnDelay": 10,
+  "activationPolicy": "always",
+  "groupId": "group.starter_wildlife"
+}

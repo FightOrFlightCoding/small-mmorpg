@@ -1,0 +1,7 @@
+{
+  "id": "slot.head",
+  "kind": "equipment_slot",
+  "tag": "head",
+  "displayName": "Head",
+  "allowedCategories": ["armor"]
+}

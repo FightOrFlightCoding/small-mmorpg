@@ -1,0 +1,764 @@
+import { createHash } from "node:crypto";
+import { createChallengeRecord } from "../src/challenges/state";
+import { MemoryChallengeStore } from "../src/challenges/state";
+import type { AuthChallengePurpose } from "../src/challenges/types";
+import type { GatewayRpcResult, NakamaAuthResult, NakamaBridge } from "../src/nakama/client";
+
+const DELETION_PHASES = [
+  "freeze",
+  "cancel_transient",
+  "remove_game_data",
+  "remove_account_indexes",
+  "revoke_sessions",
+  "delete_nakama",
+  "complete",
+] as const;
+
+interface FakeDeletionJob {
+  deletionJobId: string;
+  accountUserId: string;
+  idempotencyKey: string;
+  statusToken: string;
+  emailHeld: string;
+  completedPhases: string[];
+  completedAt: number;
+}
+
+function supportRecoveryId(userId: string): string {
+  const hex = createHash("sha256").update("vibe.support-recovery:" + userId, "utf8").digest("hex").slice(0, 12).toUpperCase();
+  return "VIBE-" + hex.slice(0, 4) + "-" + hex.slice(4, 8) + "-" + hex.slice(8, 12);
+}
+
+interface FakeUser {
+  password: string;
+  userId: string;
+  username: string;
+  token: string;
+  refreshToken: string;
+  disableTime: number;
+}
+
+interface FakeProfile {
+  hmac: string;
+  userId: string;
+  verifiedAt: number;
+  status: string;
+  createdAt: number;
+  acceptedTermsVersion: string;
+  acceptedPrivacyVersion: string;
+  acceptedAt: number;
+  registrationMode: string;
+}
+
+interface FakeSession {
+  userId: string;
+  token: string;
+  refreshToken: string;
+  revoked: boolean;
+}
+
+function jwt(userId: string, username: string, nowMs: number, jti: string): string {
+  const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64url");
+  const payload = Buffer.from(
+    JSON.stringify({ uid: userId, usn: username, iat: Math.floor(nowMs / 1000), jti: jti }),
+  ).toString("base64url");
+  return header + "." + payload + ".sig";
+}
+
+export class FakeNakama implements NakamaBridge {
+  healthy = true;
+  createCalls = 0;
+  readonly users = new Map<string, FakeUser>();
+  readonly profiles = new Map<string, FakeProfile>();
+  readonly challenges = new MemoryChallengeStore();
+  readonly sessions: FakeSession[] = [];
+  usernames = new Set<string>();
+  nowMs = () => Date.now();
+  failReplaceEmail = false;
+  readonly characterNames = new Map<string, string[]>();
+  readonly nameReservations = new Map<string, string>();
+  readonly leases = new Map<string, string>();
+  readonly trading = new Set<string>();
+  readonly transferring = new Set<string>();
+  readonly deletionJobs = new Map<string, FakeDeletionJob>();
+  readonly gold = new Map<string, number>();
+  readonly itemLocks = new Map<string, number>();
+  readonly staleIndexHits: { hmac: string; userId: string }[] = [];
+  interruptAfter: string | null = null;
+  private tokenSeq = 0;
+  private userSeq = 0;
+
+  async health(): Promise<boolean> {
+    return this.healthy;
+  }
+
+  async authenticateEmail(email: string, password: string, create: boolean, username?: string): Promise<NakamaAuthResult> {
+    const existing = this.users.get(email);
+    if (create) {
+      this.createCalls += 1;
+      if (existing !== undefined) {
+        return fail(409, "User account already exists.");
+      }
+      const chosen = username !== undefined && username.length > 0 ? username : "u" + String(this.users.size + 1);
+      if (this.usernames.has(chosen)) {
+        return fail(409, "Username is already in use.");
+      }
+      this.userSeq += 1;
+      const userId = "user-" + String(this.userSeq);
+      const token = this.nextToken(userId, chosen);
+      const refreshToken = "refresh-" + userId + "-" + String(this.sessions.length + 1);
+      this.usernames.add(chosen);
+      const user: FakeUser = {
+        password: password,
+        userId: userId,
+        username: chosen,
+        token: token,
+        refreshToken: refreshToken,
+        disableTime: 0,
+      };
+      this.users.set(email, user);
+      this.sessions.push({ userId: userId, token: token, refreshToken: refreshToken, revoked: false });
+      return ok(user);
+    }
+    if (existing === undefined) {
+      return fail(404, "User account not found.");
+    }
+    if (existing.password !== password) {
+      return fail(401, "Invalid credentials.");
+    }
+    if (existing.disableTime > 0) {
+      return fail(401, "User account is disabled.");
+    }
+    const token = this.nextToken(existing.userId, existing.username);
+    const refreshToken = "refresh-" + existing.userId + "-" + String(this.sessions.length + 1);
+    existing.token = token;
+    existing.refreshToken = refreshToken;
+    this.sessions.push({ userId: existing.userId, token: token, refreshToken: refreshToken, revoked: false });
+    return ok(existing);
+  }
+
+  async refreshSession(refreshToken: string): Promise<NakamaAuthResult> {
+    const session = this.sessions.find((entry) => entry.refreshToken === refreshToken);
+    if (session === undefined || session.revoked) {
+      return fail(401, "Refresh token is invalid or has expired.");
+    }
+    const user = this.userById(session.userId);
+    if (user === undefined) {
+      return fail(401, "Refresh token is invalid or has expired.");
+    }
+    session.revoked = true;
+    const token = this.nextToken(user.userId, user.username);
+    const nextRefresh = "refresh-" + user.userId + "-" + String(this.sessions.length + 1);
+    user.token = token;
+    user.refreshToken = nextRefresh;
+    this.sessions.push({ userId: user.userId, token: token, refreshToken: nextRefresh, revoked: false });
+    return ok(user);
+  }
+
+  async logout(accessToken: string, refreshToken: string): Promise<{ ok: boolean }> {
+    for (let i = 0; i < this.sessions.length; i++) {
+      if (this.sessions[i].token === accessToken || this.sessions[i].refreshToken === refreshToken) {
+        this.sessions[i].revoked = true;
+      }
+    }
+    return { ok: true };
+  }
+
+  async logoutAll(accessToken: string): Promise<{ ok: boolean }> {
+    const session = this.sessions.find((entry) => entry.token === accessToken);
+    if (session === undefined) {
+      return { ok: false };
+    }
+    for (let i = 0; i < this.sessions.length; i++) {
+      if (this.sessions[i].userId === session.userId) {
+        this.sessions[i].revoked = true;
+      }
+    }
+    return { ok: true };
+  }
+
+  async getAccount(token: string): Promise<{ ok: boolean; userId: string; email: string; username: string; disableTime: number }> {
+    const session = this.sessions.find((entry) => entry.token === token && !entry.revoked);
+    if (session === undefined) {
+      return { ok: false, userId: "", email: "", username: "", disableTime: 0 };
+    }
+    const user = this.userById(session.userId);
+    const email = this.emailByUserId(session.userId);
+    if (user === undefined) {
+      return { ok: false, userId: "", email: "", username: "", disableTime: 0 };
+    }
+    return { ok: true, userId: user.userId, email: email, username: user.username, disableTime: user.disableTime };
+  }
+
+  async rpc(op: string, fields: { [key: string]: unknown }, requestId: string, nowMs: number): Promise<GatewayRpcResult> {
+    if (op === "put_email_index") {
+      const userId = String(fields.user_id);
+      const hmac = String(fields.hmac);
+      const existing = this.profiles.get(userId);
+      if (existing !== undefined && existing.hmac !== hmac && fields.allow_hmac_change !== true) {
+        return { ok: false, status: 400, data: { ok: false }, message: "invalid_payload" };
+      }
+      const profile: FakeProfile = {
+        hmac: hmac,
+        userId: userId,
+        verifiedAt: existing !== undefined ? existing.verifiedAt : 0,
+        status: existing !== undefined ? existing.status : "PENDING_VERIFICATION",
+        createdAt: existing !== undefined ? existing.createdAt : typeof fields.created_at === "number" ? fields.created_at : nowMs,
+        acceptedTermsVersion:
+          existing !== undefined
+            ? existing.acceptedTermsVersion
+            : typeof fields.terms_version === "string"
+              ? fields.terms_version
+              : "",
+        acceptedPrivacyVersion:
+          existing !== undefined
+            ? existing.acceptedPrivacyVersion
+            : typeof fields.privacy_version === "string"
+              ? fields.privacy_version
+              : "",
+        acceptedAt: existing !== undefined ? existing.acceptedAt : typeof fields.accepted_at === "number" ? fields.accepted_at : nowMs,
+        registrationMode:
+          existing !== undefined
+            ? existing.registrationMode
+            : typeof fields.registration_mode === "string"
+              ? fields.registration_mode
+              : "",
+      };
+      this.profiles.set(userId, profile);
+      return { ok: true, status: 200, data: { ok: true, userId: userId, status: profile.status, createdAt: profile.createdAt }, message: "" };
+    }
+    if (op === "lookup_email") {
+      const hmac = String(fields.hmac);
+      const hits: FakeProfile[] = [];
+      this.profiles.forEach((profile) => {
+        if (profile.hmac === hmac) {
+          hits.push(profile);
+        }
+      });
+      for (let i = 0; i < this.staleIndexHits.length; i++) {
+        if (this.staleIndexHits[i].hmac === hmac) {
+          hits.push({
+            hmac: hmac,
+            userId: this.staleIndexHits[i].userId,
+            verifiedAt: 0,
+            status: "DELETED",
+            createdAt: 0,
+            acceptedTermsVersion: "",
+            acceptedPrivacyVersion: "",
+            acceptedAt: 0,
+            registrationMode: "",
+          });
+        }
+      }
+      const live: FakeProfile[] = [];
+      for (let i = 0; i < hits.length; i++) {
+        const reread = this.profiles.get(hits[i].userId);
+        if (reread !== undefined && reread.hmac === hmac) {
+          live.push(reread);
+        }
+      }
+      if (live.length === 1) {
+        const reread = live[0];
+        return {
+          ok: true,
+          status: 200,
+          data: {
+            ok: true,
+            decision: { ok: true, userId: reread.userId },
+            profile: { userId: reread.userId, status: reread.status, verifiedAt: reread.verifiedAt, createdAt: reread.createdAt },
+          },
+          message: "",
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        data: {
+          ok: false,
+          decision: { ok: false, reason: hits.length === 0 ? "missing" : live.length > 1 ? "multiple" : "stale" },
+          profile: null,
+        },
+        message: "",
+      };
+    }
+    if (op === "get_profile") {
+      const profile = this.profiles.get(String(fields.user_id));
+      if (profile === undefined) {
+        return { ok: true, status: 200, data: { ok: false, reason: "missing" }, message: "" };
+      }
+      const user = this.userById(profile.userId);
+      return {
+        ok: true,
+        status: 200,
+        data: {
+          ok: true,
+          userId: profile.userId,
+          status: profile.status,
+          verifiedAt: profile.verifiedAt,
+          createdAt: profile.createdAt,
+          disableTime: user !== undefined ? user.disableTime : 0,
+          registrationMode: profile.registrationMode,
+          supportRecoveryId: supportRecoveryId(profile.userId),
+        },
+        message: "",
+      };
+    }
+    if (op === "mark_verified") {
+      const userId = String(fields.user_id);
+      const existing = this.profiles.get(userId);
+      if (existing === undefined) {
+        return { ok: false, status: 400, data: { ok: false }, message: "profile_missing" };
+      }
+      const verifiedAt = existing.verifiedAt > 0 ? existing.verifiedAt : nowMs;
+      this.profiles.set(userId, { ...existing, verifiedAt: verifiedAt, status: "ACTIVE" });
+      const email = this.emailByUserId(userId);
+      return { ok: true, status: 200, data: { ok: true, verifiedAt: verifiedAt, status: "ACTIVE", email: email }, message: "" };
+    }
+    if (op === "purge_unverified") {
+      const userId = String(fields.user_id !== undefined ? fields.user_id : "");
+      const hmac = String(fields.hmac !== undefined ? fields.hmac : "");
+      let target = userId;
+      if (target.length === 0 && hmac.length > 0) {
+        this.profiles.forEach((profile) => {
+          if (profile.hmac === hmac) {
+            target = profile.userId;
+          }
+        });
+      }
+      const profile = this.profiles.get(target);
+      if (profile === undefined) {
+        return { ok: true, status: 200, data: { ok: true, purged: false, reason: "missing", idempotent: true }, message: "" };
+      }
+      const retention = typeof fields.retention_ms === "number" && fields.retention_ms > 0 ? fields.retention_ms : 7 * 24 * 60 * 60 * 1000;
+      if (profile.status !== "PENDING_VERIFICATION" || profile.verifiedAt > 0 || nowMs - profile.createdAt < retention) {
+        return { ok: true, status: 200, data: { ok: true, purged: false, reason: "retention", idempotent: true }, message: "" };
+      }
+      this.deleteUser(target);
+      return { ok: true, status: 200, data: { ok: true, purged: true, userId: target, idempotent: false }, message: "" };
+    }
+    if (op === "challenge_put") {
+      const record = createChallengeRecord({
+        challengeId: String(fields.challenge_id),
+        accountUserId: String(fields.account_user_id !== undefined ? fields.account_user_id : ""),
+        emailLookupHash: String(fields.hmac),
+        purpose: fields.purpose as AuthChallengePurpose,
+        secretHash: String(fields.secret_hash),
+        requestId: requestId,
+        nowMs: nowMs,
+        ttlMs: typeof fields.ttl_ms === "number" && fields.ttl_ms > 0 ? fields.ttl_ms : undefined,
+      });
+      this.challenges.put(record);
+      return { ok: true, status: 200, data: { ok: true, challenge_id: record.challenge_id, expires_at: record.expires_at }, message: "" };
+    }
+    if (op === "challenge_get") {
+      const record = this.challenges.get(String(fields.challenge_id));
+      if (record === null) {
+        return { ok: true, status: 200, data: { ok: false, record: null }, message: "" };
+      }
+      return {
+        ok: true,
+        status: 200,
+        data: {
+          ok: true,
+          record: {
+            challenge_id: record.challenge_id,
+            account_user_id: record.account_user_id,
+            email_lookup_hash: record.email_lookup_hash,
+            purpose: record.purpose,
+            created_at: record.created_at,
+            expires_at: record.expires_at,
+            attempt_count: record.attempt_count,
+            maximum_attempts: record.maximum_attempts,
+            consumed_at: record.consumed_at,
+            invalidated_at: record.invalidated_at,
+            request_id: record.request_id,
+            schema_version: record.schema_version,
+          },
+        },
+        message: "",
+      };
+    }
+    if (op === "challenge_find") {
+      const hmac = String(fields.hmac);
+      const purpose = String(fields.purpose);
+      const matches = Array.from(this.challenges.records.values()).filter(
+        (record) => record.email_lookup_hash === hmac && record.purpose === purpose && record.invalidated_at === 0,
+      );
+      const open = matches.filter((record) => record.consumed_at === 0 && record.expires_at > nowMs && record.attempt_count < record.maximum_attempts);
+      const chosen = open.length > 0 ? open[0] : matches.length > 0 ? matches[0] : null;
+      if (chosen === null) {
+        return { ok: true, status: 200, data: { ok: false, challenge_id: "", expires_at: 0 }, message: "" };
+      }
+      return { ok: true, status: 200, data: { ok: true, challenge_id: chosen.challenge_id, expires_at: chosen.expires_at }, message: "" };
+    }
+    if (op === "challenge_consume") {
+      const existing = this.challenges.get(String(fields.challenge_id));
+      if (typeof fields.hmac === "string" && fields.hmac.length > 0 && existing !== null && existing.email_lookup_hash !== fields.hmac) {
+        return { ok: true, status: 200, data: { ok: false, reason: "wrong_code" }, message: "" };
+      }
+      const result = this.challenges.consume(
+        String(fields.challenge_id),
+        String(fields.secret_hash),
+        fields.purpose as AuthChallengePurpose,
+        nowMs,
+      );
+      if (!result.ok) {
+        return { ok: true, status: 200, data: { ok: false, reason: result.reason }, message: "" };
+      }
+      return {
+        ok: true,
+        status: 200,
+        data: {
+          ok: true,
+          idempotent: result.idempotent,
+          account_user_id: result.record.account_user_id,
+          challenge_id: result.record.challenge_id,
+        },
+        message: "",
+      };
+    }
+    if (op === "replace_password") {
+      const userId = String(fields.user_id);
+      const password = String(fields.password);
+      let email = "";
+      const entries = Array.from(this.users.entries());
+      for (let i = 0; i < entries.length; i++) {
+        if (entries[i][1].userId === userId) {
+          email = entries[i][0];
+          this.users.set(entries[i][0], { ...entries[i][1], password: password });
+        }
+      }
+      return { ok: true, status: 200, data: { ok: true, userId: userId, email: email }, message: "" };
+    }
+    if (op === "replace_email") {
+      const userId = String(fields.user_id);
+      const password = String(fields.password);
+      const newEmail = String(fields.new_email);
+      if (this.failReplaceEmail) {
+        this.failReplaceEmail = false;
+        return { ok: false, status: 500, data: { ok: false, reason: "rollback" }, message: "email_replace_failed" };
+      }
+      const taken = this.users.get(newEmail);
+      if (taken !== undefined && taken.userId !== userId) {
+        return { ok: false, status: 409, data: { ok: false, reason: "email_taken" }, message: "email_taken" };
+      }
+      const entries = Array.from(this.users.entries());
+      let oldEmail = "";
+      for (let i = 0; i < entries.length; i++) {
+        if (entries[i][1].userId === userId) {
+          oldEmail = entries[i][0];
+          this.users.delete(entries[i][0]);
+          this.users.set(newEmail, { ...entries[i][1], password: password });
+        }
+      }
+      const profile = this.profiles.get(userId);
+      if (profile !== undefined && typeof fields.hmac === "string" && fields.hmac.length > 0) {
+        this.profiles.set(userId, { ...profile, hmac: String(fields.hmac) });
+      }
+      return { ok: true, status: 200, data: { ok: true, userId: userId, email: newEmail, old_email: oldEmail }, message: "" };
+    }
+    if (op === "support_snapshot") {
+      let userId = typeof fields.user_id === "string" ? String(fields.user_id) : "";
+      const characterName = typeof fields.character_name === "string" ? String(fields.character_name).trim().toLowerCase() : "";
+      if (userId.length === 0 && characterName.length > 0) {
+        const reserved = this.nameReservations.get(characterName);
+        userId = reserved !== undefined ? reserved : "";
+      }
+      if (userId.length === 0) {
+        return { ok: true, status: 200, data: { ok: false, reason: "missing" }, message: "" };
+      }
+      const profile = this.profiles.get(userId);
+      const user = this.userById(userId);
+      const names = this.characterNames.get(userId);
+      return {
+        ok: true,
+        status: 200,
+        data: {
+          ok: true,
+          user_id: userId,
+          status: profile !== undefined ? profile.status : "",
+          verified: profile !== undefined && profile.verifiedAt > 0,
+          disableTime: user !== undefined ? user.disableTime : 0,
+          character_names: names !== undefined ? names.slice() : [],
+        },
+        message: "",
+      };
+    }
+    if (op === "delete_account") {
+      const userId = String(fields.user_id);
+      const email = this.emailByUserId(userId);
+      this.deleteUser(userId);
+      return { ok: true, status: 200, data: { ok: true, recorded: true, email: email }, message: "" };
+    }
+    if (op === "export_account") {
+      const userId = String(fields.user_id);
+      const profile = this.profiles.get(userId);
+      const names = this.characterNames.get(userId);
+      return {
+        ok: true,
+        status: 200,
+        data: {
+          ok: true,
+          userId: userId,
+          supportRecoveryId: supportRecoveryId(userId),
+          export: {
+            schemaVersion: 1,
+            supportRecoveryId: supportRecoveryId(userId),
+            accountProfile:
+              profile === undefined
+                ? null
+                : {
+                    status: profile.status,
+                    createdAt: profile.createdAt,
+                    verifiedAt: profile.verifiedAt,
+                    acceptedTermsVersion: profile.acceptedTermsVersion,
+                    acceptedPrivacyVersion: profile.acceptedPrivacyVersion,
+                    acceptedAt: profile.acceptedAt,
+                    registrationMode: profile.registrationMode,
+                  },
+            characters: names !== undefined ? names.map((name) => ({ name: name })) : [],
+            gold: this.gold.has(userId) ? this.gold.get(userId) : 0,
+            nakama: { account: { user: { id: userId } } },
+          },
+        },
+        message: "",
+      };
+    }
+    if (op === "delete_request") {
+      return this.deleteFence(String(fields.user_id), String(fields.idempotency_key));
+    }
+    if (op === "delete_confirm") {
+      const userId = String(fields.user_id);
+      const fence = this.deleteFence(userId, String(fields.idempotency_key));
+      if (!fence.data.ok) {
+        return fence;
+      }
+      const existing = this.deletionJobs.get(userId);
+      const job: FakeDeletionJob =
+        existing !== undefined
+          ? existing
+          : {
+              deletionJobId: typeof fields.deletion_job_id === "string" ? String(fields.deletion_job_id) : "job-" + userId,
+              accountUserId: userId,
+              idempotencyKey: String(fields.idempotency_key),
+              statusToken: typeof fields.status_token === "string" ? String(fields.status_token) : "status-" + userId,
+              emailHeld: this.emailByUserId(userId),
+              completedPhases: [],
+              completedAt: 0,
+            };
+      this.runDeletion(job);
+      this.deletionJobs.set(userId, job);
+      return {
+        ok: true,
+        status: 200,
+        data: {
+          ok: true,
+          found: true,
+          completed: job.completedAt > 0,
+          deletionJobId: job.deletionJobId,
+          statusToken: job.statusToken,
+          phase: job.completedAt > 0 ? "complete" : DELETION_PHASES[job.completedPhases.length],
+          completedPhases: job.completedPhases.slice(),
+        },
+        message: "",
+      };
+    }
+    if (op === "delete_status") {
+      const userId = String(fields.user_id);
+      const job = this.deletionJobs.get(userId);
+      if (job === undefined) {
+        return { ok: true, status: 200, data: { ok: true, found: false, completed: false, phase: "", deletionJobId: "" }, message: "" };
+      }
+      if (typeof fields.status_token === "string" && fields.status_token.length > 0 && job.statusToken !== fields.status_token) {
+        return { ok: false, status: 403, data: { ok: false, code: "forbidden" }, message: "forbidden" };
+      }
+      return {
+        ok: true,
+        status: 200,
+        data: {
+          ok: true,
+          found: true,
+          completed: job.completedAt > 0,
+          deletionJobId: job.deletionJobId,
+          phase: job.completedAt > 0 ? "complete" : DELETION_PHASES[Math.min(job.completedPhases.length, DELETION_PHASES.length - 1)],
+          completedPhases: job.completedPhases.slice(),
+        },
+        message: "",
+      };
+    }
+    if (op === "delete_resume") {
+      const userId = String(fields.user_id);
+      const job = this.deletionJobs.get(userId);
+      if (job === undefined) {
+        return { ok: true, status: 200, data: { ok: true, found: false, completed: false, phase: "", deletionJobId: "" }, message: "" };
+      }
+      this.runDeletion(job);
+      this.deletionJobs.set(userId, job);
+      return {
+        ok: true,
+        status: 200,
+        data: {
+          ok: true,
+          found: true,
+          completed: job.completedAt > 0,
+          deletionJobId: job.deletionJobId,
+          phase: job.completedAt > 0 ? "complete" : DELETION_PHASES[job.completedPhases.length],
+          completedPhases: job.completedPhases.slice(),
+        },
+        message: "",
+      };
+    }
+    return { ok: true, status: 200, data: { ok: true, op: op }, message: "" };
+  }
+
+  disable(email: string): void {
+    const user = this.users.get(email);
+    if (user !== undefined) {
+      user.disableTime = this.nowMs();
+    }
+  }
+
+  private deleteFence(userId: string, idempotencyKey: string): GatewayRpcResult {
+    const existing = this.deletionJobs.get(userId);
+    if (existing !== undefined) {
+      if (existing.idempotencyKey === idempotencyKey) {
+        return { ok: true, status: 200, data: { ok: true, resume: true }, message: "" };
+      }
+      return { ok: true, status: 200, data: { ok: false, code: "delete_already_active" }, message: "" };
+    }
+    const profile = this.profiles.get(userId);
+    const status = profile !== undefined ? profile.status : "ACTIVE";
+    if (status !== "ACTIVE") {
+      return { ok: true, status: 200, data: { ok: false, code: status === "DISABLED" ? "account_disabled" : "account_deleting" }, message: "" };
+    }
+    const lease = this.leases.get(userId);
+    if (lease === "ONLINE" || lease === "ENTERING" || lease === "LEAVING" || lease === "LINK_DEAD" || lease === "DESPAWNING") {
+      return { ok: true, status: 200, data: { ok: false, code: "account_busy" }, message: "" };
+    }
+    if (this.trading.has(userId)) {
+      return { ok: true, status: 200, data: { ok: false, code: "account_trading" }, message: "" };
+    }
+    if (this.transferring.has(userId)) {
+      return { ok: true, status: 200, data: { ok: false, code: "account_transferring" }, message: "" };
+    }
+    return { ok: true, status: 200, data: { ok: true, resume: false }, message: "" };
+  }
+
+  private runDeletion(job: FakeDeletionJob): void {
+    const userId = job.accountUserId;
+    for (let i = 0; i < DELETION_PHASES.length; i++) {
+      const phase = DELETION_PHASES[i];
+      if (job.completedPhases.indexOf(phase) !== -1) {
+        continue;
+      }
+      if (phase === "freeze") {
+        const profile = this.profiles.get(userId);
+        if (profile !== undefined) {
+          this.profiles.set(userId, { ...profile, status: "DELETING" });
+        }
+      } else if (phase === "cancel_transient") {
+        this.trading.delete(userId);
+        this.transferring.delete(userId);
+        this.leases.delete(userId);
+        this.itemLocks.set(userId, 0);
+      } else if (phase === "remove_game_data") {
+        this.characterNames.delete(userId);
+        this.gold.set(userId, 0);
+        const reservations = Array.from(this.nameReservations.entries());
+        for (let r = 0; r < reservations.length; r++) {
+          if (reservations[r][1] === userId) {
+            this.nameReservations.delete(reservations[r][0]);
+          }
+        }
+      } else if (phase === "remove_account_indexes") {
+        this.profiles.delete(userId);
+      } else if (phase === "revoke_sessions") {
+        for (let s = 0; s < this.sessions.length; s++) {
+          if (this.sessions[s].userId === userId) {
+            this.sessions[s].revoked = true;
+          }
+        }
+      } else if (phase === "delete_nakama") {
+        this.deleteUser(userId);
+      } else {
+        job.emailHeld = "";
+        job.completedAt = this.nowMs();
+      }
+      job.completedPhases.push(phase);
+      if (this.interruptAfter === phase) {
+        this.interruptAfter = null;
+        return;
+      }
+    }
+  }
+
+  private nextToken(userId: string, username: string): string {
+    this.tokenSeq += 1;
+    return jwt(userId, username, this.nowMs(), String(this.tokenSeq));
+  }
+
+  private userById(userId: string): FakeUser | undefined {
+    const entries = Array.from(this.users.values());
+    for (let i = 0; i < entries.length; i++) {
+      if (entries[i].userId === userId) {
+        return entries[i];
+      }
+    }
+    return undefined;
+  }
+
+  private emailByUserId(userId: string): string {
+    const entries = Array.from(this.users.entries());
+    for (let i = 0; i < entries.length; i++) {
+      if (entries[i][1].userId === userId) {
+        return entries[i][0];
+      }
+    }
+    return "";
+  }
+
+  private deleteUser(userId: string): void {
+    const email = this.emailByUserId(userId);
+    if (email.length > 0) {
+      const user = this.users.get(email);
+      if (user !== undefined) {
+        this.usernames.delete(user.username);
+      }
+      this.users.delete(email);
+    }
+    this.profiles.delete(userId);
+    this.characterNames.delete(userId);
+    this.gold.delete(userId);
+    this.itemLocks.delete(userId);
+    this.leases.delete(userId);
+    this.trading.delete(userId);
+    this.transferring.delete(userId);
+    const reservations = Array.from(this.nameReservations.entries());
+    for (let i = 0; i < reservations.length; i++) {
+      if (reservations[i][1] === userId) {
+        this.nameReservations.delete(reservations[i][0]);
+      }
+    }
+    for (let i = 0; i < this.sessions.length; i++) {
+      if (this.sessions[i].userId === userId) {
+        this.sessions[i].revoked = true;
+      }
+    }
+  }
+}
+
+function fail(status: number, message: string): NakamaAuthResult {
+  return { ok: false, status: status, userId: "", username: "", token: "", refreshToken: "", message: message };
+}
+
+function ok(user: FakeUser): NakamaAuthResult {
+  return {
+    ok: true,
+    status: 200,
+    userId: user.userId,
+    username: user.username,
+    token: user.token,
+    refreshToken: user.refreshToken,
+    message: "",
+  };
+}

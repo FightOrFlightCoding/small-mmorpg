@@ -1,0 +1,16 @@
+{
+  "id": "tree.mage.class",
+  "kind": "talent_tree",
+  "displayName": "tree.mage.class",
+  "displayNameKey": "tree.mage.class.display_name",
+  "descriptionKey": "tree.mage.class.description",
+  "treeKind": "class",
+  "ownerId": "class.mage",
+  "pointsAvailable": 2,
+  "nodeIds": [
+    "talent.mage.arcane_bolt_r2",
+    "talent.mage.volatility",
+    "talent.mage.ward"
+  ],
+  "classification": "canonical"
+}

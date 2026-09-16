@@ -1,12 +1,25 @@
+import {
+  CHARACTER_SAVE_KEYS,
+  SAVE_SCHEMA_VERSION,
+  attachEnvelope,
+  cloneExtras,
+  envelopeFromRecord,
+  optionalExtras,
+} from "./save_schema";
+import {
+  CHARACTER_NAME_MAX,
+  CHARACTER_NAME_MIN,
+  canonicalCharacterName,
+  validateCharacterName as validateNamePolicy,
+} from "./character_name";
+
 export const CHARACTER_COLLECTION = "player";
 export const CHARACTER_KEY = "character";
 export const CHARACTER_PERMISSION_READ: 1 = 1;
 export const CHARACTER_PERMISSION_WRITE: 0 = 0;
 
+export { CHARACTER_NAME_MAX, CHARACTER_NAME_MIN };
 export const DEFAULT_CHARACTER_NAME = "Adventurer";
-export const CHARACTER_NAME_MIN = 3;
-export const CHARACTER_NAME_MAX = 16;
-const CHARACTER_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_]{2,15}$/;
 
 const ALLOWED_REQUEST_KEYS = ["name"];
 const STAT_INJECTION_KEYS = [
@@ -24,10 +37,20 @@ const STAT_INJECTION_KEYS = [
   "pickupRange",
   "position",
   "stats",
+  "schemaVersion",
+  "createdAt",
+  "updatedAt",
   "storageVersion",
   "x",
   "y",
   "zoneId",
+  "xp",
+  "currentXp",
+  "lifetimeXp",
+  "level",
+  "unspentAttributePoints",
+  "unspentSkillPoints",
+  "allocatedAttributes",
 ];
 
 export interface PlayerStatsSource {
@@ -63,11 +86,26 @@ export interface CharacterBaseStats {
 
 export interface StoredCharacter {
   characterId: string;
+  accountUserId?: string;
   name: string;
+  canonicalName?: string;
+  classId?: string;
   contentId: string;
   zoneId: string;
   position: CharacterPosition;
   storageVersion: string;
+  schemaVersion: number;
+  createdAt: number;
+  updatedAt: number;
+  lastPlayedAt?: number;
+  deletedAt?: number;
+  softDeleteExpiresAt?: number;
+  status?: string;
+  bindX?: number;
+  bindY?: number;
+  bindZoneId?: string;
+  innByRequestId?: { [requestId: string]: string };
+  extras?: { [key: string]: unknown };
 }
 
 export interface CharacterBootstrapRequest {
@@ -93,6 +131,7 @@ export interface CharacterStore {
 export interface CharacterBootstrapDeps {
   store: CharacterStore;
   newId: () => string;
+  nowMs: () => number;
   player: PlayerStatsSource;
   zone: ZoneSpawnSource;
 }
@@ -143,14 +182,11 @@ export function parseCharacterBootstrapRequest(payload: string): CharacterBootst
 }
 
 export function validateCharacterName(name: string): string {
-  const trimmed = name.trim();
-  if (trimmed.length < CHARACTER_NAME_MIN || trimmed.length > CHARACTER_NAME_MAX) {
-    throw new Error("invalid_name");
+  const result = validateNamePolicy(name);
+  if (!result.ok) {
+    throw new Error(result.reason);
   }
-  if (!CHARACTER_NAME_PATTERN.test(trimmed)) {
-    throw new Error("invalid_name");
-  }
-  return trimmed;
+  return result.name;
 }
 
 export function resolveCreateName(request: CharacterBootstrapRequest, username: string | undefined): string {
@@ -185,14 +221,28 @@ export function createStoredCharacter(
   player: PlayerStatsSource,
   zone: ZoneSpawnSource,
   storageVersion: string,
+  nowMs: number = 0,
+  accountUserId: string = "",
+  classId: string = "",
 ): StoredCharacter {
+  const displayName = validateCharacterName(name);
   return {
     characterId: characterId,
-    name: name,
+    accountUserId: accountUserId,
+    name: displayName,
+    canonicalName: canonicalCharacterName(displayName),
+    classId: classId,
     contentId: player.id,
     zoneId: zone.id,
     position: { x: zone.playerSpawn.x, y: zone.playerSpawn.y },
     storageVersion: storageVersion,
+    schemaVersion: SAVE_SCHEMA_VERSION,
+    createdAt: nowMs,
+    updatedAt: nowMs,
+    lastPlayedAt: nowMs,
+    deletedAt: 0,
+    softDeleteExpiresAt: 0,
+    status: "ACTIVE",
   };
 }
 
@@ -227,7 +277,16 @@ export function handleCharacterBootstrap(
   }
 
   const name = resolveCreateName(request, username);
-  const record = createStoredCharacter(deps.newId(), name, deps.player, deps.zone, "");
+  const record = createStoredCharacter(
+    deps.newId(),
+    name,
+    deps.player,
+    deps.zone,
+    "",
+    deps.nowMs(),
+    authenticatedUserId,
+    "",
+  );
   deps.store.write(authenticatedUserId, record);
   const stored = deps.store.read(authenticatedUserId);
   if (stored === null) {
@@ -257,22 +316,145 @@ export function storedCharacterFromValue(
   if (typeof position.x !== "number" || typeof position.y !== "number") {
     return null;
   }
-  return {
+  const record: StoredCharacter = {
     characterId: value.characterId,
     name: value.name,
     contentId: value.contentId,
     zoneId: value.zoneId,
     position: { x: position.x, y: position.y },
     storageVersion: storageVersion,
+    schemaVersion: typeof value.schemaVersion === "number" ? value.schemaVersion : SAVE_SCHEMA_VERSION,
+    createdAt: typeof value.createdAt === "number" ? value.createdAt : 0,
+    updatedAt: typeof value.updatedAt === "number" ? value.updatedAt : 0,
+    extras: optionalExtras(value, CHARACTER_SAVE_KEYS),
   };
+  if (typeof value.accountUserId === "string") {
+    record.accountUserId = value.accountUserId;
+  }
+  if (typeof value.canonicalName === "string" && value.canonicalName.length > 0) {
+    record.canonicalName = value.canonicalName;
+  } else {
+    record.canonicalName = canonicalCharacterName(value.name);
+  }
+  if (typeof value.classId === "string") {
+    record.classId = value.classId;
+  }
+  if (typeof value.lastPlayedAt === "number") {
+    record.lastPlayedAt = value.lastPlayedAt;
+  } else {
+    record.lastPlayedAt = record.updatedAt;
+  }
+  if (typeof value.deletedAt === "number") {
+    record.deletedAt = value.deletedAt;
+  } else {
+    record.deletedAt = 0;
+  }
+  if (typeof value.softDeleteExpiresAt === "number") {
+    record.softDeleteExpiresAt = value.softDeleteExpiresAt;
+  } else {
+    record.softDeleteExpiresAt = 0;
+  }
+  if (typeof value.status === "string" && value.status.length > 0) {
+    record.status = value.status;
+  } else if (record.deletedAt > 0) {
+    record.status = "SOFT_DELETED";
+  } else {
+    record.status = "ACTIVE";
+  }
+  if (typeof value.bindX === "number" && isFinite(value.bindX)) {
+    record.bindX = value.bindX;
+  }
+  if (typeof value.bindY === "number" && isFinite(value.bindY)) {
+    record.bindY = value.bindY;
+  }
+  if (typeof value.bindZoneId === "string" && value.bindZoneId.length > 0) {
+    record.bindZoneId = value.bindZoneId;
+  }
+  if (value.innByRequestId !== null && typeof value.innByRequestId === "object" && !Array.isArray(value.innByRequestId)) {
+    const inn: { [requestId: string]: string } = {};
+    const innSource = value.innByRequestId as { [key: string]: unknown };
+    const innKeys = Object.keys(innSource);
+    for (let i = 0; i < innKeys.length; i++) {
+      if (typeof innSource[innKeys[i]] === "string") {
+        inn[innKeys[i]] = innSource[innKeys[i]] as string;
+      }
+    }
+    record.innByRequestId = inn;
+  }
+  return record;
 }
 
 export function storedCharacterWriteValue(record: StoredCharacter): { [key: string]: unknown } {
+  return attachEnvelope(
+    {
+      characterId: record.characterId,
+      accountUserId: record.accountUserId !== undefined ? record.accountUserId : "",
+      name: record.name,
+      canonicalName: record.canonicalName !== undefined ? record.canonicalName : canonicalCharacterName(record.name),
+      classId: record.classId !== undefined ? record.classId : "",
+      contentId: record.contentId,
+      zoneId: record.zoneId,
+      position: { x: record.position.x, y: record.position.y },
+      lastPlayedAt: record.lastPlayedAt !== undefined ? record.lastPlayedAt : record.updatedAt,
+      deletedAt: record.deletedAt !== undefined ? record.deletedAt : 0,
+      softDeleteExpiresAt: record.softDeleteExpiresAt !== undefined ? record.softDeleteExpiresAt : 0,
+      status: record.status !== undefined && record.status.length > 0 ? record.status : "ACTIVE",
+      bindX: record.bindX !== undefined ? record.bindX : null,
+      bindY: record.bindY !== undefined ? record.bindY : null,
+      bindZoneId: record.bindZoneId !== undefined ? record.bindZoneId : "",
+      innByRequestId: record.innByRequestId !== undefined ? record.innByRequestId : {},
+    },
+    envelopeFromRecord(record),
+    record.extras,
+  );
+}
+
+export function cloneStoredCharacter(record: StoredCharacter): StoredCharacter {
   return {
     characterId: record.characterId,
+    accountUserId: record.accountUserId,
     name: record.name,
+    canonicalName: record.canonicalName,
+    classId: record.classId,
     contentId: record.contentId,
     zoneId: record.zoneId,
     position: { x: record.position.x, y: record.position.y },
+    storageVersion: record.storageVersion,
+    schemaVersion: record.schemaVersion,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+    lastPlayedAt: record.lastPlayedAt,
+    deletedAt: record.deletedAt,
+    softDeleteExpiresAt: record.softDeleteExpiresAt,
+    status: record.status,
+    bindX: record.bindX,
+    bindY: record.bindY,
+    bindZoneId: record.bindZoneId,
+    innByRequestId: record.innByRequestId,
+    extras: cloneExtras(record.extras),
   };
+}
+
+export function checkpointCharacterPosition(
+  record: StoredCharacter,
+  x: number,
+  y: number,
+  nowMs: number = record.updatedAt,
+  bind?: { bindX: number; bindY: number; bindZoneId: string; innByRequestId?: { [requestId: string]: string } },
+): StoredCharacter {
+  const next = cloneStoredCharacter(record);
+  const envelope = envelopeFromRecord(record);
+  next.position = { x: x, y: y };
+  next.schemaVersion = envelope.schemaVersion;
+  next.createdAt = envelope.createdAt;
+  next.updatedAt = nowMs;
+  if (bind !== undefined) {
+    next.bindX = bind.bindX;
+    next.bindY = bind.bindY;
+    next.bindZoneId = bind.bindZoneId;
+    if (bind.innByRequestId !== undefined) {
+      next.innByRequestId = bind.innByRequestId;
+    }
+  }
+  return next;
 }

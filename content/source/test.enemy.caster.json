@@ -1,0 +1,22 @@
+{
+  "id": "test.enemy.caster",
+  "kind": "enemy",
+  "displayName": "Test Caster",
+  "displayNameKey": "enemy.test_caster.name",
+  "visualId": "visual.enemy_test_caster",
+  "level": 2,
+  "maxHealth": 16,
+  "damage": 7,
+  "moveSpeed": 36,
+  "aggroRadius": 200,
+  "attackRange": 160,
+  "attackCooldown": 2,
+  "leashRadius": 320,
+  "respawnDelay": 8,
+  "abilityLoadout": ["test.ability.enemy_cast"],
+  "aiProfileId": "test.ai.caster",
+  "xpReward": 12,
+  "lootTableId": "loot.empty",
+  "collisionProfileId": "collision.enemy_default",
+  "tags": ["test", "caster"]
+}

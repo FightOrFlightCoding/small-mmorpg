@@ -1,0 +1,16 @@
+{
+  "id": "npc.lab_exit",
+  "kind": "npc",
+  "displayName": "Lab Exit",
+  "displayNameKey": "npc.lab_exit.name",
+  "visualId": "visual.npc_lab_exit",
+  "zoneId": "test.zone.systems_lab",
+  "position": { "x": 80, "y": 256 },
+  "interactionRange": 48,
+  "dialogueId": "dialogue.npc.lab_exit",
+  "services": [
+    { "type": "dialogue" },
+    { "type": "cave_exit" }
+  ],
+  "developmentOnly": true
+}

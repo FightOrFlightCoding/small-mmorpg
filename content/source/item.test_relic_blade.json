@@ -1,0 +1,22 @@
+{
+  "id": "item.test_relic_blade",
+  "kind": "item",
+  "displayName": "Test Relic Blade",
+  "displayNameKey": "item.test_relic_blade.name",
+  "descriptionKey": "item.test_relic_blade.desc",
+  "visualId": "visual.item_relic_blade",
+  "iconAssetId": "visual.item_relic_blade",
+  "worldAssetId": "visual.item_relic_blade",
+  "category": "weapon",
+  "maxStack": 1,
+  "tradeable": true,
+  "destroyable": true,
+  "uniquePolicy": "character",
+  "equipSlot": "main_hand",
+  "equipmentSlotTags": ["main_hand"],
+  "classRequirements": [],
+  "levelRequirement": 5,
+  "attackBonus": 6,
+  "statModifiers": [{ "statId": "test.stat.attack", "amount": 6 }],
+  "sellValue": 20
+}

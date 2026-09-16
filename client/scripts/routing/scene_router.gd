@@ -6,12 +6,40 @@ signal scene_changed(scene_id: String)
 
 const SCENE_BOOT: String = "boot"
 const SCENE_LOGIN: String = "login"
+const SCENE_REGISTER: String = "register"
+const SCENE_VERIFY: String = "verify"
+const SCENE_SERVER_UNAVAILABLE: String = "server_unavailable"
+const SCENE_ACCOUNT_DISABLED: String = "account_disabled"
+const SCENE_FORGOT_PASSWORD: String = "forgot_password"
+const SCENE_PASSWORD_RESET_CODE: String = "password_reset_code"
+const SCENE_PASSWORD_RESET_NEW: String = "password_reset_new"
+const SCENE_PASSWORD_CHANGED: String = "password_changed"
+const SCENE_CHANGE_PASSWORD: String = "change_password"
+const SCENE_CHANGE_EMAIL: String = "change_email"
+const SCENE_EMAIL_CHANGE_VERIFY: String = "email_change_verify"
+const SCENE_FORGOT_EMAIL: String = "forgot_email"
+const SCENE_ACCOUNT_DELETE: String = "account_delete"
+const SCENE_ACCOUNT_DELETED: String = "account_deleted"
 const SCENE_CHARACTER: String = "character"
 const SCENE_WORLD: String = "world"
 
 const SCENE_PATHS: Dictionary = {
 	SCENE_BOOT: "res://scenes/boot/boot.tscn",
 	SCENE_LOGIN: "res://scenes/login/login.tscn",
+	SCENE_REGISTER: "res://scenes/login/register.tscn",
+	SCENE_VERIFY: "res://scenes/login/verify.tscn",
+	SCENE_SERVER_UNAVAILABLE: "res://scenes/login/server_unavailable.tscn",
+	SCENE_ACCOUNT_DISABLED: "res://scenes/login/account_disabled.tscn",
+	SCENE_FORGOT_PASSWORD: "res://scenes/login/forgot_password.tscn",
+	SCENE_PASSWORD_RESET_CODE: "res://scenes/login/password_reset_code.tscn",
+	SCENE_PASSWORD_RESET_NEW: "res://scenes/login/password_reset_new.tscn",
+	SCENE_PASSWORD_CHANGED: "res://scenes/login/password_changed.tscn",
+	SCENE_CHANGE_PASSWORD: "res://scenes/login/change_password.tscn",
+	SCENE_CHANGE_EMAIL: "res://scenes/login/change_email.tscn",
+	SCENE_EMAIL_CHANGE_VERIFY: "res://scenes/login/email_change_verify.tscn",
+	SCENE_FORGOT_EMAIL: "res://scenes/login/forgot_email.tscn",
+	SCENE_ACCOUNT_DELETE: "res://scenes/login/account_delete.tscn",
+	SCENE_ACCOUNT_DELETED: "res://scenes/login/account_deleted.tscn",
 	SCENE_CHARACTER: "res://scenes/character/character.tscn",
 	SCENE_WORLD: "res://scenes/world/world.tscn",
 }
@@ -19,6 +47,7 @@ const SCENE_PATHS: Dictionary = {
 ## Tests set this false so GdUnit does not tear down the runner tree.
 var apply_scene_changes: bool = true
 var current_scene_id: String = SCENE_BOOT
+var _history: PackedStringArray = PackedStringArray()
 
 
 func scene_path(scene_id: String) -> String:
@@ -41,15 +70,32 @@ func can_transition_to(scene_id: String) -> bool:
 			and AppState.has_character
 			and AppState.has_zone_state
 		)
-	if scene_id == SCENE_LOGIN:
+	if scene_id == SCENE_CHANGE_PASSWORD or scene_id == SCENE_CHANGE_EMAIL or scene_id == SCENE_ACCOUNT_DELETE:
+		return AppState.content_ready and not AppState.has_fatal_error and AppState.is_authenticated
+	if (
+		scene_id == SCENE_LOGIN
+		or scene_id == SCENE_REGISTER
+		or scene_id == SCENE_VERIFY
+		or scene_id == SCENE_SERVER_UNAVAILABLE
+		or scene_id == SCENE_ACCOUNT_DISABLED
+		or scene_id == SCENE_FORGOT_PASSWORD
+		or scene_id == SCENE_PASSWORD_RESET_CODE
+		or scene_id == SCENE_PASSWORD_RESET_NEW
+		or scene_id == SCENE_PASSWORD_CHANGED
+		or scene_id == SCENE_EMAIL_CHANGE_VERIFY
+		or scene_id == SCENE_FORGOT_EMAIL
+		or scene_id == SCENE_ACCOUNT_DELETED
+	):
 		return AppState.content_ready and not AppState.has_fatal_error
 	return true
 
 
-func transition_to(scene_id: String) -> bool:
+func transition_to(scene_id: String, record_history: bool = true) -> bool:
 	if not can_transition_to(scene_id):
 		return false
 	var path := scene_path(scene_id)
+	if record_history:
+		_record_history(scene_id)
 	AppState.notify_loading_started("scene")
 	current_scene_id = scene_id
 	AppState.notify_scene_changed(scene_id)
@@ -62,6 +108,52 @@ func transition_to(scene_id: String) -> bool:
 	return true
 
 
+func go_back() -> bool:
+	if current_scene_id == SCENE_BOOT or current_scene_id == SCENE_LOGIN:
+		return false
+	if current_scene_id == SCENE_WORLD or current_scene_id == SCENE_CHARACTER:
+		return false
+	if current_scene_id == SCENE_VERIFY:
+		return transition_to(SCENE_LOGIN, false)
+	if current_scene_id == SCENE_EMAIL_CHANGE_VERIFY:
+		if AppState.is_authenticated:
+			return transition_to(SCENE_CHANGE_EMAIL, false)
+		return transition_to(SCENE_LOGIN, false)
+	if current_scene_id == SCENE_ACCOUNT_DELETE:
+		if AppState.is_authenticated:
+			return transition_to(SCENE_CHARACTER, false)
+		return transition_to(SCENE_LOGIN, false)
+	if current_scene_id == SCENE_PASSWORD_RESET_NEW:
+		return transition_to(SCENE_PASSWORD_RESET_CODE, false)
+	if _history.is_empty():
+		return transition_to(SCENE_LOGIN, false)
+	var previous := _history[_history.size() - 1]
+	_history.resize(_history.size() - 1)
+	if previous == SCENE_WORLD or previous == SCENE_VERIFY or previous == SCENE_CHARACTER:
+		if previous == SCENE_CHARACTER and AppState.is_authenticated and (
+			current_scene_id == SCENE_CHANGE_PASSWORD
+			or current_scene_id == SCENE_CHANGE_EMAIL
+			or current_scene_id == SCENE_ACCOUNT_DELETE
+		):
+			return transition_to(SCENE_CHARACTER, false)
+		if previous == SCENE_CHARACTER and AppState.is_authenticated:
+			return transition_to(SCENE_CHARACTER, false)
+		return transition_to(SCENE_LOGIN, false)
+	if not can_transition_to(previous):
+		return transition_to(SCENE_LOGIN, false)
+	return transition_to(previous, false)
+
+
+func _record_history(scene_id: String) -> void:
+	if scene_id == SCENE_LOGIN or scene_id == SCENE_BOOT or scene_id == SCENE_ACCOUNT_DELETED:
+		_history.clear()
+		return
+	if current_scene_id.is_empty() or current_scene_id == scene_id:
+		return
+	_history.append(current_scene_id)
+
+
 func reset_for_tests() -> void:
 	apply_scene_changes = false
 	current_scene_id = SCENE_BOOT
+	_history.clear()

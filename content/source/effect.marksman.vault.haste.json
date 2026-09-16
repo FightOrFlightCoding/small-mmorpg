@@ -1,0 +1,31 @@
+{
+  "id": "effect.marksman.vault.haste",
+  "kind": "effect_definition",
+  "displayName": "haste",
+  "displayNameKey": "effect.marksman.vault.haste.display_name",
+  "descriptionKey": "effect.marksman.vault.haste.description",
+  "ownerAbilityId": "ability.marksman.vault",
+  "effect": {
+    "id": "haste",
+    "type": "timed_stat_modifier",
+    "source": "caster",
+    "target": "self",
+    "magnitude": {
+      "kind": "constant",
+      "value": 0.3
+    },
+    "duration": 2,
+    "tickInterval": 0,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "buff"
+    ],
+    "school": "none",
+    "statChannel": "move_speed"
+  },
+  "classification": "canonical",
+  "compileTimeAddition": false
+}

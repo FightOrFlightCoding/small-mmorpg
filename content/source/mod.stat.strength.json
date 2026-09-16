@@ -1,0 +1,10 @@
+{
+  "id": "mod.stat.strength",
+  "kind": "equipment_modifier_category",
+  "displayName": "Strength",
+  "displayNameKey": "mod.stat.strength.display_name",
+  "descriptionKey": "mod.stat.strength.description",
+  "statId": "stat.strength",
+  "channel": "stat.strength",
+  "classification": "canonical"
+}

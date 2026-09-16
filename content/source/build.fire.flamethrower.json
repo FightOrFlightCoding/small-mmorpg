@@ -1,0 +1,18 @@
+{
+  "id": "build.fire.flamethrower",
+  "kind": "reference_build",
+  "displayName": "Flamethrower",
+  "displayNameKey": "build.fire.flamethrower.display_name",
+  "descriptionKey": "build.fire.flamethrower.description",
+  "branchId": "branch.mage.fire",
+  "statPriority": [
+    "stat.intelligence",
+    "stat.haste",
+    "stat.spirit"
+  ],
+  "identityKey": "build.fire.flamethrower.identity",
+  "pairedNodeIds": [
+    "talent.mage.fire.kindled_mind"
+  ],
+  "classification": "canonical"
+}

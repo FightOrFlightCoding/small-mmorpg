@@ -1,0 +1,13 @@
+{
+  "id": "test.class.arcanist",
+  "kind": "class",
+  "displayName": "Test Arcanist",
+  "visualAssetSetId": "visual.class_arcanist",
+  "progressionId": "test.progression.arcanist",
+  "startingEquipment": [
+    { "itemId": "item.training_sword", "quantity": 1 }
+  ],
+  "startingAbilities": ["test.ability.basic_melee", "test.ability.ranged_bolt"],
+  "allowedEquipmentTags": ["main_hand", "head", "chest", "legs", "feet"],
+  "tags": ["arcanist", "caster"]
+}

@@ -1,0 +1,17 @@
+{
+  "id": "branch.marksman.skirmisher",
+  "kind": "branch_definition",
+  "classId": "class.marksman",
+  "displayName": "Skirmisher",
+  "displayNameKey": "branch.marksman.skirmisher.display_name",
+  "descriptionKey": "branch.marksman.skirmisher.description",
+  "roleKey": "branch.marksman.skirmisher.role",
+  "signatureAbilityId": "ability.marksman.barrage",
+  "capstoneAbilityId": "ability.marksman.arrowstorm",
+  "branchTreeId": "tree.marksman.skirmisher",
+  "recommendedBuildIds": [
+    "build.skirmisher.windrunner",
+    "build.skirmisher.duelist"
+  ],
+  "classification": "canonical"
+}

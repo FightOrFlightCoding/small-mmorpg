@@ -1,0 +1,12 @@
+{
+  "id": "spawn.starter.test_melee",
+  "kind": "spawn",
+  "zoneId": "zone.starter",
+  "enemyId": "test.enemy.melee",
+  "x": 80,
+  "y": 80,
+  "spawnCount": 1,
+  "respawnDelay": 8,
+  "activationPolicy": "manual",
+  "groupId": "group.test_ai"
+}

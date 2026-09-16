@@ -1,0 +1,13 @@
+{
+  "id": "test.class.vanguard",
+  "kind": "class",
+  "displayName": "Test Vanguard",
+  "visualAssetSetId": "visual.class_vanguard",
+  "progressionId": "test.progression.vanguard",
+  "startingEquipment": [
+    { "itemId": "item.training_sword", "quantity": 1 }
+  ],
+  "startingAbilities": ["test.ability.basic_melee"],
+  "allowedEquipmentTags": ["main_hand", "off_hand", "head", "chest", "legs", "feet"],
+  "tags": ["vanguard", "melee"]
+}

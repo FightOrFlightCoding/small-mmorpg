@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/level_curve.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "maxLevel",
+    "xpRequired",
+    "attributePointsPerLevel",
+    "skillPointsPerLevel"
+  ],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "level_curve" },
+    "maxLevel": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+    "xpRequired": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" }
+    },
+    "attributePointsPerLevel": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" }
+    },
+    "skillPointsPerLevel": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" }
+    },
+    "automaticUnlocks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["level", "abilityIds"],
+        "properties": {
+          "level": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+          "abilityIds": {
+            "type": "array",
+            "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+          }
+        }
+      }
+    },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+  }
+}

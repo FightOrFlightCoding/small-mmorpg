@@ -50,11 +50,21 @@
         "properties": {
           "enemyId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
           "x": { "type": "number" },
-          "y": { "type": "number" }
+          "y": { "type": "number" },
+          "spawnId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+          "spawnCount": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+          "respawnDelay": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+          "activationPolicy": {
+            "type": "string",
+            "enum": ["always", "manual"]
+          },
+          "groupId": { "type": "string", "minLength": 1 }
         }
       }
     },
     "walkableBounds": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/aabb" },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" },
     "collisions": {
       "type": "array",
       "minItems": 1,

@@ -1,0 +1,10 @@
+{
+  "id": "mod.stat.intelligence",
+  "kind": "equipment_modifier_category",
+  "displayName": "Intelligence",
+  "displayNameKey": "mod.stat.intelligence.display_name",
+  "descriptionKey": "mod.stat.intelligence.description",
+  "statId": "stat.intelligence",
+  "channel": "stat.intelligence",
+  "classification": "canonical"
+}

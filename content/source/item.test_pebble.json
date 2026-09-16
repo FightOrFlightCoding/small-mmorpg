@@ -1,0 +1,20 @@
+{
+  "id": "item.test_pebble",
+  "kind": "item",
+  "displayName": "Test Pebble",
+  "displayNameKey": "item.test_pebble.name",
+  "descriptionKey": "item.test_pebble.desc",
+  "visualId": "visual.item_pebble",
+  "iconAssetId": "visual.item_pebble",
+  "worldAssetId": "visual.item_pebble",
+  "category": "miscellaneous",
+  "maxStack": 50,
+  "tradeable": true,
+  "destroyable": true,
+  "uniquePolicy": "none",
+  "classRequirements": [],
+  "levelRequirement": 0,
+  "attackBonus": 0,
+  "statModifiers": [],
+  "sellValue": 0
+}

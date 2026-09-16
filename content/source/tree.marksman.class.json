@@ -1,0 +1,16 @@
+{
+  "id": "tree.marksman.class",
+  "kind": "talent_tree",
+  "displayName": "tree.marksman.class",
+  "displayNameKey": "tree.marksman.class.display_name",
+  "descriptionKey": "tree.marksman.class.description",
+  "treeKind": "class",
+  "ownerId": "class.marksman",
+  "pointsAvailable": 2,
+  "nodeIds": [
+    "talent.marksman.aimed_shot_r2",
+    "talent.marksman.deadly_aim",
+    "talent.marksman.light_step"
+  ],
+  "classification": "canonical"
+}

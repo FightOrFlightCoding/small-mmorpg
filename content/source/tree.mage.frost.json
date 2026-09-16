@@ -1,0 +1,38 @@
+{
+  "id": "tree.mage.frost",
+  "kind": "talent_tree",
+  "displayName": "tree.mage.frost",
+  "displayNameKey": "tree.mage.frost.display_name",
+  "descriptionKey": "tree.mage.frost.description",
+  "treeKind": "branch",
+  "ownerId": "branch.mage.frost",
+  "pointsAvailable": 6,
+  "nodeIds": [
+    "talent.mage.frost.ice_bolt_r2",
+    "talent.mage.frost.numbing_cold",
+    "talent.mage.frost.deep_chill",
+    "talent.mage.frost.ice_bolt_r3",
+    "talent.mage.frost.flash_freeze",
+    "talent.mage.frost.rimeguard",
+    "talent.mage.frost.winter_harvest",
+    "talent.mage.frost.flash_freeze_r2"
+  ],
+  "classification": "canonical",
+  "maxActiveGrants": 1,
+  "tierGates": [
+    {
+      "tier": 1,
+      "minLevel": 5,
+      "minPointsSpent": 0
+    },
+    {
+      "tier": 2,
+      "minPointsSpent": 2
+    },
+    {
+      "tier": 3,
+      "minLevel": 9,
+      "minPointsSpent": 4
+    }
+  ]
+}

@@ -21,6 +21,27 @@ config/icon="res://icon.svg"
 AppState="*res://scripts/app/app_state.gd"
 ContentRegistry="*res://scripts/content/content_registry.gd"
 NetworkService="*res://scripts/network/network_service.gd"
+AccountService="*res://scripts/account/account_service.gd"
+QuestService="*res://scripts/quest/quest_service.gd"
+InventoryService="*res://scripts/inventory/inventory_service.gd"
+EquipmentService="*res://scripts/equipment/equipment_service.gd"
+WalletService="*res://scripts/wallet/wallet_service.gd"
+ProgressionService="*res://scripts/progression/progression_service.gd"
+AbilityService="*res://scripts/ability/ability_service.gd"
+VendorService="*res://scripts/vendor/vendor_service.gd"
+InnService="*res://scripts/inn/inn_service.gd"
+CaveService="*res://scripts/cave/cave_service.gd"
+PartyService="*res://scripts/party/party_service.gd"
+TradeService="*res://scripts/trade/trade_service.gd"
+GmService="*res://scripts/gm/gm_service.gd"
+WindowManager="*res://scripts/ui/window_manager.gd"
+TooltipService="*res://scripts/ui/tooltip_service.gd"
+DragDropService="*res://scripts/ui/drag_drop_service.gd"
+NotificationService="*res://scripts/ui/notification_service.gd"
+InputSettingsService="*res://scripts/ui/input_settings_service.gd"
+UiStateService="*res://scripts/ui/ui_state_service.gd"
+AudioSettingsService="*res://scripts/ui/audio_settings_service.gd"
+HudController="*res://scripts/ui/hud_controller.gd"
 GameService="*res://scripts/game/game_service.gd"
 SceneRouter="*res://scripts/routing/scene_router.gd"
 Nakama="*res://addons/com.heroiclabs.nakama/Nakama.gd"
@@ -65,9 +86,28 @@ move_down={
 , Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":4194322,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
 ]
 }
+interact={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":69,"key_label":0,"unicode":101,"location":0,"echo":false,"script":null)
+]
+}
+attack={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":32,"key_label":0,"unicode":32,"location":0,"echo":false,"script":null)
+]
+}
+pickup={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":70,"key_label":0,"unicode":102,"location":0,"echo":false,"script":null)
+]
+}
+
+[internationalization]
+
+locale/translations_pot_files=PackedStringArray("res://content/dialogue/npc.elder.dialogue", "res://content/dialogue/npc.test_cave_portal.dialogue", "res://content/dialogue/npc.test_herald.dialogue", "res://content/dialogue/npc.test_innkeeper.dialogue", "res://content/dialogue/npc.test_vendor.dialogue", "res://content/dialogue/npc.test_cave_exit.dialogue", "res://content/dialogue/npc.lab_exit.dialogue", "res://content/dialogue/npc.lab_inn.dialogue", "res://content/dialogue/npc.lab_keeper.dialogue", "res://content/dialogue/npc.lab_trainer.dialogue", "res://content/dialogue/npc.lab_vendor.dialogue", "res://content/dialogue/npc.proof_giver.dialogue", "res://content/dialogue/npc.cert_quartermaster.dialogue")
 
 [rendering]
 
+textures/canvas_textures/default_texture_filter=0
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
-textures/canvas_textures/default_texture_filter=0

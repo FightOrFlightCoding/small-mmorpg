@@ -1,0 +1,28 @@
+{
+  "id": "talent.marksman.skirmisher.twist_the_knife",
+  "kind": "talent_node",
+  "displayName": "Twist the Knife",
+  "displayNameKey": "talent.marksman.skirmisher.twist_the_knife.display_name",
+  "descriptionKey": "talent.marksman.skirmisher.twist_the_knife.description",
+  "treeId": "tree.marksman.skirmisher",
+  "tier": 2,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "conditionalModifiers": [
+    {
+      "conditions": [
+        {
+          "type": "target_has_tag",
+          "tag": "bleed"
+        }
+      ],
+      "modifiers": [
+        {
+          "type": "crit_damage_flat",
+          "value": 0.15
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "quest.proof_errand",
+  "kind": "quest",
+  "displayName": "Proof Errand",
+  "category": "side",
+  "acceptNpcId": "npc.proof_giver",
+  "turnInNpcId": "npc.proof_giver",
+  "objectives": [
+    {
+      "type": "acquire_item",
+      "itemId": "item.proof_token",
+      "quantity": 1
+    }
+  ],
+  "consume": [
+    {
+      "itemId": "item.proof_token",
+      "quantity": 1
+    }
+  ],
+  "rewards": {
+    "gold": 8,
+    "xp": 5,
+    "items": []
+  },
+  "completeOnce": true
+}

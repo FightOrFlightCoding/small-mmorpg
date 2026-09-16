@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/talent_node.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "displayName",
+    "displayNameKey",
+    "descriptionKey",
+    "treeId",
+    "tier",
+    "maxRank",
+    "pointCostPerRank"
+  ],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "talent_node" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "displayNameKey": { "type": "string", "minLength": 1 },
+    "descriptionKey": { "type": "string", "minLength": 1 },
+    "treeId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "tier": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+    "maxRank": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+    "pointCostPerRank": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+    "prerequisites": {
+      "type": "array",
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/talentPrerequisite" }
+    },
+    "rankReplacement": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nodeId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+        "abilityId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+      }
+    },
+    "unlockEffects": {
+      "type": "array",
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/abilityEffect" }
+    },
+    "abilityModifications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["abilityId", "modifiers"],
+        "properties": {
+          "abilityId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+          "rank": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+          "modifiers": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/talentModifier" }
+          }
+        }
+      }
+    },
+    "passiveModifiers": {
+      "type": "array",
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/talentModifier" }
+    },
+    "conditionalModifiers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["conditions", "modifiers"],
+        "properties": {
+          "conditions": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/effectCondition" }
+          },
+          "modifiers": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/talentModifier" }
+          }
+        }
+      }
+    },
+    "grantsActiveAbilityId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "classification": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentClassification" },
+    "compileTimeAddition": { "type": "boolean" },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+  }
+}

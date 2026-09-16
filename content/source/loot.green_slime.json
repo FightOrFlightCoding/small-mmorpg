@@ -1,0 +1,15 @@
+{
+  "id": "loot.green_slime",
+  "kind": "loot_table",
+  "displayName": "Green Slime",
+  "ownershipPolicy": "ground_free",
+  "entries": [
+    {
+      "itemDefinitionId": "item.slime_gel",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "chance": 1,
+      "guaranteed": true
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "id": "talent.mystic.charms.blessing_r2",
+  "kind": "talent_node",
+  "displayName": "Blessing R2",
+  "displayNameKey": "talent.mystic.charms.blessing_r2.display_name",
+  "descriptionKey": "talent.mystic.charms.blessing_r2.description",
+  "treeId": "tree.mystic.charms",
+  "tier": 3,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "prerequisites": [
+    {
+      "nodeId": "talent.mystic.charms.blessing",
+      "minRank": 1
+    }
+  ],
+  "rankReplacement": {
+    "nodeId": "talent.mystic.charms.blessing",
+    "abilityId": "ability.mystic.blessing"
+  },
+  "abilityModifications": [
+    {
+      "abilityId": "ability.mystic.blessing",
+      "modifiers": [
+        {
+          "type": "damage_reduction_percent",
+          "value": 0.08
+        }
+      ]
+    }
+  ]
+}

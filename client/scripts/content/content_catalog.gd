@@ -13,6 +13,29 @@ const REQUIRED_KEYS := [
 	"enemies",
 	"quests",
 	"zones",
+	"classes",
+	"attributes",
+	"resources",
+	"derivedStats",
+	"levelCurves",
+	"classProgressions",
+	"equipmentSlots",
+	"abilities",
+	"stats",
+	"branches",
+	"progressionTimelines",
+	"autoAttacks",
+	"effectDefinitions",
+	"talentTrees",
+	"talentNodes",
+	"referenceBuilds",
+	"enemyScalingProfiles",
+	"xpRewards",
+	"equipmentModifierCategories",
+	"aiProfiles",
+	"lootTables",
+	"spawns",
+	"vendors",
 ]
 const REQUIRED_IDS := [
 	"player.base",
@@ -27,6 +50,7 @@ const REQUIRED_IDS := [
 
 var schema_version: int = 0
 var content_hash: String = ""
+var package_version: String = ""
 var error_code: String = ""
 var error_message: String = ""
 var _by_id: Dictionary = {}
@@ -64,6 +88,8 @@ func parse_text(text: String) -> bool:
 	content_hash = hash_value
 	if not _is_hex64(content_hash):
 		return _fail("content_incompatible", "The content bundle contentHash is not a 64-character hex digest.")
+	if typeof(data.get("packageVersion", null)) == TYPE_STRING:
+		package_version = String(data["packageVersion"])
 
 	if not _index_player(data["player"]):
 		return false
@@ -77,12 +103,72 @@ func parse_text(text: String) -> bool:
 		return false
 	if not _index_catalog(data["zones"], "zone"):
 		return false
+	if not _index_catalog(data["classes"], "class"):
+		return false
+	if not _index_catalog(data["attributes"], "attribute"):
+		return false
+	if not _index_catalog(data["resources"], "resource"):
+		return false
+	if not _index_catalog(data["derivedStats"], "derived_stat"):
+		return false
+	if not _index_catalog(data["levelCurves"], "level_curve"):
+		return false
+	if not _index_catalog(data["classProgressions"], "class_progression"):
+		return false
+	if not _index_catalog(data["equipmentSlots"], "equipment_slot"):
+		return false
+	if not _index_catalog(data["abilities"], "ability"):
+		return false
+	if not _index_catalog(data["stats"], "stat_definition"):
+		return false
+	if not _index_catalog(data["branches"], "branch_definition"):
+		return false
+	if not _index_catalog(data["progressionTimelines"], "progression_timeline"):
+		return false
+	if not _index_catalog(data["autoAttacks"], "auto_attack_definition"):
+		return false
+	if not _index_catalog(data["effectDefinitions"], "effect_definition"):
+		return false
+	if not _index_catalog(data["talentTrees"], "talent_tree"):
+		return false
+	if not _index_catalog(data["talentNodes"], "talent_node"):
+		return false
+	if not _index_catalog(data["referenceBuilds"], "reference_build"):
+		return false
+	if not _index_catalog(data["enemyScalingProfiles"], "enemy_scaling_profile"):
+		return false
+	if not _index_catalog(data["xpRewards"], "xp_reward"):
+		return false
+	if not _index_catalog(data["equipmentModifierCategories"], "equipment_modifier_category"):
+		return false
+	if not _index_catalog(data["aiProfiles"], "ai_profile"):
+		return false
+	if not _index_catalog(data["lootTables"], "loot_table"):
+		return false
+	if not _index_catalog(data["spawns"], "spawn"):
+		return false
+	if not _index_catalog(data["vendors"], "vendor"):
+		return false
+	if ids_of_kind("class").size() == 0:
+		return _fail("content_incompatible", "The content bundle has no class definitions.")
 
 	for id in REQUIRED_IDS:
 		if not has_id(id):
 			return _fail("content_incompatible", "The content bundle is missing required id %s." % id)
 
 	return true
+
+
+func ids_of_kind(kind: String) -> PackedStringArray:
+	var result := PackedStringArray()
+	for id in _by_id.keys():
+		var record: Variant = _by_id[id]
+		if typeof(record) != TYPE_DICTIONARY:
+			continue
+		if String((record as Dictionary).get("kind", "")) == kind:
+			result.append(String(id))
+	result.sort()
+	return result
 
 
 func has_id(id: String) -> bool:
@@ -137,6 +223,7 @@ func _fail(code: String, message: String) -> bool:
 func _reset() -> void:
 	schema_version = 0
 	content_hash = ""
+	package_version = ""
 	error_code = ""
 	error_message = ""
 	_by_id.clear()

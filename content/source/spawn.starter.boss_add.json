@@ -1,0 +1,12 @@
+{
+  "id": "spawn.starter.boss_add",
+  "kind": "spawn",
+  "zoneId": "zone.starter",
+  "enemyId": "test.enemy.melee",
+  "x": 1080,
+  "y": 640,
+  "spawnCount": 1,
+  "respawnDelay": 0,
+  "activationPolicy": "manual",
+  "groupId": "group.test_boss"
+}

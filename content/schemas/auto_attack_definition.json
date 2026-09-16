@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/auto_attack_definition.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "displayName",
+    "displayNameKey",
+    "descriptionKey",
+    "ownerClassId",
+    "baseDamage",
+    "interval",
+    "scalingStatId",
+    "school",
+    "range",
+    "effects",
+    "animationAssetId",
+    "iconAssetId",
+    "soundAssetId"
+  ],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "auto_attack_definition" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "displayNameKey": { "type": "string", "minLength": 1 },
+    "descriptionKey": { "type": "string", "minLength": 1 },
+    "ownerClassId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "baseDamage": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "interval": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+    "scalingStatId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "school": {
+      "type": "string",
+      "enum": ["melee", "ranged", "spell", "heal", "none"]
+    },
+    "range": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "targetMode": {
+      "type": "string",
+      "enum": ["self", "entity", "ground_point"]
+    },
+    "relationFilter": {
+      "type": "string",
+      "enum": ["self", "friendly", "hostile", "any"]
+    },
+    "runtimeEnabled": { "type": "boolean" },
+    "effects": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/abilityEffect" }
+    },
+    "effectIds": {
+      "type": "array",
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+    },
+    "animationAssetId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "iconAssetId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "soundAssetId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "classification": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentClassification" },
+    "compileTimeAddition": { "type": "boolean" },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+  }
+}

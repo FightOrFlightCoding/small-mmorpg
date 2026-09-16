@@ -3,6 +3,8 @@ name: vibecode
 # Local-only Compose stack. Postgres password `localdb` is not a production secret.
 # Nakama Console still uses Heroic Labs built-in local defaults (admin / password).
 # Do not put production credentials in this file.
+# Account mail uses SendGrid. Copy infra/.env.local.example to infra/.env.local
+# and set SENDGRID_API_KEY plus a verified EMAIL_FROM before `scripts/backend-up.ps1`.
 
 services:
   postgres:
@@ -54,6 +56,58 @@ services:
       - "7351:7351"
     healthcheck:
       test: ["CMD", "/nakama/nakama", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  auth-gateway:
+    build:
+      context: ../auth-gateway
+      dockerfile: Dockerfile
+    image: vibecode-auth-gateway:1.0.0
+    container_name: vibecode-auth-gateway
+    env_file:
+      - .env.local
+    environment:
+      AUTH_GATEWAY_ENV: local
+      AUTH_GATEWAY_LISTEN_HOST: 0.0.0.0
+      AUTH_GATEWAY_LISTEN_PORT: "8787"
+      AUTH_GATEWAY_PUBLIC_BASE_URL: http://127.0.0.1:8787
+      EMAIL_PROVIDER: sendgrid
+      NAKAMA_HTTP_URL: http://nakama:7350
+      NAKAMA_SERVER_KEY: defaultkey
+      NAKAMA_HTTP_KEY: defaulthttpkey
+      VIBECODE_EMAIL_HMAC_PEPPER: local-email-hmac-pepper-not-production
+      VIBECODE_GATEWAY_HMAC_SECRET: local-gateway-hmac-secret-not-production
+      VIBECODE_CHALLENGE_HMAC_SECRET: local-challenge-hmac-secret-not-production
+      AUTH_REGISTRATION_MODE: OPEN
+      AUTH_TERMS_VERSION: "1"
+      AUTH_PRIVACY_VERSION: "1"
+      AUTH_MIN_CLIENT_VERSION: "1.0.0"
+      AUTH_MAX_CLIENT_VERSION: "1.0.0"
+      AUTH_VERIFICATION_TTL_MS: "1800000"
+      AUTH_UNVERIFIED_RETENTION_MS: "604800000"
+      AUTH_LOGOUT_ALL_RECENT_MS: "300000"
+      AUTH_PASSWORD_RESET_TTL_MS: "900000"
+      AUTH_EMAIL_CHANGE_TTL_MS: "900000"
+      AUTH_SENSITIVE_RECENT_MS: "900000"
+      AUTH_RESET_UNIFORM_MS: "150"
+      AUTH_SUPPORT_LOOKUP_SECRET: "local-support-lookup-secret"
+    depends_on:
+      nakama:
+        condition: service_healthy
+    ports:
+      - "8787:8787"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8787/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 10s
       timeout: 5s
       retries: 10

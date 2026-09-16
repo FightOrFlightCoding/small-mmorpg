@@ -1,0 +1,8 @@
+~ start
+Vendor: I buy and sell ordinary goods. Prices are mine, not yours.
+- Show me your stock.
+	do VendorService.open_from_dialogue()
+	=> END
+- Not now.
+	Vendor: Come back with coin.
+	=> END

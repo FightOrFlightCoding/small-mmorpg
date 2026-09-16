@@ -1,0 +1,15 @@
+{
+  "id": "test.ai.melee",
+  "kind": "ai_profile",
+  "displayName": "Melee",
+  "style": "melee",
+  "acquireMode": "nearest",
+  "damageThreatWeight": 1,
+  "healThreatWeight": 0,
+  "generateHealThreat": false,
+  "threatSwitchRatio": 1.1,
+  "preferredRange": 0,
+  "kiteRange": 0,
+  "resetHealthOnReturn": false,
+  "resetThreatOnReturn": true
+}

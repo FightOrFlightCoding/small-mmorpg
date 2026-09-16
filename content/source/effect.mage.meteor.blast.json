@@ -1,0 +1,36 @@
+{
+  "id": "effect.mage.meteor.blast",
+  "kind": "effect_definition",
+  "displayName": "blast",
+  "displayNameKey": "effect.mage.meteor.blast.display_name",
+  "descriptionKey": "effect.mage.meteor.blast.description",
+  "ownerAbilityId": "ability.mage.meteor",
+  "effect": {
+    "id": "blast",
+    "type": "direct_damage",
+    "source": "caster",
+    "target": "area",
+    "magnitude": {
+      "kind": "stat_id",
+      "statId": "stat.intelligence",
+      "value": 60,
+      "scale": 0.01
+    },
+    "duration": 0,
+    "tickInterval": 0,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "spell",
+      "fire",
+      "capstone"
+    ],
+    "school": "spell",
+    "delay": 1.5,
+    "guaranteedCrit": true
+  },
+  "classification": "canonical",
+  "compileTimeAddition": false
+}

@@ -1,0 +1,20 @@
+{
+  "id": "item.proof_token",
+  "kind": "item",
+  "displayName": "Proof Token",
+  "displayNameKey": "item.proof_token.name",
+  "descriptionKey": "item.proof_token.desc",
+  "visualId": "visual.item_proof_token",
+  "iconAssetId": "visual.item_proof_token",
+  "worldAssetId": "visual.item_proof_token",
+  "category": "quest",
+  "maxStack": 20,
+  "tradeable": false,
+  "destroyable": false,
+  "uniquePolicy": "none",
+  "classRequirements": [],
+  "levelRequirement": 0,
+  "attackBonus": 0,
+  "statModifiers": [],
+  "sellValue": 0
+}

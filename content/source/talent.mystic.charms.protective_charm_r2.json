@@ -1,0 +1,23 @@
+{
+  "id": "talent.mystic.charms.protective_charm_r2",
+  "kind": "talent_node",
+  "displayName": "Protective Charm R2",
+  "displayNameKey": "talent.mystic.charms.protective_charm_r2.display_name",
+  "descriptionKey": "talent.mystic.charms.protective_charm_r2.description",
+  "treeId": "tree.mystic.charms",
+  "tier": 1,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "abilityModifications": [
+    {
+      "abilityId": "ability.mystic.protective_charm",
+      "modifiers": [
+        {
+          "type": "ability_absorb_percent",
+          "value": 0.3
+        }
+      ]
+    }
+  ]
+}

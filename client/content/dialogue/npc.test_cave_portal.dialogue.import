@@ -1,0 +1,16 @@
+[remap]
+
+importer="dialogue_manager"
+importer_version=15
+type="Resource"
+uid="uid://cdxagp5pwvg2l"
+path="res://.godot/imported/npc.test_cave_portal.dialogue-abc5199f24830d94e736f49411970c9f.tres"
+
+[deps]
+
+source_file="res://content/dialogue/npc.test_cave_portal.dialogue"
+dest_files=["res://.godot/imported/npc.test_cave_portal.dialogue-abc5199f24830d94e736f49411970c9f.tres"]
+
+[params]
+
+defaults=true

@@ -1,0 +1,23 @@
+{
+  "id": "talent.mage.frost.ice_bolt_r2",
+  "kind": "talent_node",
+  "displayName": "Ice Bolt R2",
+  "displayNameKey": "talent.mage.frost.ice_bolt_r2.display_name",
+  "descriptionKey": "talent.mage.frost.ice_bolt_r2.description",
+  "treeId": "tree.mage.frost",
+  "tier": 1,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "abilityModifications": [
+    {
+      "abilityId": "ability.mage.ice_bolt",
+      "modifiers": [
+        {
+          "type": "ability_damage_percent",
+          "value": 0.25
+        }
+      ]
+    }
+  ]
+}

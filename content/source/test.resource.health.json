@@ -1,0 +1,6 @@
+{
+  "id": "test.resource.health",
+  "kind": "resource",
+  "displayName": "Health",
+  "role": "health"
+}

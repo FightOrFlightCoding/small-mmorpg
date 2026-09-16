@@ -1,0 +1,12 @@
+{
+  "id": "spawn.starter.test_caster",
+  "kind": "spawn",
+  "zoneId": "zone.starter",
+  "enemyId": "test.enemy.caster",
+  "x": 80,
+  "y": 680,
+  "spawnCount": 1,
+  "respawnDelay": 8,
+  "activationPolicy": "manual",
+  "groupId": "group.test_ai"
+}

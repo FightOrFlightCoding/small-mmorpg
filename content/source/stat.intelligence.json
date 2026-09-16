@@ -1,0 +1,20 @@
+{
+  "id": "stat.intelligence",
+  "kind": "stat_definition",
+  "displayName": "Intelligence",
+  "displayNameKey": "stat.intelligence.display_name",
+  "descriptionKey": "stat.intelligence.description",
+  "abbreviation": "INT",
+  "perPointEffects": [
+    {
+      "type": "spell_damage_percent",
+      "perPoint": 0.01
+    },
+    {
+      "type": "max_mana_flat",
+      "perPoint": 4,
+      "castersOnly": true
+    }
+  ],
+  "classification": "canonical"
+}

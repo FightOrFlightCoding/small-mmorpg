@@ -1,0 +1,12 @@
+{
+  "id": "spawn.cave.boss",
+  "kind": "spawn",
+  "zoneId": "zone.cave",
+  "enemyId": "test.enemy.cave_boss",
+  "x": 480,
+  "y": 256,
+  "spawnCount": 1,
+  "respawnDelay": 0,
+  "activationPolicy": "always",
+  "groupId": "group.cave_boss"
+}

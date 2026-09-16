@@ -1,0 +1,10 @@
+{
+  "id": "mod.stat.endurance",
+  "kind": "equipment_modifier_category",
+  "displayName": "Endurance",
+  "displayNameKey": "mod.stat.endurance.display_name",
+  "descriptionKey": "mod.stat.endurance.description",
+  "statId": "stat.endurance",
+  "channel": "stat.endurance",
+  "classification": "canonical"
+}

@@ -1,0 +1,13 @@
+{
+  "id": "talent.mage.fire.flame_wave",
+  "kind": "talent_node",
+  "displayName": "Flame Wave",
+  "displayNameKey": "talent.mage.fire.flame_wave.display_name",
+  "descriptionKey": "talent.mage.fire.flame_wave.description",
+  "treeId": "tree.mage.fire",
+  "tier": 2,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "grantsActiveAbilityId": "ability.mage.flame_wave"
+}

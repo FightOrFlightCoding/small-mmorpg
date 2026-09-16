@@ -1,0 +1,7 @@
+{
+  "id": "slot.off_hand",
+  "kind": "equipment_slot",
+  "tag": "off_hand",
+  "displayName": "Off Hand",
+  "allowedCategories": ["weapon", "armor"]
+}

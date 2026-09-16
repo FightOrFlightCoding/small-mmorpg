@@ -1,0 +1,10 @@
+{
+  "id": "mod.stat.vitality",
+  "kind": "equipment_modifier_category",
+  "displayName": "Vitality",
+  "displayNameKey": "mod.stat.vitality.display_name",
+  "descriptionKey": "mod.stat.vitality.description",
+  "statId": "stat.vitality",
+  "channel": "stat.vitality",
+  "classification": "canonical"
+}

@@ -1,0 +1,64 @@
+{
+  "id": "ability.warrior.whirlwind",
+  "kind": "ability",
+  "displayName": "Whirlwind",
+  "displayNameKey": "ability.warrior.whirlwind.display_name",
+  "descriptionKey": "ability.warrior.whirlwind.description",
+  "targetMode": "self",
+  "relationFilter": "hostile",
+  "range": 40,
+  "minimumRange": 0,
+  "areaShape": "circle",
+  "areaRadius": 40,
+  "castTime": 0,
+  "channelTime": 0,
+  "globalCooldown": 0,
+  "individualCooldown": 10,
+  "resourceCosts": [],
+  "movementInterruptsCast": false,
+  "damageInterruptsCast": false,
+  "requiredLevel": 5,
+  "requiredClassTags": [
+    "class.warrior"
+  ],
+  "prerequisites": [],
+  "effects": [
+    {
+      "id": "hit",
+      "type": "direct_damage",
+      "source": "caster",
+      "target": "area",
+      "magnitude": {
+        "kind": "stat_id",
+        "statId": "stat.strength",
+        "value": 24,
+        "scale": 0.01
+      },
+      "duration": 0,
+      "tickInterval": 0,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "melee"
+      ],
+      "school": "melee"
+    }
+  ],
+  "effectIds": [
+    "effect.warrior.whirlwind.hit"
+  ],
+  "animationAssetId": "visual.ability_melee",
+  "iconAssetId": "visual.ability_melee_icon",
+  "soundAssetId": "visual.ability_melee_sound",
+  "skillPointCost": 0,
+  "maxRank": 1,
+  "runtimeEnabled": false,
+  "abilityCategory": "tree_active",
+  "ownerClassId": "class.warrior",
+  "school": "melee",
+  "classification": "compile-time-addition",
+  "compileTimeAddition": true,
+  "ownerBranchId": "branch.warrior.berserker"
+}

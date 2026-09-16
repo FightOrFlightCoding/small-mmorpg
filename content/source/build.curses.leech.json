@@ -1,0 +1,18 @@
+{
+  "id": "build.curses.leech",
+  "kind": "reference_build",
+  "displayName": "Leech",
+  "displayNameKey": "build.curses.leech.display_name",
+  "descriptionKey": "build.curses.leech.description",
+  "branchId": "branch.mystic.curses",
+  "statPriority": [
+    "stat.intelligence",
+    "stat.spirit"
+  ],
+  "identityKey": "build.curses.leech.identity",
+  "pairedNodeIds": [
+    "talent.mystic.curses.siphon",
+    "talent.mystic.curses.vampiric_curse"
+  ],
+  "classification": "canonical"
+}

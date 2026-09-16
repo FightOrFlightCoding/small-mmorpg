@@ -1,0 +1,30 @@
+{
+  "id": "effect.warrior.shield_bash.stun",
+  "kind": "effect_definition",
+  "displayName": "stun",
+  "displayNameKey": "effect.warrior.shield_bash.stun.display_name",
+  "descriptionKey": "effect.warrior.shield_bash.stun.description",
+  "ownerAbilityId": "ability.warrior.shield_bash",
+  "effect": {
+    "id": "stun",
+    "type": "stun",
+    "source": "caster",
+    "target": "primary",
+    "magnitude": {
+      "kind": "constant",
+      "value": 0
+    },
+    "duration": 1,
+    "tickInterval": 0,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "control"
+    ],
+    "school": "melee"
+  },
+  "classification": "compile-time-addition",
+  "compileTimeAddition": true
+}

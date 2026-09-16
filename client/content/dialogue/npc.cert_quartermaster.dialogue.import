@@ -1,0 +1,16 @@
+[remap]
+
+importer="dialogue_manager"
+importer_version=15
+type="Resource"
+uid="uid://c65q4hkvd3ipy"
+path="res://.godot/imported/npc.cert_quartermaster.dialogue-021bf0a9b2feeb8a635a3b00f4e5c020.tres"
+
+[deps]
+
+source_file="res://content/dialogue/npc.cert_quartermaster.dialogue"
+dest_files=["res://.godot/imported/npc.cert_quartermaster.dialogue-021bf0a9b2feeb8a635a3b00f4e5c020.tres"]
+
+[params]
+
+defaults=true

@@ -1,0 +1,64 @@
+{
+  "id": "zone.cave",
+  "kind": "zone",
+  "displayName": "Test Cave",
+  "visualId": "visual.zone_cave",
+  "tileSize": 16,
+  "width": 640,
+  "height": 512,
+  "playerSpawn": {
+    "x": 96,
+    "y": 256
+  },
+  "npcs": [
+    {
+      "npcId": "npc.test_cave_exit",
+      "x": 80,
+      "y": 256
+    }
+  ],
+  "enemies": [
+    {
+      "enemyId": "test.enemy.cave_boss",
+      "x": 480,
+      "y": 256,
+      "spawnId": "spawn.cave.boss",
+      "spawnCount": 1,
+      "respawnDelay": 0,
+      "activationPolicy": "always",
+      "groupId": "group.cave_boss"
+    }
+  ],
+  "walkableBounds": {
+    "x": 16,
+    "y": 16,
+    "width": 608,
+    "height": 480
+  },
+  "collisions": [
+    {
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 16
+    },
+    {
+      "x": 0,
+      "y": 496,
+      "width": 640,
+      "height": 16
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "width": 16,
+      "height": 512
+    },
+    {
+      "x": 624,
+      "y": 0,
+      "width": 16,
+      "height": 512
+    }
+  ]
+}

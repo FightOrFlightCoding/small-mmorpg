@@ -1,0 +1,111 @@
+{
+  "id": "ability.mystic.malediction",
+  "kind": "ability",
+  "displayName": "Malediction",
+  "displayNameKey": "ability.mystic.malediction.display_name",
+  "descriptionKey": "ability.mystic.malediction.description",
+  "targetMode": "self",
+  "relationFilter": "hostile",
+  "range": 80,
+  "minimumRange": 0,
+  "areaShape": "circle",
+  "areaRadius": 80,
+  "castTime": 0,
+  "channelTime": 0,
+  "globalCooldown": 0,
+  "individualCooldown": 90,
+  "resourceCosts": [],
+  "movementInterruptsCast": false,
+  "damageInterruptsCast": false,
+  "requiredLevel": 10,
+  "requiredClassTags": [
+    "class.mystic"
+  ],
+  "prerequisites": [],
+  "effects": [
+    {
+      "id": "wither",
+      "type": "periodic_damage",
+      "source": "caster",
+      "target": "area",
+      "magnitude": {
+        "kind": "stat_id",
+        "statId": "stat.intelligence",
+        "value": 4.5,
+        "scale": 0.01
+      },
+      "duration": 8,
+      "tickInterval": 1,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "dot",
+        "wither",
+        "capstone"
+      ],
+      "school": "spell"
+    },
+    {
+      "id": "weaken",
+      "type": "timed_stat_modifier",
+      "source": "caster",
+      "target": "area",
+      "magnitude": {
+        "kind": "constant",
+        "value": -0.15
+      },
+      "duration": 8,
+      "tickInterval": 0,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "debuff",
+        "capstone"
+      ],
+      "school": "none",
+      "statChannel": "damage_dealt"
+    },
+    {
+      "id": "spread",
+      "type": "propagate_effect",
+      "source": "caster",
+      "target": "primary",
+      "magnitude": {
+        "kind": "constant",
+        "value": 0
+      },
+      "duration": 0,
+      "tickInterval": 0,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "propagate"
+      ],
+      "school": "spell",
+      "propagateOn": "death"
+    }
+  ],
+  "effectIds": [
+    "effect.mystic.malediction.wither",
+    "effect.mystic.malediction.weaken",
+    "effect.mystic.malediction.spread"
+  ],
+  "animationAssetId": "visual.ability_dot",
+  "iconAssetId": "visual.ability_dot_icon",
+  "soundAssetId": "visual.ability_dot_sound",
+  "skillPointCost": 0,
+  "maxRank": 1,
+  "runtimeEnabled": false,
+  "abilityCategory": "capstone",
+  "ownerClassId": "class.mystic",
+  "school": "spell",
+  "classification": "compile-time-addition",
+  "compileTimeAddition": true,
+  "ownerBranchId": "branch.mystic.curses"
+}

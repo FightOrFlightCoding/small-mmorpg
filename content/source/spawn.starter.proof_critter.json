@@ -1,0 +1,12 @@
+{
+  "id": "spawn.starter.proof_critter",
+  "kind": "spawn",
+  "zoneId": "zone.starter",
+  "enemyId": "enemy.proof_critter",
+  "x": 1184,
+  "y": 700,
+  "spawnCount": 1,
+  "respawnDelay": 12,
+  "activationPolicy": "always",
+  "groupId": "group.starter_proof"
+}

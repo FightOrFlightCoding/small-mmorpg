@@ -18,6 +18,7 @@ import {
   type StarterZoneState,
 } from "../src/domain/match_state";
 import { ClientOpcode, PROTOCOL_VERSION, ServerOpcode, isProtocolError, parseClientMessage } from "../src/domain/protocol";
+import { emptyQuestLog, questDefinitionsFromContent } from "../src/domain/quest";
 
 function enemiesById() {
   const map: { [id: string]: { id: string; maxHealth: number } } = {};
@@ -34,7 +35,8 @@ function emptyZone(): StarterZoneState {
     id: content.player.id,
     maxHealth: content.player.maxHealth,
     moveSpeed: content.player.moveSpeed,
-  });
+    interactionRange: content.player.interactionRange,
+  }, questDefinitionsFromContent(content.quests));
 }
 
 function player(userId: string, name: string): MatchPlayer {
@@ -51,6 +53,7 @@ function player(userId: string, name: string): MatchPlayer {
     lastProcessedSeq: 0,
     axisX: 0,
     axisY: 0,
+    questLog: emptyQuestLog(),
   };
 }
 
@@ -85,42 +88,102 @@ test("alice and bob appear in the same full state", () => {
   assert.equal(body.players.length, 2);
   assert.equal(body.players[0].userId, "user-alice");
   assert.equal(body.players[1].userId, "user-bob");
-  assert.equal(body.npcs.length, 1);
+  assert.equal(body.npcs.length, 7);
   assert.equal(body.npcs[0].npcId, "npc.elder");
-  assert.equal(body.enemies.length, 1);
+  assert.equal(body.enemies.length, 3);
   assert.equal(body.enemies[0].enemyId, "enemy.green_slime");
+  assert.equal(body.enemies[1].enemyId, "enemy.proof_critter");
+  assert.equal(body.enemies[2].enemyId, "enemy.cert_scout");
   assert.deepEqual(body.loot, []);
+  assert.deepEqual(body.quests, []);
   assert.equal(playerCount(state), 2);
 });
 
+function joinMeta(extra: { [key: string]: string } = {}): { [key: string]: string } {
+  const meta: { [key: string]: string } = {
+    protocolVersion: "1",
+    contentHash: contentHash,
+    clientVersion: "1.0.0",
+  };
+  const keys = Object.keys(extra);
+  for (let i = 0; i < keys.length; i++) {
+    meta[keys[i]] = extra[keys[i]];
+  }
+  return meta;
+}
+
 test("join rejects protocol and content mismatches", () => {
   const state = emptyZone();
-  const proto = validateJoinAttempt(state, contentHash, { protocolVersion: "2", contentHash: contentHash }, false);
+  const proto = validateJoinAttempt(state, contentHash, joinMeta({ protocolVersion: "2" }), false);
   assert.equal(proto.accept, false);
   assert.equal(proto.rejectMessage, "protocol_mismatch");
   const hash = validateJoinAttempt(
     state,
     contentHash,
-    {
-      protocolVersion: "1",
+    joinMeta({
       contentHash: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-    },
+    }),
     false,
   );
   assert.equal(hash.accept, false);
   assert.equal(hash.rejectMessage, "content_mismatch");
-  const ok = validateJoinAttempt(state, contentHash, { protocolVersion: "1", contentHash: contentHash }, false);
+  const ok = validateJoinAttempt(
+    state,
+    contentHash,
+    joinMeta({ selectionTicket: "ticket-1" }),
+    false,
+  );
   assert.equal(ok.accept, true);
+  const transfer = validateJoinAttempt(
+    state,
+    contentHash,
+    joinMeta({ transferTicket: "ticket-xfer-1" }),
+    false,
+  );
+  assert.equal(transfer.accept, true);
+});
+
+test("join requires a selection ticket and rejects character id injection", () => {
+  const state = emptyZone();
+  const missing = validateJoinAttempt(state, contentHash, joinMeta(), false);
+  assert.equal(missing.accept, false);
+  assert.equal(missing.rejectMessage, "selection_required");
+  const forged = validateJoinAttempt(
+    state,
+    contentHash,
+    joinMeta({ selectionTicket: "ticket-1", characterId: "char-other" }),
+    false,
+  );
+  assert.equal(forged.accept, false);
+  assert.equal(forged.rejectMessage, "stat_injection:characterId");
+});
+
+test("join rejects client-supplied save versions", () => {
+  const state = emptyZone();
+  const forged = validateJoinAttempt(
+    state,
+    contentHash,
+    joinMeta({ schemaVersion: "0" }),
+    false,
+  );
+  assert.equal(forged.accept, false);
+  assert.equal(forged.rejectMessage, "stat_injection:schemaVersion");
 });
 
 test("join rejects a second session for the same account", () => {
   const state = addPlayer(emptyZone(), player("user-alice", "Alice"));
-  const meta = { protocolVersion: "1", contentHash: contentHash };
+  const meta = joinMeta();
   const duplicate = validateJoinAttempt(state, contentHash, meta, true, "session-new", "session-user-alice");
   assert.equal(duplicate.accept, false);
   assert.equal(duplicate.rejectMessage, "already_in_match");
-  const sameSession = validateJoinAttempt(state, contentHash, meta, true, "session-user-alice", "session-user-alice");
-  assert.equal(sameSession.accept, true);
+	const sameSession = validateJoinAttempt(state, contentHash, meta, true, "session-user-alice", "session-user-alice");
+	assert.equal(sameSession.accept, true);
+	const reconnectWithoutPresence = validateJoinAttempt(state, contentHash, meta, true, "session-new", "");
+	assert.equal(reconnectWithoutPresence.accept, false);
+	assert.equal(reconnectWithoutPresence.rejectMessage, "already_in_match");
+	const linkDead = validateJoinAttempt(state, contentHash, meta, true, "session-new", "", { linkDead: true });
+	assert.equal(linkDead.accept, false);
+	assert.equal(linkDead.rejectMessage, "link_dead");
 });
 
 test("join rejects when the match is full", () => {
@@ -128,7 +191,12 @@ test("join rejects when the match is full", () => {
   for (let i = 0; i < MATCH_MAX_PLAYERS; i++) {
     state = addPlayer(state, player("user-" + String(i), "P" + String(i)));
   }
-  const full = validateJoinAttempt(state, contentHash, { protocolVersion: "1", contentHash: contentHash }, false);
+  const full = validateJoinAttempt(
+    state,
+    contentHash,
+    joinMeta({ selectionTicket: "ticket-1" }),
+    false,
+  );
   assert.equal(full.accept, false);
   assert.equal(full.rejectMessage, "match_full");
 });

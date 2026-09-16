@@ -6,6 +6,7 @@ extends RefCounted
 signal match_state_received(opcode: int, payload: String)
 signal channel_message_received(payload: Dictionary)
 signal channel_presence_received(payload: Dictionary)
+signal socket_closed
 
 const HOST := "127.0.0.1"
 const PORT := 7350
@@ -17,6 +18,10 @@ var _client: NakamaClient
 var _session: NakamaSession
 var _socket: NakamaSocket
 var _match_id: String = ""
+var _closing: bool = false
+var _socket_generation: int = 0
+var _auth_mode: String = SessionCache.AUTH_MODE_DEVICE
+var _device_id: String = ""
 
 
 func is_session_expired() -> bool:
@@ -25,10 +30,51 @@ func is_session_expired() -> bool:
 	return _session.expired or not _session.is_valid()
 
 
+func is_socket_connected() -> bool:
+	return _socket != null and _socket.is_connected_to_host()
+
+
 func authenticate_device(device_id: String, username: String) -> Dictionary:
+	_auth_mode = SessionCache.AUTH_MODE_DEVICE
+	_device_id = device_id
 	_ensure_client()
 	var session: NakamaSession = await _client.authenticate_device_async(device_id, username, true, null)
 	return _store_session(session, "authentication_failed")
+
+
+func authenticate_email(email: String, password: String, username: String = "", create: bool = false) -> Dictionary:
+	_auth_mode = SessionCache.AUTH_MODE_EMAIL
+	_device_id = ""
+	_ensure_client()
+	var session: NakamaSession = await _client.authenticate_email_async(email, password, username, create, null)
+	return _store_session(session, "invalid_credentials", create)
+
+
+func import_session(token: String, refresh_token: String, _user_id: String, _username: String) -> Dictionary:
+	_auth_mode = SessionCache.AUTH_MODE_EMAIL
+	_device_id = ""
+	_ensure_client()
+	_client.auto_refresh = false
+	var session := NakamaSession.new(token, false, refresh_token)
+	return _store_session(session, "session_expired")
+
+
+func restore_cached_session() -> Dictionary:
+	var cached := SessionCache.load_cache()
+	if cached.is_empty():
+		return _fail("session_expired", "No cached session is available.")
+	_ensure_client()
+	_auth_mode = String(cached.get("auth_mode", SessionCache.AUTH_MODE_EMAIL))
+	_device_id = String(cached.get("device_id", ""))
+	_session = NakamaSession.new(String(cached["token"]), false, String(cached["refresh_token"]))
+	if _session == null or _session.is_exception():
+		SessionCache.clear()
+		return _fail("session_expired", "The cached session could not be restored.")
+	var refreshed: Dictionary = await refresh_session()
+	if not bool(refreshed.get("ok", false)):
+		SessionCache.clear()
+		return refreshed
+	return refreshed
 
 
 func refresh_session() -> Dictionary:
@@ -46,13 +92,23 @@ func connect_socket() -> Dictionary:
 	if _socket != null and _socket.is_connected_to_host():
 		_ensure_match_signals()
 		_ensure_chat_signals()
+		_ensure_closed_signal()
 		return {"ok": true}
+	_closing = true
+	_detach_socket()
+	_socket_generation += 1
+	var generation := _socket_generation
 	_socket = Nakama.create_socket_from(_client)
 	var connected: NakamaAsyncResult = await _socket.connect_async(_session, false, TIMEOUT_SEC)
+	if generation != _socket_generation:
+		return _fail("socket_failed", "The realtime connection was replaced.")
 	if connected.is_exception():
+		_closing = false
 		return _from_exception(connected.get_exception(), "socket_failed", "Could not open a realtime connection to Nakama.")
+	_closing = false
 	_ensure_match_signals()
 	_ensure_chat_signals()
+	_ensure_closed_signal()
 	return {"ok": true}
 
 
@@ -61,8 +117,22 @@ func rpc(id: String, payload: String) -> Dictionary:
 		return _fail("unauthenticated", "Sign-in is required.")
 	var result: NakamaAPI.ApiRpc = await _client.rpc_async(_session, id, payload)
 	if result.is_exception():
-		return _from_exception(result.get_exception(), "rpc_failed", "The server rejected the request.")
-	return {"ok": true, "payload": String(result.payload)}
+		return AccountErrors.sanitize_public_rpc(
+			_map_ops_codes(_map_save_incompatible(_from_exception(result.get_exception(), "rpc_failed", "The server rejected the request.")))
+		)
+	var rpc_body := String(result.payload)
+	var parsed: Variant = JSON.parse_string(rpc_body)
+	if typeof(parsed) == TYPE_DICTIONARY:
+		var data: Dictionary = parsed
+		if data.has("ok") and not bool(data.get("ok", true)):
+			var code := String(data.get("code", "rpc_failed"))
+			var message := String(data.get("message", code))
+			if message.is_empty():
+				message = code
+			return AccountErrors.sanitize_public_rpc(
+				_map_ops_codes(_map_save_incompatible({"ok": false, "code": code, "message": message}))
+			)
+	return {"ok": true, "payload": rpc_body}
 
 
 func join_match(match_id: String, metadata: Dictionary) -> Dictionary:
@@ -123,19 +193,15 @@ func send_chat_message(channel_id: String, content: Dictionary) -> Dictionary:
 
 
 func logout() -> void:
+	_closing = true
+	_socket_generation += 1
 	_match_id = ""
 	if _client != null and _session != null:
 		var _ignored: NakamaAsyncResult = await _client.session_logout_async(_session)
-	if _socket != null:
-		if _socket.received_match_state.is_connected(_on_match_state):
-			_socket.received_match_state.disconnect(_on_match_state)
-		if _socket.received_channel_message.is_connected(_on_channel_message):
-			_socket.received_channel_message.disconnect(_on_channel_message)
-		if _socket.received_channel_presence.is_connected(_on_channel_presence):
-			_socket.received_channel_presence.disconnect(_on_channel_presence)
-		_socket.close()
+	_detach_socket()
 	_session = null
-	_socket = null
+	_device_id = ""
+	SessionCache.clear()
 
 
 func _ensure_client() -> void:
@@ -150,6 +216,40 @@ func _ensure_client() -> void:
 		NakamaLogger.LOG_LEVEL.ERROR
 	)
 	_client.auto_refresh = true
+
+
+func _ensure_closed_signal() -> void:
+	if _socket == null:
+		return
+	if not _socket.closed.is_connected(_on_socket_closed):
+		_socket.closed.connect(_on_socket_closed)
+
+
+func _on_socket_closed() -> void:
+	if _closing:
+		return
+	# A replaced socket can emit closed after the new socket is already up.
+	if _socket != null and _socket.is_connected_to_host():
+		return
+	_match_id = ""
+	socket_closed.emit()
+
+
+func _detach_socket() -> void:
+	if _socket == null:
+		return
+	var previous := _socket
+	if previous.received_match_state.is_connected(_on_match_state):
+		previous.received_match_state.disconnect(_on_match_state)
+	if previous.received_channel_message.is_connected(_on_channel_message):
+		previous.received_channel_message.disconnect(_on_channel_message)
+	if previous.received_channel_presence.is_connected(_on_channel_presence):
+		previous.received_channel_presence.disconnect(_on_channel_presence)
+	if previous.closed.is_connected(_on_socket_closed):
+		previous.closed.disconnect(_on_socket_closed)
+	_socket = null
+	if previous.is_connected_to_host():
+		previous.close()
 
 
 func _ensure_match_signals() -> void:
@@ -229,16 +329,25 @@ func _from_chat_exception(exception: NakamaException, fallback_code: String, fal
 	elif lowered.contains("invalid_channel"):
 		mapped["code"] = "invalid_channel"
 		mapped["message"] = "Could not join zone chat."
-	return mapped
+	return AccountErrors.sanitize_public_rpc(mapped)
 
 
-func _store_session(session: NakamaSession, fallback_code: String) -> Dictionary:
+func _store_session(session: NakamaSession, fallback_code: String, create_account: bool = false) -> Dictionary:
 	if session == null or session.is_exception():
 		var exception: NakamaException = null
 		if session != null:
 			exception = session.get_exception()
-		return _from_exception(exception, fallback_code, "Could not sign in to Nakama.")
+		return _from_exception(exception, fallback_code, "Could not sign in to Nakama.", create_account)
 	_session = session
+	if _auth_mode == SessionCache.AUTH_MODE_DEVICE:
+		SessionCache.save(
+			session.token,
+			session.refresh_token,
+			session.user_id,
+			session.username,
+			_auth_mode,
+			_device_id
+		)
 	return {
 		"ok": true,
 		"user_id": session.user_id,
@@ -248,32 +357,124 @@ func _store_session(session: NakamaSession, fallback_code: String) -> Dictionary
 
 func _from_join_exception(exception: NakamaException) -> Dictionary:
 	var mapped: Dictionary = _from_exception(exception, "join_failed", "Could not join the starter zone.")
+	mapped = _map_ops_codes(mapped)
 	var message := String(mapped.get("message", "")).to_lower()
-	if message.contains("protocol_mismatch"):
+	var join_code := String(mapped.get("code", "")).to_lower()
+	if join_code == "join_failed" and message.contains("already_in_match"):
+		mapped["code"] = "already_in_match"
+		mapped["message"] = "This account is already in the starter zone. Sign in as Alice in one window and Bob in the other."
+	elif join_code == "not_party_member" or message.contains("not_party_member"):
+		mapped["code"] = "not_party_member"
+		mapped["message"] = "Could not rejoin that party cave. Dismiss, then Continue to enter the public world."
+	elif join_code == "not_cave_owner" or message.contains("not_cave_owner"):
+		mapped["code"] = "not_cave_owner"
+		mapped["message"] = "That cave belongs to someone else. Dismiss, then Continue to enter the public world."
+	elif join_code == "cave_expired" or message.contains("cave_expired"):
+		mapped["code"] = "cave_expired"
+		mapped["message"] = "That cave is no longer available. Dismiss, then Continue to enter the public world."
+	elif join_code == "already_elsewhere" or message.contains("already_elsewhere"):
+		mapped["code"] = "already_elsewhere"
+		mapped["message"] = "This character is still in another instance. Dismiss, then Continue."
+	elif message.contains("match_full"):
+		mapped["code"] = "match_full"
+	elif message.contains("selection_expired"):
+		mapped["code"] = "selection_expired"
+	elif message.contains("selection_required"):
+		mapped["code"] = "selection_required"
+	elif message.contains("selection_foreign"):
+		mapped["code"] = "selection_foreign"
+	elif message.contains("character_deleted"):
+		mapped["code"] = "character_deleted"
+	else:
+		mapped = _map_save_incompatible(mapped)
+	return AccountErrors.sanitize_public_rpc(mapped)
+
+
+func _map_save_incompatible(mapped: Dictionary) -> Dictionary:
+	var message := String(mapped.get("message", "")).to_lower()
+	if message.contains("unsupported_save_version"):
+		mapped["code"] = "unsupported_save_version"
+		mapped["message"] = "This save is incompatible with the server."
+		return mapped
+	if (
+		message.contains("unsupported_future_version")
+		or message.contains("corrupted_required_fields")
+		or message.contains("corrupted_record")
+		or message.contains("corrupted_schema_version")
+		or message.contains("save_incompatible")
+		or message.contains("stat_injection:schemaversion")
+		or message.contains("stat_injection:createdat")
+		or message.contains("stat_injection:updatedat")
+		or message.contains("stat_injection:migrationid")
+	):
+		mapped["code"] = "save_incompatible"
+		mapped["message"] = "This save is incompatible with the server. The client cannot choose a migration version."
+	return mapped
+
+
+func _map_ops_codes(mapped: Dictionary) -> Dictionary:
+	var message := String(mapped.get("message", "")).to_lower()
+	if message.contains("client_too_old"):
+		mapped["code"] = "client_too_old"
+		mapped["message"] = "This client is too old for the server. Update the client."
+	elif message.contains("client_too_new"):
+		mapped["code"] = "client_too_new"
+		mapped["message"] = "This client is too new for the server. Use the matching release."
+	elif message.contains("protocol_mismatch"):
 		mapped["code"] = "protocol_mismatch"
 		mapped["message"] = "The client protocol version does not match the server."
 	elif message.contains("content_mismatch"):
 		mapped["code"] = "content_mismatch"
 		mapped["message"] = "The client content catalog does not match the server."
-	elif message.contains("already_in_match"):
-		mapped["code"] = "already_in_match"
-		mapped["message"] = "This account is already in the starter zone. Sign in as Alice in one window and Bob in the other."
-	elif message.contains("match_full"):
-		mapped["code"] = "match_full"
-	elif message.contains("character_missing"):
-		mapped["code"] = "character_missing"
+	elif message.contains("unsupported_save_version"):
+		mapped["code"] = "unsupported_save_version"
+		mapped["message"] = "This save is incompatible with the server."
+	elif message.contains("server_maintenance"):
+		mapped["code"] = "server_maintenance"
+		mapped["message"] = "The server is in maintenance. Gameplay joins are paused."
+	elif message.contains("migration_required"):
+		mapped["code"] = "migration_required"
+		mapped["message"] = "The server is applying a save migration. Try again shortly."
+	elif message.contains("registration_disabled"):
+		mapped["code"] = "registration_disabled"
+		mapped["message"] = "New account registration is disabled on this server."
+	elif message.contains("device_auth_disabled"):
+		mapped["code"] = "device_auth_disabled"
+		mapped["message"] = "Device authentication is disabled on this server."
 	return mapped
 
 
-func _from_exception(exception: NakamaException, fallback_code: String, fallback_message: String) -> Dictionary:
+func _from_exception(exception: NakamaException, fallback_code: String, fallback_message: String, create_account: bool = false) -> Dictionary:
 	if exception == null:
 		return _fail(fallback_code, fallback_message)
 	var message := exception.message
 	if message.is_empty():
 		message = fallback_message
 	var code := fallback_code
+	var lowered := exception.message.to_lower()
 	if exception.grpc_status_code == 16 or exception.status_code == 401:
-		code = "session_expired"
+		var domain := AccountErrors.extract_rpc_domain_code(exception.message)
+		if fallback_code == "invalid_credentials":
+			code = "invalid_credentials"
+			message = AuthPrivacy.public_login_failure_message()
+		elif not domain.is_empty():
+			code = domain
+		else:
+			code = "session_expired"
+			message = "The session expired. Sign in again."
+	elif lowered.contains("rate_limited"):
+		code = "rate_limited"
+		message = "Too many sign-in attempts. Wait and try again."
+	elif lowered.contains("registration_disabled"):
+		code = "registration_disabled"
+		message = "New account registration is disabled on this server."
+	elif lowered.contains("device_auth_disabled"):
+		code = "device_auth_disabled"
+		message = "Device authentication is disabled on this server."
+	elif fallback_code == "invalid_credentials":
+		var sanitized: Dictionary = AuthPrivacy.sanitize_auth_failure(create_account, exception.message)
+		code = String(sanitized.get("code", "invalid_credentials"))
+		message = String(sanitized.get("message", AuthPrivacy.public_login_failure_message()))
 	elif _looks_like_missing_rpc(message):
 		code = "rpc_missing"
 		message = "Nakama is running an old runtime. Rebuild and restart with powershell -File scripts/backend-up.ps1."

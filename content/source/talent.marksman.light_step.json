@@ -1,0 +1,18 @@
+{
+  "id": "talent.marksman.light_step",
+  "kind": "talent_node",
+  "displayName": "Light Step",
+  "displayNameKey": "talent.marksman.light_step.display_name",
+  "descriptionKey": "talent.marksman.light_step.description",
+  "treeId": "tree.marksman.class",
+  "tier": 1,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "move_speed_percent",
+      "value": 0.08
+    }
+  ]
+}

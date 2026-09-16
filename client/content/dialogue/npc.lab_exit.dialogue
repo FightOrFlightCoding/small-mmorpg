@@ -1,0 +1,7 @@
+~ start
+Exit: Leave the systems lab for the valley?
+- Return to the valley.
+	do CaveService.request_exit()
+	=> END
+- Stay.
+	=> END

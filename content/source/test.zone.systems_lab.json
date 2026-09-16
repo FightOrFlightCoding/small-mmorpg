@@ -1,0 +1,31 @@
+{
+  "id": "test.zone.systems_lab",
+  "kind": "zone",
+  "displayName": "Systems Lab",
+  "visualId": "visual.zone_systems_lab",
+  "tileSize": 16,
+  "width": 1280,
+  "height": 768,
+  "playerSpawn": { "x": 96, "y": 256 },
+  "npcs": [
+    { "npcId": "npc.lab_exit", "x": 80, "y": 256 },
+    { "npcId": "npc.lab_keeper", "x": 200, "y": 256 },
+    { "npcId": "npc.lab_vendor", "x": 360, "y": 256 },
+    { "npcId": "npc.lab_inn", "x": 520, "y": 256 },
+    { "npcId": "npc.lab_trainer", "x": 680, "y": 256 }
+  ],
+  "enemies": [
+    { "enemyId": "test.enemy.melee", "x": 240, "y": 520, "spawnId": "spawn.lab.melee" },
+    { "enemyId": "test.enemy.ranged", "x": 520, "y": 520, "spawnId": "spawn.lab.ranged" },
+    { "enemyId": "test.enemy.caster", "x": 800, "y": 520, "spawnId": "spawn.lab.caster" },
+    { "enemyId": "test.enemy.cave_boss", "x": 1100, "y": 400, "spawnId": "spawn.lab.boss" }
+  ],
+  "walkableBounds": { "x": 16, "y": 16, "width": 1248, "height": 736 },
+  "collisions": [
+    { "x": 0, "y": 0, "width": 1280, "height": 16 },
+    { "x": 0, "y": 752, "width": 1280, "height": 16 },
+    { "x": 0, "y": 0, "width": 16, "height": 768 },
+    { "x": 1264, "y": 0, "width": 16, "height": 768 }
+  ],
+  "developmentOnly": true
+}

@@ -1,0 +1,28 @@
+{
+  "id": "talent.mage.frost.rimeguard",
+  "kind": "talent_node",
+  "displayName": "Rimeguard",
+  "displayNameKey": "talent.mage.frost.rimeguard.display_name",
+  "descriptionKey": "talent.mage.frost.rimeguard.description",
+  "treeId": "tree.mage.frost",
+  "tier": 2,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "conditionalModifiers": [
+    {
+      "conditions": [
+        {
+          "type": "effect_active",
+          "tag": "slow"
+        }
+      ],
+      "modifiers": [
+        {
+          "type": "damage_reduction_percent",
+          "value": 0.08
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "xp.reward.kill_steep_dial",
+  "kind": "xp_reward",
+  "displayName": "Kill XP steep dial",
+  "displayNameKey": "xp.reward.kill_steep_dial.display_name",
+  "descriptionKey": "xp.reward.kill_steep_dial.description",
+  "formula": {
+    "kind": "kill_xp_linear",
+    "intercept": 8,
+    "perLevel": 3
+  },
+  "inUse": false,
+  "classification": "canonical"
+}

@@ -1,0 +1,16 @@
+{
+  "id": "npc.lab_vendor",
+  "kind": "npc",
+  "displayName": "Lab Vendor",
+  "displayNameKey": "npc.lab_vendor.name",
+  "visualId": "visual.npc_lab_vendor",
+  "zoneId": "test.zone.systems_lab",
+  "position": { "x": 360, "y": 256 },
+  "interactionRange": 48,
+  "dialogueId": "dialogue.npc.lab_vendor",
+  "services": [
+    { "type": "dialogue" },
+    { "type": "vendor", "vendorId": "vendor.lab_general" }
+  ],
+  "developmentOnly": true
+}

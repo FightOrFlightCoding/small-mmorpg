@@ -1,0 +1,25 @@
+{
+  "id": "quest.cert_scout",
+  "kind": "quest",
+  "displayName": "Cert Scout",
+  "category": "side",
+  "acceptNpcId": "npc.cert_quartermaster",
+  "turnInNpcId": "npc.cert_quartermaster",
+  "objectives": [
+    {
+      "type": "kill_enemy",
+      "enemyId": "enemy.cert_scout",
+      "enemyTags": ["cert"],
+      "quantity": 1,
+      "zoneId": "zone.starter",
+      "partyCreditPolicy": "solo"
+    }
+  ],
+  "consume": [],
+  "rewards": {
+    "gold": 4,
+    "xp": 3,
+    "items": []
+  },
+  "completeOnce": true
+}

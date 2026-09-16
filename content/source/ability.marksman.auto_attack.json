@@ -1,0 +1,47 @@
+{
+  "id": "ability.marksman.auto_attack",
+  "kind": "auto_attack_definition",
+  "displayName": "Marksman Auto Attack",
+  "displayNameKey": "ability.marksman.auto_attack.display_name",
+  "descriptionKey": "ability.marksman.auto_attack.description",
+  "ownerClassId": "class.marksman",
+  "baseDamage": 10,
+  "interval": 1.8,
+  "scalingStatId": "stat.agility",
+  "school": "ranged",
+  "range": 180,
+  "targetMode": "entity",
+  "relationFilter": "hostile",
+  "runtimeEnabled": false,
+  "effects": [
+    {
+      "id": "hit",
+      "type": "direct_damage",
+      "source": "caster",
+      "target": "primary",
+      "magnitude": {
+        "kind": "stat_id",
+        "statId": "stat.agility",
+        "value": 10,
+        "scale": 0.01
+      },
+      "duration": 0,
+      "tickInterval": 0,
+      "stackPolicy": "replace",
+      "maxStacks": 1,
+      "refreshPolicy": "refresh",
+      "removalReason": "expired",
+      "tags": [
+        "ranged"
+      ],
+      "school": "ranged"
+    }
+  ],
+  "effectIds": [
+    "effect.marksman.auto_attack.hit"
+  ],
+  "animationAssetId": "visual.ability_bolt",
+  "iconAssetId": "visual.ability_bolt_icon",
+  "soundAssetId": "visual.ability_bolt_sound",
+  "classification": "canonical"
+}

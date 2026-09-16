@@ -1,0 +1,12 @@
+{
+  "id": "spawn.starter.cert_scout",
+  "kind": "spawn",
+  "zoneId": "zone.starter",
+  "enemyId": "enemy.cert_scout",
+  "x": 1080,
+  "y": 140,
+  "spawnCount": 1,
+  "respawnDelay": 12,
+  "activationPolicy": "always",
+  "groupId": "group.starter_cert"
+}

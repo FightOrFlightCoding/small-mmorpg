@@ -1,0 +1,13 @@
+{
+  "id": "talent.warrior.berserker.whirlwind",
+  "kind": "talent_node",
+  "displayName": "Whirlwind",
+  "displayNameKey": "talent.warrior.berserker.whirlwind.display_name",
+  "descriptionKey": "talent.warrior.berserker.whirlwind.description",
+  "treeId": "tree.warrior.berserker",
+  "tier": 2,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "grantsActiveAbilityId": "ability.warrior.whirlwind"
+}

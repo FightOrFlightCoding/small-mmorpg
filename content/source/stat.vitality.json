@@ -1,0 +1,15 @@
+{
+  "id": "stat.vitality",
+  "kind": "stat_definition",
+  "displayName": "Vitality",
+  "displayNameKey": "stat.vitality.display_name",
+  "descriptionKey": "stat.vitality.description",
+  "abbreviation": "VIT",
+  "perPointEffects": [
+    {
+      "type": "max_hp_flat",
+      "perPoint": 10
+    }
+  ],
+  "classification": "canonical"
+}

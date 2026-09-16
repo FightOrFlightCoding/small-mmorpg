@@ -2,5 +2,15 @@
   "id": "npc.elder",
   "kind": "npc",
   "displayName": "Elder",
-  "visualId": "visual.npc_elder"
+  "displayNameKey": "npc.elder.name",
+  "visualId": "visual.npc_elder",
+  "zoneId": "zone.starter",
+  "position": { "x": 160, "y": 320 },
+  "interactionRange": 48,
+  "dialogueId": "dialogue.npc.elder",
+  "services": [
+    { "type": "dialogue" },
+    { "type": "quest_offer", "questIds": ["quest.slime_problem"] },
+    { "type": "quest_turn_in", "questIds": ["quest.slime_problem"] }
+  ]
 }

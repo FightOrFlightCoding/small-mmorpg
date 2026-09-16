@@ -1,0 +1,33 @@
+{
+  "id": "effect.mage.fireball.hit",
+  "kind": "effect_definition",
+  "displayName": "hit",
+  "displayNameKey": "effect.mage.fireball.hit.display_name",
+  "descriptionKey": "effect.mage.fireball.hit.description",
+  "ownerAbilityId": "ability.mage.fireball",
+  "effect": {
+    "id": "hit",
+    "type": "direct_damage",
+    "source": "caster",
+    "target": "primary",
+    "magnitude": {
+      "kind": "stat_id",
+      "statId": "stat.intelligence",
+      "value": 34,
+      "scale": 0.01
+    },
+    "duration": 0,
+    "tickInterval": 0,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "spell",
+      "fire"
+    ],
+    "school": "spell"
+  },
+  "classification": "canonical",
+  "compileTimeAddition": false
+}

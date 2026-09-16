@@ -1,0 +1,32 @@
+{
+  "id": "effect.warrior.berserk.taken",
+  "kind": "effect_definition",
+  "displayName": "taken",
+  "displayNameKey": "effect.warrior.berserk.taken.display_name",
+  "descriptionKey": "effect.warrior.berserk.taken.description",
+  "ownerAbilityId": "ability.warrior.berserk",
+  "effect": {
+    "id": "taken",
+    "type": "timed_stat_modifier",
+    "source": "caster",
+    "target": "self",
+    "magnitude": {
+      "kind": "constant",
+      "value": 0.2
+    },
+    "duration": 10,
+    "tickInterval": 0,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "debuff",
+      "capstone"
+    ],
+    "school": "none",
+    "statChannel": "damage_taken"
+  },
+  "classification": "canonical",
+  "compileTimeAddition": false
+}

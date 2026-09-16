@@ -1,0 +1,22 @@
+{
+  "id": "test.enemy.ranged",
+  "kind": "enemy",
+  "displayName": "Test Ranged",
+  "displayNameKey": "enemy.test_ranged.name",
+  "visualId": "visual.enemy_test_ranged",
+  "level": 1,
+  "maxHealth": 18,
+  "damage": 5,
+  "moveSpeed": 40,
+  "aggroRadius": 200,
+  "attackRange": 180,
+  "attackCooldown": 1.6,
+  "leashRadius": 320,
+  "respawnDelay": 8,
+  "abilityLoadout": ["test.ability.enemy_bolt"],
+  "aiProfileId": "test.ai.ranged",
+  "xpReward": 8,
+  "lootTableId": "loot.test_ranged",
+  "collisionProfileId": "collision.enemy_default",
+  "tags": ["test", "ranged"]
+}

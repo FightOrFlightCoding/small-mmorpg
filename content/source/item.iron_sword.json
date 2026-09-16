@@ -2,8 +2,21 @@
   "id": "item.iron_sword",
   "kind": "item",
   "displayName": "Iron Sword",
+  "displayNameKey": "item.iron_sword.name",
+  "descriptionKey": "item.iron_sword.desc",
   "visualId": "visual.item_iron_sword",
+  "iconAssetId": "visual.item_iron_sword",
+  "worldAssetId": "visual.item_iron_sword",
+  "category": "weapon",
   "maxStack": 1,
+  "tradeable": true,
+  "destroyable": true,
+  "uniquePolicy": "none",
   "equipSlot": "main_hand",
-  "attackBonus": 5
+  "equipmentSlotTags": ["main_hand"],
+  "classRequirements": [],
+  "levelRequirement": 0,
+  "attackBonus": 5,
+  "statModifiers": [{ "statId": "test.stat.attack", "amount": 5 }],
+  "sellValue": 8
 }

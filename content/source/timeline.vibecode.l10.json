@@ -1,0 +1,79 @@
+{
+  "id": "timeline.vibecode.l10",
+  "kind": "progression_timeline",
+  "displayName": "Vibecode 1-10",
+  "displayNameKey": "timeline.vibecode.l10.display_name",
+  "descriptionKey": "timeline.vibecode.l10.description",
+  "levelCurveId": "curve.vibecode.l10",
+  "automaticGrowthPerLevel": 6,
+  "freePointsPerLevel": 3,
+  "classPoints": 2,
+  "branchPoints": 6,
+  "tierGates": [
+    {
+      "tier": 1,
+      "minLevel": 5,
+      "minPointsSpent": 0
+    },
+    {
+      "tier": 2,
+      "minPointsSpent": 2
+    },
+    {
+      "tier": 3,
+      "minLevel": 9,
+      "minPointsSpent": 4
+    }
+  ],
+  "unlocks": [
+    {
+      "level": 1,
+      "grant": "auto_attack"
+    },
+    {
+      "level": 2,
+      "grant": "basic_ability"
+    },
+    {
+      "level": 3,
+      "grant": "class_point"
+    },
+    {
+      "level": 4,
+      "grant": "class_point"
+    },
+    {
+      "level": 5,
+      "grant": "branch_unlock"
+    },
+    {
+      "level": 5,
+      "grant": "branch_point"
+    },
+    {
+      "level": 6,
+      "grant": "branch_point"
+    },
+    {
+      "level": 7,
+      "grant": "branch_point"
+    },
+    {
+      "level": 8,
+      "grant": "branch_point"
+    },
+    {
+      "level": 9,
+      "grant": "branch_point"
+    },
+    {
+      "level": 10,
+      "grant": "branch_point"
+    },
+    {
+      "level": 10,
+      "grant": "capstone"
+    }
+  ],
+  "classification": "canonical"
+}

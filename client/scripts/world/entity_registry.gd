@@ -58,7 +58,7 @@ func apply_full_state(state: Dictionary) -> void:
 	_apply_kind(KIND_ENEMY, state.get("enemies", []), keep, false)
 	_apply_kind(KIND_LOOT, state.get("loot", []), keep, false)
 	for extra_key in state.keys():
-		if extra_key in ["players", "npcs", "enemies", "loot", "self_id", "selfId", "tick", "zone_id", "zoneId", "protocol_version", "protocolVersion", "content_hash", "contentHash", "ack_seq"]:
+		if extra_key in ["players", "npcs", "enemies", "loot", "quests", "inventory", "self_id", "selfId", "tick", "zone_id", "zoneId", "protocol_version", "protocolVersion", "content_hash", "contentHash", "ack_seq"]:
 			continue
 		if typeof(state[extra_key]) == TYPE_ARRAY and extra_key.ends_with("s"):
 			var kind_guess := String(extra_key)
@@ -120,13 +120,24 @@ func apply_remote_poses(poses: Dictionary) -> void:
 		if node == null and not key.contains(":"):
 			node = get_entity("%s:%s" % [KIND_PLAYER, key])
 		if node != null:
-			node.position = poses[id]
+			var next: Vector2 = poses[id]
+			if node is WorldAvatar:
+				var avatar := node as WorldAvatar
+				avatar.set_move_vector(next - avatar.position)
+				avatar.position = next
+			else:
+				node.position = next
 
 
-func pose_local(pos: Vector2) -> void:
+func pose_local(pos: Vector2, facing: Variant = null) -> void:
+	## Facing is optional. Snapshot/reconcile pose updates must not pass Vector2.ZERO
+	## or they stop AnimatedSprite2D every tick and leave a static walk frame.
 	var node: Node2D = get_entity("%s:%s" % [KIND_PLAYER, local_server_id])
 	if node is WorldAvatar:
-		(node as WorldAvatar).set_server_position(pos.x, pos.y)
+		var avatar := node as WorldAvatar
+		avatar.set_server_position(pos.x, pos.y)
+		if facing is Vector2:
+			avatar.set_move_vector(facing as Vector2)
 	elif node != null:
 		node.position = pos
 
@@ -169,6 +180,8 @@ func _apply_kind(kind: String, records: Variant, keep: Dictionary, interpolate_r
 			_nodes[key] = node
 			add_child(node)
 			node.position = pose
+			if node is WorldAvatar:
+				_apply_vitals(node as WorldAvatar, kind, record)
 		elif node is WorldAvatar:
 			var avatar := node as WorldAvatar
 			if (
@@ -182,6 +195,7 @@ func _apply_kind(kind: String, records: Variant, keep: Dictionary, interpolate_r
 				pass
 			else:
 				avatar.set_server_position(pose.x, pose.y)
+			_apply_vitals(avatar, kind, record)
 		else:
 			node.position = pose
 
@@ -257,11 +271,32 @@ func _visual_for(kind: String, record: Dictionary) -> Dictionary:
 	elif kind == KIND_LOOT:
 		content_id = String(record.get("itemId", ""))
 	var visual_id := ContentRegistry.visual_id_for_content(content_id)
-	return ContentRegistry.resolve_visual(visual_id)
+	if visual_id.is_empty() and kind == KIND_LOOT and not content_id.is_empty():
+		visual_id = ContentRegistry.assets.icon_visual_id("item", content_id)
+	if visual_id.is_empty() and not content_id.is_empty():
+		visual_id = "visual.unmapped:%s" % content_id
+	var visual: Dictionary = ContentRegistry.resolve_visual(visual_id)
+	var vis_set: Dictionary = {}
+	if kind != KIND_LOOT or ContentRegistry.assets.has_set_for_content(content_id):
+		vis_set = ContentRegistry.resolve_visual_set_for_content(content_id)
+	visual["visual_set"] = vis_set
+	visual["direction_count"] = int(vis_set.get("directionCount", 4))
+	return visual
 
 
 func _pose(record: Dictionary) -> Vector2:
 	return Vector2(float(record.get("x", 0.0)), float(record.get("y", 0.0)))
+
+
+func _apply_vitals(avatar: WorldAvatar, kind: String, record: Dictionary) -> void:
+	if kind != KIND_PLAYER and kind != KIND_ENEMY:
+		return
+	var max_health := int(record.get("maxHealth", record.get("max_health", 1)))
+	var health := int(record.get("health", max_health))
+	var alive := health > 0
+	if record.has("alive"):
+		alive = bool(record["alive"])
+	avatar.set_vitals(health, max_health, alive)
 
 
 func _prune(keep: Dictionary) -> void:

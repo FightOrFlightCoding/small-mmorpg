@@ -1,0 +1,16 @@
+[remap]
+
+importer="dialogue_manager"
+importer_version=15
+type="Resource"
+uid="uid://dam2g2h8yqd20"
+path="res://.godot/imported/npc.lab_exit.dialogue-4f050dcb0d4804cb37313073680c8dc9.tres"
+
+[deps]
+
+source_file="res://content/dialogue/npc.lab_exit.dialogue"
+dest_files=["res://.godot/imported/npc.lab_exit.dialogue-4f050dcb0d4804cb37313073680c8dc9.tres"]
+
+[params]
+
+defaults=true

@@ -1,0 +1,15 @@
+{
+  "id": "loot.test.server_assigned",
+  "kind": "loot_table",
+  "displayName": "Test Server Assigned Loot",
+  "ownershipPolicy": "server_assigned",
+  "entries": [
+    {
+      "itemDefinitionId": "item.test_cloth",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "chance": 1,
+      "guaranteed": true
+    }
+  ]
+}

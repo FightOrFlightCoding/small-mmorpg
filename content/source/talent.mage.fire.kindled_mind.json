@@ -1,0 +1,18 @@
+{
+  "id": "talent.mage.fire.kindled_mind",
+  "kind": "talent_node",
+  "displayName": "Kindled Mind",
+  "displayNameKey": "talent.mage.fire.kindled_mind.display_name",
+  "descriptionKey": "talent.mage.fire.kindled_mind.description",
+  "treeId": "tree.mage.fire",
+  "tier": 1,
+  "maxRank": 2,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "mana_cost_percent",
+      "value": -0.1
+    }
+  ]
+}

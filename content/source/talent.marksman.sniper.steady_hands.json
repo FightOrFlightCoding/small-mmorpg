@@ -1,0 +1,23 @@
+{
+  "id": "talent.marksman.sniper.steady_hands",
+  "kind": "talent_node",
+  "displayName": "Steady Hands",
+  "displayNameKey": "talent.marksman.sniper.steady_hands.display_name",
+  "descriptionKey": "talent.marksman.sniper.steady_hands.description",
+  "treeId": "tree.marksman.sniper",
+  "tier": 1,
+  "maxRank": 2,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "abilityModifications": [
+    {
+      "abilityId": "ability.marksman.snipe",
+      "modifiers": [
+        {
+          "type": "ability_channel_time",
+          "value": -0.15
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "loot.test_melee",
+  "kind": "loot_table",
+  "displayName": "Test Melee",
+  "ownershipPolicy": "ground_free",
+  "entries": [
+    {
+      "itemDefinitionId": "item.test_cloth",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "chance": 1,
+      "guaranteed": true
+    }
+  ]
+}

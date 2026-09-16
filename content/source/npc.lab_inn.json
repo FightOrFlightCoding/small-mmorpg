@@ -1,0 +1,28 @@
+{
+  "id": "npc.lab_inn",
+  "kind": "npc",
+  "displayName": "Lab Innkeeper",
+  "displayNameKey": "npc.lab_inn.name",
+  "visualId": "visual.npc_lab_inn",
+  "zoneId": "test.zone.systems_lab",
+  "position": { "x": 520, "y": 256 },
+  "interactionRange": 48,
+  "dialogueId": "dialogue.npc.lab_inn",
+  "services": [
+    { "type": "dialogue" },
+    {
+      "type": "inn",
+      "goldCost": 1,
+      "healToFull": true,
+      "restoreResources": true,
+      "bindRespawn": true
+    },
+    {
+      "type": "healer",
+      "goldCost": 0,
+      "healToFull": true,
+      "restoreResources": true
+    }
+  ],
+  "developmentOnly": true
+}

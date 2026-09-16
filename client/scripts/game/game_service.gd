@@ -4,6 +4,8 @@ extends Node
 
 var last_identity: Dictionary = {}
 var enter_world_after_bootstrap: bool = false
+var defer_login_after_logout: bool = false
+var _departure_busy: bool = false
 
 
 func _ready() -> void:
@@ -11,10 +13,13 @@ func _ready() -> void:
 		NetworkService.authentication_finished.connect(_on_authentication_finished)
 	if not AppState.logged_out.is_connected(_on_logged_out):
 		AppState.logged_out.connect(_on_logged_out)
+	if not NetworkService.gameplay_disconnected_unbound.is_connected(_on_gameplay_disconnected_unbound):
+		NetworkService.gameplay_disconnected_unbound.connect(_on_gameplay_disconnected_unbound)
 
 
 func start_boot(bundle_path: String = ContentRegistry.DEFAULT_BUNDLE_PATH) -> bool:
 	AppState.notify_loading_started("boot")
+	AccountService.apply_runtime_gateway_url()
 	var loaded := ContentRegistry.load_bundle(bundle_path)
 	if not loaded:
 		var code := ContentRegistry.catalog.error_code
@@ -35,6 +40,12 @@ func start_boot(bundle_path: String = ContentRegistry.DEFAULT_BUNDLE_PATH) -> bo
 func request_authenticate(device_id: String = "", dev_user: String = "") -> void:
 	if AppState.has_fatal_error:
 		return
+	if not DevIdentity.development_auth_allowed():
+		AppState.report_recoverable(
+			"development_auth_blocked",
+			"Development sign-in is unavailable in this build. Use email and password."
+		)
+		return
 	if not dev_user.is_empty():
 		last_identity = DevIdentity.resolve(PackedStringArray(["--dev-user=%s" % dev_user]), OS.get_unique_id())
 	else:
@@ -47,6 +58,197 @@ func request_authenticate(device_id: String = "", dev_user: String = "") -> void
 		resolved_id = String(last_identity.get("device_id", ""))
 	var username := String(last_identity.get("dev_user", ""))
 	await NetworkService.authenticate_device(resolved_id, username)
+
+
+func request_register(
+	email: String,
+	password: String,
+	confirm: String,
+	accept_terms: bool = true,
+	accept_privacy: bool = true
+) -> void:
+	if AppState.has_fatal_error:
+		return
+	if password != confirm:
+		AppState.report_recoverable("password_mismatch", AccountErrors.message_for("password_mismatch"))
+		return
+	if email.strip_edges().is_empty() or password.is_empty():
+		AppState.report_recoverable("invalid_credentials", "Email and password are required.")
+		return
+	var result := await AccountService.register_account(email, password, confirm, accept_terms, accept_privacy)
+	if not bool(result.get("ok", false)):
+		AppState.report_recoverable(String(result.get("code", "AUTH_VALIDATION")), String(result.get("message", AccountErrors.message_for("AUTH_VALIDATION"))))
+		return
+	SceneRouter.transition_to(SceneRouter.SCENE_VERIFY)
+
+
+func request_login_email(email: String, password: String) -> void:
+	if AppState.has_fatal_error:
+		return
+	if email.strip_edges().is_empty() or password.is_empty():
+		AppState.report_recoverable("invalid_credentials", AccountErrors.message_for("invalid_credentials"))
+		return
+	var result := await AccountService.login(email, password)
+	var code := String(result.get("code", ""))
+	if code == "EMAIL_VERIFICATION_REQUIRED" or AccountErrors.canonicalize(code) == "AUTH_EMAIL_UNVERIFIED":
+		AppState.report_recoverable("EMAIL_VERIFICATION_REQUIRED", AccountErrors.message_for("EMAIL_VERIFICATION_REQUIRED"))
+		SceneRouter.transition_to(SceneRouter.SCENE_VERIFY)
+		return
+	if AccountErrors.canonicalize(code) == "ACCOUNT_DISABLED":
+		AppState.report_recoverable("AUTH_ACCOUNT_DISABLED", AccountErrors.message_for("ACCOUNT_DISABLED"))
+		SceneRouter.transition_to(SceneRouter.SCENE_ACCOUNT_DISABLED)
+		return
+	if AccountErrors.canonicalize(code) == "ACCOUNT_DELETING":
+		AppState.report_recoverable("AUTH_ACCOUNT_DELETING", AccountErrors.message_for("ACCOUNT_DELETING"))
+		return
+	if AccountErrors.canonicalize(code) == "ACCOUNT_SERVER_UNAVAILABLE":
+		AppState.report_recoverable("AUTH_UNAVAILABLE", AccountErrors.message_for("ACCOUNT_SERVER_UNAVAILABLE"))
+		SceneRouter.transition_to(SceneRouter.SCENE_SERVER_UNAVAILABLE)
+		return
+	if code == "AUTH_INVALID_CREDENTIALS":
+		AppState.report_recoverable("invalid_credentials", AccountErrors.message_for("invalid_credentials"))
+		return
+	if not bool(result.get("ok", false)):
+		AppState.report_recoverable(code if not code.is_empty() else "invalid_credentials", AccountErrors.display_for(code, String(result.get("request_id", AccountService.last_request_id))))
+		return
+	await NetworkService.import_session(
+		String(result.get("token", "")),
+		String(result.get("refresh_token", "")),
+		String(result.get("user_id", "")),
+		String(result.get("username", ""))
+	)
+
+
+func request_password_reset(email: String) -> void:
+	if AppState.has_fatal_error:
+		return
+	await AccountService.request_password_reset(email)
+
+
+func confirm_password_reset(code: String, new_password: String, confirm: String) -> void:
+	if AppState.has_fatal_error:
+		return
+	var result := await AccountService.confirm_password_reset(code, new_password, confirm)
+	if not bool(result.get("ok", false)):
+		AppState.report_recoverable(String(result.get("code", "AUTH_INVALID_CHALLENGE")), String(result.get("message", AccountErrors.message_for("AUTH_INVALID_CHALLENGE"))))
+		return
+	defer_login_after_logout = true
+	await NetworkService.logout()
+	SceneRouter.transition_to(SceneRouter.SCENE_PASSWORD_CHANGED)
+
+
+func request_change_password(current_password: String, new_password: String, confirm: String) -> void:
+	if AppState.has_fatal_error:
+		return
+	var result := await AccountService.change_password(current_password, new_password, confirm)
+	if not bool(result.get("ok", false)):
+		AppState.report_recoverable(String(result.get("code", "AUTH_VALIDATION")), String(result.get("message", AccountErrors.message_for("AUTH_VALIDATION"))))
+		return
+	defer_login_after_logout = true
+	await NetworkService.logout()
+	SceneRouter.transition_to(SceneRouter.SCENE_PASSWORD_CHANGED)
+
+
+func request_email_change(current_password: String, new_email: String) -> void:
+	if AppState.has_fatal_error:
+		return
+	var result := await AccountService.request_email_change(current_password, new_email)
+	if not bool(result.get("ok", false)):
+		AppState.report_recoverable(String(result.get("code", "AUTH_VALIDATION")), String(result.get("message", AccountErrors.message_for("AUTH_VALIDATION"))))
+		return
+	SceneRouter.transition_to(SceneRouter.SCENE_EMAIL_CHANGE_VERIFY)
+
+
+func confirm_email_change(code: String) -> void:
+	if AppState.has_fatal_error:
+		return
+	var result := await AccountService.confirm_email_change(code)
+	if not bool(result.get("ok", false)):
+		AppState.report_recoverable(String(result.get("code", "AUTH_INVALID_CHALLENGE")), String(result.get("message", AccountErrors.message_for("AUTH_INVALID_CHALLENGE"))))
+		return
+	defer_login_after_logout = true
+	await NetworkService.logout()
+
+
+func fetch_account_status() -> Dictionary:
+	if AppState.has_fatal_error:
+		return {"ok": false, "code": "AUTH_UNAVAILABLE"}
+	return await AccountService.fetch_account_status()
+
+
+func export_account_data() -> Dictionary:
+	if AppState.has_fatal_error:
+		return {"ok": false, "code": "AUTH_UNAVAILABLE"}
+	return await AccountService.request_data_export()
+
+
+func request_account_deletion(password: String) -> Dictionary:
+	if AppState.has_fatal_error:
+		return {"ok": false, "code": "AUTH_UNAVAILABLE"}
+	var result := await AccountService.request_account_deletion(password)
+	if not bool(result.get("ok", false)):
+		AppState.report_recoverable(String(result.get("code", "AUTH_VALIDATION")), String(result.get("message", AccountErrors.message_for("AUTH_VALIDATION"))))
+	return result
+
+
+func confirm_account_deletion(password: String, code: String, phrase: String) -> Dictionary:
+	if AppState.has_fatal_error:
+		return {"ok": false, "code": "AUTH_UNAVAILABLE"}
+	var result := await AccountService.confirm_account_deletion(password, code, phrase)
+	if not bool(result.get("ok", false)):
+		AppState.report_recoverable(String(result.get("code", "AUTH_VALIDATION")), String(result.get("message", AccountErrors.message_for("AUTH_VALIDATION"))))
+		return result
+	if bool(result.get("completed", false)):
+		defer_login_after_logout = true
+		await NetworkService.logout()
+		SceneRouter.transition_to(SceneRouter.SCENE_ACCOUNT_DELETED)
+	return result
+
+
+func request_verify_email(code: String) -> void:
+	if AppState.has_fatal_error:
+		return
+	var result := await AccountService.verify_email(code)
+	if not bool(result.get("ok", false)):
+		AppState.report_recoverable(String(result.get("code", "AUTH_INVALID_CHALLENGE")), String(result.get("message", AccountErrors.message_for("AUTH_INVALID_CHALLENGE"))))
+		return
+	AppState.report_recoverable("email_verified", "Email verified. You can sign in.")
+	SceneRouter.transition_to(SceneRouter.SCENE_LOGIN)
+
+
+func try_restore_session() -> void:
+	if AppState.has_fatal_error or AppState.is_authenticated:
+		return
+	await NetworkService.restore_cached_session()
+
+
+func request_character_list() -> void:
+	if AppState.has_fatal_error:
+		return
+	if not AppState.is_authenticated:
+		AppState.report_recoverable("unauthenticated", "Sign-in is required before listing characters.")
+		return
+	await NetworkService.list_characters()
+
+
+func request_character_create(character_name: String, class_id: String) -> void:
+	if AppState.has_fatal_error:
+		return
+	await NetworkService.create_character(character_name, class_id)
+
+
+func request_character_select(character_id: String) -> void:
+	if AppState.has_fatal_error:
+		return
+	await NetworkService.select_character(character_id)
+
+
+func request_character_soft_delete(character_id: String, confirmation_name: String = "") -> void:
+	await NetworkService.soft_delete_character(character_id, confirmation_name)
+
+
+func request_character_restore(character_id: String) -> void:
+	await NetworkService.restore_character(character_id)
 
 
 func request_character_bootstrap(proposed_name: String = "") -> void:
@@ -67,10 +269,13 @@ func enter_starter_zone() -> bool:
 	if not AppState.has_character:
 		AppState.report_recoverable("character_missing", "A character is required before entering the world.")
 		return false
+	AppState.notify_session_status("Entering world")
 	var joined := await NetworkService.join_starter_zone()
 	if not joined or not AppState.has_zone_state:
+		AppState.notify_session_status("Server unavailable")
 		return false
 	await NetworkService.join_zone_chat()
+	AppState.notify_session_status("Online")
 	return SceneRouter.transition_to(SceneRouter.SCENE_WORLD)
 
 
@@ -78,9 +283,137 @@ func request_resync() -> bool:
 	return await NetworkService.request_resync()
 
 
-func request_logout() -> void:
+func local_player_can_leave_safely() -> bool:
+	if CaveService.transferring:
+		return false
+	if TradeService.is_trading():
+		return false
+	var self_id := String(AppState.zone_view.get("self_id", AppState.user_id))
+	for entry in AppState.zone_view.get("players", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("userId", "")) != self_id:
+			continue
+		if int(entry.get("health", 0)) <= 0:
+			return false
+		if bool(entry.get("inCombat", false)):
+			return false
+		if entry.get("activeCast", null) != null and typeof(entry.get("activeCast")) == TYPE_DICTIONARY:
+			var cast: Dictionary = entry.get("activeCast")
+			if not String(cast.get("abilityId", "")).is_empty():
+				return false
+		if bool(entry.get("linkDead", false)):
+			return false
+		return true
+	return AppState.has_zone_state
+
+
+func request_return_to_character_select() -> bool:
+	if _departure_busy:
+		return false
+	if NetworkService.match_id.is_empty():
+		return SceneRouter.transition_to(SceneRouter.SCENE_CHARACTER)
+	_departure_busy = true
+	AppState.departure_locked = true
+	AppState.notify_session_status("Returning to Character Select")
+	AppState.notify_loading_started("return")
+	var result: Dictionary = await NetworkService.send_return_to_character_select()
+	var ok := bool(result.get("ok", false)) and bool(result.get("result_ok", result.get("ok", false)))
+	if not ok:
+		_departure_busy = false
+		AppState.departure_locked = false
+		AppState.notify_loading_completed("return")
+		AppState.notify_session_status("Online")
+		var message := AccountErrors.message_for("CHARACTER_SAFE_LEAVE_DENIED")
+		AppState.report_recoverable(String(result.get("code", "unsafe_leave")), message)
+		return false
 	enter_world_after_bootstrap = false
+	await NetworkService.depart_gameplay()
+	AppState.clear_zone_state()
+	AppState.selection_ticket = ""
+	_departure_busy = false
+	AppState.departure_locked = false
+	AppState.notify_loading_completed("return")
+	AppState.notify_session_status("")
+	return SceneRouter.transition_to(SceneRouter.SCENE_CHARACTER)
+
+
+func request_logout() -> void:
+	if _departure_busy:
+		return
+	enter_world_after_bootstrap = false
+	if not NetworkService.match_id.is_empty():
+		_departure_busy = true
+		AppState.departure_locked = true
+		AppState.notify_session_status("Logging out")
+		AppState.notify_loading_started("logout")
+		var result: Dictionary = await NetworkService.send_return_to_character_select()
+		var ok := bool(result.get("ok", false)) and bool(result.get("result_ok", result.get("ok", false)))
+		if not ok:
+			_departure_busy = false
+			AppState.departure_locked = false
+			AppState.notify_loading_completed("logout")
+			AppState.notify_session_status("Online")
+			AppState.report_recoverable(String(result.get("code", "unsafe_leave")), AccountErrors.message_for("CHARACTER_SAFE_LEAVE_DENIED"))
+			return
+		await NetworkService.depart_gameplay()
+		_departure_busy = false
+		AppState.departure_locked = false
+	await AccountService.logout_current()
 	await NetworkService.logout()
+
+
+func request_quit_safely() -> bool:
+	if _departure_busy:
+		return false
+	if NetworkService.match_id.is_empty():
+		get_tree().quit()
+		return true
+	_departure_busy = true
+	AppState.departure_locked = true
+	AppState.notify_session_status("Logging out")
+	AppState.notify_loading_started("logout")
+	var result: Dictionary = await NetworkService.send_return_to_character_select()
+	var ok := bool(result.get("ok", false)) and bool(result.get("result_ok", result.get("ok", false)))
+	if not ok:
+		_departure_busy = false
+		AppState.departure_locked = false
+		AppState.notify_loading_completed("logout")
+		AppState.notify_session_status("Online")
+		AppState.report_recoverable(String(result.get("code", "unsafe_leave")), AccountErrors.message_for("CHARACTER_SAFE_LEAVE_DENIED"))
+		return false
+	await NetworkService.depart_gameplay()
+	_departure_busy = false
+	AppState.departure_locked = false
+	AppState.notify_loading_completed("logout")
+	get_tree().quit()
+	return true
+
+
+func request_quit_anyway() -> void:
+	if _departure_busy:
+		return
+	_departure_busy = true
+	AppState.notify_session_status("Character remains in world")
+	await NetworkService.depart_gameplay()
+	_departure_busy = false
+	get_tree().quit()
+
+
+func request_logout_all(password: String) -> void:
+	enter_world_after_bootstrap = false
+	var result := await AccountService.logout_all(password)
+	if not bool(result.get("ok", false)):
+		AppState.report_recoverable(String(result.get("code", "AUTH_FORBIDDEN")), String(result.get("message", AccountErrors.message_for("AUTH_FORBIDDEN"))))
+		return
+	await NetworkService.logout()
+
+
+func cancel_reconnect() -> void:
+	enter_world_after_bootstrap = false
+	await NetworkService.depart_gameplay()
+	await AccountService.logout_current()
+	await NetworkService.cancel_reconnect()
 
 
 func _on_authentication_finished(success: bool, _message: String) -> void:
@@ -98,5 +431,19 @@ func _on_logged_out() -> void:
 	enter_world_after_bootstrap = false
 	if AppState.has_fatal_error:
 		return
+	if defer_login_after_logout:
+		defer_login_after_logout = false
+		return
 	if AppState.content_ready:
 		SceneRouter.transition_to(SceneRouter.SCENE_LOGIN)
+
+
+func _on_gameplay_disconnected_unbound() -> void:
+	enter_world_after_bootstrap = false
+	AppState.selection_ticket = ""
+	AppState.clear_zone_state()
+	AppState.notify_session_status("Character remains in world")
+	if SceneRouter.transition_to(SceneRouter.SCENE_CHARACTER):
+		request_character_list()
+
+

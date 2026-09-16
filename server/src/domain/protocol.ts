@@ -1,5 +1,6 @@
 export const PROTOCOL_VERSION = 1;
 export const MAX_MATCH_PAYLOAD_BYTES = 2048;
+export const MAX_ALLOCATE_BATCH_ENTRIES = 16;
 export const REQUEST_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 export const CONTENT_HASH_PATTERN = /^[a-f0-9]{64}$/;
 
@@ -12,6 +13,36 @@ export const ClientOpcode = {
   QUEST_ACCEPT: 6,
   QUEST_TURN_IN: 7,
   RESYNC_REQUEST: 8,
+  ALLOCATE_ATTRIBUTES: 9,
+  DESTROY_ITEM: 10,
+  SPLIT_STACK: 11,
+  MOVE_ITEM: 12,
+  USE_ABILITY: 13,
+  CANCEL_CAST: 14,
+  ASSIGN_HOTBAR: 15,
+  UNLOCK_ABILITY: 16,
+  SET_TARGET: 17,
+  RELEASE_RESPAWN: 18,
+  VENDOR_BUY: 19,
+  VENDOR_SELL: 20,
+  INN_REST: 21,
+  CAVE_ENTER: 22,
+  CAVE_EXIT: 23,
+  TRADE_INVITE: 24,
+  TRADE_ACCEPT_INVITE: 25,
+  TRADE_DECLINE_INVITE: 26,
+  TRADE_SET_OFFER: 27,
+  TRADE_REMOVE_OFFER: 28,
+  TRADE_SET_GOLD: 29,
+  TRADE_ACCEPT_REVISION: 30,
+  TRADE_CANCEL: 31,
+  RETURN_TO_CHARACTER_SELECT: 32,
+  SELECT_BRANCH: 33,
+  SET_AUTO_ASSIGN: 34,
+  AUTO_ASSIGN_UNSPENT_POINTS: 35,
+  ALLOCATE_ATTRIBUTES_BATCH: 36,
+  TRAINER_RESPEC: 37,
+  PURCHASE_TALENT: 38,
 } as const;
 
 export const ServerOpcode = {
@@ -23,6 +54,13 @@ export const ServerOpcode = {
   QUEST_STATE: 106,
   INTERACTION_RESULT: 107,
   SYSTEM_MESSAGE: 108,
+  EQUIPMENT_STATE: 109,
+  WALLET_STATE: 110,
+  PROGRESSION_STATE: 111,
+  ABILITY_STATE: 112,
+  PARTY_STATE: 113,
+  PARTY_EVENT: 114,
+  TRADE_STATE: 115,
 } as const;
 
 export type ClientOpcode = (typeof ClientOpcode)[keyof typeof ClientOpcode];
@@ -37,12 +75,46 @@ const CLIENT_OPCODES: ClientOpcode[] = [
   ClientOpcode.QUEST_ACCEPT,
   ClientOpcode.QUEST_TURN_IN,
   ClientOpcode.RESYNC_REQUEST,
+  ClientOpcode.ALLOCATE_ATTRIBUTES,
+  ClientOpcode.DESTROY_ITEM,
+  ClientOpcode.SPLIT_STACK,
+  ClientOpcode.MOVE_ITEM,
+  ClientOpcode.USE_ABILITY,
+  ClientOpcode.CANCEL_CAST,
+  ClientOpcode.ASSIGN_HOTBAR,
+  ClientOpcode.UNLOCK_ABILITY,
+  ClientOpcode.SET_TARGET,
+  ClientOpcode.RELEASE_RESPAWN,
+  ClientOpcode.VENDOR_BUY,
+  ClientOpcode.VENDOR_SELL,
+  ClientOpcode.INN_REST,
+  ClientOpcode.CAVE_ENTER,
+  ClientOpcode.CAVE_EXIT,
+  ClientOpcode.TRADE_INVITE,
+  ClientOpcode.TRADE_ACCEPT_INVITE,
+  ClientOpcode.TRADE_DECLINE_INVITE,
+  ClientOpcode.TRADE_SET_OFFER,
+  ClientOpcode.TRADE_REMOVE_OFFER,
+  ClientOpcode.TRADE_SET_GOLD,
+  ClientOpcode.TRADE_ACCEPT_REVISION,
+  ClientOpcode.TRADE_CANCEL,
+  ClientOpcode.RETURN_TO_CHARACTER_SELECT,
+  ClientOpcode.SELECT_BRANCH,
+  ClientOpcode.SET_AUTO_ASSIGN,
+  ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS,
+  ClientOpcode.ALLOCATE_ATTRIBUTES_BATCH,
+  ClientOpcode.TRAINER_RESPEC,
+  ClientOpcode.PURCHASE_TALENT,
 ];
 
 const REWARD_OPCODES: ClientOpcode[] = [
   ClientOpcode.PICKUP,
   ClientOpcode.QUEST_ACCEPT,
   ClientOpcode.QUEST_TURN_IN,
+  ClientOpcode.VENDOR_BUY,
+  ClientOpcode.VENDOR_SELL,
+  ClientOpcode.INN_REST,
+  ClientOpcode.TRAINER_RESPEC,
 ];
 
 const COMMON_KEYS = ["protocolVersion", "contentHash", "requestId"];
@@ -52,10 +124,40 @@ OPCODE_KEYS[ClientOpcode.INPUT] = ["seq", "axisX", "axisY"];
 OPCODE_KEYS[ClientOpcode.INTERACT] = ["targetId"];
 OPCODE_KEYS[ClientOpcode.ATTACK] = ["targetId"];
 OPCODE_KEYS[ClientOpcode.PICKUP] = ["lootId"];
-OPCODE_KEYS[ClientOpcode.EQUIP] = ["itemId", "slot"];
+OPCODE_KEYS[ClientOpcode.EQUIP] = ["instanceId", "slot"];
 OPCODE_KEYS[ClientOpcode.QUEST_ACCEPT] = ["questId"];
-OPCODE_KEYS[ClientOpcode.QUEST_TURN_IN] = ["questId"];
+OPCODE_KEYS[ClientOpcode.QUEST_TURN_IN] = ["questId", "npcId"];
 OPCODE_KEYS[ClientOpcode.RESYNC_REQUEST] = [];
+OPCODE_KEYS[ClientOpcode.ALLOCATE_ATTRIBUTES] = ["attributeId", "statId", "amount"];
+OPCODE_KEYS[ClientOpcode.DESTROY_ITEM] = ["instanceId", "quantity"];
+OPCODE_KEYS[ClientOpcode.SPLIT_STACK] = ["instanceId", "quantity"];
+OPCODE_KEYS[ClientOpcode.MOVE_ITEM] = ["instanceId", "toSlotIndex"];
+OPCODE_KEYS[ClientOpcode.USE_ABILITY] = ["abilityId", "targetId", "targetX", "targetY"];
+OPCODE_KEYS[ClientOpcode.CANCEL_CAST] = [];
+OPCODE_KEYS[ClientOpcode.ASSIGN_HOTBAR] = ["slotIndex", "abilityId"];
+OPCODE_KEYS[ClientOpcode.UNLOCK_ABILITY] = ["abilityId"];
+OPCODE_KEYS[ClientOpcode.SET_TARGET] = ["targetId", "intent"];
+OPCODE_KEYS[ClientOpcode.RELEASE_RESPAWN] = [];
+OPCODE_KEYS[ClientOpcode.VENDOR_BUY] = ["npcId", "itemId", "quantity"];
+OPCODE_KEYS[ClientOpcode.VENDOR_SELL] = ["npcId", "instanceId", "quantity"];
+OPCODE_KEYS[ClientOpcode.INN_REST] = ["npcId", "mode"];
+OPCODE_KEYS[ClientOpcode.CAVE_ENTER] = ["npcId"];
+OPCODE_KEYS[ClientOpcode.CAVE_EXIT] = ["npcId"];
+OPCODE_KEYS[ClientOpcode.TRADE_INVITE] = ["targetId"];
+OPCODE_KEYS[ClientOpcode.TRADE_ACCEPT_INVITE] = ["tradeId"];
+OPCODE_KEYS[ClientOpcode.TRADE_DECLINE_INVITE] = ["tradeId"];
+OPCODE_KEYS[ClientOpcode.TRADE_SET_OFFER] = ["tradeId", "instanceId", "quantity"];
+OPCODE_KEYS[ClientOpcode.TRADE_REMOVE_OFFER] = ["tradeId", "instanceId"];
+OPCODE_KEYS[ClientOpcode.TRADE_SET_GOLD] = ["tradeId", "amount"];
+OPCODE_KEYS[ClientOpcode.TRADE_ACCEPT_REVISION] = ["tradeId", "revision"];
+OPCODE_KEYS[ClientOpcode.TRADE_CANCEL] = ["tradeId"];
+OPCODE_KEYS[ClientOpcode.RETURN_TO_CHARACTER_SELECT] = [];
+OPCODE_KEYS[ClientOpcode.SELECT_BRANCH] = ["branchId"];
+OPCODE_KEYS[ClientOpcode.SET_AUTO_ASSIGN] = ["enabled"];
+OPCODE_KEYS[ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS] = [];
+OPCODE_KEYS[ClientOpcode.ALLOCATE_ATTRIBUTES_BATCH] = ["allocations"];
+OPCODE_KEYS[ClientOpcode.TRAINER_RESPEC] = ["npcId"];
+OPCODE_KEYS[ClientOpcode.PURCHASE_TALENT] = ["treeId", "nodeId", "requestedRank"];
 
 const OUTCOME_KEYS = [
   "attack",
@@ -77,11 +179,56 @@ const OUTCOME_KEYS = [
   "currency",
   "gold",
   "items",
+  "instanceId",
+  "itemInstanceId",
   "questComplete",
   "stats",
+  "attackBonus",
+  "xp",
+  "currentXp",
+  "lifetimeXp",
+  "level",
+  "unspentAttributePoints",
+  "unspentSkillPoints",
+  "unspentFreeStatPoints",
+  "purchasedClassNodeIds",
+  "purchasedBranchNodeRanks",
+  "hotbarAssignments",
+  "unlockedAbilityIds",
+  "allocatedAttributes",
+  "freeStatAllocations",
+  "resultingGold",
+  "resultingBalance",
+  "crit",
+  "critRoll",
+  "random",
+  "roll",
+  "critChance",
+  "healing",
+  "heal",
+  "range",
+  "cooldown",
+  "castTime",
+  "channelTime",
+  "resourceCost",
+  "duration",
+  "effectDuration",
+  "magnitude",
+  "stacks",
+  "members",
+  "memberIds",
+  "partyMembers",
+  "creditUserIds",
+  "lootRecipients",
+  "xpRecipients",
 ];
 
 const INPUT_NUMBER_KEYS = ["seq", "axisX", "axisY"];
+const ALLOCATE_NUMBER_KEYS = ["amount"];
+const INVENTORY_NUMBER_KEYS = ["quantity", "toSlotIndex"];
+const ABILITY_NUMBER_KEYS = ["targetX", "targetY", "slotIndex", "requestedRank"];
+const TRADE_NUMBER_KEYS = ["revision"];
+const BOOLEAN_KEYS = ["enabled"];
 
 export interface ProtocolError {
   code: string;
@@ -97,6 +244,16 @@ export interface ParsedClientMessage {
   seq?: number;
   axisX?: number;
   axisY?: number;
+  amount?: number;
+  quantity?: number;
+  toSlotIndex?: number;
+  targetX?: number;
+  targetY?: number;
+  slotIndex?: number;
+  requestedRank?: number;
+  revision?: number;
+  enabled?: boolean;
+  allocations?: Array<{ statId: string; amount: number }>;
 }
 
 export function isClientOpcode(opcode: number): opcode is ClientOpcode {
@@ -105,6 +262,41 @@ export function isClientOpcode(opcode: number): opcode is ClientOpcode {
 
 export function isRewardOpcode(opcode: ClientOpcode): boolean {
   return REWARD_OPCODES.indexOf(opcode) !== -1;
+}
+
+function requiresRequestId(opcode: ClientOpcode): boolean {
+  return (
+    isRewardOpcode(opcode) ||
+    opcode === ClientOpcode.INTERACT ||
+    opcode === ClientOpcode.ATTACK ||
+    opcode === ClientOpcode.EQUIP ||
+    opcode === ClientOpcode.ALLOCATE_ATTRIBUTES ||
+    opcode === ClientOpcode.ALLOCATE_ATTRIBUTES_BATCH ||
+    opcode === ClientOpcode.DESTROY_ITEM ||
+    opcode === ClientOpcode.SPLIT_STACK ||
+    opcode === ClientOpcode.MOVE_ITEM ||
+    opcode === ClientOpcode.USE_ABILITY ||
+    opcode === ClientOpcode.CANCEL_CAST ||
+    opcode === ClientOpcode.ASSIGN_HOTBAR ||
+    opcode === ClientOpcode.UNLOCK_ABILITY ||
+    opcode === ClientOpcode.SET_TARGET ||
+    opcode === ClientOpcode.RELEASE_RESPAWN ||
+    opcode === ClientOpcode.CAVE_ENTER ||
+    opcode === ClientOpcode.CAVE_EXIT ||
+    opcode === ClientOpcode.TRADE_INVITE ||
+    opcode === ClientOpcode.TRADE_ACCEPT_INVITE ||
+    opcode === ClientOpcode.TRADE_DECLINE_INVITE ||
+    opcode === ClientOpcode.TRADE_SET_OFFER ||
+    opcode === ClientOpcode.TRADE_REMOVE_OFFER ||
+    opcode === ClientOpcode.TRADE_SET_GOLD ||
+    opcode === ClientOpcode.TRADE_ACCEPT_REVISION ||
+    opcode === ClientOpcode.TRADE_CANCEL ||
+    opcode === ClientOpcode.RETURN_TO_CHARACTER_SELECT ||
+    opcode === ClientOpcode.SELECT_BRANCH ||
+    opcode === ClientOpcode.SET_AUTO_ASSIGN ||
+    opcode === ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS ||
+    opcode === ClientOpcode.PURCHASE_TALENT
+  );
 }
 
 export function parseClientMessage(
@@ -158,14 +350,16 @@ export function parseClientMessage(
     }
   }
 
+  const allowed = COMMON_KEYS.concat(OPCODE_KEYS[opcode]);
   for (let i = 0; i < OUTCOME_KEYS.length; i++) {
     const key = OUTCOME_KEYS[i];
+    if (allowed.indexOf(key) !== -1) {
+      continue;
+    }
     if (Object.prototype.hasOwnProperty.call(data, key)) {
       return { code: "stat_injection:" + key, message: "Clients may not send authoritative " + key + "." };
     }
   }
-
-  const allowed = COMMON_KEYS.concat(OPCODE_KEYS[opcode]);
   const keys = Object.keys(data);
   for (let i = 0; i < keys.length; i++) {
     const key = keys[i];
@@ -175,9 +369,9 @@ export function parseClientMessage(
   }
 
   let requestId: string | undefined;
-  if (isRewardOpcode(opcode)) {
+  if (requiresRequestId(opcode)) {
     if (typeof data.requestId !== "string" || !REQUEST_ID_PATTERN.test(data.requestId)) {
-      return { code: "invalid_request_id", message: "Reward-producing requests require a unique requestId." };
+      return { code: "invalid_request_id", message: "This request requires a unique requestId." };
     }
     requestId = data.requestId;
   } else if (typeof data.requestId === "string") {
@@ -194,15 +388,52 @@ export function parseClientMessage(
     if (INPUT_NUMBER_KEYS.indexOf(key) !== -1) {
       continue;
     }
-    if (key === "slot" && !Object.prototype.hasOwnProperty.call(data, key)) {
+    if (ALLOCATE_NUMBER_KEYS.indexOf(key) !== -1) {
       continue;
     }
-    if (key !== "slot" && typeof data[key] !== "string") {
+    if (INVENTORY_NUMBER_KEYS.indexOf(key) !== -1) {
+      continue;
+    }
+    if (ABILITY_NUMBER_KEYS.indexOf(key) !== -1) {
+      continue;
+    }
+    if (TRADE_NUMBER_KEYS.indexOf(key) !== -1) {
+      continue;
+    }
+    if (BOOLEAN_KEYS.indexOf(key) !== -1) {
+      continue;
+    }
+    if (key === "instanceId" && !Object.prototype.hasOwnProperty.call(data, key)) {
+      continue;
+    }
+    if (key === "targetId" && opcode === ClientOpcode.USE_ABILITY && !Object.prototype.hasOwnProperty.call(data, key)) {
+      continue;
+    }
+    if (key === "targetId" && opcode === ClientOpcode.SET_TARGET && !Object.prototype.hasOwnProperty.call(data, key)) {
+      continue;
+    }
+    if (key === "intent" && opcode === ClientOpcode.SET_TARGET && !Object.prototype.hasOwnProperty.call(data, key)) {
+      continue;
+    }
+    if (key === "abilityId" && opcode === ClientOpcode.ASSIGN_HOTBAR && !Object.prototype.hasOwnProperty.call(data, key)) {
+      continue;
+    }
+    if (key === "mode" && opcode === ClientOpcode.INN_REST && !Object.prototype.hasOwnProperty.call(data, key)) {
+      continue;
+    }
+    if (key === "attributeId" && opcode === ClientOpcode.ALLOCATE_ATTRIBUTES && !Object.prototype.hasOwnProperty.call(data, key)) {
+      continue;
+    }
+    if (key === "statId" && opcode === ClientOpcode.ALLOCATE_ATTRIBUTES && !Object.prototype.hasOwnProperty.call(data, key)) {
+      continue;
+    }
+    if (key === "allocations") {
+      continue;
+    }
+    if (typeof data[key] !== "string") {
       return { code: "invalid_id", message: "Field " + key + " must be a string id." };
     }
-    if (typeof data[key] === "string") {
-      fields[key] = data[key];
-    }
+    fields[key] = data[key];
   }
 
   const message: ParsedClientMessage = {
@@ -230,7 +461,159 @@ export function parseClientMessage(
     message.axisX = axisX;
     message.axisY = axisY;
   }
+  if (opcode === ClientOpcode.ALLOCATE_ATTRIBUTES || opcode === ClientOpcode.TRADE_SET_GOLD) {
+    const amount = data.amount;
+    if (typeof amount !== "number" || !isFinite(amount) || amount !== Math.floor(amount)) {
+      return { code: "invalid_amount", message: "Amount must be a finite integer." };
+    }
+    message.amount = amount;
+  }
+  if (opcode === ClientOpcode.ALLOCATE_ATTRIBUTES) {
+    const resolved = resolveAllocateStatId(data);
+    if (resolved.code !== undefined) {
+      return resolved;
+    }
+    message.fields.attributeId = resolved.statId;
+  }
+  if (opcode === ClientOpcode.ALLOCATE_ATTRIBUTES_BATCH) {
+    const parsedAllocations = parseAllocateBatch(data.allocations);
+    if (!Array.isArray(parsedAllocations)) {
+      return parsedAllocations;
+    }
+    message.allocations = parsedAllocations;
+  }
+  if (
+    opcode === ClientOpcode.TRADE_SET_OFFER &&
+    Object.prototype.hasOwnProperty.call(data, "quantity")
+  ) {
+    const quantity = data.quantity;
+    if (typeof quantity !== "number" || !isFinite(quantity) || quantity !== Math.floor(quantity)) {
+      return { code: "invalid_amount", message: "TRADE quantity must be a finite integer." };
+    }
+    message.quantity = quantity;
+  }
+  if (opcode === ClientOpcode.TRADE_ACCEPT_REVISION) {
+    const revision = data.revision;
+    if (typeof revision !== "number" || !isFinite(revision) || revision !== Math.floor(revision)) {
+      return { code: "invalid_amount", message: "TRADE revision must be a finite integer." };
+    }
+    message.revision = revision;
+  }
+  if (opcode === ClientOpcode.DESTROY_ITEM && Object.prototype.hasOwnProperty.call(data, "quantity")) {
+    const quantity = data.quantity;
+    if (typeof quantity !== "number" || !isFinite(quantity) || quantity !== Math.floor(quantity)) {
+      return { code: "invalid_amount", message: "DESTROY quantity must be a finite integer." };
+    }
+    message.quantity = quantity;
+  }
+  if (
+    (opcode === ClientOpcode.VENDOR_BUY || opcode === ClientOpcode.VENDOR_SELL) &&
+    Object.prototype.hasOwnProperty.call(data, "quantity")
+  ) {
+    const quantity = data.quantity;
+    if (typeof quantity !== "number" || !isFinite(quantity) || quantity !== Math.floor(quantity)) {
+      return { code: "invalid_amount", message: "Vendor quantity must be a finite integer." };
+    }
+    message.quantity = quantity;
+  }
+  if (opcode === ClientOpcode.SPLIT_STACK) {
+    const quantity = data.quantity;
+    if (typeof quantity !== "number" || !isFinite(quantity) || quantity !== Math.floor(quantity)) {
+      return { code: "invalid_amount", message: "SPLIT quantity must be a finite integer." };
+    }
+    message.quantity = quantity;
+  }
+  if (opcode === ClientOpcode.MOVE_ITEM) {
+    const toSlotIndex = data.toSlotIndex;
+    if (typeof toSlotIndex !== "number" || !isFinite(toSlotIndex) || toSlotIndex !== Math.floor(toSlotIndex)) {
+      return { code: "invalid_slot", message: "MOVE toSlotIndex must be a finite integer." };
+    }
+    message.toSlotIndex = toSlotIndex;
+  }
+  if (opcode === ClientOpcode.USE_ABILITY) {
+    const hasX = Object.prototype.hasOwnProperty.call(data, "targetX");
+    const hasY = Object.prototype.hasOwnProperty.call(data, "targetY");
+    if (hasX !== hasY) {
+      return { code: "invalid_target", message: "Ability ground targets require both targetX and targetY." };
+    }
+    if (hasX) {
+      const targetX = data.targetX;
+      const targetY = data.targetY;
+      if (typeof targetX !== "number" || !isFinite(targetX) || typeof targetY !== "number" || !isFinite(targetY)) {
+        return { code: "invalid_target", message: "Ability target point must be finite numbers." };
+      }
+      message.targetX = targetX;
+      message.targetY = targetY;
+    }
+  }
+  if (opcode === ClientOpcode.ASSIGN_HOTBAR) {
+    const slotIndex = data.slotIndex;
+    if (typeof slotIndex !== "number" || !isFinite(slotIndex) || slotIndex !== Math.floor(slotIndex)) {
+      return { code: "invalid_slot", message: "ASSIGN_HOTBAR slotIndex must be a finite integer." };
+    }
+    message.slotIndex = slotIndex;
+  }
+  if (opcode === ClientOpcode.PURCHASE_TALENT) {
+    const requestedRank = data.requestedRank;
+    if (typeof requestedRank !== "number" || !isFinite(requestedRank) || requestedRank !== Math.floor(requestedRank)) {
+      return { code: "invalid_rank", message: "PURCHASE_TALENT requestedRank must be a finite integer." };
+    }
+    message.requestedRank = requestedRank;
+  }
+  if (opcode === ClientOpcode.SET_AUTO_ASSIGN) {
+    if (typeof data.enabled !== "boolean") {
+      return { code: "invalid_id", message: "Field enabled must be a boolean." };
+    }
+    message.enabled = data.enabled;
+  }
   return message;
+}
+
+function resolveAllocateStatId(data: { [key: string]: unknown }): { statId: string; code?: undefined } | ProtocolError {
+  const attributeId = typeof data.attributeId === "string" ? data.attributeId : "";
+  const statId = typeof data.statId === "string" ? data.statId : "";
+  if (attributeId.length === 0 && statId.length === 0) {
+    return { code: "invalid_id", message: "ALLOCATE_ATTRIBUTES requires statId or attributeId." };
+  }
+  if (attributeId.length > 0 && statId.length > 0 && attributeId !== statId) {
+    return { code: "invalid_id", message: "statId and attributeId must match when both are present." };
+  }
+  return { statId: statId.length > 0 ? statId : attributeId };
+}
+
+function parseAllocateBatch(
+  raw: unknown,
+): Array<{ statId: string; amount: number }> | ProtocolError {
+  if (!Array.isArray(raw)) {
+    return { code: "invalid_id", message: "allocations must be an array." };
+  }
+  if (raw.length === 0 || raw.length > MAX_ALLOCATE_BATCH_ENTRIES) {
+    return { code: "invalid_amount", message: "allocations must contain 1 to 16 entries." };
+  }
+  const list: Array<{ statId: string; amount: number }> = [];
+  for (let i = 0; i < raw.length; i++) {
+    const item = raw[i];
+    if (item === null || typeof item !== "object" || Array.isArray(item)) {
+      return { code: "invalid_id", message: "Each allocation must be an object." };
+    }
+    const row = item as { [key: string]: unknown };
+    const keys = Object.keys(row);
+    for (let k = 0; k < keys.length; k++) {
+      if (keys[k] !== "statId" && keys[k] !== "attributeId" && keys[k] !== "amount") {
+        return { code: "unknown_field:" + keys[k], message: "Unknown field " + keys[k] + "." };
+      }
+    }
+    const resolved = resolveAllocateStatId(row);
+    if (resolved.code !== undefined) {
+      return resolved;
+    }
+    const amount = row.amount;
+    if (typeof amount !== "number" || !isFinite(amount) || amount !== Math.floor(amount)) {
+      return { code: "invalid_amount", message: "Amount must be a finite integer." };
+    }
+    list.push({ statId: resolved.statId, amount: amount });
+  }
+  return list;
 }
 
 export function isProtocolError(value: ParsedClientMessage | ProtocolError): value is ProtocolError {
@@ -252,6 +635,7 @@ export function actionResult(
   code: string,
   ok: boolean,
   requestId?: string,
+  extra?: { [key: string]: unknown },
 ): { opcode: number; body: string } {
   const payload: { [key: string]: unknown } = {
     protocolVersion: PROTOCOL_VERSION,
@@ -261,19 +645,235 @@ export function actionResult(
   if (requestId !== undefined) {
     payload.requestId = requestId;
   }
+  if (extra !== undefined) {
+    const keys = Object.keys(extra);
+    for (let i = 0; i < keys.length; i++) {
+      payload[keys[i]] = extra[keys[i]];
+    }
+  }
   return {
     opcode: ServerOpcode.ACTION_RESULT,
     body: JSON.stringify(payload),
   };
 }
 
-export function interactionResult(code: string, ok: boolean): { opcode: number; body: string } {
+export function interactionResult(
+  code: string,
+  ok: boolean,
+  requestId?: string,
+  targetId?: string,
+  extra?: { [key: string]: unknown },
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    ok: ok,
+    code: code,
+  };
+  if (requestId !== undefined) {
+    payload.requestId = requestId;
+  }
+  if (targetId !== undefined) {
+    payload.targetId = targetId;
+  }
+  if (extra !== undefined) {
+    const keys = Object.keys(extra);
+    for (let i = 0; i < keys.length; i++) {
+      payload[keys[i]] = extra[keys[i]];
+    }
+  }
   return {
     opcode: ServerOpcode.INTERACTION_RESULT,
+    body: JSON.stringify(payload),
+  };
+}
+
+export function questState(
+  contentHash: string,
+  quests: { [key: string]: unknown }[],
+  requestId?: string,
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    contentHash: contentHash,
+    quests: quests,
+  };
+  if (requestId !== undefined) {
+    payload.requestId = requestId;
+  }
+  return {
+    opcode: ServerOpcode.QUEST_STATE,
+    body: JSON.stringify(payload),
+  };
+}
+
+export function equipmentState(
+  contentHash: string,
+  equipment: { [key: string]: unknown },
+  derived: { [key: string]: unknown },
+  requestId?: string,
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    contentHash: contentHash,
+    slots: equipment.slots,
+    derived: derived,
+  };
+  if (requestId !== undefined) {
+    payload.requestId = requestId;
+  }
+  return {
+    opcode: ServerOpcode.EQUIPMENT_STATE,
+    body: JSON.stringify(payload),
+  };
+}
+
+export function inventoryState(
+  contentHash: string,
+  inventory: { [key: string]: unknown },
+  requestId?: string,
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    contentHash: contentHash,
+    capacity: inventory.capacity,
+    items: inventory.items,
+  };
+  if (requestId !== undefined) {
+    payload.requestId = requestId;
+  }
+  return {
+    opcode: ServerOpcode.INVENTORY_STATE,
+    body: JSON.stringify(payload),
+  };
+}
+
+export function walletState(
+  contentHash: string,
+  gold: number,
+  requestId?: string,
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    contentHash: contentHash,
+    gold: gold,
+  };
+  if (requestId !== undefined) {
+    payload.requestId = requestId;
+  }
+  return {
+    opcode: ServerOpcode.WALLET_STATE,
+    body: JSON.stringify(payload),
+  };
+}
+
+export function progressionState(
+  contentHash: string,
+  progression: { [key: string]: unknown },
+  requestId?: string,
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    contentHash: contentHash,
+    progression: progression,
+  };
+  if (requestId !== undefined) {
+    payload.requestId = requestId;
+  }
+  return {
+    opcode: ServerOpcode.PROGRESSION_STATE,
+    body: JSON.stringify(payload),
+  };
+}
+
+export function abilityState(
+  contentHash: string,
+  abilities: { [key: string]: unknown },
+  requestId?: string,
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    contentHash: contentHash,
+    abilities: abilities,
+  };
+  if (requestId !== undefined) {
+    payload.requestId = requestId;
+  }
+  return {
+    opcode: ServerOpcode.ABILITY_STATE,
+    body: JSON.stringify(payload),
+  };
+}
+
+export function partyStateMessage(
+  contentHash: string,
+  party: { [key: string]: unknown } | null,
+  pendingInvite: { [key: string]: unknown } | null,
+  requestId?: string,
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    contentHash: contentHash,
+    party: party,
+    pendingInvite: pendingInvite,
+  };
+  if (requestId !== undefined) {
+    payload.requestId = requestId;
+  }
+  return {
+    opcode: ServerOpcode.PARTY_STATE,
+    body: JSON.stringify(payload),
+  };
+}
+
+export function tradeStateMessage(
+  contentHash: string,
+  trade: { [key: string]: unknown } | null,
+  requestId?: string,
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    contentHash: contentHash,
+    trade: trade,
+  };
+  if (requestId !== undefined) {
+    payload.requestId = requestId;
+  }
+  return {
+    opcode: ServerOpcode.TRADE_STATE,
+    body: JSON.stringify(payload),
+  };
+}
+
+export function partyEventMessage(
+  contentHash: string,
+  eventType: string,
+  extras: { [key: string]: unknown } = {},
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    contentHash: contentHash,
+    type: eventType,
+  };
+  const keys = Object.keys(extras);
+  for (let i = 0; i < keys.length; i++) {
+    payload[keys[i]] = extras[keys[i]];
+  }
+  return {
+    opcode: ServerOpcode.PARTY_EVENT,
+    body: JSON.stringify(payload),
+  };
+}
+
+export function combatEvent(
+  tick: number,
+  events: { [key: string]: unknown }[],
+): { opcode: number; body: string } {
+  return {
+    opcode: ServerOpcode.COMBAT_EVENT,
     body: JSON.stringify({
       protocolVersion: PROTOCOL_VERSION,
-      ok: ok,
-      code: code,
+      tick: tick,
+      events: events,
     }),
   };
 }

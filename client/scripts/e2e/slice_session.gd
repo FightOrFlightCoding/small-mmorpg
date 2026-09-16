@@ -1,0 +1,639 @@
+class_name SliceSession
+extends RefCounted
+
+## One Nakama identity for the debug-only slice journey. Sends intentions only.
+
+const BOOTSTRAP_RPC := "character_bootstrap"
+const SELECT_RPC := "character_select"
+const FULL_STATE_TIMEOUT_SEC := 12.0
+const ACTION_TIMEOUT_SEC := 8.0
+const INPUT_INTERVAL_SEC := 0.1
+
+var tree: SceneTree
+var backend: NakamaNetworkBackend
+var label: String = ""
+var user_id: String = ""
+var username: String = ""
+var match_id: String = ""
+var character_id: String = ""
+var character_name: String = ""
+var class_id: String = ""
+var selection_ticket: String = ""
+var view: Dictionary = {}
+var seq: int = 0
+var last_action: Dictionary = {}
+var last_interaction: Dictionary = {}
+var last_system_code: String = ""
+var last_trade: Dictionary = {}
+var party_id: String = ""
+var chat_channel_id: String = ""
+var got_full_state: bool = false
+var fail_reason: String = ""
+
+
+func _init(p_tree: SceneTree, p_label: String) -> void:
+	tree = p_tree
+	label = p_label
+	backend = NakamaNetworkBackend.new()
+	backend.match_state_received.connect(_on_match_state)
+
+
+func authenticate(device_id: String, account_username: String) -> bool:
+	var auth: Dictionary = await backend.authenticate_device(device_id, account_username)
+	if not bool(auth.get("ok", false)):
+		return _fail("authenticate:%s" % String(auth.get("code", "failed")))
+	user_id = String(auth.get("user_id", ""))
+	username = String(auth.get("username", account_username))
+	if user_id.is_empty():
+		return _fail("authenticate:missing_user_id")
+	var socket: Dictionary = await backend.connect_socket()
+	if not bool(socket.get("ok", false)):
+		return _fail("socket:%s" % String(socket.get("code", "failed")))
+	var handshake: Dictionary = await backend.rpc(
+		MatchProtocol.SESSION_HANDSHAKE_RPC,
+		JSON.stringify(MatchProtocol.handshake_payload(ContentRegistry.get_content_hash(), ContentRegistry.get_package_version()))
+	)
+	if not bool(handshake.get("ok", false)):
+		var code := String(handshake.get("code", "failed"))
+		if MatchProtocol.is_maintenance_code(code):
+			return true
+		return _fail("handshake:%s" % code)
+	return true
+
+
+func bootstrap(display_name: String) -> bool:
+	var rpc_result: Dictionary = await backend.rpc(
+		BOOTSTRAP_RPC,
+		JSON.stringify({"name": display_name})
+	)
+	if not bool(rpc_result.get("ok", false)):
+		return _fail("bootstrap:%s" % String(rpc_result.get("code", "failed")))
+	var parsed: Variant = JSON.parse_string(String(rpc_result.get("payload", "")))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return _fail("bootstrap:malformed")
+	if String((parsed as Dictionary).get("characterId", "")).is_empty():
+		return _fail("bootstrap:missing_character")
+	if String((parsed as Dictionary).get("name", "")) != display_name:
+		return _fail("bootstrap:name")
+	character_id = String((parsed as Dictionary).get("characterId", ""))
+	character_name = display_name
+	class_id = String((parsed as Dictionary).get("classId", ""))
+	return true
+
+
+func create_character(display_name: String, p_class_id: String) -> bool:
+	var rpc_result: Dictionary = await backend.rpc(
+		"character_create",
+		JSON.stringify({"name": display_name, "classId": p_class_id})
+	)
+	if not bool(rpc_result.get("ok", false)):
+		return _fail("create:%s" % String(rpc_result.get("code", "failed")))
+	var parsed: Variant = JSON.parse_string(String(rpc_result.get("payload", "")))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return _fail("create:malformed")
+	var data: Dictionary = parsed
+	if String(data.get("characterId", "")).is_empty():
+		return _fail("create:missing_character")
+	character_id = String(data.get("characterId", ""))
+	character_name = String(data.get("name", display_name))
+	class_id = String(data.get("classId", p_class_id))
+	if class_id != p_class_id:
+		return _fail("create:class")
+	return true
+
+
+func load_existing_character() -> bool:
+	var rpc_result: Dictionary = await backend.rpc("character_list", "{}")
+	if not bool(rpc_result.get("ok", false)):
+		return _fail("list:%s" % String(rpc_result.get("code", "failed")))
+	var parsed: Variant = JSON.parse_string(String(rpc_result.get("payload", "")))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return _fail("list:malformed")
+	var characters: Variant = (parsed as Dictionary).get("characters", [])
+	if typeof(characters) != TYPE_ARRAY or (characters as Array).is_empty():
+		return _fail("list:empty")
+	var first: Variant = (characters as Array)[0]
+	if typeof(first) != TYPE_DICTIONARY:
+		return _fail("list:row")
+	character_id = String((first as Dictionary).get("characterId", ""))
+	character_name = String((first as Dictionary).get("name", ""))
+	class_id = String((first as Dictionary).get("classId", ""))
+	if character_id.is_empty():
+		return _fail("list:missing_character")
+	return true
+
+
+func select_character() -> bool:
+	if character_id.is_empty():
+		return _fail("select:missing_character")
+	var rpc_result: Dictionary = await backend.rpc(
+		SELECT_RPC,
+		JSON.stringify({"characterId": character_id})
+	)
+	if not bool(rpc_result.get("ok", false)):
+		return _fail("select:%s" % String(rpc_result.get("code", "failed")))
+	var parsed: Variant = JSON.parse_string(String(rpc_result.get("payload", "")))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return _fail("select:malformed")
+	selection_ticket = String((parsed as Dictionary).get("ticketId", ""))
+	if selection_ticket.is_empty():
+		return _fail("select:missing_ticket")
+	return true
+
+
+func join_zone() -> bool:
+	if not await select_character():
+		return false
+	got_full_state = false
+	view = {}
+	seq = 0
+	var rpc_result: Dictionary = await backend.rpc(MatchProtocol.FIND_OR_CREATE_STARTER_ZONE_RPC, "{}")
+	if not bool(rpc_result.get("ok", false)):
+		return _fail("find_zone:%s" % String(rpc_result.get("code", "failed")))
+	var found: Dictionary = MatchProtocol.parse_find_or_create(
+		String(rpc_result.get("payload", "")),
+		ContentRegistry.get_content_hash()
+	)
+	if not bool(found.get("ok", false)):
+		return _fail("find_zone:%s" % String(found.get("code", "failed")))
+	var join_result: Dictionary = await backend.join_match(
+		String(found["match_id"]),
+		MatchProtocol.join_metadata(ContentRegistry.get_content_hash(), selection_ticket)
+	)
+	if not bool(join_result.get("ok", false)):
+		return _fail("join:%s" % String(join_result.get("code", "failed")))
+	match_id = String(join_result.get("match_id", found["match_id"]))
+	if not await wait_until(func() -> bool: return got_full_state, FULL_STATE_TIMEOUT_SEC):
+		return _fail("full_state_timeout")
+	seq = MatchProtocol.next_input_seq(seq, int(view.get("ack_seq", 0)))
+	return true
+
+
+func leave_zone() -> void:
+	await backend.leave_match()
+	match_id = ""
+	got_full_state = false
+
+
+func send_input(axis: Vector2) -> void:
+	if match_id.is_empty():
+		return
+	seq += 1
+	await backend.send_match_state(MatchProtocol.CLIENT_INPUT, MoveIntent.payload_json(seq, axis))
+
+
+func walk_to(target: Vector2, arrive_px: float, timeout_sec: float) -> bool:
+	if not await wait_until(func() -> bool: return self_pos() != Vector2.ZERO, 3.0):
+		return _fail("missing_self_pose")
+	seq = MatchProtocol.next_input_seq(seq, int(view.get("ack_seq", 0)))
+	var deadline := Time.get_ticks_msec() + int(timeout_sec * 1000.0)
+	var last_pos := self_pos()
+	var stuck_ticks := 0
+	while Time.get_ticks_msec() < deadline:
+		var pos := self_pos()
+		if pos.distance_to(target) <= arrive_px:
+			await send_input(Vector2.ZERO)
+			await tree.create_timer(INPUT_INTERVAL_SEC).timeout
+			return true
+		var axis := MoveIntent.normalize_axes(target - pos)
+		if last_pos.distance_to(pos) < 0.75:
+			stuck_ticks += 1
+			if stuck_ticks >= 6:
+				if int(stuck_ticks / 8) % 2 == 0:
+					axis = Vector2(-axis.y, axis.x)
+				else:
+					axis = Vector2(axis.y, -axis.x)
+		else:
+			stuck_ticks = 0
+		last_pos = pos
+		await send_input(axis)
+		await tree.create_timer(INPUT_INTERVAL_SEC).timeout
+	return _fail("walk_timeout pos=%s target=%s" % [str(self_pos()), str(target)])
+
+
+func nudge(axis: Vector2, duration_sec: float) -> void:
+	var deadline := Time.get_ticks_msec() + int(duration_sec * 1000.0)
+	while Time.get_ticks_msec() < deadline:
+		await send_input(MoveIntent.normalize_axes(axis))
+		await tree.create_timer(INPUT_INTERVAL_SEC).timeout
+	await send_input(Vector2.ZERO)
+
+
+func interact(target_id: String) -> Dictionary:
+	var request_id := MatchProtocol.new_request_id()
+	last_interaction = {}
+	var sent: Dictionary = await backend.send_match_state(
+		MatchProtocol.CLIENT_INTERACT,
+		MatchProtocol.client_envelope_json({"targetId": target_id, "requestId": request_id})
+	)
+	if not bool(sent.get("ok", false)):
+		return {"ok": false, "code": String(sent.get("code", "send_failed"))}
+	if not await wait_until(func() -> bool: return String(last_interaction.get("request_id", "")) == request_id, ACTION_TIMEOUT_SEC):
+		return {"ok": false, "code": "timeout"}
+	return last_interaction
+
+
+func send_action(opcode: int, extra: Dictionary) -> Dictionary:
+	var request_id := MatchProtocol.new_request_id()
+	extra["requestId"] = request_id
+	last_action = {}
+	var sent: Dictionary = await backend.send_match_state(opcode, MatchProtocol.client_envelope_json(extra))
+	if not bool(sent.get("ok", false)):
+		return {"ok": false, "code": String(sent.get("code", "send_failed")), "request_id": request_id}
+	if not await wait_until(func() -> bool: return String(last_action.get("request_id", "")) == request_id, ACTION_TIMEOUT_SEC):
+		return {"ok": false, "code": "timeout", "request_id": request_id}
+	last_action["request_id"] = request_id
+	return last_action
+
+
+func fire_attack(target_id: String) -> void:
+	var extra := {"targetId": target_id, "requestId": MatchProtocol.new_request_id()}
+	await backend.send_match_state(MatchProtocol.CLIENT_ATTACK, MatchProtocol.client_envelope_json(extra))
+
+
+func wait_until(pred: Callable, timeout_sec: float) -> bool:
+	var deadline := Time.get_ticks_msec() + int(timeout_sec * 1000.0)
+	while Time.get_ticks_msec() < deadline:
+		if bool(pred.call()):
+			return true
+		await tree.create_timer(0.05).timeout
+	return false
+
+
+func self_pos() -> Vector2:
+	return player_pos(user_id)
+
+
+func player_pos(p_user_id: String) -> Vector2:
+	for entry in view.get("players", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("userId", "")) == p_user_id:
+			return Vector2(float(entry.get("x", 0.0)), float(entry.get("y", 0.0)))
+	return Vector2.ZERO
+
+
+func has_player(p_user_id: String) -> bool:
+	for entry in view.get("players", []):
+		if typeof(entry) == TYPE_DICTIONARY and String(entry.get("userId", "")) == p_user_id:
+			return true
+	return false
+
+
+func player_record(p_user_id: String) -> Dictionary:
+	for entry in view.get("players", []):
+		if typeof(entry) == TYPE_DICTIONARY and String(entry.get("userId", "")) == p_user_id:
+			return entry
+	return {}
+
+
+func npc_pos(npc_id: String) -> Vector2:
+	for entry in view.get("npcs", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("id", entry.get("npcId", ""))) == npc_id:
+			return Vector2(float(entry.get("x", 0.0)), float(entry.get("y", 0.0)))
+	return Vector2.ZERO
+
+
+func living_slime() -> Dictionary:
+	for entry in view.get("enemies", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var enemy: Dictionary = entry
+		if String(enemy.get("enemyId", "")) != "enemy.green_slime":
+			continue
+		if enemy.has("alive") and not bool(enemy["alive"]):
+			continue
+		if int(enemy.get("health", 0)) <= 0:
+			continue
+		return enemy
+	return {}
+
+
+func gel_loot() -> Dictionary:
+	for entry in view.get("loot", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("itemId", "")) == "item.slime_gel":
+			return entry
+	return {}
+
+
+func item_count(item_id: String) -> int:
+	var inventory: Variant = view.get("inventory", {})
+	if typeof(inventory) != TYPE_DICTIONARY:
+		return 0
+	var total := 0
+	for entry in (inventory as Dictionary).get("items", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("itemId", "")) == item_id:
+			total += int(entry.get("quantity", 0))
+	return total
+
+
+func gold() -> int:
+	var wallet: Variant = view.get("wallet", {})
+	if typeof(wallet) != TYPE_DICTIONARY:
+		return 0
+	return int((wallet as Dictionary).get("gold", 0))
+
+
+func first_instance_id(item_id: String) -> String:
+	var inventory: Variant = view.get("inventory", {})
+	if typeof(inventory) != TYPE_DICTIONARY:
+		return ""
+	for entry in (inventory as Dictionary).get("items", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("itemId", "")) == item_id:
+			return String(entry.get("instanceId", ""))
+	return ""
+
+
+func equipped_instance(slot: String) -> String:
+	var equipment: Variant = view.get("equipment", {})
+	if typeof(equipment) != TYPE_DICTIONARY:
+		return ""
+	var slots: Variant = (equipment as Dictionary).get("slots", {})
+	if typeof(slots) != TYPE_DICTIONARY:
+		return ""
+	return String((slots as Dictionary).get(slot, ""))
+
+
+func progression_level() -> int:
+	var progression: Variant = view.get("progression", {})
+	if typeof(progression) != TYPE_DICTIONARY:
+		return 1
+	return int((progression as Dictionary).get("level", 1))
+
+
+func unspent_attribute_points() -> int:
+	var progression: Variant = view.get("progression", {})
+	if typeof(progression) != TYPE_DICTIONARY:
+		return 0
+	return int((progression as Dictionary).get("unspentAttributePoints", 0))
+
+
+func unspent_skill_points() -> int:
+	var progression: Variant = view.get("progression", {})
+	if typeof(progression) != TYPE_DICTIONARY:
+		return 0
+	return int((progression as Dictionary).get("unspentSkillPoints", 0))
+
+
+func quest_status(quest_id: String) -> String:
+	for entry in view.get("quests", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("questId", "")) == quest_id:
+			return String(entry.get("status", ""))
+	return ""
+
+
+func _on_match_state(opcode: int, payload: String) -> void:
+	var expected := ContentRegistry.get_content_hash()
+	if opcode == MatchProtocol.SERVER_FULL_STATE:
+		var parsed: Dictionary = MatchProtocol.parse_full_state(payload, expected)
+		if not bool(parsed.get("ok", false)):
+			fail_reason = "full_state:%s" % String(parsed.get("code", "invalid"))
+			return
+		view = parsed["view"]
+		got_full_state = true
+		seq = MatchProtocol.next_input_seq(seq, int(view.get("ack_seq", 0)))
+		return
+	if opcode == MatchProtocol.SERVER_SNAPSHOT:
+		if view.is_empty():
+			return
+		var snap: Dictionary = MatchProtocol.parse_snapshot(payload, expected, view)
+		if bool(snap.get("ok", false)):
+			view = snap["view"]
+		return
+	if opcode == MatchProtocol.SERVER_INTERACTION_RESULT:
+		last_interaction = MatchProtocol.parse_interaction_result(payload)
+		return
+	if opcode == MatchProtocol.SERVER_ACTION_RESULT:
+		last_action = MatchProtocol.parse_action_result(payload)
+		return
+	if opcode == MatchProtocol.SERVER_QUEST_STATE:
+		var quests: Dictionary = MatchProtocol.parse_quest_state(payload)
+		if bool(quests.get("ok", false)):
+			view["quests"] = quests.get("quests", [])
+		return
+	if opcode == MatchProtocol.SERVER_INVENTORY_STATE:
+		var inventory: Dictionary = MatchProtocol.parse_inventory_state(payload)
+		if bool(inventory.get("ok", false)):
+			view["inventory"] = {
+				"capacity": inventory.get("capacity", 20),
+				"items": inventory.get("items", []),
+			}
+		return
+	if opcode == MatchProtocol.SERVER_WALLET_STATE:
+		var wallet: Dictionary = MatchProtocol.parse_wallet_state(payload)
+		if bool(wallet.get("ok", false)):
+			view["wallet"] = {"gold": wallet.get("gold", 0)}
+		return
+	if opcode == MatchProtocol.SERVER_EQUIPMENT_STATE:
+		var equipment: Dictionary = MatchProtocol.parse_equipment_state(payload)
+		if bool(equipment.get("ok", false)):
+			view["equipment"] = {"slots": equipment.get("slots", {})}
+			if equipment.has("derived"):
+				view["derived"] = equipment.get("derived", {})
+		return
+	if opcode == MatchProtocol.SERVER_PROGRESSION_STATE:
+		var progression: Dictionary = MatchProtocol.parse_progression_state(payload)
+		if bool(progression.get("ok", false)):
+			view["progression"] = progression.get("progression", {})
+		return
+	if opcode == MatchProtocol.SERVER_SYSTEM_MESSAGE:
+		var sys: Dictionary = MatchProtocol.parse_system_message(payload)
+		last_system_code = String(sys.get("code", ""))
+		return
+	if opcode == MatchProtocol.SERVER_TRADE_STATE:
+		var trade_parsed: Dictionary = MatchProtocol.parse_trade_state(payload)
+		if bool(trade_parsed.get("ok", false)):
+			var trade_value: Variant = trade_parsed.get("trade", {})
+			if typeof(trade_value) == TYPE_DICTIONARY:
+				last_trade = trade_value
+
+
+func instance_type() -> String:
+	var inst: Variant = view.get("instance", {})
+	if typeof(inst) == TYPE_DICTIONARY:
+		return String((inst as Dictionary).get("type", "public_world"))
+	return "public_world"
+
+
+func living_boss() -> Dictionary:
+	for entry in view.get("enemies", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var enemy: Dictionary = entry
+		var enemy_id := String(enemy.get("enemyId", ""))
+		if enemy_id != "test.enemy.cave_boss":
+			continue
+		if enemy.has("alive") and not bool(enemy["alive"]):
+			continue
+		if int(enemy.get("health", 0)) <= 0:
+			continue
+		return enemy
+	return {}
+
+
+func rpc_json(rpc_id: String, body: Dictionary) -> Dictionary:
+	var rpc_result: Dictionary = await backend.rpc(rpc_id, JSON.stringify(body))
+	if not bool(rpc_result.get("ok", false)):
+		return {"ok": false, "code": String(rpc_result.get("code", "rpc_failed"))}
+	var parsed: Variant = JSON.parse_string(String(rpc_result.get("payload", "")))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {"ok": false, "code": "malformed"}
+	var data: Dictionary = parsed
+	if data.has("ok") and not bool(data["ok"]):
+		return {"ok": false, "code": String(data.get("code", "failed")), "payload": data}
+	return {"ok": true, "payload": data, "code": String(data.get("code", "ok"))}
+
+
+func create_party() -> Dictionary:
+	var result: Dictionary = await rpc_json("party_create", {
+		"characterId": character_id,
+		"requestId": MatchProtocol.new_request_id(),
+	})
+	if bool(result.get("ok", false)):
+		var payload: Dictionary = result.get("payload", {})
+		var party: Variant = payload.get("party", {})
+		if typeof(party) == TYPE_DICTIONARY:
+			party_id = String((party as Dictionary).get("partyId", ""))
+	return result
+
+
+func invite_party(target_name: String) -> Dictionary:
+	return await rpc_json("party_invite", {
+		"characterId": character_id,
+		"targetName": target_name,
+		"requestId": MatchProtocol.new_request_id(),
+	})
+
+
+func accept_party(p_party_id: String) -> Dictionary:
+	var result: Dictionary = await rpc_json("party_accept", {
+		"characterId": character_id,
+		"partyId": p_party_id,
+		"requestId": MatchProtocol.new_request_id(),
+	})
+	if bool(result.get("ok", false)):
+		party_id = p_party_id
+	return result
+
+
+func disband_party() -> Dictionary:
+	var result: Dictionary = await rpc_json("party_disband", {
+		"characterId": character_id,
+		"requestId": MatchProtocol.new_request_id(),
+	})
+	if bool(result.get("ok", false)):
+		party_id = ""
+	return result
+
+
+func join_zone_chat() -> bool:
+	var joined: Dictionary = await backend.join_chat(ZoneChat.ROOM_NAME, ZoneChat.CHANNEL_TYPE_ROOM, false, false)
+	if not bool(joined.get("ok", false)):
+		return _fail("chat_join:%s" % String(joined.get("code", "failed")))
+	chat_channel_id = String(joined.get("channel_id", ""))
+	return not chat_channel_id.is_empty()
+
+
+func send_zone_chat(text: String) -> bool:
+	if chat_channel_id.is_empty():
+		if not await join_zone_chat():
+			return false
+	var sent: Dictionary = await backend.send_chat_message(chat_channel_id, ZoneChat.payload(text))
+	if not bool(sent.get("ok", false)):
+		return _fail("chat_send:%s" % String(sent.get("code", "failed")))
+	return true
+
+
+func send_party_chat(text: String) -> bool:
+	if party_id.is_empty():
+		return _fail("party_chat:missing_party")
+	var joined: Dictionary = await backend.join_chat("party." + party_id, ZoneChat.CHANNEL_TYPE_ROOM, false, false)
+	if not bool(joined.get("ok", false)):
+		return _fail("party_chat_join:%s" % String(joined.get("code", "failed")))
+	var channel_id := String(joined.get("channel_id", ""))
+	if channel_id.is_empty():
+		return _fail("party_chat:missing_channel")
+	var sent: Dictionary = await backend.send_chat_message(channel_id, ZoneChat.party_payload(text, party_id))
+	if not bool(sent.get("ok", false)):
+		return _fail("party_chat_send:%s" % String(sent.get("code", "failed")))
+	return true
+
+
+func logout() -> void:
+	await leave_zone()
+	await backend.logout()
+
+
+func begin_transfer(action: Dictionary) -> bool:
+	var ticket_id := String(action.get("ticket_id", ""))
+	var destination := String(action.get("destination_match_id", ""))
+	if ticket_id.is_empty() or destination.is_empty():
+		return _fail("transfer:missing_ticket")
+	got_full_state = false
+	view = {}
+	seq = 0
+	await backend.leave_match()
+	match_id = ""
+	var last_code := "join_failed"
+	var attempts := 0
+	while attempts < 6:
+		var join_result: Dictionary = await backend.join_match(
+			destination,
+			MatchProtocol.join_metadata(ContentRegistry.get_content_hash(), "", ticket_id)
+		)
+		last_code = String(join_result.get("code", "join_failed"))
+		if bool(join_result.get("ok", false)):
+			match_id = String(join_result.get("match_id", destination))
+			if await wait_until(func() -> bool: return got_full_state, FULL_STATE_TIMEOUT_SEC):
+				seq = MatchProtocol.next_input_seq(seq, int(view.get("ack_seq", 0)))
+				return true
+			return _fail("transfer_full_state")
+		if last_code == "ticket_used" or last_code == "ticket_invalid" or last_code == "transfer_foreign":
+			break
+		attempts += 1
+		await tree.create_timer(0.5).timeout
+	return _fail("transfer_join:%s" % last_code)
+
+
+func enter_cave(npc_id: String) -> bool:
+	return await _transfer_action(MatchProtocol.CLIENT_CAVE_ENTER, npc_id, "cave_enter")
+
+
+func exit_cave(npc_id: String) -> bool:
+	return await _transfer_action(MatchProtocol.CLIENT_CAVE_EXIT, npc_id, "cave_exit")
+
+
+func _transfer_action(opcode: int, npc_id: String, label_prefix: String) -> bool:
+	var attempts := 0
+	while attempts < 10:
+		var action: Dictionary = await send_action(opcode, {"npcId": npc_id})
+		if bool(action.get("result_ok", false)):
+			return await begin_transfer(action)
+		var code := String(action.get("code", "failed"))
+		if code == "instance_not_ready" or code == "rate_limited" or code == "out_of_range":
+			attempts += 1
+			await tree.create_timer(0.4).timeout
+			continue
+		return _fail("%s:%s" % [label_prefix, code])
+	return _fail("%s:timeout" % label_prefix)
+
+
+func reconnect() -> bool:
+	await leave_zone()
+	await tree.create_timer(0.4).timeout
+	return await join_zone()
+
+
+func _fail(reason: String) -> bool:
+	fail_reason = "%s:%s" % [label, reason]
+	return false

@@ -38,6 +38,8 @@ func resolve(visual_id: String) -> Dictionary:
 	var missing := visual_id.is_empty() or (not _entries.has(visual_id)) or (not texture_path.is_empty() and not texture_ok)
 	if visual_id.is_empty():
 		missing = true
+	if missing and not visual_id.is_empty():
+		push_warning("Missing asset id: %s — visual texture." % visual_id)
 	return {
 		"visual_id": visual_id,
 		"texture_path": texture_path if texture_ok else "",
@@ -45,6 +47,7 @@ func resolve(visual_id: String) -> Dictionary:
 		"obstacle_texture_path": obstacle_path if obstacle_ok else "",
 		"obstacle_fallback_color": obstacle_color,
 		"missing": missing,
+		"missing_id": visual_id if missing else "",
 	}
 
 

@@ -1,0 +1,17 @@
+{
+  "id": "build.bulwark.fortress",
+  "kind": "reference_build",
+  "displayName": "Fortress",
+  "displayNameKey": "build.bulwark.fortress.display_name",
+  "descriptionKey": "build.bulwark.fortress.description",
+  "branchId": "branch.warrior.bulwark",
+  "statPriority": [
+    "stat.vitality",
+    "stat.endurance"
+  ],
+  "identityKey": "build.bulwark.fortress.identity",
+  "pairedNodeIds": [
+    "talent.warrior.bulwark.fortitude"
+  ],
+  "classification": "canonical"
+}

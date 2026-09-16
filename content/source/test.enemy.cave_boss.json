@@ -1,0 +1,36 @@
+{
+  "id": "test.enemy.cave_boss",
+  "kind": "enemy",
+  "displayName": "Cave Boss",
+  "displayNameKey": "enemy.cave_boss.name",
+  "visualId": "visual.enemy_cave_boss",
+  "level": 3,
+  "maxHealth": 80,
+  "damage": 4,
+  "moveSpeed": 40,
+  "aggroRadius": 180,
+  "attackRange": 36,
+  "attackCooldown": 1.5,
+  "leashRadius": 360,
+  "respawnDelay": 20,
+  "abilityLoadout": ["test.ability.boss_smash"],
+  "aiProfileId": "test.ai.boss",
+  "xpReward": 40,
+  "lootTableId": "loot.test_boss",
+  "collisionProfileId": "collision.enemy_default",
+  "tags": ["test", "boss"],
+  "phases": [
+    {
+      "id": "normal"
+    },
+    {
+      "id": "enraged",
+      "healthPercentAtOrBelow": 50,
+      "setFlag": "enraged",
+      "addAbilityIds": ["test.ability.boss_nova"],
+      "moveSpeed": 55,
+      "triggerSpawnId": "spawn.starter.boss_add",
+      "combatMessage": "The cave boss enrages."
+    }
+  ]
+}

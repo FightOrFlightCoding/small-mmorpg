@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/spawn.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "zoneId",
+    "enemyId",
+    "x",
+    "y",
+    "spawnCount",
+    "respawnDelay",
+    "activationPolicy",
+    "groupId"
+  ],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "spawn" },
+    "zoneId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "enemyId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "x": { "type": "number" },
+    "y": { "type": "number" },
+    "spawnCount": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+    "respawnDelay": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "activationPolicy": {
+      "type": "string",
+      "enum": ["always", "manual"]
+    },
+    "groupId": { "type": "string", "minLength": 1 },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+  }
+}

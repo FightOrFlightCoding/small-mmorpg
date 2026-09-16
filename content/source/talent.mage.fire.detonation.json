@@ -1,0 +1,18 @@
+{
+  "id": "talent.mage.fire.detonation",
+  "kind": "talent_node",
+  "displayName": "Detonation",
+  "displayNameKey": "talent.mage.fire.detonation.display_name",
+  "descriptionKey": "talent.mage.fire.detonation.description",
+  "treeId": "tree.mage.fire",
+  "tier": 2,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "crit_damage_flat",
+      "value": 0.15
+    }
+  ]
+}

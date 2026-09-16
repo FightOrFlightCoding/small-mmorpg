@@ -1,0 +1,32 @@
+{
+  "id": "effect.marksman.arrowstorm.as",
+  "kind": "effect_definition",
+  "displayName": "as",
+  "displayNameKey": "effect.marksman.arrowstorm.as.display_name",
+  "descriptionKey": "effect.marksman.arrowstorm.as.description",
+  "ownerAbilityId": "ability.marksman.arrowstorm",
+  "effect": {
+    "id": "as",
+    "type": "timed_stat_modifier",
+    "source": "caster",
+    "target": "self",
+    "magnitude": {
+      "kind": "constant",
+      "value": 0.4
+    },
+    "duration": 8,
+    "tickInterval": 0,
+    "stackPolicy": "replace",
+    "maxStacks": 1,
+    "refreshPolicy": "refresh",
+    "removalReason": "expired",
+    "tags": [
+      "buff",
+      "capstone"
+    ],
+    "school": "none",
+    "statChannel": "attack_speed"
+  },
+  "classification": "canonical",
+  "compileTimeAddition": false
+}

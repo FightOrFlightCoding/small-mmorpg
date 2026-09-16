@@ -1,0 +1,20 @@
+{
+  "id": "item.test_potion",
+  "kind": "item",
+  "displayName": "Test Potion",
+  "displayNameKey": "item.test_potion.name",
+  "descriptionKey": "item.test_potion.desc",
+  "visualId": "visual.item_potion",
+  "iconAssetId": "visual.item_potion",
+  "worldAssetId": "visual.item_potion",
+  "category": "consumable",
+  "maxStack": 10,
+  "tradeable": true,
+  "destroyable": true,
+  "uniquePolicy": "none",
+  "classRequirements": [],
+  "levelRequirement": 0,
+  "attackBonus": 0,
+  "statModifiers": [],
+  "sellValue": 3
+}

@@ -18,12 +18,17 @@ func show_error(title: String, message: String, fatal: bool) -> void:
 	_message.text = message
 	_dismiss.visible = not fatal
 	visible = true
+	if fatal:
+		WindowManager.open(WindowManager.COMPATIBILITY)
+	else:
+		WindowManager.open(WindowManager.ERROR)
 
 
 func hide_error() -> void:
 	if _fatal:
 		return
 	visible = false
+	WindowManager.close(WindowManager.ERROR)
 
 
 func _on_dismiss_pressed() -> void:

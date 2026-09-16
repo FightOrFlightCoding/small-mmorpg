@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/class_progression.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "classId",
+    "levelCurveId",
+    "startingAttributes",
+    "attributeGrowth",
+    "startingResources",
+    "startingDerived",
+    "allowedAttributeIds",
+    "attributePointRules",
+    "skillPointRules"
+  ],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "class_progression" },
+    "classId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "levelCurveId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "startingAttributes": {
+      "type": "object",
+      "additionalProperties": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" }
+    },
+    "attributeGrowth": {
+      "type": "object",
+      "additionalProperties": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" }
+    },
+    "startingResources": {
+      "type": "object",
+      "additionalProperties": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" }
+    },
+    "resourceGrowth": {
+      "type": "object",
+      "additionalProperties": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" }
+    },
+    "startingDerived": {
+      "type": "object",
+      "additionalProperties": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" }
+    },
+    "allowedAttributeIds": {
+      "type": "array",
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+    },
+    "attributePointRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pointsAtCreate"],
+      "properties": {
+        "pointsAtCreate": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" }
+      }
+    },
+    "skillPointRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pointsAtCreate"],
+      "properties": {
+        "pointsAtCreate": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" }
+      }
+    },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+  }
+}

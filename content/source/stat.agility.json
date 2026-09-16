@@ -1,0 +1,15 @@
+{
+  "id": "stat.agility",
+  "kind": "stat_definition",
+  "displayName": "Agility",
+  "displayNameKey": "stat.agility.display_name",
+  "descriptionKey": "stat.agility.description",
+  "abbreviation": "AGI",
+  "perPointEffects": [
+    {
+      "type": "ranged_damage_percent",
+      "perPoint": 0.01
+    }
+  ],
+  "classification": "canonical"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "item.cert_mail",
+  "kind": "item",
+  "displayName": "Cert Mail",
+  "displayNameKey": "item.cert_mail.name",
+  "descriptionKey": "item.cert_mail.desc",
+  "visualId": "visual.item_cert_mail",
+  "iconAssetId": "visual.item_cert_mail",
+  "worldAssetId": "visual.item_cert_mail",
+  "category": "armor",
+  "maxStack": 1,
+  "tradeable": true,
+  "destroyable": true,
+  "uniquePolicy": "none",
+  "equipSlot": "chest",
+  "equipmentSlotTags": ["chest"],
+  "classRequirements": [],
+  "levelRequirement": 0,
+  "attackBonus": 0,
+  "statModifiers": [{ "statId": "test.stat.max_health", "amount": 4 }],
+  "sellValue": 2
+}

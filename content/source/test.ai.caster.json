@@ -1,0 +1,15 @@
+{
+  "id": "test.ai.caster",
+  "kind": "ai_profile",
+  "displayName": "Caster",
+  "style": "caster",
+  "acquireMode": "nearest",
+  "damageThreatWeight": 1,
+  "healThreatWeight": 0.5,
+  "generateHealThreat": true,
+  "threatSwitchRatio": 1.1,
+  "preferredRange": 150,
+  "kiteRange": 90,
+  "resetHealthOnReturn": false,
+  "resetThreatOnReturn": true
+}

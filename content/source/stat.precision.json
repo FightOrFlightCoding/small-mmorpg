@@ -1,0 +1,15 @@
+{
+  "id": "stat.precision",
+  "kind": "stat_definition",
+  "displayName": "Precision",
+  "displayNameKey": "stat.precision.display_name",
+  "descriptionKey": "stat.precision.description",
+  "abbreviation": "PRE",
+  "perPointEffects": [
+    {
+      "type": "crit_chance_percent",
+      "perPoint": 0.5
+    }
+  ],
+  "classification": "canonical"
+}

@@ -43,3 +43,10 @@ func test_missing_unique_id_uses_shared_fallback() -> void:
 	assert_str(identity["device_id"]).is_equal("vibecode-local-shared")
 	assert_bool(DevIdentity.is_valid_device_id(String(identity["device_id"]))).is_true()
 	assert_bool(String(identity["warning"]).is_empty()).is_false()
+
+
+func test_release_config_blocks_development_auth() -> void:
+	DevIdentity.force_release_config = true
+	assert_bool(DevIdentity.development_auth_allowed()).is_false()
+	DevIdentity.force_release_config = false
+	assert_bool(DevIdentity.development_auth_allowed()).is_equal(OS.is_debug_build())

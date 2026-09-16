@@ -1,0 +1,38 @@
+{
+  "id": "tree.warrior.berserker",
+  "kind": "talent_tree",
+  "displayName": "tree.warrior.berserker",
+  "displayNameKey": "tree.warrior.berserker.display_name",
+  "descriptionKey": "tree.warrior.berserker.description",
+  "treeKind": "branch",
+  "ownerId": "branch.warrior.berserker",
+  "pointsAvailable": 6,
+  "nodeIds": [
+    "talent.warrior.berserker.frenzy_r2",
+    "talent.warrior.berserker.slaughter",
+    "talent.warrior.berserker.relentless",
+    "talent.warrior.berserker.frenzy_r3",
+    "talent.warrior.berserker.bloodlust",
+    "talent.warrior.berserker.whirlwind",
+    "talent.warrior.berserker.bloodthirst",
+    "talent.warrior.berserker.reckless"
+  ],
+  "classification": "canonical",
+  "maxActiveGrants": 1,
+  "tierGates": [
+    {
+      "tier": 1,
+      "minLevel": 5,
+      "minPointsSpent": 0
+    },
+    {
+      "tier": 2,
+      "minPointsSpent": 2
+    },
+    {
+      "tier": 3,
+      "minLevel": 9,
+      "minPointsSpent": 4
+    }
+  ]
+}

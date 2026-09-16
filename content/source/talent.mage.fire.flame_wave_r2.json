@@ -1,0 +1,33 @@
+{
+  "id": "talent.mage.fire.flame_wave_r2",
+  "kind": "talent_node",
+  "displayName": "Flame Wave R2",
+  "displayNameKey": "talent.mage.fire.flame_wave_r2.display_name",
+  "descriptionKey": "talent.mage.fire.flame_wave_r2.description",
+  "treeId": "tree.mage.fire",
+  "tier": 3,
+  "maxRank": 1,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "prerequisites": [
+    {
+      "nodeId": "talent.mage.fire.flame_wave",
+      "minRank": 1
+    }
+  ],
+  "rankReplacement": {
+    "nodeId": "talent.mage.fire.flame_wave",
+    "abilityId": "ability.mage.flame_wave"
+  },
+  "abilityModifications": [
+    {
+      "abilityId": "ability.mage.flame_wave",
+      "modifiers": [
+        {
+          "type": "ability_damage_percent",
+          "value": 12
+        }
+      ]
+    }
+  ]
+}

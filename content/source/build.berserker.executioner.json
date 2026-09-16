@@ -1,0 +1,18 @@
+{
+  "id": "build.berserker.executioner",
+  "kind": "reference_build",
+  "displayName": "Executioner",
+  "displayNameKey": "build.berserker.executioner.display_name",
+  "descriptionKey": "build.berserker.executioner.description",
+  "branchId": "branch.warrior.berserker",
+  "statPriority": [
+    "stat.strength",
+    "stat.precision"
+  ],
+  "identityKey": "build.berserker.executioner.identity",
+  "pairedNodeIds": [
+    "talent.warrior.berserker.slaughter",
+    "talent.warrior.berserker.bloodlust"
+  ],
+  "classification": "canonical"
+}

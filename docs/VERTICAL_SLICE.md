@@ -1,6 +1,6 @@
 # Vertical slice — definition of done
 
-This is the only gameplay scope that may be built. Criteria are testable. A phase may implement a subset; the slice is done only when every item below passes.
+This is the only **Prompt 18** gameplay scope. It is accepted and frozen. Foundation v1 features beyond this loop are classified in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md) and must not be implemented until a later phase names them.
 
 Related: [ARCHITECTURE.md](ARCHITECTURE.md), [NETWORK_PROTOCOL.md](NETWORK_PROTOCOL.md), [SECURITY_MODEL.md](SECURITY_MODEL.md).
 
@@ -20,6 +20,8 @@ A new player can, without developer console cheats:
 10. Complete the slice quest. The server advances quest state and grants the slice currency through the wallet.
 11. Disconnect, relaunch, authenticate, and recover inventory, equipment, quest state, currency, and last checkpointed position.
 
+Prompt 21 keeps this loop. Debug device auth and `character_bootstrap` still work. Graphical and e2e joins send a server-issued `selectionTicket`. Email/password and extra character slots are additive.
+
 ## Required automated checks
 
 These must exist and pass before the slice is marked complete in [PROGRESS.md](PROGRESS.md):
@@ -35,6 +37,7 @@ These must exist and pass before the slice is marked complete in [PROGRESS.md](P
 | VS-T7 | `nk.multiUpdate` (or an equivalent tested adapter fake) is used for inventory-plus-wallet grants. |
 | VS-T8 | GdUnit4 tests cover boot error copy and content-ID catalog mapping. |
 | VS-T9 | Protocol version mismatch is rejected with a typed error, not applied. |
+| VS-T10 | Headless two-client journey (`scripts/test-e2e`) authenticates Alice and Bob, joins the starter zone, proves peer visibility and movement, completes the quest loop, reconnects, and rejects a duplicate turn-in. |
 
 ## Required manual checks
 
@@ -52,4 +55,4 @@ If a change implements any of the following, it is out of scope even if it would
 
 ## Done
 
-The slice is done when VS-T1–VS-T9 and VS-M1–VS-M5 pass, `docs/PROGRESS.md` records the completing phase as accepted, and no client-authoritative outcome remains on the accepted path.
+The slice is done when VS-T1–VS-T10 and VS-M1–VS-M5 pass, `docs/PROGRESS.md` records the completing phase as accepted, `scripts/test-all` passes from a documented setup, and no client-authoritative outcome remains on the accepted path.

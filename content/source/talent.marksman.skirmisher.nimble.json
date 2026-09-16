@@ -1,0 +1,18 @@
+{
+  "id": "talent.marksman.skirmisher.nimble",
+  "kind": "talent_node",
+  "displayName": "Nimble",
+  "displayNameKey": "talent.marksman.skirmisher.nimble.display_name",
+  "descriptionKey": "talent.marksman.skirmisher.nimble.description",
+  "treeId": "tree.marksman.skirmisher",
+  "tier": 1,
+  "maxRank": 2,
+  "pointCostPerRank": 1,
+  "classification": "canonical",
+  "passiveModifiers": [
+    {
+      "type": "cooldown_recovery_percent",
+      "value": 0.1
+    }
+  ]
+}
