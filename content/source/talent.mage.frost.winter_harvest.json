@@ -11,7 +11,7 @@
   "classification": "canonical",
   "passiveModifiers": [
     {
-      "type": "mana_regen_flat",
+      "type": "mana_regen_per_controlled_enemy",
       "value": 0.5
     }
   ]

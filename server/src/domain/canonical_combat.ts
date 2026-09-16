@@ -158,6 +158,13 @@ export interface DelayedGroundEffect {
   expireTick?: number;
   slowPercent?: number;
   slowDurationSec?: number;
+  directDamageBase?: number;
+  guaranteedCrit?: boolean;
+  powerCategory?: PowerCategory;
+  canonicalStats?: { [id: string]: number };
+  canonicalCritChance?: number;
+  canonicalCritMult?: number;
+  canonicalOutgoingProduct?: number;
 }
 
 export interface OncePerCombatTable {

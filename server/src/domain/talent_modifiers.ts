@@ -23,6 +23,7 @@ export interface TalentModifierContext {
   standingStillSeconds?: number;
   moving?: boolean;
   nearestEnemyDistance?: number;
+  ownedCrowdControlCount?: number;
 }
 
 export interface TalentCondition {
@@ -46,7 +47,15 @@ export interface ResolvedAbilityModifiers {
   bonusCritChance: number;
   slowPercent: number | undefined;
   slowDuration: number | undefined;
+  slowDurationBonus: number;
   onHitBleedPercent: number;
+  onCritDotPercent: number;
+  onHitPeriodicBase: number;
+  onHitPeriodicDuration: number;
+  castTimeOverride: number | undefined;
+  rootDurationOverride: number | undefined;
+  radiusMultiplier: number;
+  slowTargetOutgoingPercent: number | undefined;
 }
 
 export function passiveTalentModifierValue(
@@ -132,12 +141,12 @@ export function talentModifiersForContext(
   const nodes = purchasedNodes(catalog, progression);
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
-    appendMappedModifiers(modifiers, node.id, node.rank, node.modifiers);
+    appendMappedModifiers(modifiers, node.id, node.rank, node.modifiers, context);
     for (let c = 0; c < node.conditionalModifiers.length; c++) {
       if (!conditionsHold(node.conditionalModifiers[c].conditions, context)) {
         continue;
       }
-      appendMappedModifiers(modifiers, node.id, node.rank, node.conditionalModifiers[c].modifiers);
+      appendMappedModifiers(modifiers, node.id, node.rank, node.conditionalModifiers[c].modifiers, context);
     }
   }
   return modifiers;
@@ -161,11 +170,20 @@ export function resolveAbilityTalentModifiers(
     bonusCritChance: 0,
     slowPercent: undefined,
     slowDuration: undefined,
+    slowDurationBonus: 0,
     onHitBleedPercent: 0,
+    onCritDotPercent: 0,
+    onHitPeriodicBase: 0,
+    onHitPeriodicDuration: 0,
+    castTimeOverride: undefined,
+    rootDurationOverride: undefined,
+    radiusMultiplier: 1,
+    slowTargetOutgoingPercent: undefined,
   };
   const nodes = purchasedNodes(catalog, progression);
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
+    applyAbilityModifiers(result, node.modifiers, node.rank);
     const modifications = node.abilityModifications;
     for (let a = 0; a < modifications.length; a++) {
       if (modifications[a].abilityId !== abilityId) {
@@ -244,6 +262,14 @@ export function conditionsHold(
       }
       continue;
     }
+    if (condition.type === "owned_crowd_control") {
+      const actual = context.ownedCrowdControlCount !== undefined ? context.ownedCrowdControlCount : 0;
+      const needed = condition.value !== undefined ? finiteValue(condition.value) : 1;
+      if (!(actual >= needed)) {
+        return false;
+      }
+      continue;
+    }
     return false;
   }
   return true;
@@ -254,10 +280,14 @@ function appendMappedModifiers(
   nodeId: string,
   rank: number,
   modifiers: ReadonlyArray<TalentModifierContent>,
+  context: TalentModifierContext,
 ): void {
   for (let i = 0; i < modifiers.length; i++) {
     const modifier = modifiers[i];
-    const value = finiteValue(modifier.value) * rank;
+    if (modifier.type === "slow_reduces_target_damage_percent") {
+      continue;
+    }
+    let value = finiteValue(modifier.value) * rank;
     let channel = "";
     let op: "add" | "pct" = "add";
     if (modifier.type === "max_hp_flat") {
@@ -281,8 +311,19 @@ function appendMappedModifiers(
     } else if (modifier.type === "move_speed_percent") {
       channel = "movement_speed";
       op = "pct";
+    } else if (modifier.type === "mana_cost_percent") {
+      channel = "mana_cost";
+      op = "pct";
+    } else if (modifier.type === "damage_reduction_percent") {
+      channel = "flat_damage_reduction";
+    } else if (modifier.type === "mana_regen_flat") {
+      channel = "mana_regen";
+    } else if (modifier.type === "mana_regen_per_controlled_enemy") {
+      channel = "mana_regen";
+      const count = context.ownedCrowdControlCount !== undefined ? context.ownedCrowdControlCount : 0;
+      value *= count;
     }
-    if (channel.length === 0 || !isFinite(value)) {
+    if (channel.length === 0 || !isFinite(value) || value === 0) {
       continue;
     }
     output.push({
@@ -327,8 +368,23 @@ function applyAbilityModifiers(
       output.slowPercent = value * rank;
     } else if (modifier.type === "ability_slow_duration") {
       output.slowDuration = value;
+      output.slowDurationBonus += value * rank;
     } else if (modifier.type === "on_hit_bleed_percent") {
       output.onHitBleedPercent += value * rank;
+    } else if (modifier.type === "on_crit_dot_percent") {
+      output.onCritDotPercent += value * rank;
+    } else if (modifier.type === "on_hit_periodic_base") {
+      output.onHitPeriodicBase += value * rank;
+    } else if (modifier.type === "on_hit_periodic_duration") {
+      output.onHitPeriodicDuration = value;
+    } else if (modifier.type === "ability_cast_time") {
+      output.castTimeOverride = value;
+    } else if (modifier.type === "ability_root_duration") {
+      output.rootDurationOverride = value;
+    } else if (modifier.type === "ability_radius_percent") {
+      output.radiusMultiplier *= 1 + value * rank;
+    } else if (modifier.type === "slow_reduces_target_damage_percent") {
+      output.slowTargetOutgoingPercent = value * rank;
     }
   }
 }

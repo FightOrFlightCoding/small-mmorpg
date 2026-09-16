@@ -23,7 +23,7 @@ import { noteAddDeath } from "./spawn_controller";
 import { evaluateCanonicalHit, type PowerCategory } from "./canonical_stats";
 import type { CombatRandom } from "./combat_rng";
 import { evaluateStats, playerStatContext } from "./stats";
-import { effectModifiersFrom } from "./effects";
+import { effectModifiersFrom, ownedCrowdControlCount } from "./effects";
 
 export const IN_COMBAT_TIMEOUT_TICKS = 50;
 export const COMBAT_APPLY_TTL_TICKS = 6000;
@@ -98,6 +98,7 @@ export interface CombatStages {
   afterMitigation: number;
   afterShields: number;
   finalAmount: number;
+  crit?: boolean;
 }
 
 export interface CombatApplyResult {
@@ -213,6 +214,7 @@ export function applyCombat(state: StarterZoneState, input: CombatApplyInput, ev
     healing: input.action === "heal" ? appliedAmount : undefined,
     remainingHealth: remaining,
     abilityId: input.abilityId,
+    crit: evaluated.crit === true,
     x: target.x,
     y: target.y,
   });
@@ -323,6 +325,7 @@ export function evaluateCombatFormula(formula: CombatFormula, action: "damage" |
     afterMitigation: afterMitigation,
     afterShields: afterShields,
     finalAmount: finalAmount,
+    crit: formula.isDot !== true && formula.critEnabled === true && formula.critForced === true,
   };
 }
 
@@ -648,6 +651,10 @@ function applyCanonicalTargetMitigation(
       player.inventory,
       state.itemsById,
       effectModifiersFrom(player.effects),
+      {
+        sourceTags: [],
+        ownedCrowdControlCount: ownedCrowdControlCount(state.enemies, player.userId),
+      },
     ),
   );
   if (stats.canonical === undefined) {
@@ -877,6 +884,7 @@ function evaluateCanonicalCombatFormula(formula: CombatFormula, action: "damage"
     afterMitigation: afterMitigation,
     afterShields: afterShields,
     finalAmount: finalAmount,
+    crit: hit.crit,
   };
 }
 

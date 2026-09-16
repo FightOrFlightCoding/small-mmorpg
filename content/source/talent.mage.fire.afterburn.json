@@ -14,7 +14,7 @@
       "abilityId": "ability.mage.fireball",
       "modifiers": [
         {
-          "type": "ability_damage_percent",
+          "type": "on_crit_dot_percent",
           "value": 0.25
         }
       ]

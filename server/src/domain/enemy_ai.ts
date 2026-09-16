@@ -7,7 +7,7 @@ import {
 import { applyCombat, tickPlayerRespawns } from "./combat_pipeline";
 import type { MatchEnemy, MatchPlayer, StarterZoneState } from "./match_state";
 import { distance, resolveMove } from "./movement";
-import { hasControlTag } from "./effects";
+import { effectModifiersFrom, hasControlTag } from "./effects";
 import { maybeResetBoss, tickBossPhases } from "./boss";
 import { interruptEnemyCast, tickEnemyCasts, tryEnemyAbility } from "./enemy_ability";
 import { despawnSpawn, resetEnemyToSpawn, respawnExistingIfDue, tickRespawns } from "./spawn_controller";
@@ -190,6 +190,7 @@ function tryEnemyAutoAttack(
   if (!isCooldownReady(lastTick, tick, ticks)) {
     return;
   }
+  const outgoing = effectModifiersFrom(enemy.effects)["outgoing_damage"];
   const result = applyCombat(
     state,
     {
@@ -198,7 +199,7 @@ function tryEnemyAutoAttack(
       sourceKind: "enemy",
       targetId: target.userId,
       targetKind: "player",
-      formula: { base: enemy.damage },
+      formula: { base: enemy.damage, sourcePercent: outgoing !== undefined ? outgoing : 0 },
       tick: tick,
       respawnDelaySec: state.playerRespawnDelaySec,
       tickRate: tickRate,

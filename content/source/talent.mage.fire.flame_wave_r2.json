@@ -24,8 +24,12 @@
       "abilityId": "ability.mage.flame_wave",
       "modifiers": [
         {
-          "type": "ability_damage_percent",
+          "type": "on_hit_periodic_base",
           "value": 12
+        },
+        {
+          "type": "on_hit_periodic_duration",
+          "value": 3
         }
       ]
     }

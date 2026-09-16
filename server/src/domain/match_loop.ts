@@ -49,7 +49,7 @@ import { assignHotbar, cancelCast, interruptCast, interruptMovingCasters, interr
 import { applyCombat, applyReleaseRespawn, tickCombatFlags } from "./combat_pipeline";
 import { applySetTarget } from "./targeting";
 import { applyServerXpGrant, killXpGrantFromEnemy, questXpGrant, type TrustedXpGrant } from "./xp_hooks";
-import { applyEffectDefinition, effectModifiersFrom, enemyAsTarget, hasControlTag, playerAsTarget, tickEffects, writeTarget, type EffectDefinition } from "./effects";
+import { applyEffectDefinition, effectModifiersFrom, enemyAsTarget, hasControlTag, ownedCrowdControlCount, playerAsTarget, tickEffects, writeTarget, type EffectDefinition } from "./effects";
 import { dueDelayedGround, tryConsumeOncePerCombat } from "./canonical_combat";
 import { entitiesInRadius } from "./targeting";
 import { simulateCombatants } from "./enemy_ai";
@@ -2197,6 +2197,7 @@ function tickAbilityCooldowns(state: StarterZoneState, tick: number): void {
             sourceTags: activeEffectTags(player.effects),
             standingStillSeconds: standingStillSeconds(player, tick),
             moving: player.lastMoving === true || player.lastMovedTick === tick,
+            ownedCrowdControlCount: ownedCrowdControlCount(state.enemies, player.userId),
           }
         : undefined;
     tickAbilityCooldownRecovery(player, tick, state.progressionCatalog, context);
@@ -2464,6 +2465,7 @@ function tickDelayedGround(state: StarterZoneState, tick: number, events: Combat
   for (let i = 0; i < split.due.length; i++) {
     const due = split.due[i];
     const hits = entitiesInRadius(state, due.x, due.y, due.radius);
+    const eventStart = events.length;
     for (let h = 0; h < hits.length; h++) {
       events.push({
         type: "message",
@@ -2479,7 +2481,40 @@ function tickDelayedGround(state: StarterZoneState, tick: number, events: Combat
       if (due.slowPercent !== undefined && due.slowDurationSec !== undefined && hits[h].kind === "enemy") {
         applyCaltropSlow(state, due.sourceId, hits[h].id, due.abilityId, due.slowPercent, due.slowDurationSec, tick, events);
       }
+      if (due.directDamageBase !== undefined && due.directDamageBase > 0 && hits[h].kind === "enemy" && hits[h].alive) {
+        applyCombat(
+          state,
+          {
+            action: "damage",
+            sourceId: due.sourceId,
+            sourceKind: due.sourceKind,
+            targetId: hits[h].id,
+            targetKind: "enemy",
+            formula:
+              due.canonicalStats !== undefined && due.powerCategory !== undefined
+                ? {
+                    base: due.directDamageBase,
+                    powerCategory: due.powerCategory,
+                    canonicalStats: due.canonicalStats,
+                    canonicalCritChance: due.canonicalCritChance !== undefined ? due.canonicalCritChance : 0,
+                    canonicalCritMult: due.canonicalCritMult !== undefined ? due.canonicalCritMult : 1.5,
+                    canonicalOutgoingProduct: due.canonicalOutgoingProduct !== undefined ? due.canonicalOutgoingProduct : 1,
+                    canonicalDamageReduction: 0,
+                    canonicalTakenProduct: 1,
+                    canonicalCritDamageProduct: 1,
+                    random: state.combatRandom,
+                    critForced: due.guaranteedCrit === true,
+                  }
+                : { base: due.directDamageBase, critForced: due.guaranteedCrit === true, critEnabled: due.guaranteedCrit === true },
+            tick: tick,
+            abilityId: due.abilityId,
+            tickRate: MATCH_TICK_RATE,
+          },
+          events,
+        );
+      }
     }
+    refundDelayedGroundMana(state, due.sourceId, events, eventStart);
     if (due.expireTick !== undefined && due.expireTick > tick) {
       remaining.push({
         ...due,
@@ -2488,6 +2523,44 @@ function tickDelayedGround(state: StarterZoneState, tick: number, events: Combat
     }
   }
   state.pendingGroundEffects = remaining;
+}
+
+function refundDelayedGroundMana(
+  state: StarterZoneState,
+  sourceId: string,
+  events: CombatEvent[],
+  eventStart: number,
+): void {
+  const player = state.players[sourceId];
+  if (player === undefined || player.progression === undefined || state.progressionCatalog === undefined) {
+    return;
+  }
+  const fraction = passiveTalentModifierValue(state.progressionCatalog, player.progression, "mana_refund_percent_of_max");
+  if (!(fraction > 0)) {
+    return;
+  }
+  let crits = 0;
+  for (let i = eventStart; i < events.length; i++) {
+    if (events[i].type === "hit" && events[i].sourceId === sourceId && events[i].crit === true) {
+      crits += 1;
+    }
+  }
+  if (crits <= 0) {
+    return;
+  }
+  const stats = playerStats(state, player);
+  if (stats === null || !(stats.maxMana > 0)) {
+    return;
+  }
+  const manaId = resourceIdForRole(state.progressionCatalog, "mana");
+  if (manaId.length === 0) {
+    return;
+  }
+  const resources = player.resources !== undefined ? player.resources : {};
+  const current = resources[manaId] !== undefined ? resources[manaId] : 0;
+  const next = current + stats.maxMana * fraction * crits;
+  resources[manaId] = next > stats.maxMana ? stats.maxMana : next;
+  player.resources = resources;
 }
 
 export function snapshotForOthers(state: StarterZoneState, tick: number, fromUserId: string): MatchOutbound {
@@ -3354,6 +3427,10 @@ function tickManaRegen(state: StarterZoneState, deltaSec: number): void {
         player.inventory,
         state.itemsById,
         effectModifiersFrom(player.effects),
+        {
+          sourceTags: activeEffectTags(player.effects),
+          ownedCrowdControlCount: ownedCrowdControlCount(state.enemies, player.userId),
+        },
       ),
     );
     const resources = player.resources !== undefined ? player.resources : {};

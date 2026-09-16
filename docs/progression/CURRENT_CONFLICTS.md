@@ -155,11 +155,11 @@ Proceed to PROG-09 only when every row is true. These are PROG-08 exit criteria,
 
 ### C-attack-foundation
 
-- **Conflict:** Live ATTACK still uses Foundation `test.stat.attack` for Mage and Mystic. Warrior and Marksman ATTACK use canonical base damage, scaling, Haste-scaled interval, server-side crit roll, and talent modifiers.
+- **Conflict:** Live ATTACK still uses Foundation `test.stat.attack` for Mystic. Warrior, Marksman, and Mage ATTACK use canonical base damage, scaling, Haste-scaled interval, server-side crit roll, and talent modifiers.
 - **Status:** DEFERRED
-- **Resolution owner:** PROG-11 through PROG-12 class implementations. Warrior closed in PROG-09. Marksman closed in PROG-10.
+- **Resolution owner:** PROG-12 Mystic implementation. Warrior closed in PROG-09. Marksman closed in PROG-10. Mage closed in PROG-11.
 - **Must be resolved by:** Before PROG-13 UI certification.
-- **Closure test:** `server/tests/warrior_progression.test.ts` closes Warrior. `server/tests/marksman_progression.test.ts` closes Marksman. Every remaining production class must use its canonical base damage, interval, scaling stat, haste behavior, crit behavior, and server authority; no completed-class ATTACK path reads `test.stat.attack`.
+- **Closure test:** `server/tests/warrior_progression.test.ts` closes Warrior. `server/tests/marksman_progression.test.ts` closes Marksman. `server/tests/mage_progression.test.ts` closes Mage. Every remaining production class must use its canonical base damage, interval, scaling stat, haste behavior, crit behavior, and server authority; no completed-class ATTACK path reads `test.stat.attack`.
 
 ### C-roster-four-classes
 
@@ -235,9 +235,9 @@ Proceed to PROG-09 only when every row is true. These are PROG-08 exit criteria,
 
 ### C-cooldown-recovery-rate
 
-- **Conflict:** Relentless, Nimble, Sniper's Nest, and Runner's High are live at `1 + bonus` remaining-tick consumption. Mage/Mystic cooldown-recovery nodes remain later.
+- **Conflict:** Relentless, Nimble, Sniper's Nest, and Runner's High are live at `1 + bonus` remaining-tick consumption. Mage has no cooldown-recovery nodes. Mystic cooldown-recovery nodes remain later.
 - **Status:** DEFERRED
-- **Resolution owner:** PROG-11 through PROG-12. Warrior closed in PROG-09; Marksman closed in PROG-10; engine + tests remain PROG-08.
+- **Resolution owner:** PROG-12. Warrior closed in PROG-09; Marksman closed in PROG-10; Mage closed in PROG-11 with no CDR nodes; engine + tests remain PROG-08.
 - **Must be resolved by:** Before PROG-13, for any live talent that grants cooldown recovery.
 - **Closure test:** Those nodes multiply cooldown remaining-tick consumption. Haste still does not change stored cooldown duration. Covered for the engine by `server/tests/canonical_combat.test.ts` and for Marksman by `server/tests/marksman_progression.test.ts`.
 
@@ -291,11 +291,11 @@ Proceed to PROG-09 only when every row is true. These are PROG-08 exit criteria,
 
 ### C-equipment-auto-attack-baseline
 
-- **Conflict:** Training sword / attack-from-might still disagree with §9 auto-attack baselines for unimplemented classes. Warrior and Marksman ignore Foundation attack as their auto-attack base while retaining identified equipment modifiers.
+- **Conflict:** Training sword / attack-from-might still disagree with §9 auto-attack baselines for unimplemented classes. Warrior, Marksman, and Mage ignore Foundation attack as their auto-attack base while retaining identified equipment modifiers.
 - **Status:** DEFERRED
-- **Resolution owner:** PROG-11 through PROG-12 auto-attack retune; Warrior closed in PROG-09; Marksman closed in PROG-10.
+- **Resolution owner:** PROG-12 auto-attack retune; Warrior closed in PROG-09; Marksman closed in PROG-10; Mage closed in PROG-11.
 - **Must be resolved by:** Before PROG-13.
-- **Closure test:** `server/tests/warrior_progression.test.ts` closes the Warrior baseline. `server/tests/marksman_progression.test.ts` closes the Marksman baseline. Remaining production auto-attack baselines must match §9; outgoing and taken percentage modifiers from different sources still multiply and same-node ranks replace.
+- **Closure test:** `server/tests/warrior_progression.test.ts` closes the Warrior baseline. `server/tests/marksman_progression.test.ts` closes the Marksman baseline. `server/tests/mage_progression.test.ts` closes the Mage baseline. Remaining production auto-attack baselines must match §9; outgoing and taken percentage modifiers from different sources still multiply and same-node ranks replace.
 
 ### C-talent-runtime
 

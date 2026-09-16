@@ -305,6 +305,13 @@ export interface StarterZoneState {
     expireTick?: number;
     slowPercent?: number;
     slowDurationSec?: number;
+    directDamageBase?: number;
+    guaranteedCrit?: boolean;
+    powerCategory?: "melee" | "ranged" | "spell" | "curse" | "heal" | "shield";
+    canonicalStats?: { [id: string]: number };
+    canonicalCritChance?: number;
+    canonicalCritMult?: number;
+    canonicalOutgoingProduct?: number;
   }>;
   partyByCharacterId?: { [characterId: string]: MatchPartyCache };
   pendingInvitesByCharacterId?: {
@@ -1223,6 +1230,13 @@ function clonePendingGround(
         expireTick?: number;
         slowPercent?: number;
         slowDurationSec?: number;
+        directDamageBase?: number;
+        guaranteedCrit?: boolean;
+        powerCategory?: "melee" | "ranged" | "spell" | "curse" | "heal" | "shield";
+        canonicalStats?: { [id: string]: number };
+        canonicalCritChance?: number;
+        canonicalCritMult?: number;
+        canonicalOutgoingProduct?: number;
       }>
     | undefined,
 ): Array<{
@@ -1238,6 +1252,13 @@ function clonePendingGround(
   expireTick?: number;
   slowPercent?: number;
   slowDurationSec?: number;
+  directDamageBase?: number;
+  guaranteedCrit?: boolean;
+  powerCategory?: "melee" | "ranged" | "spell" | "curse" | "heal" | "shield";
+  canonicalStats?: { [id: string]: number };
+  canonicalCritChance?: number;
+  canonicalCritMult?: number;
+  canonicalOutgoingProduct?: number;
 }> {
   const next: Array<{
     id: string;
@@ -1252,6 +1273,13 @@ function clonePendingGround(
     expireTick?: number;
     slowPercent?: number;
     slowDurationSec?: number;
+    directDamageBase?: number;
+    guaranteedCrit?: boolean;
+    powerCategory?: "melee" | "ranged" | "spell" | "curse" | "heal" | "shield";
+    canonicalStats?: { [id: string]: number };
+    canonicalCritChance?: number;
+    canonicalCritMult?: number;
+    canonicalOutgoingProduct?: number;
   }> = [];
   if (list === undefined) {
     return next;
@@ -1277,6 +1305,34 @@ function clonePendingGround(
     }
     if (typeof row.slowDurationSec === "number" && isFinite(row.slowDurationSec)) {
       cloned.slowDurationSec = row.slowDurationSec;
+    }
+    if (typeof row.directDamageBase === "number" && isFinite(row.directDamageBase)) {
+      cloned.directDamageBase = row.directDamageBase;
+    }
+    if (row.guaranteedCrit === true) {
+      cloned.guaranteedCrit = true;
+    }
+    if (
+      row.powerCategory === "melee" ||
+      row.powerCategory === "ranged" ||
+      row.powerCategory === "spell" ||
+      row.powerCategory === "curse" ||
+      row.powerCategory === "heal" ||
+      row.powerCategory === "shield"
+    ) {
+      cloned.powerCategory = row.powerCategory;
+    }
+    if (row.canonicalStats !== undefined) {
+      cloned.canonicalStats = { ...row.canonicalStats };
+    }
+    if (typeof row.canonicalCritChance === "number" && isFinite(row.canonicalCritChance)) {
+      cloned.canonicalCritChance = row.canonicalCritChance;
+    }
+    if (typeof row.canonicalCritMult === "number" && isFinite(row.canonicalCritMult)) {
+      cloned.canonicalCritMult = row.canonicalCritMult;
+    }
+    if (typeof row.canonicalOutgoingProduct === "number" && isFinite(row.canonicalOutgoingProduct)) {
+      cloned.canonicalOutgoingProduct = row.canonicalOutgoingProduct;
     }
     next.push(cloned);
   }

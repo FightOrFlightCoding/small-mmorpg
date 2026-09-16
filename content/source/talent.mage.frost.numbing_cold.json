@@ -11,7 +11,7 @@
   "classification": "canonical",
   "passiveModifiers": [
     {
-      "type": "damage_dealt_percent",
+      "type": "slow_reduces_target_damage_percent",
       "value": -0.1
     }
   ]

@@ -115,6 +115,7 @@
             "no_enemy_in_range",
             "moving",
             "effect_active",
+            "owned_crowd_control",
             "resource_percent"
           ]
         },
@@ -191,6 +192,11 @@
             "grant_ability",
             "on_shield_break_heal_percent",
             "on_hit_bleed_percent",
+            "on_crit_dot_percent",
+            "on_hit_periodic_base",
+            "on_hit_periodic_duration",
+            "slow_reduces_target_damage_percent",
+            "mana_regen_per_controlled_enemy",
             "dot_tick_rate_percent",
             "lifesteal_percent",
             "mana_refund_percent_of_max",
