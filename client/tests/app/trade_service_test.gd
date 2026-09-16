@@ -7,6 +7,7 @@ func before_test() -> void:
 	SceneRouter.reset_for_tests()
 	AppState.reset_for_tests()
 	NetworkService.reset_for_tests()
+	InventoryService.reset_for_tests()
 	TradeService.reset_for_tests()
 	AppState.character_view = {"character_id": "char-a", "name": "Alice"}
 
