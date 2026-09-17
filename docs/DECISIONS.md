@@ -703,3 +703,9 @@ Production classes ignore GCD remaining. Foundation `test.ability.*` may keep a 
 
 Side walk mid-frames pull the original contact stance together under the body with no high kick (original backed up as `c01_move_original.png`), so side gait reads plant → gather → plant. Rebuild with `scripts/build_c01_low_pass_frames.py`, then Godot SpriteFrames. Side playback uses near-even frame durations; `WorldAvatar` does not bob side walk (bounce read as strut).
 
+## 2026-09-17 — Hearthworn grass foundation (client presentation)
+
+Outdoor grass ground is a 64×64 TileSet atlas family in the Hearthworn Fantasy style, referenced from C01 pixel density. Production files are `client/assets/world/terrain/grass/grass_ground_atlas.png` (4 opaque variants, shared 8-pixel seam perimeter) and `grass_detail_atlas.png` (8 transparent low tufts). The reusable resource is `client/resources/world/terrain/grass_foundation_tileset.tres` with terrain set 0 / terrain 0 `Grass` and custom data `surface_type`, `footstep_profile`, `movement_speed_multiplier`, `walkable`. Decorative tufts live on a separate `GrassDetails` TileMapLayer so later roads/buildings can clear them per cell.
+
+This does not replace the Prompt 18 Kenney floor in `ZoneView` or change C01, live maps, collision, or server authority. Review scene: `res://scenes/world/terrain/grass_foundation_test.tscn`. Deterministic painter: `res://scripts/tools/grass_foundation_painter.gd`, test seed `18427`. Rebuild the TileSet with Godot: `--headless --path client -s res://scripts/tools/build_grass_foundation_tileset.gd`.
+
