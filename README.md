@@ -60,6 +60,18 @@ bash scripts/dev-up.sh
 
 This builds `server/build/index.js`, recreates Nakama so it loads that bundle (JS is not hot-reloaded), and verifies `character_bootstrap` and `find_or_create_starter_zone`.
 
+After pulling a new branch that changes content or client assets (including grass, C01, or `visual_map.json`), close Godot and use:
+
+```powershell
+powershell -File scripts/local-play.ps1 -Branch cursor/mainline-prog-assets-19d8
+```
+
+```bash
+bash scripts/local-play.sh cursor/mainline-prog-assets-19d8
+```
+
+That restores Godot `.import` dirt (so checkout is not blocked), fast-forwards the branch, rebuilds Nakama, and prints the `client/` path to reopen. Stay on that branch until it is merged to `main`. Do not `git checkout main` while playing this line — `main` still has the older catalog, which is the "content pack does not match" error.
+
 Stop without deleting data:
 
 ```powershell

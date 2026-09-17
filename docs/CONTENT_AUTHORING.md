@@ -130,6 +130,8 @@ powershell -File scripts/content.ps1 new item --id item.example_token
 
 Keep `visualId` / `iconAssetId` mapped in `visual_map.json` and `asset_manifest.json`. Example from the content-only proof:
 
+After a visual, tileset, or catalog change is pushed, the Windows Godot checkout tests it with `powershell -File scripts/local-play.ps1 -Branch <branch>` (close the editor first). Remote agents cannot copy files into `C:\Users\Eszter\small-mmorpg`.
+
 ```json
 {
   "id": "item.proof_token",

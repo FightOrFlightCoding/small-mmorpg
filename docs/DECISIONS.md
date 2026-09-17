@@ -755,3 +755,7 @@ Outdoor grass ground is a 64×64 TileSet atlas family in the Hearthworn Fantasy 
 
 `visual.zone_starter` now points at that TileSet. `ZoneView` paints `WorldTerrain/GrassGround` and `GrassDetails` for the public starter zone (and systems lab, which shares the visual). Cave floors stay on the Kenney repeating fill. Details are cleared under collision AABBs. Placement is a zone-id hash of seed `18427`, so clients agree. C01, combat, networking, and server authority are unchanged. Review scene: `res://scenes/world/terrain/grass_foundation_test.tscn`. Rebuild the TileSet with Godot: `--headless --path client -s res://scripts/tools/build_grass_foundation_tileset.gd`.
 
+## 2026-09-17 — Local Godot play after remote asset work
+
+Remote agents cannot write `C:\Users\Eszter\small-mmorpg`. Playable asset and catalog changes must be committed, pushed, and pulled onto the branch that machine actually runs. `scripts/local-play.ps1` / `scripts/local-play.sh` restore Godot `.import` dirt under `client/addons`, `client/assets`, and `client/resources` (so checkout is not blocked), optionally fast-forward a named branch, assert client/server `contentHash` match, and recreate Nakama. A `CONTENT_MISMATCH` / "content pack does not match" dialog means the Godot client loaded a new bundle while Nakama still had an old `server/build`. Do not `git checkout main` to "fix" that while playing a newer line. Do not commit GLoot `.import` diffs.
+

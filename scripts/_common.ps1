@@ -160,6 +160,30 @@ function Assert-ContentHashes {
 	Write-Host "content_hash=$clientHash"
 }
 
+function Restore-GodotImportDirt {
+	$repo = Get-RepoRoot
+	$paths = @()
+	foreach ($rel in @("client/addons", "client/assets", "client/resources")) {
+		if (Test-Path (Join-Path $repo $rel)) {
+			$paths += $rel
+		}
+	}
+	if ($paths.Count -eq 0) {
+		return
+	}
+	Push-Location $repo
+	try {
+		git restore -- @paths
+		if ($LASTEXITCODE -ne 0) {
+			throw "git restore of Godot import dirt failed."
+		}
+	}
+	finally {
+		Pop-Location
+	}
+	Write-Host "Restored Godot import dirt under $($paths -join ', ')."
+}
+
 function Get-EnvironmentName {
 	param([string]$Name = "")
 	if ($Name -ne "") {

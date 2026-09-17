@@ -49,3 +49,17 @@ assert_content_hashes() {
 	fi
 	echo "content_hash=$client_hash"
 }
+
+restore_godot_import_dirt() {
+	local root
+	root="$(repo_root)"
+	local paths=()
+	[[ -d "$root/client/addons" ]] && paths+=(client/addons)
+	[[ -d "$root/client/assets" ]] && paths+=(client/assets)
+	[[ -d "$root/client/resources" ]] && paths+=(client/resources)
+	if [[ ${#paths[@]} -eq 0 ]]; then
+		return 0
+	fi
+	git -C "$root" restore -- "${paths[@]}"
+	echo "Restored Godot import dirt under ${paths[*]}."
+}

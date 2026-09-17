@@ -80,6 +80,15 @@ Record necessary assumptions in `docs/DECISIONS.md`.
 - Preserve compatibility with existing accepted phases.
 - Update `docs/PROGRESS.md` only when every acceptance criterion for the phase passes.
 
+## Local Godot checkout
+
+Cloud and remote agents **cannot** write `C:\Users\Eszter\small-mmorpg`. Client-visible asset, tileset, sprite, audio, `visual_map.json`, and `asset_manifest.json` work is only testable on that machine after it is committed, pushed, and pulled.
+
+- Wire presentation through stable visual IDs in `client/content/visual_map.json` and sets in `client/content/asset_manifest.json`. Put production files under `client/assets/` and `client/resources/`. Do not modify `client/addons/`.
+- Open a pull request that **targets `main`** (or the single main-targeting integration branch the human is already running). Do not leave playable assets only on a stacked phase branch the local Godot checkout is not tracking.
+- After push, tell the human to close Godot and run `powershell -File scripts/local-play.ps1 -Branch <pushed-branch>` from `C:\Users\Eszter\small-mmorpg`, then reopen Godot on `client/`. That restores editor `.import` dirt, fast-forwards the branch, and recreates Nakama so `contentHash` matches. A "content pack does not match" dialog means Nakama is still an old runtime.
+- Godot rewriting `client/addons/**/*.import` is not a project change. Never commit those diffs.
+
 ## Layout
 
 | Path | Role |
@@ -90,7 +99,7 @@ Record necessary assumptions in `docs/DECISIONS.md`.
 | `content/source/` | ID-addressed source content documents. |
 | `infra/` | Docker Compose, Nakama configuration, auth-gateway service, committed environment presets (no production secrets). Mailpit remains on the automated-test stack only. |
 | `auth-gateway/` | Project-owned public authentication HTTP service (Fastify). Holds Nakama and mail secrets. Not bundled into the Godot client. |
-| `scripts/` | Repeatable developer and CI commands, including `scripts/content.ps1` (`validate` / `build` / `diff` / `references` / `unused` / `new` / `copy` / `migrate` / `package`) and backup/export/verify scripts in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). |
+| `scripts/` | Repeatable developer and CI commands, including `scripts/content.ps1` (`validate` / `build` / `diff` / `references` / `unused` / `new` / `copy` / `migrate` / `package`), `scripts/local-play.ps1` (restore Godot import dirt, optional branch checkout, rebuild Nakama for the Windows Godot checkout), and backup/export/verify scripts in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). |
 | `tools/` | Content CLI (`tools/content-build`) and Prompt 18 freeze audit (`tools/foundation-audit`). |
 | `docs/` | Binding project contract, including Foundation catalogs, [CONTENT_AUTHORING.md](docs/CONTENT_AUTHORING.md), and after PROG-01 the progression contract under [docs/progression/](docs/progression/) plus [docs/design/rpg-progression-design-v1.0.md](docs/design/rpg-progression-design-v1.0.md). |
 
