@@ -22,5 +22,5 @@ assert_content_hashes
 bash "$ROOT/scripts/dev-up.sh"
 echo "Nakama now serves this checkout's catalog."
 echo "Reopen Godot 4.7.1 on: $ROOT/client"
-echo "Stay on branch $current for play. A content-pack mismatch means Nakama is still an old build — re-run this script."
+echo "Stay on branch $current for play. A content-pack mismatch means Nakama is still an old build - re-run this script."
 echo "Local play ready."
