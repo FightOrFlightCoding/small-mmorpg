@@ -59,11 +59,28 @@ func test_zone_view_renders_bounds_floor_collisions_and_spawn() -> void:
 	add_child(zone_view)
 	zone_view.render_zone(ContentRegistry.get_by_id("zone.starter"))
 	assert_object(zone_view.get_node_or_null("Floor")).is_not_null()
-	assert_object(zone_view.get_node_or_null("FloorTiles")).is_not_null()
-	assert_bool(zone_view.get_node("FloorTiles") is Polygon2D).is_true()
+	var ground: TileMapLayer = zone_view.get_node_or_null("WorldTerrain/GrassGround") as TileMapLayer
+	var details: TileMapLayer = zone_view.get_node_or_null("WorldTerrain/GrassDetails") as TileMapLayer
+	assert_object(ground).is_not_null()
+	assert_object(details).is_not_null()
+	assert_object(zone_view.get_node_or_null("FloorTiles")).is_null()
+	assert_int(ground.get_used_cells().size()).is_equal(240)
+	assert_int(details.z_index).is_greater(ground.z_index)
 	assert_object(zone_view.get_node_or_null("Bounds")).is_not_null()
 	assert_object(zone_view.get_node_or_null("PlayerSpawn")).is_not_null()
 	assert_int(zone_view.collision_count()).is_equal(6)
+	var starter: Dictionary = ContentRegistry.resolve_visual("visual.zone_starter")
+	assert_str(String(starter.get("tileset_path", ""))).contains("grass_foundation_tileset.tres")
+	assert_bool(bool(starter.get("missing", true))).is_false()
+
+
+func test_cave_zone_keeps_repeating_floor_tiles() -> void:
+	var zone_view: ZoneView = auto_free(ZoneView.new())
+	add_child(zone_view)
+	zone_view.render_zone(ContentRegistry.get_by_id("zone.cave"))
+	assert_object(zone_view.get_node_or_null("FloorTiles")).is_not_null()
+	assert_bool(zone_view.get_node("FloorTiles") is Polygon2D).is_true()
+	assert_object(zone_view.get_node_or_null("WorldTerrain")).is_null()
 
 
 func test_world_and_avatar_scenes_instantiate() -> void:

@@ -1,0 +1,29 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/terrain/grass_foundation_test.gd" id="1_script"]
+[ext_resource type="TileSet" path="res://resources/world/terrain/grass_foundation_tileset.tres" id="2_tileset"]
+[ext_resource type="PackedScene" path="res://scenes/world/player_avatar.tscn" id="3_player"]
+
+[node name="GrassFoundationTest" type="Node2D"]
+texture_filter = 0
+script = ExtResource("1_script")
+
+[node name="WorldTerrain" type="Node2D" parent="."]
+
+[node name="GrassGround" type="TileMapLayer" parent="WorldTerrain"]
+z_index = 0
+texture_filter = 0
+tile_set = ExtResource("2_tileset")
+
+[node name="GrassDetails" type="TileMapLayer" parent="WorldTerrain"]
+z_index = 1
+y_sort_enabled = false
+texture_filter = 0
+tile_set = ExtResource("2_tileset")
+
+[node name="PlayerAvatar" parent="." instance=ExtResource("3_player")]
+z_index = 7
+position = Vector2(672, 416)
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(640, 360)

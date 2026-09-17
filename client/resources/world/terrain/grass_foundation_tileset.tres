@@ -1,0 +1,96 @@
+[gd_resource type="TileSet" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/world/terrain/grass/grass_ground_atlas.png" id="1_i8ifx"]
+[ext_resource type="Texture2D" path="res://assets/world/terrain/grass/grass_detail_atlas.png" id="2_iku37"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_tq0bj"]
+texture = ExtResource("1_i8ifx")
+texture_region_size = Vector2i(64, 64)
+0:0/0 = 0
+0:0/0/terrain_set = 0
+0:0/0/terrain = 0
+0:0/0/terrains_peering_bit/right_side = 0
+0:0/0/terrains_peering_bit/bottom_right_corner = 0
+0:0/0/terrains_peering_bit/bottom_side = 0
+0:0/0/terrains_peering_bit/bottom_left_corner = 0
+0:0/0/terrains_peering_bit/left_side = 0
+0:0/0/terrains_peering_bit/top_left_corner = 0
+0:0/0/terrains_peering_bit/top_side = 0
+0:0/0/terrains_peering_bit/top_right_corner = 0
+0:0/0/custom_data_0 = "grass"
+0:0/0/custom_data_1 = "grass_soft"
+0:0/0/custom_data_2 = 1.0
+0:0/0/custom_data_3 = true
+1:0/0 = 0
+1:0/0/terrain_set = 0
+1:0/0/terrain = 0
+1:0/0/terrains_peering_bit/right_side = 0
+1:0/0/terrains_peering_bit/bottom_right_corner = 0
+1:0/0/terrains_peering_bit/bottom_side = 0
+1:0/0/terrains_peering_bit/bottom_left_corner = 0
+1:0/0/terrains_peering_bit/left_side = 0
+1:0/0/terrains_peering_bit/top_left_corner = 0
+1:0/0/terrains_peering_bit/top_side = 0
+1:0/0/terrains_peering_bit/top_right_corner = 0
+1:0/0/custom_data_0 = "grass"
+1:0/0/custom_data_1 = "grass_soft"
+1:0/0/custom_data_2 = 1.0
+1:0/0/custom_data_3 = true
+2:0/0 = 0
+2:0/0/terrain_set = 0
+2:0/0/terrain = 0
+2:0/0/terrains_peering_bit/right_side = 0
+2:0/0/terrains_peering_bit/bottom_right_corner = 0
+2:0/0/terrains_peering_bit/bottom_side = 0
+2:0/0/terrains_peering_bit/bottom_left_corner = 0
+2:0/0/terrains_peering_bit/left_side = 0
+2:0/0/terrains_peering_bit/top_left_corner = 0
+2:0/0/terrains_peering_bit/top_side = 0
+2:0/0/terrains_peering_bit/top_right_corner = 0
+2:0/0/custom_data_0 = "grass"
+2:0/0/custom_data_1 = "grass_soft"
+2:0/0/custom_data_2 = 1.0
+2:0/0/custom_data_3 = true
+3:0/0 = 0
+3:0/0/terrain_set = 0
+3:0/0/terrain = 0
+3:0/0/terrains_peering_bit/right_side = 0
+3:0/0/terrains_peering_bit/bottom_right_corner = 0
+3:0/0/terrains_peering_bit/bottom_side = 0
+3:0/0/terrains_peering_bit/bottom_left_corner = 0
+3:0/0/terrains_peering_bit/left_side = 0
+3:0/0/terrains_peering_bit/top_left_corner = 0
+3:0/0/terrains_peering_bit/top_side = 0
+3:0/0/terrains_peering_bit/top_right_corner = 0
+3:0/0/custom_data_0 = "grass"
+3:0/0/custom_data_1 = "grass_soft"
+3:0/0/custom_data_2 = 1.0
+3:0/0/custom_data_3 = true
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_oa1ii"]
+texture = ExtResource("2_iku37")
+texture_region_size = Vector2i(64, 64)
+0:0/0 = 0
+1:0/0 = 0
+2:0/0 = 0
+3:0/0 = 0
+0:1/0 = 0
+1:1/0 = 0
+2:1/0 = 0
+3:1/0 = 0
+
+[resource]
+tile_size = Vector2i(64, 64)
+terrain_set_0/mode = 0
+terrain_set_0/terrain_0/name = "Grass"
+terrain_set_0/terrain_0/color = Color(0.3, 0.44, 0.25, 1)
+custom_data_layer_0/name = "surface_type"
+custom_data_layer_0/type = 4
+custom_data_layer_1/name = "footstep_profile"
+custom_data_layer_1/type = 4
+custom_data_layer_2/name = "movement_speed_multiplier"
+custom_data_layer_2/type = 3
+custom_data_layer_3/name = "walkable"
+custom_data_layer_3/type = 1
+sources/0 = SubResource("TileSetAtlasSource_tq0bj")
+sources/1 = SubResource("TileSetAtlasSource_oa1ii")

@@ -31,11 +31,15 @@ func resolve(visual_id: String) -> Dictionary:
 		entry = _entries[visual_id]
 	var texture_path := String(entry.get("texture", ""))
 	var texture_ok := not texture_path.is_empty() and FileAccess.file_exists(texture_path)
+	var tileset_path := String(entry.get("tileset", ""))
+	var tileset_ok := not tileset_path.is_empty() and FileAccess.file_exists(tileset_path)
 	var obstacle_path := String(entry.get("obstacle_texture", ""))
 	var obstacle_ok := not obstacle_path.is_empty() and FileAccess.file_exists(obstacle_path)
 	var color := _parse_color(String(entry.get("fallback_color", "")), MISSING_COLOR)
 	var obstacle_color := _parse_color(String(entry.get("obstacle_fallback_color", "")), Color(0.35, 0.27, 0.22, 1.0))
-	var missing := visual_id.is_empty() or (not _entries.has(visual_id)) or (not texture_path.is_empty() and not texture_ok)
+	var missing := visual_id.is_empty() or (not _entries.has(visual_id))
+	if not missing and not texture_path.is_empty() and not texture_ok and not tileset_ok:
+		missing = true
 	if visual_id.is_empty():
 		missing = true
 	if missing and not visual_id.is_empty():
@@ -43,6 +47,7 @@ func resolve(visual_id: String) -> Dictionary:
 	return {
 		"visual_id": visual_id,
 		"texture_path": texture_path if texture_ok else "",
+		"tileset_path": tileset_path if tileset_ok else "",
 		"fallback_color": color,
 		"obstacle_texture_path": obstacle_path if obstacle_ok else "",
 		"obstacle_fallback_color": obstacle_color,
