@@ -10,8 +10,7 @@ func before_test() -> void:
 
 
 func test_ground_atlas_is_opaque_256x64() -> void:
-	var image := Image.new()
-	assert_int(image.load("res://assets/world/terrain/grass/grass_ground_atlas.png")).is_equal(OK)
+	var image := _atlas_image("res://assets/world/terrain/grass/grass_ground_atlas.png")
 	assert_int(image.get_width()).is_equal(256)
 	assert_int(image.get_height()).is_equal(64)
 	for y in image.get_height():
@@ -20,8 +19,7 @@ func test_ground_atlas_is_opaque_256x64() -> void:
 
 
 func test_detail_atlas_is_binary_alpha_256x128() -> void:
-	var image := Image.new()
-	assert_int(image.load("res://assets/world/terrain/grass/grass_detail_atlas.png")).is_equal(OK)
+	var image := _atlas_image("res://assets/world/terrain/grass/grass_detail_atlas.png")
 	assert_int(image.get_width()).is_equal(256)
 	assert_int(image.get_height()).is_equal(128)
 	for y in image.get_height():
@@ -129,3 +127,17 @@ func test_grass_foundation_scene_instantiates_with_layers_and_player() -> void:
 	assert_object(player.get_node_or_null("AnimatedSprite2D")).is_not_null()
 	assert_bool((player.get_node("AnimatedSprite2D") as AnimatedSprite2D).visible).is_true()
 	assert_bool((player.get_node("Body") as CanvasItem).visible).is_false()
+	assert_bool(ground.collision_enabled).is_false()
+	assert_bool(details.collision_enabled).is_false()
+	var start := player.position
+	player.position += Vector2(48.0, 24.0)
+	assert_bool(player.position.x > start.x).is_true()
+	assert_bool(player.position.y > start.y).is_true()
+
+
+func _atlas_image(path: String) -> Image:
+	var texture: Texture2D = load(path)
+	assert_object(texture).is_not_null()
+	var image: Image = texture.get_image()
+	assert_object(image).is_not_null()
+	return image

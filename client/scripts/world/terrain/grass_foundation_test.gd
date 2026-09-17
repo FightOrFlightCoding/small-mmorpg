@@ -24,9 +24,9 @@ func _ready() -> void:
 	_details.z_index = 1
 	_painter.paint_test_map(_ground, _details, _seed)
 	_configure_player()
-	_camera.position = _player.position
+	_clamp_camera()
 	var args := OS.get_cmdline_user_args()
-	if args.has("--screenshot-grass"):
+	if _wants_screenshot(args):
 		await _capture_screenshot(_screenshot_path(args))
 
 
@@ -39,7 +39,7 @@ func _process(delta: float) -> void:
 		_player.position += axis * MOVE_SPEED * delta
 		_player.position.x = clampf(_player.position.x, 12.0, _bounds.size.x - 12.0)
 		_player.position.y = clampf(_player.position.y, 12.0, _bounds.size.y - 12.0)
-		_camera.position = _player.position
+		_clamp_camera()
 
 
 func _configure_player() -> void:
@@ -59,6 +59,14 @@ func _configure_player() -> void:
 	_player.set_move_vector(Vector2.ZERO)
 
 
+func _clamp_camera() -> void:
+	var half := Vector2(640.0, 360.0)
+	_camera.position = Vector2(
+		clampf(_player.position.x, half.x, _bounds.size.x - half.x),
+		clampf(_player.position.y, half.y, _bounds.size.y - half.y),
+	)
+
+
 func _load_seed() -> void:
 	if not FileAccess.file_exists(MANIFEST_PATH):
 		return
@@ -66,6 +74,13 @@ func _load_seed() -> void:
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return
 	_seed = int((parsed as Dictionary).get("test_scene_seed", _seed))
+
+
+func _wants_screenshot(args: PackedStringArray) -> bool:
+	for arg in args:
+		if arg == "--screenshot-grass" or arg.begins_with("--screenshot-grass="):
+			return true
+	return false
 
 
 func _screenshot_path(args: PackedStringArray) -> String:

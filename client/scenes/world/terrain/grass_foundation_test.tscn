@@ -26,4 +26,4 @@ z_index = 7
 position = Vector2(672, 416)
 
 [node name="Camera2D" type="Camera2D" parent="."]
-position = Vector2(672, 416)
+position = Vector2(640, 360)
