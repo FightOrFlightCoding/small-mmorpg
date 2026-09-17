@@ -108,6 +108,38 @@ func paint_test_map(ground: TileMapLayer, details: TileMapLayer, seed: int = DEF
 		paint_details_rect(ground, details, Rect2i(Vector2i(x, 0), Vector2i(1, size.y)), seed, density)
 
 
+func paint_world_rect(
+	ground: TileMapLayer,
+	details: TileMapLayer,
+	pixel_size: Vector2,
+	seed: int,
+	density: float = NORMAL_DETAIL_DENSITY
+) -> Vector2i:
+	var cells := Vector2i(
+		maxi(1, ceili(pixel_size.x / float(TILE_SIZE))),
+		maxi(1, ceili(pixel_size.y / float(TILE_SIZE))),
+	)
+	paint_ground_rect(ground, Rect2i(Vector2i.ZERO, cells), seed)
+	details.clear()
+	paint_details_rect(ground, details, Rect2i(Vector2i.ZERO, cells), seed, density)
+	return cells
+
+
+static func seed_for_zone(zone_id: String) -> int:
+	return DEFAULT_SEED ^ absi(zone_id.hash())
+
+
+func clear_details_under_pixel_rect(details: TileMapLayer, rect: Rect2) -> void:
+	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+		return
+	var start := Vector2i(floori(rect.position.x / float(TILE_SIZE)), floori(rect.position.y / float(TILE_SIZE)))
+	var end := Vector2i(
+		ceili((rect.position.x + rect.size.x) / float(TILE_SIZE)),
+		ceili((rect.position.y + rect.size.y) / float(TILE_SIZE)),
+	)
+	clear_details_rect(details, Rect2i(start, end - start))
+
+
 func clear_details_at(details: TileMapLayer, cell: Vector2i) -> void:
 	details.erase_cell(cell)
 

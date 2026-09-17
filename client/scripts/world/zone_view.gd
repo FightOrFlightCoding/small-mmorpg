@@ -3,8 +3,14 @@ extends Node2D
 
 ## Renders zone bounds, floor tiles, collision AABBs, and the player spawn from content IDs.
 
+const GRASS_TILESET_PATH := "res://resources/world/terrain/grass_foundation_tileset.tres"
+
+var _grass_details: TileMapLayer
+var _grass_painter: GrassFoundationPainter = GrassFoundationPainter.new()
+
 
 func render_zone(zone: Dictionary) -> void:
+	_grass_details = null
 	for child in get_children():
 		child.queue_free()
 	if zone.is_empty():
@@ -13,13 +19,14 @@ func render_zone(zone: Dictionary) -> void:
 	var height := float(zone.get("height", 768))
 	var visual_id := String(zone.get("visualId", "visual.zone_starter"))
 	var visual: Dictionary = ContentRegistry.resolve_visual(visual_id)
-	_add_floor(width, height, visual)
+	_add_floor(width, height, visual, String(zone.get("id", "")))
 	_add_bounds(width, height)
 	_add_collisions(zone.get("collisions", []), visual)
+	_clear_grass_details_under_collisions(zone.get("collisions", []))
 	_add_spawn(zone.get("playerSpawn", {}))
 
 
-func _add_floor(width: float, height: float, visual: Dictionary) -> void:
+func _add_floor(width: float, height: float, visual: Dictionary, zone_id: String) -> void:
 	var floor_poly := Polygon2D.new()
 	floor_poly.name = "Floor"
 	floor_poly.polygon = PackedVector2Array([
@@ -28,10 +35,12 @@ func _add_floor(width: float, height: float, visual: Dictionary) -> void:
 		Vector2(width, height),
 		Vector2(0.0, height),
 	])
-	floor_poly.color = Color(0.49, 0.75, 0.29, 1.0)
+	floor_poly.color = Color(0.30, 0.44, 0.25, 1.0)
 	if visual.get("fallback_color") is Color:
 		floor_poly.color = visual["fallback_color"]
 	add_child(floor_poly)
+	if _add_grass_terrain(width, height, visual, zone_id):
+		return
 	var texture_path := String(visual.get("texture_path", ""))
 	if texture_path.is_empty():
 		return
@@ -39,6 +48,52 @@ func _add_floor(width: float, height: float, visual: Dictionary) -> void:
 	if texture == null:
 		return
 	add_child(_repeating_fill("FloorTiles", texture, Rect2(0.0, 0.0, width, height), 0))
+
+
+func _add_grass_terrain(width: float, height: float, visual: Dictionary, zone_id: String) -> bool:
+	var tileset_path := String(visual.get("tileset_path", ""))
+	if tileset_path.is_empty():
+		tileset_path = GRASS_TILESET_PATH if String(visual.get("visual_id", "")) == "visual.zone_starter" else ""
+	if tileset_path.is_empty() or not ResourceLoader.exists(tileset_path):
+		return false
+	var tileset: TileSet = load(tileset_path) as TileSet
+	if tileset == null:
+		return false
+	var holder := Node2D.new()
+	holder.name = "WorldTerrain"
+	add_child(holder)
+	var ground := TileMapLayer.new()
+	ground.name = "GrassGround"
+	ground.z_index = 0
+	var details := TileMapLayer.new()
+	details.name = "GrassDetails"
+	details.z_index = 1
+	holder.add_child(ground)
+	holder.add_child(details)
+	GrassFoundationPainter.configure_layer(ground, tileset)
+	GrassFoundationPainter.configure_layer(details, tileset)
+	var seed := GrassFoundationPainter.seed_for_zone(zone_id)
+	_grass_painter.paint_world_rect(ground, details, Vector2(width, height), seed)
+	_grass_details = details
+	return true
+
+
+func _clear_grass_details_under_collisions(collisions: Variant) -> void:
+	if _grass_details == null or typeof(collisions) != TYPE_ARRAY:
+		return
+	for entry in collisions:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var rect: Dictionary = entry
+		_grass_painter.clear_details_under_pixel_rect(
+			_grass_details,
+			Rect2(
+				float(rect.get("x", 0.0)),
+				float(rect.get("y", 0.0)),
+				float(rect.get("width", 16.0)),
+				float(rect.get("height", 16.0)),
+			),
+		)
 
 
 func _add_bounds(width: float, height: float) -> void:

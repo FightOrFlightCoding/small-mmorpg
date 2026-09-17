@@ -135,6 +135,16 @@ func test_grass_foundation_scene_instantiates_with_layers_and_player() -> void:
 	assert_bool(player.position.y > start.y).is_true()
 
 
+func test_starter_zone_view_paints_grass_foundation() -> void:
+	var zone_view: ZoneView = auto_free(ZoneView.new())
+	add_child(zone_view)
+	zone_view.render_zone(ContentRegistry.get_by_id("zone.starter"))
+	var ground: TileMapLayer = zone_view.get_node_or_null("WorldTerrain/GrassGround") as TileMapLayer
+	assert_object(ground).is_not_null()
+	assert_int(ground.get_used_cells().size()).is_equal(240)
+	assert_object(zone_view.get_node_or_null("FloorTiles")).is_null()
+
+
 func _atlas_image(path: String) -> Image:
 	var texture: Texture2D = load(path)
 	assert_object(texture).is_not_null()
