@@ -61,7 +61,7 @@ Do not upgrade, replace, or add foundational packages unless the current phase e
 
 Prompt 18 is accepted and frozen. Do not change its player-visible behavior unless the current phase explicitly repairs a defect.
 
-Foundation v1 product scope is [docs/FOUNDATION_SCOPE.md](docs/FOUNDATION_SCOPE.md). Implement a Foundation feature only when the current phase prompt names it. Prompt 19 is documentation and audit only. Prompt 20 is accepted: versioned content packages and save-schema migrations without new player-facing gameplay. Prompt 21 is accepted: email accounts, slots, and class selection. Prompt 22 is accepted: server-authoritative XP, levels, derived stats, and attribute allocation. Prompt 23 is accepted: generic items, inventory, equipment, gold, and the transaction core. Prompt 24 is accepted: data-defined abilities, casting, cooldowns, resources, and the effect engine (PvP remains disabled). Prompt 25 is accepted: one combat-resolution pipeline, targeting, PvE death/respawn, and XP hooks (PvP remains disabled). Prompt 26 is accepted: data-defined enemies, spawn controllers, AI profiles, loot tables, and simple bosses (PvP remains disabled). Prompt 27 is accepted: generic NPC services, dialogue, quests, merchants, and inn. Prompt 28 is accepted: temporary parties (max 5), party chat, group credit, and group loot (guilds, matchmaking, need/greed remain later). Prompt 29 is accepted: one public world, party cave instances, one-time transfer tickets, canonical location, and reconnection (no sharding). Prompt 30 is accepted: nearby online same-match direct trading of items and gold (mail, auction houses, and offline trade remain later). Prompt 31 is accepted: complete functional UI, settings, and asset contracts. Prompt 32 is accepted: content production workflow, systems lab, and server-authorized GM tools. Prompt 33 is accepted: environments, version compatibility, deployment, backups, and recovery. Prompt 34 is accepted: security, abuse, failure, load, and soak certification. Prompt 35 is accepted: final content-ready foundation certification (no new gameplay systems). PROG-01 is accepted: canonical design audit and implementation contract (no gameplay). PROG-02 is accepted: canonical shared content schemas and generated bundles (no new combat behavior). PROG-03 is accepted: four-class character creation and progression-state migration (no level gains). PROG-04 is accepted: canonical statistics, derived values, and resource engine (no level gains). PROG-05 is accepted: XP curve, automatic growth, level milestones, and auto-assignment (no talent spend). PROG-06 is accepted: manual stat allocation and full trainer respec. PROG-07 is accepted: branch choice, talent trees, ability ownership, and hotbar rules. PROG-08 is accepted: generic combat mechanics required by all four classes (no production GCD).
+Foundation v1 product scope is [docs/FOUNDATION_SCOPE.md](docs/FOUNDATION_SCOPE.md). Implement a Foundation feature only when the current phase prompt names it. Prompt 19 is documentation and audit only. Prompt 20 is accepted: versioned content packages and save-schema migrations without new player-facing gameplay. Prompt 21 is accepted: email accounts, slots, and class selection. Prompt 22 is accepted: server-authoritative XP, levels, derived stats, and attribute allocation. Prompt 23 is accepted: generic items, inventory, equipment, gold, and the transaction core. Prompt 24 is accepted: data-defined abilities, casting, cooldowns, resources, and the effect engine (PvP remains disabled). Prompt 25 is accepted: one combat-resolution pipeline, targeting, PvE death/respawn, and XP hooks (PvP remains disabled). Prompt 26 is accepted: data-defined enemies, spawn controllers, AI profiles, loot tables, and simple bosses (PvP remains disabled). Prompt 27 is accepted: generic NPC services, dialogue, quests, merchants, and inn. Prompt 28 is accepted: temporary parties (max 5), party chat, group credit, and group loot (guilds, matchmaking, need/greed remain later). Prompt 29 is accepted: one public world, party cave instances, one-time transfer tickets, canonical location, and reconnection (no sharding). Prompt 30 is accepted: nearby online same-match direct trading of items and gold (mail, auction houses, and offline trade remain later). Prompt 31 is accepted: complete functional UI, settings, and asset contracts. Prompt 32 is accepted: content production workflow, systems lab, and server-authorized GM tools. Prompt 33 is accepted: environments, version compatibility, deployment, backups, and recovery. Prompt 34 is accepted: security, abuse, failure, load, and soak certification. Prompt 35 is accepted: final content-ready foundation certification (no new gameplay systems). PROG-01 is accepted: canonical design audit and implementation contract (no gameplay). PROG-02 is accepted: canonical shared content schemas and generated bundles (no new combat behavior). PROG-03 is accepted: four-class character creation and progression-state migration (no level gains). PROG-04 is accepted: canonical statistics, derived values, and resource engine (no level gains). PROG-05 is accepted: XP curve, automatic growth, level milestones, and auto-assignment (no talent spend). PROG-06 is accepted: manual stat allocation and full trainer respec. PROG-07 is accepted: branch choice, talent trees, ability ownership, and hotbar rules. PROG-08 is accepted: generic combat mechanics required by all four classes (no production GCD). PROG-09 is accepted: Warrior, Bulwark, and Berserker. PROG-10 is accepted: Marksman, Sniper, and Skirmisher. PROG-11 is accepted: Mage, Fire, and Frost. PROG-12 is accepted: Mystic, Charms, and Curses. PROG-13 is accepted: player-facing progression UI (client never authoritative). PROG-14 is accepted: leftover Foundation reset and lifecycle persistence. PROG-15 is accepted: deterministic balance simulator and final progression certification.
 
 Always excluded: public-world sharding, extra overworlds, guilds, auction houses, crafting, PvP, monetization, procedural generation as a world system, open-world streaming, extra gameplay frameworks (QuestSystem, LimboAI, netfox, RPG database plugins).
 
@@ -85,8 +85,8 @@ Record necessary assumptions in `docs/DECISIONS.md`.
 Cloud and remote agents **cannot** write `C:\Users\Eszter\small-mmorpg`. Client-visible asset, tileset, sprite, audio, `visual_map.json`, and `asset_manifest.json` work is only testable on that machine after it is committed, pushed, and pulled.
 
 - Wire presentation through stable visual IDs in `client/content/visual_map.json` and sets in `client/content/asset_manifest.json`. Put production files under `client/assets/` and `client/resources/`. Do not modify `client/addons/`.
-- Open a pull request that **targets `main`** (or the single main-targeting integration branch the human is already running). Do not leave playable assets only on a stacked phase branch the local Godot checkout is not tracking.
-- After push, tell the human to close Godot and run `powershell -File scripts/local-play.ps1 -Branch <pushed-branch>` from `C:\Users\Eszter\small-mmorpg`, then reopen Godot on `client/`. That restores editor `.import` dirt, fast-forwards the branch, and recreates Nakama so `contentHash` matches. A "content pack does not match" dialog means Nakama is still an old runtime.
+- Branch from **`origin/main`**. Open a pull request that **targets `main`**. Do not leave playable assets only on a stacked phase branch.
+- After the change is on `origin/main` (or on the PR branch being playtested), tell the human to close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen Godot on `client/`. That restores editor `.import` dirt, fast-forwards `main`, and recreates Nakama so `contentHash` matches. A "content pack does not match" dialog means Nakama is still an old runtime.
 - Godot rewriting `client/addons/**/*.import` is not a project change. Never commit those diffs.
 
 ## Layout
@@ -103,23 +103,20 @@ Cloud and remote agents **cannot** write `C:\Users\Eszter\small-mmorpg`. Client-
 | `tools/` | Content CLI (`tools/content-build`) and Prompt 18 freeze audit (`tools/foundation-audit`). |
 | `docs/` | Binding project contract, including Foundation catalogs, [CONTENT_AUTHORING.md](docs/CONTENT_AUTHORING.md), and after PROG-01 the progression contract under [docs/progression/](docs/progression/) plus [docs/design/rpg-progression-design-v1.0.md](docs/design/rpg-progression-design-v1.0.md). |
 
-<!-- pre-prog09-handover:start -->
+<!-- current-baseline:start -->
 
-## Pre-PROG-09 handover
+## Current baseline (`origin/main`)
 
-Repository-grounded verification: **2026-09-16** on branch `cursor/pre-prog09-handover-3970` (PROG line `origin/cursor/npc-quest-acceptance`, not `origin/main`).
+Canonical git line is **`origin/main`**. Last accepted phase is **PROG-15** ([docs/PROGRESS.md](docs/PROGRESS.md)). Four-class combat, progression UI, leftover reset, the live-formula simulator, Hearthworn starter-zone grass, C01 walk, and `scripts/local-play` belong on `main`. Continue new work from `origin/main`. Do not treat stacked `cursor/prog-09-warrior` … `cursor/prog-15-*` branches as the playable line.
 
-Accepted through **PROG-08** only on the PROG line (`docs/PROGRESS.md`). Next phase: **PROG-09 — Complete Warrior, Bulwark, and Berserker Implementation**.
+Before editing:
 
-Before PROG-09 work, read:
+- `git fetch origin main` and branch from **`origin/main`**.
+- Read [docs/PROGRESS.md](docs/PROGRESS.md) and [docs/progression/](docs/progression/).
+- Do not implement later PROG or ACCT features until a later phase names them.
 
-- [docs/handover/PRE_PROG09_HANDOVER.md](docs/handover/PRE_PROG09_HANDOVER.md)
-- [docs/progression/CURRENT_CONFLICTS.md](docs/progression/CURRENT_CONFLICTS.md)
-- [docs/progression/PROGRESSION_TEST_PLAN.md](docs/progression/PROGRESSION_TEST_PLAN.md)
-- [docs/PROGRESS.md](docs/PROGRESS.md)
+The 2026-09-16 [pre-PROG-09 handover](docs/handover/PRE_PROG09_HANDOVER.md) is historical. Its instruction not to start from `origin/main` is **void**.
 
-Do not start PROG-09 from **`origin/main`** until PROG-08 is merged and PROGRESS matches the PROG line. On the PROG line: baseline server/content/audit tests passed in re-verify; **re-run client GdUnit** locally before claiming full go.
+Windows Godot at `C:\Users\Eszter\small-mmorpg`: close the editor, then `powershell -File scripts/local-play.ps1 -Branch main`, and reopen `client/`.
 
-Use the accepted generic combat/effect systems only — no second combat pipeline.
-
-<!-- pre-prog09-handover:end -->
+<!-- current-baseline:end -->

@@ -1,5 +1,7 @@
 # Pre-PROG-09 project handover (repository-grounded)
 
+**Superseded.** Canonical git line is **`origin/main`** with last accepted **PROG-15**. Follow [AGENTS.md](../../AGENTS.md) current baseline. Do not use this document's instruction to avoid `origin/main`.
+
 **Purpose:** Verified state before **PROG-09 — Complete Warrior, Bulwark, and Berserker Implementation**.  
 **Rule:** Repository evidence overrides chat narratives. *Intended* design is not *implemented* until `docs/PROGRESS.md` and tests say so.  
 **Re-verification run:** 2026-09-16 (cloud agent), branch `cursor/pre-prog09-handover-3970` rebased onto `origin/cursor/npc-quest-acceptance`.
