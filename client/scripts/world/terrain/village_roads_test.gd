@@ -39,6 +39,12 @@ func _ready() -> void:
 	_apply_camera_limits()
 	var args := OS.get_cmdline_user_args()
 	var mode := _screenshot_mode(args)
+	print(
+		"VILLAGE_REVIEW map=%dx%d spawn=main_road_south scene=village_roads_test"
+		% [int(_bounds.size.x), int(_bounds.size.y)]
+	)
+	if mode.is_empty():
+		_add_review_hud()
 	if mode == "overview":
 		_add_overview_labels()
 		_camera.zoom = Vector2(0.234, 0.234)
@@ -96,6 +102,26 @@ func _clamp_camera() -> void:
 		clampf(_player.position.x, half.x, _bounds.size.x - half.x),
 		clampf(_player.position.y, half.y, _bounds.size.y - half.y),
 	)
+
+
+func _add_review_hud() -> void:
+	var layer := CanvasLayer.new()
+	layer.name = "ReviewHud"
+	layer.layer = 80
+	add_child(layer)
+	var banner := Label.new()
+	banner.name = "Banner"
+	banner.text = "Village roads review · %dx%d · south-road spawn · WASD" % [
+		int(_bounds.size.x),
+		int(_bounds.size.y),
+	]
+	banner.position = Vector2(16, 12)
+	banner.add_theme_font_size_override("font_size", 16)
+	banner.add_theme_color_override("font_color", Color(0.98, 0.96, 0.86, 1.0))
+	banner.add_theme_color_override("font_shadow_color", Color(0.05, 0.07, 0.04, 0.9))
+	banner.add_theme_constant_override("shadow_offset_x", 1)
+	banner.add_theme_constant_override("shadow_offset_y", 1)
+	layer.add_child(banner)
 
 
 func _add_overview_labels() -> void:

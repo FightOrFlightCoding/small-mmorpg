@@ -116,6 +116,9 @@ func test_starter_zone_spawn_and_camera_use_expanded_bounds() -> void:
 	var player: PlayerAvatar = root.get_node("PlayerAvatar") as PlayerAvatar
 	assert_object(player).is_not_null()
 	assert_vector(player.position).is_equal(Vector2(2016, 2976))
+	var banner: Label = root.get_node_or_null("ReviewHud/Banner") as Label
+	assert_object(banner).is_not_null()
+	assert_str(banner.text).contains("4096x3072")
 
 
 func _atlas_image(path: String) -> Image:

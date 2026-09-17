@@ -715,4 +715,8 @@ Outdoor grass ground is a 64×64 TileSet atlas family in the Hearthworn Fantasy 
 
 Default spawn is `main_road_south` at (2016, 2976), facing north, on the 5-tile southern road that reaches the bottom edge. Camera limits follow zone width/height. Stone roads use `stone_road_terrain_atlas.png` (320×256, Match Corners masks 0–15) on the shared grass TileSet as source 2, terrain set 1 `RoadOverlay` / terrain 0 `StoneRoad`. No road collision. Baked cells live in `client/data/world/maps/village_road_plan.json`. Rebuild atlas with `python3 scripts/generate_stone_road_atlas.py`, cells with `python3 scripts/build_village_roads.py`, TileSet with Godot `--headless --path client -s res://scripts/tools/build_grass_foundation_tileset.gd`. No buildings, water, trees, or props were added. C01, combat, and networking authority are unchanged.
 
+## 2026-09-17 — Local review is a feature-branch pull, not main
+
+Cloud-agent commits stay on the branch named in `docs/AGENT_REVIEW_BRANCH` until a pull request is merged. The Windows clone at `C:\Users\Eszter\small-mmorpg` does not receive those files until the human closes Godot and runs `scripts/sync-review.ps1`. Map-only review is `scripts/review-village-map.ps1` (no Nakama). Live-game review also requires `scripts/dev-up.ps1` because Nakama does not hot-reload `server/build/index.js` and handshake rejects a `contentHash` mismatch. `scenes/world/world.tscn` stays unpainted in the editor; ZoneView paints grass and roads at runtime.
+
 

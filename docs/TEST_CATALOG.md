@@ -24,6 +24,8 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `scripts/test-all` | setup + content, audit, server, client, e2e, capacity, soak, five-client, backup |
 | `scripts/test-backup` | Dump local `nakama`, restore into `nakama_restore_drill`, verify table counts |
 | `scripts/verify-release` | Content, audit, server, migrations, client, backup drill |
+| `scripts/sync-review` | Pull `docs/AGENT_REVIEW_BRANCH` onto the local clone (not a test gate) |
+| `scripts/review-village-map` | Open the no-server 4096×3072 grass+roads review scene |
 
 ## Content-build (`tools/content-build/tests`)
 

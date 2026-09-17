@@ -14,6 +14,17 @@ The Godot 4.7.1 client registers or logs in with email and password, lists up to
 6. After the slice: [docs/FOUNDATION_SCOPE.md](docs/FOUNDATION_SCOPE.md)
 7. Content-ready: [docs/FOUNDATION_READY.md](docs/FOUNDATION_READY.md)
 
+## Reviewing the current agent branch
+
+Cloud-agent work is **not** on `main`. After every prompt, close Godot and run:
+
+```powershell
+powershell -File scripts/sync-review.ps1
+powershell -File scripts/review-village-map.ps1
+```
+
+That pulls [docs/AGENT_REVIEW_BRANCH](docs/AGENT_REVIEW_BRANCH) and opens the 4096×3072 grass+roads scene with no server. For the live Alice join, also run `scripts/dev-up.ps1` (Nakama is not hot-reloaded; a stale container causes `content_mismatch`). Full steps: [docs/LOCAL_REVIEW.md](docs/LOCAL_REVIEW.md).
+
 ## Prerequisites
 
 | Tool | Version | Notes |
@@ -169,6 +180,9 @@ Then `scripts/dev-up.ps1` again. The headless e2e journey uses unique device ids
 | Two editor Play windows feel slow | Use `scripts/run-two-clients.ps1` instead of nested Game workspace debuggers. |
 | Godot not found | Set `GODOT_BIN` to `Godot_v4.7.1-stable_win64_console.exe` for tests. |
 | Tests pass but play does not | Confirm Nakama health `content_version` matches `client/content/bundle.json` `contentHash`. |
+| Local clone still shows Kenney / old 1280×768 map | You are on `main` or Godot was open during pull. Close Godot, run `scripts/sync-review.ps1`, then `scripts/review-village-map.ps1`. |
+| `content_mismatch` after a pull | `scripts/dev-up.ps1` so Nakama loads the new `server/build/index.js`. |
+| Godot editor world scene looks empty | Grass/roads are painted at runtime. Use `review-village-map.ps1` or Play after join. |
 | Need a clean database | `backend-volume-destroy`, then `dev-up`. |
 
 Visible errors use the in-game dialog. There is no infinite spinner: boot, login, reconnect, and logout overlays complete or fail.

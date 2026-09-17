@@ -79,6 +79,11 @@ Record necessary assumptions in `docs/DECISIONS.md`.
 - Provide visible error states instead of indefinite loading.
 - Preserve compatibility with existing accepted phases.
 - Update `docs/PROGRESS.md` only when every acceptance criterion for the phase passes.
+- Keep `docs/AGENT_REVIEW_BRANCH` equal to the feature branch you push. Human review is that branch, not `main`. See [docs/LOCAL_REVIEW.md](docs/LOCAL_REVIEW.md).
+
+## Local review
+
+Cloud-agent work is pushed to the branch named in `docs/AGENT_REVIEW_BRANCH`, not `main`. After every prompt that changes files, update that file if the branch name changed. The human machine at `C:\Users\Eszter\small-mmorpg` must run `scripts/sync-review.ps1` (Godot closed) and then `scripts/review-village-map.ps1` or `scripts/dev-up.ps1` plus Alice. Do not tell the human the work is already on their machine or on `main`. Grass and roads are runtime-painted; `world.tscn` in the editor is empty until Play.
 
 ## Layout
 
