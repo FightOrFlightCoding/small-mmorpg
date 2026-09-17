@@ -16,14 +16,22 @@ The Godot 4.7.1 client registers or logs in with email and password, lists up to
 
 ## Reviewing the current agent branch
 
-Cloud-agent work is **not** on `main`. After every prompt, close Godot and run:
+Cloud-agent work is **not** on `main`. A live Alice line `hash=b76111cf` is `main`. If `scripts/sync-review.ps1` is missing, check the branch out first:
+
+```powershell
+git fetch origin cursor/hearthworn-grass-foundation-f69a
+git checkout cursor/hearthworn-grass-foundation-f69a
+git pull --ff-only origin cursor/hearthworn-grass-foundation-f69a
+```
+
+After that file exists, close Godot and run:
 
 ```powershell
 powershell -File scripts/sync-review.ps1
 powershell -File scripts/review-village-map.ps1
 ```
 
-That pulls [docs/AGENT_REVIEW_BRANCH](docs/AGENT_REVIEW_BRANCH) and opens the 4096×3072 grass+roads scene with no server. For the live Alice join, also run `scripts/dev-up.ps1` (Nakama is not hot-reloaded; a stale container causes `content_mismatch`). Full steps: [docs/LOCAL_REVIEW.md](docs/LOCAL_REVIEW.md).
+That opens the 4096×3072 grass+roads scene with no server. For the live Alice join, also run `scripts/dev-up.ps1` (Nakama is not hot-reloaded; a stale container causes `content_mismatch`). Full steps: [docs/LOCAL_REVIEW.md](docs/LOCAL_REVIEW.md).
 
 ## Prerequisites
 

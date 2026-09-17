@@ -717,6 +717,6 @@ Default spawn is `main_road_south` at (2016, 2976), facing north, on the 5-tile 
 
 ## 2026-09-17 — Local review is a feature-branch pull, not main
 
-Cloud-agent commits stay on the branch named in `docs/AGENT_REVIEW_BRANCH` until a pull request is merged. The Windows clone at `C:\Users\Eszter\small-mmorpg` does not receive those files until the human closes Godot and runs `scripts/sync-review.ps1`. Map-only review is `scripts/review-village-map.ps1` (no Nakama). Live-game review also requires `scripts/dev-up.ps1` because Nakama does not hot-reload `server/build/index.js` and handshake rejects a `contentHash` mismatch. `scenes/world/world.tscn` stays unpainted in the editor; ZoneView paints grass and roads at runtime.
+Cloud-agent commits stay on the branch named in `docs/AGENT_REVIEW_BRANCH` until a pull request is merged. The Windows clone at `C:\Users\Eszter\small-mmorpg` does not receive those files until the human closes Godot and checks that branch out. `scripts/sync-review.ps1` is on the review branch, so a clone still on `main` (`contentHash` prefix `b76111cf`) must `git fetch` / `git checkout` / `git pull` that branch once before the script exists. After that, `scripts/sync-review.ps1` and `scripts/review-village-map.ps1` are the repeatable path. Live-game review also requires `scripts/dev-up.ps1` because Nakama does not hot-reload `server/build/index.js` and handshake rejects a `contentHash` mismatch. `scenes/world/world.tscn` stays unpainted in the editor; ZoneView paints grass and roads at runtime.
 
 

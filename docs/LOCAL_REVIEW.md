@@ -2,9 +2,28 @@
 
 Cloud-agent prompts **do not** land on `main`, and they **do not** appear on a Windows clone until that clone pulls the review branch. Opening an already-loaded Godot editor is not enough.
 
-Current review branch: the single line in [AGENT_REVIEW_BRANCH](AGENT_REVIEW_BRANCH).
+Current review branch: the single line in [AGENT_REVIEW_BRANCH](AGENT_REVIEW_BRANCH) (`cursor/hearthworn-grass-foundation-f69a`).
 
-## After every agent prompt (required)
+`scripts/sync-review.ps1` exists **only after** that branch is checked out. If PowerShell says the file does not exist, you are still on `main`. Use the git commands in the next section once.
+
+## First pull (when the script is missing)
+
+Quit Godot, then from `C:\Users\Eszter\small-mmorpg`:
+
+```powershell
+git status
+git fetch origin cursor/hearthworn-grass-foundation-f69a
+git checkout cursor/hearthworn-grass-foundation-f69a
+git pull --ff-only origin cursor/hearthworn-grass-foundation-f69a
+git rev-parse --short HEAD
+Test-Path scripts\sync-review.ps1
+```
+
+`HEAD` must be `6ecb195` or later. `Test-Path` must print `True`. A live Alice session that prints `hash=b76111cf` is **`main`**, not this map (`bdd969e8…`).
+
+If `git checkout` refuses, the tree is dirty. Discard Godot noise with `git restore .` (only if you have no local edits you want to keep), then run the four git lines again.
+
+## After every later prompt
 
 From `C:\Users\Eszter\small-mmorpg`:
 
