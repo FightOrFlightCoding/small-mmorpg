@@ -208,6 +208,10 @@ export function formulaCritMult(strength: number): number {
   return 1.5 + 0.01 * strength;
 }
 
+export function formulaCritExpectedValue(critChance: number, critMult: number): number {
+  return 1 + numberOr(critChance, 0) * (numberOr(critMult, 1) - 1);
+}
+
 export function formulaHasteMult(haste: number): number {
   return 1 + 0.01 * haste;
 }

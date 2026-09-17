@@ -21,7 +21,19 @@ Related: [TEST_CATALOG.md](../TEST_CATALOG.md), [CANONICAL_VALUE_CATALOG.md](CAN
 | `server/tests/warrior_progression.test.ts` | Warrior ATTACK base/interval/STR/crit path, Heavy Strike and class nodes, every Bulwark and Berserker talent, passive Frenzy rank/expiry, no passive hotbar use, taunt-scoped reduction, reflect and lifesteal recursion guards, respec-compatible derived ownership, and PvE-only targeting |
 | `server/tests/warrior_balance.test.ts` | Level-10 auto-growth Bulwark ≈14.8 DPS, Berserker ≈16.1 DPS, and Warrior EHP 308.5 within the canonical tolerance |
 
-The full server suite continues to prove canonical talent purchase, respec/reconnect persistence, link-dead behavior, rejected PvP, absent production GCD, and test-only content isolation. No protocol opcode or storage schema changes are required for PROG-09.
+## PROG-15 coverage
+
+| File | Covers |
+| --- | --- |
+| `server/tests/progression_dps_audit.test.ts` | §6.3 sheet, §12 ±5%, seeded vs analytic, tank/healer/TTK/metronome, greed, T3, DoT no-crit, haste ≠ CD |
+| `server/tests/progression_enemy_baselines.test.ts` | §13 HP/damage/KillXP L1–10; live slime HP stays 20 |
+| `server/tests/progression_gcd_audit.test.ts` | Production abilities and runtime have no GCD dependency |
+| `server/tests/progression_reference_builds.test.ts` | Sixteen §11 builds, 27 points, greed vs VIT dump |
+| `server/tests/progression_cert_journey.test.ts` | GM journey, trainer respec, reconnect, export, soft-delete/purge, email reuse |
+| `server/tests/progression_party_cert.test.ts` | Four-class party taunt/spell/ranged/heal, PvP off, party XP once, disconnect cleanup |
+| `server/tests/progression_repository_audit.test.ts` | Four-class roster, no client storage writes, no class-id combat branches, no DEFERRED conflicts |
+
+Certification docs: `docs/progression/PROGRESSION_READY.md`, `CLASS_CONTENT_GUIDE.md`, `ABILITY_CONTENT_GUIDE.md`, `TALENT_CONTENT_GUIDE.md`, `BALANCE_REGRESSION_REPORT.md`, `PROGRESSION_RECOVERY_RUNBOOK.md`, `KNOWN_PROGRESSION_LIMITATIONS.md`.
 
 ## PROG-12 coverage
 
@@ -52,7 +64,7 @@ The full server suite continues to prove canonical talent purchase, respec/recon
 
 ## Planned later regression tests
 
-These files are **named now**. They must not be treated as existing in PROG-01 except `progression_design_audit.test.ts`. PROG-03 implemented create/migrate coverage in `character_lifecycle.test.ts` and `canonical_progression.test.ts`. PROG-04 implemented formula coverage in `progression_formulas.test.ts` and `progression_l10_sheet.test.ts` without enabling later combat files. PROG-08 created `progression_gcd_absent.test.ts`, `progression_dot_haste.test.ts`, `combat_rng.test.ts`, `combat_events.test.ts`, `canonical_combat.test.ts`, and `progression_combat_mechanics.test.ts`. `progression_gcd_audit.test.ts` remains the PROG-15 closure and must not be treated as existing yet.
+These files are **named now**. They must not be treated as existing in PROG-01 except `progression_design_audit.test.ts`. PROG-03 implemented create/migrate coverage in `character_lifecycle.test.ts` and `canonical_progression.test.ts`. PROG-04 implemented formula coverage in `progression_formulas.test.ts` and `progression_l10_sheet.test.ts` without enabling later combat files. PROG-08 created `progression_gcd_absent.test.ts`, `progression_dot_haste.test.ts`, `combat_rng.test.ts`, `combat_events.test.ts`, `canonical_combat.test.ts`, and `progression_combat_mechanics.test.ts`. `progression_gcd_audit.test.ts` remains the PROG-15 GCD search. PROG-15 also created `progression_dps_audit.test.ts`, `progression_enemy_baselines.test.ts`, `progression_reference_builds.test.ts`, `progression_cert_journey.test.ts`, `progression_party_cert.test.ts`, and `progression_repository_audit.test.ts`.
 
 | File | Covers |
 | --- | --- |
@@ -106,7 +118,7 @@ Accepted. `server/tests/progression_lifecycle.test.ts` classifies `test.*` vs pr
 
 ### PROG-15 GCD production audit
 
-Search production bundles and runtime paths for `globalCooldown`, `global_cooldown`, and `gcd`. Fail certification if any production progression ability depends on them. Named test: `server/tests/progression_gcd_audit.test.ts`.
+Accepted. `progression_gcd_audit.test.ts` searches production bundles and runtime paths for `globalCooldown`, `global_cooldown`, and `gcd`. `progression_dps_audit.test.ts` certifies §6.3 and §12. `progression_enemy_baselines.test.ts` certifies §13 without retuning slime HP. `progression_reference_builds.test.ts`, `progression_cert_journey.test.ts`, `progression_party_cert.test.ts`, and `progression_repository_audit.test.ts` close builds, journeys, party, and the repository audit.
 
 ### PROG-10 Marksman, Sniper, and Skirmisher
 

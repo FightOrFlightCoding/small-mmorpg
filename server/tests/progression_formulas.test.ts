@@ -13,6 +13,7 @@ import {
   formulaCastTime,
   formulaCritChance,
   formulaCritMult,
+  formulaCritExpectedValue,
   formulaDamageReduction,
   formulaDotTickInterval,
   formulaEffectiveHp,
@@ -72,6 +73,8 @@ test("canonical formulas match section 4 identities", () => {
   assert.equal(formulaManaRegen(5, false), 0);
   assert.equal(formulaCritChance(12), 0.06);
   assert.equal(formulaCritMult(35), 1.85);
+  assert.equal(formulaCritExpectedValue(0.06, 1.54), 1 + 0.06 * (1.54 - 1));
+  assert.equal(formulaCritExpectedValue(0.015, 1.85), 1 + 0.015 * (1.85 - 1));
   assert.equal(formulaHasteMult(12), 1.12);
   assert.equal(formulaDamageReduction(12), 0.06);
   assert.equal(roundToTenths(formulaEffectiveHp(290, 0.06)), 308.5);

@@ -1,10 +1,10 @@
 # Progress
 
-Last accepted phase: **PROG-14 — Persistence, Multiplayer, Rewards, Account Lifecycle, and Developer Tools**.
+Last accepted phase: **PROG-15 — Deterministic Balance Simulator and Final Progression Certification**.
 
 Current phase: none.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. PROG-08 remains accepted. PROG-09 remains accepted. PROG-10 remains accepted. PROG-11 remains accepted. PROG-12 remains accepted. PROG-13 remains accepted. PROG-14 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. PROG-08 remains accepted. PROG-09 remains accepted. PROG-10 remains accepted. PROG-11 remains accepted. PROG-12 remains accepted. PROG-13 remains accepted. PROG-14 remains accepted. PROG-15 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
 
@@ -697,6 +697,46 @@ powershell -File scripts/test-progression-design.ps1
 npx tsc -p tsconfig.test.json
 node --test dist-test/tests/*.test.js
 powershell -File scripts/test-client.ps1
+```
+
+## PROG-15 deterministic balance simulator and certification (2026-09-16)
+
+The progression system matches the canonical design. No new class features were added. The project-owned simulator (`server/src/domain/progression_simulator.ts`) reuses live content parsers, §4 formulas, ability timings, mana spend/regen, cooldown recovery, crit expected value `1 + CritChance * (CritMult - 1)`, DoT snapshot and replace stacking, and talent modifiers. It is not a second formula table. Analytic EV and seeded event-simulation share that path. `npm run simulate` in `server/` emits traces, JSON, and a human report.
+
+Level-10 auto-growth sheets match §6.3 for Warrior, Mage, Marksman, and Mystic. §12 DPS/HPS at level 10, auto-growth only, signature included, no tree nodes, 60s fight, stay within ±5%: Sniper 19.033, Skirmisher 18.939, Fire 18.759, Frost 17.590, Curses 17.368, Berserker 16.097, Bulwark 14.830, Charms solo 14.302, Charms party HPS 22.162. Seeded mode (seed 34) stays near analytic EV. Curses maintains one Wither (`replace`) and fills with Fateweave harm; overlapping DoT stacks are rejected.
+
+Cross-checks hold: Warrior EHP tank margin 1.69–1.79×, healer vs one/two mean DPS branches, 120-HP TTK, greed orderings, Mage metronome hold, Mystic Fateweave authored miss `6.867 > 6.2` (not rebalanced), Tier-3 lockout before level 9, max actives, DoT no-crit, haste does not change stored cooldowns, total XP 11,100, base arrays 34, level-10 total 115, class points 2, branch points 6. Enemy baselines are `40 + 8 * level` HP and `2 + 0.5 * level` damage, elite 3× HP / 2× damage / 3× KillXP, levels 1–10. Live `enemy.green_slime` stays 20 HP / level 1. Sixteen §11 reference-build fixtures allocate 27 free points without violating totals and are not enforced on players.
+
+The GM-accelerated journey covers all four classes: exact level-1 arrays, auto-attack, level 2 basic skill, class-tree 2-of-3, both branches via trainer respec, signatures, branch spend, Tier-3 at 9, capstone at 10, ≤1 extra buyable active, 27 free points, sibling auto-assign, trainer respec refund and rebuild, vitality gear recalc, unexpected disconnect / lease restore, terminate persist, soft-delete / restore / purge, account export, permanent delete, and email reuse isolation. Four-class party certification covers Challenge taunt, Arcane Bolt mana at cast start, Marksman ranged ATTACK, Fateweave heal and Protective Charm, `pvp_disabled`, one party XP grant, source stacking, and link-dead cleanup.
+
+Certification docs: [progression/PROGRESSION_READY.md](progression/PROGRESSION_READY.md), [progression/CLASS_CONTENT_GUIDE.md](progression/CLASS_CONTENT_GUIDE.md), [progression/ABILITY_CONTENT_GUIDE.md](progression/ABILITY_CONTENT_GUIDE.md), [progression/TALENT_CONTENT_GUIDE.md](progression/TALENT_CONTENT_GUIDE.md), [progression/BALANCE_REGRESSION_REPORT.md](progression/BALANCE_REGRESSION_REPORT.md), [progression/PROGRESSION_RECOVERY_RUNBOOK.md](progression/PROGRESSION_RECOVERY_RUNBOOK.md), [progression/KNOWN_PROGRESSION_LIMITATIONS.md](progression/KNOWN_PROGRESSION_LIMITATIONS.md). Suggested tag `character-progression-v1` is **not** created until the working tree is clean and a human approves.
+
+Repository audit: four selectable `class.*` including Mystic, one `progression_service.gd`, no client `write_storage_objects`, no class ids in generic combat modules, `isDot` skips crit, no production GCD coupling, no vendor edits, no progression plugin, no `DEFERRED` production conflict rows, no test-only class in the production roster. Content hash is unchanged.
+
+| Gate | Result |
+| --- | --- |
+| Content hash | unchanged `b76111cf9fb663dd04de943d3de5af004249b29c1321fe563bc9eac9d731f2de` |
+| Design audit | 10/10 (`server/tests/progression_design_audit.test.ts`) |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (29 RPCs, 34 storage records, 38 client opcodes) |
+| Server hermetic | 760 passed, 13 skipped (Node 22 glob `dist-test/tests/*.test.js`; directory `npm test` still fails on Node 22) |
+| Server typecheck / bundle | `tsc --noEmit` and `npm run build` succeeded |
+| Client GdUnit | 297/297, 0 failures, 0 orphans, `SHELL_LOGIN` |
+| Simulator | `npm run simulate -- --mode analytic` matches the §12 table within ±5% |
+
+Limitations: Charms solo TTK versus the 120 HP §13 mob is 8.391s (3.6% above the 8.1s design upper bound, inside the cert ±5% band). Charms party HPS follows the design methodology and reports OOM at 39.8s instead of retuning Fateweave. Prompt 18 slime HP stays 20. The eight-slot Foundation hotbar remains test-only. The suggested git tag is not created. Manual Prompt 18 world play was not re-run.
+
+Reproduction:
+
+```powershell
+powershell -File scripts/test-audit.ps1
+powershell -File scripts/test-progression-design.ps1
+Set-Location server
+npx tsc -p tsconfig.test.json
+node --test dist-test/tests/*.test.js
+npm run simulate -- --mode analytic --trace
+npm run typecheck
+npm run build
+powershell -File ..\scripts\test-client.ps1
 ```
 
 ## PROG-12 Mystic, Charms, and Curses implementation (2026-09-16)

@@ -1,6 +1,6 @@
 # Current progression conflicts
 
-**Verification (2026-09-16):** PROG-14 closed `C-legacy-migration` (production leftover reset with notice; `test.*` keep Foundation fields). **No `BLOCKING` rows.** Remaining `DEFERRED` production items belong to PROG-15.
+**Verification (2026-09-16):** PROG-15 certifies the live implementation against the canonical design. **No `BLOCKING` rows. No `DEFERRED` production rows.** Remaining `TEST_ONLY_PERMANENT` and `NONCANONICAL_CONTENT_VALUE` entries are documented limitations, not unfinished PROG work.
 
 PROG-08 is the accepted generic combat-mechanics path. Remaining live/design gaps are **owned staged work**, not items that will vanish on their own.
 
@@ -9,7 +9,7 @@ Live ownership: [PROGRESSION_ARCHITECTURE.md](PROGRESSION_ARCHITECTURE.md).
 Noncanonical numbers: [progression-implementation-addendum.md](../design/progression-implementation-addendum.md).  
 Final save mapping: [PROGRESSION_MIGRATION_PLAN.md](PROGRESSION_MIGRATION_PLAN.md).
 
-This register does **not** mean PROG-08 failed. Production HP, mana, regen, crit, haste, DR, power-category hit functions, damage order, modifier identity, the level-10 auto-growth sheet, the L10 XP curve, KillXP, automatic growth, free points, auto-assign, milestones, free-stat allocation, trainer respec, class/branch talent spend, derived ability ownership, the four-slot production hotbar, the generic combat engine (events, RNG, DoT/shield/threat/multi-hit, no production GCD), all four production-class combat definitions, leftover Foundation-field cleanup, and progression lifecycle persistence are implemented and tested. The test-only 8-slot Foundation `HOTBAR_SIZE` and Foundation 3-stat fields remain only on `test.*` classes.
+This register does **not** mean PROG-08 failed. Production HP, mana, regen, crit, haste, DR, power-category hit functions, damage order, modifier identity, the level-10 auto-growth sheet, the L10 XP curve, KillXP, automatic growth, free points, auto-assign, milestones, free-stat allocation, trainer respec, class/branch talent spend, derived ability ownership, the four-slot production hotbar, the generic combat engine (events, RNG, DoT/shield/threat/multi-hit, no production GCD), all four production-class combat definitions, leftover Foundation-field cleanup, progression lifecycle persistence, the deterministic balance simulator, and PROG-15 certification tests are implemented. The test-only 8-slot Foundation `HOTBAR_SIZE` and Foundation 3-stat fields remain only on `test.*` classes.
 
 ## Status values
 
@@ -24,9 +24,10 @@ This register does **not** mean PROG-08 failed. Production HP, mana, regen, crit
 By **PROG-15**:
 
 - No `DEFERRED` production conflict may remain.
-- `TEST_ONLY_PERMANENT` entries may remain only outside production bundles.
+- `TEST_ONLY_PERMANENT` entries may remain only outside production `class.*` roster.
 - `NONCANONICAL_CONTENT_VALUE` entries must be recorded in the implementation addendum.
 - No `BLOCKING` item may remain.
+- Certification docs in this folder exist and the named simulator/journey/audit tests pass.
 
 Every conflict below has **Status**, **Resolution owner**, **Must be resolved by**, and **Closure test**.
 
@@ -42,7 +43,7 @@ Every conflict below has **Status**, **Resolution owner**, **Must be resolved by
 | PROG-09–12 | Every class and branch, including auto-attacks (accepted) |
 | PROG-13 | Complete player-facing progression UI (accepted) |
 | PROG-14 | Persistence and lifecycle integration, **final** legacy migration (accepted) |
-| PROG-15 | Remove production legacy paths and certify balance |
+| PROG-15 | Remove production legacy paths and certify balance (this phase) |
 
 ## PROG-05 go/no-go
 
@@ -142,6 +143,26 @@ Proceed to PROG-09 only when every row is true. These are PROG-08 exit criteria,
 | Client cannot submit crit or random rolls | `progression_combat_mechanics.test.ts`, `combat_rng.test.ts` |
 | Content hash unchanged | `3b57502b4a197972c970420cd7b2a5a74955311b5840be0b4d184843c24e3320` |
 | Class combat definitions remain later | `C-attack-foundation`, `C-shields-taunt`, `C-frenzy-combat` |
+
+## PROG-15 go/no-go
+
+Progression is ready only when every row is true.
+
+| Criterion | Evidence |
+| --- | --- |
+| All previous tests still pass | Content, design audit, foundation audit, server, client gates |
+| Every canonical class and branch is implemented | Warrior, Mage, Marksman, Mystic class tests |
+| Simulator reuses live formulas | `server/src/domain/progression_simulator.ts` |
+| Level-10 sheet and §12 ±5% | `server/tests/progression_dps_audit.test.ts` |
+| Metronome Law holds or authored miss is reported | same plus `progression_metronome.test.ts` |
+| Enemy baselines without retuning slime HP | `server/tests/progression_enemy_baselines.test.ts` |
+| Sixteen reference builds | `server/tests/progression_reference_builds.test.ts` |
+| GM functional journey, respec, export, delete/reuse | `server/tests/progression_cert_journey.test.ts` |
+| Four-class party | `server/tests/progression_party_cert.test.ts` |
+| No production GCD dependency | `server/tests/progression_gcd_audit.test.ts` |
+| Repository audit | `server/tests/progression_repository_audit.test.ts` |
+| No `DEFERRED` production conflict | this register |
+| Certification docs exist | `PROGRESSION_READY.md` and sibling guides |
 
 ## Conflict register
 

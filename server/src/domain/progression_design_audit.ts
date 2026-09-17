@@ -173,6 +173,13 @@ export const REQUIRED_CONTRACT_DOCS = [
   "docs/progression/PROGRESSION_MIGRATION_PLAN.md",
   "docs/progression/PROGRESSION_TEST_PLAN.md",
   "docs/progression/CURRENT_CONFLICTS.md",
+  "docs/progression/PROGRESSION_READY.md",
+  "docs/progression/CLASS_CONTENT_GUIDE.md",
+  "docs/progression/ABILITY_CONTENT_GUIDE.md",
+  "docs/progression/TALENT_CONTENT_GUIDE.md",
+  "docs/progression/BALANCE_REGRESSION_REPORT.md",
+  "docs/progression/PROGRESSION_RECOVERY_RUNBOOK.md",
+  "docs/progression/KNOWN_PROGRESSION_LIMITATIONS.md",
 ];
 
 export const PLANNED_REGRESSION_TESTS = [
@@ -195,6 +202,10 @@ export const PLANNED_REGRESSION_TESTS = [
   "server/tests/progression_dps_audit.test.ts",
   "server/tests/progression_enemy_baselines.test.ts",
   "server/tests/progression_respec.test.ts",
+  "server/tests/progression_reference_builds.test.ts",
+  "server/tests/progression_cert_journey.test.ts",
+  "server/tests/progression_party_cert.test.ts",
+  "server/tests/progression_repository_audit.test.ts",
   "server/tests/ability.test.ts",
   "server/tests/combat_pipeline.test.ts",
   "server/tests/character_lifecycle.test.ts",
@@ -609,6 +620,9 @@ export function auditConflictRegister(markdown: string): AuditIssue[] {
   if (markdown.indexOf("## PROG-09 go/no-go") < 0) {
     issues.push({ code: "missing_prog09_gating", message: "CURRENT_CONFLICTS.md must include PROG-09 go/no-go." });
   }
+  if (markdown.indexOf("## PROG-15 go/no-go") < 0) {
+    issues.push({ code: "missing_prog15_gating", message: "CURRENT_CONFLICTS.md must include PROG-15 go/no-go." });
+  }
   const entries = parseConflictRegister(markdown);
   const seen: { [id: string]: boolean } = {};
   for (let i = 0; i < entries.length; i++) {
@@ -639,10 +653,10 @@ export function auditConflictRegister(markdown: string): AuditIssue[] {
     if (entry.status === "BLOCKING") {
       issues.push({ code: "blocking_conflict", message: entry.id + " is BLOCKING." });
     }
-    if (entry.status === "DEFERRED" && entry.resolutionOwner.indexOf("PROG-") < 0) {
+    if (entry.status === "DEFERRED") {
       issues.push({
-        code: "deferred_without_owner",
-        message: entry.id + " is DEFERRED without a PROG- resolution owner.",
+        code: "deferred_conflict_at_certification",
+        message: entry.id + " is still DEFERRED at PROG-15.",
       });
     }
   }

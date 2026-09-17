@@ -10,7 +10,8 @@
     "test": "tsc -p tsconfig.test.json && node --test dist-test/tests",
     "build": "rollup -c rollup.config.mjs",
     "migrate": "tsc -p tsconfig.cli.json && node dist-cli/cli/migrate.js",
-    "cert": "tsc -p tsconfig.cli.json && node dist-cli/cli/cert.js"
+    "cert": "tsc -p tsconfig.cli.json && node dist-cli/cli/cert.js",
+    "simulate": "tsc -p tsconfig.cli.json && node dist-cli/cli/simulate_progression.js"
   },
   "devDependencies": {
     "@babel/core": "^7.28.0",

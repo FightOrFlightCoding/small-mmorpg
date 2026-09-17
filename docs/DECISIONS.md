@@ -745,3 +745,8 @@ Progression persists on character select, logout/leave, link-dead, ten-second de
 
 XP, level rewards, automatic growth, point grants, milestone unlocks, talent purchase, respec, kill/quest/party/boss credit remain `eventId` / `requestId` idempotent. Party XP uses existing party-credit eligibility (authoritative enemy level, server-owned elite ×3, no forged membership). Developer tools are `gm_command` only, allowlisted, and audited. There is no player opcode that sets level or stats.
 
+## 2026-09-16 — PROG-15 simulator reuses live formulas
+
+The balance simulator is project-owned domain code (`progression_simulator.ts`). It parses the same generated content and calls the same hit, mana, cooldown, DoT, and talent helpers as the match. Analytic expected-value mode and seeded event-simulation mode share that path. Crit EV is `1 + CritChance * (CritMult - 1)`. Charms party HPS follows the design methodology (mend stream + charm amortized) and reports mana pressure instead of retuning Fateweave or slime HP. The Mystic Metronome miss stays documented. Suggested tag `character-progression-v1` is not created until the tree is clean and a human approves.
+
+
