@@ -4,7 +4,7 @@ Last accepted phase: **PROG-15 — Deterministic Balance Simulator and Final Pro
 
 Current phase: none.
 
-Canonical git line: **`origin/main`**. New work branches from there.
+Canonical git line: **`origin/main`**. Playable work is committed there. The Windows clone stays on `main` and runs `scripts/local-play.ps1 -Branch main`.
 
 The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. PROG-08 remains accepted. PROG-09 remains accepted. PROG-10 remains accepted. PROG-11 remains accepted. PROG-12 remains accepted. PROG-13 remains accepted. PROG-14 remains accepted. PROG-15 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
 

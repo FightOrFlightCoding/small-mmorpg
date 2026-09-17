@@ -4,7 +4,7 @@ set -euo pipefail
 # shellcheck source=_common.sh
 . "$(cd "$(dirname "$0")" && pwd)/_common.sh"
 ROOT="$(repo_root)"
-BRANCH="${1:-}"
+BRANCH="${1:-main}"
 
 echo "Close the Godot editor before this script so it cannot rewrite .import files during checkout."
 restore_godot_import_dirt

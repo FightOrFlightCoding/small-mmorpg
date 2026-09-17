@@ -24,6 +24,8 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `scripts/test-all` | setup + content, audit, server, client, e2e, capacity, soak, five-client, backup |
 | `scripts/test-backup` | Dump local `nakama`, restore into `nakama_restore_drill`, verify table counts |
 | `scripts/verify-release` | Content, audit, server, migrations, client, backup drill |
+| `scripts/local-play` | Restore Godot import dirt, fast-forward `main`, rebuild Nakama (not a test gate) |
+| `scripts/review-village-map` | Open the no-server 4096×3072 grass+roads review scene |
 
 ## Content-build (`tools/content-build/tests`)
 
@@ -193,6 +195,7 @@ Reproduction: `powershell -File scripts/test-auth-gateway.ps1`
 | `e2e_hooks_test.gd` | `--e2e-slice`, `--cert-five`, and `--cert-five-resume` required | VS-T10 helper |
 | `asset_cert_test.gd` | Asset-manifest replacements for character, enemy, NPC, item icon, ability icon, tileset, SFX | |
 | `grass_foundation_test.gd` | Hearthworn grass atlases, TileSet terrain/custom data, deterministic painter, removable details, C01 test scene | |
+| `village_roads_test.gd` | Stone-road atlas contract, RoadOverlay TileSet, baked village plan, expanded starter-zone spawn | |
 | `account_release_audit_test.gd` | Release hides Alice/Bob and local gateway URL; debug local copy does not mention Mailpit; `--gateway-url=` override | |
 
 `fake_network_backend.gd` is a test double, not a suite.

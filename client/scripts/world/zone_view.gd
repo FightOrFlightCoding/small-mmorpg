@@ -7,6 +7,7 @@ const GRASS_TILESET_PATH := "res://resources/world/terrain/grass_foundation_tile
 
 var _grass_details: TileMapLayer
 var _grass_painter: GrassFoundationPainter = GrassFoundationPainter.new()
+var _road_painter: VillageRoadPainter = VillageRoadPainter.new()
 
 
 func render_zone(zone: Dictionary) -> void:
@@ -75,6 +76,13 @@ func _add_grass_terrain(width: float, height: float, visual: Dictionary, zone_id
 	var seed := GrassFoundationPainter.seed_for_zone(zone_id)
 	_grass_painter.paint_world_rect(ground, details, Vector2(width, height), seed)
 	_grass_details = details
+	if zone_id == "zone.starter":
+		var roads := TileMapLayer.new()
+		roads.name = "StoneRoads"
+		roads.z_index = 2
+		holder.add_child(roads)
+		VillageRoadPainter.configure_layer(roads, tileset)
+		_road_painter.paint_from_plan(roads, details)
 	return true
 
 
@@ -117,7 +125,7 @@ func _add_collisions(collisions: Variant, visual: Dictionary) -> void:
 		return
 	var holder := Node2D.new()
 	holder.name = "Collisions"
-	holder.z_index = 1
+	holder.z_index = 3
 	add_child(holder)
 	var obstacle_tex: Texture2D = null
 	var obstacle_path := String(visual.get("obstacle_texture_path", ""))
@@ -183,7 +191,7 @@ func _add_spawn(spawn: Variant) -> void:
 	var marker := Node2D.new()
 	marker.name = "PlayerSpawn"
 	marker.position = Vector2(float(point.get("x", 0.0)), float(point.get("y", 0.0)))
-	marker.z_index = 2
+	marker.z_index = 4
 	var diamond := Polygon2D.new()
 	diamond.color = Color(0.95, 0.95, 0.2, 0.85)
 	diamond.polygon = PackedVector2Array([

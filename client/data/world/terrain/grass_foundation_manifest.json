@@ -27,6 +27,13 @@
     [2, 1],
     [3, 1]
   ],
+  "road_texture_path": "res://assets/world/terrain/roads/stone_road_terrain_atlas.png",
+  "road_plan_path": "res://data/world/maps/village_road_plan.json",
+  "road_atlas_source_id": 2,
+  "road_terrain_set_id": 1,
+  "road_terrain_set_name": "RoadOverlay",
+  "road_terrain_id": 0,
+  "road_terrain_name": "StoneRoad",
   "ground_variant_weights": [55, 18, 17, 10],
   "detail_density": 0.11,
   "stress_detail_density": 0.28,

@@ -5,7 +5,7 @@
   "displayNameKey": "npc.test_innkeeper.name",
   "visualId": "visual.npc_innkeeper",
   "zoneId": "zone.starter",
-  "position": { "x": 200, "y": 640 },
+  "position": { "x": 1480, "y": 1664 },
   "interactionRange": 48,
   "dialogueId": "dialogue.npc.test_innkeeper",
   "services": [

@@ -63,8 +63,14 @@ func test_zone_view_renders_bounds_floor_collisions_and_spawn() -> void:
 	var details: TileMapLayer = zone_view.get_node_or_null("WorldTerrain/GrassDetails") as TileMapLayer
 	assert_object(ground).is_not_null()
 	assert_object(details).is_not_null()
+	var roads: TileMapLayer = zone_view.get_node_or_null("WorldTerrain/StoneRoads") as TileMapLayer
+	assert_object(roads).is_not_null()
+	assert_int(roads.z_index).is_greater(details.z_index)
+	assert_bool(roads.collision_enabled).is_false()
+	assert_bool(roads.y_sort_enabled).is_false()
+	assert_int(roads.get_used_cells().size()).is_greater(800)
 	assert_object(zone_view.get_node_or_null("FloorTiles")).is_null()
-	assert_int(ground.get_used_cells().size()).is_equal(240)
+	assert_int(ground.get_used_cells().size()).is_equal(3072)
 	assert_int(details.z_index).is_greater(ground.z_index)
 	assert_object(zone_view.get_node_or_null("Bounds")).is_not_null()
 	assert_object(zone_view.get_node_or_null("PlayerSpawn")).is_not_null()

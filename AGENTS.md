@@ -80,13 +80,17 @@ Record necessary assumptions in `docs/DECISIONS.md`.
 - Preserve compatibility with existing accepted phases.
 - Update `docs/PROGRESS.md` only when every acceptance criterion for the phase passes.
 
+## Local review
+
+Playable work lands on **`origin/main`**. The Windows clone at `C:\Users\Eszter\small-mmorpg` stays on `main`. After every prompt, tell the human to close Godot and run `powershell -File scripts/local-play.ps1 -Branch main`, then reopen `client/`. Map-only review is `scripts/review-village-map.ps1`. Do not ask the human to checkout `cursor/*` branches. Grass and roads are runtime-painted; `world.tscn` in the editor is empty until Play.
+
 ## Local Godot checkout
 
 Cloud and remote agents **cannot** write `C:\Users\Eszter\small-mmorpg`. Client-visible asset, tileset, sprite, audio, `visual_map.json`, and `asset_manifest.json` work is only testable on that machine after it is committed, pushed, and pulled.
 
 - Wire presentation through stable visual IDs in `client/content/visual_map.json` and sets in `client/content/asset_manifest.json`. Put production files under `client/assets/` and `client/resources/`. Do not modify `client/addons/`.
-- Branch from **`origin/main`**. Open a pull request that **targets `main`**. Do not leave playable assets only on a stacked phase branch.
-- After the change is on `origin/main` (or on the PR branch being playtested), tell the human to close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen Godot on `client/`. That restores editor `.import` dirt, fast-forwards `main`, and recreates Nakama so `contentHash` matches. A "content pack does not match" dialog means Nakama is still an old runtime.
+- Land playable work on **`origin/main`**. Do not leave the human on a stacked `cursor/*` play branch.
+- After the change is on `origin/main`, tell the human to close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen Godot on `client/`. That restores editor `.import` dirt, fast-forwards `main`, and recreates Nakama so `contentHash` matches. A "content pack does not match" dialog means Nakama is still an old runtime.
 - Godot rewriting `client/addons/**/*.import` is not a project change. Never commit those diffs.
 
 ## Layout
@@ -107,16 +111,16 @@ Cloud and remote agents **cannot** write `C:\Users\Eszter\small-mmorpg`. Client-
 
 ## Current baseline (`origin/main`)
 
-Canonical git line is **`origin/main`**. Last accepted phase is **PROG-15** ([docs/PROGRESS.md](docs/PROGRESS.md)). Four-class combat, progression UI, leftover reset, the live-formula simulator, Hearthworn starter-zone grass, C01 walk, and `scripts/local-play` belong on `main`. Continue new work from `origin/main`. Do not treat stacked `cursor/prog-09-warrior` … `cursor/prog-15-*` branches as the playable line.
+Canonical git line is **`origin/main`**. Last accepted phase is **PROG-15** ([docs/PROGRESS.md](docs/PROGRESS.md)). Four-class combat, progression UI, leftover reset, the live-formula simulator, Hearthworn starter-zone grass, the expanded village stone-road map, C01 walk, and `scripts/local-play` belong on `main`. Continue new work on **`origin/main`**. Do not treat stacked `cursor/*` branches as the playable line.
 
 Before editing:
 
-- `git fetch origin main` and branch from **`origin/main`**.
+- `git fetch origin main` and work from **`origin/main`**.
 - Read [docs/PROGRESS.md](docs/PROGRESS.md) and [docs/progression/](docs/progression/).
 - Do not implement later PROG or ACCT features until a later phase names them.
 
 The 2026-09-16 [pre-PROG-09 handover](docs/handover/PRE_PROG09_HANDOVER.md) is historical. Its instruction not to start from `origin/main` is **void**.
 
-Windows Godot at `C:\Users\Eszter\small-mmorpg`: close the editor, then `powershell -File scripts/local-play.ps1 -Branch main`, and reopen `client/`.
+Windows Godot at `C:\Users\Eszter\small-mmorpg`: close the editor, then `powershell -File scripts/local-play.ps1 -Branch main`, and reopen `client/`. See [docs/LOCAL_REVIEW.md](docs/LOCAL_REVIEW.md).
 
 <!-- current-baseline:end -->

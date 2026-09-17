@@ -1,7 +1,7 @@
 # Restore Godot import dirt, optionally check out a pushed branch, rebuild Nakama.
 # Cloud agents cannot write C:\Users\Eszter\small-mmorpg; this is the local play path after git fetch.
 param(
-	[string]$Branch = ""
+	[string]$Branch = "main"
 )
 $ErrorActionPreference = "Stop"
 . "$PSScriptRoot\_common.ps1"
