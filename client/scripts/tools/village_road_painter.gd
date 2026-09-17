@@ -1,0 +1,84 @@
+class_name VillageRoadPainter
+extends RefCounted
+
+## Applies baked village-road cells. Never runs per frame.
+
+const PLAN_PATH := "res://data/world/maps/village_road_plan.json"
+const ROAD_SOURCE_ID: int = 2
+const TILE_SIZE: int = 64
+const DETAIL_BUFFER: int = 1
+
+
+static func atlas_coords(mask: int, variant: int = 0) -> Vector2i:
+	if mask < 15:
+		return Vector2i(mask % 5, int(mask / 5))
+	return Vector2i(clampi(variant, 0, 4), 3)
+
+
+func load_plan(path: String = PLAN_PATH) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {}
+	return parsed as Dictionary
+
+
+func paint_from_plan(
+	roads: TileMapLayer,
+	details: TileMapLayer,
+	plan: Dictionary = {}
+) -> Dictionary:
+	var data: Dictionary = plan if not plan.is_empty() else load_plan()
+	if data.is_empty():
+		return {}
+	roads.clear()
+	var cells: Variant = data.get("cells", [])
+	if typeof(cells) != TYPE_ARRAY:
+		return data
+	var occupied: Dictionary = {}
+	for entry in cells:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var cell := Vector2i(int(entry.get("x", 0)), int(entry.get("y", 0)))
+		var mask := int(entry.get("mask", 0))
+		if mask <= 0:
+			continue
+		var variant := int(entry.get("variant", 0))
+		roads.set_cell(cell, ROAD_SOURCE_ID, atlas_coords(mask, variant))
+		occupied[cell] = true
+	_clear_details_with_buffer(details, occupied)
+	return data
+
+
+func _clear_details_with_buffer(details: TileMapLayer, occupied: Dictionary) -> void:
+	if details == null:
+		return
+	for cell: Vector2i in occupied.keys():
+		for dy in range(-DETAIL_BUFFER, DETAIL_BUFFER + 1):
+			for dx in range(-DETAIL_BUFFER, DETAIL_BUFFER + 1):
+				details.erase_cell(cell + Vector2i(dx, dy))
+
+
+static func configure_layer(layer: TileMapLayer, tileset: TileSet) -> void:
+	layer.tile_set = tileset
+	layer.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	layer.y_sort_enabled = false
+	layer.collision_enabled = false
+	layer.navigation_enabled = false
+
+
+static func spawn_pixel(plan: Dictionary) -> Vector2:
+	var spawn: Dictionary = plan.get("spawn", {})
+	var pixel: Variant = spawn.get("pixel", [2016, 2976])
+	if typeof(pixel) == TYPE_ARRAY and (pixel as Array).size() >= 2:
+		return Vector2(float((pixel as Array)[0]), float((pixel as Array)[1]))
+	return Vector2(2016, 2976)
+
+
+static func plaza_pixel(plan: Dictionary) -> Vector2:
+	var plaza: Dictionary = plan.get("plaza", {})
+	var pixel: Variant = plaza.get("pixel", [1952, 1440])
+	if typeof(pixel) == TYPE_ARRAY and (pixel as Array).size() >= 2:
+		return Vector2(float((pixel as Array)[0]), float((pixel as Array)[1]))
+	return Vector2(1952, 1440)

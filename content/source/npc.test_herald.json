@@ -5,7 +5,7 @@
   "displayNameKey": "npc.test_herald.name",
   "visualId": "visual.npc_herald",
   "zoneId": "zone.starter",
-  "position": { "x": 320, "y": 640 },
+  "position": { "x": 1600, "y": 1664 },
   "interactionRange": 48,
   "dialogueId": "dialogue.npc.test_herald",
   "services": [

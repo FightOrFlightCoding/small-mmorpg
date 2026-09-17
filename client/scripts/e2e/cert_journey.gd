@@ -86,8 +86,9 @@ static func run(host: Node) -> Dictionary:
 		return _fail(leader.fail_reason)
 	var elder := leader.npc_pos(NPC_ID)
 	if elder == Vector2.ZERO:
-		elder = Vector2(160.0, 320.0)
-	if not await leader.walk_to(SliceJourney.approach_point(leader.self_pos(), elder, 24.0), 14.0, 16.0):
+		elder = Vector2(1440.0, 1344.0)
+	var elder_timeout := clampf(leader.self_pos().distance_to(elder) / 80.0, 16.0, 40.0)
+	if not await leader.walk_to(SliceJourney.approach_point(leader.self_pos(), elder, 24.0), 14.0, elder_timeout):
 		return _fail(leader.fail_reason)
 	var interacted: Dictionary = await leader.interact(NPC_ID)
 	if not bool(interacted.get("result_ok", false)):
@@ -295,30 +296,8 @@ static func resume(host: Node) -> Dictionary:
 static func _walk_near_npc(bot: SliceSession, npc: Vector2) -> bool:
 	if bot.self_pos().distance_to(npc) <= 44.0:
 		return true
-	if npc.y >= 560.0:
-		var south := Vector2(bot.self_pos().x, 700.0)
-		if bot.self_pos().y < 680.0:
-			if not await bot.walk_to(south, 20.0, 12.0):
-				bot.fail_reason = ""
-		if not await bot.walk_to(Vector2(npc.x, 700.0), 24.0, 36.0):
-			return false
-		if bot.self_pos().distance_to(npc) <= 44.0:
-			return true
-		if not await bot.walk_to(SliceJourney.approach_point(Vector2(npc.x, 700.0), npc, 32.0), 12.0, 16.0):
-			return false
-		if bot.self_pos().distance_to(npc) <= 46.0:
-			return true
-		return bot._fail("not_in_interact_range")
-	var staging_y := 500.0
-	if npc.y < 400.0:
-		staging_y = npc.y + 56.0
-	var staging := Vector2(npc.x, staging_y)
-	if not await bot.walk_to(staging, 24.0, 36.0):
-		return false
-	if bot.self_pos().distance_to(npc) <= 44.0:
-		return true
-	var stand := SliceJourney.approach_point(staging, npc, 32.0)
-	if not await bot.walk_to(stand, 12.0, 16.0):
+	var timeout := clampf(bot.self_pos().distance_to(npc) / 80.0, 12.0, 40.0)
+	if not await bot.walk_to(SliceJourney.approach_point(bot.self_pos(), npc, 24.0), 14.0, timeout):
 		return false
 	if bot.self_pos().distance_to(npc) <= 46.0:
 		return true

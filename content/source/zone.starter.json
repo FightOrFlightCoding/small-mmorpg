@@ -4,109 +4,109 @@
   "displayName": "Starter Valley",
   "visualId": "visual.zone_starter",
   "tileSize": 16,
-  "width": 1280,
-  "height": 768,
+  "width": 4096,
+  "height": 3072,
   "playerSpawn": {
-    "x": 240,
-    "y": 384
+    "x": 2016,
+    "y": 2976
   },
   "npcs": [
     {
       "npcId": "npc.elder",
-      "x": 160,
-      "y": 320
+      "x": 1440,
+      "y": 1344
     },
     {
       "npcId": "npc.test_vendor",
-      "x": 80,
-      "y": 640
+      "x": 1360,
+      "y": 1664
     },
     {
       "npcId": "npc.test_innkeeper",
-      "x": 200,
-      "y": 640
+      "x": 1480,
+      "y": 1664
     },
     {
       "npcId": "npc.test_herald",
-      "x": 320,
-      "y": 640
+      "x": 1600,
+      "y": 1664
     },
     {
       "npcId": "npc.test_cave_portal",
-      "x": 440,
-      "y": 640
+      "x": 1720,
+      "y": 1664
     },
     {
       "npcId": "npc.proof_giver",
-      "x": 600,
-      "y": 640
+      "x": 1880,
+      "y": 1664
     },
     {
       "npcId": "npc.cert_quartermaster",
-      "x": 720,
-      "y": 640
+      "x": 2000,
+      "y": 1664
     }
   ],
   "enemies": [
     {
       "enemyId": "enemy.green_slime",
-      "x": 960,
-      "y": 400,
+      "x": 2240,
+      "y": 1424,
       "spawnId": "spawn.starter.green_slime"
     },
     {
       "enemyId": "enemy.proof_critter",
-      "x": 1184,
-      "y": 700,
+      "x": 2464,
+      "y": 1724,
       "spawnId": "spawn.starter.proof_critter"
     },
     {
       "enemyId": "enemy.cert_scout",
-      "x": 1080,
-      "y": 140,
+      "x": 2360,
+      "y": 1164,
       "spawnId": "spawn.starter.cert_scout"
     }
   ],
   "walkableBounds": {
     "x": 16,
     "y": 16,
-    "width": 1248,
-    "height": 736
+    "width": 4064,
+    "height": 3040
   },
   "collisions": [
     {
       "x": 0,
       "y": 0,
-      "width": 1280,
+      "width": 4096,
       "height": 16
     },
     {
       "x": 0,
-      "y": 752,
-      "width": 1280,
+      "y": 3056,
+      "width": 4096,
       "height": 16
     },
     {
       "x": 0,
       "y": 0,
       "width": 16,
-      "height": 768
+      "height": 3072
     },
     {
-      "x": 1264,
+      "x": 4080,
       "y": 0,
       "width": 16,
-      "height": 768
+      "height": 3072
     },
     {
-      "x": 80,
-      "y": 240,
+      "x": 1200,
+      "y": 1080,
       "width": 96,
       "height": 80
     },
     {
-      "x": 640,
-      "y": 480,
+      "x": 1544,
+      "y": 1864,
       "width": 48,
       "height": 48
     }

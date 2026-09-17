@@ -142,6 +142,12 @@ func pose_local(pos: Vector2, facing: Variant = null) -> void:
 		node.position = pos
 
 
+func set_local_idle_facing(direction: Vector2) -> void:
+	var node: Node2D = get_entity("%s:%s" % [KIND_PLAYER, local_server_id])
+	if node is WorldAvatar:
+		(node as WorldAvatar).set_idle_facing(direction)
+
+
 func apply_unknown_kind(kind: String, _records: Array = []) -> void:
 	_reject_kind(kind)
 

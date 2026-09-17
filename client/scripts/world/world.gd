@@ -152,6 +152,20 @@ func _bind_zone_presentation(zone_id: String) -> void:
 		_reconciler.sim = _sim
 	else:
 		_reconciler = MovementReconciler.new(_sim)
+	_apply_camera_limits(ContentRegistry.get_by_id(zone_id))
+
+
+func _apply_camera_limits(zone: Dictionary) -> void:
+	if _camera == null or zone.is_empty():
+		return
+	var width := int(zone.get("width", 0))
+	var height := int(zone.get("height", 0))
+	if width <= 0 or height <= 0:
+		return
+	_camera.limit_left = 0
+	_camera.limit_top = 0
+	_camera.limit_right = width
+	_camera.limit_bottom = height
 
 
 func _ensure_ground_preview() -> void:
@@ -200,6 +214,8 @@ func _apply_zone_state() -> void:
 	if AppState.zone_view_is_full:
 		_adopt_ack_seq(int(state.get("ack_seq", 0)))
 		_entities.apply_full_state(state)
+		if String(state.get("zone_id", "zone.starter")) == "zone.starter":
+			_entities.set_local_idle_facing(Vector2.UP)
 		_reset_prediction(state)
 		_buffer.clear()
 		_buffer.push(int(state.get("tick", 0)), _remote_poses(state))

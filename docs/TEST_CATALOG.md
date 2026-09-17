@@ -182,6 +182,7 @@ Reproduction: `powershell -File scripts/test-auth-gateway.ps1`
 | `e2e_hooks_test.gd` | `--e2e-slice`, `--cert-five`, and `--cert-five-resume` required | VS-T10 helper |
 | `asset_cert_test.gd` | Asset-manifest replacements for character, enemy, NPC, item icon, ability icon, tileset, SFX | |
 | `grass_foundation_test.gd` | Hearthworn grass atlases, TileSet terrain/custom data, deterministic painter, removable details, C01 test scene | |
+| `village_roads_test.gd` | Stone-road atlas contract, RoadOverlay TileSet, baked village plan, expanded starter-zone spawn | |
 | `account_release_audit_test.gd` | Release hides Alice/Bob and local gateway URL; debug local copy does not mention Mailpit; `--gateway-url=` override | |
 
 `fake_network_backend.gd` is a test double, not a suite.

@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "3b57502b4a197972c970420cd7b2a5a74955311b5840be0b4d184843c24e3320";
+export const contentHash = "bdd969e8faeb225533a67deeef41dee7f72c93df5903794a653911ecf92982d4";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = ["npc.lab_exit","npc.lab_inn","npc.lab_keeper","npc.lab_trainer","npc.lab_vendor","quest.lab_tour","spawn.lab.boss","spawn.lab.caster","spawn.lab.melee","spawn.lab.ranged","test.zone.systems_lab","vendor.lab_general"] as const;
 export const content = {
@@ -6341,8 +6341,8 @@ export const content = {
       "interactionRange": 48,
       "kind": "npc",
       "position": {
-        "x": 720,
-        "y": 640
+        "x": 2000,
+        "y": 1664
       },
       "services": [
         {
@@ -6376,8 +6376,8 @@ export const content = {
       "interactionRange": 48,
       "kind": "npc",
       "position": {
-        "x": 160,
-        "y": 320
+        "x": 1440,
+        "y": 1344
       },
       "services": [
         {
@@ -6407,8 +6407,8 @@ export const content = {
       "interactionRange": 48,
       "kind": "npc",
       "position": {
-        "x": 600,
-        "y": 640
+        "x": 1880,
+        "y": 1664
       },
       "services": [
         {
@@ -6460,8 +6460,8 @@ export const content = {
       "interactionRange": 48,
       "kind": "npc",
       "position": {
-        "x": 440,
-        "y": 640
+        "x": 1720,
+        "y": 1664
       },
       "services": [
         {
@@ -6482,8 +6482,8 @@ export const content = {
       "interactionRange": 48,
       "kind": "npc",
       "position": {
-        "x": 320,
-        "y": 640
+        "x": 1600,
+        "y": 1664
       },
       "services": [
         {
@@ -6529,8 +6529,8 @@ export const content = {
       "interactionRange": 48,
       "kind": "npc",
       "position": {
-        "x": 200,
-        "y": 640
+        "x": 1480,
+        "y": 1664
       },
       "services": [
         {
@@ -6561,8 +6561,8 @@ export const content = {
       "interactionRange": 48,
       "kind": "npc",
       "position": {
-        "x": 80,
-        "y": 640
+        "x": 1360,
+        "y": 1664
       },
       "services": [
         {
@@ -7363,8 +7363,8 @@ export const content = {
       "kind": "spawn",
       "respawnDelay": 0,
       "spawnCount": 1,
-      "x": 1080,
-      "y": 640,
+      "x": 2360,
+      "y": 1664,
       "zoneId": "zone.starter"
     },
     "spawn.starter.cave_boss": {
@@ -7375,8 +7375,8 @@ export const content = {
       "kind": "spawn",
       "respawnDelay": 20,
       "spawnCount": 1,
-      "x": 1100,
-      "y": 640,
+      "x": 2380,
+      "y": 1664,
       "zoneId": "zone.starter"
     },
     "spawn.starter.cert_scout": {
@@ -7387,8 +7387,8 @@ export const content = {
       "kind": "spawn",
       "respawnDelay": 12,
       "spawnCount": 1,
-      "x": 1080,
-      "y": 140,
+      "x": 2360,
+      "y": 1164,
       "zoneId": "zone.starter"
     },
     "spawn.starter.green_slime": {
@@ -7399,8 +7399,8 @@ export const content = {
       "kind": "spawn",
       "respawnDelay": 10,
       "spawnCount": 1,
-      "x": 960,
-      "y": 400,
+      "x": 2240,
+      "y": 1424,
       "zoneId": "zone.starter"
     },
     "spawn.starter.proof_critter": {
@@ -7411,8 +7411,8 @@ export const content = {
       "kind": "spawn",
       "respawnDelay": 12,
       "spawnCount": 1,
-      "x": 1184,
-      "y": 700,
+      "x": 2464,
+      "y": 1724,
       "zoneId": "zone.starter"
     },
     "spawn.starter.test_caster": {
@@ -7423,8 +7423,8 @@ export const content = {
       "kind": "spawn",
       "respawnDelay": 8,
       "spawnCount": 1,
-      "x": 80,
-      "y": 680,
+      "x": 1360,
+      "y": 1704,
       "zoneId": "zone.starter"
     },
     "spawn.starter.test_melee": {
@@ -7435,8 +7435,8 @@ export const content = {
       "kind": "spawn",
       "respawnDelay": 8,
       "spawnCount": 1,
-      "x": 80,
-      "y": 80,
+      "x": 1360,
+      "y": 1104,
       "zoneId": "zone.starter"
     },
     "spawn.starter.test_ranged": {
@@ -7447,8 +7447,8 @@ export const content = {
       "kind": "spawn",
       "respawnDelay": 8,
       "spawnCount": 1,
-      "x": 1200,
-      "y": 80,
+      "x": 2480,
+      "y": 1104,
       "zoneId": "zone.starter"
     }
   },
@@ -9908,39 +9908,39 @@ export const content = {
       "collisions": [
         {
           "height": 16,
-          "width": 1280,
+          "width": 4096,
           "x": 0,
           "y": 0
         },
         {
           "height": 16,
-          "width": 1280,
+          "width": 4096,
           "x": 0,
-          "y": 752
+          "y": 3056
         },
         {
-          "height": 768,
+          "height": 3072,
           "width": 16,
           "x": 0,
           "y": 0
         },
         {
-          "height": 768,
+          "height": 3072,
           "width": 16,
-          "x": 1264,
+          "x": 4080,
           "y": 0
         },
         {
           "height": 80,
           "width": 96,
-          "x": 80,
-          "y": 240
+          "x": 1200,
+          "y": 1080
         },
         {
           "height": 48,
           "width": 48,
-          "x": 640,
-          "y": 480
+          "x": 1544,
+          "y": 1864
         }
       ],
       "displayName": "Starter Valley",
@@ -9948,75 +9948,75 @@ export const content = {
         {
           "enemyId": "enemy.green_slime",
           "spawnId": "spawn.starter.green_slime",
-          "x": 960,
-          "y": 400
+          "x": 2240,
+          "y": 1424
         },
         {
           "enemyId": "enemy.proof_critter",
           "spawnId": "spawn.starter.proof_critter",
-          "x": 1184,
-          "y": 700
+          "x": 2464,
+          "y": 1724
         },
         {
           "enemyId": "enemy.cert_scout",
           "spawnId": "spawn.starter.cert_scout",
-          "x": 1080,
-          "y": 140
+          "x": 2360,
+          "y": 1164
         }
       ],
-      "height": 768,
+      "height": 3072,
       "id": "zone.starter",
       "kind": "zone",
       "npcs": [
         {
           "npcId": "npc.elder",
-          "x": 160,
-          "y": 320
+          "x": 1440,
+          "y": 1344
         },
         {
           "npcId": "npc.test_vendor",
-          "x": 80,
-          "y": 640
+          "x": 1360,
+          "y": 1664
         },
         {
           "npcId": "npc.test_innkeeper",
-          "x": 200,
-          "y": 640
+          "x": 1480,
+          "y": 1664
         },
         {
           "npcId": "npc.test_herald",
-          "x": 320,
-          "y": 640
+          "x": 1600,
+          "y": 1664
         },
         {
           "npcId": "npc.test_cave_portal",
-          "x": 440,
-          "y": 640
+          "x": 1720,
+          "y": 1664
         },
         {
           "npcId": "npc.proof_giver",
-          "x": 600,
-          "y": 640
+          "x": 1880,
+          "y": 1664
         },
         {
           "npcId": "npc.cert_quartermaster",
-          "x": 720,
-          "y": 640
+          "x": 2000,
+          "y": 1664
         }
       ],
       "playerSpawn": {
-        "x": 240,
-        "y": 384
+        "x": 2016,
+        "y": 2976
       },
       "tileSize": 16,
       "visualId": "visual.zone_starter",
       "walkableBounds": {
-        "height": 736,
-        "width": 1248,
+        "height": 3040,
+        "width": 4064,
         "x": 16,
         "y": 16
       },
-      "width": 1280
+      "width": 4096
     }
   }
 } as const;

@@ -70,6 +70,13 @@ func configure(p_kind: String, p_server_id: String, p_name: String, visual: Dict
 		_layout_health_bar()
 
 
+func set_idle_facing(vector: Vector2) -> void:
+	if vector.length_squared() > 0.0001:
+		_facing = vector
+	_anim_name = "idle"
+	_sync_animated_sprite()
+
+
 func set_vitals(health: int, max_health: int, alive: bool) -> void:
 	_health = health
 	_max_health = maxi(1, max_health)

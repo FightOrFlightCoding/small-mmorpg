@@ -709,3 +709,10 @@ Outdoor grass ground is a 64×64 TileSet atlas family in the Hearthworn Fantasy 
 
 `visual.zone_starter` now points at that TileSet. `ZoneView` paints `WorldTerrain/GrassGround` and `GrassDetails` for the public starter zone (and systems lab, which shares the visual). Cave floors stay on the Kenney repeating fill. Details are cleared under collision AABBs. Placement is a zone-id hash of seed `18427`, so clients agree. C01, combat, networking, and server authority are unchanged. Review scene: `res://scenes/world/terrain/grass_foundation_test.tscn`. Rebuild the TileSet with Godot: `--headless --path client -s res://scripts/tools/build_grass_foundation_tileset.gd`.
 
+## 2026-09-17 — Village map expansion and stone-road foundation
+
+`zone.starter` playable area is 4096×3072 px (64×48 visual tiles of 64 px), expanded from 1280×768 (20×12) by √10 on each axis and rounded up to a 16-tile multiple (area ×12.8). The old 1280×768 authored rectangle is preserved by origin offset (1280, 1024) so the previous map center sits at the village square. Prompt 18 NPC/enemy *relative* layout is unchanged; absolute poses move with that offset (elder 1440,1344; slime 2240,1424). Interior collision AABBs were nudged off the new plaza/roads so walking the road network is not blocked.
+
+Default spawn is `main_road_south` at (2016, 2976), facing north, on the 5-tile southern road that reaches the bottom edge. Camera limits follow zone width/height. Stone roads use `stone_road_terrain_atlas.png` (320×256, Match Corners masks 0–15) on the shared grass TileSet as source 2, terrain set 1 `RoadOverlay` / terrain 0 `StoneRoad`. No road collision. Baked cells live in `client/data/world/maps/village_road_plan.json`. Rebuild atlas with `python3 scripts/generate_stone_road_atlas.py`, cells with `python3 scripts/build_village_roads.py`, TileSet with Godot `--headless --path client -s res://scripts/tools/build_grass_foundation_tileset.gd`. No buildings, water, trees, or props were added. C01, combat, and networking authority are unchanged.
+
+

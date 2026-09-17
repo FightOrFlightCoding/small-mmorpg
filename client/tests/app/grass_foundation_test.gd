@@ -36,7 +36,7 @@ func test_tileset_has_grass_sources_terrain_and_surface_data() -> void:
 	var tileset: TileSet = load("res://resources/world/terrain/grass_foundation_tileset.tres")
 	assert_object(tileset).is_not_null()
 	assert_bool(tileset.tile_size == Vector2i(64, 64)).is_true()
-	assert_int(tileset.get_source_count()).is_equal(2)
+	assert_int(tileset.get_source_count()).is_equal(3)
 	assert_int(tileset.get_physics_layers_count()).is_equal(0)
 	assert_int(tileset.get_navigation_layers_count()).is_equal(0)
 	assert_str(tileset.get_custom_data_layer_name(0)).is_equal("surface_type")
@@ -141,7 +141,8 @@ func test_starter_zone_view_paints_grass_foundation() -> void:
 	zone_view.render_zone(ContentRegistry.get_by_id("zone.starter"))
 	var ground: TileMapLayer = zone_view.get_node_or_null("WorldTerrain/GrassGround") as TileMapLayer
 	assert_object(ground).is_not_null()
-	assert_int(ground.get_used_cells().size()).is_equal(240)
+	assert_int(ground.get_used_cells().size()).is_equal(3072)
+	assert_object(zone_view.get_node_or_null("WorldTerrain/StoneRoads")).is_not_null()
 	assert_object(zone_view.get_node_or_null("FloorTiles")).is_null()
 
 

@@ -63,9 +63,10 @@ static func run(host: Node) -> Dictionary:
 	print("E2E step=alice_moved")
 	var elder := alice.npc_pos(NPC_ID)
 	if elder == Vector2.ZERO:
-		elder = Vector2(160.0, 320.0)
+		elder = Vector2(1440.0, 1344.0)
 	# 24 px standoff + 14 px arrival stays inside npc.elder interactionRange 48.
-	if not await alice.walk_to(approach_point(alice.self_pos(), elder, 24.0), 14.0, 16.0):
+	var elder_timeout := clampf(alice.self_pos().distance_to(elder) / 80.0, 16.0, 40.0)
+	if not await alice.walk_to(approach_point(alice.self_pos(), elder, 24.0), 14.0, elder_timeout):
 		return _fail(alice.fail_reason)
 	var interacted: Dictionary = await alice.interact(NPC_ID)
 	if not bool(interacted.get("result_ok", false)):
@@ -108,7 +109,8 @@ static func run(host: Node) -> Dictionary:
 	if alice.gold() != 25:
 		return _fail("reconnect_gold")
 	print("E2E step=alice_reconnected")
-	if not await alice.walk_to(approach_point(alice.self_pos(), elder, 24.0), 14.0, 12.0):
+	var rejoin_timeout := clampf(alice.self_pos().distance_to(elder) / 80.0, 16.0, 40.0)
+	if not await alice.walk_to(approach_point(alice.self_pos(), elder, 24.0), 14.0, rejoin_timeout):
 		return _fail(alice.fail_reason)
 	var duplicate: Dictionary = await alice.send_action(
 		MatchProtocol.CLIENT_QUEST_TURN_IN,
@@ -132,7 +134,7 @@ static func _kill_slime(alice: SliceSession) -> bool:
 			return true
 		var target := Vector2(float(slime.get("x", 0.0)), float(slime.get("y", 0.0)))
 		if alice.self_pos().distance_to(target) > 32.0:
-			await alice.walk_to(approach_point(alice.self_pos(), target, 28.0), 12.0, 6.0)
+			await alice.walk_to(approach_point(alice.self_pos(), target, 28.0), 12.0, 16.0)
 			continue
 		await alice.send_input(Vector2.ZERO)
 		var enemy_id := String(slime.get("id", "enemy.green_slime:0"))
