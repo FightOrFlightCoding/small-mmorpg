@@ -154,13 +154,14 @@ test("world bounds stop movement", () => {
 });
 
 test("obstacle collision blocks movement", () => {
-  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", 200, 280));
+  const box = content.zones["zone.starter"].collisions.find((row) => row.width === 96 && row.height === 80);
+  assert.ok(box);
+  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", box.x + box.width + 24, box.y + box.height / 2));
   let current = state;
   for (let i = 1; i <= 20; i++) {
     current = step(current, i, "user-alice", i, -1, 0).state;
   }
-  const obstacleRight = 80 + 96;
-  const minX = obstacleRight + 12;
+  const minX = box.x + box.width + 12;
   assert.ok(current.players["user-alice"].x >= minX - 1e-9);
   assert.equal(current.players["user-alice"].x, minX);
 });
@@ -235,37 +236,31 @@ test("alice and bob move independently and share snapshot positions", () => {
 test("already overlapping an obstacle is pushed out instead of sinking further", () => {
   const bounds = content.zones["zone.starter"].walkableBounds;
   const collisions = content.zones["zone.starter"].collisions;
-  const inside = resolveMove(695, 504, -12, 0, PLAYER_HALF_EXTENT, collisions, bounds);
+  const box = collisions.find((row) => row.width === 48 && row.height === 48);
+  assert.ok(box);
+  const inside = resolveMove(box.x + 55, box.y + 24, -12, 0, PLAYER_HALF_EXTENT, collisions, bounds);
   assert.equal(
-    aabbsOverlap(playerAabb(inside.x, inside.y, PLAYER_HALF_EXTENT), {
-      x: 640,
-      y: 480,
-      width: 48,
-      height: 48,
-    }),
+    aabbsOverlap(playerAabb(inside.x, inside.y, PLAYER_HALF_EXTENT), box),
     false,
   );
-  assert.ok(inside.x >= 688 + PLAYER_HALF_EXTENT - 1e-9);
+  assert.ok(inside.x >= box.x + box.width + PLAYER_HALF_EXTENT - 1e-9);
 });
 
 test("extended sliding along an obstacle stays outside it", () => {
-  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", 760, 504));
+  const box = content.zones["zone.starter"].collisions.find((row) => row.width === 48 && row.height === 48);
+  assert.ok(box);
+  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", box.x + 120, box.y + 24));
   let current = state;
   for (let i = 1; i <= 30; i++) {
     current = step(current, i, "user-alice", i, -1, 0).state;
     const pose = current.players["user-alice"];
     assert.equal(
-      aabbsOverlap(playerAabb(pose.x, pose.y, PLAYER_HALF_EXTENT), {
-        x: 640,
-        y: 480,
-        width: 48,
-        height: 48,
-      }),
+      aabbsOverlap(playerAabb(pose.x, pose.y, PLAYER_HALF_EXTENT), box),
       false,
     );
-    assert.ok(pose.x >= 688 + PLAYER_HALF_EXTENT - 1e-9);
+    assert.ok(pose.x >= box.x + box.width + PLAYER_HALF_EXTENT - 1e-9);
   }
-  assert.equal(current.players["user-alice"].x, 688 + PLAYER_HALF_EXTENT);
+  assert.equal(current.players["user-alice"].x, box.x + box.width + PLAYER_HALF_EXTENT);
 });
 
 test("living players block each other and dead players do not", () => {
@@ -296,15 +291,17 @@ test("living players block each other and dead players do not", () => {
 });
 
 test("npcs block movement", () => {
-  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", 320, 700));
+  const herald = content.zones["zone.starter"].npcs.find((row) => row.npcId === "npc.test_herald");
+  assert.ok(herald);
+  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", herald.x, herald.y + 60));
   let current = state;
   for (let i = 1; i <= 20; i++) {
     current = step(current, i, "user-alice", i, 0, -1).state;
     const pose = current.players["user-alice"];
     assert.equal(
-      aabbsOverlap(playerAabb(pose.x, pose.y, PLAYER_HALF_EXTENT), playerAabb(320, 640, PLAYER_HALF_EXTENT)),
+      aabbsOverlap(playerAabb(pose.x, pose.y, PLAYER_HALF_EXTENT), playerAabb(herald.x, herald.y, PLAYER_HALF_EXTENT)),
       false,
     );
   }
-  assert.ok(current.players["user-alice"].y >= 640 + PLAYER_HALF_EXTENT * 2 - 1e-9);
+  assert.ok(current.players["user-alice"].y >= herald.y + PLAYER_HALF_EXTENT * 2 - 1e-9);
 });

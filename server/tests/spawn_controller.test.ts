@@ -94,8 +94,8 @@ test("green slime is the first always-on enemy instance", () => {
   assert.equal(state.enemies[0].enemyId, "enemy.green_slime");
   assert.equal(state.enemies[0].aiProfileId, "test.ai.melee");
   assert.equal(state.enemies[0].lootTableId, "loot.green_slime");
-  assert.equal(state.enemies[0].x, 960);
-  assert.equal(state.enemies[0].y, 400);
+  assert.equal(state.enemies[0].x, content.spawns["spawn.starter.green_slime"].x);
+  assert.equal(state.enemies[0].y, content.spawns["spawn.starter.green_slime"].y);
   assert.equal(livingOf(state, "test.enemy.melee"), 0);
   assert.equal(livingOf(state, "test.enemy.cave_boss"), 0);
   assert.equal(livingOf(state, "enemy.proof_critter"), 1);

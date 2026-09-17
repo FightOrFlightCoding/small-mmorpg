@@ -73,6 +73,11 @@ function abilityZone(): StarterZoneState {
   return state;
 }
 
+const starterSlime = content.zones["zone.starter"].enemies.find((row) => row.enemyId === "enemy.green_slime") ?? {
+  x: 2240,
+  y: 1424,
+};
+
 function caster(x: number, y: number, extras?: { unlocked?: string[]; mana?: number; health?: number }): MatchPlayer {
   const progression = initializeProgression(catalog, CLASS_ID);
   ensureAbilityOwnership(progression, extras !== undefined && extras.unlocked !== undefined ? extras.unlocked : [MELEE], MELEE);
@@ -165,7 +170,7 @@ test("resolveMagnitude ignores null scale and bonus from Goja-style objects", ()
 });
 
 test("locked ability is rejected", () => {
-  let state = addPlayer(abilityZone(), caster(930, 400, { unlocked: [] }));
+  let state = addPlayer(abilityZone(), caster(starterSlime.x - 30, starterSlime.y, { unlocked: [] }));
   const result = loop(state, 10, [
     {
       opcode: ClientOpcode.USE_ABILITY,
@@ -177,7 +182,7 @@ test("locked ability is rejected", () => {
 });
 
 test("valid melee ability deals server damage", () => {
-  let state = addPlayer(abilityZone(), caster(930, 400));
+  let state = addPlayer(abilityZone(), caster(starterSlime.x - 30, starterSlime.y));
   const before = slime(state).health;
   const result = loop(state, 10, [
     {
@@ -191,7 +196,7 @@ test("valid melee ability deals server damage", () => {
 });
 
 test("attack opcode uses the basic melee ability when unlocked", () => {
-  let state = addPlayer(abilityZone(), caster(930, 400));
+  let state = addPlayer(abilityZone(), caster(starterSlime.x - 30, starterSlime.y));
   const before = slime(state).health;
   const result = loop(state, 10, [
     {
@@ -217,7 +222,7 @@ test("out-of-range cast is rejected", () => {
 });
 
 test("hostile player targeting is rejected while PvP is disabled", () => {
-  let state = addPlayer(abilityZone(), caster(930, 400));
+  let state = addPlayer(abilityZone(), caster(starterSlime.x - 30, starterSlime.y));
   const bob: MatchPlayer = {
     userId: "user-bob",
     sessionId: "session-bob",
@@ -245,7 +250,7 @@ test("hostile player targeting is rejected while PvP is disabled", () => {
 });
 
 test("insufficient resource is rejected", () => {
-  let state = addPlayer(abilityZone(), caster(900, 400, { unlocked: [MELEE, BOLT], mana: 0 }));
+  let state = addPlayer(abilityZone(), caster(starterSlime.x - 60, starterSlime.y, { unlocked: [MELEE, BOLT], mana: 0 }));
   const result = loop(state, 10, [
     {
       opcode: ClientOpcode.USE_ABILITY,
@@ -257,7 +262,7 @@ test("insufficient resource is rejected", () => {
 });
 
 test("hostile ability against self is an invalid relation", () => {
-  let state = addPlayer(abilityZone(), caster(930, 400));
+  let state = addPlayer(abilityZone(), caster(starterSlime.x - 30, starterSlime.y));
   const result = loop(state, 10, [
     {
       opcode: ClientOpcode.USE_ABILITY,
@@ -269,7 +274,7 @@ test("hostile ability against self is an invalid relation", () => {
 });
 
 test("individual cooldown rejects a second cast after global cooldown expires", () => {
-  let state = addPlayer(abilityZone(), caster(930, 400, { unlocked: [MELEE, BOLT], mana: 60 }));
+  let state = addPlayer(abilityZone(), caster(starterSlime.x - 30, starterSlime.y, { unlocked: [MELEE, BOLT], mana: 60 }));
   const first = loop(state, 10, [
     {
       opcode: ClientOpcode.USE_ABILITY,
@@ -293,7 +298,7 @@ test("individual cooldown rejects a second cast after global cooldown expires", 
 });
 
 test("global cooldown rejects a different ability", () => {
-  let state = addPlayer(abilityZone(), caster(930, 400, { unlocked: [MELEE, BOLT], mana: 60 }));
+  let state = addPlayer(abilityZone(), caster(starterSlime.x - 30, starterSlime.y, { unlocked: [MELEE, BOLT], mana: 60 }));
   const first = loop(state, 10, [
     {
       opcode: ClientOpcode.USE_ABILITY,
@@ -313,7 +318,7 @@ test("global cooldown rejects a different ability", () => {
 });
 
 test("duplicate request ids replay without a second hit", () => {
-  let state = addPlayer(abilityZone(), caster(930, 400));
+  let state = addPlayer(abilityZone(), caster(starterSlime.x - 30, starterSlime.y));
   const first = loop(state, 10, [
     {
       opcode: ClientOpcode.USE_ABILITY,
@@ -334,7 +339,7 @@ test("duplicate request ids replay without a second hit", () => {
 });
 
 test("movement interrupts a cast", () => {
-  let state = addPlayer(abilityZone(), caster(900, 400, { unlocked: [MELEE, BOLT], mana: 60 }));
+  let state = addPlayer(abilityZone(), caster(starterSlime.x - 60, starterSlime.y, { unlocked: [MELEE, BOLT], mana: 60 }));
   const start = loop(state, 10, [
     {
       opcode: ClientOpcode.USE_ABILITY,
@@ -363,7 +368,7 @@ test("movement interrupts a cast", () => {
 });
 
 test("damage interrupts a cast", () => {
-  const state = addPlayer(abilityZone(), caster(900, 400, { unlocked: [MELEE, BOLT], mana: 60 }));
+  const state = addPlayer(abilityZone(), caster(starterSlime.x - 60, starterSlime.y, { unlocked: [MELEE, BOLT], mana: 60 }));
   const events: { type?: string; interruptReason?: string }[] = [];
   const decision = useAbility(
     state,
@@ -380,7 +385,7 @@ test("damage interrupts a cast", () => {
 });
 
 test("cast cancellation clears the active cast", () => {
-  let state = addPlayer(abilityZone(), caster(900, 400, { unlocked: [MELEE, BOLT], mana: 60 }));
+  let state = addPlayer(abilityZone(), caster(starterSlime.x - 60, starterSlime.y, { unlocked: [MELEE, BOLT], mana: 60 }));
   const start = loop(state, 10, [
     {
       opcode: ClientOpcode.USE_ABILITY,
@@ -416,12 +421,12 @@ test("direct heal restores health after the cast completes", () => {
 });
 
 test("periodic ground effect damages enemies in the radius", () => {
-  let state = addPlayer(abilityZone(), caster(930, 400, { unlocked: [MELEE, DOT], mana: 60 }));
+  let state = addPlayer(abilityZone(), caster(starterSlime.x - 30, starterSlime.y, { unlocked: [MELEE, DOT], mana: 60 }));
   const before = slime(state).health;
   const start = loop(state, 10, [
     {
       opcode: ClientOpcode.USE_ABILITY,
-      raw: envelope({ abilityId: DOT, targetX: 960, targetY: 400, requestId: "req-dot-cast0001" }),
+      raw: envelope({ abilityId: DOT, targetX: starterSlime.x, targetY: starterSlime.y, requestId: "req-dot-cast0001" }),
       userId: "user-alice",
     },
   ]);
@@ -547,7 +552,7 @@ test("hotbar assignment rejects locked abilities", () => {
 });
 
 test("unexpected disconnect interrupts casts and keeps resources", () => {
-  const parked = caster(900, 400, { unlocked: [MELEE, BOLT], mana: 21 });
+  const parked = caster(starterSlime.x - 60, starterSlime.y, { unlocked: [MELEE, BOLT], mana: 21 });
   parked.activeCast = {
     abilityId: BOLT,
     casterId: parked.userId,
@@ -569,7 +574,7 @@ test("unexpected disconnect interrupts casts and keeps resources", () => {
 });
 
 test("melee still deals damage after JSON match-state roundtrip", () => {
-  const seeded = addPlayer(abilityZone(), caster(930, 400));
+  const seeded = addPlayer(abilityZone(), caster(starterSlime.x - 30, starterSlime.y));
   const restored = JSON.parse(JSON.stringify(seeded)) as StarterZoneState;
   restored.players = restored.players;
   const before = slime(restored).health;
@@ -585,7 +590,7 @@ test("melee still deals damage after JSON match-state roundtrip", () => {
 });
 
 test("melee still deals damage after catalog strip, JSON roundtrip, and rebind", () => {
-  const seeded = addPlayer(abilityZone(), caster(930, 400));
+  const seeded = addPlayer(abilityZone(), caster(starterSlime.x - 30, starterSlime.y));
   seeded.abilitiesById = undefined;
   seeded.progressionCatalog = undefined;
   seeded.classTags = undefined;
