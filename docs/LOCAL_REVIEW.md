@@ -2,7 +2,26 @@
 
 Playable work, including PROG-15 and the expanded village map, is on **`origin/main`**. Stay on `main`. Cloud agents cannot write `C:\Users\Eszter\small-mmorpg`; you pull after each prompt.
 
-## After every prompt (required)
+`scripts/local-play.ps1` exists only after `main` is pulled. If PowerShell says that file does not exist, use the git commands below once.
+
+## First pull (when local-play.ps1 is missing)
+
+Quit Godot, then from `C:\Users\Eszter\small-mmorpg`:
+
+```powershell
+git restore client/addons client/assets client/resources
+git fetch origin main
+git checkout main
+git pull --ff-only origin main
+Test-Path scripts\local-play.ps1
+git rev-parse --short HEAD
+```
+
+`Test-Path` must print `True`. `HEAD` must be `e9c46fd` or later. Then run `powershell -File scripts/local-play.ps1 -Branch main`.
+
+If `git checkout` still refuses, run `git status`. Discard leftover Godot noise with `git restore .` only if you have no local edits to keep, then repeat the fetch/checkout/pull lines.
+
+## After every later prompt
 
 Quit Godot (File → Quit), then from `C:\Users\Eszter\small-mmorpg`:
 

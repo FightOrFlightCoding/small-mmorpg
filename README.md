@@ -16,7 +16,16 @@ The Godot 4.7.1 client registers or logs in with email and password, lists up to
 
 ## Play from main
 
-PROG-15 and the expanded village map live on **`origin/main`**. Stay on `main`. After every prompt, quit Godot and run:
+PROG-15 and the expanded village map live on **`origin/main`**. Stay on `main`. If `scripts/local-play.ps1` is missing, quit Godot and run this once:
+
+```powershell
+git restore client/addons client/assets client/resources
+git fetch origin main
+git checkout main
+git pull --ff-only origin main
+```
+
+After that file exists, quit Godot and run:
 
 ```powershell
 powershell -File scripts/local-play.ps1 -Branch main
