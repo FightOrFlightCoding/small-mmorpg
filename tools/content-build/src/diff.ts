@@ -43,6 +43,7 @@ export function collectDefinitionIds(payload: ContentPayload): string[] {
   pushKeys(ids, payload.lootTables);
   pushKeys(ids, payload.spawns);
   pushKeys(ids, payload.vendors);
+  pushKeys(ids, payload.npcRoutes);
   ids.sort();
   return ids;
 }
@@ -134,6 +135,9 @@ export function definitionById(payload: ContentPayload, id: string): unknown | u
   }
   if (payload.vendors[id]) {
     return payload.vendors[id];
+  }
+  if (payload.npcRoutes[id]) {
+    return payload.npcRoutes[id];
   }
   return undefined;
 }

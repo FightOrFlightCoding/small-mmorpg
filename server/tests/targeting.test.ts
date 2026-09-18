@@ -97,3 +97,14 @@ test("set-target stores hostile enemies and friendly players", () => {
   assert.equal(cleared.ok, true);
   assert.equal(state.players["user-alice"].hostileTargetId, "");
 });
+
+test("NPCs cannot be stored as hostile or friendly combat targets", () => {
+  const elder = content.zones["zone.starter"].npcs[0];
+  const state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", elder.x, elder.y));
+  const hostile = applySetTarget(state, state.players["user-alice"], "npc.elder", "hostile", "req-npc-hostile");
+  assert.equal(hostile.code, "invalid_target");
+  const friendly = applySetTarget(state, state.players["user-alice"], "npc.elder", "friendly", "req-npc-friendly");
+  assert.equal(friendly.code, "invalid_target");
+  const area = entitiesInRadius(state, elder.x, elder.y, 64);
+  assert.equal(area.some((row) => row.id === "npc.elder"), false);
+});

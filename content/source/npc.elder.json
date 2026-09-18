@@ -6,6 +6,8 @@
   "visualId": "visual.npc_elder",
   "zoneId": "zone.starter",
   "position": { "x": 1440, "y": 1344 },
+  "homePosition": { "x": 1440, "y": 1344 },
+  "routeId": "route.stationary",
   "interactionRange": 48,
   "dialogueId": "dialogue.npc.elder",
   "services": [

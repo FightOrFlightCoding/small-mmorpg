@@ -283,7 +283,8 @@ function payloadHas(payload: ContentPayload, id: string): boolean {
     payload.aiProfiles[id] !== undefined ||
     payload.lootTables[id] !== undefined ||
     payload.spawns[id] !== undefined ||
-    payload.vendors[id] !== undefined
+    payload.vendors[id] !== undefined ||
+    payload.npcRoutes[id] !== undefined
   );
 }
 

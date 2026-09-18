@@ -1,0 +1,10 @@
+{
+  "id": "route.stationary",
+  "kind": "npc_route",
+  "displayName": "Stationary",
+  "routeType": "stationary",
+  "speed": 1,
+  "maxDistanceFromHome": 0,
+  "dwellMin": 0,
+  "dwellMax": 0
+}

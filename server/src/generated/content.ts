@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "b103bcc75e9845f4d4facc967bfab56b1dcd041bcb913e189132109a18d7eb94";
+export const contentHash = "0f93d3f90765f7f778c2687992b409472e964eabc9f09601866c77d57ba8915a";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = ["npc.lab_exit","npc.lab_inn","npc.lab_keeper","npc.lab_trainer","npc.lab_vendor","quest.lab_tour","spawn.lab.boss","spawn.lab.caster","spawn.lab.melee","spawn.lab.ranged","test.zone.systems_lab","vendor.lab_general"] as const;
 export const content = {
@@ -6343,11 +6343,27 @@ export const content = {
       "ownershipPolicy": "ground_free"
     }
   },
+  "npcRoutes": {
+    "route.stationary": {
+      "displayName": "Stationary",
+      "dwellMax": 0,
+      "dwellMin": 0,
+      "id": "route.stationary",
+      "kind": "npc_route",
+      "maxDistanceFromHome": 0,
+      "routeType": "stationary",
+      "speed": 1
+    }
+  },
   "npcs": {
     "npc.cert_quartermaster": {
       "dialogueId": "dialogue.npc.cert_quartermaster",
       "displayName": "Cert Quartermaster",
       "displayNameKey": "npc.cert_quartermaster.name",
+      "homePosition": {
+        "x": 2000,
+        "y": 1664
+      },
       "id": "npc.cert_quartermaster",
       "interactionRange": 48,
       "kind": "npc",
@@ -6355,6 +6371,7 @@ export const content = {
         "x": 2000,
         "y": 1664
       },
+      "routeId": "route.stationary",
       "services": [
         {
           "type": "dialogue"
@@ -6383,6 +6400,10 @@ export const content = {
       "dialogueId": "dialogue.npc.elder",
       "displayName": "Elder",
       "displayNameKey": "npc.elder.name",
+      "homePosition": {
+        "x": 1440,
+        "y": 1344
+      },
       "id": "npc.elder",
       "interactionRange": 48,
       "kind": "npc",
@@ -6390,6 +6411,7 @@ export const content = {
         "x": 1440,
         "y": 1344
       },
+      "routeId": "route.stationary",
       "services": [
         {
           "type": "dialogue"
@@ -6414,6 +6436,10 @@ export const content = {
       "dialogueId": "dialogue.npc.proof_giver",
       "displayName": "Proof Giver",
       "displayNameKey": "npc.proof_giver.name",
+      "homePosition": {
+        "x": 1880,
+        "y": 1664
+      },
       "id": "npc.proof_giver",
       "interactionRange": 48,
       "kind": "npc",
@@ -6421,6 +6447,7 @@ export const content = {
         "x": 1880,
         "y": 1664
       },
+      "routeId": "route.stationary",
       "services": [
         {
           "type": "dialogue"
@@ -6445,6 +6472,10 @@ export const content = {
       "dialogueId": "dialogue.npc.test_cave_exit",
       "displayName": "Cave Exit",
       "displayNameKey": "npc.test_cave_exit.name",
+      "homePosition": {
+        "x": 80,
+        "y": 256
+      },
       "id": "npc.test_cave_exit",
       "interactionRange": 48,
       "kind": "npc",
@@ -6452,6 +6483,7 @@ export const content = {
         "x": 80,
         "y": 256
       },
+      "routeId": "route.stationary",
       "services": [
         {
           "type": "dialogue"
@@ -6467,6 +6499,10 @@ export const content = {
       "dialogueId": "dialogue.npc.test_cave_portal",
       "displayName": "Test Cave Portal",
       "displayNameKey": "npc.test_cave_portal.name",
+      "homePosition": {
+        "x": 1720,
+        "y": 1664
+      },
       "id": "npc.test_cave_portal",
       "interactionRange": 48,
       "kind": "npc",
@@ -6474,6 +6510,7 @@ export const content = {
         "x": 1720,
         "y": 1664
       },
+      "routeId": "route.stationary",
       "services": [
         {
           "type": "dialogue"
@@ -6489,6 +6526,10 @@ export const content = {
       "dialogueId": "dialogue.npc.test_herald",
       "displayName": "Test Herald",
       "displayNameKey": "npc.test_herald.name",
+      "homePosition": {
+        "x": 1600,
+        "y": 1664
+      },
       "id": "npc.test_herald",
       "interactionRange": 48,
       "kind": "npc",
@@ -6496,6 +6537,7 @@ export const content = {
         "x": 1600,
         "y": 1664
       },
+      "routeId": "route.stationary",
       "services": [
         {
           "type": "dialogue"
@@ -6536,6 +6578,10 @@ export const content = {
       "dialogueId": "dialogue.npc.test_innkeeper",
       "displayName": "Test Innkeeper",
       "displayNameKey": "npc.test_innkeeper.name",
+      "homePosition": {
+        "x": 1480,
+        "y": 1664
+      },
       "id": "npc.test_innkeeper",
       "interactionRange": 48,
       "kind": "npc",
@@ -6543,6 +6589,7 @@ export const content = {
         "x": 1480,
         "y": 1664
       },
+      "routeId": "route.stationary",
       "services": [
         {
           "type": "dialogue"
@@ -6571,6 +6618,10 @@ export const content = {
       "dialogueId": "dialogue.npc.test_vendor",
       "displayName": "Test Vendor",
       "displayNameKey": "npc.test_vendor.name",
+      "homePosition": {
+        "x": 1360,
+        "y": 1664
+      },
       "id": "npc.test_vendor",
       "interactionRange": 48,
       "kind": "npc",
@@ -6578,6 +6629,7 @@ export const content = {
         "x": 1360,
         "y": 1664
       },
+      "routeId": "route.stationary",
       "services": [
         {
           "type": "dialogue"

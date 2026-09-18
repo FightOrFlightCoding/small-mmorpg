@@ -6,6 +6,8 @@
   "visualId": "visual.npc_innkeeper",
   "zoneId": "zone.starter",
   "position": { "x": 1480, "y": 1664 },
+  "homePosition": { "x": 1480, "y": 1664 },
+  "routeId": "route.stationary",
   "interactionRange": 48,
   "dialogueId": "dialogue.npc.test_innkeeper",
   "services": [

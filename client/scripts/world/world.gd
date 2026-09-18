@@ -533,7 +533,11 @@ func try_interact() -> void:
 func try_interact_at(world_pos: Vector2) -> bool:
 	if _input_blocked() or not _local_alive() or NetworkService.match_id.is_empty():
 		return false
-	var npc_id := InteractIntent.npc_id_at(world_pos, _reconciler.display, AppState.zone_view.get("npcs", []))
+	var npc_id := ""
+	if _entities != null:
+		npc_id = _entities.npc_id_at_world_point(world_pos)
+	if npc_id.is_empty():
+		npc_id = InteractIntent.npc_id_at(world_pos, _reconciler.display, AppState.zone_view.get("npcs", []))
 	if npc_id.is_empty():
 		return false
 	_begin_interact(npc_id)

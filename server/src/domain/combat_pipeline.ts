@@ -18,6 +18,7 @@ import {
 import { dict } from "./maps";
 import type { MatchPlayer, StarterZoneState } from "./match_state";
 import { distance } from "./movement";
+import { isNpcRuntimeId } from "./npc";
 import { addDamageThreat, applyHealThreatToEnemies, profileForEnemy, tauntDamageTakenMultiplier } from "./threat";
 import { noteAddDeath } from "./spawn_controller";
 import { evaluateCanonicalHit, type PowerCategory } from "./canonical_stats";
@@ -147,6 +148,10 @@ export function applyCombat(state: StarterZoneState, input: CombatApplyInput, ev
     return rejectApply(state, eventId, input.tick, steps, "actor_invalid");
   }
   steps.push("actor_validated");
+
+  if (isNpcRuntimeId(state.npcs, input.targetId) || isNpcRuntimeId(state.npcs, input.sourceId)) {
+    return rejectApply(state, eventId, input.tick, steps, "invalid_target");
+  }
 
   const target = findVictim(state, input.targetId, input.targetKind);
   if (target === null) {
@@ -399,6 +404,10 @@ export function applyPlayerAttack(input: PlayerAttackInput, events: CombatEvent[
     rememberAttack(player, input.requestId, "player_dead", false);
     return { ok: false, code: "player_dead", replay: false };
   }
+  if (input.match !== undefined && isNpcRuntimeId(input.match.npcs, input.targetId)) {
+    rememberAttack(player, input.requestId, "invalid_target", false);
+    return { ok: false, code: "invalid_target", replay: false };
+  }
   const enemy = findEnemy(input.enemies, input.targetId);
   if (enemy === null) {
     rememberAttack(player, input.requestId, "invalid_target", false);
@@ -567,6 +576,9 @@ function findActor(
   id: string,
   kind: "player" | "enemy",
 ): { alive: boolean; x: number; y: number } | null {
+  if (isNpcRuntimeId(state.npcs, id)) {
+    return null;
+  }
   if (kind === "player") {
     const player = dict(state.players)[id];
     if (player === undefined) {
@@ -586,6 +598,9 @@ function findVictim(
   id: string,
   kind: "player" | "enemy",
 ): { alive: boolean; x: number; y: number; health: number; maxHealth: number; effects?: { tags?: string[]; statChannel?: string; magnitude?: number; stacks?: number }[] } | null {
+  if (isNpcRuntimeId(state.npcs, id)) {
+    return null;
+  }
   if (kind === "player") {
     const player = dict(state.players)[id];
     if (player === undefined) {

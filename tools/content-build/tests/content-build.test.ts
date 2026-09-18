@@ -85,6 +85,8 @@ test("valid source documents compile to a payload", () => {
   assert.ok(payload.spawns["spawn.starter.green_slime"]);
   assert.ok(payload.vendors["vendor.test_general"]);
   assert.ok(payload.npcs["npc.test_vendor"]);
+  assert.equal(payload.npcs["npc.elder"].routeId, "route.stationary");
+  assert.equal(payload.npcRoutes["route.stationary"].routeType, "stationary");
   assert.equal(
     payload.npcs["npc.test_innkeeper"].services.some((service: { type: string }) => service.type === "respec"),
     true,
@@ -163,6 +165,149 @@ test("duplicate NPC placements and invalid NPC services are rejected", () => {
   (elder["services"] as Array<{ type: string }>)[0].type = "unknown_service";
   const serviceCodes = codesOf(() => validateDocuments(SCHEMA_DIR, invalidService));
   assert.ok(serviceCodes.indexOf("unknown_npc_service_type:npc.elder:unknown_service") !== -1);
+});
+
+test("NPC routes, home bounds, and service references are validated", () => {
+  const payload = validateDocuments(SCHEMA_DIR, loadValid());
+  assert.equal(payload.npcRoutes["route.stationary"].routeType, "stationary");
+  assert.equal(payload.npcs["npc.elder"].routeId, "route.stationary");
+  assert.equal(payload.npcs["npc.elder"].homePosition.x, payload.npcs["npc.elder"].position.x);
+  assert.equal(payload.npcs["npc.elder"].homePosition.y, payload.npcs["npc.elder"].position.y);
+  assert.equal(payload.npcs["npc.elder"].dialogueId, "dialogue.npc.elder");
+  assert.deepEqual(
+    payload.npcs["npc.elder"].services.map((service: { type: string }) => service.type),
+    ["dialogue", "quest_offer", "quest_turn_in"],
+  );
+
+  const missingRoute = clone(loadValid());
+  find(missingRoute, "npc.elder")["routeId"] = "route.missing";
+  const missingCodes = codesOf(() => validateDocuments(SCHEMA_DIR, missingRoute));
+  assert.ok(missingCodes.indexOf("missing_reference:route.missing") !== -1);
+
+  const homeMismatch = clone(loadValid());
+  (find(homeMismatch, "npc.elder")["homePosition"] as { x: number; y: number }).x = 0;
+  const homeCodes = codesOf(() => validateDocuments(SCHEMA_DIR, homeMismatch));
+  assert.ok(homeCodes.indexOf("invalid_range:homePosition") !== -1);
+
+  const badSpeed = clone(loadValid());
+  find(badSpeed, "route.stationary")["speed"] = 0;
+  const speedCodes = codesOf(() => validateDocuments(SCHEMA_DIR, badSpeed));
+  assert.ok(speedCodes.some((code) => code.indexOf("invalid_range:speed") === 0 || code.indexOf("invalid_range:") === 0));
+
+  const badDwell = clone(loadValid());
+  find(badDwell, "route.stationary")["dwellMin"] = 4;
+  find(badDwell, "route.stationary")["dwellMax"] = 1;
+  const dwellCodes = codesOf(() => validateDocuments(SCHEMA_DIR, badDwell));
+  assert.ok(dwellCodes.indexOf("invalid_range:dwell") !== -1);
+
+  const loopDocs = clone(loadValid());
+  find(loopDocs, "npc.test_herald")["routeId"] = "route.test_loop";
+  loopDocs.push({
+    fileName: "route.test_loop.json",
+    data: {
+      id: "route.test_loop",
+      kind: "npc_route",
+      routeType: "loop",
+      speed: 20,
+      maxDistanceFromHome: 32,
+      dwellMin: 0,
+      dwellMax: 1,
+      waypoints: [
+        { id: "a", x: 8, y: 0 },
+        { id: "b", x: 0, y: 8 },
+      ],
+    },
+  });
+  const loopPayload = validateDocuments(SCHEMA_DIR, loopDocs, { includeDevelopment: true });
+  assert.equal(loopPayload.npcRoutes["route.test_loop"].routeType, "loop");
+
+  const farWaypoint = clone(loopDocs);
+  ((find(farWaypoint, "route.test_loop")["waypoints"] as Array<{ x: number }>)[0]).x = 128;
+  const farCodes = codesOf(() => validateDocuments(SCHEMA_DIR, farWaypoint));
+  assert.ok(farCodes.some((code) => code.indexOf("invalid_range:maxDistanceFromHome") === 0));
+
+  const shortLoop = clone(loopDocs);
+  find(shortLoop, "route.test_loop")["waypoints"] = [{ id: "a", x: 8, y: 0 }];
+  const shortCodes = codesOf(() => validateDocuments(SCHEMA_DIR, shortLoop));
+  assert.ok(shortCodes.indexOf("invalid_route_graph:route.test_loop") !== -1);
+
+  const pingDocs = clone(loadValid());
+  find(pingDocs, "npc.test_herald")["routeId"] = "route.test_ping";
+  pingDocs.push({
+    fileName: "route.test_ping.json",
+    data: {
+      id: "route.test_ping",
+      kind: "npc_route",
+      routeType: "ping_pong",
+      speed: 12,
+      maxDistanceFromHome: 24,
+      dwellMin: 0,
+      dwellMax: 0.5,
+      waypoints: [
+        { id: "start", x: -8, y: 0 },
+        { id: "end", x: 8, y: 0 },
+      ],
+    },
+  });
+  const pingPayload = validateDocuments(SCHEMA_DIR, pingDocs, { includeDevelopment: true });
+  assert.equal(pingPayload.npcRoutes["route.test_ping"].routeType, "ping_pong");
+
+  const graphDocs = clone(loadValid());
+  find(graphDocs, "npc.test_herald")["routeId"] = "route.test_graph";
+  graphDocs.push({
+    fileName: "route.test_graph.json",
+    data: {
+      id: "route.test_graph",
+      kind: "npc_route",
+      routeType: "weighted_route_graph",
+      speed: 10,
+      maxDistanceFromHome: 24,
+      dwellMin: 0,
+      dwellMax: 1,
+      waypoints: [
+        { id: "a", x: 0, y: 0 },
+        { id: "b", x: 8, y: 0 },
+        { id: "c", x: 0, y: 8 },
+      ],
+      edges: [
+        { from: "a", to: "b", weight: 1 },
+        { from: "b", to: "c", weight: 2 },
+        { from: "c", to: "a", weight: 1 },
+      ],
+    },
+  });
+  const graphPayload = validateDocuments(SCHEMA_DIR, graphDocs, { includeDevelopment: true });
+  assert.equal(graphPayload.npcRoutes["route.test_graph"].routeType, "weighted_route_graph");
+
+  const disconnected = clone(graphDocs);
+  find(disconnected, "route.test_graph")["edges"] = [
+    { from: "a", to: "b", weight: 1 },
+    { from: "b", to: "a", weight: 1 },
+  ];
+  const disconnectedCodes = codesOf(() => validateDocuments(SCHEMA_DIR, disconnected));
+  assert.ok(disconnectedCodes.indexOf("invalid_route_graph:route.test_graph") !== -1);
+
+  const missingVendor = clone(loadValid());
+  const vendorNpc = find(missingVendor, "npc.test_vendor");
+  const services = vendorNpc["services"] as Array<{ type: string; vendorId?: string }>;
+  for (let i = 0; i < services.length; i++) {
+    if (services[i].type === "vendor") {
+      services[i].vendorId = "vendor.missing";
+    }
+  }
+  const vendorCodes = codesOf(() => validateDocuments(SCHEMA_DIR, missingVendor));
+  assert.ok(vendorCodes.indexOf("missing_reference:vendor.missing") !== -1);
+
+  const missingQuest = clone(loadValid());
+  const elderQuest = find(missingQuest, "npc.elder");
+  const elderServices = elderQuest["services"] as Array<{ type: string; questIds?: string[] }>;
+  for (let i = 0; i < elderServices.length; i++) {
+    if (elderServices[i].type === "quest_offer") {
+      elderServices[i].questIds = ["quest.missing"];
+    }
+  }
+  const questCodes = codesOf(() => validateDocuments(SCHEMA_DIR, missingQuest));
+  assert.ok(questCodes.indexOf("missing_reference:quest.missing") !== -1);
 });
 
 test("broken references are rejected", () => {

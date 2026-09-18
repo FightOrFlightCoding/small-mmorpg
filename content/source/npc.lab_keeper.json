@@ -6,6 +6,8 @@
   "visualId": "visual.npc_lab_keeper",
   "zoneId": "test.zone.systems_lab",
   "position": { "x": 200, "y": 256 },
+  "homePosition": { "x": 200, "y": 256 },
+  "routeId": "route.stationary",
   "interactionRange": 48,
   "dialogueId": "dialogue.npc.lab_keeper",
   "services": [

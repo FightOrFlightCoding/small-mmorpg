@@ -1,16 +1,17 @@
-# NPC test plan (NPC-01)
+# NPC test plan (NPC-02)
 
-NPC-01 records the contract and closes the listed runtime conflicts without starting NPC-02.
+NPC-02 records generic definitions, the `NpcRuntimeInstance` actor, placeholder `NpcAvatar` rendering, and combat exclusion. Cosmetic patrol ticking is not started.
 
 ## Automated coverage
 
 | Check | Owner | Expected proof |
 | --- | --- | --- |
-| NPC content integrity | `tools/content-build/tests/content-build.test.ts` | Generic duplicate IDs, duplicate NPC placement IDs, unknown NPC service type, and missing service references fail validation. Authored `respec` is present on `npc.test_innkeeper`. |
-| NPC combat boundary | `tools/foundation-audit/audit.cjs` | Combat targeting/threat do not include NPCs; `MatchNpc` has no combat or collision fields. |
-| NPC collision / interact affordance | `tools/foundation-audit/audit.cjs`, `server/tests/movement.test.ts` | NPCs are absent from gameplay collision; `InteractionArea` exists; players can walk through NPC poses. |
-| Right-click interact | `client/tests/app/interaction_client_test.gd` | Right-click pick sends the same `INTERACT` payload as keyboard interact. |
-| Respec content gate | `server/tests/progression_respec.test.ts`, audit | No `RESPEC_TRAINER_NPC_IDS`; innkeeper services include `respec`. |
+| NPC content integrity | `tools/content-build/tests/content-build.test.ts` | Generic duplicate IDs, duplicate NPC placement IDs, unknown NPC service type, missing route/vendor/quest references, home mismatch, invalid graphs, speed/dwell, and home-bound waypoints fail validation. Elder stays on `route.stationary` with unchanged slime-quest services. Authored `respec` is present on `npc.test_innkeeper`. |
+| Generic runtime spawn | `server/tests/npc_runtime.test.ts` | `createNpcRuntimeInstance` / match spawn from content; no HP/threat/AI fields. |
+| NPC combat boundary | `tools/foundation-audit/audit.cjs`, `server/tests/npc_runtime.test.ts`, `server/tests/targeting.test.ts` | Hostile/friendly set-target, AoE queries, threat, damage, healing, death, and loot reject NPC ids. `ResolvedEntity.kind` remains `player \| enemy`. |
+| NPC collision / interact affordance | `tools/foundation-audit/audit.cjs`, `server/tests/movement.test.ts`, `client/tests/app/npc_avatar_test.gd` | NPCs are absent from gameplay collision; `NpcAvatar` has placeholder square, name label, `MarkerAnchor`, interaction-only `Area2D`, no physics body; players can walk through NPC poses. |
+| Right-click interact | `client/tests/app/interaction_client_test.gd` | Right-click pick sends the same `INTERACT` payload as keyboard interact. Click uses the interaction-area radius. |
+| Respec content gate | `server/tests/progression_respec.test.ts`, `npc_runtime.test.ts`, audit | No `RESPEC_TRAINER_NPC_IDS`; innkeeper/lab trainer remain generic NPCs with authored `respec`. |
 | Dialogue action metadata | audit, `client/tests/app/quest_service_test.gd` | Elder/proof/cert scripts have no quest/NPC literals; offered helpers read content. |
 | Generic service gate | `interaction.ts` callers, audit | Interact/vendor/inn/cave/quest/respec pass `requiredService`. |
 | INTERACT replay | `server/tests/interaction.test.ts` | Repeated request IDs do not re-apply `talk_to_npc`. |

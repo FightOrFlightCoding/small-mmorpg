@@ -3,6 +3,7 @@ import { lootExpireTicks, spawnRolledLoot } from "./loot";
 import type { CombatEvent } from "./combat";
 import type { StarterZoneState } from "./match_state";
 import { dict } from "./maps";
+import { isNpcRuntimeId } from "./npc";
 import { noopPartyCredit, partyCreditFromThreat, type PartyCreditSink } from "./party_credit";
 
 export interface LootTableEntry {
@@ -55,6 +56,9 @@ export function collectNewEnemyDeaths(
   for (let i = 0; i < events.length; i++) {
     const event = events[i];
     if (event.type !== "death" || event.targetKind !== "enemy") {
+      continue;
+    }
+    if (isNpcRuntimeId(state.npcs, event.targetId) || isNpcRuntimeId(state.npcs, event.sourceId)) {
       continue;
     }
     const enemy = findEnemyInState(state, event.targetId);

@@ -106,6 +106,7 @@ export function outboundRefs(payload: ContentPayload, id: string): string[] {
     refs.push(npc.visualId);
     refs.push(npc.zoneId);
     refs.push(npc.dialogueId);
+    refs.push(npc.routeId);
     for (let s = 0; s < npc.services.length; s++) {
       const service = npc.services[s];
       if (service.vendorId !== undefined) {
@@ -288,6 +289,10 @@ export function outboundRefs(payload: ContentPayload, id: string): string[] {
     for (let i = 0; i < vendor.stock.length; i++) {
       refs.push(vendor.stock[i].itemId);
     }
+    return refs;
+  }
+  const route = payload.npcRoutes[id];
+  if (route) {
     return refs;
   }
   const progression = payload.classProgressions[id];

@@ -6,6 +6,8 @@
   "visualId": "visual.npc_cave_exit",
   "zoneId": "zone.cave",
   "position": { "x": 80, "y": 256 },
+  "homePosition": { "x": 80, "y": 256 },
+  "routeId": "route.stationary",
   "interactionRange": 48,
   "dialogueId": "dialogue.npc.test_cave_exit",
   "services": [

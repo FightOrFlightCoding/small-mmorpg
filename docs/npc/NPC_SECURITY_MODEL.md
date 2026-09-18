@@ -1,4 +1,4 @@
-# NPC security model (NPC-01)
+# NPC security model (NPC-02)
 
 The client is an untrusted presenter. Conflict closure does not change the server-authoritative model.
 
@@ -11,7 +11,7 @@ The client is an untrusted presenter. Conflict closure does not change the serve
 | Inn, cave, or respec result spoof | Existing service owners validate NPC service through `resolveInteraction`; server computes health/resources/bind, tickets, cost, and progression result. |
 | Unknown service/action | Strict NPC schema and content-build validation reject unknown service types; audit restricts dialogue `do` actions to project-owned presentation services. |
 | INTERACT replay | `interactByRequestId` replays presentation results and does not re-apply talk objectives or grant rewards. |
-| NPC combat abuse | `targeting.ts` and enemy threat selection admit only players/enemies. NPC runtime shape has no HP, threat, AI state, or combat effects. |
+| NPC combat abuse | `targeting.ts`, `threat.ts`, and `combat_pipeline.ts` admit only players/enemies. `isNpcRuntimeId` rejects NPC ids for hostile/friendly slots, AoE queries, threat, damage, and healing. `NpcRuntimeInstance` has no HP, threat, AI state, or combat effects. |
 | Client NPC movement | No client protocol accepts NPC pose, route, velocity, or movement completion. |
 | NPC as a movement wall | NPCs are not gameplay AABBs. Interaction areas are presentation-only (`monitoring`/`monitorable` false). |
 
@@ -20,6 +20,6 @@ The client is an untrusted presenter. Conflict closure does not change the serve
 - Canonical quest, inventory, equipment, currency, progression, and transaction state remain server-owned (`permissionWrite: 0` where storage applies).
 - Dialogue presentation is client-local and cannot become a canonical state store.
 - Merchant prices are content/server values only; the client may render catalog stock but never submit price/gold.
-- NPCs are noncombat: no HP, threat, AoE/line/cone targeting membership, hostile/friendly target slot, or combat collision.
+- NPCs are noncombat: no HP, threat, AoE/line/cone targeting membership, hostile/friendly target slot, combat collision, damage, healing, death, or loot.
 - NPC interaction is an interaction-area affordance plus server range validation, not a physical gameplay blocker.
 - Right-click default interaction is presentation only and must invoke the same `INTERACT` intention/validation as keyboard accessibility interaction.

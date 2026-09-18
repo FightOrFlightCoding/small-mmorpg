@@ -6,6 +6,8 @@
   "visualId": "visual.npc_lab_inn",
   "zoneId": "test.zone.systems_lab",
   "position": { "x": 520, "y": 256 },
+  "homePosition": { "x": 520, "y": 256 },
+  "routeId": "route.stationary",
   "interactionRange": 48,
   "dialogueId": "dialogue.npc.lab_inn",
   "services": [

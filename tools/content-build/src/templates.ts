@@ -15,6 +15,7 @@ export const AUTHORING_TYPES = [
   "loot_table",
   "npc",
   "dialogue_reference",
+  "npc_route",
   "quest",
   "vendor",
   "inn_service",
@@ -57,6 +58,7 @@ const DEFAULT_IDS: { [type in AuthoringType]: string } = {
   loot_table: "loot.starter_template",
   npc: "npc.starter_template",
   dialogue_reference: "dialogue.npc.starter_template",
+  npc_route: "route.starter_template",
   quest: "quest.starter_template",
   vendor: "vendor.starter_template",
   inn_service: "npc.starter_inn",
@@ -101,6 +103,8 @@ export function starterTemplate(type: AuthoringType, id: string): TemplateResult
       return docs([lootDoc(id)]);
     case "npc":
       return npcPack(id, "zone.starter", 720, 640, [{ type: "dialogue" }]);
+    case "npc_route":
+      return docs([routeDoc(id)]);
     case "dialogue_reference":
       return dialogueOnly(id);
     case "quest":
@@ -376,6 +380,20 @@ function enemyPack(id: string): TemplateResult {
   };
 }
 
+function routeDoc(id: string): Record<string, unknown> {
+  return {
+    id: id,
+    kind: "npc_route",
+    displayName: "Starter Route",
+    routeType: "stationary",
+    speed: 1,
+    maxDistanceFromHome: 0,
+    dwellMin: 0,
+    dwellMax: 0,
+    schemaVersion: 1,
+  };
+}
+
 function npcPack(
   id: string,
   zoneId: string,
@@ -394,6 +412,8 @@ function npcPack(
         visualId: "visual.npc_herald",
         zoneId: zoneId,
         position: { x: x, y: y },
+        homePosition: { x: x, y: y },
+        routeId: "route.stationary",
         interactionRange: 48,
         dialogueId: dialogueId,
         services: services,
@@ -509,6 +529,8 @@ function zonePack(id: string, cave: boolean): TemplateResult {
         visualId: "visual.npc_cave_exit",
         zoneId: id,
         position: { x: npcX, y: npcY },
+        homePosition: { x: npcX, y: npcY },
+        routeId: "route.stationary",
         interactionRange: 48,
         dialogueId: dialogueId,
         services: cave

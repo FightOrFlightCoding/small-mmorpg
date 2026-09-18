@@ -18,7 +18,7 @@ import {
   type PlayerEquipment,
 } from "./equipment";
 import { cloneLoot, publicLoot, type LootDrop, type MatchLoot } from "./loot";
-import type { NpcDefinition } from "./npc";
+import { createNpcRuntimeInstance, type NpcDefinition, type NpcRuntimeInstance } from "./npc";
 import type { VendorDefinition } from "./vendor";
 import { dict } from "./maps";
 import { cloneProgression, publicProgression, type CharacterProgression } from "./progression";
@@ -141,15 +141,7 @@ export interface DisconnectedPlayer {
   expiresAtTick: number;
 }
 
-export interface MatchNpc {
-  id: string;
-  npcId: string;
-  x: number;
-  y: number;
-  zoneId?: string;
-  interactionRange?: number;
-  dialogueId?: string;
-}
+export type MatchNpc = NpcRuntimeInstance;
 
 export type EnemyAiState =
   | "idle"
@@ -482,21 +474,17 @@ export function createStarterZoneState(
   const npcs: MatchNpc[] = [];
   for (let i = 0; i < zone.npcs.length; i++) {
     const spawn = zone.npcs[i];
-    npcs.push({
-      id: spawn.npcId,
-      npcId: spawn.npcId,
-      x: spawn.x,
-      y: spawn.y,
-      zoneId: zone.id,
-      interactionRange:
-        extras.npcsById !== undefined && extras.npcsById[spawn.npcId] !== undefined
-          ? extras.npcsById[spawn.npcId].interactionRange
-          : playerContent.interactionRange,
-      dialogueId:
-        extras.npcsById !== undefined && extras.npcsById[spawn.npcId] !== undefined
-          ? extras.npcsById[spawn.npcId].dialogueId
-          : "",
-    });
+    npcs.push(
+      createNpcRuntimeInstance({
+        npcId: spawn.npcId,
+        x: spawn.x,
+        y: spawn.y,
+        zoneId: zone.id,
+        definition:
+          extras.npcsById !== undefined ? extras.npcsById[spawn.npcId] : undefined,
+        defaultInteractionRange: playerContent.interactionRange,
+      }),
+    );
   }
   const enemyLootById: { [id: string]: LootDrop[] } = {};
   const built = buildInitialCombatants(zone, enemiesById, extras.spawnsById);

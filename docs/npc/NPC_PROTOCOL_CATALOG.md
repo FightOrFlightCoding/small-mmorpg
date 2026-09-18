@@ -1,6 +1,6 @@
-# NPC protocol catalog (NPC-01)
+# NPC protocol catalog (NPC-02)
 
-NPC-01 creates no opcode, RPC, notification, or storage protocol. It documents the accepted protocol surface. Conflict closure reused existing `INTERACT` / `INTERACTION_RESULT` without new fields.
+NPC-02 creates no opcode, RPC, notification, or storage protocol. It keeps the NPC-01 surface. `FULL_STATE.npcs` may include generic actor fields (`homeX`, `routeId`, `visualId`, `displayName`) that are presentation-only.
 
 ## Existing match messages
 

@@ -782,6 +782,17 @@ NPC-01 remains the current phase and does not start NPC-02 (no new NPC types, no
 - Match-owned `interactionSession` plus `interactByRequestId` replay `INTERACT` without re-running `talk_to_npc`. Dialogue presentation is not a reward transaction.
 - Existing vendor, inn, cave, quest, and trainer owners authorize through `resolveInteraction` `requiredService` instead of a parallel dormant gate.
 
-No new opcode, RPC, storage collection, dependency, or vendor-addon change. Content hash changes because trainer `respec` is now in source NPC documents.
+## 2026-09-18 — NPC-02 generic definitions, actor, and placeholder rendering
+
+NPC-02 extends the NPC-01 contract without a second NPC/quest/dialogue/combat system.
+
+- Shared schemas: `npc_definition` (`npc.json`), `npc_route`, `npc_service_binding`, `dialogue_definition`, `npc_quest_binding`, `vendor_definition` (`vendor.json`). Prompt snake_case fields map to camelCase content JSON.
+- Route types `stationary`, `loop`, `ping_pong`, and `weighted_route_graph` are authored and validated. Production NPCs use `route.stationary`. Cosmetic patrol ticking is a later named phase.
+- One generic server actor `NpcRuntimeInstance` (`MatchNpc` alias) spawns from content. One generic client `NpcAvatar` renders a placeholder square, name label, marker anchor, and interaction-only `Area2D` with no physics body.
+- Targeting, AoE, threat, damage, healing, death, and loot explicitly exclude NPC ids.
+- Elder migrates onto the generic definition (`homePosition`, `routeId`) without changing `quest.slime_problem` services or spoken lines.
+- Existing respec trainers `npc.test_innkeeper` and `npc.lab_trainer` are migrated now onto that same generic definition; they are not deferred to a later compatibility phase.
+
+No new opcode, RPC, storage collection, dependency, or vendor-addon change. Content hash changes because NPC documents gain `homePosition`/`routeId` and `route.stationary` enters the payload.
 
 

@@ -7,6 +7,7 @@
     "player": { "schema": "player.json", "definitionSchemaVersion": 1, "idPrefix": "player" },
     "item": { "schema": "item.json", "definitionSchemaVersion": 1, "idPrefix": "item" },
     "npc": { "schema": "npc.json", "definitionSchemaVersion": 1, "idPrefix": "npc" },
+    "npc_route": { "schema": "npc_route.json", "definitionSchemaVersion": 1, "idPrefix": "route" },
     "enemy": { "schema": "enemy.json", "definitionSchemaVersion": 1, "idPrefix": "enemy" },
     "quest": { "schema": "quest.json", "definitionSchemaVersion": 1, "idPrefix": "quest" },
     "zone": { "schema": "zone.json", "definitionSchemaVersion": 1, "idPrefix": "zone" },

@@ -1,4 +1,4 @@
-# NPC state machines (NPC-01)
+# NPC state machines (NPC-02)
 
 These are the target state models. Conflict closure added a match-owned interaction session record without cosmetic patrols.
 
@@ -10,7 +10,7 @@ These are the target state models. Conflict closure added a match-owned interact
 | `MOVING` | Server advances a content/route-owned cosmetic pose; clients interpolate snapshots. | `IDLE` on destination/route stop; `PAUSED_FOR_INTERACTION` on accepted interaction. |
 | `PAUSED_FOR_INTERACTION` | Movement is paused while an authorized interaction session is active. | `IDLE` or `MOVING` when the session closes, expires, or is invalidated. |
 
-Movement is cosmetic: it does not create a combat target, collision body, threat entry, damageable state, or client-owned transform. The server resolves interaction distance against the current authoritative pose. NPC-01 does not add routes; poses stay `IDLE`.
+Movement is cosmetic: it does not create a combat target, collision body, threat entry, damageable state, or client-owned transform. The server resolves interaction distance against the current authoritative pose. NPC-02 authors and validates routes; runtime poses stay `IDLE` at `homePosition` until a later named movement phase ticks snapshots.
 
 ## Interaction session
 

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/npc_service_binding.json",
+  "title": "npc_service_binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "dialogue",
+        "quest_offer",
+        "quest_turn_in",
+        "vendor",
+        "inn",
+        "healer",
+        "cave_entrance",
+        "cave_exit",
+        "respec"
+      ]
+    },
+    "questIds": {
+      "type": "array",
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+    },
+    "vendorId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "goldCost": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
+    "healToFull": { "type": "boolean" },
+    "restoreResources": { "type": "boolean" },
+    "bindRespawn": { "type": "boolean" },
+    "minLevel": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeInteger" },
+    "classRequirements": {
+      "type": "array",
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+    },
+    "requireParty": { "type": "boolean" },
+    "requiredQuestId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "requiredQuestStatus": { "type": "string", "minLength": 1 }
+  }
+}

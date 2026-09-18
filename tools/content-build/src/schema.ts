@@ -8,6 +8,7 @@ const KIND_SCHEMA: Record<string, string> = {
   player: "https://vibecode.local/content-schemas/player.json",
   item: "https://vibecode.local/content-schemas/item.json",
   npc: "https://vibecode.local/content-schemas/npc.json",
+  npc_route: "https://vibecode.local/content-schemas/npc_route.json",
   enemy: "https://vibecode.local/content-schemas/enemy.json",
   quest: "https://vibecode.local/content-schemas/quest.json",
   zone: "https://vibecode.local/content-schemas/zone.json",

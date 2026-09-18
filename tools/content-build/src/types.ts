@@ -115,9 +115,40 @@ export interface NpcDef {
   visualId: string;
   zoneId: string;
   position: Vec2;
+  homePosition: Vec2;
+  routeId: string;
   interactionRange: number;
   dialogueId: string;
   services: NpcServiceDef[];
+}
+
+export type NpcRouteType = "stationary" | "loop" | "ping_pong" | "weighted_route_graph";
+
+export interface NpcRouteWaypointDef {
+  id: string;
+  x: number;
+  y: number;
+  dwellMin?: number;
+  dwellMax?: number;
+}
+
+export interface NpcRouteEdgeDef {
+  from: string;
+  to: string;
+  weight: number;
+}
+
+export interface NpcRouteDef {
+  id: string;
+  kind: "npc_route";
+  displayName?: string;
+  routeType: NpcRouteType;
+  speed: number;
+  maxDistanceFromHome: number;
+  dwellMin: number;
+  dwellMax: number;
+  waypoints?: NpcRouteWaypointDef[];
+  edges?: NpcRouteEdgeDef[];
 }
 
 export interface VendorStockDef {
@@ -747,6 +778,7 @@ export interface ContentPayload {
   lootTables: Record<string, LootTableDef>;
   spawns: Record<string, SpawnDef>;
   vendors: Record<string, VendorDef>;
+  npcRoutes: Record<string, NpcRouteDef>;
 }
 
 export interface ContentBundle extends ContentPayload {

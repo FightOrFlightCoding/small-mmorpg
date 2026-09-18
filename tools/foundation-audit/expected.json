@@ -1,7 +1,7 @@
 {
   "protocolVersion": 1,
   "contentSchemaVersion": 1,
-  "contentHash": "b103bcc75e9845f4d4facc967bfab56b1dcd041bcb913e189132109a18d7eb94",
+  "contentHash": "0f93d3f90765f7f778c2687992b409472e964eabc9f09601866c77d57ba8915a",
   "exactDependencies": {
     "server/package.json:typescript": "5.8.3",
     "server/package.json:nakama-runtime": "github:heroiclabs/nakama-common#v1.47.0",
@@ -333,6 +333,7 @@
     "quest.test.reward.json",
     "quest.test.talk.json",
     "resource.none.json",
+    "route.stationary.json",
     "slot.chest.json",
     "slot.feet.json",
     "slot.head.json",

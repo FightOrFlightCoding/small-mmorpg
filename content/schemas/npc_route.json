@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/npc_route.json",
+  "title": "npc_route",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "routeType",
+    "speed",
+    "maxDistanceFromHome",
+    "dwellMin",
+    "dwellMax"
+  ],
+  "properties": {
+    "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "kind": { "const": "npc_route" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "routeType": {
+      "type": "string",
+      "enum": ["stationary", "loop", "ping_pong", "weighted_route_graph"]
+    },
+    "speed": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" },
+    "maxDistanceFromHome": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "dwellMin": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "dwellMax": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+    "waypoints": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/waypoint" }
+    },
+    "edges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/edge" }
+    },
+    "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+  },
+  "$defs": {
+    "waypoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "x", "y"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "dwellMin": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" },
+        "dwellMax": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/nonNegativeNumber" }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to", "weight"],
+      "properties": {
+        "from": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "to": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "weight": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveNumber" }
+      }
+    }
+  }
+}

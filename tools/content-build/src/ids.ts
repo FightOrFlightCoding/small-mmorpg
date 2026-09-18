@@ -8,6 +8,7 @@ export const KIND_PREFIX: Record<string, string> = {
   player: "player",
   item: "item",
   npc: "npc",
+  npc_route: "route",
   enemy: "enemy",
   quest: "quest",
   zone: "zone",

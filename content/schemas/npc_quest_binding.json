@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecode.local/content-schemas/npc_quest_binding.json",
+  "title": "npc_quest_binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "questIds"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["quest_offer", "quest_turn_in"]
+    },
+    "questIds": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+    }
+  }
+}

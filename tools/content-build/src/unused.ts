@@ -120,6 +120,9 @@ export function kindOf(payload: ContentPayload, id: string): string {
   if (payload.vendors[id]) {
     return "vendor";
   }
+  if (payload.npcRoutes[id]) {
+    return "npc_route";
+  }
   return "unknown";
 }
 

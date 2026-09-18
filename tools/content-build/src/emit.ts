@@ -65,6 +65,7 @@ export function buildPackage(payload: ContentPayload, options: BuildPackageOptio
     lootTables: canonicalPayload.lootTables,
     spawns: canonicalPayload.spawns,
     vendors: canonicalPayload.vendors,
+    npcRoutes: canonicalPayload.npcRoutes,
   };
 }
 
@@ -110,6 +111,7 @@ export function toContentBundle(pkg: ContentPackage): ContentBundle {
     lootTables: pkg.lootTables,
     spawns: pkg.spawns,
     vendors: pkg.vendors,
+    npcRoutes: pkg.npcRoutes,
   };
 }
 
@@ -148,6 +150,7 @@ export function emitServerModule(bundle: ContentBundle): string {
     lootTables: bundle.lootTables,
     spawns: bundle.spawns,
     vendors: bundle.vendors,
+    npcRoutes: bundle.npcRoutes,
   };
   const body = JSON.stringify(canonicalize(payload), null, 2);
   return [

@@ -2,6 +2,7 @@ import { findEnemy } from "./combat";
 import { dict } from "./maps";
 import type { MatchEnemy, MatchPlayer, StarterZoneState } from "./match_state";
 import { distance } from "./movement";
+import { isNpcRuntimeId } from "./npc";
 
 export type TargetMode =
   | "self"
@@ -50,6 +51,9 @@ export function findMatchEntity(state: StarterZoneState, entityId: string): Reso
   if (wanted.length === 0) {
     return null;
   }
+  if (isNpcRuntimeId(state.npcs, wanted)) {
+    return null;
+  }
   const player = dict(state.players)[wanted];
   if (player !== undefined) {
     return playerAsResolved(player);
@@ -95,6 +99,9 @@ export function entitiesInRadius(
   const playerIds = Object.keys(dict(state.players));
   playerIds.sort();
   for (let i = 0; i < playerIds.length; i++) {
+    if (isNpcRuntimeId(state.npcs, playerIds[i])) {
+      continue;
+    }
     const player = state.players[playerIds[i]];
     if (player === undefined || player.health <= 0) {
       continue;
@@ -105,6 +112,9 @@ export function entitiesInRadius(
   }
   for (let e = 0; e < state.enemies.length; e++) {
     const enemy = state.enemies[e];
+    if (isNpcRuntimeId(state.npcs, enemy.id) || isNpcRuntimeId(state.npcs, enemy.enemyId)) {
+      continue;
+    }
     if (enemy.health <= 0 || enemy.aiState === "dead") {
       continue;
     }
@@ -221,6 +231,10 @@ export function applySetTarget(
     player.friendlyTargetId = "";
     rememberSetTarget(player, requestId, "ok", true);
     return { ok: true, code: "ok", replay: false };
+  }
+  if (isNpcRuntimeId(state.npcs, wanted)) {
+    rememberSetTarget(player, requestId, "invalid_target", false);
+    return { ok: false, code: "invalid_target", replay: false };
   }
   const entity = findMatchEntity(state, wanted);
   if (entity === null) {

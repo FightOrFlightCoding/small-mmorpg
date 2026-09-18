@@ -2,6 +2,7 @@ import { cooldownTicks } from "./combat";
 import { dict } from "./maps";
 import type { MatchEnemy, MatchPlayer, StarterZoneState } from "./match_state";
 import { distance } from "./movement";
+import { isNpcRuntimeId } from "./npc";
 
 export interface AiProfileContent {
   id: string;
@@ -173,6 +174,9 @@ export function clearThreat(enemy: MatchEnemy): void {
 }
 
 export function isValidThreatTarget(state: StarterZoneState, _enemy: MatchEnemy, playerId: string): boolean {
+  if (isNpcRuntimeId(state.npcs, playerId)) {
+    return false;
+  }
   const player = dict(state.players)[playerId];
   if (player === undefined || player.health <= 0) {
     return false;
@@ -208,6 +212,9 @@ function nearestPlayerInAggro(state: StarterZoneState, enemy: MatchEnemy): strin
   let bestId = "";
   let bestDistance = 0;
   for (let i = 0; i < ids.length; i++) {
+    if (isNpcRuntimeId(state.npcs, ids[i])) {
+      continue;
+    }
     const player = state.players[ids[i]];
     if (player.health <= 0) {
       continue;

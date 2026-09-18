@@ -6,6 +6,8 @@
   "visualId": "visual.npc_lab_trainer",
   "zoneId": "test.zone.systems_lab",
   "position": { "x": 680, "y": 256 },
+  "homePosition": { "x": 680, "y": 256 },
+  "routeId": "route.stationary",
   "interactionRange": 48,
   "dialogueId": "dialogue.npc.lab_trainer",
   "services": [{ "type": "dialogue" }, { "type": "respec" }],

@@ -27,6 +27,9 @@ import type {
   LevelCurveDef,
   LootTableDef,
   NpcDef,
+  NpcRouteDef,
+  NpcRouteEdgeDef,
+  NpcRouteWaypointDef,
   PlayerDef,
   ProgressionTimelineDef,
   QuestDef,
@@ -154,6 +157,7 @@ export function validateDocuments(
   const lootTables = asKindMap<LootTableDef>(allDocs, "loot_table");
   const spawns = asKindMap<SpawnDef>(allDocs, "spawn");
   const vendors = asKindMap<VendorDef>(allDocs, "vendor");
+  const npcRoutes = asKindMap<NpcRouteDef>(allDocs, "npc_route");
   const extras: CanonicalMaps = {
     stats,
     branches,
@@ -186,6 +190,7 @@ export function validateDocuments(
     lootTables,
     spawns,
     vendors,
+    npcRoutes,
     extras,
   );
   const assets = options.assets;
@@ -204,7 +209,11 @@ export function validateDocuments(
   }
   const npcIds = Object.keys(npcs);
   for (let i = 0; i < npcIds.length; i++) {
-    checkNpc(npcs[npcIds[i]], zones, vendors, quests, classes, issues, assets);
+    checkNpc(npcs[npcIds[i]], zones, vendors, quests, classes, npcRoutes, issues, assets);
+  }
+  const routeIds = Object.keys(npcRoutes);
+  for (let r = 0; r < routeIds.length; r++) {
+    checkNpcRoute(npcRoutes[routeIds[r]], issues);
   }
   const vendorIds = Object.keys(vendors);
   for (let i = 0; i < vendorIds.length; i++) {
@@ -268,6 +277,7 @@ export function validateDocuments(
     asKindMap<LootTableDef>(selected, "loot_table"),
     asKindMap<SpawnDef>(selected, "spawn"),
     asKindMap<VendorDef>(selected, "vendor"),
+    asKindMap<NpcRouteDef>(selected, "npc_route"),
     {
       stats: asKindMap<StatDefinitionDef>(selected, "stat_definition"),
       branches: asKindMap<BranchDefinitionDef>(selected, "branch_definition"),
@@ -317,6 +327,7 @@ function payloadFromParts(
   lootTables: Record<string, LootTableDef>,
   spawns: Record<string, SpawnDef>,
   vendors: Record<string, VendorDef>,
+  npcRoutes: Record<string, NpcRouteDef>,
   extras: CanonicalMaps,
 ): ContentPayload {
   return {
@@ -349,6 +360,7 @@ function payloadFromParts(
     lootTables,
     spawns,
     vendors,
+    npcRoutes,
   };
 }
 
@@ -593,6 +605,7 @@ function checkNpc(
   vendors: Record<string, VendorDef>,
   quests: Record<string, QuestDef>,
   classes: Record<string, ClassDef>,
+  routes: Record<string, NpcRouteDef>,
   issues: ContentIssue[],
   assets: AssetIndex | undefined,
 ): void {
@@ -602,6 +615,18 @@ function checkNpc(
   }
   if (!zones[npc.zoneId]) {
     issues.push(issue("missing_reference:" + npc.zoneId));
+  }
+  if (npc.homePosition.x !== npc.position.x || npc.homePosition.y !== npc.position.y) {
+    issues.push(issue("invalid_range:homePosition"));
+  }
+  const zone = zones[npc.zoneId];
+  if (zone !== undefined) {
+    checkPointInWorld(zone, npc.homePosition.x, npc.homePosition.y, "npc:" + npc.id, issues);
+  }
+  if (!routes[npc.routeId]) {
+    issues.push(issue("missing_reference:" + npc.routeId));
+  } else {
+    checkNpcHomeBounds(npc, routes[npc.routeId], issues);
   }
   for (let i = 0; i < npc.services.length; i++) {
     const service = npc.services[i];
@@ -629,6 +654,139 @@ function checkNpc(
     }
     if (service.requiredQuestId !== undefined && !quests[service.requiredQuestId]) {
       issues.push(issue("missing_reference:" + service.requiredQuestId));
+    }
+  }
+}
+
+function checkNpcHomeBounds(npc: NpcDef, route: NpcRouteDef, issues: ContentIssue[]): void {
+  const waypoints = route.waypoints !== undefined ? route.waypoints : [];
+  for (let i = 0; i < waypoints.length; i++) {
+    const waypoint = waypoints[i];
+    const dist = Math.sqrt(waypoint.x * waypoint.x + waypoint.y * waypoint.y);
+    if (dist > route.maxDistanceFromHome) {
+      issues.push(issue("invalid_range:maxDistanceFromHome:" + npc.id + ":" + waypoint.id));
+    }
+  }
+}
+
+function checkNpcRoute(route: NpcRouteDef, issues: ContentIssue[]): void {
+  if (!(route.speed > 0)) {
+    issues.push(issue("invalid_range:speed"));
+  }
+  checkDwellRange(route.dwellMin, route.dwellMax, "dwell", issues);
+  const waypoints = route.waypoints !== undefined ? route.waypoints : [];
+  const edges = route.edges !== undefined ? route.edges : [];
+  const type = route.routeType;
+  if (type === "stationary") {
+    if (waypoints.length > 0 || edges.length > 0) {
+      issues.push(issue("invalid_route_graph:" + route.id));
+    }
+    return;
+  }
+  if (type === "loop" || type === "ping_pong") {
+    if (waypoints.length < 2 || edges.length > 0) {
+      issues.push(issue("invalid_route_graph:" + route.id));
+    }
+    checkWaypointIds(route.id, waypoints, issues);
+    for (let i = 0; i < waypoints.length; i++) {
+      checkWaypointDwell(waypoints[i], issues);
+    }
+    return;
+  }
+  if (type === "weighted_route_graph") {
+    checkWeightedRouteGraph(route.id, waypoints, edges, issues);
+    return;
+  }
+  issues.push(issue("invalid_route_graph:" + route.id));
+}
+
+function checkWaypointIds(routeId: string, waypoints: NpcRouteWaypointDef[], issues: ContentIssue[]): void {
+  const seen: { [id: string]: boolean } = {};
+  for (let i = 0; i < waypoints.length; i++) {
+    const id = waypoints[i].id;
+    if (seen[id] === true) {
+      issues.push(issue("duplicate_id:" + routeId + ":" + id));
+    }
+    seen[id] = true;
+  }
+}
+
+function checkWaypointDwell(waypoint: NpcRouteWaypointDef, issues: ContentIssue[]): void {
+  if (waypoint.dwellMin === undefined && waypoint.dwellMax === undefined) {
+    return;
+  }
+  const min = waypoint.dwellMin !== undefined ? waypoint.dwellMin : 0;
+  const max = waypoint.dwellMax !== undefined ? waypoint.dwellMax : min;
+  checkDwellRange(min, max, "dwell", issues);
+}
+
+function checkDwellRange(min: number, max: number, field: string, issues: ContentIssue[]): void {
+  if (min < 0 || max < 0 || max < min) {
+    issues.push(issue("invalid_range:" + field));
+  }
+}
+
+function checkWeightedRouteGraph(
+  routeId: string,
+  waypoints: NpcRouteWaypointDef[],
+  edges: NpcRouteEdgeDef[],
+  issues: ContentIssue[],
+): void {
+  if (waypoints.length < 2 || edges.length < 1) {
+    issues.push(issue("invalid_route_graph:" + routeId));
+    return;
+  }
+  checkWaypointIds(routeId, waypoints, issues);
+  const nodeSet: { [id: string]: boolean } = {};
+  for (let i = 0; i < waypoints.length; i++) {
+    nodeSet[waypoints[i].id] = true;
+    checkWaypointDwell(waypoints[i], issues);
+  }
+  const undirected: { [id: string]: string[] } = {};
+  const outDegree: { [id: string]: number } = {};
+  const ids = Object.keys(nodeSet);
+  for (let n = 0; n < ids.length; n++) {
+    undirected[ids[n]] = [];
+    outDegree[ids[n]] = 0;
+  }
+  for (let e = 0; e < edges.length; e++) {
+    const edge = edges[e];
+    if (!nodeSet[edge.from] || !nodeSet[edge.to]) {
+      issues.push(issue("invalid_route_graph:" + routeId));
+      continue;
+    }
+    if (!(edge.weight > 0)) {
+      issues.push(issue("invalid_range:weight"));
+    }
+    outDegree[edge.from] = (outDegree[edge.from] !== undefined ? outDegree[edge.from] : 0) + 1;
+    undirected[edge.from].push(edge.to);
+    undirected[edge.to].push(edge.from);
+  }
+  for (let n = 0; n < ids.length; n++) {
+    if (outDegree[ids[n]] < 1) {
+      issues.push(issue("invalid_route_graph:" + routeId));
+      break;
+    }
+  }
+  const start = ids[0];
+  const visited: { [id: string]: boolean } = {};
+  const stack = [start];
+  visited[start] = true;
+  while (stack.length > 0) {
+    const current = stack.pop() as string;
+    const next = undirected[current] !== undefined ? undirected[current] : [];
+    for (let i = 0; i < next.length; i++) {
+      if (visited[next[i]] === true) {
+        continue;
+      }
+      visited[next[i]] = true;
+      stack.push(next[i]);
+    }
+  }
+  for (let n = 0; n < ids.length; n++) {
+    if (visited[ids[n]] !== true) {
+      issues.push(issue("invalid_route_graph:" + routeId));
+      return;
     }
   }
 }

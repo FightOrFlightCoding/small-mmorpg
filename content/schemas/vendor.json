@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vibecode.local/content-schemas/vendor.json",
+  "title": "vendor_definition",
   "type": "object",
   "additionalProperties": false,
   "required": ["id", "kind", "displayName", "stock", "sellMultiplier"],

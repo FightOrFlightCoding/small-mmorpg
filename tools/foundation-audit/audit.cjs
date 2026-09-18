@@ -308,17 +308,24 @@ function checkClientDoesNotWriteStorage() {
 
 function checkNpcBoundaries() {
   const targeting = read("server/src/domain/targeting.ts");
-  if (!/kind: "player" \| "enemy";/.test(targeting) || /\bMatchNpc\b|state\.npcs/.test(targeting)) {
-    fail("NPC entered combat target types or targeting queries");
+  if (!/kind: "player" \| "enemy";/.test(targeting) || /kind: "player" \| "enemy" \| "npc"/.test(targeting)) {
+    fail("NPC entered combat target types");
+  }
+  if (!targeting.includes("isNpcRuntimeId")) {
+    fail("targeting must explicitly exclude NPC runtime ids");
   }
   const threat = read("server/src/domain/threat.ts");
-  if (/\bMatchNpc\b|state\.npcs/.test(threat)) {
-    fail("NPC entered enemy threat selection");
+  if (!threat.includes("isNpcRuntimeId")) {
+    fail("threat selection must explicitly exclude NPC runtime ids");
   }
+  const npcDomain = read("server/src/domain/npc.ts");
   const matchState = read("server/src/domain/match_state.ts");
-  const matchNpc = matchState.match(/export interface MatchNpc \{([\s\S]*?)\n\}/);
+  const matchNpc = npcDomain.match(/export interface NpcRuntimeInstance \{([\s\S]*?)\n\}/);
   if (!matchNpc || /\b(?:health|maxHealth|threat|aiState|collision)\b/.test(matchNpc[1])) {
     fail("NPC runtime model gained combat or collision state");
+  }
+  if (!matchState.includes("export type MatchNpc = NpcRuntimeInstance") || !npcDomain.includes("createNpcRuntimeInstance")) {
+    fail("generic NpcRuntimeInstance factory or MatchNpc alias missing");
   }
 
   const movement = read("server/src/domain/movement.ts");
@@ -333,14 +340,17 @@ function checkNpcBoundaries() {
     fail("player collision resolution missing");
   }
   const npcScene = read("client/scenes/world/npc_avatar.tscn");
-  if (!npcScene.includes("InteractionArea")) {
-    fail("NPC interaction-area affordance missing");
+  if (!npcScene.includes("InteractionArea") || !npcScene.includes("MarkerAnchor")) {
+    fail("NPC interaction-area or marker-anchor affordance missing");
+  }
+  if (/CharacterBody2D|StaticBody2D|RigidBody2D|AnimatableBody2D/.test(npcScene)) {
+    fail("NpcAvatar must not have a physical collision body");
   }
   const world = read("client/scripts/world/world.gd");
   if (!world.includes("MOUSE_BUTTON_RIGHT") || !world.includes("try_interact_at")) {
     fail("right-click interact affordance missing");
   }
-  if (/\bRESPEC_TRAINER_NPC_IDS\b/.test(read("server/src/domain/npc.ts") + read("server/src/domain/canonical_respec.ts"))) {
+  if (/\bRESPEC_TRAINER_NPC_IDS\b/.test(npcDomain + read("server/src/domain/canonical_respec.ts"))) {
     fail("respec ID overlay must not exist");
   }
   if (!matchState.includes("interactionSession") || !matchLoop.includes("interactByRequestId")) {

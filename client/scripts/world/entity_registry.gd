@@ -36,6 +36,23 @@ func get_entity(key: String) -> Node2D:
 	return _nodes[key]
 
 
+func npc_id_at_world_point(world_pos: Vector2) -> String:
+	var best_id := ""
+	var best_d := INF
+	for key in _nodes.keys():
+		var node: Node = _nodes[key]
+		if not (node is NpcAvatar):
+			continue
+		var avatar := node as NpcAvatar
+		if not avatar.contains_world_point(world_pos):
+			continue
+		var distance := world_pos.distance_to(avatar.global_position)
+		if distance <= best_d:
+			best_d = distance
+			best_id = avatar.server_id
+	return best_id
+
+
 func summaries() -> PackedStringArray:
 	var names: PackedStringArray = PackedStringArray()
 	var keys: Array = _nodes.keys()

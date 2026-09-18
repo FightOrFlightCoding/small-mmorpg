@@ -6,6 +6,8 @@
   "visualId": "visual.npc_cave_portal",
   "zoneId": "zone.starter",
   "position": { "x": 1720, "y": 1664 },
+  "homePosition": { "x": 1720, "y": 1664 },
+  "routeId": "route.stationary",
   "interactionRange": 48,
   "dialogueId": "dialogue.npc.test_cave_portal",
   "services": [

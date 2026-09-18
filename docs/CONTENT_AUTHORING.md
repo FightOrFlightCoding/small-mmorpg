@@ -24,7 +24,7 @@ powershell -File scripts/content.ps1 csv-import --type loot_entries --from loot.
 
 Equivalent npm scripts live in `tools/content-build`. `content build` and `content generate` write `server/src/generated/content.ts` and `client/content/bundle.json`. Production builds **exclude** `developmentOnly` definitions unless you pass `--include-dev`.
 
-`content new <type>` writes schema-valid starter templates. It does not invent final names, balance, or prose. Types: `class`, `attribute`, `resource`, `level_curve`, `ability`, `effect`, `item`, `equipment_slot`, `enemy`, `ai_profile`, `spawn`, `loot_table`, `npc`, `dialogue_reference`, `quest`, `vendor`, `inn_service`, `zone`, `cave_template`, `asset_manifest_entry`.
+`content new <type>` writes schema-valid starter templates. It does not invent final names, balance, or prose. Types: `class`, `attribute`, `resource`, `level_curve`, `ability`, `effect`, `item`, `equipment_slot`, `enemy`, `ai_profile`, `spawn`, `loot_table`, `npc`, `npc_route`, `dialogue_reference`, `quest`, `vendor`, `inn_service`, `zone`, `cave_template`, `asset_manifest_entry`.
 
 Canonical 1–10 progression kinds (`stat_definition`, `branch_definition`, `progression_timeline`, `auto_attack_definition`, `effect_definition`, `talent_tree`, `talent_node`, `reference_build`, `enemy_scaling_profile`, `xp_reward`, `equipment_modifier_category`) are authored as `content/source/<id>.json` like every other kind. `npm run write-canonical` in `tools/content-build` regenerates those documents from `canonical_documents.ts`. Do not treat generated Godot `.tres` files as source.
 
@@ -44,6 +44,7 @@ CSV import/export is optional and only for tabular kinds: `level_curve`, `vendor
 - Invalid equipment slots
 - Invalid class references
 - Invalid level curves
+- Invalid NPC routes (missing route, bad waypoint graph, home-bound, speed, dwell)
 - Missing assets (visual/icon/dialogue ids vs `visual_map.json` / `asset_manifest.json` / `dialogue_map.json`)
 - Development-content leakage into production definitions
 - Orphaned NPC, quest, and enemy definitions

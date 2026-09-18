@@ -6,6 +6,8 @@
   "visualId": "visual.npc_vendor",
   "zoneId": "zone.starter",
   "position": { "x": 1360, "y": 1664 },
+  "homePosition": { "x": 1360, "y": 1664 },
+  "routeId": "route.stationary",
   "interactionRange": 48,
   "dialogueId": "dialogue.npc.test_vendor",
   "services": [

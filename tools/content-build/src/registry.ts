@@ -24,6 +24,7 @@ export const DEFAULT_MANIFEST: ContentPackageManifest = {
     player: { schema: "player.json", definitionSchemaVersion: 1, idPrefix: "player" },
     item: { schema: "item.json", definitionSchemaVersion: 1, idPrefix: "item" },
     npc: { schema: "npc.json", definitionSchemaVersion: 1, idPrefix: "npc" },
+    npc_route: { schema: "npc_route.json", definitionSchemaVersion: 1, idPrefix: "route" },
     enemy: { schema: "enemy.json", definitionSchemaVersion: 1, idPrefix: "enemy" },
     quest: { schema: "quest.json", definitionSchemaVersion: 1, idPrefix: "quest" },
     zone: { schema: "zone.json", definitionSchemaVersion: 1, idPrefix: "zone" },
@@ -85,8 +86,17 @@ export function kindNames(manifest: ContentPackageManifest): string[] {
   return Object.keys(manifest.kinds).sort();
 }
 
+export const SHARED_SCHEMA_FILES = [
+  "npc_service_binding.json",
+  "npc_quest_binding.json",
+  "dialogue_definition.json",
+] as const;
+
 export function schemaFilesForManifest(manifest: ContentPackageManifest): string[] {
   const files = ["common.json"];
+  for (let s = 0; s < SHARED_SCHEMA_FILES.length; s++) {
+    files.push(SHARED_SCHEMA_FILES[s]);
+  }
   const kinds = kindNames(manifest);
   for (let i = 0; i < kinds.length; i++) {
     const schema = manifest.kinds[kinds[i]].schema;

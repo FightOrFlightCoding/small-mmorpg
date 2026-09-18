@@ -31,9 +31,72 @@ export interface NpcDefinition {
   zoneId: string;
   x: number;
   y: number;
+  homeX: number;
+  homeY: number;
+  routeId: string;
   interactionRange: number;
   dialogueId: string;
   services: NpcService[];
+}
+
+export interface NpcRuntimeInstance {
+  id: string;
+  npcId: string;
+  x: number;
+  y: number;
+  zoneId: string;
+  interactionRange: number;
+  dialogueId: string;
+  visualId: string;
+  displayName: string;
+  displayNameKey: string;
+  homeX: number;
+  homeY: number;
+  routeId: string;
+}
+
+export function createNpcRuntimeInstance(input: {
+  npcId: string;
+  x: number;
+  y: number;
+  zoneId: string;
+  definition?: NpcDefinition;
+  defaultInteractionRange: number;
+}): NpcRuntimeInstance {
+  const definition = input.definition;
+  return {
+    id: input.npcId,
+    npcId: input.npcId,
+    x: input.x,
+    y: input.y,
+    zoneId: input.zoneId,
+    interactionRange: definition !== undefined ? definition.interactionRange : input.defaultInteractionRange,
+    dialogueId: definition !== undefined ? definition.dialogueId : "",
+    visualId: definition !== undefined ? definition.visualId : "",
+    displayName: definition !== undefined ? definition.displayName : input.npcId,
+    displayNameKey:
+      definition !== undefined && definition.displayNameKey !== undefined ? definition.displayNameKey : "",
+    homeX: definition !== undefined ? definition.homeX : input.x,
+    homeY: definition !== undefined ? definition.homeY : input.y,
+    routeId: definition !== undefined ? definition.routeId : "",
+  };
+}
+
+export function isNpcRuntimeId(
+  npcs: ReadonlyArray<{ id?: string; npcId?: string }> | undefined,
+  entityId: string,
+): boolean {
+  if (!Array.isArray(npcs) || entityId.length === 0) {
+    return false;
+  }
+  const wanted = String(entityId);
+  for (let i = 0; i < npcs.length; i++) {
+    const npc = npcs[i];
+    if (String(npc.id) === wanted || String(npc.npcId) === wanted) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function npcDefinitionsFromContent(npcs: {
@@ -44,6 +107,8 @@ export function npcDefinitionsFromContent(npcs: {
     visualId: string;
     zoneId?: string;
     position?: { x: number; y: number };
+    homePosition?: { x: number; y: number };
+    routeId?: string;
     interactionRange?: number;
     dialogueId?: string;
     services?: ReadonlyArray<{
@@ -82,6 +147,9 @@ export function npcDefinitionsFromContent(npcs: {
       zoneId: entry.zoneId !== undefined ? entry.zoneId : "",
       x: entry.position !== undefined ? entry.position.x : 0,
       y: entry.position !== undefined ? entry.position.y : 0,
+      homeX: entry.homePosition !== undefined ? entry.homePosition.x : entry.position !== undefined ? entry.position.x : 0,
+      homeY: entry.homePosition !== undefined ? entry.homePosition.y : entry.position !== undefined ? entry.position.y : 0,
+      routeId: entry.routeId !== undefined ? entry.routeId : "",
       interactionRange: entry.interactionRange !== undefined ? entry.interactionRange : 48,
       dialogueId: entry.dialogueId !== undefined ? entry.dialogueId : "",
       services: services,
