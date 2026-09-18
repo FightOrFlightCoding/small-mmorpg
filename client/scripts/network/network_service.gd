@@ -539,7 +539,7 @@ func send_interaction_close(session_id: String, npc_instance_id: String, request
 	)
 
 
-func send_quest_accept(quest_id: String, request_id: String = "") -> Dictionary:
+func send_quest_accept(quest_id: String, request_id: String = "", session_id: String = "", npc_instance_id: String = "") -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
 	var rid := request_id
@@ -547,11 +547,16 @@ func send_quest_accept(quest_id: String, request_id: String = "") -> Dictionary:
 		rid = MatchProtocol.new_request_id()
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_QUEST_ACCEPT,
-		MatchProtocol.client_envelope_json({"questId": quest_id, "requestId": rid})
+		MatchProtocol.client_envelope_json({
+			"questId": quest_id,
+			"interactionSessionId": session_id,
+			"npcInstanceId": npc_instance_id,
+			"requestId": rid,
+		})
 	)
 
 
-func send_quest_turn_in(quest_id: String, npc_id: String, request_id: String = "") -> Dictionary:
+func send_quest_turn_in(quest_id: String, npc_id: String, request_id: String = "", session_id: String = "") -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
 	var rid := request_id
@@ -559,7 +564,12 @@ func send_quest_turn_in(quest_id: String, npc_id: String, request_id: String = "
 		rid = MatchProtocol.new_request_id()
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_QUEST_TURN_IN,
-		MatchProtocol.client_envelope_json({"questId": quest_id, "npcId": npc_id, "requestId": rid})
+		MatchProtocol.client_envelope_json({
+			"questId": quest_id,
+			"interactionSessionId": session_id,
+			"npcInstanceId": npc_id,
+			"requestId": rid,
+		})
 	)
 
 

@@ -82,6 +82,15 @@ func test_unknown_entity_kind_is_rejected() -> void:
 	assert_bool(registry.rejected_kinds.has("dragon")).is_true()
 
 
+func test_quest_markers_are_not_unknown_entities() -> void:
+	var registry := _registry()
+	var state := _alice_bob_state()
+	state["npc_quest_markers"] = [{"npcId": "npc.elder", "marker": "!"}]
+	registry.apply_full_state(state)
+	assert_bool(registry.rejected_kinds.has("npc_quest_marker")).is_false()
+	assert_int(registry.entity_count()).is_equal(4)
+
+
 func test_missing_visual_falls_back_without_crash() -> void:
 	var catalog := VisualCatalog.new()
 	catalog.load_map()

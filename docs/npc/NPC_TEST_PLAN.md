@@ -1,13 +1,13 @@
-# NPC test plan (NPC-04)
+# NPC test plan (NPC-05)
 
-NPC-04 records server-owned interaction sessions, content dialogue graphs, right-click `interact_pointer`, the reusable NPC window, and pause/resume of cosmetic movement while any live session exists.
+NPC-05 records session-gated quest accept/turn-in through canonical `QuestService`, quest dialogue states, and character-specific markers. NPC-04 coverage remains.
 
 ## Automated coverage
 
 | Check | Owner | Expected proof |
 | --- | --- | --- |
 | In-range interaction | `server/tests/interaction.test.ts` | `INTERACT` returns `ok` and a session. |
-| Out-of-range rejection | `interaction.test.ts` | `out_of_range`. |
+| Out-of-range rejection | `interaction.test.ts`, `npc_quest.test.ts` | `out_of_range`. |
 | Unknown NPC | `interaction.test.ts` | `invalid_target`. |
 | Dead character | `interaction.test.ts` | `player_dead`. |
 | Link-dead character | `interaction.test.ts` | `link_dead`. |
@@ -23,10 +23,31 @@ NPC-04 records server-owned interaction sessions, content dialogue graphs, right
 | Right-click UI | `interaction_client_test.gd` | `interact_pointer` defaults to right mouse; `try_interact_at` sends `INTERACT`. |
 | No duplicate signals | `interaction_client_test.gd` | Window and presenter connect once; one `dialogue_opened`. |
 | Dialogue graphs | `tools/content-build/tests/content-build.test.ts` | One-line and two-line graphs compile; missing next nodes and scripts fail. |
+| Quest available | `npc_quest.test.ts` | Dialogue `available` / start node; `!` marker. |
+| Prerequisite missing | `npc_quest.test.ts` | `missing_prerequisite`; dialogue state `prerequisite_missing`. |
+| Accept | `npc_quest.test.ts` | Session required; canonical `accepted`; accepted dialogue; `·` or `?`. |
+| Duplicate accept | `npc_quest.test.ts` | Same `requestId` replays `accepted`; new id is `already_accepted`. |
+| In progress / ready | `npc_quest.test.ts` | Dialogue states and marker priority `?` over `!` over `·`. |
+| Turn in | `npc_quest.test.ts` | Rewards once; completion dialogue; marker cleared. |
+| Duplicate turn-in | `npc_quest.test.ts` | Same `requestId` replays; new id is `already_completed`. |
+| Wrong NPC | `npc_quest.test.ts` | `invalid_service`. |
+| Invalid session | `npc_quest.test.ts` | `invalid_session`. |
+| Character-specific markers | `npc_quest.test.ts` | Two players differ; `SNAPSHOT` omits markers. |
+| Reconnect persistence | `npc_quest.test.ts` | `FULL_STATE` restores quests and markers. |
+| Generic `offer_and_turn_in` | `npc_quest.test.ts`, content-build | Herald talk quest completes through one bind. |
 
 ## Baseline results and reproducible commands
 
-The current checkout uses Node 22. Directory-form `node --test dist/tests` wrappers can fail before discovery. Direct compiled-file glob invocation is the authoritative path:
+NPC-05 hermetic gates (Node 22.14). Directory-form `node --test dist/tests` wrappers can fail before discovery. Direct compiled-file glob invocation is the authoritative path:
+
+| Gate | Result |
+| --- | --- |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (34 storage records, 40 client opcodes, 15 server opcodes, 29 RPCs) |
+| Content validation/tests | 28/28 passed |
+| Server hermetic tests | 814 passed, 13 expected live-test skips |
+| Server typecheck/build | passed; existing circular-dependency warning only |
+| Auth gateway hermetic tests | 52/52 passed via compiled test-file glob |
+| Godot 4.7.1 client GdUnit | 325/325 passed, 0 failures, 0 orphans |
 
 ```bash
 bash scripts/test-audit.sh
@@ -38,4 +59,4 @@ GODOT_BIN=godot bash scripts/test-client.sh
 
 ## Manual regression
 
-After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main`, then verify: right-click opens the NPC window, one-line and two-line NPCs speak their authored lines, optional choices advance on the server, two clients can talk to the same NPC, and movement pauses while anyone is in session.
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main`, then verify: elder `!` / `·` / `?` markers follow the local character, accept and turn-in still speak authored lines, rewards remain server-granted, and a second client at the same NPC can show a different marker.

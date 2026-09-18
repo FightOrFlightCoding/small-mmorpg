@@ -179,6 +179,8 @@ test("reward and interact requests require a unique requestId", () => {
     JSON.stringify({
       protocolVersion: PROTOCOL_VERSION,
       questId: "quest.slime_problem",
+      interactionSessionId: "sess-quest-1",
+      npcInstanceId: "npc.elder",
       requestId: "req-abc-123",
     }),
   );
@@ -330,6 +332,8 @@ test("quest completion injection is rejected", () => {
     JSON.stringify({
       protocolVersion: PROTOCOL_VERSION,
       questId: "quest.slime_problem",
+      interactionSessionId: "sess-complete-1",
+      npcInstanceId: "npc.elder",
       requestId: "req-complete-1",
       status: "completed",
     }),
@@ -343,6 +347,8 @@ test("quest completion injection is rejected", () => {
     JSON.stringify({
       protocolVersion: PROTOCOL_VERSION,
       questId: "quest.slime_problem",
+      interactionSessionId: "sess-complete-2",
+      npcInstanceId: "npc.elder",
       requestId: "req-complete-2",
       questComplete: true,
     }),
@@ -356,7 +362,8 @@ test("quest completion injection is rejected", () => {
     JSON.stringify({
       protocolVersion: PROTOCOL_VERSION,
       questId: "quest.slime_problem",
-      npcId: "npc.elder",
+      interactionSessionId: "sess-turnin-gold1",
+      npcInstanceId: "npc.elder",
       requestId: "req-turnin-gold1",
       gold: 25,
     }),
@@ -367,20 +374,22 @@ test("quest completion injection is rejected", () => {
   }
 });
 
-test("quest turn-in intention accepts quest id and npc id", () => {
+test("quest turn-in intention accepts session fields and quest id", () => {
   const parsed = parse(
     ClientOpcode.QUEST_TURN_IN,
     JSON.stringify({
       protocolVersion: PROTOCOL_VERSION,
       questId: "quest.slime_problem",
-      npcId: "npc.elder",
+      interactionSessionId: "sess-turnin-ok1",
+      npcInstanceId: "npc.elder",
       requestId: "req-turnin-ok1",
     }),
   );
   assert.equal(isProtocolError(parsed), false);
   if (!isProtocolError(parsed)) {
     assert.equal(parsed.fields.questId, "quest.slime_problem");
-    assert.equal(parsed.fields.npcId, "npc.elder");
+    assert.equal(parsed.fields.npcInstanceId, "npc.elder");
+    assert.equal(parsed.fields.interactionSessionId, "sess-turnin-ok1");
     assert.equal(parsed.requestId, "req-turnin-ok1");
   }
 });

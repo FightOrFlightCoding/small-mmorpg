@@ -1,7 +1,27 @@
 export const NPC_SERVICE_DIALOGUE = "dialogue";
 export const NPC_SERVICE_QUEST_OFFER = "quest_offer";
 export const NPC_SERVICE_QUEST_TURN_IN = "quest_turn_in";
+export const NPC_SERVICE_QUEST_OFFER_ALIAS = "offer";
+export const NPC_SERVICE_QUEST_TURN_IN_ALIAS = "turn_in";
+export const NPC_SERVICE_QUEST_OFFER_AND_TURN_IN = "offer_and_turn_in";
 export const NPC_SERVICE_VENDOR = "vendor";
+
+export const NPC_QUEST_MARKER_READY = "?";
+export const NPC_QUEST_MARKER_AVAILABLE = "!";
+export const NPC_QUEST_MARKER_ACTIVE = "·";
+
+export type QuestBindRole = "offer" | "turn_in";
+
+const QUEST_OFFER_TYPES = [
+  NPC_SERVICE_QUEST_OFFER,
+  NPC_SERVICE_QUEST_OFFER_ALIAS,
+  NPC_SERVICE_QUEST_OFFER_AND_TURN_IN,
+];
+const QUEST_TURN_IN_TYPES = [
+  NPC_SERVICE_QUEST_TURN_IN,
+  NPC_SERVICE_QUEST_TURN_IN_ALIAS,
+  NPC_SERVICE_QUEST_OFFER_AND_TURN_IN,
+];
 export const NPC_SERVICE_INN = "inn";
 export const NPC_SERVICE_HEALER = "healer";
 export const NPC_SERVICE_CAVE_ENTRANCE = "cave_entrance";
@@ -189,7 +209,63 @@ export function findNpcService(definition: NpcDefinition | undefined, type: stri
   return null;
 }
 
+export function questBindRoleOf(type: string): QuestBindRole | null {
+  if (QUEST_OFFER_TYPES.indexOf(type) !== -1) {
+    return "offer";
+  }
+  if (QUEST_TURN_IN_TYPES.indexOf(type) !== -1) {
+    return "turn_in";
+  }
+  return null;
+}
+
+export function isQuestBindType(type: string): boolean {
+  return questBindRoleOf(type) !== null;
+}
+
+export function findQuestBindService(
+  definition: NpcDefinition | undefined,
+  role: QuestBindRole,
+): NpcService | null {
+  if (definition === undefined || !Array.isArray(definition.services)) {
+    return null;
+  }
+  const types = role === "offer" ? QUEST_OFFER_TYPES : QUEST_TURN_IN_TYPES;
+  for (let i = 0; i < definition.services.length; i++) {
+    if (types.indexOf(definition.services[i].type) !== -1) {
+      return definition.services[i];
+    }
+  }
+  return null;
+}
+
+export function npcBindsQuest(
+  definition: NpcDefinition | undefined,
+  questId: string,
+  role: QuestBindRole,
+): boolean {
+  if (definition === undefined || !Array.isArray(definition.services)) {
+    return false;
+  }
+  const types = role === "offer" ? QUEST_OFFER_TYPES : QUEST_TURN_IN_TYPES;
+  for (let i = 0; i < definition.services.length; i++) {
+    const service = definition.services[i];
+    if (types.indexOf(service.type) === -1) {
+      continue;
+    }
+    const ids = Array.isArray(service.questIds) ? service.questIds : [];
+    if (ids.length === 0 || ids.indexOf(questId) !== -1) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function npcOffersQuest(definition: NpcDefinition | undefined, questId: string, type: string): boolean {
+  const role = questBindRoleOf(type);
+  if (role !== null) {
+    return npcBindsQuest(definition, questId, role);
+  }
   const service = findNpcService(definition, type);
   if (service === null) {
     return false;
@@ -199,6 +275,33 @@ export function npcOffersQuest(definition: NpcDefinition | undefined, questId: s
     return true;
   }
   return ids.indexOf(questId) !== -1;
+}
+
+export function boundQuestIds(definition: NpcDefinition | undefined, role?: QuestBindRole): string[] {
+  if (definition === undefined) {
+    return [];
+  }
+  const ids: string[] = [];
+  for (let i = 0; i < definition.services.length; i++) {
+    const service = definition.services[i];
+    if (role === undefined) {
+      if (questBindRoleOf(service.type) === null) {
+        continue;
+      }
+    } else {
+      const types = role === "offer" ? QUEST_OFFER_TYPES : QUEST_TURN_IN_TYPES;
+      if (types.indexOf(service.type) === -1) {
+        continue;
+      }
+    }
+    const questIds = service.questIds !== undefined ? service.questIds : [];
+    for (let q = 0; q < questIds.length; q++) {
+      if (ids.indexOf(questIds[q]) < 0) {
+        ids.push(questIds[q]);
+      }
+    }
+  }
+  return ids;
 }
 
 export function serviceMeetsLevel(service: NpcService | null, level: number): boolean {

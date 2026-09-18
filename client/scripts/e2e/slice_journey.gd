@@ -74,7 +74,7 @@ static func run(host: Node) -> Dictionary:
 	print("E2E step=alice_interacted")
 	var accepted: Dictionary = await alice.send_action(
 		MatchProtocol.CLIENT_QUEST_ACCEPT,
-		{"questId": QUEST_ID}
+		_quest_fields(alice, QUEST_ID)
 	)
 	if not bool(accepted.get("result_ok", false)):
 		return _fail("quest_accept:%s" % String(accepted.get("code", "failed")))
@@ -89,9 +89,12 @@ static func run(host: Node) -> Dictionary:
 	print("E2E step=alice_picked_gel")
 	if not await alice.walk_to(approach_point(alice.self_pos(), elder, 24.0), 14.0, 20.0):
 		return _fail(alice.fail_reason)
+	var ready_interact: Dictionary = await alice.interact(NPC_ID)
+	if not bool(ready_interact.get("result_ok", false)):
+		return _fail("turn_in_interact:%s" % String(ready_interact.get("code", "failed")))
 	var turned: Dictionary = await alice.send_action(
 		MatchProtocol.CLIENT_QUEST_TURN_IN,
-		{"questId": QUEST_ID, "npcId": NPC_ID}
+		_quest_fields(alice, QUEST_ID)
 	)
 	if not bool(turned.get("result_ok", false)):
 		return _fail("turn_in:%s" % String(turned.get("code", "failed")))
@@ -112,9 +115,12 @@ static func run(host: Node) -> Dictionary:
 	var rejoin_timeout := clampf(alice.self_pos().distance_to(elder) / 80.0, 16.0, 40.0)
 	if not await alice.walk_to(approach_point(alice.self_pos(), elder, 24.0), 14.0, rejoin_timeout):
 		return _fail(alice.fail_reason)
+	var dup_interact: Dictionary = await alice.interact(NPC_ID)
+	if not bool(dup_interact.get("result_ok", false)):
+		return _fail("duplicate_interact:%s" % String(dup_interact.get("code", "failed")))
 	var duplicate: Dictionary = await alice.send_action(
 		MatchProtocol.CLIENT_QUEST_TURN_IN,
-		{"questId": QUEST_ID, "npcId": NPC_ID}
+		_quest_fields(alice, QUEST_ID)
 	)
 	if String(duplicate.get("code", "")) != "already_completed":
 		return _fail("duplicate_turn_in:%s" % String(duplicate.get("code", "missing")))
@@ -176,6 +182,18 @@ static func _unique_name(prefix: String, stamp: String) -> String:
 	if body.length() < 3:
 		body = (body + "aaa").substr(0, 3)
 	return body
+
+
+static func _quest_fields(session: SliceSession, quest_id: String) -> Dictionary:
+	var interacted: Dictionary = session.last_interaction
+	var npc_id := String(interacted.get("target_id", NPC_ID))
+	if npc_id.is_empty():
+		npc_id = NPC_ID
+	return {
+		"questId": quest_id,
+		"interactionSessionId": String(interacted.get("interaction_session_id", "")),
+		"npcInstanceId": npc_id,
+	}
 
 
 static func _fail(reason: String) -> Dictionary:

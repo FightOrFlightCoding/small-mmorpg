@@ -1,6 +1,6 @@
-import { NPC_SERVICE_DIALOGUE, type NpcDefinition, type NpcService } from "./npc";
+import { NPC_SERVICE_DIALOGUE, boundQuestIds, type NpcDefinition, type NpcService } from "./npc";
 import { authorizeNpcService, type InteractionInput } from "./interaction";
-import type { QuestLog } from "./quest";
+import { questDialogueState, type QuestDefinition, type QuestLog } from "./quest";
 import type { PlayerInventory } from "./inventory";
 
 export interface DialogueCondition {
@@ -51,6 +51,7 @@ export interface DialogueEvalContext {
   questLog?: QuestLog;
   offeredQuestIds: ReadonlyArray<string>;
   itemCounts: { [itemId: string]: number };
+  questsById?: { [id: string]: QuestDefinition };
 }
 
 export function dialogueDefinitionsFromContent(dialogues: {
@@ -173,23 +174,7 @@ export function nextDialogueNodeId(
 }
 
 export function offeredQuestIdsFromNpc(definition: NpcDefinition | undefined): string[] {
-  if (definition === undefined) {
-    return [];
-  }
-  const ids: string[] = [];
-  for (let i = 0; i < definition.services.length; i++) {
-    const service = definition.services[i];
-    if (service.type !== "quest_offer" && service.type !== "quest_turn_in") {
-      continue;
-    }
-    const questIds = service.questIds !== undefined ? service.questIds : [];
-    for (let q = 0; q < questIds.length; q++) {
-      if (ids.indexOf(questIds[q]) < 0) {
-        ids.push(questIds[q]);
-      }
-    }
-  }
-  return ids;
+  return boundQuestIds(definition);
 }
 
 export function availableServiceIds(
@@ -208,10 +193,15 @@ export function availableServiceIds(
     if (!authorizeNpcService(service, gate).ok) {
       continue;
     }
-    if (!serviceVisible(service, gate.questLog)) {
+    if (!serviceVisible(service, gate.questLog, gate.questsById, gate.playerLevel, gate.classId)) {
       continue;
     }
-    ids.push(service.type);
+    const presented = presentedServiceIds(service, gate.questLog, gate.questsById, gate.playerLevel, gate.classId);
+    for (let p = 0; p < presented.length; p++) {
+      if (ids.indexOf(presented[p]) < 0) {
+        ids.push(presented[p]);
+      }
+    }
   }
   return ids;
 }
@@ -222,31 +212,70 @@ export function dialogueContextFor(
   questLog: QuestLog | undefined,
   offeredQuestIds: ReadonlyArray<string>,
   inventory: PlayerInventory | undefined,
+  questsById?: { [id: string]: QuestDefinition },
 ): DialogueEvalContext {
-  return {
+  const context: DialogueEvalContext = {
     playerLevel: playerLevel,
     classId: classId !== undefined ? classId : "",
     questLog: questLog,
     offeredQuestIds: offeredQuestIds,
     itemCounts: itemCountsOf(inventory),
   };
+  if (questsById !== undefined) {
+    context.questsById = questsById;
+  }
+  return context;
 }
 
-function serviceVisible(service: NpcService, questLog: DialogueEvalContext["questLog"] | InteractionInput["questLog"]): boolean {
-  if (service.type === "quest_offer") {
+function presentedServiceIds(
+  service: NpcService,
+  questLog: DialogueEvalContext["questLog"] | InteractionInput["questLog"],
+  questsById: InteractionInput["questsById"],
+  playerLevel: number | undefined,
+  classId: string | undefined,
+): string[] {
+  if (service.type === "offer_and_turn_in") {
+    const ids: string[] = [];
+    if (serviceVisible({ ...service, type: "quest_offer" }, questLog, questsById, playerLevel, classId)) {
+      ids.push("quest_offer");
+    }
+    if (serviceVisible({ ...service, type: "quest_turn_in" }, questLog, questsById, playerLevel, classId)) {
+      ids.push("quest_turn_in");
+    }
+    return ids;
+  }
+  if (service.type === "offer") {
+    return ["quest_offer"];
+  }
+  if (service.type === "turn_in") {
+    return ["quest_turn_in"];
+  }
+  return [service.type];
+}
+
+function serviceVisible(
+  service: NpcService,
+  questLog: DialogueEvalContext["questLog"] | InteractionInput["questLog"],
+  questsById?: InteractionInput["questsById"],
+  playerLevel?: number,
+  classId?: string,
+): boolean {
+  if (service.type === "quest_offer" || service.type === "offer" || service.type === "offer_and_turn_in") {
+    if (service.type === "offer_and_turn_in") {
+      return true;
+    }
     const questIds = service.questIds !== undefined ? service.questIds : [];
     for (let i = 0; i < questIds.length; i++) {
-      const status = questStatusOf(questLog, questIds[i]);
-      if (status === "not_started") {
+      if (questDialogueStateOf(questLog, questIds[i], questsById, playerLevel, classId) === "available") {
         return true;
       }
     }
     return questIds.length === 0;
   }
-  if (service.type === "quest_turn_in") {
+  if (service.type === "quest_turn_in" || service.type === "turn_in") {
     const questIds = service.questIds !== undefined ? service.questIds : [];
     for (let i = 0; i < questIds.length; i++) {
-      if (offeredStatus(questLog, questIds[i]) === "ready") {
+      if (questDialogueStateOf(questLog, questIds[i], questsById, playerLevel, classId) === "ready") {
         return true;
       }
     }
@@ -289,15 +318,29 @@ function conditionPasses(condition: DialogueCondition, context: DialogueEvalCont
     if (condition.questId === undefined) {
       return false;
     }
-    return offeredStatus(context.questLog, condition.questId) === expectedStatus(condition);
+    return statusMatches(
+      questDialogueStateOf(context.questLog, condition.questId, context.questsById, context.playerLevel, context.classId),
+      expectedStatus(condition),
+    );
   }
   if (condition.type === "offered_quest_status") {
     const expected = expectedStatus(condition);
     if (context.offeredQuestIds.length === 0) {
-      return expected === "not_started";
+      return expected === "not_started" || expected === "available" || expected === "prerequisite_missing";
     }
     for (let i = 0; i < context.offeredQuestIds.length; i++) {
-      if (offeredStatus(context.questLog, context.offeredQuestIds[i]) === expected) {
+      if (
+        statusMatches(
+          questDialogueStateOf(
+            context.questLog,
+            context.offeredQuestIds[i],
+            context.questsById,
+            context.playerLevel,
+            context.classId,
+          ),
+          expected,
+        )
+      ) {
         return true;
       }
     }
@@ -310,48 +353,28 @@ function expectedStatus(condition: DialogueCondition): string {
   return condition.status !== undefined && condition.status.length > 0 ? condition.status : "completed";
 }
 
-function offeredStatus(
-  log: DialogueEvalContext["questLog"] | InteractionInput["questLog"],
-  questId: string,
-): string {
-  const status = questStatusOf(log, questId);
-  if (status !== "accepted") {
-    return status;
+function statusMatches(actual: string, expected: string): boolean {
+  if (actual === expected) {
+    return true;
   }
-  if (objectivesReady(log, questId)) {
-    return "ready";
+  if (expected === "accepted" && actual === "in_progress") {
+    return true;
   }
-  return "accepted";
+  if (expected === "not_started" && (actual === "available" || actual === "prerequisite_missing")) {
+    return true;
+  }
+  return false;
 }
 
-function questStatusOf(
+function questDialogueStateOf(
   log: DialogueEvalContext["questLog"] | InteractionInput["questLog"],
   questId: string,
+  questsById: DialogueEvalContext["questsById"] | InteractionInput["questsById"],
+  playerLevel: number | undefined,
+  classId: string | undefined,
 ): string {
-  if (log === undefined || log.quests[questId] === undefined) {
-    return "not_started";
-  }
-  return log.quests[questId].status;
-}
-
-function objectivesReady(
-  log: DialogueEvalContext["questLog"] | InteractionInput["questLog"],
-  questId: string,
-): boolean {
-  if (log === undefined || log.quests[questId] === undefined) {
-    return false;
-  }
-  const entry = log.quests[questId] as { status: string; objectives?: ReadonlyArray<{ current: number; required: number }> };
-  const objectives = entry.objectives;
-  if (!Array.isArray(objectives) || objectives.length === 0) {
-    return false;
-  }
-  for (let i = 0; i < objectives.length; i++) {
-    if (objectives[i].current < objectives[i].required) {
-      return false;
-    }
-  }
-  return true;
+  const definition = questsById !== undefined ? questsById[questId] : undefined;
+  return questDialogueState(questId, log, definition, playerLevel, classId);
 }
 
 function itemCountsOf(inventory: PlayerInventory | undefined): { [itemId: string]: number } {

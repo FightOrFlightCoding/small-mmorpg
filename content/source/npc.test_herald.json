@@ -13,21 +13,7 @@
   "services": [
     { "type": "dialogue" },
     {
-      "type": "quest_offer",
-      "questIds": [
-        "quest.test.talk",
-        "quest.test.kill",
-        "quest.test.collect",
-        "quest.test.main_chain",
-        "quest.test.boss",
-        "quest.test.enter",
-        "quest.test.gated",
-        "quest.test.reward",
-        "quest.test.party_kill"
-      ]
-    },
-    {
-      "type": "quest_turn_in",
+      "type": "offer_and_turn_in",
       "questIds": [
         "quest.test.talk",
         "quest.test.kill",

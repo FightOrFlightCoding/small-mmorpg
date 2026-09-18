@@ -129,8 +129,8 @@ OPCODE_KEYS[ClientOpcode.INTERACT] = ["targetId"];
 OPCODE_KEYS[ClientOpcode.ATTACK] = ["targetId"];
 OPCODE_KEYS[ClientOpcode.PICKUP] = ["lootId"];
 OPCODE_KEYS[ClientOpcode.EQUIP] = ["instanceId", "slot"];
-OPCODE_KEYS[ClientOpcode.QUEST_ACCEPT] = ["questId"];
-OPCODE_KEYS[ClientOpcode.QUEST_TURN_IN] = ["questId", "npcId"];
+OPCODE_KEYS[ClientOpcode.QUEST_ACCEPT] = ["interactionSessionId", "npcInstanceId", "questId"];
+OPCODE_KEYS[ClientOpcode.QUEST_TURN_IN] = ["interactionSessionId", "npcInstanceId", "questId"];
 OPCODE_KEYS[ClientOpcode.RESYNC_REQUEST] = [];
 OPCODE_KEYS[ClientOpcode.ALLOCATE_ATTRIBUTES] = ["attributeId", "statId", "amount"];
 OPCODE_KEYS[ClientOpcode.DESTROY_ITEM] = ["instanceId", "quantity"];
@@ -699,6 +699,7 @@ export function questState(
   contentHash: string,
   quests: { [key: string]: unknown }[],
   requestId?: string,
+  npcQuestMarkers?: { npcId: string; marker: string }[],
 ): { opcode: number; body: string } {
   const payload: { [key: string]: unknown } = {
     protocolVersion: PROTOCOL_VERSION,
@@ -707,6 +708,9 @@ export function questState(
   };
   if (requestId !== undefined) {
     payload.requestId = requestId;
+  }
+  if (npcQuestMarkers !== undefined) {
+    payload.npcQuestMarkers = npcQuestMarkers;
   }
   return {
     opcode: ServerOpcode.QUEST_STATE,

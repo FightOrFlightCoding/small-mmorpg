@@ -93,7 +93,19 @@ export interface EquipmentSlotDef {
 }
 
 export interface NpcServiceDef {
-  type: "dialogue" | "quest_offer" | "quest_turn_in" | "vendor" | "inn" | "healer" | "cave_entrance" | "cave_exit" | "respec";
+  type:
+    | "dialogue"
+    | "quest_offer"
+    | "quest_turn_in"
+    | "offer"
+    | "turn_in"
+    | "offer_and_turn_in"
+    | "vendor"
+    | "inn"
+    | "healer"
+    | "cave_entrance"
+    | "cave_exit"
+    | "respec";
   questIds?: string[];
   vendorId?: string;
   goldCost?: number;

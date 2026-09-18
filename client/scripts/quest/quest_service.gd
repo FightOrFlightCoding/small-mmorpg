@@ -6,6 +6,7 @@ signal quests_changed
 
 var _quests: Dictionary = {}
 var _speaker_npc_id: String = ""
+var _markers: Dictionary = {}
 
 
 func _ready() -> void:
@@ -19,6 +20,7 @@ func _ready() -> void:
 
 func reset() -> void:
 	_quests.clear()
+	_markers.clear()
 	_speaker_npc_id = ""
 	quests_changed.emit()
 
@@ -40,16 +42,43 @@ func apply_quests(quests: Array) -> void:
 	quests_changed.emit()
 
 
-func request_accept(quest_id: String) -> void:
+func apply_markers(markers: Array) -> void:
+	_markers.clear()
+	for entry in markers:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var row: Dictionary = entry
+		var npc_id := String(row.get("npcId", ""))
+		var glyph := String(row.get("marker", ""))
+		if npc_id.is_empty() or glyph.is_empty():
+			continue
+		_markers[npc_id] = glyph
+	quests_changed.emit()
+
+
+func marker_for(npc_id: String) -> String:
+	return String(_markers.get(npc_id, ""))
+
+
+func marker_payload() -> Array:
+	var rows: Array = []
+	var ids: Array = _markers.keys()
+	ids.sort()
+	for npc_id in ids:
+		rows.append({"npcId": String(npc_id), "marker": String(_markers[npc_id])})
+	return rows
+
+
+func request_accept(quest_id: String, session_id: String = "", npc_instance_id: String = "") -> void:
 	if quest_id.is_empty():
 		return
-	NetworkService.send_quest_accept(quest_id)
+	NetworkService.send_quest_accept(quest_id, "", session_id, npc_instance_id)
 
 
-func request_turn_in(quest_id: String, npc_id: String) -> void:
+func request_turn_in(quest_id: String, npc_id: String, session_id: String = "") -> void:
 	if quest_id.is_empty() or npc_id.is_empty():
 		return
-	NetworkService.send_quest_turn_in(quest_id, npc_id)
+	NetworkService.send_quest_turn_in(quest_id, npc_id, "", session_id)
 
 
 func set_speaker(npc_id: String) -> void:
@@ -61,20 +90,21 @@ func speaker_npc_id() -> String:
 
 
 func offered_quest_id(npc_id: String = "") -> String:
-	return _quest_id_from_service(npc_id, "quest_offer")
+	return _quest_id_from_service(npc_id, "offer")
 
 
 func turn_in_quest_id(npc_id: String = "") -> String:
-	return _quest_id_from_service(npc_id, "quest_turn_in")
+	return _quest_id_from_service(npc_id, "turn_in")
 
 
-func request_accept_offered() -> void:
-	request_accept(offered_quest_id())
+func request_accept_offered(session_id: String = "", npc_instance_id: String = "") -> void:
+	var npc_id := npc_instance_id if not npc_instance_id.is_empty() else _resolved_npc_id("")
+	request_accept(offered_quest_id(npc_id), session_id, npc_id)
 
 
-func request_turn_in_offered() -> void:
-	var npc_id := _resolved_npc_id("")
-	request_turn_in(turn_in_quest_id(npc_id), npc_id)
+func request_turn_in_offered(session_id: String = "", npc_instance_id: String = "") -> void:
+	var npc_id := npc_instance_id if not npc_instance_id.is_empty() else _resolved_npc_id("")
+	request_turn_in(turn_in_quest_id(npc_id), npc_id, session_id)
 
 
 func is_accepted_offered() -> bool:
@@ -213,7 +243,7 @@ func _resolved_npc_id(npc_id: String) -> String:
 	return _speaker_npc_id
 
 
-func _quest_id_from_service(npc_id: String, service_type: String) -> String:
+func _quest_id_from_service(npc_id: String, role: String) -> String:
 	var definition: Dictionary = ContentRegistry.get_by_id(_resolved_npc_id(npc_id))
 	if definition.is_empty():
 		return ""
@@ -223,7 +253,8 @@ func _quest_id_from_service(npc_id: String, service_type: String) -> String:
 	for entry in services:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
-		if String(entry.get("type", "")) != service_type:
+		var service_type := String(entry.get("type", ""))
+		if not _service_matches_role(service_type, role):
 			continue
 		var ids: Variant = entry.get("questIds", [])
 		if typeof(ids) != TYPE_ARRAY or ids.is_empty():
@@ -232,15 +263,29 @@ func _quest_id_from_service(npc_id: String, service_type: String) -> String:
 	return ""
 
 
+func _service_matches_role(service_type: String, role: String) -> bool:
+	if role == "offer":
+		return service_type == "quest_offer" or service_type == "offer" or service_type == "offer_and_turn_in"
+	if role == "turn_in":
+		return service_type == "quest_turn_in" or service_type == "turn_in" or service_type == "offer_and_turn_in"
+	return service_type == role
+
+
 func _on_zone_state_updated() -> void:
 	if not AppState.zone_view_is_full:
 		return
 	var quests: Variant = AppState.zone_view.get("quests", [])
 	if typeof(quests) == TYPE_ARRAY:
 		apply_quests(quests)
+	var markers: Variant = AppState.zone_view.get("npc_quest_markers", [])
+	if typeof(markers) == TYPE_ARRAY:
+		apply_markers(markers)
 
 
 func _on_quest_state(payload: Dictionary) -> void:
 	var quests: Variant = payload.get("quests", [])
 	if typeof(quests) == TYPE_ARRAY:
 		apply_quests(quests)
+	var markers: Variant = payload.get("npc_quest_markers", [])
+	if typeof(markers) == TYPE_ARRAY:
+		apply_markers(markers)

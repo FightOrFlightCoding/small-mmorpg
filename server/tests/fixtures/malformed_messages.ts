@@ -109,6 +109,8 @@ export const MALFORMED_MESSAGE_FIXTURES: MalformedFixture[] = [
     raw: envelope({
       protocolVersion: PROTOCOL_VERSION,
       questId: "quest.slime_problem",
+      interactionSessionId: "sess-quest-status1",
+      npcInstanceId: "npc.elder",
       requestId: "req-quest-status1",
       status: "completed",
     }),
@@ -120,7 +122,8 @@ export const MALFORMED_MESSAGE_FIXTURES: MalformedFixture[] = [
     raw: envelope({
       protocolVersion: PROTOCOL_VERSION,
       questId: "quest.slime_problem",
-      npcId: "npc.elder",
+      interactionSessionId: "sess-quest-complete1",
+      npcInstanceId: "npc.elder",
       requestId: "req-quest-complete1",
       questComplete: true,
     }),

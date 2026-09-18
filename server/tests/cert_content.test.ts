@@ -12,10 +12,12 @@ import {
 } from "../src/domain/match_state";
 import { emptyQuestLog, questDefinitionsFromContent } from "../src/domain/quest";
 import { npcDefinitionsFromContent } from "../src/domain/npc";
+import { dialogueDefinitionsFromContent } from "../src/domain/dialogue";
 import { vendorDefinitionsFromContent } from "../src/domain/vendor";
 import { emptyInventory, itemDefinitionsFromContent } from "../src/domain/inventory";
 import { emptyEquipment } from "../src/domain/equipment";
 import { ClientOpcode, PROTOCOL_VERSION, ServerOpcode } from "../src/domain/protocol";
+import { acceptMessage, openNpcSession, turnInMessage } from "./npc_session";
 
 function envelope(extra: { [key: string]: unknown } = {}): string {
   const body: { [key: string]: unknown } = { protocolVersion: PROTOCOL_VERSION };
@@ -46,6 +48,7 @@ function certZone(): StarterZoneState {
     {
       npcsById: npcDefinitionsFromContent(content.npcs),
       vendorsById: vendorDefinitionsFromContent(content.vendors),
+      dialoguesById: dialogueDefinitionsFromContent(content.dialogues),
     },
   );
 }
@@ -107,12 +110,9 @@ test("content-only cert pack is present without new protocol ids", () => {
 test("content-only cert scout quest completes through existing opcodes", () => {
   const giver = npcPos("npc.cert_quartermaster");
   let state = addPlayer(certZone(), playerAt(giver.x, giver.y, 0));
-  const accepted = applyMatchLoop(state, 2, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_ACCEPT,
-      raw: envelope({ questId: "quest.cert_scout", requestId: "req-cert-accept01" }),
-      userId: "user-alice",
-    },
+  const opened = openNpcSession(state, "user-alice", "npc.cert_quartermaster", 1, "req-cert-intacc");
+  const accepted = applyMatchLoop(opened.state, 2, contentHash, [
+    acceptMessage("user-alice", "quest.cert_scout", opened.sessionId, opened.npcInstanceId, "req-cert-accept01"),
   ]);
   assert.equal(actions(accepted)[0].ok, true);
   state = accepted.state;
@@ -145,22 +145,15 @@ test("content-only cert scout quest completes through existing opcodes", () => {
   assert.equal(quest.objectives[0].current, 1);
   state.players["user-alice"].x = giver.x;
   state.players["user-alice"].y = giver.y;
-  const turned = applyMatchLoop(state, tick + 2, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_TURN_IN,
-      raw: envelope({ questId: "quest.cert_scout", npcId: "npc.cert_quartermaster", requestId: "req-cert-turnin01" }),
-      userId: "user-alice",
-    },
+  const ready = openNpcSession(state, "user-alice", "npc.cert_quartermaster", tick + 1, "req-cert-inttn");
+  const turned = applyMatchLoop(ready.state, tick + 2, contentHash, [
+    turnInMessage("user-alice", "quest.cert_scout", ready.sessionId, ready.npcInstanceId, "req-cert-turnin01"),
   ]);
   assert.equal(actions(turned)[0].ok, true);
   assert.equal(turned.state.players["user-alice"].questLog.quests["quest.cert_scout"].status, "completed");
   assert.equal(turned.state.players["user-alice"].gold, 4);
   const replay = applyMatchLoop(turned.state, tick + 4, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_TURN_IN,
-      raw: envelope({ questId: "quest.cert_scout", npcId: "npc.cert_quartermaster", requestId: "req-cert-turnin02" }),
-      userId: "user-alice",
-    },
+    turnInMessage("user-alice", "quest.cert_scout", ready.sessionId, ready.npcInstanceId, "req-cert-turnin02"),
   ]);
   assert.equal(actions(replay)[0].ok, false);
   assert.equal(actions(replay)[0].code, "already_completed");

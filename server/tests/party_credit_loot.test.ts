@@ -13,6 +13,8 @@ import {
 } from "../src/domain/match_state";
 import { emptyQuestLog, questDefinitionsFromContent } from "../src/domain/quest";
 import { emptyInventory, itemDefinitionsFromContent } from "../src/domain/inventory";
+import { npcDefinitionsFromContent } from "../src/domain/npc";
+import { dialogueDefinitionsFromContent } from "../src/domain/dialogue";
 import { abilityDefinitionsFromContent } from "../src/domain/ability";
 import { spawnDefinitionsFromContent } from "../src/domain/spawn_controller";
 import { aiProfilesFromContent } from "../src/domain/threat";
@@ -23,6 +25,7 @@ import { ClientOpcode, PROTOCOL_VERSION } from "../src/domain/protocol";
 import { initializeProgression } from "../src/domain/progression";
 import { catalogFromContent } from "../src/domain/stats";
 import { defaultGroupCreditRules } from "../src/domain/party";
+import { acceptMessage, openNpcSession } from "./npc_session";
 
 function catalogZone(): StarterZoneState {
   const state = createStarterZoneState(
@@ -47,6 +50,8 @@ function catalogZone(): StarterZoneState {
       aiProfilesById: aiProfilesFromContent(content.aiProfiles),
       lootTablesById: lootTablesFromContent(content.lootTables),
       groupCreditRules: defaultGroupCreditRules(),
+      npcsById: npcDefinitionsFromContent(content.npcs),
+      dialoguesById: dialogueDefinitionsFromContent(content.dialogues),
     },
   );
   state.progressionCatalog = catalogFromContent(content);
@@ -138,19 +143,13 @@ test("group quest credit applies party-share objectives to eligible members", ()
   let state = addPlayer(catalogZone(), playerAt("user-alice", "Alice", herald.x, herald.y));
   state = addPlayer(state, playerAt("user-bob", "Bob", herald.x, herald.y));
   state = withParty(state, ["user-alice", "user-bob"]);
-  state = applyMatchLoop(state, 2, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_ACCEPT,
-      raw: envelope({ questId: "quest.test.party_kill", requestId: "req-pkill-a1" }),
-      userId: "user-alice",
-    },
+  const aliceOpened = openNpcSession(state, "user-alice", "npc.test_herald", 1, "req-pkill-aint");
+  state = applyMatchLoop(aliceOpened.state, 2, contentHash, [
+    acceptMessage("user-alice", "quest.test.party_kill", aliceOpened.sessionId, aliceOpened.npcInstanceId, "req-pkill-a1"),
   ]).state;
-  state = applyMatchLoop(state, 3, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_ACCEPT,
-      raw: envelope({ questId: "quest.test.party_kill", requestId: "req-pkill-b1" }),
-      userId: "user-bob",
-    },
+  const bobOpened = openNpcSession(state, "user-bob", "npc.test_herald", 3, "req-pkill-bint");
+  state = applyMatchLoop(bobOpened.state, 4, contentHash, [
+    acceptMessage("user-bob", "quest.test.party_kill", bobOpened.sessionId, bobOpened.npcInstanceId, "req-pkill-b1"),
   ]).state;
   state.players["user-alice"].x = spawn.x;
   state.players["user-alice"].y = spawn.y;

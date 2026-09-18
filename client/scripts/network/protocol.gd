@@ -152,6 +152,7 @@ static func parse_full_state(raw: String, expected_content_hash: String) -> Dict
 			"enemies": (parsed["enemies"] as Array).duplicate(true),
 			"loot": loot.duplicate(true),
 			"quests": _optional_array(parsed, "quests"),
+			"npc_quest_markers": _optional_array(parsed, "npcQuestMarkers"),
 			"inventory": _optional_inventory(parsed),
 			"equipment": _optional_equipment(parsed),
 			"derived": _optional_derived(parsed),
@@ -274,6 +275,7 @@ static func parse_quest_state(raw: String) -> Dictionary:
 		"ok": true,
 		"request_id": String(parsed.get("requestId", "")),
 		"quests": _optional_array(parsed, "quests"),
+		"npc_quest_markers": _optional_array(parsed, "npcQuestMarkers"),
 	}
 
 

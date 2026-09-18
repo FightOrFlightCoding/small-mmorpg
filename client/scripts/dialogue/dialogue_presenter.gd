@@ -57,9 +57,19 @@ func handle_interaction_result(result: Dictionary) -> bool:
 			_window.show_error(_npc_name(last_opened_npc_id), _error_message(result))
 			return false
 		return _present(last_opened_npc_id, result)
-	if not session_id.is_empty() and session_id == last_session_id and not bool(result.get("result_ok", false)):
-		_invalidate(String(result.get("code", "session_invalidated")))
-		return false
+	if not session_id.is_empty() and session_id == last_session_id:
+		var code := String(result.get("code", ""))
+		if not bool(result.get("result_ok", false)) and _is_session_terminal(code):
+			_invalidate(code)
+			return false
+		if bool(result.get("result_ok", false)) or not String(result.get("current_node_id", "")).is_empty():
+			var npc_id := last_opened_npc_id
+			if npc_id.is_empty():
+				npc_id = target_id
+			return _present(npc_id, result)
+		if not bool(result.get("result_ok", false)):
+			_invalidate(code)
+			return false
 	return false
 
 
@@ -79,7 +89,7 @@ func _present(npc_id: String, result: Dictionary) -> bool:
 	QuestService.set_speaker(npc_id)
 	last_opened_npc_id = npc_id
 	var session := String(result.get("interaction_session_id", last_session_id))
-	var is_new_session := open_count == 0 or session != last_session_id or not WindowManager.is_open(WindowManager.DIALOGUE)
+	var is_new_session := last_session_id.is_empty() or session != last_session_id
 	last_session_id = session
 	var node_id := String(result.get("current_node_id", ""))
 	var option_ids: Array = result.get("allowed_option_ids", [])
@@ -112,9 +122,9 @@ func _on_option(option_id: String) -> void:
 func _on_service(service_id: String) -> void:
 	match service_id:
 		"quest_offer":
-			QuestService.request_accept_offered()
+			QuestService.request_accept_offered(last_session_id, last_opened_npc_id)
 		"quest_turn_in":
-			QuestService.request_turn_in_offered()
+			QuestService.request_turn_in_offered(last_session_id, last_opened_npc_id)
 		"vendor":
 			VendorService.open_from_dialogue()
 		"inn":
@@ -253,3 +263,11 @@ func _error_message(result: Dictionary) -> String:
 			return "The conversation is no longer valid."
 		_:
 			return "The server rejected that interaction."
+
+
+func _is_session_terminal(code: String) -> bool:
+	match code:
+		"session_expired", "session_invalidated", "invalid_session", "out_of_range", "player_dead", "link_dead", "character_missing", "already_transferring":
+			return true
+		_:
+			return false

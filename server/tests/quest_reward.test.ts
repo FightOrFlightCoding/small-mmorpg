@@ -32,8 +32,11 @@ import {
   type StarterZoneState,
 } from "../src/domain/match_state";
 import { emptyQuestLog, questDefinitionsFromContent } from "../src/domain/quest";
+import { npcDefinitionsFromContent } from "../src/domain/npc";
+import { dialogueDefinitionsFromContent } from "../src/domain/dialogue";
 import { ClientOpcode, PROTOCOL_VERSION, ServerOpcode } from "../src/domain/protocol";
 import type { QuestRewardWrite, RewardCommitResult } from "../src/domain/quest_reward";
+import { acceptMessage, openNpcSession, turnInMessage } from "./npc_session";
 
 function ids(prefix = "id"): () => string {
   let n = 0;
@@ -64,6 +67,10 @@ function emptyZone(): StarterZoneState {
     },
     questDefinitionsFromContent(content.quests),
     itemsById(),
+    {
+      npcsById: npcDefinitionsFromContent(content.npcs),
+      dialoguesById: dialogueDefinitionsFromContent(content.dialogues),
+    },
   );
 }
 
@@ -117,26 +124,22 @@ function readyAlice(inventory?: PlayerInventory): StarterZoneState {
   const elder = elderPos();
   const bag = inventory !== undefined ? inventory : bagWith([{ itemId: "item.slime_gel", quantity: 1, instanceId: "gel-1" }]);
   let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", elder.x, elder.y, bag));
-  return applyMatchLoop(state, 2, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_ACCEPT,
-      raw: envelope({ questId: "quest.slime_problem", requestId: "req-accept-turnin1" }),
-      userId: "user-alice",
-    },
+  const opened = openNpcSession(state, "user-alice", "npc.elder", 1, "req-accept-int1");
+  return applyMatchLoop(opened.state, 2, contentHash, [
+    acceptMessage("user-alice", "quest.slime_problem", opened.sessionId, opened.npcInstanceId, "req-accept-turnin1"),
   ]).state;
 }
 
-function turnIn(userId: string, extra: { [key: string]: unknown } = {}) {
+function liveSession(state: StarterZoneState, userId: string) {
+  const session = state.players[userId].interactionSession;
   return {
-    opcode: ClientOpcode.QUEST_TURN_IN,
-    raw: envelope({
-      questId: "quest.slime_problem",
-      npcId: "npc.elder",
-      requestId: "req-turnin-1",
-      ...extra,
-    }),
-    userId: userId,
+    sessionId: session !== undefined ? session.sessionId : "",
+    npcInstanceId: session !== undefined ? session.npcInstanceId : "npc.elder",
   };
+}
+
+function turnIn(userId: string, extra: { [key: string]: unknown } = {}, sessionId = "", npcInstanceId = "npc.elder") {
+  return turnInMessage(userId, "quest.slime_problem", sessionId, npcInstanceId, String(extra.requestId !== undefined ? extra.requestId : "req-turnin-1"));
 }
 
 function actionCodes(result: ReturnType<typeof applyMatchLoop>) {
@@ -157,20 +160,35 @@ function walletPayloads(result: ReturnType<typeof applyMatchLoop>) {
     .map((item) => JSON.parse(item.body) as { gold: number });
 }
 
+function applyReadyTurnIn(extra: { [key: string]: unknown } = {}, inventory?: PlayerInventory, tick = 5) {
+  const state = readyAlice(inventory);
+  const sess = liveSession(state, "user-alice");
+  return applyMatchLoop(state, tick, contentHash, [
+    turnIn("user-alice", extra, sess.sessionId, sess.npcInstanceId),
+  ]);
+}
+
+function acceptElder(state: StarterZoneState, requestId: string, tick: number) {
+  const opened = openNpcSession(state, "user-alice", "npc.elder", tick, requestId + "int");
+  return applyMatchLoop(opened.state, tick + 1, contentHash, [
+    acceptMessage("user-alice", "quest.slime_problem", opened.sessionId, opened.npcInstanceId, requestId),
+  ]);
+}
+
+function turnLive(state: StarterZoneState, extra: { [key: string]: unknown } = {}) {
+  const sess = liveSession(state, "user-alice");
+  return turnIn("user-alice", extra, sess.sessionId, sess.npcInstanceId);
+}
+
 function itemCountOf(state: StarterZoneState, userId: string, itemId: string): number {
-  return countItem(state.players[userId].inventory, itemId);
+  const inventory = state.players[userId].inventory;
+  return countItem(inventory !== undefined ? inventory : emptyInventory(), itemId);
 }
 
 test("picking up slime gel advances the accepted quest objective", () => {
   const elder = elderPos();
   let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", elder.x, elder.y));
-  state = applyMatchLoop(state, 2, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_ACCEPT,
-      raw: envelope({ questId: "quest.slime_problem", requestId: "req-accept-progress1" }),
-      userId: "user-alice",
-    },
-  ]).state;
+  state = acceptElder(state, "req-accept-progress1", 1).state;
   state.loot.push({
     id: "loot-gel-1",
     itemId: "item.slime_gel",
@@ -198,22 +216,16 @@ test("picking up slime gel advances the accepted quest objective", () => {
 
 test("accepting with slime gel already owned sets the objective to required", () => {
   const elder = elderPos();
-  const state = addPlayer(
+  const openedState = addPlayer(
     emptyZone(),
     playerAt("user-alice", "Alice", elder.x, elder.y, bagWith([{ itemId: "item.slime_gel", quantity: 1, instanceId: "gel-owned" }])),
   );
-  const result = applyMatchLoop(state, 2, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_ACCEPT,
-      raw: envelope({ questId: "quest.slime_problem", requestId: "req-accept-ownedgel1" }),
-      userId: "user-alice",
-    },
-  ]);
+  const result = acceptElder(openedState, "req-accept-ownedgel1", 1);
   assert.equal(questPayloads(result)[0].quests[0].objectives[0].current, 1);
 });
 
 test("valid turn-in consumes gel, grants iron sword and 25 gold, and completes the quest", () => {
-  const result = applyMatchLoop(readyAlice(), 5, contentHash, [turnIn("user-alice")]);
+  const result = applyReadyTurnIn();
   assert.equal(actionCodes(result)[0].ok, true);
   assert.equal(actionCodes(result)[0].code, "ok");
   assert.equal(result.state.players["user-alice"].questLog.quests["quest.slime_problem"].status, "completed");
@@ -237,16 +249,10 @@ test("turn-in too far from elder is out_of_range", () => {
     emptyZone(),
     playerAt("user-alice", "Alice", elder.x, elder.y, bagWith([{ itemId: "item.slime_gel", quantity: 1, instanceId: "gel-1" }])),
   );
-  state = applyMatchLoop(state, 2, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_ACCEPT,
-      raw: envelope({ questId: "quest.slime_problem", requestId: "req-accept-far1" }),
-      userId: "user-alice",
-    },
-  ]).state;
+  state = acceptElder(state, "req-accept-far1", 1).state;
   state.players["user-alice"].x = spawn.x;
   state.players["user-alice"].y = spawn.y;
-  const result = applyMatchLoop(state, 5, contentHash, [turnIn("user-alice")]);
+  const result = applyMatchLoop(state, 5, contentHash, [turnLive(state)]);
   assert.equal(actionCodes(result)[0].ok, false);
   assert.equal(actionCodes(result)[0].code, "out_of_range");
   assert.equal(itemCountOf(result.state, "user-alice", "item.slime_gel"), 1);
@@ -255,11 +261,14 @@ test("turn-in too far from elder is out_of_range", () => {
 
 test("turn-in without an accepted quest is invalid_id", () => {
   const elder = elderPos();
-  const state = addPlayer(
+  let state = addPlayer(
     emptyZone(),
     playerAt("user-alice", "Alice", elder.x, elder.y, bagWith([{ itemId: "item.slime_gel", quantity: 1, instanceId: "gel-1" }])),
   );
-  const result = applyMatchLoop(state, 5, contentHash, [turnIn("user-alice")]);
+  const opened = openNpcSession(state, "user-alice", "npc.elder", 4, "req-skip-int");
+  const result = applyMatchLoop(opened.state, 5, contentHash, [
+    turnIn("user-alice", {}, opened.sessionId, opened.npcInstanceId),
+  ]);
   assert.equal(actionCodes(result)[0].code, "invalid_id");
   assert.equal(result.state.players["user-alice"].gold, 0);
 });
@@ -267,14 +276,8 @@ test("turn-in without an accepted quest is invalid_id", () => {
 test("turn-in with incomplete objective is rejected", () => {
   const elder = elderPos();
   let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", elder.x, elder.y));
-  state = applyMatchLoop(state, 2, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_ACCEPT,
-      raw: envelope({ questId: "quest.slime_problem", requestId: "req-accept-incomplete1" }),
-      userId: "user-alice",
-    },
-  ]).state;
-  const result = applyMatchLoop(state, 5, contentHash, [turnIn("user-alice")]);
+  state = acceptElder(state, "req-accept-incomplete1", 1).state;
+  const result = applyMatchLoop(state, 5, contentHash, [turnLive(state)]);
   assert.equal(actionCodes(result)[0].code, "incomplete_objective");
   assert.equal(result.state.players["user-alice"].gold, 0);
 });
@@ -282,13 +285,13 @@ test("turn-in with incomplete objective is rejected", () => {
 test("turn-in with satisfied objective but missing gel is missing_item", () => {
   const state = readyAlice(initializeInventory(null, ids("sword")).inventory);
   state.players["user-alice"].questLog.quests["quest.slime_problem"].objectives[0].current = 1;
-  const result = applyMatchLoop(state, 5, contentHash, [turnIn("user-alice")]);
+  const result = applyMatchLoop(state, 5, contentHash, [turnLive(state)]);
   assert.equal(actionCodes(result)[0].code, "missing_item");
   assert.equal(itemCountOf(result.state, "user-alice", "item.iron_sword"), 0);
 });
 
 test("duplicate turn-in requestId does not grant again", () => {
-  const first = applyMatchLoop(readyAlice(), 5, contentHash, [turnIn("user-alice")]);
+  const first = applyReadyTurnIn();
   const replay = applyMatchLoop(first.state, 6, contentHash, [turnIn("user-alice")]);
   assert.equal(actionCodes(replay)[0].ok, true);
   assert.equal(actionCodes(replay)[0].code, "ok");
@@ -298,9 +301,9 @@ test("duplicate turn-in requestId does not grant again", () => {
 });
 
 test("repeated turn-in with a different requestId is already_completed", () => {
-  const first = applyMatchLoop(readyAlice(), 5, contentHash, [turnIn("user-alice")]);
+  const first = applyReadyTurnIn();
   const second = applyMatchLoop(first.state, 6, contentHash, [
-    turnIn("user-alice", { requestId: "req-turnin-2" }),
+    turnLive(first.state, { requestId: "req-turnin-2" }),
   ]);
   assert.equal(actionCodes(second)[0].ok, false);
   assert.equal(actionCodes(second)[0].code, "already_completed");
@@ -309,11 +312,12 @@ test("repeated turn-in with a different requestId is already_completed", () => {
 });
 
 test("failure during persistence leaves quest inventory and gold unchanged", () => {
+  const state = readyAlice();
   const result = applyMatchLoop(
-    readyAlice(),
+    state,
     5,
     contentHash,
-    [turnIn("user-alice")],
+    [turnLive(state)],
     undefined,
     function (): RewardCommitResult {
       return { ok: false, code: "persist_failed", gold: 0 };
@@ -329,19 +333,22 @@ test("failure during persistence leaves quest inventory and gold unchanged", () 
 });
 
 test("turn-in grants exactly one iron sword and 25 gold and consumes slime gel once", () => {
-  const result = applyMatchLoop(readyAlice(), 5, contentHash, [turnIn("user-alice")]);
+  const result = applyReadyTurnIn();
   const swords = result.state.players["user-alice"].inventory?.items.filter((item) => item.itemId === "item.iron_sword") ?? [];
   assert.equal(swords.length, 1);
   assert.equal(swords[0].quantity, 1);
   assert.equal(result.state.players["user-alice"].gold, 25);
   assert.equal(itemCountOf(result.state, "user-alice", "item.slime_gel"), 0);
-  const later = applyMatchLoop(result.state, 6, contentHash, [turnIn("user-alice"), turnIn("user-alice", { requestId: "req-turnin-2" })]);
+  const later = applyMatchLoop(result.state, 6, contentHash, [
+    turnIn("user-alice"),
+    turnLive(result.state, { requestId: "req-turnin-2" }),
+  ]);
   assert.equal(itemCountOf(later.state, "user-alice", "item.iron_sword"), 1);
   assert.equal(later.state.players["user-alice"].gold, 25);
 });
 
 test("quest stays permanently completed after reload", () => {
-  const result = applyMatchLoop(readyAlice(), 5, contentHash, [turnIn("user-alice")]);
+  const result = applyReadyTurnIn();
   const body = JSON.parse(buildFullState(result.state, 9, "user-alice"));
   assert.equal(body.quests[0].status, "completed");
   assert.equal(body.wallet.gold, 25);
@@ -350,7 +357,7 @@ test("quest stays permanently completed after reload", () => {
 });
 
 test("iron sword from turn-in can be equipped", () => {
-  const turnedIn = applyMatchLoop(readyAlice(), 5, contentHash, [turnIn("user-alice")]);
+  const turnedIn = applyReadyTurnIn();
   const inventory = turnedIn.state.players["user-alice"].inventory;
   const sword = inventory?.items.find((item) => item.itemId === "item.iron_sword");
   assert.equal(sword !== undefined, true);
@@ -367,7 +374,7 @@ test("iron sword from turn-in can be equipped", () => {
 });
 
 test("quest reward storage writes use multiUpdate with server-only permissions", () => {
-  const turnedIn = applyMatchLoop(readyAlice(), 5, contentHash, [turnIn("user-alice")]);
+  const turnedIn = applyReadyTurnIn();
   const request = turnedIn.persistRewards[0].request;
   const capturedWrites: nkruntime.StorageWriteRequest[] = [];
   const capturedWallets: nkruntime.WalletUpdate[] = [];
@@ -425,7 +432,7 @@ test("quest reward storage writes use multiUpdate with server-only permissions",
 });
 
 test("commitQuestReward does not grant when multiUpdate fails", () => {
-  const turnedIn = applyMatchLoop(readyAlice(), 5, contentHash, [turnIn("user-alice")]);
+  const turnedIn = applyReadyTurnIn();
   const request: QuestRewardWrite = turnedIn.persistRewards[0].request;
   const nk = {
     storageRead: function () {
@@ -448,30 +455,13 @@ test("turn-in that cannot grant the item leaves quest gold and inventory unchang
   const inventory = addOrStackItem(emptyInventory(1), "item.training_sword", 1, "sword-full", itemsById()["item.training_sword"]);
   const actor = playerAt("user-alice", "Alice", herald.x, herald.y, inventory);
   let state = addPlayer(emptyZone(), actor);
-  state = applyMatchLoop(state, 2, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_ACCEPT,
-      raw: envelope({ questId: "quest.test.reward", requestId: "req-accept-full01" }),
-      userId: "user-alice",
-    },
+  const opened = openNpcSession(state, "user-alice", "npc.test_herald", 1, "req-int-full0000");
+  state = applyMatchLoop(opened.state, 2, contentHash, [
+    acceptMessage("user-alice", "quest.test.reward", opened.sessionId, opened.npcInstanceId, "req-accept-full01"),
   ]).state;
-  state = applyMatchLoop(state, 3, contentHash, [
-    {
-      opcode: ClientOpcode.INTERACT,
-      raw: envelope({ targetId: "npc.test_herald", requestId: "req-int-full0001" }),
-      userId: "user-alice",
-    },
-  ]).state;
-  const result = applyMatchLoop(state, 5, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_TURN_IN,
-      raw: envelope({
-        questId: "quest.test.reward",
-        npcId: "npc.test_herald",
-        requestId: "req-turnin-full1",
-      }),
-      userId: "user-alice",
-    },
+  const talked = openNpcSession(state, "user-alice", "npc.test_herald", 3, "req-int-full0001");
+  const result = applyMatchLoop(talked.state, 5, contentHash, [
+    turnInMessage("user-alice", "quest.test.reward", talked.sessionId, talked.npcInstanceId, "req-turnin-full1"),
   ]);
   assert.equal(actionCodes(result)[0].ok, false);
   assert.equal(actionCodes(result)[0].code, "inventory_full");

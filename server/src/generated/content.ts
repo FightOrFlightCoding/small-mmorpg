@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "67ca46f20bd51fbe6981c38164c9844701183d27bfbc7ad378e8fc810404f9b4";
+export const contentHash = "5816b1a22b56865984192fd405c81490b0edcbcbb194790a34f63c9216409c25";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = ["dialogue.npc.lab_exit","dialogue.npc.lab_inn","dialogue.npc.lab_keeper","dialogue.npc.lab_trainer","dialogue.npc.lab_vendor","npc.lab_exit","npc.lab_inn","npc.lab_keeper","npc.lab_trainer","npc.lab_vendor","quest.lab_tour","spawn.lab.boss","spawn.lab.caster","spawn.lab.melee","spawn.lab.ranged","test.zone.systems_lab","vendor.lab_general"] as const;
 export const content = {
@@ -7080,21 +7080,7 @@ export const content = {
             "quest.test.reward",
             "quest.test.party_kill"
           ],
-          "type": "quest_offer"
-        },
-        {
-          "questIds": [
-            "quest.test.talk",
-            "quest.test.kill",
-            "quest.test.collect",
-            "quest.test.main_chain",
-            "quest.test.boss",
-            "quest.test.enter",
-            "quest.test.gated",
-            "quest.test.reward",
-            "quest.test.party_kill"
-          ],
-          "type": "quest_turn_in"
+          "type": "offer_and_turn_in"
         }
       ],
       "visualId": "visual.npc_herald",

@@ -41,6 +41,13 @@ func test_placeholder_square_name_marker_and_interaction_area() -> void:
 	assert_bool(avatar.contains_world_point(Vector2(1440 + 80, 1344))).is_false()
 	var sprite: Sprite2D = avatar.get_node("Sprite") as Sprite2D
 	assert_bool(sprite.visible).is_false()
+	var marker: Label = avatar.get_node("MarkerAnchor/MarkerLabel") as Label
+	assert_object(marker).is_not_null()
+	avatar.set_quest_marker("!")
+	assert_str(marker.text).is_equal("!")
+	assert_bool(marker.visible).is_true()
+	avatar.set_quest_marker("")
+	assert_bool(marker.visible).is_false()
 
 
 func test_entity_registry_spawns_generic_npc_from_content() -> void:

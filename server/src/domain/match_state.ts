@@ -3,6 +3,7 @@ import { PLAYER_HALF_EXTENT, SNAPSHOT_RATE_HZ, type Aabb } from "./movement";
 import {
   cloneQuestLog,
   emptyQuestLog,
+  publicNpcQuestMarkers,
   publicQuestPayloads,
   type QuestDefinition,
   type QuestLog,
@@ -650,6 +651,7 @@ export function buildFullState(state: StarterZoneState, tick: number, selfId: st
     enemies: enemiesList(state),
     loot: publicLoot(state.loot),
     quests: questsFor(state, selfId),
+    npcQuestMarkers: markersFor(state, selfId),
     inventory: inventoryFor(state, selfId),
     equipment: equipmentFor(state, selfId),
     derived: derivedFor(state, selfId),
@@ -1468,4 +1470,19 @@ function questsFor(state: StarterZoneState, selfId: string): { [key: string]: un
     return [];
   }
   return publicQuestPayloads(player.questLog, state.questsById);
+}
+
+function markersFor(state: StarterZoneState, selfId: string): { npcId: string; marker: string }[] {
+  const player = state.players[selfId];
+  if (player === undefined) {
+    return [];
+  }
+  return publicNpcQuestMarkers(
+    state.npcs,
+    state.npcsById,
+    player.questLog,
+    state.questsById,
+    player.progression !== undefined ? player.progression.level : 1,
+    player.classId,
+  );
 }

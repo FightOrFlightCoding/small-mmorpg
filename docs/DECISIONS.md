@@ -820,4 +820,16 @@ NPC-04 opens server-authoritative interaction sessions from the existing `INTERA
 
 Prompt 18 elder spoken lines, quest rewards, and merchant prices are unchanged. No new RPCs, storage collections, migrations, dependencies, or vendor addons.
 
+## 2026-09-18 — NPC-05 quest integration
+
+NPC-05 reuses the canonical quest engine. It does not add a second quest system.
+
+- `QUEST_ACCEPT` / `QUEST_TURN_IN` require `interactionSessionId`, `npcInstanceId`, `questId`, and `requestId`. A repeated successful `requestId` may replay without a live session.
+- NPC bindings `quest_offer` / `offer`, `quest_turn_in` / `turn_in`, and `offer_and_turn_in` are content data. The match validates that the session NPC offers or turns in that quest.
+- Dialogue states are `available`, `accepted`, `in_progress`, `ready`, `completed`, and `prerequisite_missing`. Accept and turn-in refresh `INTERACTION_RESULT` with the resolved node.
+- Character-specific markers `!` / `?` / `·` travel on `FULL_STATE` and `QUEST_STATE` only. Priority is ready, available, active incomplete, none.
+- Quest rewards stay on the existing transaction boundary. A new quest NPC is content-only.
+
+Prompt 18 elder spoken lines, slime rewards, and merchant prices are unchanged. No new RPCs, storage collections, migrations, dependencies, or vendor addons.
+
 

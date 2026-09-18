@@ -93,7 +93,10 @@ static func run(host: Node) -> Dictionary:
 	var interacted: Dictionary = await leader.interact(NPC_ID)
 	if not bool(interacted.get("result_ok", false)):
 		return _fail("interact:%s" % String(interacted.get("code", "failed")))
-	var accepted: Dictionary = await leader.send_action(MatchProtocol.CLIENT_QUEST_ACCEPT, {"questId": QUEST_ID})
+	var accepted: Dictionary = await leader.send_action(
+		MatchProtocol.CLIENT_QUEST_ACCEPT,
+		SliceJourney._quest_fields(leader, QUEST_ID)
+	)
 	if not bool(accepted.get("result_ok", false)):
 		return _fail("quest_accept:%s" % String(accepted.get("code", "failed")))
 	if not await SliceJourney._kill_slime(leader):
@@ -104,9 +107,12 @@ static func run(host: Node) -> Dictionary:
 	print("CERT step=loot")
 	if not await leader.walk_to(SliceJourney.approach_point(leader.self_pos(), elder, 24.0), 14.0, 20.0):
 		return _fail(leader.fail_reason)
+	var ready_interact: Dictionary = await leader.interact(NPC_ID)
+	if not bool(ready_interact.get("result_ok", false)):
+		return _fail("turn_in_interact:%s" % String(ready_interact.get("code", "failed")))
 	var turned: Dictionary = await leader.send_action(
 		MatchProtocol.CLIENT_QUEST_TURN_IN,
-		{"questId": QUEST_ID, "npcId": NPC_ID}
+		SliceJourney._quest_fields(leader, QUEST_ID)
 	)
 	if not bool(turned.get("result_ok", false)):
 		return _fail("turn_in:%s" % String(turned.get("code", "failed")))
