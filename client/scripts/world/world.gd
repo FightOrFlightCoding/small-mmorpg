@@ -411,7 +411,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			else:
 				AbilityService.cancel_targeting()
 			get_viewport().set_input_as_handled()
-		elif event.button_index == MOUSE_BUTTON_RIGHT:
+		elif event.is_action_pressed("interact_pointer"):
 			if try_interact_at(get_global_mouse_position()):
 				get_viewport().set_input_as_handled()
 		elif event.button_index == MOUSE_BUTTON_LEFT:

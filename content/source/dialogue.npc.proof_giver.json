@@ -1,0 +1,109 @@
+{
+  "id": "dialogue.npc.proof_giver",
+  "kind": "dialogue",
+  "displayName": "Proof Giver",
+  "displayNameKey": "dialogue.npc.proof_giver.name",
+  "startNodeId": "start",
+  "nodes": {
+    "start": {
+      "id": "start",
+      "lines": [
+        {
+          "text": "Bring me one proof token from the far-corner critter.",
+          "textKey": "dialogue.npc.proof_giver.start.0"
+        }
+      ],
+      "options": [
+        {
+          "id": "opt.not_now",
+          "text": "Not now.",
+          "nextNodeId": "farewell"
+        }
+      ]
+    },
+    "farewell": {
+      "id": "farewell",
+      "lines": [
+        {
+          "text": "The errand can wait.",
+          "textKey": "dialogue.npc.proof_giver.farewell.0"
+        }
+      ]
+    },
+    "in_progress": {
+      "id": "in_progress",
+      "lines": [
+        {
+          "text": "The proof token still sits on that critter.",
+          "textKey": "dialogue.npc.proof_giver.in_progress.0"
+        }
+      ]
+    },
+    "ready": {
+      "id": "ready",
+      "lines": [
+        {
+          "text": "That is the token. I will take it.",
+          "textKey": "dialogue.npc.proof_giver.ready.0"
+        }
+      ],
+      "options": [
+        {
+          "id": "opt.keep",
+          "text": "Keep it.",
+          "nextNodeId": "keep"
+        }
+      ]
+    },
+    "keep": {
+      "id": "keep",
+      "lines": [
+        {
+          "text": "Bring the token when you are ready.",
+          "textKey": "dialogue.npc.proof_giver.keep.0"
+        }
+      ]
+    },
+    "completed": {
+      "id": "completed",
+      "lines": [
+        {
+          "text": "The proof chain is done.",
+          "textKey": "dialogue.npc.proof_giver.completed.0"
+        }
+      ]
+    }
+  },
+  "entry": [
+    {
+      "nodeId": "completed",
+      "conditions": [
+        {
+          "type": "offered_quest_status",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "nodeId": "ready",
+      "conditions": [
+        {
+          "type": "offered_quest_status",
+          "status": "ready"
+        }
+      ]
+    },
+    {
+      "nodeId": "in_progress",
+      "conditions": [
+        {
+          "type": "offered_quest_status",
+          "status": "accepted"
+        }
+      ]
+    },
+    {
+      "nodeId": "start"
+    }
+  ]
+}

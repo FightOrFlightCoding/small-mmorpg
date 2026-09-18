@@ -114,6 +114,9 @@ export function applyUnexpectedDisconnect(state: StarterZoneState, userId: strin
   remaining.linkDead = true;
   remaining.linkDeadUntilTick = tick + LINK_DEAD_TICKS;
   interruptCast(remaining, "disconnected", tick, []);
+  if (remaining.interactionSession !== undefined) {
+    remaining.interactionSession.state = "invalidated";
+  }
   return {
     state: next,
     checkpoint: withBind(
@@ -414,6 +417,8 @@ export function prunePlayerRequestHistory(player: MatchPlayer, tick: number): Re
   const progressionChanged = player.progression !== undefined ? pruneProgressionHistory(player.progression, tick) : false;
   pruneAbilityUseHistory(player, tick);
   pruneInteractHistory(player, tick);
+  pruneDialogueChoiceHistory(player, tick);
+  pruneInteractionCloseHistory(player, tick);
   return {
     questsChanged: questsChanged,
     inventoryChanged: inventoryChanged,
@@ -458,6 +463,44 @@ function pruneInteractHistory(player: MatchPlayer, tick: number): void {
   }
   player.interactByRequestId = next;
   player.interactRequestTicks = pruned.ticks;
+}
+
+function pruneDialogueChoiceHistory(player: MatchPlayer, tick: number): void {
+  const map = dict(player.dialogueChoiceByRequestId);
+  const keys = Object.keys(map);
+  const pruned = pruneKeyedHistory(keys, player.dialogueChoiceRequestTicks, tick);
+  if (!pruned.changed) {
+    player.dialogueChoiceRequestTicks = pruned.ticks;
+    return;
+  }
+  const next: NonNullable<MatchPlayer["dialogueChoiceByRequestId"]> = {};
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    if (pruned.keep[key] === true && map[key] !== undefined) {
+      next[key] = map[key];
+    }
+  }
+  player.dialogueChoiceByRequestId = next;
+  player.dialogueChoiceRequestTicks = pruned.ticks;
+}
+
+function pruneInteractionCloseHistory(player: MatchPlayer, tick: number): void {
+  const map = dict(player.interactionCloseByRequestId);
+  const keys = Object.keys(map);
+  const pruned = pruneKeyedHistory(keys, player.interactionCloseRequestTicks, tick);
+  if (!pruned.changed) {
+    player.interactionCloseRequestTicks = pruned.ticks;
+    return;
+  }
+  const next: NonNullable<MatchPlayer["interactionCloseByRequestId"]> = {};
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    if (pruned.keep[key] === true && map[key] !== undefined) {
+      next[key] = map[key];
+    }
+  }
+  player.interactionCloseByRequestId = next;
+  player.interactionCloseRequestTicks = pruned.ticks;
 }
 
 function pruneQuestHistory(log: QuestLog, tick: number): boolean {

@@ -174,6 +174,12 @@ test("NPC routes, home bounds, and service references are validated", () => {
   assert.equal(payload.npcs["npc.elder"].homePosition.x, payload.npcs["npc.elder"].position.x);
   assert.equal(payload.npcs["npc.elder"].homePosition.y, payload.npcs["npc.elder"].position.y);
   assert.equal(payload.npcs["npc.elder"].dialogueId, "dialogue.npc.elder");
+  assert.equal(payload.dialogues["dialogue.npc.elder"].startNodeId, "start");
+  assert.equal(payload.dialogues["dialogue.npc.elder"].nodes.start.lines.length, 2);
+  assert.equal(payload.dialogues["dialogue.npc.test_herald"].nodes.start.lines.length, 1);
+  assert.ok(
+    (payload.dialogues["dialogue.npc.test_herald"].nodes.start.options ?? []).some((option) => option.id === "opt.hear_more"),
+  );
   assert.deepEqual(
     payload.npcs["npc.elder"].services.map((service: { type: string }) => service.type),
     ["dialogue", "quest_offer", "quest_turn_in"],
@@ -308,6 +314,34 @@ test("NPC routes, home bounds, and service references are validated", () => {
   }
   const questCodes = codesOf(() => validateDocuments(SCHEMA_DIR, missingQuest));
   assert.ok(questCodes.indexOf("missing_reference:quest.missing") !== -1);
+});
+
+test("dialogue graphs require lines, valid next nodes, and reject scripts", () => {
+  const payload = validateDocuments(SCHEMA_DIR, loadValid());
+  assert.equal(payload.dialogues["dialogue.npc.elder"].nodes.start.lines.length, 2);
+  assert.equal(payload.dialogues["dialogue.npc.test_innkeeper"].nodes.start.lines.length, 1);
+
+  const missingNext = clone(loadValid());
+  const herald = find(missingNext, "dialogue.npc.test_herald") as {
+    nodes: { [id: string]: { options?: Array<{ nextNodeId: string }> } };
+  };
+  const options = herald.nodes.start.options ?? [];
+  options[0].nextNodeId = "missing";
+  const nextCodes = codesOf(() => validateDocuments(SCHEMA_DIR, missingNext));
+  assert.ok(nextCodes.indexOf("missing_reference:missing") !== -1);
+
+  const scripted = clone(loadValid());
+  const elderDialogue = find(scripted, "dialogue.npc.elder") as {
+    nodes: { [id: string]: Record<string, unknown> };
+  };
+  elderDialogue.nodes.start.script = "QuestService.request_accept()";
+  const scriptCodes = codesOf(() => validateDocuments(SCHEMA_DIR, scripted));
+  assert.ok(scriptCodes.length > 0);
+
+  const missingDialogue = clone(loadValid());
+  find(missingDialogue, "npc.elder")["dialogueId"] = "dialogue.missing";
+  const missingCodes = codesOf(() => validateDocuments(SCHEMA_DIR, missingDialogue));
+  assert.ok(missingCodes.indexOf("missing_reference:dialogue.missing") !== -1);
 });
 
 test("broken references are rejected", () => {

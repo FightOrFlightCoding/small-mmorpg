@@ -55,6 +55,7 @@ export const DEFAULT_MANIFEST: ContentPackageManifest = {
     loot_table: { schema: "loot_table.json", definitionSchemaVersion: 1, idPrefix: "loot" },
     spawn: { schema: "spawn.json", definitionSchemaVersion: 1, idPrefix: "spawn" },
     vendor: { schema: "vendor.json", definitionSchemaVersion: 1, idPrefix: "vendor" },
+    dialogue: { schema: "dialogue_definition.json", definitionSchemaVersion: 1, idPrefix: "dialogue" },
   },
 };
 

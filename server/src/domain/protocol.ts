@@ -43,6 +43,8 @@ export const ClientOpcode = {
   ALLOCATE_ATTRIBUTES_BATCH: 36,
   TRAINER_RESPEC: 37,
   PURCHASE_TALENT: 38,
+  DIALOGUE_CHOOSE: 39,
+  INTERACTION_CLOSE: 40,
 } as const;
 
 export const ServerOpcode = {
@@ -105,6 +107,8 @@ const CLIENT_OPCODES: ClientOpcode[] = [
   ClientOpcode.ALLOCATE_ATTRIBUTES_BATCH,
   ClientOpcode.TRAINER_RESPEC,
   ClientOpcode.PURCHASE_TALENT,
+  ClientOpcode.DIALOGUE_CHOOSE,
+  ClientOpcode.INTERACTION_CLOSE,
 ];
 
 const REWARD_OPCODES: ClientOpcode[] = [
@@ -158,6 +162,8 @@ OPCODE_KEYS[ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS] = [];
 OPCODE_KEYS[ClientOpcode.ALLOCATE_ATTRIBUTES_BATCH] = ["allocations"];
 OPCODE_KEYS[ClientOpcode.TRAINER_RESPEC] = ["npcId"];
 OPCODE_KEYS[ClientOpcode.PURCHASE_TALENT] = ["treeId", "nodeId", "requestedRank"];
+OPCODE_KEYS[ClientOpcode.DIALOGUE_CHOOSE] = ["interactionSessionId", "optionId"];
+OPCODE_KEYS[ClientOpcode.INTERACTION_CLOSE] = ["interactionSessionId", "npcInstanceId"];
 
 const OUTCOME_KEYS = [
   "attack",
@@ -295,7 +301,9 @@ function requiresRequestId(opcode: ClientOpcode): boolean {
     opcode === ClientOpcode.SELECT_BRANCH ||
     opcode === ClientOpcode.SET_AUTO_ASSIGN ||
     opcode === ClientOpcode.AUTO_ASSIGN_UNSPENT_POINTS ||
-    opcode === ClientOpcode.PURCHASE_TALENT
+    opcode === ClientOpcode.PURCHASE_TALENT ||
+    opcode === ClientOpcode.DIALOGUE_CHOOSE ||
+    opcode === ClientOpcode.INTERACTION_CLOSE
   );
 }
 

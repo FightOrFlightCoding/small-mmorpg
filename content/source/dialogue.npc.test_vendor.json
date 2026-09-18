@@ -1,0 +1,34 @@
+{
+  "id": "dialogue.npc.test_vendor",
+  "kind": "dialogue",
+  "displayName": "Test Vendor",
+  "displayNameKey": "dialogue.npc.test_vendor.name",
+  "startNodeId": "start",
+  "nodes": {
+    "start": {
+      "id": "start",
+      "lines": [
+        {
+          "text": "I buy and sell ordinary goods. Prices are mine, not yours.",
+          "textKey": "dialogue.npc.test_vendor.start.0"
+        }
+      ],
+      "options": [
+        {
+          "id": "opt.not_now",
+          "text": "Not now.",
+          "nextNodeId": "farewell"
+        }
+      ]
+    },
+    "farewell": {
+      "id": "farewell",
+      "lines": [
+        {
+          "text": "Come back with coin.",
+          "textKey": "dialogue.npc.test_vendor.farewell.0"
+        }
+      ]
+    }
+  }
+}

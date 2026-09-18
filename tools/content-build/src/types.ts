@@ -166,6 +166,49 @@ export interface VendorDef {
   sellMultiplier: number;
 }
 
+export interface DialogueConditionDef {
+  type: "quest_status" | "offered_quest_status" | "min_level" | "class_id" | "has_item";
+  questId?: string;
+  status?: string;
+  minLevel?: number;
+  classId?: string;
+  itemId?: string;
+}
+
+export interface DialogueLineDef {
+  text: string;
+  textKey?: string;
+}
+
+export interface DialogueOptionDef {
+  id: string;
+  text: string;
+  textKey?: string;
+  nextNodeId: string;
+  conditions?: DialogueConditionDef[];
+}
+
+export interface DialogueNodeDef {
+  id: string;
+  lines: DialogueLineDef[];
+  options?: DialogueOptionDef[];
+}
+
+export interface DialogueEntryDef {
+  nodeId: string;
+  conditions?: DialogueConditionDef[];
+}
+
+export interface DialogueDef {
+  id: string;
+  kind: "dialogue";
+  displayName?: string;
+  displayNameKey?: string;
+  startNodeId: string;
+  entry?: DialogueEntryDef[];
+  nodes: Record<string, DialogueNodeDef>;
+}
+
 export interface EnemyDef {
   id: string;
   kind: "enemy";
@@ -779,6 +822,7 @@ export interface ContentPayload {
   spawns: Record<string, SpawnDef>;
   vendors: Record<string, VendorDef>;
   npcRoutes: Record<string, NpcRouteDef>;
+  dialogues: Record<string, DialogueDef>;
 }
 
 export interface ContentBundle extends ContentPayload {

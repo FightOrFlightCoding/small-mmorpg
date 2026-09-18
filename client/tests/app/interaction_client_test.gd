@@ -8,6 +8,7 @@ func before_test() -> void:
 	AppState.reset_for_tests()
 	NetworkService.reset_for_tests()
 	QuestService.reset_for_tests()
+	WindowManager.reset_for_tests()
 	assert_bool(ContentRegistry.load_bundle()).is_true()
 
 
@@ -156,3 +157,76 @@ func test_nearby_npc_click_pick_uses_server_range() -> void:
 	assert_str(InteractIntent.npc_id_at(Vector2(160, 320), Vector2(160, 320), elder)).is_equal("npc.elder")
 	assert_str(InteractIntent.npc_id_at(Vector2(160, 320), Vector2(240, 384), elder)).is_equal("")
 	assert_str(InteractIntent.npc_id_at(Vector2(400, 400), Vector2(160, 320), elder)).is_equal("")
+
+
+func test_interact_pointer_defaults_to_right_mouse() -> void:
+	InputSettingsService.ensure_actions()
+	assert_bool(InputMap.has_action("interact_pointer")).is_true()
+	var found := false
+	for event in InputMap.action_get_events("interact_pointer"):
+		if event is InputEventMouseButton and int((event as InputEventMouseButton).button_index) == MOUSE_BUTTON_RIGHT:
+			found = true
+	assert_bool(found).is_true()
+
+
+func test_interaction_window_loading_error_and_present() -> void:
+	var window: NpcInteractionWindow = auto_free(NpcInteractionWindow.new())
+	add_child(window)
+	await get_tree().process_frame
+	window.show_loading("Elder")
+	assert_bool(window.is_open()).is_true()
+	assert_bool(window.is_loading()).is_true()
+	window.show_error("Elder", "You are too far away.")
+	assert_bool(window.is_loading()).is_false()
+	assert_str(window._status.text).is_equal("You are too far away.")
+	window.present({
+		"npc_id": "npc.elder",
+		"npc_name": "Elder",
+		"interaction_session_id": "sess-window-1",
+		"current_node_id": "start",
+		"text": "Hello.\nNeed anything?",
+		"options": [{"id": "opt.hear_more", "text": "What do you keep?"}],
+		"services": ["quest_offer"],
+	})
+	assert_int(window._options.get_child_count()).is_equal(1)
+	assert_int(window._services.get_child_count()).is_equal(1)
+	window.close_window()
+	assert_bool(window.is_open()).is_false()
+
+
+func test_interaction_window_and_presenter_do_not_duplicate_signals() -> void:
+	var presenter: DialoguePresenter = auto_free(DialoguePresenter.new())
+	add_child(presenter)
+	await get_tree().process_frame
+	presenter._ensure_window()
+	presenter._ensure_window()
+	assert_int(presenter._window.option_chosen.get_connections().size()).is_equal(1)
+	assert_int(presenter._window.service_chosen.get_connections().size()).is_equal(1)
+	assert_int(presenter._window.close_requested.get_connections().size()).is_equal(1)
+	var opened := 0
+	presenter.dialogue_opened.connect(func(_npc_id: String) -> void:
+		opened += 1
+	)
+	presenter.note_intent("npc.elder", "req-dup-1")
+	var payload := {
+		"result_ok": true,
+		"code": "ok",
+		"request_id": "req-dup-1",
+		"target_id": "npc.elder",
+		"dialogue_id": "dialogue.npc.elder",
+		"interaction_session_id": "sess-dup-1",
+		"current_node_id": "start",
+		"allowed_option_ids": ["opt.not_now"],
+		"available_service_ids": ["quest_offer"],
+	}
+	assert_bool(presenter.handle_interaction_result(payload)).is_true()
+	assert_bool(presenter.handle_interaction_result({
+		"result_ok": true,
+		"code": "ok",
+		"request_id": "req-other",
+		"target_id": "npc.elder",
+		"interaction_session_id": "sess-dup-1",
+		"current_node_id": "start",
+	})).is_false()
+	assert_int(opened).is_equal(1)
+	assert_int(presenter.open_count).is_equal(1)

@@ -22,7 +22,7 @@ Match and RPC payloads for the slice are JSON objects.
 - Envelopes are UTF-8 JSON.
 - Strict client intentions reject unknown fields.
 - Client→server match payloads are rejected above **2048** bytes (`payload_too_large`).
-- Limits: `INPUT` **20**, `ATTACK`/`USE_ABILITY`/`CANCEL_CAST`/`SET_TARGET` **8**, `INTERACT` **8**, `PICKUP` **8**, `DESTROY_ITEM`/`SPLIT_STACK`/`MOVE_ITEM` **8**, `EQUIP` **8**, `QUEST_ACCEPT`+`QUEST_TURN_IN` **8**, `VENDOR_BUY`+`VENDOR_SELL`+`INN_REST` **8**, `CAVE_ENTER`+`CAVE_EXIT` **8**, trade opcodes **8**, `ALLOCATE_ATTRIBUTES`/`ALLOCATE_ATTRIBUTES_BATCH`/`TRAINER_RESPEC`/`PURCHASE_TALENT`/`ASSIGN_HOTBAR`/`UNLOCK_ABILITY`/`RELEASE_RESPAWN`/`RETURN_TO_CHARACTER_SELECT`/`SELECT_BRANCH`/`SET_AUTO_ASSIGN`/`AUTO_ASSIGN_UNSPENT_POINTS` **8**, `RESYNC_REQUEST` **2**. Extra requests are `rate_limited` (`SYSTEM_MESSAGE`), are logged, and do not apply. At most **24** match messages are parsed per player per tick. Session limits: auth **5 / 10 s**, chat **4 / 2 s**, mutating party RPCs **8 / 2 s** (`party_get_state` exempt).
+- Limits: `INPUT` **20**, `ATTACK`/`USE_ABILITY`/`CANCEL_CAST`/`SET_TARGET` **8**, `INTERACT`/`DIALOGUE_CHOOSE`/`INTERACTION_CLOSE` **8**, `PICKUP` **8**, `DESTROY_ITEM`/`SPLIT_STACK`/`MOVE_ITEM` **8**, `EQUIP` **8**, `QUEST_ACCEPT`+`QUEST_TURN_IN` **8**, `VENDOR_BUY`+`VENDOR_SELL`+`INN_REST` **8**, `CAVE_ENTER`+`CAVE_EXIT` **8**, trade opcodes **8**, `ALLOCATE_ATTRIBUTES`/`ALLOCATE_ATTRIBUTES_BATCH`/`TRAINER_RESPEC`/`PURCHASE_TALENT`/`ASSIGN_HOTBAR`/`UNLOCK_ABILITY`/`RELEASE_RESPAWN`/`RETURN_TO_CHARACTER_SELECT`/`SELECT_BRANCH`/`SET_AUTO_ASSIGN`/`AUTO_ASSIGN_UNSPENT_POINTS` **8**, `RESYNC_REQUEST` **2**. Extra requests are `rate_limited` (`SYSTEM_MESSAGE`), are logged, and do not apply. At most **24** match messages are parsed per player per tick. Session limits: auth **5 / 10 s**, chat **4 / 2 s**, mutating party RPCs **8 / 2 s** (`party_get_state` exempt).
 - `FULL_STATE` / `SNAPSHOT` require the documented fields. `SNAPSHOT` is broadcast at **10 Hz** (the match tick rate) while the zone is occupied.
 
 ## Opcodes
@@ -32,7 +32,7 @@ Match and RPC payloads for the slice are JSON objects.
 | Opcode | Name | Body | Notes |
 | --- | --- | --- | --- |
 | 1 | `INPUT` | `{ protocolVersion, seq, axisX, axisY }` | Direction and sequence only. `seq` is a finite integer. Axes are finite numbers. Position, speed, and dt are rejected. |
-| 2 | `INTERACT` | `{ protocolVersion, targetId, requestId }` | Correlation `requestId` required. Server checks NPC existence, server-side distance vs per-NPC `interactionRange` (fallback `player.base.interactionRange`), zone, and live health. Returns `INTERACTION_RESULT` (optional `dialogueId`, `services`, `context`). |
+| 2 | `INTERACT` | `{ protocolVersion, targetId, requestId }` | Correlation `requestId` required. `targetId` is the NPC instance id. Server checks ownership, account/match presence, alive, not link-dead, not transferring, NPC existence, server-side distance vs per-NPC `interactionRange` (fallback `player.base.interactionRange`), and rate limit, then opens a short-lived interaction session. Returns `INTERACTION_RESULT` (optional `dialogueId`, `services`, `interactionSessionId`, `currentNodeId`, `allowedOptionIds`, `availableServiceIds`, `expiresAtTick`, `context`). |
 | 3 | `ATTACK` | `{ protocolVersion, targetId, requestId }` | Correlation `requestId` required. When the match has a catalog `basicAbilityId` unlocked, this opcode uses that ability (range, cooldown, and `direct_damage` from content). Otherwise Prompt 18 `applyPlayerAttack` (`player.base.attackRange` / `attackCooldown`, derived attack). Client `damage` / `attack` / `xp` / `crit` / `critRoll` / `random` / `roll` are rejected. Returns `ACTION_RESULT` plus `COMBAT_EVENT` on a hit. |
 | 4 | `PICKUP` | `{ protocolVersion, lootId, requestId }` | Reward opcode. `requestId` required. |
 | 5 | `EQUIP` | `{ protocolVersion, instanceId?, slot, requestId }` | Equip or unequip a content-defined slot (`main_hand`, `off_hand`, `head`, `chest`, `legs`, `feet` in the current catalog). Omit `instanceId` to unequip. `requestId` required. Client `attack` / `attackBonus` are rejected. |
@@ -69,6 +69,8 @@ Match and RPC payloads for the slice are JSON objects.
 | 36 | `ALLOCATE_ATTRIBUTES_BATCH` | `{ protocolVersion, allocations, requestId }` | Confirmed multi-stat spend. Server validates the whole batch, then applies atomically. |
 | 37 | `TRAINER_RESPEC` | `{ protocolVersion, npcId, requestId }` | Trainer NPC respec. Gold `50 × level`. Client never sends gold, XP, or respec outcomes. |
 | 38 | `PURCHASE_TALENT` | `{ protocolVersion, treeId, nodeId, requestedRank, requestId }` | Spend a class or branch talent rank. Server owns pools, tiers, prerequisites, and derived ownership. Client never sends ranks or unlock lists as facts. |
+| 39 | `DIALOGUE_CHOOSE` | `{ protocolVersion, interactionSessionId, optionId, requestId }` | Advance a content-defined dialogue graph. Server validates the live session and option. |
+| 40 | `INTERACTION_CLOSE` | `{ protocolVersion, interactionSessionId, npcInstanceId, requestId }` | Close the caller's interaction session. Last close/expiry on an NPC resumes cosmetic movement. |
 
 `contentHash` is optional on client messages. If present it must match the server catalog.
 
@@ -84,7 +86,7 @@ Match and RPC payloads for the slice are JSON objects.
 | 104 | `COMBAT_EVENT` | `{ protocolVersion, tick, events }` |
 | 105 | `INVENTORY_STATE` | `{ protocolVersion, contentHash, requestId?, capacity, items }` |
 | 106 | `QUEST_STATE` | `{ protocolVersion, contentHash, requestId?, quests }` |
-| 107 | `INTERACTION_RESULT` | `{ protocolVersion, ok, code, requestId?, targetId?, dialogueId?, services?, context? }` |
+| 107 | `INTERACTION_RESULT` | `{ protocolVersion, ok, code, requestId?, targetId?, dialogueId?, services?, context?, interactionSessionId?, currentNodeId?, allowedOptionIds?, availableServiceIds?, expiresAtTick? }` |
 | 108 | `SYSTEM_MESSAGE` | `{ protocolVersion, code, message }` |
 | 109 | `EQUIPMENT_STATE` | `{ protocolVersion, contentHash, requestId?, slots, derived }` |
 | 110 | `WALLET_STATE` | `{ protocolVersion, contentHash, requestId?, gold }` |
@@ -161,7 +163,7 @@ The server rejects:
 - rate-limited match actions (`rate_limited`)
 - wrong protocol version
 - wrong content hash
-- missing/malformed `requestId` on `INTERACT`, `ATTACK`, `USE_ABILITY`, `CANCEL_CAST`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, `PURCHASE_TALENT`, `EQUIP`, `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, `ALLOCATE_ATTRIBUTES`, `ALLOCATE_ATTRIBUTES_BATCH`, `VENDOR_BUY`, `VENDOR_SELL`, `INN_REST`, `CAVE_ENTER`, `CAVE_EXIT`, trade opcodes, and reward opcodes
+- missing/malformed `requestId` on `INTERACT`, `DIALOGUE_CHOOSE`, `INTERACTION_CLOSE`, `ATTACK`, `USE_ABILITY`, `CANCEL_CAST`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, `PURCHASE_TALENT`, `EQUIP`, `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, `ALLOCATE_ATTRIBUTES`, `ALLOCATE_ATTRIBUTES_BATCH`, `VENDOR_BUY`, `VENDOR_SELL`, `INN_REST`, `CAVE_ENTER`, `CAVE_EXIT`, trade opcodes, and reward opcodes
 
 Rejections are typed (`unknown_opcode`, `malformed_json`, `unknown_field`, `invalid_id`, `protocol_mismatch`, `content_mismatch`, `payload_too_large`, `rate_limited`, `unauthenticated`, `invalid_name`, `stat_injection`, `invalid_request_id`, `match_full`, `already_in_match`, `already_elsewhere`, `still_in_origin`, `ticket_reused`, `ticket_expired`, `ticket_wrong_character`, `character_missing`, `empty_message`, `message_too_long`, `invalid_payload`, `invalid_channel`, `not_party_member`). They are logged as `match_action rejected user_id=… action=… reason=… tick=…` without tokens, device credentials, or raw private payloads. They are sent as `SYSTEM_MESSAGE` or `ACTION_RESULT` / `INTERACTION_RESULT` (or join reject) and never crash the match.
 

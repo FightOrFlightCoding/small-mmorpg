@@ -123,6 +123,9 @@ export function kindOf(payload: ContentPayload, id: string): string {
   if (payload.npcRoutes[id]) {
     return "npc_route";
   }
+  if (payload.dialogues[id]) {
+    return "dialogue";
+  }
   return "unknown";
 }
 

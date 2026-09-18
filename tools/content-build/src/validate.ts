@@ -17,6 +17,8 @@ import type {
   ClassProgressionDef,
   ContentPayload,
   DerivedStatDef,
+  DialogueDef,
+  DialogueConditionDef,
   EffectDefinitionDef,
   EnemyDef,
   EnemyScalingProfileDef,
@@ -158,6 +160,7 @@ export function validateDocuments(
   const spawns = asKindMap<SpawnDef>(allDocs, "spawn");
   const vendors = asKindMap<VendorDef>(allDocs, "vendor");
   const npcRoutes = asKindMap<NpcRouteDef>(allDocs, "npc_route");
+  const dialogues = asKindMap<DialogueDef>(allDocs, "dialogue");
   const extras: CanonicalMaps = {
     stats,
     branches,
@@ -170,6 +173,7 @@ export function validateDocuments(
     enemyScalingProfiles,
     xpRewards,
     equipmentModifierCategories,
+    dialogues,
   };
   const fullPayload = payloadFromParts(
     playerAll,
@@ -209,11 +213,15 @@ export function validateDocuments(
   }
   const npcIds = Object.keys(npcs);
   for (let i = 0; i < npcIds.length; i++) {
-    checkNpc(npcs[npcIds[i]], zones, vendors, quests, classes, npcRoutes, issues, assets);
+    checkNpc(npcs[npcIds[i]], zones, vendors, quests, classes, npcRoutes, dialogues, issues, assets);
   }
   const routeIds = Object.keys(npcRoutes);
   for (let r = 0; r < routeIds.length; r++) {
     checkNpcRoute(npcRoutes[routeIds[r]], issues);
+  }
+  const dialogueIds = Object.keys(dialogues);
+  for (let d = 0; d < dialogueIds.length; d++) {
+    checkDialogue(dialogues[dialogueIds[d]], quests, classes, items, issues);
   }
   const vendorIds = Object.keys(vendors);
   for (let i = 0; i < vendorIds.length; i++) {
@@ -290,6 +298,7 @@ export function validateDocuments(
       enemyScalingProfiles: asKindMap<EnemyScalingProfileDef>(selected, "enemy_scaling_profile"),
       xpRewards: asKindMap<XpRewardDef>(selected, "xp_reward"),
       equipmentModifierCategories: asKindMap<EquipmentModifierCategoryDef>(selected, "equipment_modifier_category"),
+      dialogues: asKindMap<DialogueDef>(selected, "dialogue"),
     },
   );
 }
@@ -306,6 +315,7 @@ interface CanonicalMaps {
   enemyScalingProfiles: Record<string, EnemyScalingProfileDef>;
   xpRewards: Record<string, XpRewardDef>;
   equipmentModifierCategories: Record<string, EquipmentModifierCategoryDef>;
+  dialogues: Record<string, DialogueDef>;
 }
 
 function payloadFromParts(
@@ -361,6 +371,7 @@ function payloadFromParts(
     spawns,
     vendors,
     npcRoutes,
+    dialogues: extras.dialogues,
   };
 }
 
@@ -606,12 +617,16 @@ function checkNpc(
   quests: Record<string, QuestDef>,
   classes: Record<string, ClassDef>,
   routes: Record<string, NpcRouteDef>,
+  dialogues: Record<string, DialogueDef>,
   issues: ContentIssue[],
   assets: AssetIndex | undefined,
 ): void {
   checkVisual(npc.visualId, issues, assets);
   if (assets !== undefined && assets.dialogueIds[npc.dialogueId] !== true) {
     issues.push(issue("missing_asset:" + npc.dialogueId));
+  }
+  if (!dialogues[npc.dialogueId]) {
+    issues.push(issue("missing_reference:" + npc.dialogueId));
   }
   if (!zones[npc.zoneId]) {
     issues.push(issue("missing_reference:" + npc.zoneId));
@@ -698,6 +713,74 @@ function checkNpcRoute(route: NpcRouteDef, issues: ContentIssue[]): void {
     return;
   }
   issues.push(issue("invalid_route_graph:" + route.id));
+}
+
+function checkDialogue(
+  dialogue: DialogueDef,
+  quests: Record<string, QuestDef>,
+  classes: Record<string, ClassDef>,
+  items: Record<string, ItemDef>,
+  issues: ContentIssue[],
+): void {
+  const nodes = dialogue.nodes;
+  if (!nodes[dialogue.startNodeId]) {
+    issues.push(issue("missing_reference:" + dialogue.startNodeId));
+  }
+  const optionIds: { [id: string]: boolean } = {};
+  const nodeIds = Object.keys(nodes);
+  for (let i = 0; i < nodeIds.length; i++) {
+    const key = nodeIds[i];
+    const node = nodes[key];
+    if (node.id !== key) {
+      issues.push(issue("invalid_id:" + dialogue.id + ":" + key));
+    }
+    if (!Array.isArray(node.lines) || node.lines.length < 1) {
+      issues.push(issue("missing_field:lines"));
+    }
+    const options = node.options !== undefined ? node.options : [];
+    for (let o = 0; o < options.length; o++) {
+      const option = options[o];
+      if (optionIds[option.id] === true) {
+        issues.push(issue("duplicate_id:" + dialogue.id + ":" + option.id));
+      }
+      optionIds[option.id] = true;
+      if (!nodes[option.nextNodeId]) {
+        issues.push(issue("missing_reference:" + option.nextNodeId));
+      }
+      checkDialogueConditions(option.conditions, quests, classes, items, issues);
+    }
+  }
+  const entry = dialogue.entry !== undefined ? dialogue.entry : [];
+  for (let e = 0; e < entry.length; e++) {
+    if (!nodes[entry[e].nodeId]) {
+      issues.push(issue("missing_reference:" + entry[e].nodeId));
+    }
+    checkDialogueConditions(entry[e].conditions, quests, classes, items, issues);
+  }
+}
+
+function checkDialogueConditions(
+  conditions: DialogueConditionDef[] | undefined,
+  quests: Record<string, QuestDef>,
+  classes: Record<string, ClassDef>,
+  items: Record<string, ItemDef>,
+  issues: ContentIssue[],
+): void {
+  if (conditions === undefined) {
+    return;
+  }
+  for (let i = 0; i < conditions.length; i++) {
+    const condition = conditions[i];
+    if (condition.questId !== undefined && !quests[condition.questId]) {
+      issues.push(issue("missing_reference:" + condition.questId));
+    }
+    if (condition.classId !== undefined && !classes[condition.classId]) {
+      issues.push(issue("missing_reference:" + condition.classId));
+    }
+    if (condition.itemId !== undefined && !items[condition.itemId]) {
+      issues.push(issue("missing_reference:" + condition.itemId));
+    }
+  }
 }
 
 function checkWaypointIds(routeId: string, waypoints: NpcRouteWaypointDef[], issues: ContentIssue[]): void {

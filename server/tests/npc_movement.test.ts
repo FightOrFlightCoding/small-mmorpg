@@ -481,7 +481,7 @@ test("cloning a match copies NPC movement instead of sharing it", () => {
   assert.equal(cloned.npcs[0].id, "npc.walker");
 });
 
-test("pause and resume exist for later interaction without being wired to INTERACT", () => {
+test("pause and resume freeze pose until the last interaction session closes", () => {
   const route = loopRoute();
   const npc = createNpcRuntimeInstance({
     npcId: "npc.pause",
@@ -503,24 +503,74 @@ test("pause and resume exist for later interaction without being wired to INTERA
   resumeNpcMovement(npc, route, 11, TICK_RATE);
   assert.notEqual(npc.movement?.phase, "paused");
   const loopSrc = readFileSync(join(process.cwd(), "src/domain/match_loop.ts"), "utf8");
-  assert.equal(loopSrc.includes("pauseNpcMovement"), false);
-  assert.equal(loopSrc.includes("resumeNpcMovement"), false);
+  assert.equal(loopSrc.includes("pauseNpcMovement"), true);
+  assert.equal(loopSrc.includes("resumeNpcMovement"), true);
 });
 
-test("INTERACT does not pause cosmetic NPC movement", () => {
+test("INTERACT pauses cosmetic NPC movement and broadcasts the paused plan", () => {
   const route = loopRoute();
-  let state = addPlayer(walkerZone(route), playerAt("user-alice", "Alice", 0, 0));
-  state = applyMatchLoop(state, 1, contentHash, []).state;
-  const before = state.npcs[0].movement?.phase;
-  const result = applyMatchLoop(state, 2, contentHash, [
+  const state = addPlayer(walkerZone(route), playerAt("user-alice", "Alice", 0, 0));
+  const result = applyMatchLoop(state, 1, contentHash, [
     {
       opcode: ClientOpcode.INTERACT,
       raw: envelope({ targetId: "npc.walker", requestId: "interact-npc-move-1" }),
       userId: "user-alice",
     },
   ]);
-  assert.notEqual(result.state.npcs[0].movement?.phase, "paused");
-  assert.ok(before === "idle" || before === "moving");
+  assert.equal(result.state.npcs[0].movement?.phase, "paused");
+  const snap = snapshotBody(result);
+  const npcs = snap.npcs as Array<{ movement?: { phase?: string } }>;
+  assert.ok(Array.isArray(npcs));
+  assert.equal(npcs[0].movement?.phase, "paused");
+});
+
+test("closing the final session resumes NPC route movement", () => {
+  const route = loopRoute();
+  let state = addPlayer(walkerZone(route), playerAt("user-alice", "Alice", 0, 0));
+  state = addPlayer(state, playerAt("user-bob", "Bob", 0, 0));
+  const aliceOpen = applyMatchLoop(state, 1, contentHash, [
+    {
+      opcode: ClientOpcode.INTERACT,
+      raw: envelope({ targetId: "npc.walker", requestId: "interact-pause-a1" }),
+      userId: "user-alice",
+    },
+  ]);
+  const bobOpen = applyMatchLoop(aliceOpen.state, 2, contentHash, [
+    {
+      opcode: ClientOpcode.INTERACT,
+      raw: envelope({ targetId: "npc.walker", requestId: "interact-pause-b1" }),
+      userId: "user-bob",
+    },
+  ]);
+  assert.equal(bobOpen.state.npcs[0].movement?.phase, "paused");
+  const aliceSession = bobOpen.state.players["user-alice"].interactionSession;
+  const bobSession = bobOpen.state.players["user-bob"].interactionSession;
+  assert.ok(aliceSession);
+  assert.ok(bobSession);
+  const aliceClose = applyMatchLoop(bobOpen.state, 3, contentHash, [
+    {
+      opcode: ClientOpcode.INTERACTION_CLOSE,
+      raw: envelope({
+        interactionSessionId: aliceSession.sessionId,
+        npcInstanceId: "npc.walker",
+        requestId: "interact-close-a1",
+      }),
+      userId: "user-alice",
+    },
+  ]);
+  assert.equal(aliceClose.state.npcs[0].movement?.phase, "paused");
+  const bobClose = applyMatchLoop(aliceClose.state, 4, contentHash, [
+    {
+      opcode: ClientOpcode.INTERACTION_CLOSE,
+      raw: envelope({
+        interactionSessionId: bobSession.sessionId,
+        npcInstanceId: "npc.walker",
+        requestId: "interact-close-b1",
+      }),
+      userId: "user-bob",
+    },
+  ]);
+  assert.notEqual(bobClose.state.npcs[0].movement?.phase, "paused");
 });
 
 test("moving NPCs do not block players or join combat", () => {

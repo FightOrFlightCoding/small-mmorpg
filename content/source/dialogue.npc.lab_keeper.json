@@ -1,0 +1,35 @@
+{
+  "id": "dialogue.npc.lab_keeper",
+  "kind": "dialogue",
+  "displayName": "Lab Keeper",
+  "displayNameKey": "dialogue.npc.lab_keeper.name",
+  "startNodeId": "start",
+  "nodes": {
+    "start": {
+      "id": "start",
+      "lines": [
+        {
+          "text": "This is the systems lab. Form a party, trade with a second client, then walk the tour.",
+          "textKey": "dialogue.npc.lab_keeper.start.0"
+        }
+      ],
+      "options": [
+        {
+          "id": "opt.not_now",
+          "text": "Not now.",
+          "nextNodeId": "farewell"
+        }
+      ]
+    },
+    "farewell": {
+      "id": "farewell",
+      "lines": [
+        {
+          "text": "The tour can wait.",
+          "textKey": "dialogue.npc.lab_keeper.farewell.0"
+        }
+      ]
+    }
+  },
+  "developmentOnly": true
+}

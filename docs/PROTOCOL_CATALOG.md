@@ -243,7 +243,7 @@ Commands: `inspect_character`, `teleport_character`, `repair_invalid_location`, 
 
 ## Client → server match opcodes
 
-Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARGET 8; INTERACT/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/quest/VENDOR_BUY/VENDOR_SELL/INN_REST/CAVE_ENTER/CAVE_EXIT/TRADE_*/ALLOCATE_ATTRIBUTES/ALLOCATE_ATTRIBUTES_BATCH/TRAINER_RESPEC/PURCHASE_TALENT/ASSIGN_HOTBAR/UNLOCK_ABILITY/RETURN_TO_CHARACTER_SELECT/SELECT_BRANCH/SET_AUTO_ASSIGN/AUTO_ASSIGN_UNSPENT_POINTS 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
+Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARGET 8; INTERACT/DIALOGUE_CHOOSE/INTERACTION_CLOSE/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/quest/VENDOR_BUY/VENDOR_SELL/INN_REST/CAVE_ENTER/CAVE_EXIT/TRADE_*/ALLOCATE_ATTRIBUTES/ALLOCATE_ATTRIBUTES_BATCH/TRAINER_RESPEC/PURCHASE_TALENT/ASSIGN_HOTBAR/UNLOCK_ABILITY/RETURN_TO_CHARACTER_SELECT/SELECT_BRANCH/SET_AUTO_ASSIGN/AUTO_ASSIGN_UNSPENT_POINTS 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
 
 ### 1 `INPUT`
 
@@ -260,10 +260,10 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 
 | Field | Value |
 | --- | --- |
-| Body | `{ protocolVersion, targetId, requestId }` |
-| Authority | Server range vs per-NPC `interactionRange` (fallback `player.base.interactionRange`) |
+| Body | `{ protocolVersion, targetId, requestId }` (`targetId` is the NPC instance id) |
+| Authority | Server validates character ownership, account/match presence, alive, not link-dead, not transferring, NPC existence, current pose/range, and rate limit, then creates a short-lived interaction session |
 | `requestId` | Required (correlation, not a grant) |
-| Errors | `out_of_range`, `invalid_target`, `invalid_zone`, `player_dead`, `invalid_request_id` |
+| Errors | `out_of_range`, `invalid_target`, `invalid_zone`, `player_dead`, `link_dead`, `already_transferring`, `character_missing`, `invalid_request_id`, `rate_limited` |
 | Tests | `interaction.test.ts`, `interaction_client_test.gd` |
 
 ### 3 `ATTACK`
@@ -651,6 +651,28 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 | Rate limit | Shares ALLOCATE window (8) |
 | Tests | `progression_talent_trees.test.ts`, `protocol.test.ts` |
 
+### 39 `DIALOGUE_CHOOSE`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, interactionSessionId, optionId, requestId }` |
+| Authority | Server validates the live session, option conditions, and graph next-node. Returns the next node id and allowed options. Client never sends node text or scripts. |
+| Idempotency | Same `requestId` replays the stored `INTERACTION_RESULT` |
+| Errors | `invalid_session`, `session_expired`, `session_invalidated`, `invalid_option`, `link_dead`, `player_dead`, `out_of_range` |
+| Rate limit | Shares INTERACT window (8) |
+| Tests | `interaction.test.ts`, `dialogue.test.ts`, `protocol.test.ts` |
+
+### 40 `INTERACTION_CLOSE`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, interactionSessionId, npcInstanceId, requestId }` |
+| Authority | Server closes that player's session. The last session on an NPC resumes cosmetic route movement. |
+| Idempotency | Same `requestId` replays the stored result |
+| Errors | `invalid_session`, `session_expired`, `link_dead` |
+| Rate limit | Shares INTERACT window (8) |
+| Tests | `interaction.test.ts`, `npc_movement.test.ts` |
+
 No other client opcodes exist. Unknown opcode → `unknown_opcode`.
 
 ## Server → client match opcodes
@@ -665,7 +687,7 @@ No client rate limit. Occupied matches send **102** every tick.
 | 104 | `COMBAT_EVENT` | tick, events[] (`hit`, `heal`, `death`, `respawn`, `interrupt`, `effect_*`, `resource`, `threat`, `credit`, `message`) | `combat.test.ts`, `combat_pipeline.test.ts`, `boss.test.ts`, `combat_client_test.gd` |
 | 105 | `INVENTORY_STATE` | capacity, items | `inventory.test.ts` |
 | 106 | `QUEST_STATE` | quests | `quest.test.ts` |
-| 107 | `INTERACTION_RESULT` | ok, code, requestId, targetId, optional dialogueId/services/context | `interaction.test.ts` |
+| 107 | `INTERACTION_RESULT` | ok, code, requestId, targetId, optional dialogueId/services/context/interactionSessionId/currentNodeId/allowedOptionIds/availableServiceIds/expiresAtTick | `interaction.test.ts` |
 | 108 | `SYSTEM_MESSAGE` | code, message | protocol/security/chat |
 | 109 | `EQUIPMENT_STATE` | slots, derived | `equipment.test.ts` |
 | 110 | `WALLET_STATE` | gold | `quest_reward.test.ts`, `wallet_service_test.gd` |

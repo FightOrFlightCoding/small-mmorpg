@@ -1,0 +1,115 @@
+{
+  "id": "dialogue.npc.elder",
+  "kind": "dialogue",
+  "displayName": "Elder",
+  "displayNameKey": "dialogue.npc.elder.name",
+  "startNodeId": "start",
+  "nodes": {
+    "start": {
+      "id": "start",
+      "lines": [
+        {
+          "text": "Traveler, the village needs your help.",
+          "textKey": "dialogue.npc.elder.start.0"
+        },
+        {
+          "text": "Slimes have overrun the pond. Bring me one slime gel and I will see you rewarded.",
+          "textKey": "dialogue.npc.elder.start.1"
+        }
+      ],
+      "options": [
+        {
+          "id": "opt.not_now",
+          "text": "Not now.",
+          "nextNodeId": "farewell",
+          "textKey": "dialogue.npc.elder.opt.not_now"
+        }
+      ]
+    },
+    "farewell": {
+      "id": "farewell",
+      "lines": [
+        {
+          "text": "Come back when you are ready.",
+          "textKey": "dialogue.npc.elder.farewell.0"
+        }
+      ]
+    },
+    "in_progress": {
+      "id": "in_progress",
+      "lines": [
+        {
+          "text": "The slimes still trouble the pond. Bring me one slime gel.",
+          "textKey": "dialogue.npc.elder.in_progress.0"
+        }
+      ]
+    },
+    "ready": {
+      "id": "ready",
+      "lines": [
+        {
+          "text": "You have the gel. I can take it now and see you rewarded.",
+          "textKey": "dialogue.npc.elder.ready.0"
+        }
+      ],
+      "options": [
+        {
+          "id": "opt.not_yet",
+          "text": "Not yet.",
+          "nextNodeId": "return_later",
+          "textKey": "dialogue.npc.elder.opt.not_yet"
+        }
+      ]
+    },
+    "return_later": {
+      "id": "return_later",
+      "lines": [
+        {
+          "text": "Return when you are ready.",
+          "textKey": "dialogue.npc.elder.return_later.0"
+        }
+      ]
+    },
+    "completed": {
+      "id": "completed",
+      "lines": [
+        {
+          "text": "The village is safer thanks to you. We will not forget this.",
+          "textKey": "dialogue.npc.elder.completed.0"
+        }
+      ]
+    }
+  },
+  "entry": [
+    {
+      "nodeId": "completed",
+      "conditions": [
+        {
+          "type": "offered_quest_status",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "nodeId": "ready",
+      "conditions": [
+        {
+          "type": "offered_quest_status",
+          "status": "ready"
+        }
+      ]
+    },
+    {
+      "nodeId": "in_progress",
+      "conditions": [
+        {
+          "type": "offered_quest_status",
+          "status": "accepted"
+        }
+      ]
+    },
+    {
+      "nodeId": "start"
+    }
+  ]
+}

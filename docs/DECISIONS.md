@@ -807,4 +807,17 @@ NPC-03 ticks authored routes without a second movement/combat system.
 
 No new opcode, RPC, storage collection, dependency, content hash, or vendor-addon change.
 
+## 2026-09-18 — NPC-04 right-click interaction and dialogue
+
+NPC-04 opens server-authoritative interaction sessions from the existing `INTERACT` intention.
+
+- The client sends `INTERACT { targetId, requestId }` where `targetId` is the NPC instance id. Configurable `interact_pointer` defaults to the right mouse button; keyboard `interact` stays the accessibility path.
+- The server validates character ownership, match/account presence, alive, not link-dead, not transferring, NPC existence, current pose/range, and the interact rate limit, then creates a short-lived session.
+- `DIALOGUE_CHOOSE` (39) sends `{ interactionSessionId, optionId, requestId }`. `INTERACTION_CLOSE` (40) sends `{ interactionSessionId, npcInstanceId, requestId }`. Later NPC service actions must carry the session id; quest/vendor/inn/cave/respec owners still re-validate independently.
+- Content dialogue graphs have one or more lines, zero or more options, conditions, and next-node references, with no arbitrary scripts. The server returns node/option/service ids and expiry; the client localizes text in `NpcInteractionWindow`.
+- The first live session on an NPC pauses cosmetic movement and broadcasts the paused plan. The last close or expiry resumes the authored route. Multiple players may interact at once.
+- Sessions invalidate on manual close, out of range, death, link-dead, disconnect, transfer, match leave, and TTL.
+
+Prompt 18 elder spoken lines, quest rewards, and merchant prices are unchanged. No new RPCs, storage collections, migrations, dependencies, or vendor addons.
+
 

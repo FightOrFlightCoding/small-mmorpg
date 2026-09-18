@@ -1,0 +1,34 @@
+{
+  "id": "dialogue.npc.test_cave_exit",
+  "kind": "dialogue",
+  "displayName": "Cave Exit",
+  "displayNameKey": "dialogue.npc.test_cave_exit.name",
+  "startNodeId": "start",
+  "nodes": {
+    "start": {
+      "id": "start",
+      "lines": [
+        {
+          "text": "Leave the cave for the valley?",
+          "textKey": "dialogue.npc.test_cave_exit.start.0"
+        }
+      ],
+      "options": [
+        {
+          "id": "opt.stay",
+          "text": "Stay.",
+          "nextNodeId": "stay"
+        }
+      ]
+    },
+    "stay": {
+      "id": "stay",
+      "lines": [
+        {
+          "text": "The cave still holds.",
+          "textKey": "dialogue.npc.test_cave_exit.stay.0"
+        }
+      ]
+    }
+  }
+}

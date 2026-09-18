@@ -114,3 +114,188 @@ function questStatusOf(log: InteractionInput["questLog"], questId: string): stri
   }
   return log.quests[questId].status;
 }
+
+export const INTERACTION_SESSION_TTL_TICKS = 300;
+
+export type InteractionSessionState = "open" | "active" | "closed" | "expired" | "invalidated";
+
+export interface InteractionSession {
+  sessionId: string;
+  requestId: string;
+  targetId: string;
+  npcInstanceId: string;
+  dialogueId: string;
+  currentNodeId: string;
+  allowedOptionIds: string[];
+  availableServiceIds: string[];
+  expiresAtTick: number;
+  state: InteractionSessionState;
+}
+
+export interface InteractPresentation {
+  ok: boolean;
+  code: string;
+  targetId: string;
+  dialogueId?: string;
+  services?: string[];
+  interactionSessionId?: string;
+  currentNodeId?: string;
+  allowedOptionIds?: string[];
+  availableServiceIds?: string[];
+  expiresAtTick?: number;
+}
+
+export function isUsableInteractionSession(session: InteractionSession | undefined, tick: number): boolean {
+  if (session === undefined) {
+    return false;
+  }
+  if (session.state !== "open" && session.state !== "active") {
+    return false;
+  }
+  return tick <= session.expiresAtTick;
+}
+
+export function sessionMatchesNpc(session: InteractionSession, npcInstanceId: string): boolean {
+  return session.npcInstanceId === npcInstanceId || session.targetId === npcInstanceId;
+}
+
+export function countNpcSessions(
+  players: { [userId: string]: { interactionSession?: InteractionSession } },
+  npcInstanceId: string,
+  tick: number,
+): number {
+  let count = 0;
+  const ids = Object.keys(players);
+  for (let i = 0; i < ids.length; i++) {
+    const session = players[ids[i]].interactionSession;
+    if (session === undefined || !isUsableInteractionSession(session, tick)) {
+      continue;
+    }
+    if (sessionMatchesNpc(session, npcInstanceId)) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+export function cloneInteractionSession(session: InteractionSession | undefined): InteractionSession | undefined {
+  if (session === undefined) {
+    return undefined;
+  }
+  const allowed: string[] = [];
+  for (let i = 0; i < session.allowedOptionIds.length; i++) {
+    allowed.push(session.allowedOptionIds[i]);
+  }
+  const services: string[] = [];
+  for (let i = 0; i < session.availableServiceIds.length; i++) {
+    services.push(session.availableServiceIds[i]);
+  }
+  return {
+    sessionId: session.sessionId,
+    requestId: session.requestId,
+    targetId: session.targetId,
+    npcInstanceId: session.npcInstanceId,
+    dialogueId: session.dialogueId,
+    currentNodeId: session.currentNodeId,
+    allowedOptionIds: allowed,
+    availableServiceIds: services,
+    expiresAtTick: session.expiresAtTick,
+    state: session.state,
+  };
+}
+
+export function cloneInteractPresentation(
+  row:
+    | {
+        ok: boolean;
+        code: string;
+        targetId: string;
+        dialogueId?: string;
+        services?: string[];
+        interactionSessionId?: string;
+        currentNodeId?: string;
+        allowedOptionIds?: string[];
+        availableServiceIds?: string[];
+        expiresAtTick?: number;
+      }
+    | undefined,
+): InteractPresentation | undefined {
+  if (row === undefined) {
+    return undefined;
+  }
+  const copied: InteractPresentation = {
+    ok: row.ok === true,
+    code: String(row.code),
+    targetId: String(row.targetId),
+  };
+  if (row.dialogueId !== undefined) {
+    copied.dialogueId = String(row.dialogueId);
+  }
+  if (Array.isArray(row.services)) {
+    copied.services = row.services.map((entry) => String(entry));
+  }
+  if (row.interactionSessionId !== undefined) {
+    copied.interactionSessionId = String(row.interactionSessionId);
+  }
+  if (row.currentNodeId !== undefined) {
+    copied.currentNodeId = String(row.currentNodeId);
+  }
+  if (Array.isArray(row.allowedOptionIds)) {
+    copied.allowedOptionIds = row.allowedOptionIds.map((entry) => String(entry));
+  }
+  if (Array.isArray(row.availableServiceIds)) {
+    copied.availableServiceIds = row.availableServiceIds.map((entry) => String(entry));
+  }
+  if (typeof row.expiresAtTick === "number") {
+    copied.expiresAtTick = row.expiresAtTick;
+  }
+  return copied;
+}
+
+export function presentationFromSession(
+  session: InteractionSession,
+  ok: boolean,
+  code: string,
+): InteractPresentation {
+  const extra: InteractPresentation = {
+    ok: ok,
+    code: code,
+    targetId: session.targetId,
+    interactionSessionId: session.sessionId,
+    currentNodeId: session.currentNodeId,
+    allowedOptionIds: session.allowedOptionIds.slice(),
+    availableServiceIds: session.availableServiceIds.slice(),
+    expiresAtTick: session.expiresAtTick,
+    services: session.availableServiceIds.slice(),
+  };
+  if (session.dialogueId.length > 0) {
+    extra.dialogueId = session.dialogueId;
+  }
+  return extra;
+}
+
+export function extrasFromPresentation(row: InteractPresentation): { [key: string]: unknown } {
+  const extra: { [key: string]: unknown } = {};
+  if (row.dialogueId !== undefined) {
+    extra.dialogueId = row.dialogueId;
+  }
+  if (row.services !== undefined) {
+    extra.services = row.services.slice();
+  }
+  if (row.interactionSessionId !== undefined) {
+    extra.interactionSessionId = row.interactionSessionId;
+  }
+  if (row.currentNodeId !== undefined) {
+    extra.currentNodeId = row.currentNodeId;
+  }
+  if (row.allowedOptionIds !== undefined) {
+    extra.allowedOptionIds = row.allowedOptionIds.slice();
+  }
+  if (row.availableServiceIds !== undefined) {
+    extra.availableServiceIds = row.availableServiceIds.slice();
+  }
+  if (row.expiresAtTick !== undefined) {
+    extra.expiresAtTick = row.expiresAtTick;
+  }
+  return extra;
+}

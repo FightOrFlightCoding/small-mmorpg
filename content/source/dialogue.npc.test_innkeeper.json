@@ -1,0 +1,34 @@
+{
+  "id": "dialogue.npc.test_innkeeper",
+  "kind": "dialogue",
+  "displayName": "Test Innkeeper",
+  "displayNameKey": "dialogue.npc.test_innkeeper.name",
+  "startNodeId": "start",
+  "nodes": {
+    "start": {
+      "id": "start",
+      "lines": [
+        {
+          "text": "Rest here for five gold. You will heal, restore your resources, and bind your return point.",
+          "textKey": "dialogue.npc.test_innkeeper.start.0"
+        }
+      ],
+      "options": [
+        {
+          "id": "opt.not_now",
+          "text": "Not now.",
+          "nextNodeId": "farewell"
+        }
+      ]
+    },
+    "farewell": {
+      "id": "farewell",
+      "lines": [
+        {
+          "text": "The hearth stays lit.",
+          "textKey": "dialogue.npc.test_innkeeper.farewell.0"
+        }
+      ]
+    }
+  }
+}

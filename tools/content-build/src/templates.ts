@@ -419,6 +419,20 @@ function npcPack(
         services: services,
         schemaVersion: 1,
       }),
+      toDoc({
+        id: dialogueId,
+        kind: "dialogue",
+        displayName: "Starter dialogue",
+        displayNameKey: dialogueId + ".name",
+        startNodeId: "start",
+        nodes: {
+          start: {
+            id: "start",
+            lines: [{ text: "Starter dialogue. Replace this line." }],
+          },
+        },
+        schemaVersion: 1,
+      }),
     ],
     clientFiles: [
       {
@@ -540,6 +554,21 @@ function zonePack(id: string, cave: boolean): TemplateResult {
         developmentOnly: true,
       }),
       toDoc({
+        id: dialogueId,
+        kind: "dialogue",
+        displayName: "Starter zone dialogue",
+        displayNameKey: dialogueId + ".name",
+        startNodeId: "start",
+        nodes: {
+          start: {
+            id: "start",
+            lines: [{ text: "Keeper: Starter zone dialogue." }],
+          },
+        },
+        schemaVersion: 1,
+        developmentOnly: true,
+      }),
+      toDoc({
         id: enemyId,
         kind: "enemy",
         displayName: "Starter Wildlife",
@@ -584,7 +613,22 @@ function zonePack(id: string, cave: boolean): TemplateResult {
 function dialogueOnly(id: string): TemplateResult {
   const fileId = id.indexOf("dialogue.") === 0 ? id.slice("dialogue.".length) : id;
   return {
-    documents: [],
+    documents: [
+      toDoc({
+        id: id,
+        kind: "dialogue",
+        displayName: "Starter dialogue reference",
+        displayNameKey: id + ".name",
+        startNodeId: "start",
+        nodes: {
+          start: {
+            id: "start",
+            lines: [{ text: "Starter dialogue reference." }],
+          },
+        },
+        schemaVersion: 1,
+      }),
+    ],
     clientFiles: [
       {
         relativePath: "client/content/dialogue/" + fileId + ".dialogue",

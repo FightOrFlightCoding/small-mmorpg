@@ -4,13 +4,98 @@
   "title": "dialogue_definition",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "kind"],
+  "required": ["id", "kind", "startNodeId", "nodes"],
   "properties": {
     "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
     "kind": { "const": "dialogue" },
     "displayName": { "type": "string", "minLength": 1 },
     "displayNameKey": { "type": "string", "minLength": 1 },
     "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
-    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
+    "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" },
+    "startNodeId": { "$ref": "#/$defs/graphId" },
+    "entry": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/entryCandidate" }
+    },
+    "nodes": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/dialogueNode" }
+    }
+  },
+  "$defs": {
+    "graphId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$"
+    },
+    "dialogueCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["quest_status", "offered_quest_status", "min_level", "class_id", "has_item"]
+        },
+        "questId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+        "status": { "type": "string", "minLength": 1 },
+        "minLevel": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+        "classId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+        "itemId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+      }
+    },
+    "dialogueLine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text"],
+      "properties": {
+        "text": { "type": "string", "minLength": 1 },
+        "textKey": { "type": "string", "minLength": 1 }
+      }
+    },
+    "dialogueOption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "text", "nextNodeId"],
+      "properties": {
+        "id": { "$ref": "#/$defs/graphId" },
+        "text": { "type": "string", "minLength": 1 },
+        "textKey": { "type": "string", "minLength": 1 },
+        "nextNodeId": { "$ref": "#/$defs/graphId" },
+        "conditions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dialogueCondition" }
+        }
+      }
+    },
+    "dialogueNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "lines"],
+      "properties": {
+        "id": { "$ref": "#/$defs/graphId" },
+        "lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/dialogueLine" }
+        },
+        "options": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dialogueOption" }
+        }
+      }
+    },
+    "entryCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeId"],
+      "properties": {
+        "nodeId": { "$ref": "#/$defs/graphId" },
+        "conditions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dialogueCondition" }
+        }
+      }
+    }
   }
 }

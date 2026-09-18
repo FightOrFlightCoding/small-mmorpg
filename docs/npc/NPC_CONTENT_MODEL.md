@@ -1,6 +1,6 @@
-# NPC content model (NPC-03)
+# NPC content model (NPC-04)
 
-NPC definitions use `content/schemas/npc.json` (title `npc_definition`) and are authored under `content/source/`. Shared companion schemas are `npc_route.json`, `npc_service_binding.json`, `npc_quest_binding.json`, `dialogue_definition.json`, and `vendor.json` (title `vendor_definition`). The NPC schema is strict (`additionalProperties: false`) and requires `id`, `kind: "npc"`, `displayName`, `displayNameKey`, `visualId`, `zoneId`, `position`, `homePosition`, `routeId`, `interactionRange`, `dialogueId`, and one or more services. Content generation validates stable IDs, correct zone, route references, waypoint graphs, bounded distance from home, positive speed, dwell ranges, visual/dialogue assets, zone placement/pose agreement, service/dialogue/quest/vendor references, and duplicate placement IDs.
+NPC definitions use `content/schemas/npc.json` (title `npc_definition`) and are authored under `content/source/`. Shared companion schemas are `npc_route.json`, `npc_service_binding.json`, `npc_quest_binding.json`, `dialogue_definition.json`, and `vendor.json` (title `vendor_definition`). The NPC schema is strict (`additionalProperties: false`) and requires `id`, `kind: "npc"`, `displayName`, `displayNameKey`, `visualId`, `zoneId`, `position`, `homePosition`, `routeId`, `interactionRange`, `dialogueId`, and one or more services. Content generation validates stable IDs, correct zone, route references, waypoint graphs, bounded distance from home, positive speed, dwell ranges, visual/dialogue assets, zone placement/pose agreement, service/dialogue/quest/vendor references, and duplicate placement IDs. `dialogue` documents are hashed into the content bundle and define graphs with `startNodeId`, optional entry candidates, nodes with one or more lines, optional options with conditions and `nextNodeId`, and no arbitrary scripts.
 
 Prompt snake_case names map to existing camelCase content JSON: `npc_id` → `id`, `display_name_key` → `displayNameKey`, `zone_id` → `zoneId`, `home_position` → `homePosition`, `route_id` → `routeId`, `interaction_range` → `interactionRange`, `visual_asset_id` → `visualId`.
 
@@ -23,7 +23,7 @@ Production NPCs, including the elder and respec trainers, reference `route.stati
 
 | Service | Existing owner | Content references |
 | --- | --- | --- |
-| `dialogue` | `DialoguePresenter` | `dialogueId` (client-local `.dialogue` mapping; `dialogue_definition` is the shared ID schema, not a hashed kind) |
+| `dialogue` | `dialogue.ts` / `DialoguePresenter` | `dialogueId` hashed `dialogue` graph; client `.dialogue` files remain freeze-compile mappings |
 | `quest_offer` / `quest_turn_in` | `quest.ts` | `questIds` (`npc_quest_binding`) |
 | `vendor` | `vendor.ts` | required `vendorId` |
 | `inn` / `healer` | `inn.ts` | optional cost, heal/resource/bind flags |

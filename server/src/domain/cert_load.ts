@@ -19,6 +19,7 @@ import {
 } from "./inventory";
 import { emptyQuestLog, questDefinitionsFromContent } from "./quest";
 import { npcDefinitionsFromContent } from "./npc";
+import { dialogueDefinitionsFromContent } from "./dialogue";
 import { npcRoutesFromContent } from "./npc_movement";
 import { vendorDefinitionsFromContent } from "./vendor";
 import { applyPlayerLeave, applySafeLeave } from "./persistence";
@@ -133,6 +134,7 @@ function publicZone(maxPlayers: number, emptyTimeoutTicks?: number): StarterZone
     {
       npcsById: npcDefinitionsFromContent(content.npcs),
       npcRoutesById: npcRoutesFromContent(content.npcRoutes),
+      dialoguesById: dialogueDefinitionsFromContent(content.dialogues),
       vendorsById: vendorDefinitionsFromContent(content.vendors),
       maxPlayers: maxPlayers,
       emptyTimeoutTicks: emptyTimeoutTicks,
@@ -160,6 +162,7 @@ function caveZone(instanceId: string, emptyTimeoutTicks: number): StarterZoneSta
     {
       npcsById: npcDefinitionsFromContent(content.npcs),
       npcRoutesById: npcRoutesFromContent(content.npcRoutes),
+      dialoguesById: dialogueDefinitionsFromContent(content.dialogues),
       instanceType: "party_cave",
       instanceId: instanceId,
       ownerPartyId: "party-" + instanceId,

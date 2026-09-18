@@ -513,6 +513,32 @@ func send_interact(target_id: String, request_id: String) -> Dictionary:
 	)
 
 
+func send_dialogue_choose(session_id: String, option_id: String, request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_DIALOGUE_CHOOSE,
+		MatchProtocol.client_envelope_json({
+			"interactionSessionId": session_id,
+			"optionId": option_id,
+			"requestId": request_id,
+		})
+	)
+
+
+func send_interaction_close(session_id: String, npc_instance_id: String, request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_INTERACTION_CLOSE,
+		MatchProtocol.client_envelope_json({
+			"interactionSessionId": session_id,
+			"npcInstanceId": npc_instance_id,
+			"requestId": request_id,
+		})
+	)
+
+
 func send_quest_accept(quest_id: String, request_id: String = "") -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}

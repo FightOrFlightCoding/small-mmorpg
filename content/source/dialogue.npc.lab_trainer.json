@@ -1,0 +1,19 @@
+{
+  "id": "dialogue.npc.lab_trainer",
+  "kind": "dialogue",
+  "displayName": "Lab Trainer",
+  "displayNameKey": "dialogue.npc.lab_trainer.name",
+  "startNodeId": "start",
+  "nodes": {
+    "start": {
+      "id": "start",
+      "lines": [
+        {
+          "text": "Spend attribute points on the character panel. Unlock skills after the lab tour grants a point. Vanguard and Arcanist both work here.",
+          "textKey": "dialogue.npc.lab_trainer.start.0"
+        }
+      ]
+    }
+  },
+  "developmentOnly": true
+}
