@@ -2,6 +2,7 @@
   "id": "vendor.lab_general",
   "kind": "vendor",
   "displayName": "Lab Goods",
+  "currencyId": "gold",
   "stock": [
     { "itemId": "item.training_sword", "buyPrice": 15, "classRequirements": [], "levelRequirement": 0 },
     { "itemId": "item.test_leather_cap", "buyPrice": 8, "classRequirements": [], "levelRequirement": 0 },

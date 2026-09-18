@@ -1,6 +1,6 @@
-# NPC state machines (NPC-05)
+# NPC state machines (NPC-06)
 
-These are the target state models. NPC-04 ticks cosmetic route plans and pauses them while any live interaction session exists. NPC-05 evaluates quest dialogue/marker state from the canonical quest log.
+These are the target state models. NPC-04 ticks cosmetic route plans and pauses them while any live interaction session exists. NPC-05 evaluates quest dialogue/marker state from the canonical quest log. NPC-06 session-gates vendor buy on the same live session.
 
 ## Cosmetic movement
 
@@ -22,7 +22,7 @@ Movement is cosmetic: it does not create a combat target, collision body, threat
 | `EXPIRED` | TTL elapsed. | Terminal. |
 | `INVALIDATED` | NPC/zone/player/service precondition changed (range, death, link-dead, disconnect, transfer, match leave). | Terminal. |
 
-Opening requires match presence, character ownership, a live NPC instance in the same zone, server distance within the NPC range, an eligible living player, and the interact rate limit. Repeated `requestId` values replay the stored `INTERACTION_RESULT` and do not re-run `talk_to_npc`. Dialogue choice uses a new `requestId` against the live session. Transitioning to a reward-bearing existing service re-runs that service's current server validation and idempotency; a presentation session is not a transaction authorization.
+Opening requires match presence, character ownership, a live NPC instance in the same zone, server distance within the NPC range, an eligible living player, and the interact rate limit. Repeated `requestId` values replay the stored `INTERACTION_RESULT` and do not re-run `talk_to_npc`. Dialogue choice uses a new `requestId` against the live session. `VENDOR_BUY` uses a new `requestId` against the live session (same successful id may replay). Transitioning to a reward-bearing existing service re-runs that service's current server validation and idempotency; a presentation session is not a transaction authorization.
 
 Match-owned `interactionSession`, `interactByRequestId`, `dialogueChoiceByRequestId`, and `interactionCloseByRequestId` are not persistent storage records. Cosmetic movement plans live on the match NPC and pause while any usable session targets that NPC.
 

@@ -187,7 +187,8 @@ export const MALFORMED_MESSAGE_FIXTURES: MalformedFixture[] = [
     opcode: ClientOpcode.VENDOR_BUY,
     raw: envelope({
       protocolVersion: PROTOCOL_VERSION,
-      npcId: "npc.test_vendor",
+      interactionSessionId: "sess-gold-inject",
+      npcInstanceId: "npc.test_vendor",
       itemId: "item.test_potion",
       requestId: "req-gold-inject",
       gold: 999,

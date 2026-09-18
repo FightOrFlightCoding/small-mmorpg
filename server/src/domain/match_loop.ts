@@ -56,7 +56,7 @@ import {
 } from "./dialogue";
 import { applyQuestAccept, cloneQuestLog, publicNpcQuestMarkers, publicQuestPayloads, syncAcquireObjectives, type QuestLog } from "./quest";
 import { applyTalkObjectives, applyKillObjectives, applyEnterLocation, enterLocationsFromQuests } from "./quest_objectives";
-import { applyVendorBuy, applyVendorSell, type VendorTradeOutcome } from "./vendor";
+import { applyVendorBuy, applyVendorSell, vendorShopPresentation, type VendorTradeOutcome } from "./vendor";
 import { applyCaveEnter, applyInnRest } from "./inn";
 import { applyCaveWipeIfNeeded, markCaveBossDefeated, evaluateCaveExit, type CaveTransferIntent } from "./cave";
 import { TRANSFER_TICKET_TTL_MS } from "./instance";
@@ -847,7 +847,10 @@ function handleInteract(
   }
   const prior = priorInteractResult(player, requestId);
   if (prior !== undefined) {
-    const replay = interactionResult(prior.code, prior.ok, requestId, prior.targetId, extrasFromPresentation(prior));
+    const extra = extrasFromPresentation(prior);
+    const replayNpc = findNpc(state.npcs, prior.targetId);
+    attachVendorShopExtras(state, replayNpc !== null ? replayNpc.npcId : prior.targetId, extra);
+    const replay = interactionResult(prior.code, prior.ok, requestId, prior.targetId, extra);
     outbound.push({ opcode: replay.opcode, body: replay.body, toUserId: userId });
     return;
   }
@@ -883,6 +886,7 @@ function handleInteract(
   }
   const session = openInteractionSession(state, player, npc.id, catalogNpcId, requestId, tick, makeId);
   const extra = extrasFromPresentation(presentationFromSession(session, true, "ok"));
+  attachVendorShopExtras(state, catalogNpcId, extra);
   const result = interactionResult("ok", true, requestId, targetId, extra);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
   rememberInteractResult(player, requestId, true, "ok", targetId, extra, tick);
@@ -1255,13 +1259,30 @@ function handleVendorBuy(
     return;
   }
   const requestId = parsed.requestId as string;
+  const inventory = player.inventory !== undefined ? player.inventory : emptyInventory();
+  const prior = inventory.mutationByRequestId !== undefined ? inventory.mutationByRequestId[requestId] : undefined;
+  if (prior === undefined) {
+    const gate = requireActiveSession(
+      state,
+      player,
+      tick,
+      parsed.fields.interactionSessionId,
+      parsed.fields.npcInstanceId,
+    );
+    if (!gate.ok || gate.session === undefined) {
+      const failed = actionResult(gate.code, false, requestId);
+      outbound.push({ opcode: failed.opcode, body: failed.body, toUserId: userId });
+      return;
+    }
+  }
+  const npcInstanceId = parsed.fields.npcInstanceId;
   const outcome = applyVendorBuy({
     playerHealth: player.health,
     playerX: player.x,
     playerY: player.y,
     gold: spendableGold(state, player),
     inventory: player.inventory,
-    npcId: parsed.fields.npcId,
+    npcId: npcInstanceId,
     itemId: parsed.fields.itemId,
     quantity: parsed.quantity !== undefined ? parsed.quantity : 1,
     requestId: requestId,
@@ -1284,7 +1305,7 @@ function handleVendorBuy(
     outbound.push({ opcode: failed.opcode, body: failed.body, toUserId: userId });
     return;
   }
-  if (!commitVendorTrade(player, userId, requestId, parsed.fields.npcId, outcome, persistInventoryByUser, skipStorageUsers, commitTxn)) {
+  if (!commitVendorTrade(player, userId, requestId, npcInstanceId, outcome, persistInventoryByUser, skipStorageUsers, commitTxn)) {
     const persistFailed = actionResult("persist_failed", false, requestId);
     outbound.push({ opcode: persistFailed.opcode, body: persistFailed.body, toUserId: userId });
     return;
@@ -3542,6 +3563,20 @@ function playerInCachedParty(state: StarterZoneState, player: MatchPlayer): bool
 
 function vendorCatalog(state: StarterZoneState) {
   return state.vendorsById !== undefined ? state.vendorsById : {};
+}
+
+function attachVendorShopExtras(
+  state: StarterZoneState,
+  npcCatalogId: string,
+  extra: { [key: string]: unknown },
+): void {
+  const shop = vendorShopPresentation(npcCatalog(state)[npcCatalogId], vendorCatalog(state));
+  if (shop === undefined) {
+    return;
+  }
+  extra.vendorId = shop.vendorId;
+  extra.currencyId = shop.currencyId;
+  extra.stock = shop.stock;
 }
 
 function playerLevelOf(player: MatchPlayer): number {

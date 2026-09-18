@@ -488,6 +488,7 @@ function vendorPack(id: string): TemplateResult {
         id: id,
         kind: "vendor",
         displayName: "Starter Vendor",
+        currencyId: "gold",
         stock: [{ itemId: "item.test_pebble", buyPrice: 1, classRequirements: [], levelRequirement: 0 }],
         sellMultiplier: 0.5,
         schemaVersion: 1,

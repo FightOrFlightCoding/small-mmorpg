@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "5816b1a22b56865984192fd405c81490b0edcbcbb194790a34f63c9216409c25";
+export const contentHash = "3b1fe2f9b196850d6434503f6c2262867bcd81e6c811c6291cd0510649186084";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = ["dialogue.npc.lab_exit","dialogue.npc.lab_inn","dialogue.npc.lab_keeper","dialogue.npc.lab_trainer","dialogue.npc.lab_vendor","npc.lab_exit","npc.lab_inn","npc.lab_keeper","npc.lab_trainer","npc.lab_vendor","quest.lab_tour","spawn.lab.boss","spawn.lab.caster","spawn.lab.melee","spawn.lab.ranged","test.zone.systems_lab","vendor.lab_general"] as const;
 export const content = {
@@ -10380,6 +10380,7 @@ export const content = {
   },
   "vendors": {
     "vendor.cert_quartermaster": {
+      "currencyId": "gold",
       "displayName": "Cert Quartermaster",
       "id": "vendor.cert_quartermaster",
       "kind": "vendor",
@@ -10394,6 +10395,7 @@ export const content = {
       ]
     },
     "vendor.test_general": {
+      "currencyId": "gold",
       "displayName": "Test General Goods",
       "id": "vendor.test_general",
       "kind": "vendor",

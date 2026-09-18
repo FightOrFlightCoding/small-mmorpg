@@ -132,9 +132,12 @@ static func run(host: Node) -> Dictionary:
 		vendor = Vector2(80.0, 640.0)
 	if not await _walk_near_npc(leader, vendor):
 		return _fail(leader.fail_reason)
+	var vendor_interact: Dictionary = await leader.interact(VENDOR_ID)
+	if not bool(vendor_interact.get("result_ok", false)):
+		return _fail("vendor_interact:%s" % String(vendor_interact.get("code", "failed")))
 	var bought: Dictionary = await leader.send_action(
 		MatchProtocol.CLIENT_VENDOR_BUY,
-		{"npcId": VENDOR_ID, "itemId": POTION_ID}
+		SliceJourney._vendor_buy_fields(leader, POTION_ID, VENDOR_ID)
 	)
 	if not bool(bought.get("result_ok", false)):
 		return _fail("vendor:%s" % String(bought.get("code", "failed")))
@@ -165,9 +168,12 @@ static func run(host: Node) -> Dictionary:
 		cert_vendor = Vector2(720.0, 640.0)
 	if not await _walk_near_npc(leader, cert_vendor):
 		return _fail(leader.fail_reason)
+	var cert_interact: Dictionary = await leader.interact(CERT_VENDOR_ID)
+	if not bool(cert_interact.get("result_ok", false)):
+		return _fail("cert_vendor_interact:%s" % String(cert_interact.get("code", "failed")))
 	var mail_bought: Dictionary = await leader.send_action(
 		MatchProtocol.CLIENT_VENDOR_BUY,
-		{"npcId": CERT_VENDOR_ID, "itemId": MAIL_ID}
+		SliceJourney._vendor_buy_fields(leader, MAIL_ID, CERT_VENDOR_ID)
 	)
 	if not bool(mail_bought.get("result_ok", false)):
 		return _fail("cert_vendor:%s" % String(mail_bought.get("code", "failed")))

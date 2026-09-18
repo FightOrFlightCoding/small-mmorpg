@@ -1,7 +1,7 @@
 {
   "protocolVersion": 1,
   "contentSchemaVersion": 1,
-  "contentHash": "5816b1a22b56865984192fd405c81490b0edcbcbb194790a34f63c9216409c25",
+  "contentHash": "3b1fe2f9b196850d6434503f6c2262867bcd81e6c811c6291cd0510649186084",
   "exactDependencies": {
     "server/package.json:typescript": "5.8.3",
     "server/package.json:nakama-runtime": "github:heroiclabs/nakama-common#v1.47.0",

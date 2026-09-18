@@ -556,7 +556,8 @@ test("vendor and inn opcodes parse without client prices", () => {
     ClientOpcode.VENDOR_BUY,
     JSON.stringify({
       protocolVersion: PROTOCOL_VERSION,
-      npcId: "npc.test_vendor",
+      interactionSessionId: "sess-vendor-buy01",
+      npcInstanceId: "npc.test_vendor",
       itemId: "item.test_potion",
       requestId: "req-vendor-buy01",
     }),
@@ -606,7 +607,8 @@ test("vendor price spoofing is rejected", () => {
     ClientOpcode.VENDOR_BUY,
     JSON.stringify({
       protocolVersion: PROTOCOL_VERSION,
-      npcId: "npc.test_vendor",
+      interactionSessionId: "sess-vendor-price1",
+      npcInstanceId: "npc.test_vendor",
       itemId: "item.test_potion",
       price: 1,
       requestId: "req-vendor-price1",

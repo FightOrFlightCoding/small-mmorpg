@@ -2,6 +2,7 @@
   "id": "vendor.test_general",
   "kind": "vendor",
   "displayName": "Test General Goods",
+  "currencyId": "gold",
   "stock": [
     {
       "itemId": "item.test_potion",

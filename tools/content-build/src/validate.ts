@@ -883,6 +883,9 @@ function checkVendor(
   classes: Record<string, ClassDef>,
   issues: ContentIssue[],
 ): void {
+  if (vendor.currencyId !== "gold") {
+    issues.push(issue("invalid_currency:" + vendor.currencyId));
+  }
   const seen: { [itemId: string]: boolean } = {};
   for (let i = 0; i < vendor.stock.length; i++) {
     const stock = vendor.stock[i];

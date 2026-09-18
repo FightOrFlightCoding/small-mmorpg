@@ -84,6 +84,7 @@ test("valid source documents compile to a payload", () => {
   assert.ok(payload.lootTables["loot.green_slime"]);
   assert.ok(payload.spawns["spawn.starter.green_slime"]);
   assert.ok(payload.vendors["vendor.test_general"]);
+  assert.equal(payload.vendors["vendor.test_general"].currencyId, "gold");
   assert.ok(payload.npcs["npc.test_vendor"]);
   assert.equal(payload.npcs["npc.elder"].routeId, "route.stationary");
   assert.equal(payload.npcRoutes["route.stationary"].routeType, "stationary");
