@@ -510,7 +510,6 @@
       "client/scripts/world/world.gd",
       "client/scripts/world/zone_view.gd",
       "client/scripts/world/terrain/village_roads_test.gd",
-      "client/tests/app/residential_houses_test.gd",
       "client/scripts/world/movement_sim.gd",
       "client/content/asset_manifest.json"
     ],

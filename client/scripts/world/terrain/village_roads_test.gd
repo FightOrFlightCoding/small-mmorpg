@@ -45,7 +45,7 @@ func _ready() -> void:
 		"VILLAGE_REVIEW map=%dx%d spawn=main_road_south scene=village_roads_test"
 		% [int(_bounds.size.x), int(_bounds.size.y)]
 	)
-	if mode.is_empty():
+	if mode.is_empty() and not _is_house_capture(args):
 		_add_review_hud()
 	if mode == "overview":
 		_add_overview_labels()
@@ -73,6 +73,7 @@ func _ready() -> void:
 	else:
 		_clamp_camera()
 	if not mode.is_empty():
+		apply_house_capture_mode(mode)
 		await _capture_screenshot(_screenshot_path(args, mode))
 
 
@@ -164,6 +165,49 @@ func _add_overview_labels() -> void:
 		_labels.add_child(label)
 
 
+func _is_house_capture(args: PackedStringArray) -> bool:
+	for arg in args:
+		if arg.begins_with("--mode="):
+			return true
+	return false
+
+
+func apply_house_capture_mode(mode: String) -> void:
+	var hud := get_node_or_null("ReviewHud")
+	if hud is CanvasItem:
+		(hud as CanvasItem).visible = false
+	if mode == "overview" or mode == "houses-overview":
+		_camera.zoom = Vector2(0.234, 0.234)
+		_camera.position = _bounds.size * 0.5
+	elif mode == "houses-north" or mode == "north":
+		_camera.zoom = Vector2(0.5, 0.5)
+		_player.position = Vector2(1813, 780)
+		_player.set_idle_facing(Vector2.UP)
+		_camera.position = Vector2(1813, 725)
+	elif mode == "houses-east" or mode == "east":
+		_focus_house("residence_04", Vector2(0, 48))
+	elif mode == "houses-south" or mode == "south":
+		_camera.zoom = Vector2(0.55, 0.55)
+		var south := _focus_midpoint("residence_05", "residence_06")
+		_player.position = south + Vector2(0, 40)
+		_player.set_idle_facing(Vector2.UP)
+		_camera.position = south
+	elif mode == "houses-door" or mode == "door":
+		_focus_house("residence_01", Vector2(0, 28), true)
+	elif mode == "houses-debug" or mode == "debug":
+		_show_debug_footprints()
+		_camera.zoom = Vector2(0.234, 0.234)
+		_camera.position = _bounds.size * 0.5
+
+
+func _focus_midpoint(a_id: String, b_id: String) -> Vector2:
+	var a: Node2D = get_node_or_null(a_id) as Node2D
+	var b: Node2D = get_node_or_null(b_id) as Node2D
+	if a == null or b == null:
+		return _camera.position
+	return (a.position + b.position) * 0.5
+
+
 func _focus_house(house_id: String, player_offset: Vector2, at_door: bool = false) -> void:
 	var house: Node2D = get_node_or_null(house_id) as Node2D
 	if house == null:
@@ -203,10 +247,10 @@ func _show_debug_footprints() -> void:
 			diamond.position = marker.position
 			diamond.color = Color(0.2, 0.9, 0.35, 0.9)
 			diamond.polygon = PackedVector2Array([
-				Vector2(0, -8),
-				Vector2(8, 0),
-				Vector2(0, 8),
-				Vector2(-8, 0),
+				Vector2(0, -18),
+				Vector2(18, 0),
+				Vector2(0, 18),
+				Vector2(-18, 0),
 			])
 			diamond.z_index = 13
 			house.add_child(diamond)
@@ -242,10 +286,10 @@ func _screenshot_path(args: PackedStringArray, mode: String) -> String:
 
 
 func _capture_screenshot(path: String) -> void:
-	await RenderingServer.frame_post_draw
-	await RenderingServer.frame_post_draw
-	await RenderingServer.frame_post_draw
-	await RenderingServer.frame_post_draw
+	await get_tree().process_frame
+	await get_tree().process_frame
+	await get_tree().process_frame
+	await get_tree().process_frame
 	var image: Image = get_viewport().get_texture().get_image()
 	if image == null:
 		push_error("village road screenshot failed")

@@ -225,10 +225,10 @@ func test_npc_from_content_blocks_prediction() -> void:
 	assert_bool(ContentRegistry.load_bundle()).is_true()
 	var sim := MovementSim.from_content()
 	var rec := _reconciler_with(sim)
-	rec.reset(Vector2(320, 700))
+	rec.reset(Vector2(1440, 1400))
 	for i in range(20):
 		rec.predict(i + 1, Vector2.UP)
-	assert_float(rec.predicted.y).is_greater_equal(664.0 - 0.01)
+	assert_float(rec.predicted.y).is_greater_equal(1368.0 - 0.01)
 	assert_bool(sim.blocked_at(rec.predicted)).is_false()
 
 

@@ -176,6 +176,8 @@ func _assert_shadow(path: String) -> void:
 
 
 func _load_image(path: String) -> Image:
-	var image := Image.load_from_file(path)
+	var texture: Texture2D = load(path)
+	assert_object(texture).is_not_null()
+	var image: Image = texture.get_image()
 	assert_object(image).is_not_null()
 	return image
