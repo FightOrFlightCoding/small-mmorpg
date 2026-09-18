@@ -1,15 +1,15 @@
 ~ start
-if QuestService.is_completed("quest.slime_problem")
+if QuestService.is_completed_offered()
 	=> completed
-elif QuestService.is_ready("quest.slime_problem")
+elif QuestService.is_ready_offered()
 	=> ready
-elif QuestService.is_accepted("quest.slime_problem")
+elif QuestService.is_accepted_offered()
 	=> in_progress
 else
 	Elder: Traveler, the village needs your help.
 	Elder: Slimes have overrun the pond. Bring me one slime gel and I will see you rewarded.
 	- I will hunt the slimes.
-		do QuestService.request_accept("quest.slime_problem")
+		do QuestService.request_accept_offered()
 		Elder: Then go, and return with the gel.
 		=> END
 	- Not now.
@@ -23,7 +23,7 @@ Elder: The slimes still trouble the pond. Bring me one slime gel.
 ~ ready
 Elder: You have the gel. I can take it now and see you rewarded.
 - Turn in the slime gel.
-	do QuestService.request_turn_in("quest.slime_problem", "npc.elder")
+	do QuestService.request_turn_in_offered()
 	Elder: The village owes you its thanks.
 	=> END
 - Not yet.

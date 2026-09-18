@@ -290,18 +290,13 @@ test("living players block each other and dead players do not", () => {
   assert.equal(through.players["user-alice"].x, 400 + content.player.moveSpeed * (1 / MATCH_TICK_RATE));
 });
 
-test("npcs block movement", () => {
+test("npcs do not block movement", () => {
   const herald = content.zones["zone.starter"].npcs.find((row) => row.npcId === "npc.test_herald");
   assert.ok(herald);
   let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", herald.x, herald.y + 60));
   let current = state;
   for (let i = 1; i <= 20; i++) {
     current = step(current, i, "user-alice", i, 0, -1).state;
-    const pose = current.players["user-alice"];
-    assert.equal(
-      aabbsOverlap(playerAabb(pose.x, pose.y, PLAYER_HALF_EXTENT), playerAabb(herald.x, herald.y, PLAYER_HALF_EXTENT)),
-      false,
-    );
   }
-  assert.ok(current.players["user-alice"].y >= herald.y + PLAYER_HALF_EXTENT * 2 - 1e-9);
+  assert.ok(current.players["user-alice"].y < herald.y + PLAYER_HALF_EXTENT * 2 - 1e-9);
 });

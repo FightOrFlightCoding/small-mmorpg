@@ -170,3 +170,53 @@ test("approved interaction includes npc services and dialogue id", () => {
   assert.equal(body.dialogueId, "dialogue.npc.elder");
   assert.equal(Array.isArray(body.services) && body.services.indexOf("quest_offer") !== -1, true);
 });
+
+test("repeated interact request id replays without reapplying talk objectives", () => {
+  const herald = content.zones["zone.starter"].npcs.find((row) => row.npcId === "npc.test_herald");
+  assert.ok(herald);
+  const zone = createStarterZoneState(
+    contentHash,
+    content.zones["zone.starter"],
+    enemiesById(),
+    {
+      id: content.player.id,
+      maxHealth: content.player.maxHealth,
+      moveSpeed: content.player.moveSpeed,
+      interactionRange: content.player.interactionRange,
+    },
+    questDefinitionsFromContent(content.quests),
+    {},
+    { npcsById: npcDefinitionsFromContent(content.npcs) },
+  );
+  let state = addPlayer(zone, playerAt("user-alice", "Alice", herald.x, herald.y));
+  state = applyMatchLoop(state, 1, contentHash, [
+    {
+      opcode: ClientOpcode.QUEST_ACCEPT,
+      raw: envelope({ questId: "quest.test.talk", requestId: "req-talk-accept-replay" }),
+      userId: "user-alice",
+    },
+  ]).state;
+  const first = applyMatchLoop(state, 2, contentHash, [
+    {
+      opcode: ClientOpcode.INTERACT,
+      raw: envelope({ targetId: "npc.test_herald", requestId: "req-interact-replay" }),
+      userId: "user-alice",
+    },
+  ]);
+  const firstBody = interactionBody(first);
+  assert.equal(firstBody.ok, true);
+  assert.equal(first.state.players["user-alice"].questLog.quests["quest.test.talk"].objectives[0].current, 1);
+  assert.equal(first.state.players["user-alice"].interactionSession?.state, "active");
+  first.state.players["user-alice"].questLog.quests["quest.test.talk"].objectives[0].current = 0;
+  const replay = applyMatchLoop(first.state, 3, contentHash, [
+    {
+      opcode: ClientOpcode.INTERACT,
+      raw: envelope({ targetId: "npc.test_herald", requestId: "req-interact-replay" }),
+      userId: "user-alice",
+    },
+  ]);
+  const replayBody = interactionBody(replay);
+  assert.equal(replayBody.ok, true);
+  assert.equal(replayBody.requestId, "req-interact-replay");
+  assert.equal(replay.state.players["user-alice"].questLog.quests["quest.test.talk"].objectives[0].current, 0);
+});

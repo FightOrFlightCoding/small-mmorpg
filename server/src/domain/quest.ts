@@ -1,4 +1,4 @@
-import { distance, findNpc, type InteractionNpc } from "./interaction";
+import { resolveInteraction, type InteractionNpc } from "./interaction";
 import { npcOffersQuest, type NpcDefinition } from "./npc";
 import { countItem, type PlayerInventory } from "./inventory";
 import { cloneTickMap, dict } from "./maps";
@@ -152,6 +152,7 @@ export interface QuestAcceptInput {
   classId?: string;
   inParty?: boolean;
   npcById?: { [id: string]: NpcDefinition };
+  zoneId?: string;
 }
 
 export interface QuestAcceptOutcome {
@@ -320,19 +321,27 @@ export function applyQuestAccept(input: QuestAcceptInput): QuestAcceptOutcome {
   if (definition === undefined) {
     return { ok: false, code: "invalid_id", persist: false, log: log };
   }
-  const npc = findNpc(input.npcs, definition.acceptNpcId);
-  if (npc === null) {
-    return { ok: false, code: "invalid_target", persist: false, log: log };
+  const npcDef = input.npcById !== undefined ? input.npcById[definition.acceptNpcId] : undefined;
+  const decision = resolveInteraction({
+    playerHealth: input.playerHealth,
+    playerX: input.playerX,
+    playerY: input.playerY,
+    targetId: definition.acceptNpcId,
+    npcs: input.npcs,
+    interactionRange: input.interactionRange,
+    zoneId: input.zoneId,
+    playerLevel: input.playerLevel,
+    classId: input.classId,
+    inParty: input.inParty,
+    questLog: input.questLog,
+    npcById: input.npcById,
+    requiredService: npcDef !== undefined ? "quest_offer" : undefined,
+  });
+  if (!decision.ok) {
+    return { ok: false, code: decision.code, persist: false, log: log };
   }
-  const range = npc.interactionRange !== undefined ? npc.interactionRange : input.interactionRange;
-  if (distance(input.playerX, input.playerY, npc.x, npc.y) > range) {
-    return { ok: false, code: "out_of_range", persist: false, log: log };
-  }
-  if (input.npcById !== undefined) {
-    const npcDef = input.npcById[definition.acceptNpcId];
-    if (npcDef !== undefined && !npcOffersQuest(npcDef, definition.id, "quest_offer")) {
-      return { ok: false, code: "invalid_service", persist: false, log: log };
-    }
+  if (npcDef !== undefined && !npcOffersQuest(npcDef, definition.id, "quest_offer")) {
+    return { ok: false, code: "invalid_service", persist: false, log: log };
   }
   const existing = log.quests[input.questId];
   if (existing !== undefined && !(definition.repeatable && existing.status === QUEST_STATUS_COMPLETED)) {

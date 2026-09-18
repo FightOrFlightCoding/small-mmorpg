@@ -1,4 +1,4 @@
-import { distance, findNpc, type InteractionNpc } from "./interaction";
+import { resolveInteraction, type InteractionNpc } from "./interaction";
 import {
   addOrStackItem,
   acceptItemFailureCode,
@@ -37,6 +37,10 @@ export interface QuestTurnInInput {
   newId: () => string;
   tick?: number;
   npcById?: { [id: string]: NpcDefinition };
+  zoneId?: string;
+  playerLevel?: number;
+  classId?: string;
+  inParty?: boolean;
 }
 
 export interface QuestTurnInOutcome {
@@ -97,19 +101,27 @@ export function applyQuestTurnIn(input: QuestTurnInInput): QuestTurnInOutcome {
   if (input.npcId !== definition.turnInNpcId) {
     return fail("invalid_target", log, inventory, input.gold);
   }
-  const npc = findNpc(input.npcs, input.npcId);
-  if (npc === null) {
-    return fail("invalid_target", log, inventory, input.gold);
+  const npcDef = input.npcById !== undefined ? input.npcById[input.npcId] : undefined;
+  const decision = resolveInteraction({
+    playerHealth: input.playerHealth,
+    playerX: input.playerX,
+    playerY: input.playerY,
+    targetId: input.npcId,
+    npcs: input.npcs,
+    interactionRange: input.interactionRange,
+    zoneId: input.zoneId,
+    playerLevel: input.playerLevel,
+    classId: input.classId,
+    inParty: input.inParty,
+    questLog: input.questLog,
+    npcById: input.npcById,
+    requiredService: npcDef !== undefined ? "quest_turn_in" : undefined,
+  });
+  if (!decision.ok) {
+    return fail(decision.code, log, inventory, input.gold);
   }
-  const range = npc.interactionRange !== undefined ? npc.interactionRange : input.interactionRange;
-  if (distance(input.playerX, input.playerY, npc.x, npc.y) > range) {
-    return fail("out_of_range", log, inventory, input.gold);
-  }
-  if (input.npcById !== undefined) {
-    const npcDef = input.npcById[input.npcId];
-    if (npcDef !== undefined && !npcOffersQuest(npcDef, input.questId, "quest_turn_in")) {
-      return fail("invalid_service", log, inventory, input.gold);
-    }
+  if (npcDef !== undefined && !npcOffersQuest(npcDef, input.questId, "quest_turn_in")) {
+    return fail("invalid_service", log, inventory, input.gold);
   }
   const progress = log.quests[input.questId];
   if (progress === undefined) {

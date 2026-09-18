@@ -1,4 +1,4 @@
-import { distance, findNpc, type InteractionNpc } from "./interaction";
+import { findNpc, resolveInteraction, type InteractionNpc } from "./interaction";
 import {
   addOrStackItem,
   acceptItemFailureCode,
@@ -10,6 +10,7 @@ import {
   type PlayerInventory,
 } from "./inventory";
 import { findNpcService, type NpcDefinition } from "./npc";
+import type { QuestLog } from "./quest";
 import { applyGoldMutation } from "./wallet";
 
 export interface VendorStockEntry {
@@ -41,6 +42,9 @@ export interface VendorTradeInput {
   equippedInstanceIds: ReadonlyArray<string>;
   classId?: string;
   playerLevel?: number;
+  questLog?: QuestLog;
+  zoneId?: string;
+  inParty?: boolean;
   newId: () => string;
   tick?: number;
 }
@@ -260,16 +264,27 @@ function authorizeVendor(
   input: VendorTradeInput,
   serviceType: string,
 ): { ok: true; vendor: VendorDefinition } | { ok: false; code: string } {
-  if (input.playerHealth <= 0) {
-    return { ok: false, code: "player_dead" };
+  const decision = resolveInteraction({
+    playerHealth: input.playerHealth,
+    playerX: input.playerX,
+    playerY: input.playerY,
+    targetId: input.npcId,
+    npcs: input.npcs,
+    interactionRange: input.interactionRange,
+    zoneId: input.zoneId,
+    playerLevel: input.playerLevel,
+    classId: input.classId,
+    questLog: input.questLog,
+    npcById: input.npcById,
+    inParty: input.inParty,
+    requiredService: serviceType,
+  });
+  if (!decision.ok) {
+    return { ok: false, code: decision.code };
   }
   const npc = findNpc(input.npcs, input.npcId);
   if (npc === null) {
     return { ok: false, code: "invalid_target" };
-  }
-  const range = npc.interactionRange !== undefined ? npc.interactionRange : input.interactionRange;
-  if (distance(input.playerX, input.playerY, npc.x, npc.y) > range) {
-    return { ok: false, code: "out_of_range" };
   }
   const npcDef = input.npcById[npc.npcId];
   const service = findNpcService(npcDef, serviceType);

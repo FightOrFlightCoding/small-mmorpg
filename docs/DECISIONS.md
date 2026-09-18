@@ -771,4 +771,17 @@ Six ordinary residential exteriors (`residence_01`–`residence_06`) sit on `zon
 
 The plaza and radiating stone roads leave only small grass islands, so several houses sit more than 0.03 normalized units from the authored village-plan targets. Collision footprints are tile-aligned so 4–6 tile houses fit in the remaining grass. Neighbor footprints keep at least two clear tiles (three where the island allows). Placement preserves the composition (north cluster, east home, southwest cottage, south cottage), does not occupy reserved special lots (inn, hall, mill, shrine, store, barn, blacksmith, fields, spawn, monument), and connects each door with a short existing-atlas stone path. A 2-tile gap to every major road edge is not possible for 4–6 tile footprints next to the plaza; houses never overlap road occupancy. Rebuild sprites with `python3 scripts/generate_residential_houses.py` and placement/collisions with `python3 scripts/place_residential_houses.py`.
 
+## 2026-09-18 — NPC-01 closes recorded contract conflicts
+
+NPC-01 remains the current phase and does not start NPC-02 (no new NPC types, no cosmetic patrol routes, no second quest/dialogue/combat system). Pedro’s merge gate required the NPC contract and runtime to agree, so the previously documented migration rows are closed in-phase with the minimum existing-module changes:
+
+- NPCs are removed from gameplay AABB collision. Interaction uses an `Area2D` presentation affordance plus server distance checks.
+- Right-click is the default interact pick; keyboard `interact` remains the accessibility path. Both send the same `INTERACT` intention.
+- Respec eligibility is authored `respec` services on `npc.test_innkeeper` and `npc.lab_trainer`. The `RESPEC_TRAINER_NPC_IDS` overlay is deleted.
+- Elder, proof-giver, and cert-quartermaster dialogue bind accept/turn-in through `QuestService` offered helpers that read NPC content services. Spoken Prompt 18 text is unchanged. Server quest validation is unchanged.
+- Match-owned `interactionSession` plus `interactByRequestId` replay `INTERACT` without re-running `talk_to_npc`. Dialogue presentation is not a reward transaction.
+- Existing vendor, inn, cave, quest, and trainer owners authorize through `resolveInteraction` `requiredService` instead of a parallel dormant gate.
+
+No new opcode, RPC, storage collection, dependency, or vendor-addon change. Content hash changes because trainer `respec` is now in source NPC documents.
+
 

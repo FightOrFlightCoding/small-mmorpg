@@ -1,7 +1,7 @@
 {
   "protocolVersion": 1,
   "contentSchemaVersion": 1,
-  "contentHash": "6bec48bc7eef7a920b6397df3150d513611499fb2314c03700dc8dc8bcb950fd",
+  "contentHash": "b103bcc75e9845f4d4facc967bfab56b1dcd041bcb913e189132109a18d7eb94",
   "exactDependencies": {
     "server/package.json:typescript": "5.8.3",
     "server/package.json:nakama-runtime": "github:heroiclabs/nakama-common#v1.47.0",
@@ -518,7 +518,6 @@
       "client/scripts/e2e/slice_journey.gd",
       "client/scripts/e2e/cert_journey.gd",
       "client/content/dialogue_map.json",
-      "client/content/dialogue/npc.elder.dialogue",
       "client/content/asset_manifest.json"
     ],
     "enemy.green_slime": [
@@ -549,7 +548,6 @@
       "client/scripts/content/content_catalog.gd",
       "client/scripts/e2e/slice_journey.gd",
       "client/scripts/e2e/cert_journey.gd",
-      "client/content/dialogue/npc.elder.dialogue",
       "server/src/domain/match_loop.ts"
     ],
     "test.zone.systems_lab": [

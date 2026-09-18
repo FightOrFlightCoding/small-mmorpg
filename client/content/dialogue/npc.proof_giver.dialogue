@@ -1,14 +1,14 @@
 ~ start
-if QuestService.is_completed("quest.proof_errand")
+if QuestService.is_completed_offered()
 	=> completed
-elif QuestService.is_ready("quest.proof_errand")
+elif QuestService.is_ready_offered()
 	=> ready
-elif QuestService.is_accepted("quest.proof_errand")
+elif QuestService.is_accepted_offered()
 	=> in_progress
 else
 	Giver: Bring me one proof token from the far-corner critter.
 	- I will fetch a token.
-		do QuestService.request_accept("quest.proof_errand")
+		do QuestService.request_accept_offered()
 		Giver: It keeps to the south-east. Do not wander the slime pond.
 		=> END
 	- Not now.
@@ -22,7 +22,7 @@ Giver: The proof token still sits on that critter.
 ~ ready
 Giver: That is the token. I will take it.
 - Turn in the errand.
-	do QuestService.request_turn_in("quest.proof_errand", "npc.proof_giver")
+	do QuestService.request_turn_in_offered()
 	=> END
 - Keep it.
 	=> END

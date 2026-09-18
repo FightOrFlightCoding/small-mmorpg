@@ -1,21 +1,25 @@
 # NPC test plan (NPC-01)
 
-NPC-01 is documentation/audit only. It preserves existing NPC and quest coverage and adds repository/content checks without changing live behavior.
+NPC-01 records the contract and closes the listed runtime conflicts without starting NPC-02.
 
 ## Automated coverage
 
 | Check | Owner | Expected proof |
 | --- | --- | --- |
-| NPC content integrity | `tools/content-build/tests/content-build.test.ts` | Generic duplicate IDs, duplicate NPC placement IDs, unknown NPC service type, and missing service references fail validation. |
+| NPC content integrity | `tools/content-build/tests/content-build.test.ts` | Generic duplicate IDs, duplicate NPC placement IDs, unknown NPC service type, and missing service references fail validation. Authored `respec` is present on `npc.test_innkeeper`. |
 | NPC combat boundary | `tools/foundation-audit/audit.cjs` | Combat targeting/threat do not include NPCs; `MatchNpc` has no combat or collision fields. |
-| NPC collision debt containment | `tools/foundation-audit/audit.cjs` | Existing movement-blocker code is limited to `movement.ts` plus its sole `match_loop.ts` caller until a named migration updates the contract. |
+| NPC collision / interact affordance | `tools/foundation-audit/audit.cjs`, `server/tests/movement.test.ts` | NPCs are absent from gameplay collision; `InteractionArea` exists; players can walk through NPC poses. |
+| Right-click interact | `client/tests/app/interaction_client_test.gd` | Right-click pick sends the same `INTERACT` payload as keyboard interact. |
+| Respec content gate | `server/tests/progression_respec.test.ts`, audit | No `RESPEC_TRAINER_NPC_IDS`; innkeeper services include `respec`. |
+| Dialogue action metadata | audit, `client/tests/app/quest_service_test.gd` | Elder/proof/cert scripts have no quest/NPC literals; offered helpers read content. |
+| Generic service gate | `interaction.ts` callers, audit | Interact/vendor/inn/cave/quest/respec pass `requiredService`. |
+| INTERACT replay | `server/tests/interaction.test.ts` | Repeated request IDs do not re-apply `talk_to_npc`. |
 | Client merchant boundary | `tools/foundation-audit/audit.cjs`, protocol tests | Vendor request keys exclude price/gold; client send calls cannot submit them. |
-| Dialogue action boundary | `tools/foundation-audit/audit.cjs` | `.dialogue` `do` commands use only approved project-owned service adapters. |
-| Existing interaction/quest journey | `server/tests/interaction.test.ts`, `quest.test.ts`, `quest_reward.test.ts`, client interaction tests, E2E | Elder range, accepted dialogue result, accept/turn-in, idempotency, wallet/inventory persistence remain unchanged. |
+| Existing interaction/quest journey | `server/tests/interaction.test.ts`, `quest.test.ts`, `quest_reward.test.ts`, client interaction tests, E2E | Elder range, accepted dialogue result, accept/turn-in, idempotency, wallet/inventory persistence remain. |
 
 ## Baseline results and reproducible commands
 
-The current checkout uses Node 22.14.0. Before NPC-01 edits, `bash scripts/test-content.sh` and `bash scripts/test-auth-gateway.sh` failed because their package scripts pass a compiled test *directory* to Node 22 (`node --test dist/tests` or `dist-test/tests`), which Node treats as a missing module. This is pre-existing runner compatibility debt, not an NPC failure. Direct compiled-file glob invocation discovers and runs the suites.
+The current checkout uses Node 22. Directory-form `node --test dist/tests` wrappers can fail before discovery. Direct compiled-file glob invocation is the authoritative path:
 
 ```bash
 bash scripts/test-audit.sh
@@ -25,8 +29,6 @@ bash scripts/test-audit.sh
 GODOT_BIN=godot bash scripts/test-client.sh
 ```
 
-The server baseline completed with 759 passed and 13 expected live-test skips before NPC-01 edits. The suite-specific content and auth commands above are the authoritative verification path for this Node 22 environment; the standard wrapper failures remain documented rather than hidden or changed in an NPC audit.
-
 ## Manual regression
 
-After a follow-on gameplay change, start the existing stack and verify: walk to the elder, use the current keyboard interaction, receive server-approved dialogue, accept `quest.slime_problem`, kill/loot/turn in, reconnect, and verify no duplicate reward. NPC-01 itself requires no manual gameplay run because it changes no player-visible code. A later UI phase must additionally verify right-click invokes the same interaction request and that an NPC is pass-through rather than a movement obstacle.
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main`, then verify: walk through the elder (not blocked), right-click and keyboard-interact, receive server-approved dialogue, accept `quest.slime_problem`, kill/loot/turn in, reconnect, and verify no duplicate reward.

@@ -321,20 +321,50 @@ function checkNpcBoundaries() {
     fail("NPC runtime model gained combat or collision state");
   }
 
-  // NPC collision is existing Prompt 18 behavior. Keep this debt isolated until
-  // its named migration changes the contract and this allowlist deliberately.
   const movement = read("server/src/domain/movement.ts");
-  if ((movement.match(/\bnpcAabbs\b/g) || []).length !== 2) {
-    fail("NPC movement-blocker debt escaped its single helper");
-  }
-  const collisionCallers = walk("server/src", (rel) => rel.endsWith(".ts"))
-    .filter((rel) => read(rel).includes("collisionsWithPlayers("));
-  if (collisionCallers.join(",") !== "server/src/domain/match_loop.ts,server/src/domain/movement.ts") {
-    fail(`unexpected NPC/gameplay collision caller: ${collisionCallers.join(",")}`);
+  if (/\bnpcAabbs\b/.test(movement) || /npcs\?:/.test(movement)) {
+    fail("NPCs must not participate in gameplay collision");
   }
   const matchLoop = read("server/src/domain/match_loop.ts");
-  if (!matchLoop.includes("collisionsWithPlayers(state.collisions, state.players, ids[i], state.playerHalfExtent, state.npcs)")) {
-    fail("documented NPC movement-blocker debt changed without a contract migration");
+  if (matchLoop.includes("collisionsWithPlayers(state.collisions, state.players, ids[i], state.playerHalfExtent, state.npcs)")) {
+    fail("NPCs must not be gameplay movement blockers");
+  }
+  if (!matchLoop.includes("collisionsWithPlayers(state.collisions, state.players, ids[i], state.playerHalfExtent)")) {
+    fail("player collision resolution missing");
+  }
+  const npcScene = read("client/scenes/world/npc_avatar.tscn");
+  if (!npcScene.includes("InteractionArea")) {
+    fail("NPC interaction-area affordance missing");
+  }
+  const world = read("client/scripts/world/world.gd");
+  if (!world.includes("MOUSE_BUTTON_RIGHT") || !world.includes("try_interact_at")) {
+    fail("right-click interact affordance missing");
+  }
+  if (/\bRESPEC_TRAINER_NPC_IDS\b/.test(read("server/src/domain/npc.ts") + read("server/src/domain/canonical_respec.ts"))) {
+    fail("respec ID overlay must not exist");
+  }
+  if (!matchState.includes("interactionSession") || !matchLoop.includes("interactByRequestId")) {
+    fail("interaction session or INTERACT replay record missing");
+  }
+  if (!matchLoop.includes("requiredService: NPC_SERVICE_DIALOGUE") && !matchLoop.includes("NPC_SERVICE_DIALOGUE")) {
+    fail("INTERACT must use the generic NPC service gate");
+  }
+  const vendor = read("server/src/domain/vendor.ts");
+  if (!vendor.includes("requiredService: serviceType")) {
+    fail("vendor authorization must use the generic NPC service gate");
+  }
+  for (const rel of [
+    "client/content/dialogue/npc.elder.dialogue",
+    "client/content/dialogue/npc.proof_giver.dialogue",
+    "client/content/dialogue/npc.cert_quartermaster.dialogue",
+  ]) {
+    const text = read(rel);
+    if (/request_accept\("|request_turn_in\(/.test(text) || /quest\.[a-z0-9_.]+/.test(text) || /npc\.[a-z0-9_.]+/.test(text)) {
+      fail(`dialogue ${rel} still contains literal quest/NPC action bindings`);
+    }
+    if (!text.includes("request_accept_offered()") || !text.includes("request_turn_in_offered()")) {
+      fail(`dialogue ${rel} must bind actions through offered content metadata`);
+    }
   }
 
   const protocol = read("server/src/domain/protocol.ts");

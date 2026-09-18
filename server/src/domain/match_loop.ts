@@ -29,7 +29,8 @@ import {
   snapshotOpcode,
 } from "./match_state";
 import { collisionsWithPlayers, intendedDelta, resolveMove } from "./movement";
-import { findNpc, resolveInteraction } from "./interaction";
+import { findNpc, resolveInteraction, type InteractionInput } from "./interaction";
+import { NPC_SERVICE_DIALOGUE } from "./npc";
 import { applyQuestAccept, cloneQuestLog, publicQuestPayloads, syncAcquireObjectives, type QuestLog } from "./quest";
 import { applyTalkObjectives, applyKillObjectives, applyEnterLocation, enterLocationsFromQuests } from "./quest_objectives";
 import { applyVendorBuy, applyVendorSell, type VendorTradeOutcome } from "./vendor";
@@ -616,7 +617,7 @@ function handleValidated(
     return;
   }
   if (parsed.opcode === ClientOpcode.INTERACT) {
-    handleInteract(parsed, userId, state, outbound, persistByUser);
+    handleInteract(parsed, userId, state, tick, outbound, persistByUser);
     return;
   }
   if (parsed.opcode === ClientOpcode.QUEST_ACCEPT) {
@@ -781,42 +782,55 @@ function handleInteract(
   parsed: ParsedClientMessage,
   userId: string,
   state: StarterZoneState,
+  tick: number,
   outbound: MatchOutbound[],
   persistByUser: { [userId: string]: QuestLog },
 ): void {
   const targetId = parsed.fields.targetId;
+  const requestId = parsed.requestId as string;
   const player = state.players[userId];
   if (player === undefined) {
-    const missing = interactionResult("player_missing", false, parsed.requestId, targetId);
+    const missing = interactionResult("player_missing", false, requestId, targetId);
     outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
     return;
   }
-  const npc = findNpc(state.npcs, targetId);
-  const decision = resolveInteraction({
-    playerHealth: player.health,
-    playerX: player.x,
-    playerY: player.y,
-    targetId: targetId,
-    npcs: state.npcs,
-    interactionRange: state.interactionRange,
-    zoneId: state.zoneId,
-    playerLevel: playerLevelOf(player),
-    classId: player.classId,
-    questLog: player.questLog,
-    npcById: npcCatalog(state),
-    inParty: playerInCachedParty(state, player),
-  });
-  const extra = interactionExtras(state, player, npc !== null ? npc.npcId : targetId);
-  const result = interactionResult(decision.code, decision.ok, parsed.requestId, targetId, extra);
-  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
-  if (!decision.ok || npc === null) {
+  const prior = priorInteractResult(player, requestId);
+  if (prior !== undefined) {
+    const replayExtra: { [key: string]: unknown } = {};
+    if (prior.dialogueId !== undefined) {
+      replayExtra.dialogueId = prior.dialogueId;
+    }
+    if (prior.services !== undefined) {
+      replayExtra.services = prior.services;
+    }
+    const replay = interactionResult(prior.code, prior.ok, requestId, prior.targetId, replayExtra);
+    outbound.push({ opcode: replay.opcode, body: replay.body, toUserId: userId });
     return;
   }
+  const npc = findNpc(state.npcs, targetId);
+  const catalogNpcId = npc !== null ? npc.npcId : targetId;
+  const definition = npcCatalog(state)[catalogNpcId];
+  const interactionInput = interactionInputForPlayer(
+    state,
+    player,
+    targetId,
+    definition !== undefined ? NPC_SERVICE_DIALOGUE : undefined,
+  );
+  const decision = resolveInteraction(interactionInput);
+  const extra = interactionExtras(state, player, npc !== null ? npc.npcId : targetId);
+  const result = interactionResult(decision.code, decision.ok, requestId, targetId, extra);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  rememberInteractResult(player, requestId, decision.ok, decision.code, targetId, extra, tick);
+  if (!decision.ok || npc === null) {
+    closeInteractionSession(player);
+    return;
+  }
+  player.interactionSession = { requestId: requestId, targetId: targetId, state: "active" };
   const talked = applyTalkObjectives(player.questLog, npc.npcId);
   if (talked.changed) {
     player.questLog = talked.log;
     persistByUser[userId] = cloneQuestLog(player.questLog);
-    pushQuestState(state, userId, outbound, parsed.requestId);
+    pushQuestState(state, userId, outbound, requestId);
   }
 }
 
@@ -849,6 +863,7 @@ function handleQuestAccept(
     classId: player.classId,
     npcById: npcCatalog(state),
     inParty: playerInCachedParty(state, player),
+    zoneId: state.zoneId,
   });
   player.questLog = outcome.log;
   const synced = syncAcquireObjectives(player.questLog, player.inventory);
@@ -908,6 +923,10 @@ function handleQuestTurnIn(
     newId: makeId,
     tick: tick,
     npcById: npcCatalog(state),
+    zoneId: state.zoneId,
+    playerLevel: playerLevelOf(player),
+    classId: player.classId,
+    inParty: playerInCachedParty(state, player),
   });
   if (!outcome.ok) {
     const failed = actionResult(outcome.code, false, requestId);
@@ -1013,6 +1032,9 @@ function handleVendorBuy(
     equippedInstanceIds: equippedInstanceIds(player.equipment !== undefined ? player.equipment : emptyEquipment()),
     classId: player.classId,
     playerLevel: playerLevelOf(player),
+    questLog: player.questLog,
+    zoneId: state.zoneId,
+    inParty: playerInCachedParty(state, player),
     newId: makeId,
     tick: tick,
   });
@@ -1073,6 +1095,9 @@ function handleVendorSell(
     equippedInstanceIds: equippedInstanceIds(player.equipment !== undefined ? player.equipment : emptyEquipment()),
     classId: player.classId,
     playerLevel: playerLevelOf(player),
+    questLog: player.questLog,
+    zoneId: state.zoneId,
+    inParty: playerInCachedParty(state, player),
     newId: makeId,
     tick: tick,
   });
@@ -1124,6 +1149,11 @@ function handleInnRest(
     bind: bind,
     tick: tick,
     priorCodes: player.innByRequestId,
+    zoneId: state.zoneId,
+    playerLevel: playerLevelOf(player),
+    classId: player.classId,
+    inParty: playerInCachedParty(state, player),
+    questLog: player.questLog,
   });
   if (!outcome.ok) {
     rememberInn(player, requestId, outcome.code);
@@ -1222,6 +1252,11 @@ function handleCaveEnter(
     npcs: state.npcs,
     interactionRange: state.interactionRange,
     npcById: npcCatalog(state),
+    zoneId: state.zoneId,
+    playerLevel: playerLevelOf(player),
+    classId: player.classId,
+    inParty: playerInCachedParty(state, player),
+    questLog: player.questLog,
   });
   if (!outcome.ok) {
     rememberCaveRequest(player, requestId, outcome.code);
@@ -1287,6 +1322,11 @@ function handleCaveExit(
     npcById: npcCatalog(state),
     transferring: false,
     originInstanceType: state.instanceType !== undefined ? state.instanceType : "public_world",
+    zoneId: state.zoneId,
+    playerLevel: playerLevelOf(player),
+    classId: player.classId,
+    inParty: playerInCachedParty(state, player),
+    questLog: player.questLog,
   });
   if (!outcome.ok) {
     rememberCaveRequest(player, requestId, outcome.code);
@@ -2195,7 +2235,7 @@ function simulateMovement(state: StarterZoneState, dt: number): void {
       delta.x,
       delta.y,
       state.playerHalfExtent,
-      collisionsWithPlayers(state.collisions, state.players, ids[i], state.playerHalfExtent, state.npcs),
+      collisionsWithPlayers(state.collisions, state.players, ids[i], state.playerHalfExtent),
       state.walkableBounds,
     );
     player.x = next.x;
@@ -2779,12 +2819,19 @@ function handleTrainerRespec(
     return;
   }
   const trainer = evaluateTrainerNpc({
+    playerHealth: player.health,
     playerX: player.x,
     playerY: player.y,
     npcId: parsed.fields.npcId,
+    targetId: parsed.fields.npcId,
     npcs: state.npcs,
     interactionRange: state.interactionRange,
+    zoneId: state.zoneId,
+    playerLevel: playerLevelOf(player),
+    classId: player.classId,
+    questLog: player.questLog,
     npcById: npcCatalog(state),
+    inParty: playerInCachedParty(state, player),
   });
   if (!trainer.ok) {
     const failed = actionResult(trainer.code, false, requestId);
@@ -3248,6 +3295,99 @@ function vendorCatalog(state: StarterZoneState) {
 
 function playerLevelOf(player: MatchPlayer): number {
   return player.progression !== undefined ? player.progression.level : 1;
+}
+
+function interactionInputForPlayer(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  targetId: string,
+  requiredService?: string,
+): InteractionInput {
+  return {
+    playerHealth: player.health,
+    playerX: player.x,
+    playerY: player.y,
+    targetId: targetId,
+    npcs: state.npcs,
+    interactionRange: state.interactionRange,
+    zoneId: state.zoneId,
+    playerLevel: playerLevelOf(player),
+    classId: player.classId,
+    questLog: player.questLog,
+    npcById: npcCatalog(state),
+    inParty: playerInCachedParty(state, player),
+    requiredService: requiredService,
+  };
+}
+
+function priorInteractResult(
+  player: MatchPlayer,
+  requestId: string,
+): { ok: boolean; code: string; targetId: string; dialogueId?: string; services?: string[] } | undefined {
+  const map = dict(player.interactByRequestId);
+  const prior = map[requestId];
+  if (prior === undefined) {
+    return undefined;
+  }
+  const record: { ok: boolean; code: string; targetId: string; dialogueId?: string; services?: string[] } = {
+    ok: prior.ok === true,
+    code: String(prior.code),
+    targetId: String(prior.targetId),
+  };
+  if (prior.dialogueId !== undefined) {
+    record.dialogueId = String(prior.dialogueId);
+  }
+  if (Array.isArray(prior.services)) {
+    const services: string[] = [];
+    for (let i = 0; i < prior.services.length; i++) {
+      services.push(String(prior.services[i]));
+    }
+    record.services = services;
+  }
+  return record;
+}
+
+function rememberInteractResult(
+  player: MatchPlayer,
+  requestId: string,
+  ok: boolean,
+  code: string,
+  targetId: string,
+  extra: { [key: string]: unknown },
+  tick: number,
+): void {
+  const map = dict(player.interactByRequestId);
+  const record: { ok: boolean; code: string; targetId: string; dialogueId?: string; services?: string[] } = {
+    ok: ok,
+    code: code,
+    targetId: targetId,
+  };
+  if (typeof extra.dialogueId === "string") {
+    record.dialogueId = extra.dialogueId;
+  }
+  if (Array.isArray(extra.services)) {
+    const services: string[] = [];
+    for (let i = 0; i < extra.services.length; i++) {
+      services.push(String(extra.services[i]));
+    }
+    record.services = services;
+  }
+  map[requestId] = record;
+  player.interactByRequestId = map;
+  const ticks = dict(player.interactRequestTicks);
+  ticks[requestId] = tick;
+  player.interactRequestTicks = ticks;
+}
+
+function closeInteractionSession(player: MatchPlayer): void {
+  if (player.interactionSession === undefined) {
+    return;
+  }
+  player.interactionSession = {
+    requestId: player.interactionSession.requestId,
+    targetId: player.interactionSession.targetId,
+    state: "closed",
+  };
 }
 
 function interactionExtras(

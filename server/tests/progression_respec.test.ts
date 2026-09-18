@@ -300,7 +300,7 @@ test("batch allocation validates the whole set and applies atomically", () => {
   assert.equal(replay.progression.freeStatAllocations["stat.strength"], 2);
 });
 
-test("trainer overlay adds respec without rebuilding content", () => {
+test("authored npc content includes respec service", () => {
   const npcs = npcDefinitionsFromContent(content.npcs);
   assert.equal(npcs["npc.test_innkeeper"].services.some((service) => service.type === "respec"), true);
   if (npcs["npc.lab_trainer"] !== undefined) {

@@ -1,13 +1,12 @@
 import { pendingBranchSelection } from "./canonical_leveling";
 import { respecGoldCost } from "./canonical_progression";
 import { syncDerivedAbilityOwnership } from "./canonical_talents";
-import { distance, findNpc, type InteractionNpc } from "./interaction";
-import { findNpcService, NPC_SERVICE_RESPEC, type NpcDefinition } from "./npc";
+import { resolveInteraction, type InteractionInput } from "./interaction";
+import { NPC_SERVICE_RESPEC } from "./npc";
 import type { CharacterProgression } from "./progression";
 import type { ProgressionCatalog } from "./stats";
 
 export { NPC_SERVICE_RESPEC };
-export const RESPEC_TRAINER_NPC_IDS = ["npc.test_innkeeper", "npc.lab_trainer"];
 
 export interface RespecSnapshot {
   characterId: string;
@@ -70,27 +69,13 @@ export function pendingBranchGuidance(level: number, branchId: string): boolean 
   return pendingBranchSelection(level, branchId);
 }
 
-export function evaluateTrainerNpc(input: {
-  playerX: number;
-  playerY: number;
-  npcId: string;
-  npcs: ReadonlyArray<InteractionNpc>;
-  interactionRange: number;
-  npcById: { [id: string]: NpcDefinition };
-}): { ok: boolean; code: string } {
-  const npc = findNpc(input.npcs, input.npcId);
-  if (npc === null) {
-    return { ok: false, code: "invalid_target" };
-  }
-  const range = npc.interactionRange !== undefined ? npc.interactionRange : input.interactionRange;
-  if (distance(input.playerX, input.playerY, npc.x, npc.y) > range) {
-    return { ok: false, code: "out_of_range" };
-  }
-  const service = findNpcService(input.npcById[npc.npcId], NPC_SERVICE_RESPEC);
-  if (service === null) {
-    return { ok: false, code: "invalid_service" };
-  }
-  return { ok: true, code: "ok" };
+export function evaluateTrainerNpc(input: InteractionInput & { npcId: string }): { ok: boolean; code: string } {
+  const decision = resolveInteraction({
+    ...input,
+    targetId: input.npcId,
+    requiredService: NPC_SERVICE_RESPEC,
+  });
+  return { ok: decision.ok, code: decision.code };
 }
 
 export function respecAuditMetadata(snapshot: RespecSnapshot): { [key: string]: unknown } {

@@ -5,6 +5,7 @@ extends Node
 signal quests_changed
 
 var _quests: Dictionary = {}
+var _speaker_npc_id: String = ""
 
 
 func _ready() -> void:
@@ -18,6 +19,7 @@ func _ready() -> void:
 
 func reset() -> void:
 	_quests.clear()
+	_speaker_npc_id = ""
 	quests_changed.emit()
 
 
@@ -48,6 +50,43 @@ func request_turn_in(quest_id: String, npc_id: String) -> void:
 	if quest_id.is_empty() or npc_id.is_empty():
 		return
 	NetworkService.send_quest_turn_in(quest_id, npc_id)
+
+
+func set_speaker(npc_id: String) -> void:
+	_speaker_npc_id = npc_id
+
+
+func speaker_npc_id() -> String:
+	return _speaker_npc_id
+
+
+func offered_quest_id(npc_id: String = "") -> String:
+	return _quest_id_from_service(npc_id, "quest_offer")
+
+
+func turn_in_quest_id(npc_id: String = "") -> String:
+	return _quest_id_from_service(npc_id, "quest_turn_in")
+
+
+func request_accept_offered() -> void:
+	request_accept(offered_quest_id())
+
+
+func request_turn_in_offered() -> void:
+	var npc_id := _resolved_npc_id("")
+	request_turn_in(turn_in_quest_id(npc_id), npc_id)
+
+
+func is_accepted_offered() -> bool:
+	return is_accepted(offered_quest_id())
+
+
+func is_completed_offered() -> bool:
+	return is_completed(offered_quest_id())
+
+
+func is_ready_offered() -> bool:
+	return is_ready(offered_quest_id())
 
 
 func is_accepted(quest_id: String) -> bool:
@@ -166,6 +205,31 @@ func _journal_state(quest_id: String) -> String:
 	if is_accepted(quest_id):
 		return "In progress"
 	return String(get_quest(quest_id).get("status", "Unknown"))
+
+
+func _resolved_npc_id(npc_id: String) -> String:
+	if not npc_id.is_empty():
+		return npc_id
+	return _speaker_npc_id
+
+
+func _quest_id_from_service(npc_id: String, service_type: String) -> String:
+	var definition: Dictionary = ContentRegistry.get_by_id(_resolved_npc_id(npc_id))
+	if definition.is_empty():
+		return ""
+	var services: Variant = definition.get("services", [])
+	if typeof(services) != TYPE_ARRAY:
+		return ""
+	for entry in services:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("type", "")) != service_type:
+			continue
+		var ids: Variant = entry.get("questIds", [])
+		if typeof(ids) != TYPE_ARRAY or ids.is_empty():
+			continue
+		return String(ids[0])
+	return ""
 
 
 func _on_zone_state_updated() -> void:

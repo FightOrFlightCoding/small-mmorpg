@@ -411,6 +411,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			else:
 				AbilityService.cancel_targeting()
 			get_viewport().set_input_as_handled()
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			if try_interact_at(get_global_mouse_position()):
+				get_viewport().set_input_as_handled()
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			if try_select_friendly_player():
 				get_viewport().set_input_as_handled()
@@ -524,7 +527,20 @@ func try_select_friendly_player() -> bool:
 func try_interact() -> void:
 	if _input_blocked() or not _local_alive() or NetworkService.match_id.is_empty():
 		return
-	var npc_id := InteractIntent.nearest_npc_id(_reconciler.display, AppState.zone_view.get("npcs", []))
+	_begin_interact(InteractIntent.nearest_npc_id(_reconciler.display, AppState.zone_view.get("npcs", [])))
+
+
+func try_interact_at(world_pos: Vector2) -> bool:
+	if _input_blocked() or not _local_alive() or NetworkService.match_id.is_empty():
+		return false
+	var npc_id := InteractIntent.npc_id_at(world_pos, _reconciler.display, AppState.zone_view.get("npcs", []))
+	if npc_id.is_empty():
+		return false
+	_begin_interact(npc_id)
+	return true
+
+
+func _begin_interact(npc_id: String) -> void:
 	if npc_id.is_empty():
 		return
 	var request_id := MatchProtocol.new_request_id()

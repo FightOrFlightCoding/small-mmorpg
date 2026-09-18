@@ -1,4 +1,4 @@
-import { distance, findNpc, type InteractionNpc } from "./interaction";
+import { resolveInteraction, type InteractionNpc } from "./interaction";
 import {
   CAVE_EMPTY_TIMEOUT_SEC,
   CAVE_SCHEMA_VERSION,
@@ -13,8 +13,9 @@ import {
 } from "./instance";
 import { dict } from "./maps";
 import type { MatchPlayer, StarterZoneState } from "./match_state";
-import { findNpcService, type NpcDefinition } from "./npc";
+import type { NpcDefinition } from "./npc";
 import type { PartyIndex, PartyRecord } from "./party";
+import type { QuestLog } from "./quest";
 import { resetBoss } from "./boss";
 import { resetSpawnGroup } from "./spawn_controller";
 
@@ -75,6 +76,11 @@ export interface CaveEntryContext {
   contentHash: string;
   expectedContentHash: string;
   party: PartyRecord | null;
+  zoneId?: string;
+  playerLevel?: number;
+  classId?: string;
+  inParty?: boolean;
+  questLog?: QuestLog;
 }
 
 export interface CaveEntryGate {
@@ -112,20 +118,23 @@ export function evaluateCaveEntry(input: CaveEntryContext): CaveEntryGate {
   if (input.transferring) {
     return failGate("already_transferring", "A transfer is already in progress.");
   }
-  if (input.health <= 0) {
-    return failGate("player_dead", "You cannot enter while dead.");
-  }
-  const npc = findNpc(input.npcs, input.npcId);
-  if (npc === null) {
-    return failGate("invalid_target", "That entrance does not exist.");
-  }
-  const range = npc.interactionRange !== undefined ? npc.interactionRange : input.interactionRange;
-  if (distance(input.x, input.y, npc.x, npc.y) > range) {
-    return failGate("out_of_range", "Move closer to the entrance.");
-  }
-  const service = findNpcService(input.npcById[npc.npcId], "cave_entrance");
-  if (service === null) {
-    return failGate("invalid_service", "This NPC does not offer cave entry.");
+  const access = resolveInteraction({
+    playerHealth: input.health,
+    playerX: input.x,
+    playerY: input.y,
+    targetId: input.npcId,
+    npcs: input.npcs,
+    interactionRange: input.interactionRange,
+    zoneId: input.zoneId,
+    playerLevel: input.playerLevel,
+    classId: input.classId,
+    inParty: input.inParty === true || input.party !== null,
+    questLog: input.questLog,
+    npcById: input.npcById,
+    requiredService: "cave_entrance",
+  });
+  if (!access.ok) {
+    return failGate(access.code, caveGateMessage("enter", access.code));
   }
   if (input.party !== null) {
     if (!partyContains(input.party, input.characterId)) {
@@ -160,6 +169,11 @@ export function evaluateCaveExit(input: {
   npcById: { [id: string]: NpcDefinition };
   transferring: boolean;
   originInstanceType: string;
+  zoneId?: string;
+  playerLevel?: number;
+  classId?: string;
+  inParty?: boolean;
+  questLog?: QuestLog;
 }): CaveEntryGate {
   if (input.originInstanceType !== "party_cave") {
     return failGate("invalid_origin", "Leave through the cave exit.");
@@ -167,20 +181,23 @@ export function evaluateCaveExit(input: {
   if (input.transferring) {
     return failGate("already_transferring", "A transfer is already in progress.");
   }
-  if (input.health <= 0) {
-    return failGate("player_dead", "You cannot leave while dead.");
-  }
-  const npc = findNpc(input.npcs, input.npcId);
-  if (npc === null) {
-    return failGate("invalid_target", "That exit does not exist.");
-  }
-  const range = npc.interactionRange !== undefined ? npc.interactionRange : input.interactionRange;
-  if (distance(input.x, input.y, npc.x, npc.y) > range) {
-    return failGate("out_of_range", "Move closer to the exit.");
-  }
-  const service = findNpcService(input.npcById[npc.npcId], "cave_exit");
-  if (service === null) {
-    return failGate("invalid_service", "This NPC does not offer cave exit.");
+  const access = resolveInteraction({
+    playerHealth: input.health,
+    playerX: input.x,
+    playerY: input.y,
+    targetId: input.npcId,
+    npcs: input.npcs,
+    interactionRange: input.interactionRange,
+    zoneId: input.zoneId,
+    playerLevel: input.playerLevel,
+    classId: input.classId,
+    inParty: input.inParty,
+    questLog: input.questLog,
+    npcById: input.npcById,
+    requiredService: "cave_exit",
+  });
+  if (!access.ok) {
+    return failGate(access.code, caveGateMessage("exit", access.code));
   }
   return { ok: true, code: "ok", message: "" };
 }
@@ -671,6 +688,22 @@ function partyContains(party: PartyRecord, characterId: string): boolean {
     }
   }
   return false;
+}
+
+function caveGateMessage(kind: "enter" | "exit", code: string): string {
+  if (code === "player_dead") {
+    return kind === "enter" ? "You cannot enter while dead." : "You cannot leave while dead.";
+  }
+  if (code === "invalid_target") {
+    return kind === "enter" ? "That entrance does not exist." : "That exit does not exist.";
+  }
+  if (code === "out_of_range") {
+    return kind === "enter" ? "Move closer to the entrance." : "Move closer to the exit.";
+  }
+  if (code === "invalid_service") {
+    return kind === "enter" ? "This NPC does not offer cave entry." : "This NPC does not offer cave exit.";
+  }
+  return kind === "enter" ? "You cannot enter here." : "You cannot leave here.";
 }
 
 function failGate(code: string, message: string): CaveEntryGate {

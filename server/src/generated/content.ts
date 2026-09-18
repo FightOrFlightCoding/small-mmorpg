@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "6bec48bc7eef7a920b6397df3150d513611499fb2314c03700dc8dc8bcb950fd";
+export const contentHash = "b103bcc75e9845f4d4facc967bfab56b1dcd041bcb913e189132109a18d7eb94";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = ["npc.lab_exit","npc.lab_inn","npc.lab_keeper","npc.lab_trainer","npc.lab_vendor","quest.lab_tour","spawn.lab.boss","spawn.lab.caster","spawn.lab.melee","spawn.lab.ranged","test.zone.systems_lab","vendor.lab_general"] as const;
 export const content = {
@@ -6559,6 +6559,9 @@ export const content = {
           "healToFull": true,
           "restoreResources": true,
           "type": "healer"
+        },
+        {
+          "type": "respec"
         }
       ],
       "visualId": "visual.npc_innkeeper",

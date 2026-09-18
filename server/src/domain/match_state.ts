@@ -126,6 +126,11 @@ export interface MatchPlayer {
   transferState?: "idle" | "issued" | "pending";
   transferIssuedAtTick?: number;
   caveEnterByRequestId?: { [requestId: string]: string };
+  interactByRequestId?: {
+    [requestId: string]: { ok: boolean; code: string; targetId: string; dialogueId?: string; services?: string[] };
+  };
+  interactRequestTicks?: { [requestId: string]: number };
+  interactionSession?: { requestId: string; targetId: string; state: "open" | "active" | "closed" };
   linkDead?: boolean;
   linkDeadUntilTick?: number;
   safeLeaveCommitted?: boolean;
@@ -840,6 +845,16 @@ function cloneMatchPlayer(p: MatchPlayer, state: StarterZoneState): MatchPlayer 
     transferState: p.transferState !== undefined ? p.transferState : "idle",
     transferIssuedAtTick: typeof p.transferIssuedAtTick === "number" ? p.transferIssuedAtTick : undefined,
     caveEnterByRequestId: dict(p.caveEnterByRequestId),
+    interactByRequestId: cloneInteractByRequestId(p.interactByRequestId),
+    interactRequestTicks: cloneCooldownMap(p.interactRequestTicks),
+    interactionSession:
+      p.interactionSession !== undefined
+        ? {
+            requestId: p.interactionSession.requestId,
+            targetId: p.interactionSession.targetId,
+            state: p.interactionSession.state,
+          }
+        : undefined,
     linkDead: p.linkDead === true,
     linkDeadUntilTick: typeof p.linkDeadUntilTick === "number" ? p.linkDeadUntilTick : undefined,
     safeLeaveCommitted: p.safeLeaveCommitted === true,
@@ -1179,6 +1194,47 @@ function cloneAbilityUseMap(
       continue;
     }
     out[keys[i]] = { ok: row.ok === true, code: row.code };
+  }
+  return out;
+}
+
+function cloneInteractByRequestId(
+  map:
+    | {
+        [requestId: string]: {
+          ok: boolean;
+          code: string;
+          targetId: string;
+          dialogueId?: string;
+          services?: string[];
+        };
+      }
+    | undefined,
+): {
+  [requestId: string]: { ok: boolean; code: string; targetId: string; dialogueId?: string; services?: string[] };
+} {
+  const out: {
+    [requestId: string]: { ok: boolean; code: string; targetId: string; dialogueId?: string; services?: string[] };
+  } = {};
+  const source = dict(map);
+  const keys = Object.keys(source);
+  for (let i = 0; i < keys.length; i++) {
+    const row = source[keys[i]];
+    if (row == null) {
+      continue;
+    }
+    const copied: { ok: boolean; code: string; targetId: string; dialogueId?: string; services?: string[] } = {
+      ok: row.ok === true,
+      code: String(row.code),
+      targetId: String(row.targetId),
+    };
+    if (row.dialogueId !== undefined) {
+      copied.dialogueId = String(row.dialogueId);
+    }
+    if (Array.isArray(row.services)) {
+      copied.services = row.services.map((entry) => String(entry));
+    }
+    out[keys[i]] = copied;
   }
   return out;
 }

@@ -413,6 +413,7 @@ export function prunePlayerRequestHistory(player: MatchPlayer, tick: number): Re
   const equipmentChanged = player.equipment !== undefined ? pruneEquipmentHistory(player.equipment, tick) : false;
   const progressionChanged = player.progression !== undefined ? pruneProgressionHistory(player.progression, tick) : false;
   pruneAbilityUseHistory(player, tick);
+  pruneInteractHistory(player, tick);
   return {
     questsChanged: questsChanged,
     inventoryChanged: inventoryChanged,
@@ -438,6 +439,25 @@ function pruneAbilityUseHistory(player: MatchPlayer, tick: number): void {
   }
   player.abilityUseByRequestId = next;
   player.abilityUseTicks = pruned.ticks;
+}
+
+function pruneInteractHistory(player: MatchPlayer, tick: number): void {
+  const map = dict(player.interactByRequestId);
+  const keys = Object.keys(map);
+  const pruned = pruneKeyedHistory(keys, player.interactRequestTicks, tick);
+  if (!pruned.changed) {
+    player.interactRequestTicks = pruned.ticks;
+    return;
+  }
+  const next: NonNullable<MatchPlayer["interactByRequestId"]> = {};
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    if (pruned.keep[key] === true && map[key] !== undefined) {
+      next[key] = map[key];
+    }
+  }
+  player.interactByRequestId = next;
+  player.interactRequestTicks = pruned.ticks;
 }
 
 function pruneQuestHistory(log: QuestLog, tick: number): boolean {

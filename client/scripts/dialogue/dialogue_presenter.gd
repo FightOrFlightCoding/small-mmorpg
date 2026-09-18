@@ -60,6 +60,7 @@ func open_for_npc(npc_id: String, dialogue_id: String = "") -> bool:
 	if is_open():
 		_balloon.queue_free()
 		_balloon = null
+	QuestService.set_speaker(npc_id)
 	last_opened_npc_id = npc_id
 	open_count += 1
 	_balloon = DialogueManager.show_dialogue_balloon_scene(
@@ -75,5 +76,6 @@ func open_for_npc(npc_id: String, dialogue_id: String = "") -> bool:
 
 func _on_dialogue_ended(_resource: DialogueResource) -> void:
 	_balloon = null
+	QuestService.set_speaker("")
 	WindowManager.close(WindowManager.DIALOGUE)
 	dialogue_closed.emit()

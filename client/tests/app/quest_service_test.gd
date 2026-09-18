@@ -159,3 +159,24 @@ func test_quest_state_completed_updates_journal() -> void:
 	await get_tree().process_frame
 	hud.refresh_journal(QuestService.journal_view())
 	assert_str(hud.get_node("Root/Journal/Margin/VBox/Body").text).contains("Completed")
+
+
+func test_offered_helpers_use_npc_content_not_dialogue_literals() -> void:
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	QuestService.set_speaker("npc.elder")
+	assert_str(QuestService.offered_quest_id()).is_equal("quest.slime_problem")
+	assert_str(QuestService.turn_in_quest_id()).is_equal("quest.slime_problem")
+	QuestService.request_accept_offered()
+	await get_tree().process_frame
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_QUEST_ACCEPT)
+	var accept_payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_str(String(accept_payload.get("questId", ""))).is_equal("quest.slime_problem")
+	QuestService.request_turn_in_offered()
+	await get_tree().process_frame
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_QUEST_TURN_IN)
+	var turn_in_payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_str(String(turn_in_payload.get("questId", ""))).is_equal("quest.slime_problem")
+	assert_str(String(turn_in_payload.get("npcId", ""))).is_equal("npc.elder")
+	QuestService.set_speaker("")

@@ -22,6 +22,7 @@
       "goldCost": 0,
       "healToFull": true,
       "restoreResources": true
-    }
+    },
+    { "type": "respec" }
   ]
 }

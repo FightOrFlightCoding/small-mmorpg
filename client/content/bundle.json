@@ -3855,7 +3855,7 @@
       "visualAssetSetId": "visual.class_warden"
     }
   },
-  "contentHash": "6bec48bc7eef7a920b6397df3150d513611499fb2314c03700dc8dc8bcb950fd",
+  "contentHash": "b103bcc75e9845f4d4facc967bfab56b1dcd041bcb913e189132109a18d7eb94",
   "derivedStats": {
     "test.stat.attack": {
       "components": [
@@ -6568,6 +6568,9 @@
           "healToFull": true,
           "restoreResources": true,
           "type": "healer"
+        },
+        {
+          "type": "respec"
         }
       ],
       "visualId": "visual.npc_innkeeper",

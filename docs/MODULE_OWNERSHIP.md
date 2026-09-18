@@ -126,7 +126,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `quest_store.ts` / `inventory_store.ts` / `equipment_store.ts` / `progression_store.ts` exist under both `domain/` and `nakama/` | Domain files serialize values. Nakama files read/write storage. Callers in the match adapter must use the Nakama files. |
 | `starter_zone_registry.ts` in domain and nakama | Domain picks the canonical match id. Nakama file talks to `matchList` / `matchCreate` / storage. |
 | `STARTER_ZONE_ID` vs content `zones` map | Runtime still keys `content.zones["zone.starter"]` instead of iterating the catalog. Catalogued as architectural hard-coding. |
-| Dialogue `do QuestService.request_accept("quest.slime_problem")` | Presentation script owns the ID string; server still validates. Must move to content-driven choices later. |
+| Dialogue `do QuestService.request_accept_offered()` | Presentation commands resolve quest/NPC IDs from authored NPC services. Server still validates accept/turn-in. |
 | `DialoguePresenter` balloon path `res://addons/dialogue_manager/example_balloon/example_balloon.tscn` | Presentation-only; still a vendor example scene. Do not treat as a second dialogue system. |
 | `ContentCatalog.REQUIRED_IDS` | Client boot refuses catalogs missing Prompt 18 IDs. Duplicates content-build’s source set. Later generalization must drop the fixed list. |
 | Wallet vs storage | Gold is Nakama wallet, not a storage object. Inventory/quest/equipment are storage. Turn-in uses both in one `multiUpdate`. |

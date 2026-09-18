@@ -67,15 +67,19 @@ func test_elder_dialogue_compiles_with_required_titles() -> void:
 	assert_bool(resource.titles.has("in_progress")).is_true()
 	assert_bool(resource.titles.has("ready")).is_true()
 	assert_bool(resource.titles.has("completed")).is_true()
-	assert_str(file.get_as_text()).contains("do QuestService.request_accept(\"quest.slime_problem\")")
-	assert_str(file.get_as_text()).contains("do QuestService.request_turn_in(\"quest.slime_problem\", \"npc.elder\")")
+	assert_str(file.get_as_text()).contains("do QuestService.request_accept_offered()")
+	assert_str(file.get_as_text()).contains("do QuestService.request_turn_in_offered()")
+	assert_str(file.get_as_text()).contains("QuestService.is_completed_offered()")
+	assert_bool(file.get_as_text().contains("quest.slime_problem")).is_false()
 
 
-func test_proof_and_cert_dialogues_turn_in_with_npc_id() -> void:
+func test_proof_and_cert_dialogues_turn_in_from_content() -> void:
 	var proof := FileAccess.get_file_as_string("res://content/dialogue/npc.proof_giver.dialogue")
-	assert_str(proof).contains("do QuestService.request_turn_in(\"quest.proof_errand\", \"npc.proof_giver\")")
+	assert_str(proof).contains("do QuestService.request_turn_in_offered()")
+	assert_bool(proof.contains("quest.proof_errand")).is_false()
 	var cert := FileAccess.get_file_as_string("res://content/dialogue/npc.cert_quartermaster.dialogue")
-	assert_str(cert).contains("do QuestService.request_turn_in(\"quest.cert_scout\", \"npc.cert_quartermaster\")")
+	assert_str(cert).contains("do QuestService.request_turn_in_offered()")
+	assert_bool(cert.contains("quest.cert_scout")).is_false()
 	var proof_resource: DialogueResource = DialogueManager.create_resource_from_text(proof)
 	assert_object(proof_resource).is_not_null()
 	var cert_resource: DialogueResource = DialogueManager.create_resource_from_text(cert)
@@ -116,3 +120,39 @@ func test_world_sends_interact_without_opening_dialogue() -> void:
 		"target_id": "npc.elder",
 	})
 	assert_int(dialogue.open_count).is_equal(1)
+
+
+func test_right_click_pick_sends_same_interact_intent() -> void:
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	AppState.notify_zone_state({
+		"self_id": "user-alice",
+		"zone_id": "zone.starter",
+		"tick": 1,
+		"ack_seq": 0,
+		"players": [{"userId": "user-alice", "name": "Alice", "x": 160, "y": 320}],
+		"npcs": [{"id": "npc.elder", "npcId": "npc.elder", "x": 160, "y": 320}],
+		"enemies": [],
+		"loot": [],
+		"quests": [],
+	}, true)
+	var world: Node = auto_free(preload("res://scenes/world/world.tscn").instantiate())
+	add_child(world)
+	await get_tree().process_frame
+	world.set_process(false)
+	assert_bool(world.try_interact_at(Vector2(160, 320))).is_true()
+	await get_tree().process_frame
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_INTERACT)
+	var payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_str(String(payload.get("targetId", ""))).is_equal("npc.elder")
+	assert_bool(payload.has("requestId")).is_true()
+	assert_bool(payload.has("x")).is_false()
+	assert_bool(payload.has("y")).is_false()
+
+
+func test_nearby_npc_click_pick_uses_server_range() -> void:
+	var elder := [{"id": "npc.elder", "npcId": "npc.elder", "x": 160, "y": 320}]
+	assert_str(InteractIntent.npc_id_at(Vector2(160, 320), Vector2(160, 320), elder)).is_equal("npc.elder")
+	assert_str(InteractIntent.npc_id_at(Vector2(160, 320), Vector2(240, 384), elder)).is_equal("")
+	assert_str(InteractIntent.npc_id_at(Vector2(400, 400), Vector2(160, 320), elder)).is_equal("")

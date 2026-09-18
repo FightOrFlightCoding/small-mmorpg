@@ -8,6 +8,6 @@
   "position": { "x": 680, "y": 256 },
   "interactionRange": 48,
   "dialogueId": "dialogue.npc.lab_trainer",
-  "services": [{ "type": "dialogue" }],
+  "services": [{ "type": "dialogue" }, { "type": "respec" }],
   "developmentOnly": true
 }

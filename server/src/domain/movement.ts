@@ -154,28 +154,13 @@ export function livingPlayerAabbs(
   return boxes;
 }
 
-export function npcAabbs(
-  npcs: ReadonlyArray<{ x: number; y: number }> | undefined,
-  halfExtent: number,
-): Aabb[] {
-  if (npcs === undefined || npcs.length === 0) {
-    return [];
-  }
-  const boxes: Aabb[] = [];
-  for (let i = 0; i < npcs.length; i++) {
-    boxes.push(playerAabb(npcs[i].x, npcs[i].y, halfExtent));
-  }
-  return boxes;
-}
-
 export function collisionsWithPlayers(
   zoneCollisions: ReadonlyArray<Aabb>,
   players: { readonly [userId: string]: { x: number; y: number; health: number } },
   excludeUserId: string,
   halfExtent: number,
-  npcs?: ReadonlyArray<{ x: number; y: number }>,
 ): ReadonlyArray<Aabb> {
-  const extra = livingPlayerAabbs(players, excludeUserId, halfExtent).concat(npcAabbs(npcs, halfExtent));
+  const extra = livingPlayerAabbs(players, excludeUserId, halfExtent);
   if (extra.length === 0) {
     return zoneCollisions;
   }

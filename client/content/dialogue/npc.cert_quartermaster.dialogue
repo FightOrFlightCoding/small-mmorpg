@@ -1,14 +1,14 @@
 ~ start
-if QuestService.is_completed("quest.cert_scout")
+if QuestService.is_completed_offered()
 	=> completed
-elif QuestService.is_ready("quest.cert_scout")
+elif QuestService.is_ready_offered()
 	=> ready
-elif QuestService.is_accepted("quest.cert_scout")
+elif QuestService.is_accepted_offered()
 	=> in_progress
 else
 	Quartermaster: A scout is camping the north-east ridge. Drive it off.
 	- I will handle the scout.
-		do QuestService.request_accept("quest.cert_scout")
+		do QuestService.request_accept_offered()
 		Quartermaster: Stay off the slime pond. The ridge is enough.
 		=> END
 	- Not now.
@@ -22,7 +22,7 @@ Quartermaster: The scout is still on the ridge.
 ~ ready
 Quartermaster: That scout is down. I will close the errand.
 - Turn in the scout report.
-	do QuestService.request_turn_in("quest.cert_scout", "npc.cert_quartermaster")
+	do QuestService.request_turn_in_offered()
 	=> END
 - Keep hunting.
 	=> END
