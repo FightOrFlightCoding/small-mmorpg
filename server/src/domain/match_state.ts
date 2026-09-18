@@ -830,7 +830,7 @@ function numberOr(value: number | undefined, fallback: number): number {
 function cloneMatchPlayer(p: MatchPlayer, state: StarterZoneState): MatchPlayer {
   const equipment = p.equipment != null ? p.equipment : emptyEquipment();
   const inventory = p.inventory != null ? p.inventory : emptyInventory();
-  return {
+  const cloned: MatchPlayer = {
     userId: p.userId,
     sessionId: p.sessionId,
     username: p.username,
@@ -904,6 +904,10 @@ function cloneMatchPlayer(p: MatchPlayer, state: StarterZoneState): MatchPlayer 
     linkDeadUntilTick: typeof p.linkDeadUntilTick === "number" ? p.linkDeadUntilTick : undefined,
     safeLeaveCommitted: p.safeLeaveCommitted === true,
   };
+  if (cloned.interactionSession === undefined) {
+    delete cloned.interactionSession;
+  }
+  return cloned;
 }
 
 export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState {

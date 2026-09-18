@@ -724,6 +724,16 @@ export function matchLoop(
         tick: tick,
       }),
     );
+    try {
+      const players = dict(state.zone.players);
+      if (Object.keys(players).length > 0) {
+        const snapshot = snapshotForOthers(state.zone, tick, "");
+        dispatcher.broadcastMessage(snapshot.opcode, snapshot.body, null, null, true);
+      }
+    } catch (snapshotError) {
+      void snapshotError;
+      logger.error(formatOpsLog("snapshot_fallback_error", { tick: tick }));
+    }
     return { state: persistable(state) };
   }
   const tickMs = Date.now() - tickStartedMs;

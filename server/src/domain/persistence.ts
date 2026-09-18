@@ -119,7 +119,7 @@ export function applyUnexpectedDisconnect(state: StarterZoneState, userId: strin
   remaining.linkDead = true;
   remaining.linkDeadUntilTick = tick + LINK_DEAD_TICKS;
   interruptCast(remaining, "disconnected", tick, []);
-  if (remaining.interactionSession !== undefined) {
+  if (remaining.interactionSession != null) {
     remaining.interactionSession.state = "invalidated";
   }
   if (refreshNpcPauses(next.npcs, next.players, next.npcRoutesById, tick, MATCH_TICK_RATE)) {

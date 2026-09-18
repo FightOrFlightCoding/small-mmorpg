@@ -856,4 +856,8 @@ NPC-07 hardens accepted NPC-01 through NPC-06. It does not add NPC types, opcode
 
 Prompt 18 elder spoken lines, slime rewards, and merchant prices are unchanged. No new dependencies or `client/addons/` edits. NPC-01 through NPC-07 land on **`origin/main`**. Play from `main` with `scripts/local-play.ps1 -Branch main`. Do not create tag `npc-platform-v1` without user approval.
 
+## 2026-09-18 — Interaction session clone must survive Nakama JSON persist
+
+Nakama JSON-roundtrips match state between ticks. A `null` or incomplete `interactionSession` (missing `allowedOptionIds` / `availableServiceIds`) made `cloneStarterZoneState` throw `Cannot read property 'allowedOptionIds' of undefined` on every tick. `matchLoop` caught that, skipped `SNAPSHOT`, and the client showed `snapshot_timeout` after login even though `FULL_STATE` had arrived. Clone, count, and tick paths now treat null/missing session fields as empty; match-loop errors still broadcast a fallback snapshot. Recreate Nakama after this build so the poisoned public match is replaced.
+
 

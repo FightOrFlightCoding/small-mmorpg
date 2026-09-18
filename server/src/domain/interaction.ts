@@ -152,8 +152,8 @@ export interface InteractPresentation {
   expiresAtTick?: number;
 }
 
-export function isUsableInteractionSession(session: InteractionSession | undefined, tick: number): boolean {
-  if (session === undefined) {
+export function isUsableInteractionSession(session: InteractionSession | undefined | null, tick: number): boolean {
+  if (session == null) {
     return false;
   }
   if (session.state !== "open" && session.state !== "active") {
@@ -174,8 +174,12 @@ export function countNpcSessions(
   let count = 0;
   const ids = Object.keys(players);
   for (let i = 0; i < ids.length; i++) {
-    const session = players[ids[i]].interactionSession;
-    if (session === undefined || !isUsableInteractionSession(session, tick)) {
+    const player = players[ids[i]];
+    if (player == null) {
+      continue;
+    }
+    const session = player.interactionSession;
+    if (session == null || !isUsableInteractionSession(session, tick)) {
       continue;
     }
     if (sessionMatchesNpc(session, npcInstanceId)) {
@@ -185,29 +189,39 @@ export function countNpcSessions(
   return count;
 }
 
-export function cloneInteractionSession(session: InteractionSession | undefined): InteractionSession | undefined {
-  if (session === undefined) {
+function stringList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const out: string[] = [];
+  for (let i = 0; i < value.length; i++) {
+    out.push(String(value[i]));
+  }
+  return out;
+}
+
+export function cloneInteractionSession(
+  session: InteractionSession | undefined | null,
+): InteractionSession | undefined {
+  if (session == null || typeof session !== "object") {
     return undefined;
   }
-  const allowed: string[] = [];
-  for (let i = 0; i < session.allowedOptionIds.length; i++) {
-    allowed.push(session.allowedOptionIds[i]);
-  }
-  const services: string[] = [];
-  for (let i = 0; i < session.availableServiceIds.length; i++) {
-    services.push(session.availableServiceIds[i]);
-  }
+  const state = session.state;
+  const normalizedState: InteractionSessionState =
+    state === "open" || state === "active" || state === "closed" || state === "expired" || state === "invalidated"
+      ? state
+      : "invalidated";
   return {
-    sessionId: session.sessionId,
-    requestId: session.requestId,
-    targetId: session.targetId,
-    npcInstanceId: session.npcInstanceId,
-    dialogueId: session.dialogueId,
-    currentNodeId: session.currentNodeId,
-    allowedOptionIds: allowed,
-    availableServiceIds: services,
-    expiresAtTick: session.expiresAtTick,
-    state: session.state,
+    sessionId: String(session.sessionId !== undefined ? session.sessionId : ""),
+    requestId: String(session.requestId !== undefined ? session.requestId : ""),
+    targetId: String(session.targetId !== undefined ? session.targetId : ""),
+    npcInstanceId: String(session.npcInstanceId !== undefined ? session.npcInstanceId : ""),
+    dialogueId: String(session.dialogueId !== undefined ? session.dialogueId : ""),
+    currentNodeId: String(session.currentNodeId !== undefined ? session.currentNodeId : ""),
+    allowedOptionIds: stringList(session.allowedOptionIds),
+    availableServiceIds: stringList(session.availableServiceIds),
+    expiresAtTick: typeof session.expiresAtTick === "number" && isFinite(session.expiresAtTick) ? session.expiresAtTick : 0,
+    state: normalizedState,
   };
 }
 
@@ -225,9 +239,10 @@ export function cloneInteractPresentation(
         availableServiceIds?: string[];
         expiresAtTick?: number;
       }
-    | undefined,
+    | undefined
+    | null,
 ): InteractPresentation | undefined {
-  if (row === undefined) {
+  if (row == null || typeof row !== "object") {
     return undefined;
   }
   const copied: InteractPresentation = {
@@ -270,10 +285,10 @@ export function presentationFromSession(
     targetId: session.targetId,
     interactionSessionId: session.sessionId,
     currentNodeId: session.currentNodeId,
-    allowedOptionIds: session.allowedOptionIds.slice(),
-    availableServiceIds: session.availableServiceIds.slice(),
+    allowedOptionIds: stringList(session.allowedOptionIds),
+    availableServiceIds: stringList(session.availableServiceIds),
     expiresAtTick: session.expiresAtTick,
-    services: session.availableServiceIds.slice(),
+    services: stringList(session.availableServiceIds),
   };
   if (session.dialogueId.length > 0) {
     extra.dialogueId = session.dialogueId;
@@ -286,7 +301,7 @@ export function extrasFromPresentation(row: InteractPresentation): { [key: strin
   if (row.dialogueId !== undefined) {
     extra.dialogueId = row.dialogueId;
   }
-  if (row.services !== undefined) {
+  if (Array.isArray(row.services)) {
     extra.services = row.services.slice();
   }
   if (row.interactionSessionId !== undefined) {
@@ -295,10 +310,10 @@ export function extrasFromPresentation(row: InteractPresentation): { [key: strin
   if (row.currentNodeId !== undefined) {
     extra.currentNodeId = row.currentNodeId;
   }
-  if (row.allowedOptionIds !== undefined) {
+  if (Array.isArray(row.allowedOptionIds)) {
     extra.allowedOptionIds = row.allowedOptionIds.slice();
   }
-  if (row.availableServiceIds !== undefined) {
+  if (Array.isArray(row.availableServiceIds)) {
     extra.availableServiceIds = row.availableServiceIds.slice();
   }
   if (row.expiresAtTick !== undefined) {

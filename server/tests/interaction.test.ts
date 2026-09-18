@@ -11,7 +11,7 @@ import {
 import { emptyQuestLog, questDefinitionsFromContent } from "../src/domain/quest";
 import { npcDefinitionsFromContent } from "../src/domain/npc";
 import { dialogueDefinitionsFromContent } from "../src/domain/dialogue";
-import { INTERACTION_SESSION_TTL_TICKS } from "../src/domain/interaction";
+import { INTERACTION_SESSION_TTL_TICKS, cloneInteractionSession } from "../src/domain/interaction";
 import { ACTION_LIMITS } from "../src/domain/rate_limit";
 import { ClientOpcode, PROTOCOL_VERSION, ServerOpcode } from "../src/domain/protocol";
 import { acceptMessage, openNpcSession } from "./npc_session";
@@ -473,4 +473,49 @@ test("interact actions are rate limited in the interact bucket", () => {
   }
   const result = applyMatchLoop(state, 1, contentHash, flood);
   assert.ok(result.rejections.some((row) => row.action === "interact" && row.code === "rate_limited"));
+});
+
+test("JSON-persisted or null interaction sessions do not crash the match loop", () => {
+  const elder = content.zones["zone.starter"].npcs[0];
+  let state = addPlayer(cataloguedZone(), playerAt("user-alice", "Alice", elder.x, elder.y));
+  state.players["user-alice"].interactionSession = null as unknown as undefined;
+  state = addPlayer(state, playerAt("user-bob", "Bob", elder.x, elder.y));
+  state.players["user-bob"].interactionSession = {} as never;
+  const greeter = addPlayer(state, playerAt("user-cara", "Cara", elder.x, elder.y));
+  greeter.players["user-cara"].interactionSession = {
+    sessionId: "sess-json",
+    requestId: "req-json",
+    targetId: "npc.elder",
+    npcInstanceId: "npc.elder",
+    dialogueId: "dialogue.npc.elder",
+    currentNodeId: "start",
+    expiresAtTick: 50,
+    state: "active",
+  } as never;
+  assert.equal(cloneInteractionSession(null as unknown as undefined), undefined);
+  const recovered = cloneInteractionSession(greeter.players["user-cara"].interactionSession);
+  assert.ok(recovered);
+  assert.deepEqual(recovered.allowedOptionIds, []);
+  assert.deepEqual(recovered.availableServiceIds, []);
+  const result = applyMatchLoop(greeter, 1, contentHash, []);
+  assert.equal(
+    result.outbound.some((row) => row.opcode === ServerOpcode.SNAPSHOT),
+    true,
+  );
+  assert.equal(result.state.players["user-cara"].interactionSession?.allowedOptionIds.length, 0);
+  assert.equal("interactionSession" in result.state.players["user-alice"], false);
+});
+
+test("Nakama JSON undefined-to-null sessions still emit snapshots", () => {
+  const elder = content.zones["zone.starter"].npcs[0];
+  const seeded = addPlayer(cataloguedZone(), playerAt("user-alice", "Alice", elder.x, elder.y));
+  const first = applyMatchLoop(seeded, 1, contentHash, []);
+  const roundtripped = JSON.parse(JSON.stringify(first.state)) as StarterZoneState;
+  roundtripped.players["user-alice"].interactionSession = null as unknown as undefined;
+  const second = applyMatchLoop(roundtripped, 2, contentHash, []);
+  assert.equal(
+    second.outbound.some((row) => row.opcode === ServerOpcode.SNAPSHOT),
+    true,
+  );
+  assert.equal(second.state.players["user-alice"].interactionSession, undefined);
 });

@@ -613,7 +613,7 @@ function handleValidated(
       const targetId =
         parsed.opcode === ClientOpcode.INTERACT
           ? parsed.fields.targetId
-          : actor.interactionSession !== undefined
+          : actor.interactionSession != null
             ? actor.interactionSession.targetId
             : parsed.fields.npcInstanceId;
       const blocked = interactionResult("link_dead", false, parsed.requestId, targetId);
@@ -878,8 +878,8 @@ function handleInteract(
     closePlayerSession(state, player, tick, "closed");
     return;
   }
-  const previousNpcId = player.interactionSession !== undefined ? player.interactionSession.npcInstanceId : "";
-  if (player.interactionSession !== undefined && isUsableInteractionSession(player.interactionSession, tick)) {
+  const previousNpcId = player.interactionSession != null ? player.interactionSession.npcInstanceId : "";
+  if (player.interactionSession != null && isUsableInteractionSession(player.interactionSession, tick)) {
     closePlayerSession(state, player, tick, "closed");
   }
   const session = openInteractionSession(state, player, npc.id, catalogNpcId, requestId, tick, makeId);
@@ -3676,10 +3676,10 @@ function rememberDialogueChoice(
     interactionSessionId: sessionId,
     optionId: optionId,
   };
-  if (session !== undefined) {
+  if (session != null) {
     record.currentNodeId = session.currentNodeId;
-    record.allowedOptionIds = session.allowedOptionIds.slice();
-    record.availableServiceIds = session.availableServiceIds.slice();
+    record.allowedOptionIds = Array.isArray(session.allowedOptionIds) ? session.allowedOptionIds.slice() : [];
+    record.availableServiceIds = Array.isArray(session.availableServiceIds) ? session.availableServiceIds.slice() : [];
     record.expiresAtTick = session.expiresAtTick;
   }
   map[requestId] = record;
@@ -3730,7 +3730,7 @@ function interactionExtras(
       level: playerLevelOf(player),
     },
   };
-  if (session !== undefined) {
+  if (session != null) {
     const fromSession = extrasFromPresentation(presentationFromSession(session, true, "ok"));
     const keys = Object.keys(fromSession);
     for (let i = 0; i < keys.length; i++) {
@@ -3831,7 +3831,7 @@ function requireActiveSession(
   npcInstanceId: string,
 ): { ok: boolean; code: string; session?: InteractionSession } {
   const session = player.interactionSession;
-  if (session === undefined || session.sessionId !== sessionId) {
+  if (session == null || session.sessionId !== sessionId) {
     return { ok: false, code: "invalid_session" };
   }
   if (npcInstanceId.length > 0 && !sessionMatchesNpc(session, npcInstanceId)) {
@@ -3899,7 +3899,7 @@ function closePlayerSession(
   reason: InteractionSession["state"],
 ): void {
   const session = player.interactionSession;
-  if (session === undefined) {
+  if (session == null) {
     return;
   }
   if (session.state === "closed" || session.state === "expired" || session.state === "invalidated") {
@@ -3924,8 +3924,11 @@ function tickInteractionSessions(state: StarterZoneState, tick: number, outbound
   for (let i = 0; i < userIds.length; i++) {
     const userId = userIds[i];
     const player = state.players[userId];
+    if (player == null) {
+      continue;
+    }
     const session = player.interactionSession;
-    if (session === undefined || (session.state !== "open" && session.state !== "active")) {
+    if (session == null || (session.state !== "open" && session.state !== "active")) {
       continue;
     }
     if (tick > session.expiresAtTick) {
