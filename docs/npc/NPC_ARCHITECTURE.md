@@ -1,7 +1,8 @@
 # NPC architecture contract (NPC-05)
 
 **Last accepted gameplay/progression phase:** PROG-15 — Deterministic Balance Simulator and Final Progression Certification.  
-**Current requested phase:** NPC-05 — Quest integration.
+**Last accepted NPC phase:** NPC-05 — Quest integration.  
+**Current requested phase:** NPC-05 (accepted). Do not start NPC-06.
 
 NPC-05 extends the NPC-04 contract. It does not add NPC types, public-world sharding, PvP, guilds, or a second quest/inventory/dialogue/combat system. It reuses canonical `QuestService` / `quest.ts` / `quest_reward.ts`. It keeps the accepted elder/quest journey and progression formulas.
 

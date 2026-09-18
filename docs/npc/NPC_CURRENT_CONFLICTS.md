@@ -1,6 +1,6 @@
 # Current NPC conflicts (NPC-05)
 
-All NPC-01, NPC-02, NPC-03, and NPC-04 conflict rows remain **RESOLVED**. NPC-05 wires canonical quest accept/turn-in through generic NPC bindings without a second quest engine.
+All NPC-01 through NPC-05 conflict rows remain **RESOLVED**. NPC-05 is accepted. Do not start NPC-06. Canonical quest accept/turn-in run through generic NPC bindings without a second quest engine.
 
 | ID | Status | Evidence | Resolution |
 | --- | --- | --- | --- |

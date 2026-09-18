@@ -1,8 +1,8 @@
 # Progress
 
-Last accepted phase: **NPC-04 — Right-click interaction and dialogue**.
+Last accepted phase: **NPC-05 — Quest integration**.
 
-Current phase: NPC-04 (accepted). Do not start NPC-05.
+Current phase: NPC-05 (accepted). Do not start NPC-06.
 
 Canonical git line: **`origin/main`**. Playable work is committed there. The Windows clone stays on `main` and runs `scripts/local-play.ps1 -Branch main`.
 
@@ -10,6 +10,28 @@ The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains
 
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
+
+## NPC-05 quest integration (2026-09-18)
+
+NPC-05 is accepted. The last accepted gameplay/progression phase remains **PROG-15**. NPC-06 is not started. No new NPC types, RPCs, storage collections, migrations, dependencies, vendor addons, or progression formulas were added. Prompt 18 elder spoken lines, quest rewards, and merchant prices are unchanged.
+
+Quest accept and turn-in reuse canonical `QuestService` / `applyQuestAccept` / `applyQuestTurnIn`. Bindings are `quest_offer` / `offer`, `quest_turn_in` / `turn_in`, and `offer_and_turn_in`. `QUEST_ACCEPT` (6) and `QUEST_TURN_IN` (7) require `{ interactionSessionId, npcInstanceId, questId, requestId }`. The match validates the live session, NPC bind, prerequisites, and server-side objectives. Accept is idempotent. Rewards apply once. Success returns canonical quest state plus accepted or completion dialogue on `INTERACTION_RESULT`. Dialogue states are `available`, `accepted`, `in_progress`, `ready`, `completed`, and `prerequisite_missing`. Character-specific markers `!` / `?` / `·` travel on `FULL_STATE` and `QUEST_STATE` only (never `SNAPSHOT`); priority is ready, available, active incomplete, none. Markers refresh after accept, objective progress, completion, login, zone join, `FULL_STATE` resync, and character switch. `npc.test_herald` authors one `offer_and_turn_in` binding. A new quest NPC is content-only.
+
+Content hash `5816b1a22b56865984192fd405c81490b0edcbcbb194790a34f63c9216409c25` (hashed `dialogue` documents plus herald `offer_and_turn_in`).
+
+| Gate | Result |
+| --- | --- |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (34 storage records, 40 client opcodes, 15 server opcodes, 29 RPCs) |
+| Content validation/tests | 28/28 passed, including quest bind aliases |
+| Server hermetic tests | 814 passed, 13 expected live-test skips |
+| Server typecheck/build | passed; existing circular-dependency warning only |
+| Auth gateway hermetic tests | 52/52 passed via compiled test-file glob |
+| Godot 4.7.1 client GdUnit | 325/325 passed, 0 failures, 0 orphans |
+
+Pre-existing Node 22.14 runner compatibility remains documented: `scripts/test-content.sh` and `scripts/test-auth-gateway.sh` call `node --test` with a directory and fail before test discovery. Their direct compiled-file glob equivalents pass.
+
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen `client/`.
+
 
 ## NPC-04 right-click interaction and dialogue (2026-09-18)
 
