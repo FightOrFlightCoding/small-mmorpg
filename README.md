@@ -16,7 +16,7 @@ The Godot 4.7.1 client registers or logs in with email and password, lists up to
 
 ## Play from main
 
-PROG-15 and the expanded village map live on **`origin/main`**. Stay on `main`. If `scripts/local-play.ps1` is missing, quit Godot and run this once:
+PROG-15, the expanded village map, and the certified NPC platform (NPC-07) live on **`origin/main`**. Stay on `main`. If `scripts/local-play.ps1` is missing, quit Godot and run this once:
 
 ```powershell
 git restore client/addons client/assets client/resources
@@ -137,7 +137,7 @@ powershell -File scripts/run-client.ps1 -DevUser bob
 
 Password recovery for this private release is administrator-assisted via the Nakama console; there is no recovery email.
 
-Manual loop: WASD/arrows move, **E** talk to the Elder, accept **Slime Problem**, **Space** attack the slime, **F** pick up gel, turn in at the Elder, then log out and back in. Inventory should keep the Iron Sword and **25** gold; a second turn-in must not pay again.
+Manual loop: WASD/arrows move, right-click or **E** talk to the Elder, accept **Slime Problem**, **Space** attack the slime, **F** pick up gel, turn in at the Elder, then log out and back in. Inventory should keep the Iron Sword and **25** gold; a second turn-in must not pay again. NPCs have no combat target or gameplay collision. The platform proof set is in [docs/npc/NPC_PLATFORM_READY.md](docs/npc/NPC_PLATFORM_READY.md).
 
 ## Running all tests
 

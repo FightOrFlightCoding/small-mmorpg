@@ -854,6 +854,6 @@ NPC-07 hardens accepted NPC-01 through NPC-06. It does not add NPC types, opcode
 - Content-only proof: `npc.platform_greeter`, `npc.platform_guide`, `npc.platform_quest`, `npc.platform_merchant`, `npc.platform_combined`, plus `route.platform_short_loop`, `route.platform_weighted`, `quest.platform_talk`, `quest.platform_combined`, and `vendor.platform_kiosk`. No runtime or protocol change was required.
 - `vendor.ts` and existing vendor JSON are unchanged. Suggested tag `npc-platform-v1` is not created without user approval.
 
-Prompt 18 elder spoken lines, slime rewards, and merchant prices are unchanged. No new dependencies or `client/addons/` edits.
+Prompt 18 elder spoken lines, slime rewards, and merchant prices are unchanged. No new dependencies or `client/addons/` edits. NPC-01 through NPC-07 land on **`origin/main`**. Play from `main` with `scripts/local-play.ps1 -Branch main`. Do not create tag `npc-platform-v1` without user approval.
 
 
