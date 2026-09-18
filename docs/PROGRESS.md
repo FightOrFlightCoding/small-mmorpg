@@ -1,8 +1,8 @@
 # Progress
 
-Last accepted phase: **NPC-02 — Generic definitions, actor, and placeholder rendering**.
+Last accepted phase: **NPC-03 — Cosmetic route movement and synchronization**.
 
-Current phase: NPC-02 (accepted). Do not start NPC-03.
+Current phase: NPC-03 (accepted). Do not start NPC-04.
 
 Canonical git line: **`origin/main`**. Playable work is committed there. The Windows clone stays on `main` and runs `scripts/local-play.ps1 -Branch main`.
 
@@ -10,6 +10,28 @@ The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains
 
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
+
+## NPC-03 cosmetic route movement and synchronization (2026-09-18)
+
+NPC-03 is accepted. The last accepted gameplay/progression phase remains **PROG-15**. NPC-04 is not started. No new NPC types, opcodes, RPCs, storage collections, migrations, dependencies, vendor addons, or progression formulas were added. Prompt 18 elder spoken lines, quest rewards, and merchant prices are unchanged.
+
+The match owns cosmetic NPC movement plans (current/next node, revision, segment endpoints and times, idle-until, deterministic LCG). Clients interpolate from the match tick clock. `FULL_STATE` always publishes public plans (`rngState` stripped). `SNAPSHOT` includes NPC plans only when a revision changes. Randomization may affect only the next authored hop, speed/dwell within content bounds, and initial start delay. NPCs never pick arbitrary world positions. Movement is match-lifetime only and is not persisted. `pauseNpcMovement` / `resumeNpcMovement` exist for later interaction and are not wired to `INTERACT`. Production NPCs, including the elder, remain on `route.stationary`.
+
+Content hash `0f93d3f90765f7f778c2687992b409472e964eabc9f09601866c77d57ba8915a` (unchanged; production routes stay stationary).
+
+| Gate | Result |
+| --- | --- |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (34 storage records, 38 client opcodes, 15 server opcodes, 29 RPCs) |
+| Content validation/tests | 27/27 passed |
+| Server hermetic tests | 783 passed, 13 expected live-test skips |
+| Server typecheck/build | passed; existing circular-dependency warning only |
+| Auth gateway hermetic tests | 52/52 passed via compiled test-file glob |
+| Godot 4.7.1 client GdUnit | 320/320 passed, 0 failures, 0 orphans |
+
+Pre-existing Node 22.14 runner compatibility remains documented: `scripts/test-content.sh` and `scripts/test-auth-gateway.sh` call `node --test` with a directory and fail before test discovery. Their direct compiled-file glob equivalents pass.
+
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen `client/`.
+
 
 ## NPC-02 generic definitions, actor, and placeholder rendering (2026-09-18)
 

@@ -32,6 +32,8 @@ bash scripts/test-audit.sh
 GODOT_BIN=godot bash scripts/test-client.sh
 ```
 
+NPC-03 results: audit `FOUNDATION_AUDIT_OK`; content-build 27/27; server 783 passed + 13 expected skips; typecheck/build passed; auth-gateway 52/52; Godot GdUnit 320/320, 0 orphans.
+
 ## Manual regression
 
 After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main`, then verify: two clients see the same elder pose, movement (when a moving route is present) is smooth, NPCs stay near their home route, snapshots do not stream NPC positions every frame, and elder quest/interact behavior is unchanged.

@@ -133,9 +133,8 @@ function nodeVisits(route: NpcRouteContent, ticks: number): string[] {
     definition: npcDef("npc.walker", route.id),
     defaultInteractionRange: 48,
   });
-  tickNpcMovement([npc], { [route.id]: route }, 0, TICK_RATE);
   const seen: string[] = [];
-  for (let tick = 1; tick <= ticks; tick++) {
+  for (let tick = 0; tick <= ticks; tick++) {
     tickNpcMovement([npc], { [route.id]: route }, tick, TICK_RATE);
     const current = npc.movement !== undefined ? npc.movement.currentNodeId : "";
     if (current !== "" && seen[seen.length - 1] !== current) {

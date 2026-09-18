@@ -85,18 +85,18 @@ func test_plan_interpolation_old_plan_rejection_and_late_join() -> void:
 	var alice := NpcAvatar.interpolated_pose(plan_a, 5.0)
 	var bob := NpcAvatar.interpolated_pose(plan_a, 5.0)
 	assert_vector(alice).is_equal(bob)
-	assert_float(alice.x).is_equal_approx(50.0)
+	assert_float(alice.x).is_equal_approx(50.0, 0.0001)
 	var packed: PackedScene = load("res://scenes/world/npc_avatar.tscn")
 	var avatar: NpcAvatar = auto_free(packed.instantiate()) as NpcAvatar
 	add_child(avatar)
 	await get_tree().process_frame
 	assert_bool(avatar.apply_movement_plan(plan_a, 0.0, true)).is_true()
-	assert_float(avatar.position.x).is_equal_approx(0.0)
+	assert_float(avatar.position.x).is_equal_approx(0.0, 0.0001)
 	avatar.advance_interpolation(0.5)
-	assert_float(avatar.position.x).is_equal_approx(50.0)
+	assert_float(avatar.position.x).is_equal_approx(50.0, 0.0001)
 	assert_bool(avatar.apply_movement_plan(plan_old, 0.0, false)).is_false()
 	assert_int(avatar.movement_revision()).is_equal(2)
-	assert_float(avatar.position.x).is_equal_approx(50.0)
+	assert_float(avatar.position.x).is_equal_approx(50.0, 0.0001)
 	var registry: EntityRegistry = auto_free(EntityRegistry.new())
 	add_child(registry)
 	var late_join := {
@@ -117,7 +117,7 @@ func test_plan_interpolation_old_plan_rejection_and_late_join() -> void:
 	registry.apply_full_state(late_join)
 	var joined := registry.get_entity("npc:npc.walker") as NpcAvatar
 	assert_object(joined).is_not_null()
-	assert_float(joined.position.x).is_equal_approx(50.0)
+	assert_float(joined.position.x).is_equal_approx(50.0, 0.0001)
 	var stale := late_join.duplicate(true)
 	(stale["npcs"] as Array)[0] = {
 		"id": "npc.walker",
@@ -128,7 +128,7 @@ func test_plan_interpolation_old_plan_rejection_and_late_join() -> void:
 	}
 	stale["tick"] = 6
 	registry.apply_snapshot(stale)
-	assert_float(joined.position.x).is_equal_approx(50.0)
+	assert_float(joined.position.x).is_equal_approx(50.0, 0.0001)
 	var resync := late_join.duplicate(true)
 	resync["tick"] = 6
 	(resync["npcs"] as Array)[0] = {
@@ -151,5 +151,5 @@ func test_plan_interpolation_old_plan_rejection_and_late_join() -> void:
 		},
 	}
 	registry.apply_full_state(resync)
-	assert_float(joined.position.x).is_equal_approx(12.0)
-	assert_float(joined.position.y).is_equal_approx(34.0)
+	assert_float(joined.position.x).is_equal_approx(12.0, 0.0001)
+	assert_float(joined.position.y).is_equal_approx(34.0, 0.0001)

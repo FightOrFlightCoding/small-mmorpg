@@ -386,7 +386,7 @@ function beginNextSegment(
   }
   const start = interpolateNpcPose(movement, tick);
   const speed = rollSpeed(route, movement);
-  const distance = Math.hypot(world.x - start.x, world.y - start.y);
+  const distance = Math.sqrt((world.x - start.x) * (world.x - start.x) + (world.y - start.y) * (world.y - start.y));
   let travelTicks = 0;
   if (distance > 0.0001 && speed > 0) {
     travelTicks = Math.max(1, Math.round((distance / speed) * tickRate));
@@ -540,7 +540,7 @@ function waypointWorld(npc: NpcRuntimeInstance, waypoint: NpcRouteWaypoint): Npc
 }
 
 function withinHomeBounds(route: NpcRouteContent, waypoint: NpcRouteWaypoint): boolean {
-  return Math.hypot(waypoint.x, waypoint.y) <= route.maxDistanceFromHome + 0.0001;
+  return Math.sqrt(waypoint.x * waypoint.x + waypoint.y * waypoint.y) <= route.maxDistanceFromHome + 0.0001;
 }
 
 function findWaypoint(route: NpcRouteContent | undefined, id: string): NpcRouteWaypoint | undefined {
@@ -579,7 +579,11 @@ function applyPose(npc: NpcRuntimeInstance, pose: NpcPose): void {
 
 function nextUnit(movement: NpcMovementRuntime): number {
   const state = movement.rngState === 0 ? 1 : movement.rngState >>> 0;
-  const next = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+  const next = (mul32(state, 1664525) + 1013904223) >>> 0;
   movement.rngState = next;
   return next / 4294967296;
+}
+
+function mul32(a: number, b: number): number {
+  return (a * b) >>> 0;
 }

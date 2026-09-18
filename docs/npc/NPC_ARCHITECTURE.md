@@ -1,7 +1,7 @@
 # NPC architecture contract (NPC-03)
 
 **Last accepted gameplay/progression phase:** PROG-15 — Deterministic Balance Simulator and Final Progression Certification.  
-**Current requested phase:** NPC-03 — cosmetic route movement and synchronization. Do not start NPC-04.
+**Current requested phase:** NPC-03 — cosmetic route movement and synchronization (accepted). Do not start NPC-04.
 
 NPC-03 extends the NPC-02 contract. It does not add NPC types, public-world sharding, PvP, guilds, or a second quest/inventory/dialogue/combat system. It keeps the accepted elder/quest journey and progression formulas.
 
