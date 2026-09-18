@@ -1,8 +1,8 @@
 # NPC platform ready (NPC-07)
 
 **Last accepted gameplay/progression phase:** PROG-15.  
-**Last accepted NPC phase:** NPC-06 — Merchant integration.  
-**Current requested phase:** NPC-07 — Lifecycle, security, and final certification.  
+**Last accepted NPC phase:** NPC-07 — Lifecycle, security, and final certification.  
+**Current requested phase:** NPC-07 (accepted).  
 **Suggested release tag:** `npc-platform-v1` (not created; needs user approval).
 
 NPC-07 hardens and certifies NPC-01 through NPC-06. It does not add NPC types, opcodes, storage collections, RPCs, vendor addons, or a second dialogue/quest/merchant engine.

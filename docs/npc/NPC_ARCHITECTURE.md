@@ -1,8 +1,8 @@
 # NPC architecture contract (NPC-07)
 
 **Last accepted gameplay/progression phase:** PROG-15 — Deterministic Balance Simulator and Final Progression Certification.  
-**Last accepted NPC phase:** NPC-06 — Merchant integration.  
-**Current requested phase:** NPC-07 — Lifecycle, security, and final certification.
+**Last accepted NPC phase:** NPC-07 — Lifecycle, security, and final certification.  
+**Current requested phase:** NPC-07 (accepted).
 
 NPC-07 hardens and certifies NPC-01 through NPC-06. It does not add NPC types, opcodes, storage collections, RPCs, vendor addons, or a second dialogue/quest/merchant engine. Ordinary NPCs are content work. Prompt 18 elder spoken lines, slime rewards, and merchant prices are unchanged.
 

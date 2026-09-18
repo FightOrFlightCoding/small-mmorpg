@@ -1,8 +1,8 @@
 # Progress
 
-Last accepted phase: **NPC-06 — Merchant integration**.
+Last accepted phase: **NPC-07 — Lifecycle, security, and final certification**.
 
-Current phase: NPC-06 (accepted). Do not start NPC-07.
+Current phase: NPC-07 (accepted). Do not start later NPC phases.
 
 Canonical git line: **`origin/main`**. Playable work is committed there. The Windows clone stays on `main` and runs `scripts/local-play.ps1 -Branch main`.
 
@@ -10,6 +10,34 @@ The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains
 
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
+
+## NPC-07 lifecycle, security, and final certification (2026-09-18)
+
+NPC-07 is accepted. The last accepted gameplay/progression phase remains **PROG-15**. Do not start later NPC phases. No new NPC types, opcodes, RPCs, storage collections, migrations, dependencies, vendor addons, or progression formulas were added. `vendor.ts` and existing vendor JSON are unchanged. Prompt 18 elder spoken lines, quest rewards, and merchant prices are unchanged.
+
+NPC-01 through NPC-06 are certified as one generic noncombat NPC platform. Ordinary dialogue, quest-giver, and merchant NPCs are content work: definition → home → route → dialogue → quests → stock → validate → build. That path does not require a new opcode, storage collection, UI scene, NPC script, transaction mechanism, quest handler, or movement implementation.
+
+Security coverage is in `npc_security.test.ts` (forged NPC/session IDs, foreign/expired/wrong-match sessions, range, death, link-dead, transfer, option injection, unknown service, quest-state injection, reward replay, price spoof, item injection, quantity abuse, duplicate transaction, spam, oversized payload, unknown fields, protocol/content mismatch). Lifecycle coverage is in `npc_lifecycle.test.ts` (login, character switch, public-world join, `FULL_STATE` resync, unexpected disconnect, ten-second link-dead, Safe Return to Character Select, logout, server/match restart, zone transfer, soft deletion/restoration, account export/deletion). NPC movement is transient. Quest and merchant results persist. Leave, disconnect, transfer, and link-dead despawn call `refreshNpcPauses` immediately.
+
+Content-only proof (no runtime or protocol change): `npc.platform_greeter`, `npc.platform_guide`, `npc.platform_quest`, `npc.platform_merchant`, `npc.platform_combined`, `route.platform_short_loop`, `route.platform_weighted`, `quest.platform_talk`, `quest.platform_combined`, `vendor.platform_kiosk`. Guides: [NPC_PLATFORM_READY.md](npc/NPC_PLATFORM_READY.md), [NPC_CONTENT_GUIDE.md](npc/NPC_CONTENT_GUIDE.md), [NPC_DIALOGUE_GUIDE.md](npc/NPC_DIALOGUE_GUIDE.md), [NPC_QUEST_BINDING_GUIDE.md](npc/NPC_QUEST_BINDING_GUIDE.md), [NPC_VENDOR_GUIDE.md](npc/NPC_VENDOR_GUIDE.md), [NPC_RECOVERY_RUNBOOK.md](npc/NPC_RECOVERY_RUNBOOK.md).
+
+Suggested release tag `npc-platform-v1` is **not** created. It needs user approval.
+
+Content hash `bf283255559cf5145b9b4e90ad0ebfca4e09c27f7ffaa9c241347729d0cc5fcb` (platform proof NPCs, routes, quests, and `vendor.platform_kiosk`).
+
+| Gate | Result |
+| --- | --- |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (34 storage records, 40 client opcodes, 15 server opcodes, 29 RPCs) |
+| Content validation/tests | 28/28 passed |
+| Server hermetic tests | 852 passed, 13 expected live-test skips |
+| Server typecheck/build | passed; existing circular-dependency warning only |
+| Auth gateway hermetic tests | 52/52 passed via compiled test-file glob |
+| Godot 4.7.1 client GdUnit | 328/328 passed, 0 failures, 0 orphans |
+
+Pre-existing Node 22.14 runner compatibility remains documented: `scripts/test-content.sh` and `scripts/test-auth-gateway.sh` call `node --test` with a directory and fail before test discovery. Their direct compiled-file glob equivalents pass.
+
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen `client/`. Run the two-client journey in [NPC_PLATFORM_READY.md](npc/NPC_PLATFORM_READY.md) and confirm the Prompt 18 elder/slime path still completes.
+
 
 ## NPC-06 merchant integration (2026-09-18)
 

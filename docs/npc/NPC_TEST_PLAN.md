@@ -65,12 +65,12 @@ NPC-07 hermetic gates (Node 22.14). Directory-form `node --test dist/tests` wrap
 
 | Gate | Result |
 | --- | --- |
-| Foundation audit | pending |
-| Content validation/tests | pending |
-| Server hermetic tests | pending |
-| Server typecheck/build | pending |
-| Auth gateway hermetic tests | pending |
-| Godot 4.7.1 client GdUnit | pending |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (34 storage records, 40 client opcodes, 15 server opcodes, 29 RPCs) |
+| Content validation/tests | 28/28 passed |
+| Server hermetic tests | 852 passed, 13 expected live-test skips |
+| Server typecheck/build | passed; existing circular-dependency warning only |
+| Auth gateway hermetic tests | 52/52 passed via compiled test-file glob |
+| Godot 4.7.1 client GdUnit | 328/328 passed, 0 failures, 0 orphans |
 
 ```bash
 bash scripts/test-audit.sh
