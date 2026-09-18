@@ -1,8 +1,8 @@
 # Progress
 
-Last accepted phase: **NPC-01 — Architecture Contract and Conflict Closure**.
+Last accepted phase: **NPC-02 — Generic definitions, actor, and placeholder rendering**.
 
-Current phase: NPC-01 (accepted). Do not start NPC-02.
+Current phase: NPC-02 (accepted). Do not start NPC-03.
 
 Canonical git line: **`origin/main`**. Playable work is committed there. The Windows clone stays on `main` and runs `scripts/local-play.ps1 -Branch main`.
 
@@ -10,6 +10,28 @@ The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains
 
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
+
+## NPC-02 generic definitions, actor, and placeholder rendering (2026-09-18)
+
+NPC-02 is accepted. The last accepted gameplay/progression phase remains **PROG-15**. NPC-03 is not started. No new NPC types, opcodes, RPCs, storage collections, migrations, dependencies, vendor addons, or progression formulas were added. Prompt 18 elder spoken lines, quest rewards, and merchant prices are unchanged.
+
+Shared schemas cover `npc_definition`, `npc_route`, `npc_service_binding`, `dialogue_definition`, `npc_quest_binding`, and `vendor_definition`. Production NPCs, including the elder, spawn as one generic `NpcRuntimeInstance` from content with `homePosition` and `route.stationary`. `NpcAvatar` is a `Node2D` placeholder square with a name label, `MarkerAnchor`, and interaction-only `Area2D` (no physics body). Targeting, AoE, threat, aggro, damage, healing, death, and loot reject NPC ids. Existing respec trainers `npc.test_innkeeper` and `npc.lab_trainer` were migrated now onto that same generic definition.
+
+Content hash `0f93d3f90765f7f778c2687992b409472e964eabc9f09601866c77d57ba8915a` (`homePosition` / `routeId` on NPC documents plus `route.stationary`).
+
+| Gate | Result |
+| --- | --- |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (34 storage records, 38 client opcodes, 15 server opcodes, 29 RPCs) |
+| Content validation/tests | 27/27 passed, including route/home/graph/vendor/quest checks |
+| Server hermetic tests | 764 passed, 13 expected live-test skips |
+| Server typecheck/build | passed; existing circular-dependency warning only |
+| Auth gateway hermetic tests | 52/52 passed via compiled test-file glob |
+| Godot 4.7.1 client GdUnit | 319/319 passed, 0 failures, 0 orphans |
+
+Pre-existing Node 22.14 runner compatibility remains documented: `scripts/test-content.sh` and `scripts/test-auth-gateway.sh` call `node --test` with a directory and fail before test discovery. Their direct compiled-file glob equivalents pass.
+
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen `client/`.
+
 
 ## NPC-01 architecture contract and conflict closure (2026-09-18)
 

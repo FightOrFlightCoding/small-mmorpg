@@ -1,7 +1,7 @@
 # NPC architecture contract (NPC-02)
 
 **Last accepted gameplay/progression phase:** PROG-15 — Deterministic Balance Simulator and Final Progression Certification.  
-**Current requested phase:** NPC-02 — generic definitions, actor, and placeholder rendering. Do not start NPC-03.
+**Current requested phase:** NPC-02 — generic definitions, actor, and placeholder rendering (accepted). Do not start NPC-03.
 
 NPC-02 extends the NPC-01 contract. It does not add NPC types, public-world sharding, PvP, guilds, or a second quest/inventory/dialogue/combat system. It keeps the accepted elder/quest journey and progression formulas.
 

@@ -53,6 +53,8 @@ function playerAt(userId: string, name: string, x: number, y: number): MatchPlay
     lastProcessedSeq: 0,
     axisX: 0,
     axisY: 0,
+    hostileTargetId: "",
+    friendlyTargetId: "",
     questLog: emptyQuestLog(),
   };
 }

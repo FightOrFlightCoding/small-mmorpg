@@ -30,6 +30,8 @@ bash scripts/test-audit.sh
 GODOT_BIN=godot bash scripts/test-client.sh
 ```
 
+NPC-02 results: audit `FOUNDATION_AUDIT_OK`; content-build 27/27; server 764 passed + 13 expected skips; typecheck/build passed; auth-gateway 52/52; Godot GdUnit 319/319, 0 orphans.
+
 ## Manual regression
 
 After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main`, then verify: walk through the elder (not blocked), right-click and keyboard-interact, receive server-approved dialogue, accept `quest.slime_problem`, kill/loot/turn in, reconnect, and verify no duplicate reward.
