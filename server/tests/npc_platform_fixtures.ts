@@ -10,7 +10,7 @@ import { npcDefinitionsFromContent } from "../src/domain/npc";
 import { npcRoutesFromContent } from "../src/domain/npc_movement";
 import { dialogueDefinitionsFromContent } from "../src/domain/dialogue";
 import { vendorDefinitionsFromContent } from "../src/domain/vendor";
-import { emptyInventory, itemDefinitionsFromContent, type PlayerInventory } from "../src/domain/inventory";
+import { cloneInventory, emptyInventory, itemDefinitionsFromContent, type PlayerInventory } from "../src/domain/inventory";
 import { emptyEquipment } from "../src/domain/equipment";
 
 export function platformZone(): StarterZoneState {
@@ -95,4 +95,12 @@ export function itemCount(inventory: PlayerInventory | undefined, itemId: string
     }
   }
   return total;
+}
+
+export function clonedInventory(inventory: PlayerInventory | undefined): PlayerInventory {
+  return cloneInventory(inventory !== undefined ? inventory : emptyInventory());
+}
+
+export function playerGold(gold: number | undefined): number {
+  return typeof gold === "number" ? gold : 0;
 }

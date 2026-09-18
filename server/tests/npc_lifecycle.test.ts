@@ -3,11 +3,10 @@ import test from "node:test";
 import { contentHash } from "../src/generated/content";
 import { applyMatchLoop } from "../src/domain/match_loop";
 import { addPlayer, buildFullState } from "../src/domain/match_state";
-import { applyPlayerLeave, applyPlayerTransfer, expireLinkDeadPlayers } from "../src/domain/persistence";
+import { applyPlayerLeave, applyPlayerTransfer, applySafeLeave, expireLinkDeadPlayers } from "../src/domain/persistence";
 import { LINK_DEAD_TICKS } from "../src/domain/gameplay_lease";
 import { assembleAccountExport } from "../src/domain/account_export";
 import { cloneQuestLog } from "../src/domain/quest";
-import { cloneInventory } from "../src/domain/inventory";
 import { ServerOpcode } from "../src/domain/protocol";
 import {
   acceptMessage,
@@ -17,7 +16,7 @@ import {
   returnToSelectMessage,
   turnInMessage,
 } from "./npc_session";
-import { itemCount, npcPos, platformPlayer, platformZone } from "./npc_platform_fixtures";
+import { itemCount, npcPos, clonedInventory, playerGold, platformPlayer, platformZone } from "./npc_platform_fixtures";
 
 function npcOf(state: ReturnType<typeof platformZone>, npcId: string) {
   return state.npcs.find((row) => row.npcId === npcId);
@@ -67,7 +66,7 @@ test("character switch does not leak sessions, quests, or inventory", () => {
     acceptMessage("user-alice", "quest.platform_talk", opened.sessionId, opened.npcInstanceId, "req-npc07-sw02"),
   ]);
   const persisted = cloneQuestLog(accepted.state.players["user-alice"].questLog);
-  const left = applyPlayerLeave(accepted.state, "user-alice", 3);
+  const left = applySafeLeave(accepted.state, "user-alice");
   assert.equal(left.state.players["user-alice"], undefined);
   const switched = addPlayer(
     left.state,
@@ -165,8 +164,8 @@ test("logout leave, match restart, and zone transfer drop movement but keep purc
   const bought = applyMatchLoop(opened.state, 2, contentHash, [
     buyMessage("user-alice", "item.test_potion", opened.sessionId, opened.npcInstanceId, "req-npc07-lg02"),
   ]);
-  const inventory = cloneInventory(bought.state.players["user-alice"].inventory);
-  const gold = bought.state.players["user-alice"].gold;
+  const inventory = clonedInventory(bought.state.players["user-alice"].inventory);
+  const gold = playerGold(bought.state.players["user-alice"].gold);
   const loggedOut = applyMatchLoop(bought.state, 3, contentHash, [
     returnToSelectMessage("user-alice", "req-npc07-lg03"),
   ]);
@@ -191,7 +190,7 @@ test("logout leave, match restart, and zone transfer drop movement but keep purc
 test("soft delete restoration keeps quest and purchase records", () => {
   const store: {
     quests: ReturnType<typeof cloneQuestLog> | null;
-    inventory: ReturnType<typeof cloneInventory> | null;
+    inventory: ReturnType<typeof clonedInventory> | null;
     gold: number;
   } = { quests: null, inventory: null, gold: 0 };
   const questNpc = npcPos("npc.platform_quest");
@@ -212,8 +211,8 @@ test("soft delete restoration keeps quest and purchase records", () => {
     buyMessage("user-alice", "item.test_potion", shop.sessionId, shop.npcInstanceId, "req-npc07-sd06"),
   ]).state;
   store.quests = cloneQuestLog(state.players["user-alice"].questLog);
-  store.inventory = cloneInventory(state.players["user-alice"].inventory);
-  store.gold = state.players["user-alice"].gold;
+  store.inventory = clonedInventory(state.players["user-alice"].inventory);
+  store.gold = playerGold(state.players["user-alice"].gold);
   const restored = addPlayer(
     platformZone(),
     platformPlayer("user-alice", "Alice", merchant.x, merchant.y, store.gold, {

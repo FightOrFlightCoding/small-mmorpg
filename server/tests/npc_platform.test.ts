@@ -8,7 +8,6 @@ import { applySetTarget } from "../src/domain/targeting";
 import { ClientOpcode, PROTOCOL_VERSION, parseClientMessage } from "../src/domain/protocol";
 import { applyUnexpectedDisconnect } from "../src/domain/persistence";
 import { cloneQuestLog } from "../src/domain/quest";
-import { cloneInventory } from "../src/domain/inventory";
 import {
   acceptMessage,
   buyMessage,
@@ -19,7 +18,7 @@ import {
   openNpcSession,
   turnInMessage,
 } from "./npc_session";
-import { itemCount, npcPos, platformPlayer, platformZone } from "./npc_platform_fixtures";
+import { itemCount, npcPos, clonedInventory, playerGold, platformPlayer, platformZone } from "./npc_platform_fixtures";
 
 function npcOf(state: ReturnType<typeof platformZone>, npcId: string) {
   return state.npcs.find((row) => row.npcId === npcId);
@@ -28,12 +27,18 @@ function npcOf(state: ReturnType<typeof platformZone>, npcId: string) {
 test("NPC-07 content-only proof is present without new opcodes", () => {
   assert.equal(content.npcs["npc.platform_greeter"].services.length, 1);
   assert.equal(content.npcs["npc.platform_greeter"].services[0].type, "dialogue");
-  assert.equal(content.dialogues["dialogue.npc.platform_greeter"].nodes.start.options, undefined);
+  const greeterStart = content.dialogues["dialogue.npc.platform_greeter"].nodes.start;
+  assert.equal("options" in greeterStart, false);
   assert.equal(content.npcs["npc.platform_guide"].routeId, "route.platform_weighted");
   assert.equal(content.dialogues["dialogue.npc.platform_guide"].nodes.start.options?.length, 1);
   assert.equal(content.npcs["npc.platform_quest"].services.some((row) => row.type === "quest_offer"), true);
   assert.equal(content.quests["quest.platform_talk"].acceptNpcId, "npc.platform_quest");
-  assert.equal(content.npcs["npc.platform_merchant"].services.some((row) => row.vendorId === "vendor.platform_kiosk"), true);
+  assert.equal(
+    content.npcs["npc.platform_merchant"].services.some(
+      (row) => row.type === "vendor" && row.vendorId === "vendor.platform_kiosk",
+    ),
+    true,
+  );
   assert.equal(content.vendors["vendor.platform_kiosk"].currencyId, "gold");
   assert.equal(content.vendors["vendor.platform_kiosk"].stock[0].buyPrice, 10);
   assert.equal(content.npcs["npc.platform_combined"].routeId, "route.platform_short_loop");
@@ -85,6 +90,8 @@ test("NPC-07 two-client platform journey", () => {
     state = step.state;
   }
   assert.ok(state.players["user-alice"].x > startX);
+  state.players["user-alice"].axisX = 0;
+  state.players["user-alice"].axisY = 0;
   state.players["user-alice"].x = combined.x;
   state.players["user-alice"].y = combined.y;
 
@@ -99,6 +106,15 @@ test("NPC-07 two-client platform journey", () => {
   const hostile = applySetTarget(state, state.players["user-alice"], "npc.platform_combined", "hostile", "req-npc07-tgt01");
   assert.equal(hostile.ok, false);
   assert.equal(hostile.code, "invalid_target");
+
+  const liveNpc = npcOf(state, "npc.platform_combined");
+  assert.ok(liveNpc);
+  state.players["user-alice"].axisX = 0;
+  state.players["user-alice"].axisY = 0;
+  state.players["user-alice"].x = liveNpc.x;
+  state.players["user-alice"].y = liveNpc.y;
+  state.players["user-bob"].x = liveNpc.x;
+  state.players["user-bob"].y = liveNpc.y;
 
   const aliceOpen = openNpcSession(state, "user-alice", "npc.platform_combined", 17, "req-npc07-aopen");
   const bobOpen = openNpcSession(aliceOpen.state, "user-bob", "npc.platform_combined", 18, "req-npc07-bopen");
@@ -146,8 +162,8 @@ test("NPC-07 two-client platform journey", () => {
   assert.notEqual(resumed?.movement?.phase, "paused");
 
   const quests = cloneQuestLog(left.state.players["user-bob"].questLog);
-  const inventory = cloneInventory(left.state.players["user-alice"].inventory);
-  const gold = left.state.players["user-alice"].gold;
+  const inventory = clonedInventory(left.state.players["user-alice"].inventory);
+  const gold = playerGold(left.state.players["user-alice"].gold);
   const restoredAlice = platformPlayer("user-alice", "Alice", combined.x, combined.y, gold, {
     inventory: inventory,
   });
