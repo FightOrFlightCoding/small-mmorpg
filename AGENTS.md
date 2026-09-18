@@ -112,7 +112,7 @@ Cloud and remote agents **cannot** write `C:\Users\Eszter\small-mmorpg`. Client-
 
 ## Current baseline (`origin/main`)
 
-Canonical git line is **`origin/main`**. Last accepted phase is **NPC-02** ([docs/PROGRESS.md](docs/PROGRESS.md)). Four-class combat, progression UI, leftover reset, the live-formula simulator, Hearthworn starter-zone grass, the expanded village stone-road map, C01 walk, NPC contract conflict closure, generic NPC definitions and placeholder rendering, and `scripts/local-play` belong on `main`. Continue new work on **`origin/main`**. Do not treat stacked `cursor/*` branches as the playable line.
+Canonical git line is **`origin/main`**. Last accepted phase is **NPC-07** ([docs/PROGRESS.md](docs/PROGRESS.md)). Four-class combat, progression UI, leftover reset, the live-formula simulator, Hearthworn starter-zone grass, the expanded village stone-road map, C01 walk, and the certified NPC platform (generic noncombat actors, cosmetic routes, right-click dialogue, quest bindings, merchants, lifecycle/security) belong on `main` with `scripts/local-play`. Continue new work on **`origin/main`**. Do not treat stacked `cursor/*` branches as the playable line.
 
 Before editing:
 

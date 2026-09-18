@@ -1,0 +1,39 @@
+~ start
+if QuestService.is_completed_offered()
+	=> completed
+elif QuestService.is_ready_offered()
+	=> ready
+elif QuestService.is_accepted_offered()
+	=> in_progress
+else
+	Steward: I walk, talk, offer a greeting, and sell a potion.
+	- I will take the greeting.
+		do QuestService.request_accept_offered()
+		=> END
+	- Not now.
+		Steward: The loop continues when we are done talking.
+		=> END
+	- Show me your stock.
+		do VendorService.open_from_dialogue()
+		=> END
+
+~ in_progress
+Steward: Speak with me again and I can close the errand.
+- Show me your stock.
+	do VendorService.open_from_dialogue()
+	=> END
+
+~ ready
+Steward: That greeting is complete. I can take it.
+- Turn it in.
+	do QuestService.request_turn_in_offered()
+	=> END
+- Show me your stock.
+	do VendorService.open_from_dialogue()
+	=> END
+
+~ completed
+Steward: The combined proof is done. Goods remain for sale.
+- Show me your stock.
+	do VendorService.open_from_dialogue()
+	=> END

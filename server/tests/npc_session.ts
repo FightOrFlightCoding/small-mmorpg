@@ -80,6 +80,39 @@ export function buyMessage(
   };
 }
 
+export function chooseMessage(
+  userId: string,
+  sessionId: string,
+  optionId: string,
+  requestId: string,
+) {
+  return {
+    opcode: ClientOpcode.DIALOGUE_CHOOSE,
+    raw: envelope({
+      interactionSessionId: sessionId,
+      optionId: optionId,
+      requestId: requestId,
+    }),
+    userId: userId,
+  };
+}
+
+export function returnToSelectMessage(userId: string, requestId: string) {
+  return {
+    opcode: ClientOpcode.RETURN_TO_CHARACTER_SELECT,
+    raw: envelope({ requestId: requestId }),
+    userId: userId,
+  };
+}
+
+export function resyncMessage(userId: string) {
+  return {
+    opcode: ClientOpcode.RESYNC_REQUEST,
+    raw: envelope(),
+    userId: userId,
+  };
+}
+
 export function turnInMessage(
   userId: string,
   questId: string,
@@ -106,6 +139,7 @@ export function interactionPayload(result: ReturnType<typeof applyMatchLoop>): {
   targetId?: string;
   interactionSessionId?: string;
   currentNodeId?: string;
+  allowedOptionIds?: string[];
   availableServiceIds?: string[];
   services?: string[];
   vendorId?: string;
@@ -123,6 +157,7 @@ export function interactionPayload(result: ReturnType<typeof applyMatchLoop>): {
     targetId?: string;
     interactionSessionId?: string;
     currentNodeId?: string;
+    allowedOptionIds?: string[];
     availableServiceIds?: string[];
     services?: string[];
     vendorId?: string;

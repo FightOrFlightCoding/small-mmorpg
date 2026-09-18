@@ -1,0 +1,5 @@
+~ start
+Merchant: I sell one potion. The price is mine.
+- Show me your stock.
+	do VendorService.open_from_dialogue()
+	=> END

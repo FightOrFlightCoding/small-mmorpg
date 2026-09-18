@@ -1,0 +1,16 @@
+{
+  "id": "npc.platform_greeter",
+  "kind": "npc",
+  "displayName": "Platform Greeter",
+  "displayNameKey": "npc.platform_greeter.name",
+  "visualId": "visual.npc_platform_greeter",
+  "zoneId": "zone.starter",
+  "position": { "x": 1120, "y": 1784 },
+  "homePosition": { "x": 1120, "y": 1784 },
+  "routeId": "route.stationary",
+  "interactionRange": 48,
+  "dialogueId": "dialogue.npc.platform_greeter",
+  "services": [
+    { "type": "dialogue" }
+  ]
+}

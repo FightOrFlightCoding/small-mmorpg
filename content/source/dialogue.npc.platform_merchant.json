@@ -1,0 +1,18 @@
+{
+  "id": "dialogue.npc.platform_merchant",
+  "kind": "dialogue",
+  "displayName": "Platform Merchant",
+  "displayNameKey": "dialogue.npc.platform_merchant.name",
+  "startNodeId": "start",
+  "nodes": {
+    "start": {
+      "id": "start",
+      "lines": [
+        {
+          "text": "I sell one potion. The price is mine.",
+          "textKey": "dialogue.npc.platform_merchant.start.0"
+        }
+      ]
+    }
+  }
+}

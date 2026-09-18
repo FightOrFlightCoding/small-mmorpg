@@ -1,0 +1,21 @@
+{
+  "id": "route.platform_weighted",
+  "kind": "npc_route",
+  "displayName": "Platform Weighted Graph",
+  "routeType": "weighted_route_graph",
+  "speed": 24,
+  "maxDistanceFromHome": 32,
+  "dwellMin": 0.2,
+  "dwellMax": 0.4,
+  "waypoints": [
+    { "id": "home", "x": 0, "y": 0 },
+    { "id": "east", "x": 32, "y": 0 },
+    { "id": "south", "x": 0, "y": 32 }
+  ],
+  "edges": [
+    { "from": "home", "to": "east", "weight": 2 },
+    { "from": "home", "to": "south", "weight": 1 },
+    { "from": "east", "to": "home", "weight": 1 },
+    { "from": "south", "to": "home", "weight": 1 }
+  ]
+}

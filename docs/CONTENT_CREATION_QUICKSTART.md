@@ -1,8 +1,8 @@
 # Content creation quickstart
 
-Add original classes, items, enemies, quests, and vendors as **data**. Do not add opcodes, storage records, or runtime `switch` cases on new IDs.
+Add original classes, items, enemies, quests, vendors, and NPCs as **data**. Do not add opcodes, storage records, or runtime `switch` cases on new IDs.
 
-Full CLI, validation, and worked examples: [CONTENT_AUTHORING.md](CONTENT_AUTHORING.md). Schemas: `content/schemas/`. Source of truth: `content/source/`.
+Full CLI, validation, and worked examples: [CONTENT_AUTHORING.md](CONTENT_AUTHORING.md). NPC authoring: [NPC_CONTENT_GUIDE.md](npc/NPC_CONTENT_GUIDE.md). Schemas: `content/schemas/`. Source of truth: `content/source/`.
 
 ## Loop
 
@@ -26,7 +26,7 @@ Mirror the Prompt 35 cert pack (no runtime edits):
 2. Ability using an existing effect type (`direct_damage`, heal, DoT, …)
 3. Item (weapon/armor)
 4. Enemy + loot table + spawn
-5. NPC with `quest_offer` / `quest_turn_in` (and optional `vendor`)
+5. NPC with `quest_offer` / `quest_turn_in` (and optional `vendor`). Copy `npc.platform_*` when the NPC is dialogue, quest, merchant, or combined.
 6. Quest with `kill_enemy` (or another existing objective type)
 7. Place the NPC and spawn on a zone document
 8. `client/content/visual_map.json`, `asset_manifest.json`, and a Dialogue Manager file if the NPC speaks

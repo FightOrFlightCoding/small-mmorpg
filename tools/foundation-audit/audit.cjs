@@ -349,14 +349,22 @@ function checkNpcBoundaries() {
   if (!matchLoop.includes("tickNpcMovement")) {
     fail("match loop must tick cosmetic NPC movement");
   }
-  if (!matchLoop.includes("pauseNpcMovement") || !matchLoop.includes("resumeNpcMovement")) {
+  if (!matchLoop.includes("refreshNpcPauses")) {
     fail("interaction sessions must pause and resume NPC movement");
+  }
+  const persistence = read("server/src/domain/persistence.ts");
+  if (!persistence.includes("refreshNpcPauses")) {
+    fail("leave/disconnect/transfer must refresh NPC pause state");
   }
   if (!matchState.includes("publicNpcs")) {
     fail("FULL_STATE must publish public NPC movement plans");
   }
   const npcMovement = read("server/src/domain/npc_movement.ts");
-  if (!npcMovement.includes("export function pauseNpcMovement") || !npcMovement.includes("export function resumeNpcMovement")) {
+  if (
+    !npcMovement.includes("export function pauseNpcMovement") ||
+    !npcMovement.includes("export function resumeNpcMovement") ||
+    !npcMovement.includes("export function refreshNpcPauses")
+  ) {
     fail("NPC pause/resume API missing");
   }
   if (/\bresolveMove\b/.test(npcMovement) || /pathfind/i.test(npcMovement)) {

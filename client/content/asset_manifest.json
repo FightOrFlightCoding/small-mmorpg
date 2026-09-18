@@ -241,6 +241,41 @@
       "directionCount": 4,
       "fallbackVisualId": "visual.npc_cert_quartermaster"
     },
+    "visual_set.npc.platform_greeter": {
+      "kind": "npc",
+      "contentId": "npc.platform_greeter",
+      "spriteVisualId": "visual.npc_herald",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.npc_platform_greeter"
+    },
+    "visual_set.npc.platform_guide": {
+      "kind": "npc",
+      "contentId": "npc.platform_guide",
+      "spriteVisualId": "visual.npc_herald",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.npc_platform_guide"
+    },
+    "visual_set.npc.platform_quest": {
+      "kind": "npc",
+      "contentId": "npc.platform_quest",
+      "spriteVisualId": "visual.npc_herald",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.npc_platform_quest"
+    },
+    "visual_set.npc.platform_merchant": {
+      "kind": "npc",
+      "contentId": "npc.platform_merchant",
+      "spriteVisualId": "visual.npc_vendor",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.npc_platform_merchant"
+    },
+    "visual_set.npc.platform_combined": {
+      "kind": "npc",
+      "contentId": "npc.platform_combined",
+      "spriteVisualId": "visual.npc_cert_quartermaster",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.npc_platform_combined"
+    },
     "visual_set.npc.lab_keeper": {
       "kind": "npc",
       "contentId": "npc.lab_keeper",

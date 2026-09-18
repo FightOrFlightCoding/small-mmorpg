@@ -1,6 +1,6 @@
 # Local review
 
-Playable work, including PROG-15 and the expanded village map, is on **`origin/main`**. Stay on `main`. Cloud agents cannot write `C:\Users\Eszter\small-mmorpg`; you pull after each prompt.
+Playable work, including PROG-15, the expanded village map, and the certified NPC platform (NPC-07), is on **`origin/main`**. Stay on `main`. Cloud agents cannot write `C:\Users\Eszter\small-mmorpg`; you pull after each prompt.
 
 `scripts/local-play.ps1` exists only after `main` is pulled. If PowerShell says that file does not exist, use the git commands below once.
 
@@ -33,7 +33,7 @@ That restores Godot `.import` dirt, checks out and fast-forwards `main`, rebuild
 
 Then either:
 
-- **Live game (PROG-15 + village):** reopen Godot on `client/`, Play `scenes/boot/boot.tscn`, Sign in as Alice. Spawn is the south stone road of a 4096×3072 map.
+- **Live game (PROG-15 + village + NPC platform):** reopen Godot **4.7.1** on `client/` (not the repo root). Main scene is `scenes/boot/boot.tscn`. Sign in as Alice (debug) or use an email account. Spawn is the south stone road of a 4096×3072 map. Right-click an NPC to talk (`E` is the same interact). Two windows: Alice in one, Bob in the other (`scripts/run-two-clients.ps1`). Proof NPCs sit west of the plaza and near the slime (`npc.platform_combined`).
 - **Map only, no server:**
 
 ```powershell
@@ -52,7 +52,7 @@ powershell -File scripts/local-play.ps1 -Branch main
 
 ## What you do not need to do
 
-- Do not checkout `cursor/hearthworn-grass-foundation-f69a` or other `cursor/*` branches to play.
+- Do not checkout `cursor/npc-*` or other `cursor/*` branches to play.
 - Do not merge to `main` yourself; playable work is pushed to `origin/main`.
 - Do not Play nested UI scenes as the main scene.
 - Do not edit `client/addons/`.

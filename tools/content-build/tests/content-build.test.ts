@@ -537,6 +537,13 @@ test("production payload includes the content-only proof chain and excludes the 
   assert.ok(production.enemies["enemy.proof_critter"]);
   assert.ok(production.lootTables["loot.proof_critter"]);
   assert.ok(production.npcs["npc.proof_giver"]);
+  assert.ok(production.npcs["npc.platform_greeter"]);
+  assert.ok(production.npcs["npc.platform_guide"]);
+  assert.ok(production.npcs["npc.platform_quest"]);
+  assert.ok(production.npcs["npc.platform_merchant"]);
+  assert.ok(production.npcs["npc.platform_combined"]);
+  assert.equal(production.npcRoutes["route.platform_short_loop"].routeType, "loop");
+  assert.equal(production.npcRoutes["route.platform_weighted"].routeType, "weighted_route_graph");
   assert.ok(production.quests["quest.proof_errand"]);
   assert.ok(production.classes["test.class.warden"]);
   assert.ok(production.classes["class.warrior"]);

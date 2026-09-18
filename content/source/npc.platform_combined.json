@@ -1,0 +1,19 @@
+{
+  "id": "npc.platform_combined",
+  "kind": "npc",
+  "displayName": "Platform Steward",
+  "displayNameKey": "npc.platform_combined.name",
+  "visualId": "visual.npc_platform_combined",
+  "zoneId": "zone.starter",
+  "position": { "x": 2160, "y": 1488 },
+  "homePosition": { "x": 2160, "y": 1488 },
+  "routeId": "route.platform_short_loop",
+  "interactionRange": 48,
+  "dialogueId": "dialogue.npc.platform_combined",
+  "services": [
+    { "type": "dialogue" },
+    { "type": "quest_offer", "questIds": ["quest.platform_combined"] },
+    { "type": "quest_turn_in", "questIds": ["quest.platform_combined"] },
+    { "type": "vendor", "vendorId": "vendor.platform_kiosk" }
+  ]
+}

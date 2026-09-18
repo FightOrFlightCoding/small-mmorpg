@@ -1,0 +1,22 @@
+{
+  "id": "quest.platform_combined",
+  "kind": "quest",
+  "displayName": "Platform Combined Errand",
+  "category": "side",
+  "acceptNpcId": "npc.platform_combined",
+  "turnInNpcId": "npc.platform_combined",
+  "objectives": [
+    {
+      "type": "talk_to_npc",
+      "npcId": "npc.platform_combined",
+      "quantity": 1
+    }
+  ],
+  "consume": [],
+  "rewards": {
+    "gold": 1,
+    "xp": 1,
+    "items": []
+  },
+  "completeOnce": true
+}

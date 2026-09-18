@@ -1,0 +1,35 @@
+{
+  "id": "dialogue.npc.platform_guide",
+  "kind": "dialogue",
+  "displayName": "Platform Guide",
+  "displayNameKey": "dialogue.npc.platform_guide.name",
+  "startNodeId": "start",
+  "nodes": {
+    "start": {
+      "id": "start",
+      "lines": [
+        {
+          "text": "I walk a short authored graph. One reply is enough.",
+          "textKey": "dialogue.npc.platform_guide.start.0"
+        }
+      ],
+      "options": [
+        {
+          "id": "opt.understood",
+          "text": "Understood.",
+          "nextNodeId": "farewell",
+          "textKey": "dialogue.npc.platform_guide.opt.understood"
+        }
+      ]
+    },
+    "farewell": {
+      "id": "farewell",
+      "lines": [
+        {
+          "text": "The path is content, not code.",
+          "textKey": "dialogue.npc.platform_guide.farewell.0"
+        }
+      ]
+    }
+  }
+}

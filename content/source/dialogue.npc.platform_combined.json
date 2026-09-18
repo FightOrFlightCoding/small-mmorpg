@@ -1,0 +1,77 @@
+{
+  "id": "dialogue.npc.platform_combined",
+  "kind": "dialogue",
+  "displayName": "Platform Steward",
+  "displayNameKey": "dialogue.npc.platform_combined.name",
+  "startNodeId": "start",
+  "nodes": {
+    "start": {
+      "id": "start",
+      "lines": [
+        {
+          "text": "I walk, talk, offer a greeting, and sell a potion.",
+          "textKey": "dialogue.npc.platform_combined.start.0"
+        }
+      ],
+      "options": [
+        {
+          "id": "opt.not_now",
+          "text": "Not now.",
+          "nextNodeId": "farewell",
+          "textKey": "dialogue.npc.platform_combined.opt.not_now"
+        }
+      ]
+    },
+    "farewell": {
+      "id": "farewell",
+      "lines": [
+        {
+          "text": "The loop continues when we are done talking.",
+          "textKey": "dialogue.npc.platform_combined.farewell.0"
+        }
+      ]
+    },
+    "in_progress": {
+      "id": "in_progress",
+      "lines": [
+        {
+          "text": "Speak with me again and I can close the errand.",
+          "textKey": "dialogue.npc.platform_combined.in_progress.0"
+        }
+      ]
+    },
+    "ready": {
+      "id": "ready",
+      "lines": [
+        {
+          "text": "That greeting is complete. I can take it.",
+          "textKey": "dialogue.npc.platform_combined.ready.0"
+        }
+      ]
+    },
+    "completed": {
+      "id": "completed",
+      "lines": [
+        {
+          "text": "The combined proof is done. Goods remain for sale.",
+          "textKey": "dialogue.npc.platform_combined.completed.0"
+        }
+      ]
+    }
+  },
+  "entry": [
+    {
+      "nodeId": "completed",
+      "conditions": [{ "type": "offered_quest_status", "status": "completed" }]
+    },
+    {
+      "nodeId": "ready",
+      "conditions": [{ "type": "offered_quest_status", "status": "ready" }]
+    },
+    {
+      "nodeId": "in_progress",
+      "conditions": [{ "type": "offered_quest_status", "status": "accepted" }]
+    },
+    { "nodeId": "start" }
+  ]
+}

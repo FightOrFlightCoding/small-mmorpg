@@ -58,8 +58,9 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `canonical_respec.ts` | S | Trainer range/service gate, refund/clear, hotbar cleanup, respec audit metadata | none | none | npc.ts, interaction.ts, canonical_leveling.ts | no | via loop | no |
 | `progression_design_audit.ts` | S (tests only) | Parse canonical design markdown; catalog IDs. Not a second progression implementation. Do not import from the match runtime. | none | none | none | no | no | no |
 | `xp_hooks.ts` | S | Trusted XP grant interface from kill/quest events | none | none | progression.ts via match loop | no | no | no |
-| `interaction.ts` | S | NPC existence, zone, per-NPC range, optional service gate | none | none | none | no | INTERACTION_RESULT | no |
+| `interaction.ts` | S | NPC existence, zone, per-NPC range, optional service gate, session counting | none | none | none | no | INTERACTION_RESULT | no |
 | `npc.ts` | S | NPC definition lookup and service list | none | none | none | no | no | no |
+| `npc_movement.ts` | S | Cosmetic route plans, pause/resume, public plans without `rngState` | match NPC movement fields | none | interaction.ts session count | no | via FULL_STATE / SNAPSHOT | no |
 | `vendor.ts` | S | Buy/sell apply; server prices; unsellable/locked | none | none | inventory, wallet, transaction | no | VENDOR_BUY / VENDOR_SELL | yes (pure) |
 | `inn.ts` | S | Inn/healer rest, gold, heal, resource restore, bind | none | none | wallet, transaction | bind on character | INN_REST | yes (pure) |
 | `quest_objectives.ts` | S | Talk/kill/collect/enter/boss/return progress | none | none | quest.ts | no | via loop | no |
@@ -72,7 +73,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `quest_reward.ts` | S | Turn-in apply + gold via currency helper | none | none | inventory, quest, wallet | no | no | yes (pure) |
 | `character.ts` / `character_name.ts` / `character_roster.ts` / `character_ticket.ts` / `character_lifecycle.ts` / `character_catalog.ts` / `character_purge.ts` / `character_idempotency.ts` / `gameplay_lease.ts` / `safe_leave.ts` / `class_catalog.ts` | S | Name policy, five-slot roster, catalog summaries, tickets, purge steps, class lookup, account lease, safe-leave gates | none | none | content classes | serialize character | RPC bodies / opcode 32 | starter stacks via class |
 | `join_validation.ts` | S | Match join rules including selection ticket or transfer ticket | none | none | none | no | join reject | no |
-| `persistence.ts` | S | Link-dead hold, seq reset, checkpoints, transfer/safe leave | players stay in-world while `linkDead` | none | match_state | no (decides when) | no | no |
+| `persistence.ts` | S | Link-dead hold, seq reset, checkpoints, transfer/safe leave, NPC pause refresh on leave | players stay in-world while `linkDead` | none | match_state, npc_movement | no (decides when) | no | no |
 | `rate_limit.ts` / `security_log.ts` / `security_catalog.ts` / `account_security_catalog.ts` / `account_failure_catalog.ts` / `account_rate_catalog.ts` / `account_audit.ts` / `auth_privacy.ts` | S | Action windows, session rates, Prompt 34 and ACCT-09 matrices, named account limits, safe audits, login sanitization | match `actionRates`; lexical session maps | none | none | no | SYSTEM_MESSAGE / auth errors | no |
 | `chat.ts` | S | Channel join/send filters including party rooms | none | none | `party.ts` | no | RT hooks | no |
 | `party.ts` | S | Temporary party lifecycle, invites, OCC revision, connection grace | none | none | `cave_ownership.ts` | serialize only | RPC bodies | no |

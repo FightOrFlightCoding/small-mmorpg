@@ -22,7 +22,6 @@ import {
   playerCount,
   type StarterZoneState,
   type MatchPlayer,
-  type MatchNpc,
   buildFullState,
   buildSnapshot,
   cloneStarterZoneState,
@@ -33,7 +32,6 @@ import { collisionsWithPlayers, intendedDelta, resolveMove } from "./movement";
 import {
   INTERACTION_SESSION_TTL_TICKS,
   cloneInteractPresentation,
-  countNpcSessions,
   extrasFromPresentation,
   findNpc,
   isUsableInteractionSession,
@@ -45,7 +43,7 @@ import {
   type InteractionSession,
 } from "./interaction";
 import { NPC_SERVICE_DIALOGUE, npcBindsQuest, type NpcDefinition, type QuestBindRole } from "./npc";
-import { pauseNpcMovement, resumeNpcMovement, tickNpcMovement } from "./npc_movement";
+import { refreshNpcPauses, tickNpcMovement } from "./npc_movement";
 import {
   allowedOptionIds,
   availableServiceIds,
@@ -3915,29 +3913,8 @@ function closePlayerSession(
   syncNpcPause(state, npcId, tick);
 }
 
-function syncNpcPause(state: StarterZoneState, npcInstanceId: string, tick: number): void {
-  let npc: MatchNpc | null = null;
-  for (let i = 0; i < state.npcs.length; i++) {
-    const row = state.npcs[i];
-    if (row.id === npcInstanceId || row.npcId === npcInstanceId) {
-      npc = row;
-      break;
-    }
-  }
-  if (npc === null) {
-    return;
-  }
-  const sessions = countNpcSessions(state.players, npc.id, tick);
-  const route = state.npcRoutesById !== undefined ? state.npcRoutesById[npc.routeId] : undefined;
-  if (sessions > 0) {
-    if (npc.movement === undefined || npc.movement.phase !== "paused") {
-      pauseNpcMovement(npc, tick);
-      state.npcSnapshotDirty = true;
-    }
-    return;
-  }
-  if (npc.movement !== undefined && npc.movement.phase === "paused") {
-    resumeNpcMovement(npc, route, tick, MATCH_TICK_RATE);
+function syncNpcPause(state: StarterZoneState, _npcInstanceId: string, tick: number): void {
+  if (refreshNpcPauses(state.npcs, state.players, state.npcRoutesById, tick, MATCH_TICK_RATE)) {
     state.npcSnapshotDirty = true;
   }
 }
@@ -3968,13 +3945,8 @@ function tickInteractionSessions(state: StarterZoneState, tick: number, outbound
       outbound.push({ opcode: invalidated.opcode, body: invalidated.body, toUserId: userId });
     }
   }
-  const npcIds: { [id: string]: boolean } = {};
-  for (let n = 0; n < state.npcs.length; n++) {
-    npcIds[state.npcs[n].id] = true;
-  }
-  const paused = Object.keys(npcIds);
-  for (let p = 0; p < paused.length; p++) {
-    syncNpcPause(state, paused[p], tick);
+  if (refreshNpcPauses(state.npcs, state.players, state.npcRoutesById, tick, MATCH_TICK_RATE)) {
+    state.npcSnapshotDirty = true;
   }
 }
 

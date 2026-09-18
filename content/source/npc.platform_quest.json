@@ -1,0 +1,18 @@
+{
+  "id": "npc.platform_quest",
+  "kind": "npc",
+  "displayName": "Platform Questgiver",
+  "displayNameKey": "npc.platform_quest.name",
+  "visualId": "visual.npc_platform_quest",
+  "zoneId": "zone.starter",
+  "position": { "x": 1360, "y": 1784 },
+  "homePosition": { "x": 1360, "y": 1784 },
+  "routeId": "route.stationary",
+  "interactionRange": 48,
+  "dialogueId": "dialogue.npc.platform_quest",
+  "services": [
+    { "type": "dialogue" },
+    { "type": "quest_offer", "questIds": ["quest.platform_talk"] },
+    { "type": "quest_turn_in", "questIds": ["quest.platform_talk"] }
+  ]
+}

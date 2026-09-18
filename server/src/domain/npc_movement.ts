@@ -1,4 +1,5 @@
 import { hashSeed } from "./loot_table";
+import { countNpcSessions, type InteractionSession } from "./interaction";
 import type { NpcMovePhase, NpcMovementRuntime, NpcRuntimeInstance } from "./npc";
 
 export type { NpcMovePhase, NpcMovementRuntime };
@@ -311,6 +312,34 @@ export function resumeNpcMovement(
   if (route !== undefined && route.routeType !== "stationary") {
     beginNextSegment(npc, route, tick, tickRate);
   }
+}
+
+export function refreshNpcPauses(
+  npcs: NpcRuntimeInstance[],
+  players: { [userId: string]: { interactionSession?: InteractionSession } },
+  routes: { [id: string]: NpcRouteContent } | undefined,
+  tick: number,
+  tickRate: number,
+): boolean {
+  let dirty = false;
+  const catalog = routes !== undefined ? routes : {};
+  for (let i = 0; i < npcs.length; i++) {
+    const npc = npcs[i];
+    const sessions = countNpcSessions(players, npc.id, tick);
+    const route = catalog[npc.routeId];
+    if (sessions > 0) {
+      if (npc.movement === undefined || npc.movement.phase !== "paused") {
+        pauseNpcMovement(npc, tick);
+        dirty = true;
+      }
+      continue;
+    }
+    if (npc.movement !== undefined && npc.movement.phase === "paused") {
+      resumeNpcMovement(npc, route, tick, tickRate);
+      dirty = true;
+    }
+  }
+  return dirty;
 }
 
 function tickOneNpc(
