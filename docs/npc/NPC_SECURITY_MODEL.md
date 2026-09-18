@@ -1,0 +1,27 @@
+# NPC security model (NPC-01)
+
+The client is an untrusted presenter. NPC-01 does not change the accepted server-authoritative model.
+
+| Threat | Server control |
+| --- | --- |
+| Fabricated or remote interaction | `interaction.ts` resolves only a current match NPC and checks same zone, player health, and server-pose Euclidean range. |
+| Local dialogue opened without approval | `DialoguePresenter` opens only after a matching successful `INTERACTION_RESULT`; missing resources show a visible error. |
+| Quest completion/reward injection | Existing quest engine owns state/objectives; turn-in revalidates NPC/range and uses the transaction boundary. |
+| Merchant price or gold spoof | Vendor request fields contain IDs/quantity/request ID only. Server content stock, sell multiplier, wallet, and `nk.multiUpdate` transaction path decide price and result. |
+| Inn, cave, or respec result spoof | Existing service owners validate NPC service and player state; server computes health/resources/bind, tickets, cost, and progression result. |
+| Unknown service/action | Strict NPC schema and content-build validation reject unknown service types; audit restricts dialogue `do` actions to project-owned presentation services. |
+| NPC combat abuse | `targeting.ts` and enemy threat selection admit only players/enemies. NPC runtime shape has no HP, threat, AI state, or combat effects. |
+| Client NPC movement | No client protocol accepts NPC pose, route, velocity, or movement completion. Future cosmetic movement remains server-coordinated. |
+
+## Required invariants
+
+- Canonical quest, inventory, equipment, currency, progression, and transaction state remain server-owned (`permissionWrite: 0` where storage applies).
+- Dialogue presentation is client-local and cannot become a canonical state store.
+- Merchant prices are content/server values only; the client may render catalog stock but never submit price/gold.
+- NPCs are noncombat: no HP, threat, AoE/line/cone targeting membership, hostile/friendly target slot, or combat collision.
+- NPC interaction is an interaction-area affordance plus server range validation, not a physical gameplay blocker.
+- Right-click default interaction is presentation only and must invoke the same `INTERACT` intention/validation as keyboard accessibility interaction.
+
+## Existing exception
+
+`movement.ts` currently converts NPC positions to AABBs and `match_loop.ts` adds them to player movement collision. This is accepted legacy behavior but violates the target noncollision invariant. It is isolated by the repository audit and listed in [NPC_CURRENT_CONFLICTS.md](NPC_CURRENT_CONFLICTS.md); NPC-01 must not remove it because that would change player-visible behavior.

@@ -146,6 +146,21 @@ test("duplicate IDs are rejected", () => {
   assert.ok(codes.indexOf("duplicate_id:item.training_sword") !== -1);
 });
 
+test("duplicate NPC placements and invalid NPC services are rejected", () => {
+  const duplicatePlacement = clone(loadValid());
+  const starter = find(duplicatePlacement, "zone.starter");
+  const placements = starter["npcs"] as Array<{ npcId: string; x: number; y: number }>;
+  placements.push({ ...placements[0] });
+  const placementCodes = codesOf(() => validateDocuments(SCHEMA_DIR, duplicatePlacement));
+  assert.ok(placementCodes.indexOf("duplicate_npc_placement:zone.starter:npc.elder") !== -1);
+
+  const invalidService = clone(loadValid());
+  const elder = find(invalidService, "npc.elder");
+  (elder["services"] as Array<{ type: string }>)[0].type = "unknown_service";
+  const serviceCodes = codesOf(() => validateDocuments(SCHEMA_DIR, invalidService));
+  assert.ok(serviceCodes.indexOf("unknown_npc_service_type:npc.elder:unknown_service") !== -1);
+});
+
 test("broken references are rejected", () => {
   const docs = clone(loadValid());
   const quest = find(docs, "quest.slime_problem");

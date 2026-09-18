@@ -54,6 +54,18 @@ export interface ValidateOptions {
   assets?: AssetIndex;
 }
 
+const NPC_SERVICE_TYPES = [
+  "dialogue",
+  "quest_offer",
+  "quest_turn_in",
+  "vendor",
+  "inn",
+  "healer",
+  "cave_entrance",
+  "cave_exit",
+  "respec",
+];
+
 export function validateDocuments(
   schemaDir: string,
   documents: SourceDocument[],
@@ -593,6 +605,10 @@ function checkNpc(
   }
   for (let i = 0; i < npc.services.length; i++) {
     const service = npc.services[i];
+    if (NPC_SERVICE_TYPES.indexOf(service.type) === -1) {
+      issues.push(issue("unknown_npc_service_type:" + npc.id + ":" + service.type));
+      continue;
+    }
     if (service.type === "vendor") {
       if (service.vendorId === undefined || !vendors[service.vendorId]) {
         issues.push(issue("missing_reference:" + (service.vendorId !== undefined ? service.vendorId : npc.id)));
@@ -789,8 +805,13 @@ function checkZone(
   checkVisual(zone.visualId, issues, assets);
   checkPointInWorld(zone, zone.playerSpawn.x, zone.playerSpawn.y, "playerSpawn", issues);
   checkAabbInWorld(zone, zone.walkableBounds, "walkableBounds", issues);
+  const placedNpcIds: { [id: string]: boolean } = {};
   for (let i = 0; i < zone.npcs.length; i++) {
     const placed = zone.npcs[i];
+    if (placedNpcIds[placed.npcId] === true) {
+      issues.push(issue("duplicate_npc_placement:" + zone.id + ":" + placed.npcId));
+    }
+    placedNpcIds[placed.npcId] = true;
     requireNpc(placed.npcId, npcs, issues);
     checkPointInWorld(zone, placed.x, placed.y, "npc:" + placed.npcId, issues);
     const catalog = npcs[placed.npcId];

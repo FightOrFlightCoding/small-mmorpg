@@ -306,6 +306,63 @@ function checkClientDoesNotWriteStorage() {
   }
 }
 
+function checkNpcBoundaries() {
+  const targeting = read("server/src/domain/targeting.ts");
+  if (!/kind: "player" \| "enemy";/.test(targeting) || /\bMatchNpc\b|state\.npcs/.test(targeting)) {
+    fail("NPC entered combat target types or targeting queries");
+  }
+  const threat = read("server/src/domain/threat.ts");
+  if (/\bMatchNpc\b|state\.npcs/.test(threat)) {
+    fail("NPC entered enemy threat selection");
+  }
+  const matchState = read("server/src/domain/match_state.ts");
+  const matchNpc = matchState.match(/export interface MatchNpc \{([\s\S]*?)\n\}/);
+  if (!matchNpc || /\b(?:health|maxHealth|threat|aiState|collision)\b/.test(matchNpc[1])) {
+    fail("NPC runtime model gained combat or collision state");
+  }
+
+  // NPC collision is existing Prompt 18 behavior. Keep this debt isolated until
+  // its named migration changes the contract and this allowlist deliberately.
+  const movement = read("server/src/domain/movement.ts");
+  if ((movement.match(/\bnpcAabbs\b/g) || []).length !== 2) {
+    fail("NPC movement-blocker debt escaped its single helper");
+  }
+  const collisionCallers = walk("server/src", (rel) => rel.endsWith(".ts"))
+    .filter((rel) => read(rel).includes("collisionsWithPlayers("));
+  if (collisionCallers.join(",") !== "server/src/domain/match_loop.ts,server/src/domain/movement.ts") {
+    fail(`unexpected NPC/gameplay collision caller: ${collisionCallers.join(",")}`);
+  }
+  const matchLoop = read("server/src/domain/match_loop.ts");
+  if (!matchLoop.includes("collisionsWithPlayers(state.collisions, state.players, ids[i], state.playerHalfExtent, state.npcs)")) {
+    fail("documented NPC movement-blocker debt changed without a contract migration");
+  }
+
+  const protocol = read("server/src/domain/protocol.ts");
+  if (
+    !protocol.includes('OPCODE_KEYS[ClientOpcode.VENDOR_BUY] = ["npcId", "itemId", "quantity"];') ||
+    !protocol.includes('OPCODE_KEYS[ClientOpcode.VENDOR_SELL] = ["npcId", "instanceId", "quantity"];')
+  ) {
+    fail("merchant price or gold entered a client vendor opcode");
+  }
+  const clientScripts = walk("client/scripts", (rel) => rel.endsWith(".gd"));
+  for (const rel of clientScripts) {
+    if (/send_vendor_(?:buy|sell)\([^)]*\b(?:price|gold)\b/.test(read(rel))) {
+      fail(`client submits merchant price or gold in ${rel}`);
+    }
+  }
+
+  const allowedDialogueServices = new Set(["QuestService", "ProgressionService", "VendorService", "InnService", "CaveService"]);
+  const dialogueFiles = walk("client/content/dialogue", (rel) => rel.endsWith(".dialogue"));
+  for (const rel of dialogueFiles) {
+    const text = read(rel);
+    for (const match of text.matchAll(/^\s*do\s+([A-Za-z_][A-Za-z0-9_]*)\./gm)) {
+      if (!allowedDialogueServices.has(match[1])) {
+        fail(`unknown dialogue action service ${match[1]} in ${rel}`);
+      }
+    }
+  }
+}
+
 function checkContentHash() {
   const bundle = JSON.parse(read("client/content/bundle.json"));
   const generated = read("server/src/generated/content.ts");
@@ -397,6 +454,7 @@ checkOpcodes();
 checkRpcsAndHooks();
 checkStorage();
 checkClientDoesNotWriteStorage();
+checkNpcBoundaries();
 checkContentHash();
 checkProductionContent();
 checkHardcodedIds();
