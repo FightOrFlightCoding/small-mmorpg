@@ -203,9 +203,9 @@ func test_interaction_window_and_presenter_do_not_duplicate_signals() -> void:
 	assert_int(presenter._window.option_chosen.get_connections().size()).is_equal(1)
 	assert_int(presenter._window.service_chosen.get_connections().size()).is_equal(1)
 	assert_int(presenter._window.close_requested.get_connections().size()).is_equal(1)
-	var opened := 0
+	var opened: Array[int] = [0]
 	presenter.dialogue_opened.connect(func(_npc_id: String) -> void:
-		opened += 1
+		opened[0] += 1
 	)
 	presenter.note_intent("npc.elder", "req-dup-1")
 	var payload := {
@@ -228,5 +228,5 @@ func test_interaction_window_and_presenter_do_not_duplicate_signals() -> void:
 		"interaction_session_id": "sess-dup-1",
 		"current_node_id": "start",
 	})).is_false()
-	assert_int(opened).is_equal(1)
+	assert_int(opened[0]).is_equal(1)
 	assert_int(presenter.open_count).is_equal(1)
