@@ -39,6 +39,24 @@ export interface NpcDefinition {
   services: NpcService[];
 }
 
+export type NpcMovePhase = "idle" | "moving" | "paused";
+
+export interface NpcMovementRuntime {
+  currentNodeId: string;
+  nextNodeId: string;
+  revision: number;
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  startTick: number;
+  endTick: number;
+  idleUntilTick: number;
+  rngState: number;
+  phase: NpcMovePhase;
+  pingPongDir: number;
+}
+
 export interface NpcRuntimeInstance {
   id: string;
   npcId: string;
@@ -53,6 +71,7 @@ export interface NpcRuntimeInstance {
   homeX: number;
   homeY: number;
   routeId: string;
+  movement?: NpcMovementRuntime;
 }
 
 export function createNpcRuntimeInstance(input: {

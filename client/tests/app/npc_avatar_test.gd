@@ -64,3 +64,92 @@ func test_entity_registry_spawns_generic_npc_from_content() -> void:
 	avatar.position = Vector2(1440, 1344)
 	assert_str(registry.npc_id_at_world_point(Vector2(1440, 1344))).is_equal("npc.elder")
 	assert_str(registry.npc_id_at_world_point(Vector2(1440 + 80, 1344))).is_equal("")
+
+
+func test_plan_interpolation_old_plan_rejection_and_late_join() -> void:
+	var plan_a := {
+		"currentNodeId": "a",
+		"nextNodeId": "b",
+		"revision": 2,
+		"startX": 0.0,
+		"startY": 0.0,
+		"endX": 100.0,
+		"endY": 0.0,
+		"startTick": 0,
+		"endTick": 10,
+		"idleUntilTick": 0,
+		"phase": "moving",
+	}
+	var plan_old := plan_a.duplicate(true)
+	plan_old["revision"] = 1
+	var alice := NpcAvatar.interpolated_pose(plan_a, 5.0)
+	var bob := NpcAvatar.interpolated_pose(plan_a, 5.0)
+	assert_vector(alice).is_equal(bob)
+	assert_float(alice.x).is_equal_approx(50.0)
+	var packed: PackedScene = load("res://scenes/world/npc_avatar.tscn")
+	var avatar: NpcAvatar = auto_free(packed.instantiate()) as NpcAvatar
+	add_child(avatar)
+	await get_tree().process_frame
+	assert_bool(avatar.apply_movement_plan(plan_a, 0.0, true)).is_true()
+	assert_float(avatar.position.x).is_equal_approx(0.0)
+	avatar.advance_interpolation(0.5)
+	assert_float(avatar.position.x).is_equal_approx(50.0)
+	assert_bool(avatar.apply_movement_plan(plan_old, 0.0, false)).is_false()
+	assert_int(avatar.movement_revision()).is_equal(2)
+	assert_float(avatar.position.x).is_equal_approx(50.0)
+	var registry: EntityRegistry = auto_free(EntityRegistry.new())
+	add_child(registry)
+	var late_join := {
+		"self_id": "user-alice",
+		"zone_id": "zone.starter",
+		"tick": 5,
+		"players": [],
+		"npcs": [{
+			"id": "npc.walker",
+			"npcId": "npc.walker",
+			"x": 50.0,
+			"y": 0.0,
+			"movement": plan_a,
+		}],
+		"enemies": [],
+		"loot": [],
+	}
+	registry.apply_full_state(late_join)
+	var joined := registry.get_entity("npc:npc.walker") as NpcAvatar
+	assert_object(joined).is_not_null()
+	assert_float(joined.position.x).is_equal_approx(50.0)
+	var stale := late_join.duplicate(true)
+	(stale["npcs"] as Array)[0] = {
+		"id": "npc.walker",
+		"npcId": "npc.walker",
+		"x": 0.0,
+		"y": 0.0,
+		"movement": plan_old,
+	}
+	stale["tick"] = 6
+	registry.apply_snapshot(stale)
+	assert_float(joined.position.x).is_equal_approx(50.0)
+	var resync := late_join.duplicate(true)
+	resync["tick"] = 6
+	(resync["npcs"] as Array)[0] = {
+		"id": "npc.walker",
+		"npcId": "npc.walker",
+		"x": 12.0,
+		"y": 34.0,
+		"movement": {
+			"currentNodeId": "a",
+			"nextNodeId": "a",
+			"revision": 1,
+			"startX": 12.0,
+			"startY": 34.0,
+			"endX": 12.0,
+			"endY": 34.0,
+			"startTick": 6,
+			"endTick": 6,
+			"idleUntilTick": 20,
+			"phase": "idle",
+		},
+	}
+	registry.apply_full_state(resync)
+	assert_float(joined.position.x).is_equal_approx(12.0)
+	assert_float(joined.position.y).is_equal_approx(34.0)

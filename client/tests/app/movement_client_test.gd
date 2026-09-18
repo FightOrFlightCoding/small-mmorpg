@@ -78,7 +78,7 @@ func test_local_prediction_leaves_remote_to_the_buffer() -> void:
 		"npc:npc.elder": Vector2(165, 325),
 	})
 	assert_vector(bob.position).is_equal(Vector2(310, 400))
-	assert_vector(elder.position).is_equal(Vector2(165, 325))
+	assert_vector(elder.position).is_equal(Vector2(160, 320))
 	assert_vector(alice.position).is_equal(Vector2(250, 384))
 	assert_int(registry.entity_count()).is_equal(4)
 

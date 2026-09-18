@@ -18,6 +18,7 @@ const SCENE_PATHS := {
 var follow_camera: Camera2D
 var local_server_id: String = ""
 var rejected_kinds: PackedStringArray = PackedStringArray()
+var last_server_tick: float = 0.0
 
 var _nodes: Dictionary = {}
 
@@ -69,6 +70,7 @@ func summaries() -> PackedStringArray:
 func apply_full_state(state: Dictionary) -> void:
 	rejected_kinds.clear()
 	local_server_id = String(state.get("self_id", ""))
+	last_server_tick = float(state.get("tick", 0))
 	var keep: Dictionary = {}
 	_apply_kind(KIND_PLAYER, state.get("players", []), keep, false)
 	_apply_kind(KIND_NPC, state.get("npcs", []), keep, false)
@@ -90,6 +92,8 @@ func apply_full_state(state: Dictionary) -> void:
 func apply_snapshot(state: Dictionary, interp_duration: float = 0.1) -> void:
 	if not String(state.get("self_id", "")).is_empty():
 		local_server_id = String(state.get("self_id", ""))
+	if state.has("tick"):
+		last_server_tick = float(state.get("tick"))
 	var keep: Dictionary = {}
 	var prune_prefixes: PackedStringArray = PackedStringArray(["player:"])
 	_apply_kind(KIND_PLAYER, state.get("players", []), keep, true, interp_duration)
@@ -136,6 +140,8 @@ func apply_remote_poses(poses: Dictionary) -> void:
 		var node: Node2D = get_entity(key)
 		if node == null and not key.contains(":"):
 			node = get_entity("%s:%s" % [KIND_PLAYER, key])
+		if node is NpcAvatar:
+			continue
 		if node != null:
 			var next: Vector2 = poses[id]
 			if node is WorldAvatar:
@@ -203,8 +209,19 @@ func _apply_kind(kind: String, records: Variant, keep: Dictionary, interpolate_r
 			_nodes[key] = node
 			add_child(node)
 			node.position = pose
+			if node is NpcAvatar:
+				(node as NpcAvatar).apply_server_npc(record, last_server_tick, true)
 			if node is WorldAvatar:
 				_apply_vitals(node as WorldAvatar, kind, record)
+		elif node is NpcAvatar:
+			var npc_avatar := node as NpcAvatar
+			if (
+				npc_avatar.kind != kind
+				or npc_avatar.server_id != server_id
+				or npc_avatar.display_name != named
+			):
+				npc_avatar.configure(kind, server_id, named, _visual_for(kind, record), false)
+			npc_avatar.apply_server_npc(record, last_server_tick, not interpolate_remotes)
 		elif node is WorldAvatar:
 			var avatar := node as WorldAvatar
 			if (

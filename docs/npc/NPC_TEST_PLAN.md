@@ -1,22 +1,24 @@
-# NPC test plan (NPC-02)
+# NPC test plan (NPC-03)
 
-NPC-02 records generic definitions, the `NpcRuntimeInstance` actor, placeholder `NpcAvatar` rendering, and combat exclusion. Cosmetic patrol ticking is not started.
+NPC-03 records server-owned cosmetic route plans, client interpolation from match ticks, full-state late join, and snapshot traffic only on movement-revision changes. Dialogue pause is not started.
 
 ## Automated coverage
 
 | Check | Owner | Expected proof |
 | --- | --- | --- |
-| NPC content integrity | `tools/content-build/tests/content-build.test.ts` | Generic duplicate IDs, duplicate NPC placement IDs, unknown NPC service type, missing route/vendor/quest references, home mismatch, invalid graphs, speed/dwell, and home-bound waypoints fail validation. Elder stays on `route.stationary` with unchanged slime-quest services. Authored `respec` is present on `npc.test_innkeeper`. |
-| Generic runtime spawn | `server/tests/npc_runtime.test.ts` | `createNpcRuntimeInstance` / match spawn from content; no HP/threat/AI fields. |
-| NPC combat boundary | `tools/foundation-audit/audit.cjs`, `server/tests/npc_runtime.test.ts`, `server/tests/targeting.test.ts` | Hostile/friendly set-target, AoE queries, threat, damage, healing, death, and loot reject NPC ids. `ResolvedEntity.kind` remains `player \| enemy`. |
-| NPC collision / interact affordance | `tools/foundation-audit/audit.cjs`, `server/tests/movement.test.ts`, `client/tests/app/npc_avatar_test.gd` | NPCs are absent from gameplay collision; `NpcAvatar` has placeholder square, name label, `MarkerAnchor`, interaction-only `Area2D`, no physics body; players can walk through NPC poses. |
-| Right-click interact | `client/tests/app/interaction_client_test.gd` | Right-click pick sends the same `INTERACT` payload as keyboard interact. Click uses the interaction-area radius. |
-| Respec content gate | `server/tests/progression_respec.test.ts`, `npc_runtime.test.ts`, audit | No `RESPEC_TRAINER_NPC_IDS`; innkeeper/lab trainer remain generic NPCs with authored `respec`. |
-| Dialogue action metadata | audit, `client/tests/app/quest_service_test.gd` | Elder/proof/cert scripts have no quest/NPC literals; offered helpers read content. |
-| Generic service gate | `interaction.ts` callers, audit | Interact/vendor/inn/cave/quest/respec pass `requiredService`. |
-| INTERACT replay | `server/tests/interaction.test.ts` | Repeated request IDs do not re-apply `talk_to_npc`. |
-| Client merchant boundary | `tools/foundation-audit/audit.cjs`, protocol tests | Vendor request keys exclude price/gold; client send calls cannot submit them. |
-| Existing interaction/quest journey | `server/tests/interaction.test.ts`, `quest.test.ts`, `quest_reward.test.ts`, client interaction tests, E2E | Elder range, accepted dialogue result, accept/turn-in, idempotency, wallet/inventory persistence remain. |
+| Deterministic route selection | `server/tests/npc_movement.test.ts` | Same seed produces the same weighted visit sequence. |
+| Route bounds | `npc_movement.test.ts` | Waypoints beyond `maxDistanceFromHome` are never selected. |
+| Valid waypoint transitions | `npc_movement.test.ts` | Loop/ping-pong/weighted hops follow authored order or edges only. |
+| Loop / ping-pong / weighted | `npc_movement.test.ts` | Visit order wraps, reverses at ends, and respects edge weights. |
+| Dwell timing | `npc_movement.test.ts` | Authored dwell keeps the NPC idle for the expected ticks. |
+| Movement revision | `npc_movement.test.ts` | Revision changes on new plans, not every mid-segment tick. |
+| Old-plan rejection | `npc_movement.test.ts`, `client/tests/app/npc_avatar_test.gd` | Incoming revision ≤ current is ignored except forced full-state resync. |
+| Late join / full-state resync | `npc_movement.test.ts`, `npc_avatar_test.gd` | `FULL_STATE` pose matches interpolate(plan, tick); full-state force-applies. |
+| No NPC persistence writes | `npc_movement.test.ts` | Match-loop persist arrays stay empty for movement; a new match resets to home. |
+| No mob interaction / no player collision | `npc_movement.test.ts`, `movement.test.ts` | Moving NPCs do not change combat/HP and do not block player `resolveMove`. |
+| Snapshot traffic | `npc_movement.test.ts` | Stationary production NPCs omit `SNAPSHOT.npcs`; moving NPCs publish plans only when dirty. |
+| Pause/resume API | `npc_movement.test.ts`, audit | `pauseNpcMovement`/`resumeNpcMovement` exist and are not called from `INTERACT`. |
+| NPC combat boundary | audit, `npc_runtime.test.ts` | Unchanged: no HP/threat/AI; targeting/loot reject NPC ids. |
 
 ## Baseline results and reproducible commands
 
@@ -30,8 +32,6 @@ bash scripts/test-audit.sh
 GODOT_BIN=godot bash scripts/test-client.sh
 ```
 
-NPC-02 results: audit `FOUNDATION_AUDIT_OK`; content-build 27/27; server 764 passed + 13 expected skips; typecheck/build passed; auth-gateway 52/52; Godot GdUnit 319/319, 0 orphans.
-
 ## Manual regression
 
-After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main`, then verify: walk through the elder (not blocked), right-click and keyboard-interact, receive server-approved dialogue, accept `quest.slime_problem`, kill/loot/turn in, reconnect, and verify no duplicate reward.
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main`, then verify: two clients see the same elder pose, movement (when a moving route is present) is smooth, NPCs stay near their home route, snapshots do not stream NPC positions every frame, and elder quest/interact behavior is unchanged.

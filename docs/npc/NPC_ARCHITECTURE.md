@@ -1,9 +1,9 @@
-# NPC architecture contract (NPC-02)
+# NPC architecture contract (NPC-03)
 
 **Last accepted gameplay/progression phase:** PROG-15 — Deterministic Balance Simulator and Final Progression Certification.  
-**Current requested phase:** NPC-02 — generic definitions, actor, and placeholder rendering (accepted). Do not start NPC-03.
+**Current requested phase:** NPC-03 — cosmetic route movement and synchronization. Do not start NPC-04.
 
-NPC-02 extends the NPC-01 contract. It does not add NPC types, public-world sharding, PvP, guilds, or a second quest/inventory/dialogue/combat system. It keeps the accepted elder/quest journey and progression formulas.
+NPC-03 extends the NPC-02 contract. It does not add NPC types, public-world sharding, PvP, guilds, or a second quest/inventory/dialogue/combat system. It keeps the accepted elder/quest journey and progression formulas.
 
 ## Ownership
 
@@ -11,7 +11,7 @@ NPC-02 extends the NPC-01 contract. It does not add NPC types, public-world shar
 | --- | --- | --- |
 | NPC content | `content/schemas/npc.json` (title `npc_definition`), `npc_route.json`, `npc_service_binding.json`, `npc_quest_binding.json`, `dialogue_definition.json`, `vendor.json` (title `vendor_definition`), `content/source/` | Stable IDs, `displayNameKey`, zone, `homePosition`, `routeId`, interaction range, `visualId`, typed services. Generated bundle/catalog are derived artifacts. |
 | Runtime instances | `npc.ts` `NpcRuntimeInstance`, `match_state.ts` `MatchNpc` alias | One generic noncombat actor per placement. Pose, home, route id, interaction range, dialogue id, visual id. No HP, threat, AI, or collision fields. |
-| Movement | `movement.ts`, `match_loop.ts` | NPCs are noncombat and have no gameplay collision. Cosmetic route ticking remains a later named phase; NPC-02 poses stay at home/`IDLE`. Interaction is an `Area2D` presentation affordance; server distance remains authoritative. |
+| Movement | `npc_movement.ts`, `match_loop.ts` | Server owns the cosmetic plan (current/next node, revision, segment endpoints and times, idle-until, deterministic RNG). Clients interpolate from match ticks. No collision resolution or pathfinding. Pause/resume exist for later interaction and are not wired to `INTERACT`. |
 | Interaction sessions | `interaction.ts`, `match_loop.ts` | Server validates live NPC, zone, server poses, range, and `requiredService` gates, then records match-owned `interactionSession` / `interactByRequestId`. `INTERACTION_RESULT` is presentation, not a reward transaction. |
 | Dialogue state | `DialoguePresenter` / `DialogueCatalog` / `QuestService` offered helpers | Client presentation only, opened after matching successful `INTERACTION_RESULT`. Dialogue scripts remain client-local mappings keyed by `dialogueId`; `dialogue_definition` is the shared schema for that ID contract. |
 | Quest bindings | `quest.ts`, `quest_objectives.ts`, `quest_reward.ts`, `npc_quest_binding` | Existing generic quest engine validates accept/turn-in NPC and service; elder `quest.slime_problem` stays on the generic NPC definition. |
@@ -28,10 +28,10 @@ NPCs are a distinct noncombat entity family. They have no HP, threat, combat eff
 
 ## Existing modules to extend
 
-Extend `npc.ts`, `interaction.ts`, `match_state.ts`, `match_loop.ts`, `targeting.ts`, `threat.ts`, `combat_pipeline.ts`, `EntityRegistry`, `NpcAvatar`, `InteractIntent`, `DialoguePresenter`, the generic quest/vendor/inn/cave/respec owners, and the existing content build/audit tools. Do not add elder, merchant, innkeeper, trainer, quest, inventory, currency, dialogue, combat, or account subsystems.
+Extend `npc.ts`, `npc_movement.ts`, `interaction.ts`, `match_state.ts`, `match_loop.ts`, `targeting.ts`, `threat.ts`, `combat_pipeline.ts`, `EntityRegistry`, `NpcAvatar`, `InteractIntent`, `DialoguePresenter`, the generic quest/vendor/inn/cave/respec owners, and the existing content build/audit tools. Do not add elder, merchant, innkeeper, trainer, quest, inventory, currency, dialogue, combat, or account subsystems.
 
-NPCs stay out of hostile/friendly combat targeting, AoE combat queries, enemy AI, threat, damage, healing, death, and loot. They are exposed from `FULL_STATE.npcs`. Ordinary `SNAPSHOT` traffic does not include them while poses remain static.
+NPCs stay out of hostile/friendly combat targeting, AoE combat queries, enemy AI, threat, damage, healing, death, and loot. They are exposed from `FULL_STATE.npcs` with public movement plans. Ordinary `SNAPSHOT` traffic includes NPC plans only when a movement revision changes.
 
-## NPC-02 change inventory
+## NPC-03 change inventory
 
-Shared NPC schemas, `npc_route` content, `homePosition` / `routeId` on NPC definitions, generic `NpcRuntimeInstance` spawn from content, placeholder `NpcAvatar` rendering, and explicit combat exclusion. Elder migrates onto the generic definition without changing quest behavior. Authored respec trainers (`npc.test_innkeeper`, `npc.lab_trainer`) stay generic NPCs in this phase. No new opcodes/RPCs, storage collections, migrations, dependencies, progression formulas, or `client/addons/`.
+Server-coordinated cosmetic route movement for `stationary`, `loop`, `ping_pong`, and `weighted_route_graph`. Randomization may affect only the next authored route choice, speed within content bounds, dwell within content bounds, and initial start delay. NPCs never select arbitrary world positions. Late joiners reconstruct the current interpolated pose from `FULL_STATE`. Movement is match-lifetime only and is not persisted. Production NPCs, including the elder, remain on `route.stationary`. No new opcodes/RPCs, storage collections, migrations, dependencies, progression formulas, or `client/addons/`.

@@ -346,9 +346,28 @@ function checkNpcBoundaries() {
   if (/CharacterBody2D|StaticBody2D|RigidBody2D|AnimatableBody2D/.test(npcScene)) {
     fail("NpcAvatar must not have a physical collision body");
   }
+  if (!matchLoop.includes("tickNpcMovement")) {
+    fail("match loop must tick cosmetic NPC movement");
+  }
+  if (matchLoop.includes("pauseNpcMovement") || matchLoop.includes("resumeNpcMovement")) {
+    fail("NPC-03 must not wire interaction pause/resume into INTERACT");
+  }
+  if (!matchState.includes("publicNpcs")) {
+    fail("FULL_STATE must publish public NPC movement plans");
+  }
+  const npcMovement = read("server/src/domain/npc_movement.ts");
+  if (!npcMovement.includes("export function pauseNpcMovement") || !npcMovement.includes("export function resumeNpcMovement")) {
+    fail("NPC pause/resume API missing");
+  }
+  if (/\bresolveMove\b/.test(npcMovement) || /pathfind/i.test(npcMovement)) {
+    fail("NPC movement must not pathfind or use collision resolution");
+  }
   const world = read("client/scripts/world/world.gd");
   if (!world.includes("MOUSE_BUTTON_RIGHT") || !world.includes("try_interact_at")) {
     fail("right-click interact affordance missing");
+  }
+  if (world.includes('_collect_poses(poses, "npc"')) {
+    fail("NPC movement must interpolate plans, not snapshot poses");
   }
   if (/\bRESPEC_TRAINER_NPC_IDS\b/.test(npcDomain + read("server/src/domain/canonical_respec.ts"))) {
     fail("respec ID overlay must not exist");

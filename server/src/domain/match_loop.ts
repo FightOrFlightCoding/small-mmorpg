@@ -28,6 +28,7 @@ import {
   fullStateOpcode,
   snapshotOpcode,
 } from "./match_state";
+import { tickNpcMovement } from "./npc_movement";
 import { collisionsWithPlayers, intendedDelta, resolveMove } from "./movement";
 import { findNpc, resolveInteraction, type InteractionInput } from "./interaction";
 import { NPC_SERVICE_DIALOGUE } from "./npc";
@@ -270,6 +271,7 @@ export function applyMatchLoop(
 
   const previousPos = capturePlayerPositions(next);
   simulateMovement(next, 1 / MATCH_TICK_RATE);
+  const npcPlansDirty = tickNpcMovement(next.npcs, next.npcRoutesById, tick, MATCH_TICK_RATE);
   updateStandingStill(next, previousPos, tick);
   tickAbilityCooldowns(next, tick);
   tickDelayedGround(next, tick, combatEvents);
@@ -336,7 +338,7 @@ export function applyMatchLoop(
     next.emptyTicks = 0;
     outbound.push({
       opcode: snapshotOpcode(),
-      body: buildSnapshot(next, tick),
+      body: buildSnapshot(next, tick, npcPlansDirty),
     });
   }
 

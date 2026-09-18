@@ -795,4 +795,16 @@ NPC-02 extends the NPC-01 contract without a second NPC/quest/dialogue/combat sy
 
 No new opcode, RPC, storage collection, dependency, or vendor-addon change. Content hash changes because NPC documents gain `homePosition`/`routeId` and `route.stationary` enters the payload.
 
+## 2026-09-18 — NPC-03 cosmetic route movement and synchronization
+
+NPC-03 ticks authored routes without a second movement/combat system.
+
+- Server owns current/next node, movement revision, segment start/end pose and time, idle-until, and a match-lifetime LCG. Clients receive plans, not per-frame positions, and interpolate from the match tick clock.
+- Supported route types: `stationary`, `loop`, `ping_pong`, `weighted_route_graph`. Randomization may affect only the next authored hop, speed within bounds, dwell within bounds, and initial start delay. NPCs never pick arbitrary world positions.
+- `FULL_STATE.npcs` always includes the public plan (`rngState` stripped). `SNAPSHOT` includes NPC plans only when a revision changes.
+- Movement is not persisted across match destruction or backend restart. No collision resolution or pathfinding. `pauseNpcMovement` / `resumeNpcMovement` exist for later interaction and are not wired to `INTERACT`.
+- Production NPCs, including the elder, remain on `route.stationary`. Gameplay state (combat, loot, quests, collision) does not depend on cosmetic travel.
+
+No new opcode, RPC, storage collection, dependency, content hash, or vendor-addon change.
+
 

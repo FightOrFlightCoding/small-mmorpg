@@ -2,10 +2,18 @@ class_name NpcAvatar
 extends WorldAvatar
 
 ## Presentation-only interaction affordance. Server distance remains authoritative.
+## Cosmetic pose comes from a server movement plan interpolated against match ticks.
+
+const TICK_RATE_HZ := 10.0
 
 @onready var _interaction_shape: CollisionShape2D = $InteractionArea/InteractionShape
 @onready var _interaction_area: Area2D = $InteractionArea
 @onready var _marker_anchor: Node2D = $MarkerAnchor
+
+var _plan: Dictionary = {}
+var _revision: int = 0
+var _clock_tick: float = 0.0
+var _has_plan: bool = false
 
 
 func _ready() -> void:
@@ -38,6 +46,63 @@ func interaction_radius() -> float:
 	if circle == null:
 		return InteractIntent.interaction_range()
 	return circle.radius
+
+
+func has_movement_plan() -> bool:
+	return _has_plan
+
+
+func movement_revision() -> int:
+	return _revision
+
+
+func apply_movement_plan(plan: Dictionary, server_tick: float, force: bool = false) -> bool:
+	var incoming := int(plan.get("revision", 0))
+	if not force and _has_plan and incoming <= _revision:
+		return false
+	_plan = plan.duplicate(true)
+	_revision = incoming
+	_clock_tick = server_tick
+	_has_plan = true
+	var pose := interpolated_pose(_plan, _clock_tick)
+	set_move_vector(pose - position)
+	position = pose
+	return true
+
+
+func apply_server_npc(record: Dictionary, server_tick: float, force: bool = false) -> void:
+	var plan: Variant = record.get("movement", {})
+	if typeof(plan) == TYPE_DICTIONARY and not (plan as Dictionary).is_empty():
+		apply_movement_plan(plan as Dictionary, server_tick, force)
+		return
+	_has_plan = false
+	set_server_position(float(record.get("x", 0.0)), float(record.get("y", 0.0)))
+
+
+func advance_interpolation(delta: float) -> void:
+	if not _has_plan:
+		super.advance_interpolation(delta)
+		return
+	_clock_tick += delta * TICK_RATE_HZ
+	var pose := interpolated_pose(_plan, _clock_tick)
+	set_move_vector(pose - position)
+	position = pose
+
+
+static func interpolated_pose(plan: Dictionary, tick: float) -> Vector2:
+	var phase := String(plan.get("phase", "idle"))
+	var start := Vector2(float(plan.get("startX", 0.0)), float(plan.get("startY", 0.0)))
+	var finish := Vector2(float(plan.get("endX", start.x)), float(plan.get("endY", start.y)))
+	var start_tick := float(plan.get("startTick", 0.0))
+	var end_tick := float(plan.get("endTick", 0.0))
+	if phase == "moving" and end_tick > start_tick and tick < end_tick:
+		if tick <= start_tick:
+			return start
+		var t := (tick - start_tick) / (end_tick - start_tick)
+		return start.lerp(finish, t)
+	if phase == "moving" and tick >= end_tick:
+		return finish
+	return start
 
 
 func _apply_placeholder() -> void:

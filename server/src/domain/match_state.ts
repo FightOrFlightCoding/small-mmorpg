@@ -19,6 +19,12 @@ import {
 } from "./equipment";
 import { cloneLoot, publicLoot, type LootDrop, type MatchLoot } from "./loot";
 import { createNpcRuntimeInstance, type NpcDefinition, type NpcRuntimeInstance } from "./npc";
+import {
+  cloneNpcs,
+  initNpcMovement,
+  publicNpcs,
+  type NpcRouteContent,
+} from "./npc_movement";
 import type { VendorDefinition } from "./vendor";
 import { dict } from "./maps";
 import { cloneProgression, publicProgression, type CharacterProgression } from "./progression";
@@ -276,6 +282,7 @@ export interface StarterZoneState {
   aiProfilesById?: { [id: string]: AiProfileContent };
   lootTablesById?: { [id: string]: LootTableDefinition };
   npcsById?: { [id: string]: NpcDefinition };
+  npcRoutesById?: { [id: string]: NpcRouteContent };
   vendorsById?: { [id: string]: VendorDefinition };
   processedDeathEventIds?: { [eventId: string]: boolean };
   actionRates: { [userId: string]: PlayerActionRate };
@@ -415,6 +422,7 @@ export interface StarterZoneCatalogExtras {
   aiProfilesById?: { [id: string]: AiProfileContent };
   lootTablesById?: { [id: string]: LootTableDefinition };
   npcsById?: { [id: string]: NpcDefinition };
+  npcRoutesById?: { [id: string]: NpcRouteContent };
   vendorsById?: { [id: string]: VendorDefinition };
   groupCreditRules?: GroupCreditRules;
   instanceType?: "public_world" | "party_cave";
@@ -474,17 +482,22 @@ export function createStarterZoneState(
   const npcs: MatchNpc[] = [];
   for (let i = 0; i < zone.npcs.length; i++) {
     const spawn = zone.npcs[i];
-    npcs.push(
-      createNpcRuntimeInstance({
-        npcId: spawn.npcId,
-        x: spawn.x,
-        y: spawn.y,
-        zoneId: zone.id,
-        definition:
-          extras.npcsById !== undefined ? extras.npcsById[spawn.npcId] : undefined,
-        defaultInteractionRange: playerContent.interactionRange,
-      }),
+    const instance = createNpcRuntimeInstance({
+      npcId: spawn.npcId,
+      x: spawn.x,
+      y: spawn.y,
+      zoneId: zone.id,
+      definition:
+        extras.npcsById !== undefined ? extras.npcsById[spawn.npcId] : undefined,
+      defaultInteractionRange: playerContent.interactionRange,
+    });
+    initNpcMovement(
+      instance,
+      extras.npcRoutesById !== undefined ? extras.npcRoutesById[instance.routeId] : undefined,
+      0,
+      MATCH_TICK_RATE,
     );
+    npcs.push(instance);
   }
   const enemyLootById: { [id: string]: LootDrop[] } = {};
   const built = buildInitialCombatants(zone, enemiesById, extras.spawnsById);
@@ -536,6 +549,7 @@ export function createStarterZoneState(
     aiProfilesById: extras.aiProfilesById,
     lootTablesById: extras.lootTablesById,
     npcsById: extras.npcsById,
+    npcRoutesById: extras.npcRoutesById,
     vendorsById: extras.vendorsById,
     processedDeathEventIds: {},
     actionRates: emptyActionRates(),
@@ -600,7 +614,7 @@ export function buildFullState(state: StarterZoneState, tick: number, selfId: st
     zoneId: state.zoneId,
     selfId: selfId,
     players: playersList(state),
-    npcs: state.npcs,
+    npcs: publicNpcs(state.npcs),
     enemies: enemiesList(state),
     loot: publicLoot(state.loot),
     quests: questsFor(state, selfId),
@@ -619,7 +633,19 @@ export function partyViewForPlayer(state: StarterZoneState, selfId: string): { [
   return partyFor(state, selfId);
 }
 
-export function buildSnapshot(state: StarterZoneState, tick: number): string {
+export function buildSnapshot(state: StarterZoneState, tick: number, includeNpcPlans = false): string {
+  if (includeNpcPlans) {
+    return JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      contentHash: state.contentHash,
+      tick: tick,
+      zoneId: state.zoneId,
+      players: playersList(state),
+      npcs: publicNpcs(state.npcs),
+      enemies: enemiesList(state),
+      loot: publicLoot(state.loot),
+    });
+  }
   return JSON.stringify({
     protocolVersion: PROTOCOL_VERSION,
     contentHash: state.contentHash,
@@ -881,7 +907,7 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     emptyTicks: state.emptyTicks,
     players: players,
     disconnected: disconnected,
-    npcs: Array.isArray(state.npcs) ? state.npcs : [],
+    npcs: cloneNpcs(state.npcs),
     enemies: cloneEnemies(Array.isArray(state.enemies) ? state.enemies : []),
     spawns: cloneSpawns(state.spawns),
     loot: cloneLoot(Array.isArray(state.loot) ? state.loot : []),
@@ -904,6 +930,7 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     aiProfilesById: state.aiProfilesById,
     lootTablesById: state.lootTablesById,
     npcsById: state.npcsById,
+    npcRoutesById: state.npcRoutesById,
     vendorsById: state.vendorsById,
     processedDeathEventIds: dict(state.processedDeathEventIds),
     actionRates: cloneActionRates(state.actionRates),

@@ -104,6 +104,7 @@ func _process(delta: float) -> void:
 		if focused != null and not (_chat != null and _chat.has_input_focus()):
 			focused.release_focus()
 	_buffer.advance(delta)
+	_entities.advance_interpolation(delta)
 	_update_ground_preview()
 	if not _snapshot_stale:
 		_entities.apply_remote_poses(_buffer.sample(_buffer.render_tick()))
@@ -257,7 +258,6 @@ func _remote_poses(state: Dictionary) -> Dictionary:
 	var poses: Dictionary = {}
 	var self_id := String(state.get("self_id", _entities.local_server_id))
 	_collect_poses(poses, "player", state.get("players", []), self_id)
-	_collect_poses(poses, "npc", state.get("npcs", []), "")
 	_collect_poses(poses, "enemy", state.get("enemies", []), "")
 	_collect_poses(poses, "loot", state.get("loot", []), "")
 	return poses

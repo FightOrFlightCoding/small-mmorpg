@@ -1,4 +1,4 @@
-# NPC security model (NPC-02)
+# NPC security model (NPC-03)
 
 The client is an untrusted presenter. Conflict closure does not change the server-authoritative model.
 
@@ -12,8 +12,8 @@ The client is an untrusted presenter. Conflict closure does not change the serve
 | Unknown service/action | Strict NPC schema and content-build validation reject unknown service types; audit restricts dialogue `do` actions to project-owned presentation services. |
 | INTERACT replay | `interactByRequestId` replays presentation results and does not re-apply talk objectives or grant rewards. |
 | NPC combat abuse | `targeting.ts`, `threat.ts`, and `combat_pipeline.ts` admit only players/enemies. `isNpcRuntimeId` rejects NPC ids for hostile/friendly slots, AoE queries, threat, damage, and healing. `NpcRuntimeInstance` has no HP, threat, AI state, or combat effects. |
-| Client NPC movement | No client protocol accepts NPC pose, route, velocity, or movement completion. |
-| NPC as a movement wall | NPCs are not gameplay AABBs. Interaction areas are presentation-only (`monitoring`/`monitorable` false). |
+| Client NPC movement | No client protocol accepts NPC pose, route, velocity, or movement completion. The server sends plans; clients interpolate. `rngState` is never published. |
+| NPC as a movement wall | NPCs are not gameplay AABBs. Interaction areas are presentation-only (`monitoring`/`monitorable` false). Cosmetic travel does not use `resolveMove` or pathfinding. |
 
 ## Required invariants
 
@@ -23,3 +23,4 @@ The client is an untrusted presenter. Conflict closure does not change the serve
 - NPCs are noncombat: no HP, threat, AoE/line/cone targeting membership, hostile/friendly target slot, combat collision, damage, healing, death, or loot.
 - NPC interaction is an interaction-area affordance plus server range validation, not a physical gameplay blocker.
 - Right-click default interaction is presentation only and must invoke the same `INTERACT` intention/validation as keyboard accessibility interaction.
+- Cosmetic NPC movement is match-lifetime only and must not be written to persistent storage.

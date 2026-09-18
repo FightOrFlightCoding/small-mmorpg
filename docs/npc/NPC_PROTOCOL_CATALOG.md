@@ -1,6 +1,8 @@
-# NPC protocol catalog (NPC-02)
+# NPC protocol catalog (NPC-03)
 
-NPC-02 creates no opcode, RPC, notification, or storage protocol. It keeps the NPC-01 surface. `FULL_STATE.npcs` may include generic actor fields (`homeX`, `routeId`, `visualId`, `displayName`) that are presentation-only.
+NPC-03 creates no opcode, RPC, notification, or storage protocol. It keeps the NPC-01/NPC-02 surface and adds public movement plans on existing match state messages.
+
+`FULL_STATE.npcs` always includes the current public movement plan (nodes, revision, segment endpoints and times, idle-until, phase). `SNAPSHOT` includes `npcs` only when a movement revision changes. Plans never include `rngState`. Clients interpolate from the match tick clock. The client does not send NPC transforms.
 
 ## Existing match messages
 

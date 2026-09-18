@@ -70,6 +70,7 @@ import { spawnDefinitionsFromContent } from "../domain/spawn_controller";
 import { aiProfilesFromContent } from "../domain/threat";
 import { lootTablesFromContent } from "../domain/loot_table";
 import { npcDefinitionsFromContent } from "../domain/npc";
+import { npcRoutesFromContent } from "../domain/npc_movement";
 import { vendorDefinitionsFromContent } from "../domain/vendor";
 import { readProgression, writeProgression, writeProgressionOnce } from "./progression_store";
 import { accountCaveRepository, nakamaCaveRepository } from "./cave_store";
@@ -155,6 +156,7 @@ export function matchInit(
       aiProfilesById: aiProfilesFromContent(content.aiProfiles),
       lootTablesById: lootTablesFromContent(content.lootTables),
       npcsById: npcDefinitionsFromContent(content.npcs),
+      npcRoutesById: npcRoutesFromContent(content.npcRoutes),
       vendorsById: vendorDefinitionsFromContent(content.vendors),
       groupCreditRules: groupCreditRulesFromPlayer(content.player),
       instanceType: isCave ? "party_cave" : "public_world",
@@ -1407,6 +1409,7 @@ function bindContentCatalogs(zone: StarterZoneState): void {
   zone.aiProfilesById = aiProfilesFromContent(content.aiProfiles);
   zone.lootTablesById = lootTablesFromContent(content.lootTables);
   zone.npcsById = npcDefinitionsFromContent(content.npcs);
+  zone.npcRoutesById = npcRoutesFromContent(content.npcRoutes);
   zone.vendorsById = vendorDefinitionsFromContent(content.vendors);
   zone.playerAttack = content.player.attack;
   zone.playerAttackRange = content.player.attackRange;
@@ -1432,6 +1435,7 @@ function stripContentCatalogs(zone: StarterZoneState): void {
   zone.aiProfilesById = undefined;
   zone.lootTablesById = undefined;
   zone.npcsById = undefined;
+  zone.npcRoutesById = undefined;
   zone.vendorsById = undefined;
 }
 

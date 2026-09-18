@@ -1,4 +1,4 @@
-# NPC content model (NPC-02)
+# NPC content model (NPC-03)
 
 NPC definitions use `content/schemas/npc.json` (title `npc_definition`) and are authored under `content/source/`. Shared companion schemas are `npc_route.json`, `npc_service_binding.json`, `npc_quest_binding.json`, `dialogue_definition.json`, and `vendor.json` (title `vendor_definition`). The NPC schema is strict (`additionalProperties: false`) and requires `id`, `kind: "npc"`, `displayName`, `displayNameKey`, `visualId`, `zoneId`, `position`, `homePosition`, `routeId`, `interactionRange`, `dialogueId`, and one or more services. Content generation validates stable IDs, correct zone, route references, waypoint graphs, bounded distance from home, positive speed, dwell ranges, visual/dialogue assets, zone placement/pose agreement, service/dialogue/quest/vendor references, and duplicate placement IDs.
 
@@ -8,14 +8,14 @@ Prompt snake_case names map to existing camelCase content JSON: `npc_id` → `id
 
 `npc_route` documents use prefix `route.`. Types:
 
-| `routeType` | Graph | NPC-02 runtime |
+| `routeType` | Graph | NPC-03 runtime |
 | --- | --- | --- |
 | `stationary` | No waypoints or edges | Pose stays at `homePosition` |
-| `loop` | Ordered waypoints (≥2); last returns to first | Authored/validated only |
-| `ping_pong` | Ordered waypoints (≥2); reverse at ends | Authored/validated only |
-| `weighted_route_graph` | Named waypoints plus positive-weight directed edges; connected with out-degree ≥ 1 | Authored/validated only |
+| `loop` | Ordered waypoints (≥2); last returns to first | Straight-line segments in order |
+| `ping_pong` | Ordered waypoints (≥2); reverse at ends | Straight-line segments, reverse at ends |
+| `weighted_route_graph` | Named waypoints plus positive-weight directed edges; connected with out-degree ≥ 1 | Next node chosen from authored outgoing edges |
 
-Waypoint `x`/`y` are offsets from the NPC `homePosition`. Every waypoint must satisfy `hypot(x, y) ≤ maxDistanceFromHome`. `speed` is a positive number. `dwellMin` ≤ `dwellMax`, both ≥ 0. Cosmetic patrol ticking is a later named phase.
+Waypoint `x`/`y` are offsets from the NPC `homePosition`. Every waypoint must satisfy `hypot(x, y) ≤ maxDistanceFromHome`. `speed` is a positive number. `dwellMin` ≤ `dwellMax`, both ≥ 0. Optional in-memory `speedMin` (not authored on production routes) rolls speed within `[speedMin, speed]`. Cosmetic patrols tick in the match; they are not persisted.
 
 Production NPCs, including the elder and respec trainers, reference `route.stationary`.
 
