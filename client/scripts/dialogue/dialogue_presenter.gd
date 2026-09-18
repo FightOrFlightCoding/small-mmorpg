@@ -89,7 +89,7 @@ func _present(npc_id: String, result: Dictionary) -> bool:
 	QuestService.set_speaker(npc_id)
 	last_opened_npc_id = npc_id
 	var session := String(result.get("interaction_session_id", last_session_id))
-	var is_new_session := open_count == 0 or session != last_session_id or not WindowManager.is_open(WindowManager.DIALOGUE)
+	var is_new_session := last_session_id.is_empty() or session != last_session_id
 	last_session_id = session
 	var node_id := String(result.get("current_node_id", ""))
 	var option_ids: Array = result.get("allowed_option_ids", [])

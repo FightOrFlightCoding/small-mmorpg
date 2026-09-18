@@ -220,6 +220,7 @@ func test_interaction_window_and_presenter_do_not_duplicate_signals() -> void:
 		"available_service_ids": ["quest_offer"],
 	}
 	assert_bool(presenter.handle_interaction_result(payload)).is_true()
+	# Same-session INTERACTION_RESULT refreshes quest dialogue without a second open.
 	assert_bool(presenter.handle_interaction_result({
 		"result_ok": true,
 		"code": "ok",
@@ -227,6 +228,6 @@ func test_interaction_window_and_presenter_do_not_duplicate_signals() -> void:
 		"target_id": "npc.elder",
 		"interaction_session_id": "sess-dup-1",
 		"current_node_id": "start",
-	})).is_false()
+	})).is_true()
 	assert_int(opened[0]).is_equal(1)
 	assert_int(presenter.open_count).is_equal(1)
