@@ -3855,7 +3855,7 @@
       "visualAssetSetId": "visual.class_warden"
     }
   },
-  "contentHash": "67ca46f20bd51fbe6981c38164c9844701183d27bfbc7ad378e8fc810404f9b4",
+  "contentHash": "5816b1a22b56865984192fd405c81490b0edcbcbb194790a34f63c9216409c25",
   "derivedStats": {
     "test.stat.attack": {
       "components": [
@@ -7094,21 +7094,7 @@
             "quest.test.reward",
             "quest.test.party_kill"
           ],
-          "type": "quest_offer"
-        },
-        {
-          "questIds": [
-            "quest.test.talk",
-            "quest.test.kill",
-            "quest.test.collect",
-            "quest.test.main_chain",
-            "quest.test.boss",
-            "quest.test.enter",
-            "quest.test.gated",
-            "quest.test.reward",
-            "quest.test.party_kill"
-          ],
-          "type": "quest_turn_in"
+          "type": "offer_and_turn_in"
         }
       ],
       "visualId": "visual.npc_herald",

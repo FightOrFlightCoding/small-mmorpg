@@ -196,7 +196,7 @@ Set the enemy `lootTableId` to this id. Optional: `powershell -File scripts/cont
 powershell -File scripts/content.ps1 new npc --id npc.example
 ```
 
-Services are data (`dialogue`, `quest_offer`, `quest_turn_in`, `vendor`, `inn`, `healer`, `cave_entrance`, `cave_exit`). Add the NPC to the zone `npcs` list and a client `.dialogue` file keyed from `dialogue_map.json`. Proof giver:
+Services are data (`dialogue`, `quest_offer` / `offer`, `quest_turn_in` / `turn_in`, `offer_and_turn_in`, `vendor`, `inn`, `healer`, `cave_entrance`, `cave_exit`, `respec`). Add the NPC to the zone `npcs` list and a client `.dialogue` file keyed from `dialogue_map.json`. A new quest NPC is content-only: bind quests on the NPC, set `acceptNpcId` / `turnInNpcId` on the quest, and author a hashed dialogue graph. Proof giver:
 
 ```json
 {

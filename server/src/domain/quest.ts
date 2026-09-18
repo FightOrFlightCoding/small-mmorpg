@@ -1,11 +1,25 @@
 import { resolveInteraction, type InteractionNpc } from "./interaction";
-import { npcOffersQuest, type NpcDefinition } from "./npc";
+import {
+  boundQuestIds,
+  npcBindsQuest,
+  npcOffersQuest,
+  NPC_QUEST_MARKER_ACTIVE,
+  NPC_QUEST_MARKER_AVAILABLE,
+  NPC_QUEST_MARKER_READY,
+  type NpcDefinition,
+} from "./npc";
 import { countItem, type PlayerInventory } from "./inventory";
 import { cloneTickMap, dict } from "./maps";
 import { cloneExtras, envelopeFromRecord } from "./save_schema";
 
 export const QUEST_STATUS_ACCEPTED = "accepted";
 export const QUEST_STATUS_COMPLETED = "completed";
+export const QUEST_DIALOGUE_AVAILABLE = "available";
+export const QUEST_DIALOGUE_ACCEPTED = "accepted";
+export const QUEST_DIALOGUE_IN_PROGRESS = "in_progress";
+export const QUEST_DIALOGUE_READY = "ready";
+export const QUEST_DIALOGUE_COMPLETED = "completed";
+export const QUEST_DIALOGUE_PREREQUISITE_MISSING = "prerequisite_missing";
 export const QUEST_CATEGORY_MAIN = "main";
 export const QUEST_CATEGORY_SIDE = "side";
 
@@ -153,6 +167,7 @@ export interface QuestAcceptInput {
   inParty?: boolean;
   npcById?: { [id: string]: NpcDefinition };
   zoneId?: string;
+  npcInstanceId?: string;
 }
 
 export interface QuestAcceptOutcome {
@@ -321,12 +336,18 @@ export function applyQuestAccept(input: QuestAcceptInput): QuestAcceptOutcome {
   if (definition === undefined) {
     return { ok: false, code: "invalid_id", persist: false, log: log };
   }
-  const npcDef = input.npcById !== undefined ? input.npcById[definition.acceptNpcId] : undefined;
+  const targetId =
+    input.npcInstanceId !== undefined && input.npcInstanceId.length > 0
+      ? input.npcInstanceId
+      : definition.acceptNpcId;
+  const interacted = findInteractedNpc(input.npcs, targetId);
+  const catalogId = interacted !== null ? interacted.npcId : targetId;
+  const npcDef = input.npcById !== undefined ? input.npcById[catalogId] : undefined;
   const decision = resolveInteraction({
     playerHealth: input.playerHealth,
     playerX: input.playerX,
     playerY: input.playerY,
-    targetId: definition.acceptNpcId,
+    targetId: targetId,
     npcs: input.npcs,
     interactionRange: input.interactionRange,
     zoneId: input.zoneId,
@@ -360,6 +381,154 @@ export function applyQuestAccept(input: QuestAcceptInput): QuestAcceptOutcome {
   log.acceptByRequestId[input.requestId] = "accepted";
   stampAcceptTick(log, input.requestId, input.tick);
   return { ok: true, code: "accepted", persist: true, log: log };
+}
+
+function findInteractedNpc(
+  npcs: ReadonlyArray<InteractionNpc>,
+  targetId: string,
+): InteractionNpc | null {
+  for (let i = 0; i < npcs.length; i++) {
+    const npc = npcs[i];
+    if (npc.id === targetId || npc.npcId === targetId) {
+      return npc;
+    }
+  }
+  return null;
+}
+
+export function questDialogueState(
+  questId: string,
+  log: { quests: { [id: string]: { status: string; objectives?: ReadonlyArray<{ current: number; required: number }> } } } | undefined,
+  definition: QuestDefinition | undefined,
+  playerLevel?: number,
+  classId?: string,
+): string {
+  const progress = log !== undefined ? log.quests[questId] : undefined;
+  if (progress !== undefined && progress.status === QUEST_STATUS_COMPLETED) {
+    return QUEST_DIALOGUE_COMPLETED;
+  }
+  if (progress !== undefined && progress.status === QUEST_STATUS_ACCEPTED) {
+    if (objectivesReadyFromProgress(progress)) {
+      return QUEST_DIALOGUE_READY;
+    }
+    if (hasPartialObjectiveProgress(progress)) {
+      return QUEST_DIALOGUE_IN_PROGRESS;
+    }
+    return QUEST_DIALOGUE_ACCEPTED;
+  }
+  if (definition !== undefined) {
+    const stubLog: QuestLog = log !== undefined ? (log as QuestLog) : emptyQuestLog();
+    const prereq = evaluatePrerequisites(definition, stubLog, playerLevel, classId);
+    if (prereq.length > 0) {
+      return QUEST_DIALOGUE_PREREQUISITE_MISSING;
+    }
+  }
+  return QUEST_DIALOGUE_AVAILABLE;
+}
+
+function objectivesReadyFromProgress(progress: {
+  objectives?: ReadonlyArray<{ current: number; required: number }>;
+}): boolean {
+  const objectives = progress.objectives;
+  if (!Array.isArray(objectives) || objectives.length === 0) {
+    return false;
+  }
+  for (let i = 0; i < objectives.length; i++) {
+    if (objectives[i].current < objectives[i].required) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function hasPartialObjectiveProgress(progress: {
+  objectives?: ReadonlyArray<{ current: number; required: number }>;
+}): boolean {
+  const objectives = progress.objectives;
+  if (!Array.isArray(objectives)) {
+    return false;
+  }
+  for (let i = 0; i < objectives.length; i++) {
+    if (objectives[i].current > 0 && objectives[i].current < objectives[i].required) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function publicNpcQuestMarkers(
+  npcs: ReadonlyArray<{ id: string; npcId: string }>,
+  npcById: { [id: string]: NpcDefinition } | undefined,
+  log: QuestLog,
+  questsById: { [id: string]: QuestDefinition },
+  playerLevel?: number,
+  classId?: string,
+): { npcId: string; marker: string }[] {
+  const markers: { npcId: string; marker: string }[] = [];
+  if (npcById === undefined) {
+    return markers;
+  }
+  for (let i = 0; i < npcs.length; i++) {
+    const npc = npcs[i];
+    const definition = npcById[npc.npcId];
+    if (definition === undefined) {
+      continue;
+    }
+    const marker = npcQuestMarkerGlyph(definition, log, questsById, playerLevel, classId);
+    if (marker.length === 0) {
+      continue;
+    }
+    markers.push({ npcId: npc.id, marker: marker });
+  }
+  return markers;
+}
+
+function npcQuestMarkerGlyph(
+  definition: NpcDefinition,
+  log: QuestLog,
+  questsById: { [id: string]: QuestDefinition },
+  playerLevel: number | undefined,
+  classId: string | undefined,
+): string {
+  let ready = false;
+  let available = false;
+  let active = false;
+  const offerIds = boundQuestIds(definition, "offer");
+  const turnInIds = boundQuestIds(definition, "turn_in");
+  const seen: { [id: string]: boolean } = {};
+  for (let i = 0; i < offerIds.length; i++) {
+    seen[offerIds[i]] = true;
+  }
+  for (let j = 0; j < turnInIds.length; j++) {
+    seen[turnInIds[j]] = true;
+  }
+  const questIds = Object.keys(seen);
+  for (let q = 0; q < questIds.length; q++) {
+    const questId = questIds[q];
+    const state = questDialogueState(questId, log, questsById[questId], playerLevel, classId);
+    if (npcBindsQuest(definition, questId, "turn_in") && state === QUEST_DIALOGUE_READY) {
+      ready = true;
+    }
+    if (npcBindsQuest(definition, questId, "offer") && state === QUEST_DIALOGUE_AVAILABLE) {
+      available = true;
+    }
+    if (
+      (npcBindsQuest(definition, questId, "offer") || npcBindsQuest(definition, questId, "turn_in")) &&
+      (state === QUEST_DIALOGUE_ACCEPTED || state === QUEST_DIALOGUE_IN_PROGRESS)
+    ) {
+      active = true;
+    }
+  }
+  if (ready) {
+    return NPC_QUEST_MARKER_READY;
+  }
+  if (available) {
+    return NPC_QUEST_MARKER_AVAILABLE;
+  }
+  if (active) {
+    return NPC_QUEST_MARKER_ACTIVE;
+  }
+  return "";
 }
 
 function stampAcceptTick(log: QuestLog, requestId: string, tick: number | undefined): void {

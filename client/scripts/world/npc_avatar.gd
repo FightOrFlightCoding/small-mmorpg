@@ -9,6 +9,7 @@ const TICK_RATE_HZ := 10.0
 @onready var _interaction_shape: CollisionShape2D = $InteractionArea/InteractionShape
 @onready var _interaction_area: Area2D = $InteractionArea
 @onready var _marker_anchor: Node2D = $MarkerAnchor
+@onready var _marker_label: Label = $MarkerAnchor/MarkerLabel
 
 var _plan: Dictionary = {}
 var _revision: int = 0
@@ -31,6 +32,15 @@ func marker_anchor() -> Node2D:
 	if _marker_anchor == null:
 		_marker_anchor = get_node_or_null("MarkerAnchor") as Node2D
 	return _marker_anchor
+
+
+func set_quest_marker(glyph: String) -> void:
+	if _marker_label == null:
+		_marker_label = get_node_or_null("MarkerAnchor/MarkerLabel") as Label
+	if _marker_label == null:
+		return
+	_marker_label.text = glyph
+	_marker_label.visible = not glyph.is_empty()
 
 
 func contains_world_point(world_pos: Vector2) -> bool:

@@ -14,6 +14,7 @@ import { dialogueDefinitionsFromContent } from "../src/domain/dialogue";
 import { INTERACTION_SESSION_TTL_TICKS } from "../src/domain/interaction";
 import { ACTION_LIMITS } from "../src/domain/rate_limit";
 import { ClientOpcode, PROTOCOL_VERSION, ServerOpcode } from "../src/domain/protocol";
+import { acceptMessage, openNpcSession } from "./npc_session";
 
 function enemiesById() {
   const map: { [id: string]: { id: string; maxHealth: number } } = {};
@@ -221,14 +222,11 @@ test("repeated interact request id replays without reapplying talk objectives", 
     { npcsById: npcDefinitionsFromContent(content.npcs) },
   );
   let state = addPlayer(zone, playerAt("user-alice", "Alice", herald.x, herald.y));
-  state = applyMatchLoop(state, 1, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_ACCEPT,
-      raw: envelope({ questId: "quest.test.talk", requestId: "req-talk-accept-replay" }),
-      userId: "user-alice",
-    },
+  const opened = openNpcSession(state, "user-alice", "npc.test_herald", 1, "req-talk-accept-int");
+  state = applyMatchLoop(opened.state, 2, contentHash, [
+    acceptMessage("user-alice", "quest.test.talk", opened.sessionId, opened.npcInstanceId, "req-talk-accept-replay"),
   ]).state;
-  const first = applyMatchLoop(state, 2, contentHash, [
+  const first = applyMatchLoop(state, 3, contentHash, [
     {
       opcode: ClientOpcode.INTERACT,
       raw: envelope({ targetId: "npc.test_herald", requestId: "req-interact-replay" }),
@@ -240,7 +238,7 @@ test("repeated interact request id replays without reapplying talk objectives", 
   assert.equal(first.state.players["user-alice"].questLog.quests["quest.test.talk"].objectives[0].current, 1);
   assert.equal(first.state.players["user-alice"].interactionSession?.state, "active");
   first.state.players["user-alice"].questLog.quests["quest.test.talk"].objectives[0].current = 0;
-  const replay = applyMatchLoop(first.state, 3, contentHash, [
+  const replay = applyMatchLoop(first.state, 4, contentHash, [
     {
       opcode: ClientOpcode.INTERACT,
       raw: envelope({ targetId: "npc.test_herald", requestId: "req-interact-replay" }),

@@ -26,10 +26,13 @@ import {
 } from "../src/domain/match_state";
 import { ClientOpcode, PROTOCOL_VERSION, ServerOpcode, isProtocolError, parseClientMessage } from "../src/domain/protocol";
 import { emptyQuestLog, questDefinitionsFromContent } from "../src/domain/quest";
+import { npcDefinitionsFromContent } from "../src/domain/npc";
+import { dialogueDefinitionsFromContent } from "../src/domain/dialogue";
 import { QUEST_PERMISSION_WRITE } from "../src/domain/quest_store";
 import { ACTION_LIMITS, MAX_MESSAGES_PER_PLAYER_PER_TICK, RATE_WINDOW_TICKS } from "../src/domain/rate_limit";
 import { formatRejectedActionLog, isSafeRejectionLog } from "../src/domain/security_log";
 import { MALFORMED_MESSAGE_FIXTURES } from "./fixtures/malformed_messages";
+import { acceptMessage, openNpcSession, turnInMessage } from "./npc_session";
 
 function emptyZone(): StarterZoneState {
   return createStarterZoneState(
@@ -48,6 +51,10 @@ function emptyZone(): StarterZoneState {
     },
     questDefinitionsFromContent(content.quests),
     itemDefinitionsFromContent(content.items),
+    {
+      npcsById: npcDefinitionsFromContent(content.npcs),
+      dialoguesById: dialogueDefinitionsFromContent(content.dialogues),
+    },
   );
 }
 
@@ -294,12 +301,9 @@ test("duplicate pickup, instance injection, and unowned equip do not mutate cano
 test("quest skip, client progress, and duplicate rewards do not grant twice", () => {
   const elder = content.zones["zone.starter"].npcs[0];
   const state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", elder.x, elder.y));
-  const skip = applyMatchLoop(state, 1, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_TURN_IN,
-      raw: envelope({ questId: "quest.slime_problem", npcId: "npc.elder", requestId: "req-skip-1" }),
-      userId: "user-alice",
-    },
+  const skipOpened = openNpcSession(state, "user-alice", "npc.elder", 1, "req-skip-int");
+  const skip = applyMatchLoop(skipOpened.state, 2, contentHash, [
+    turnInMessage("user-alice", "quest.slime_problem", skipOpened.sessionId, skipOpened.npcInstanceId, "req-skip-1"),
   ]);
   assert.equal(actionCodes(skip)[0], "invalid_id");
   assert.equal(skip.state.players["user-alice"].gold, 0);
@@ -309,6 +313,8 @@ test("quest skip, client progress, and duplicate rewards do not grant twice", ()
       opcode: ClientOpcode.QUEST_ACCEPT,
       raw: envelope({
         questId: "quest.slime_problem",
+        interactionSessionId: "sess-inject",
+        npcInstanceId: "npc.elder",
         requestId: "req-accept-inject",
         status: "completed",
       }),
@@ -318,20 +324,13 @@ test("quest skip, client progress, and duplicate rewards do not grant twice", ()
   assert.ok(systemCodes(injected)[0].indexOf("unknown_field") === 0);
   assert.equal(injected.state.players["user-alice"].questLog.quests["quest.slime_problem"], undefined);
 
-  const accept = applyMatchLoop(state, 1, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_ACCEPT,
-      raw: envelope({ questId: "quest.slime_problem", requestId: "req-accept-1" }),
-      userId: "user-alice",
-    },
+  const opened = openNpcSession(state, "user-alice", "npc.elder", 1, "req-accept-int");
+  const accept = applyMatchLoop(opened.state, 2, contentHash, [
+    acceptMessage("user-alice", "quest.slime_problem", opened.sessionId, opened.npcInstanceId, "req-accept-1"),
   ]);
   assert.equal(actionCodes(accept)[0], "accepted");
-  const replay = applyMatchLoop(accept.state, 2, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_ACCEPT,
-      raw: envelope({ questId: "quest.slime_problem", requestId: "req-accept-1" }),
-      userId: "user-alice",
-    },
+  const replay = applyMatchLoop(accept.state, 3, contentHash, [
+    acceptMessage("user-alice", "quest.slime_problem", opened.sessionId, opened.npcInstanceId, "req-accept-1"),
   ]);
   assert.equal(actionCodes(replay)[0], "accepted");
 });
@@ -436,7 +435,12 @@ test("inventory, equipment, vendor, quest, cave, and trade use separate rate buc
   const quest = applyMatchLoop(state, 2, contentHash, [
     {
       opcode: ClientOpcode.QUEST_ACCEPT,
-      raw: envelope({ questId: "quest.slime_problem", requestId: "req-quest-sep1" }),
+      raw: envelope({
+        questId: "quest.slime_problem",
+        interactionSessionId: "sess-quest-sep1",
+        npcInstanceId: "npc.elder",
+        requestId: "req-quest-sep1",
+      }),
       userId: "user-alice",
     },
   ]);

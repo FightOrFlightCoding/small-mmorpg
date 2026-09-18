@@ -1,4 +1,4 @@
-# NPC security model (NPC-04)
+# NPC security model (NPC-05)
 
 The client is an untrusted presenter. Conflict closure does not change the server-authoritative model.
 
@@ -7,7 +7,7 @@ The client is an untrusted presenter. Conflict closure does not change the serve
 | Fabricated or remote interaction | `interaction.ts` resolves only a current match NPC and checks same zone, player health, server-pose Euclidean range, character ownership, not link-dead, not transferring, and optional `requiredService`. |
 | Local dialogue opened without approval | `DialoguePresenter` opens only after a matching `INTERACTION_RESULT`; missing resources and rejected codes show a visible error. |
 | Forged dialogue choice | `DIALOGUE_CHOOSE` requires a live `interactionSessionId`. The server evaluates allowed option ids from content conditions and rejects unknown, gated, or expired options. |
-| Quest completion/reward injection | Existing quest engine owns state/objectives; turn-in revalidates NPC/range/service and uses the transaction boundary. Service buttons still send `QUEST_ACCEPT` / `QUEST_TURN_IN`. |
+| Quest completion/reward injection | Canonical quest engine owns state/objectives. Accept and turn-in require a live `interactionSessionId` (same `requestId` may replay). Turn-in revalidates NPC bind/range/objectives and uses the transaction boundary. Service buttons send `QUEST_ACCEPT` / `QUEST_TURN_IN` with session fields, never `npcId` outcomes. |
 | Merchant price or gold spoof | Vendor request fields contain IDs/quantity/request ID only. Server content stock, sell multiplier, wallet, and `nk.multiUpdate` transaction path decide price and result. |
 | Inn, cave, or respec result spoof | Existing service owners validate NPC service through `resolveInteraction`; server computes health/resources/bind, tickets, cost, and progression result. |
 | Unknown service/action | Strict NPC schema and content-build validation reject unknown service types and dialogue scripts. Live graphs have no arbitrary scripts. |
@@ -27,3 +27,4 @@ The client is an untrusted presenter. Conflict closure does not change the serve
 - Right-click default interaction is the configurable `interact_pointer` action and must invoke the same `INTERACT` intention/validation as keyboard accessibility interaction.
 - Cosmetic NPC movement is match-lifetime only and must not be written to persistent storage.
 - Later NPC service actions require `interactionSessionId`, `npcInstanceId`, and `requestId` in addition to that service's existing validation.
+- Quest markers are presentation of server `npcQuestMarkers` only. The client never submits a marker, quest status, or reward.

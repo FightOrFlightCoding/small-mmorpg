@@ -41,6 +41,7 @@ export interface QuestTurnInInput {
   playerLevel?: number;
   classId?: string;
   inParty?: boolean;
+  npcInstanceId?: string;
 }
 
 export interface QuestTurnInOutcome {
@@ -98,15 +99,19 @@ export function applyQuestTurnIn(input: QuestTurnInInput): QuestTurnInOutcome {
   if (definition === undefined) {
     return fail("invalid_id", log, inventory, input.gold);
   }
-  if (input.npcId !== definition.turnInNpcId) {
+  const targetId =
+    input.npcInstanceId !== undefined && input.npcInstanceId.length > 0 ? input.npcInstanceId : input.npcId;
+  const interacted = findTurnInNpc(input.npcs, targetId);
+  const catalogId = interacted !== null ? interacted.npcId : targetId;
+  if (catalogId !== definition.turnInNpcId) {
     return fail("invalid_target", log, inventory, input.gold);
   }
-  const npcDef = input.npcById !== undefined ? input.npcById[input.npcId] : undefined;
+  const npcDef = input.npcById !== undefined ? input.npcById[catalogId] : undefined;
   const decision = resolveInteraction({
     playerHealth: input.playerHealth,
     playerX: input.playerX,
     playerY: input.playerY,
-    targetId: input.npcId,
+    targetId: targetId,
     npcs: input.npcs,
     interactionRange: input.interactionRange,
     zoneId: input.zoneId,
@@ -186,7 +191,7 @@ export function applyQuestTurnIn(input: QuestTurnInInput): QuestTurnInOutcome {
     reasonType: "quest_reward",
     reasonId: input.questId,
     requestId: input.requestId,
-    metadata: rewardMetadata(input.questId, input.requestId, input.npcId, definition),
+    metadata: rewardMetadata(input.questId, input.requestId, catalogId, definition),
   });
   if (!gold.ok) {
     return fail(gold.code, log, inventory, input.gold);
@@ -247,4 +252,17 @@ function fail(code: string, log: QuestLog, inventory: PlayerInventory, gold: num
     goldDelta: 0,
     metadata: {},
   };
+}
+
+function findTurnInNpc(
+  npcs: ReadonlyArray<InteractionNpc>,
+  targetId: string,
+): InteractionNpc | null {
+  for (let i = 0; i < npcs.length; i++) {
+    const npc = npcs[i];
+    if (npc.id === targetId || npc.npcId === targetId) {
+      return npc;
+    }
+  }
+  return null;
 }

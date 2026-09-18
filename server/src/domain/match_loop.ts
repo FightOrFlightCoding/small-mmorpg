@@ -44,7 +44,7 @@ import {
   type InteractionInput,
   type InteractionSession,
 } from "./interaction";
-import { NPC_SERVICE_DIALOGUE } from "./npc";
+import { NPC_SERVICE_DIALOGUE, npcBindsQuest } from "./npc";
 import { pauseNpcMovement, resumeNpcMovement, tickNpcMovement } from "./npc_movement";
 import {
   allowedOptionIds,
@@ -54,7 +54,7 @@ import {
   offeredQuestIdsFromNpc,
   resolveDialogueNodeId,
 } from "./dialogue";
-import { applyQuestAccept, cloneQuestLog, publicQuestPayloads, syncAcquireObjectives, type QuestLog } from "./quest";
+import { applyQuestAccept, cloneQuestLog, publicNpcQuestMarkers, publicQuestPayloads, syncAcquireObjectives, type QuestLog } from "./quest";
 import { applyTalkObjectives, applyKillObjectives, applyEnterLocation, enterLocationsFromQuests } from "./quest_objectives";
 import { applyVendorBuy, applyVendorSell, type VendorTradeOutcome } from "./vendor";
 import { applyCaveEnter, applyInnRest } from "./inn";
@@ -955,6 +955,7 @@ function handleDialogueChoose(
     player.questLog,
     offeredQuestIdsFromNpc(definition),
     player.inventory,
+    state.questsById,
   );
   const chosen = nextDialogueNodeId(dialogue, session.currentNodeId, optionId, context);
   if (!chosen.ok) {
@@ -1026,13 +1027,40 @@ function handleQuestAccept(
     outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
     return;
   }
+  const requestId = parsed.requestId as string;
+  const prior = player.questLog.acceptByRequestId[requestId];
+  let session = player.interactionSession;
+  if (prior === undefined) {
+    const gate = requireActiveSession(
+      state,
+      player,
+      tick,
+      parsed.fields.interactionSessionId,
+      parsed.fields.npcInstanceId,
+    );
+    if (!gate.ok || gate.session === undefined) {
+      const failed = actionResult(gate.code, false, requestId);
+      outbound.push({ opcode: failed.opcode, body: failed.body, toUserId: userId });
+      return;
+    }
+    session = gate.session;
+    const npc = findNpc(state.npcs, session.npcInstanceId);
+    const catalogId = npc !== null ? npc.npcId : session.npcInstanceId;
+    const npcDef = npcCatalog(state)[catalogId];
+    if (npcDef !== undefined && !npcBindsQuest(npcDef, parsed.fields.questId, "offer")) {
+      const failed = actionResult("invalid_service", false, requestId);
+      outbound.push({ opcode: failed.opcode, body: failed.body, toUserId: userId });
+      pushQuestDialogue(state, player, session, tick, outbound, requestId, userId, "invalid_service", false);
+      return;
+    }
+  }
   const outcome = applyQuestAccept({
     playerHealth: player.health,
     playerX: player.x,
     playerY: player.y,
     questLog: player.questLog,
     questId: parsed.fields.questId,
-    requestId: parsed.requestId as string,
+    requestId: requestId,
     npcs: state.npcs,
     interactionRange: state.interactionRange,
     questsById: state.questsById,
@@ -1042,6 +1070,7 @@ function handleQuestAccept(
     npcById: npcCatalog(state),
     inParty: playerInCachedParty(state, player),
     zoneId: state.zoneId,
+    npcInstanceId: parsed.fields.npcInstanceId,
   });
   player.questLog = outcome.log;
   const synced = syncAcquireObjectives(player.questLog, player.inventory);
@@ -1057,10 +1086,13 @@ function handleQuestAccept(
   if (outcome.persist || synced.changed || entered.changed) {
     persistByUser[userId] = cloneQuestLog(player.questLog);
   }
-  const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
+  const result = actionResult(outcome.code, outcome.ok, requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
   if (outcome.ok) {
-    pushQuestState(state, userId, outbound, parsed.requestId);
+    pushQuestState(state, userId, outbound, requestId);
+  }
+  if (prior === undefined && session !== undefined && isUsableInteractionSession(session, tick)) {
+    pushQuestDialogue(state, player, session, tick, outbound, requestId, userId, outcome.code, outcome.ok);
   }
 }
 
@@ -1084,6 +1116,33 @@ function handleQuestTurnIn(
     return;
   }
   const requestId = parsed.requestId as string;
+  const prior = player.questLog.turnInByRequestId[requestId];
+  let session = player.interactionSession;
+  if (prior === undefined) {
+    const gate = requireActiveSession(
+      state,
+      player,
+      tick,
+      parsed.fields.interactionSessionId,
+      parsed.fields.npcInstanceId,
+    );
+    if (!gate.ok || gate.session === undefined) {
+      const failed = actionResult(gate.code, false, requestId);
+      outbound.push({ opcode: failed.opcode, body: failed.body, toUserId: userId });
+      return;
+    }
+    session = gate.session;
+    const npc = findNpc(state.npcs, session.npcInstanceId);
+    const catalogId = npc !== null ? npc.npcId : session.npcInstanceId;
+    const npcDef = npcCatalog(state)[catalogId];
+    if (npcDef !== undefined && !npcBindsQuest(npcDef, parsed.fields.questId, "turn_in")) {
+      const failed = actionResult("invalid_service", false, requestId);
+      outbound.push({ opcode: failed.opcode, body: failed.body, toUserId: userId });
+      pushQuestDialogue(state, player, session, tick, outbound, requestId, userId, "invalid_service", false);
+      return;
+    }
+  }
+  const npcId = parsed.fields.npcInstanceId;
   const outcome = applyQuestTurnIn({
     playerHealth: player.health,
     playerX: player.x,
@@ -1092,7 +1151,7 @@ function handleQuestTurnIn(
     inventory: player.inventory,
     gold: player.gold !== undefined ? player.gold : 0,
     questId: parsed.fields.questId,
-    npcId: parsed.fields.npcId,
+    npcId: npcId,
     requestId: requestId,
     npcs: state.npcs,
     interactionRange: state.interactionRange,
@@ -1105,10 +1164,14 @@ function handleQuestTurnIn(
     playerLevel: playerLevelOf(player),
     classId: player.classId,
     inParty: playerInCachedParty(state, player),
+    npcInstanceId: npcId,
   });
   if (!outcome.ok) {
     const failed = actionResult(outcome.code, false, requestId);
     outbound.push({ opcode: failed.opcode, body: failed.body, toUserId: userId });
+    if (prior === undefined && session !== undefined && isUsableInteractionSession(session, tick)) {
+      pushQuestDialogue(state, player, session, tick, outbound, requestId, userId, outcome.code, false);
+    }
     return;
   }
   if (!outcome.replay) {
@@ -1152,12 +1215,7 @@ function handleQuestTurnIn(
   const gold = player.gold !== undefined ? player.gold : 0;
   const result = actionResult(outcome.code, true, requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
-  const quests = questState(
-    state.contentHash,
-    publicQuestPayloads(player.questLog, state.questsById),
-    requestId,
-  );
-  outbound.push({ opcode: quests.opcode, body: quests.body, toUserId: userId });
+  pushQuestState(state, userId, outbound, requestId);
   const inventory = inventoryState(
     state.contentHash,
     publicInventory(player.inventory !== undefined ? player.inventory : outcome.inventory),
@@ -1169,6 +1227,9 @@ function handleQuestTurnIn(
   if (!outcome.replay) {
     const notice = systemMessage("quest_complete", questCompleteNotice(parsed.fields.questId));
     outbound.push({ opcode: notice.opcode, body: notice.body, toUserId: userId });
+  }
+  if (prior === undefined && session !== undefined && isUsableInteractionSession(session, tick)) {
+    pushQuestDialogue(state, player, session, tick, outbound, requestId, userId, outcome.code, true);
   }
 }
 
@@ -1803,12 +1864,7 @@ function handlePickup(
     player.questLog = synced.log;
     if (synced.changed) {
       persistByUser[userId] = cloneQuestLog(synced.log);
-      const quests = questState(
-        state.contentHash,
-        publicQuestPayloads(player.questLog, state.questsById),
-        parsed.requestId,
-      );
-      outbound.push({ opcode: quests.opcode, body: quests.body, toUserId: userId });
+      pushQuestState(state, userId, outbound, parsed.requestId);
     }
   }
   refreshDerivedFromInventory(state, userId, persistEquipmentByUser);
@@ -3495,6 +3551,7 @@ function interactionInputForPlayer(
     npcById: npcCatalog(state),
     inParty: playerInCachedParty(state, player),
     requiredService: requiredService,
+    questsById: state.questsById,
   };
 }
 
@@ -3664,6 +3721,7 @@ function openInteractionSession(
     player.questLog,
     offeredQuestIdsFromNpc(definition),
     player.inventory,
+    state.questsById,
   );
   const nodeId = resolveDialogueNodeId(dialogue, context);
   const node = dialogue !== undefined && nodeId.length > 0 ? dialogue.nodes[nodeId] : undefined;
@@ -3704,6 +3762,7 @@ function refreshSessionNode(
     player.questLog,
     offeredQuestIdsFromNpc(definition),
     player.inventory,
+    state.questsById,
   );
   const node = dialogue !== undefined ? dialogue.nodes[nodeId] : undefined;
   session.currentNodeId = nodeId;
@@ -3877,8 +3936,50 @@ function pushQuestState(
   if (player === undefined) {
     return;
   }
-  const quests = questState(state.contentHash, publicQuestPayloads(player.questLog, state.questsById), requestId);
+  const quests = questState(
+    state.contentHash,
+    publicQuestPayloads(player.questLog, state.questsById),
+    requestId,
+    publicNpcQuestMarkers(
+      state.npcs,
+      npcCatalog(state),
+      player.questLog,
+      state.questsById,
+      playerLevelOf(player),
+      player.classId,
+    ),
+  );
   outbound.push({ opcode: quests.opcode, body: quests.body, toUserId: userId });
+}
+
+function pushQuestDialogue(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  session: InteractionSession,
+  tick: number,
+  outbound: MatchOutbound[],
+  requestId: string,
+  userId: string,
+  code: string,
+  ok: boolean,
+): void {
+  const npc = findNpc(state.npcs, session.npcInstanceId);
+  const catalogId = npc !== null ? npc.npcId : session.npcInstanceId;
+  const definition = npcCatalog(state)[catalogId];
+  const dialogue = dialogueCatalog(state)[session.dialogueId];
+  const context = dialogueContextFor(
+    playerLevelOf(player),
+    player.classId,
+    player.questLog,
+    offeredQuestIdsFromNpc(definition),
+    player.inventory,
+    state.questsById,
+  );
+  const nodeId = resolveDialogueNodeId(dialogue, context);
+  refreshSessionNode(state, player, session, nodeId, tick);
+  const extra = extrasFromPresentation(presentationFromSession(session, ok, code));
+  const result = interactionResult(code, ok, requestId, session.targetId, extra);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
 }
 
 function questCompleteNotice(questId: string): string {

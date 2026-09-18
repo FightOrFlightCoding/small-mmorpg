@@ -453,8 +453,7 @@ function questPack(id: string): TemplateResult {
   const npcId = "npc." + slugFrom(id);
   const npc = npcPack(npcId, "zone.starter", 800, 640, [
     { type: "dialogue" },
-    { type: "quest_offer", questIds: [id] },
-    { type: "quest_turn_in", questIds: [id] },
+    { type: "offer_and_turn_in", questIds: [id] },
   ]);
   return {
     documents: npc.documents.concat([

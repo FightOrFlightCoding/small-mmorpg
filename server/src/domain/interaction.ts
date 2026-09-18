@@ -1,6 +1,8 @@
 import { distance } from "./movement";
 import {
   findNpcService,
+  findQuestBindService,
+  questBindRoleOf,
   serviceMeetsClass,
   serviceMeetsLevel,
   type NpcDefinition,
@@ -32,6 +34,7 @@ export interface InteractionInput {
   questLog?: { quests: { [questId: string]: { status: string } } };
   npcById?: { [id: string]: NpcDefinition };
   requiredService?: string;
+  questsById?: { [id: string]: import("./quest").QuestDefinition };
 }
 
 export interface InteractionDecision {
@@ -75,7 +78,11 @@ export function resolveInteraction(input: InteractionInput): InteractionDecision
     return { ok: false, code: "out_of_range" };
   }
   if (input.requiredService !== undefined) {
-    const service = findNpcService(definition, input.requiredService);
+    const bindRole = questBindRoleOf(input.requiredService);
+    const service =
+      bindRole !== null
+        ? findQuestBindService(definition, bindRole)
+        : findNpcService(definition, input.requiredService);
     if (service === null) {
       return { ok: false, code: "invalid_service" };
     }

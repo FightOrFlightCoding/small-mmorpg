@@ -10,11 +10,14 @@ import {
   type StarterZoneState,
 } from "../src/domain/match_state";
 import { applyQuestAccept, emptyQuestLog, questDefinitionsFromContent } from "../src/domain/quest";
+import { npcDefinitionsFromContent } from "../src/domain/npc";
+import { dialogueDefinitionsFromContent } from "../src/domain/dialogue";
 import { applyKillObjectives, applyTalkObjectives } from "../src/domain/quest_objectives";
 import { addOrStackItem, emptyInventory, itemDefinitionsFromContent } from "../src/domain/inventory";
 import { initializeProgression } from "../src/domain/progression";
 import { catalogFromContent } from "../src/domain/stats";
-import { ClientOpcode, PROTOCOL_VERSION, ServerOpcode } from "../src/domain/protocol";
+import { ServerOpcode } from "../src/domain/protocol";
+import { acceptMessage, openNpcSession, turnInMessage } from "./npc_session";
 
 function enemiesById() {
   const map: { [id: string]: { id: string; maxHealth: number } } = {};
@@ -39,6 +42,10 @@ function emptyZone(): StarterZoneState {
     },
     questDefinitionsFromContent(content.quests),
     itemDefinitionsFromContent(content.items),
+    {
+      npcsById: npcDefinitionsFromContent(content.npcs),
+      dialoguesById: dialogueDefinitionsFromContent(content.dialogues),
+    },
   );
 }
 
@@ -60,15 +67,6 @@ function playerAt(userId: string, name: string, x: number, y: number): MatchPlay
   };
 }
 
-function envelope(extra: { [key: string]: unknown } = {}): string {
-  const body: { [key: string]: unknown } = { protocolVersion: PROTOCOL_VERSION };
-  const keys = Object.keys(extra);
-  for (let i = 0; i < keys.length; i++) {
-    body[keys[i]] = extra[keys[i]];
-  }
-  return JSON.stringify(body);
-}
-
 function actionMessages(result: ReturnType<typeof applyMatchLoop>) {
   return result.outbound
     .filter((item) => item.opcode === ServerOpcode.ACTION_RESULT)
@@ -83,13 +81,10 @@ function questMessages(result: ReturnType<typeof applyMatchLoop>) {
 
 test("first quest acceptance creates accepted state once", () => {
   const elder = content.zones["zone.starter"].npcs[0];
-  const state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", elder.x, elder.y));
-  const result = applyMatchLoop(state, 2, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_ACCEPT,
-      raw: envelope({ questId: "quest.slime_problem", requestId: "req-accept-1" }),
-      userId: "user-alice",
-    },
+  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", elder.x, elder.y));
+  const opened = openNpcSession(state, "user-alice", "npc.elder", 1, "req-accept-int1");
+  const result = applyMatchLoop(opened.state, 2, contentHash, [
+    acceptMessage("user-alice", "quest.slime_problem", opened.sessionId, opened.npcInstanceId, "req-accept-1"),
   ]);
   const actions = actionMessages(result);
   assert.equal(actions.length, 1);
@@ -110,28 +105,17 @@ test("first quest acceptance creates accepted state once", () => {
 test("duplicate quest acceptance is idempotent", () => {
   const elder = content.zones["zone.starter"].npcs[0];
   let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", elder.x, elder.y));
-  const first = applyMatchLoop(state, 2, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_ACCEPT,
-      raw: envelope({ questId: "quest.slime_problem", requestId: "req-accept-1" }),
-      userId: "user-alice",
-    },
+  const opened = openNpcSession(state, "user-alice", "npc.elder", 1, "req-accept-int2");
+  const first = applyMatchLoop(opened.state, 2, contentHash, [
+    acceptMessage("user-alice", "quest.slime_problem", opened.sessionId, opened.npcInstanceId, "req-accept-1"),
   ]);
   const replay = applyMatchLoop(first.state, 3, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_ACCEPT,
-      raw: envelope({ questId: "quest.slime_problem", requestId: "req-accept-1" }),
-      userId: "user-alice",
-    },
+    acceptMessage("user-alice", "quest.slime_problem", opened.sessionId, opened.npcInstanceId, "req-accept-1"),
   ]);
   assert.equal(actionMessages(replay)[0].code, "accepted");
   assert.equal(replay.persistQuests.length, 0);
   const second = applyMatchLoop(first.state, 4, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_ACCEPT,
-      raw: envelope({ questId: "quest.slime_problem", requestId: "req-accept-2" }),
-      userId: "user-alice",
-    },
+    acceptMessage("user-alice", "quest.slime_problem", opened.sessionId, opened.npcInstanceId, "req-accept-2"),
   ]);
   assert.equal(actionMessages(second)[0].ok, true);
   assert.equal(actionMessages(second)[0].code, "already_accepted");
@@ -141,13 +125,10 @@ test("duplicate quest acceptance is idempotent", () => {
 
 test("unknown quest id is rejected", () => {
   const elder = content.zones["zone.starter"].npcs[0];
-  const state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", elder.x, elder.y));
-  const result = applyMatchLoop(state, 2, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_ACCEPT,
-      raw: envelope({ questId: "quest.missing", requestId: "req-accept-unknown" }),
-      userId: "user-alice",
-    },
+  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", elder.x, elder.y));
+  const opened = openNpcSession(state, "user-alice", "npc.elder", 1, "req-accept-int3");
+  const result = applyMatchLoop(opened.state, 2, contentHash, [
+    acceptMessage("user-alice", "quest.missing", opened.sessionId, opened.npcInstanceId, "req-accept-unknown"),
   ]);
   const actions = actionMessages(result);
   assert.equal(actions[0].ok, false);
@@ -158,13 +139,13 @@ test("unknown quest id is rejected", () => {
 
 test("quest accept out of elder range is rejected", () => {
   const spawn = content.zones["zone.starter"].playerSpawn;
-  const state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", spawn.x, spawn.y));
-  const result = applyMatchLoop(state, 2, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_ACCEPT,
-      raw: envelope({ questId: "quest.slime_problem", requestId: "req-accept-far" }),
-      userId: "user-alice",
-    },
+  const elder = content.zones["zone.starter"].npcs[0];
+  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", elder.x, elder.y));
+  const opened = openNpcSession(state, "user-alice", "npc.elder", 1, "req-accept-int4");
+  opened.state.players["user-alice"].x = spawn.x;
+  opened.state.players["user-alice"].y = spawn.y;
+  const result = applyMatchLoop(opened.state, 2, contentHash, [
+    acceptMessage("user-alice", "quest.slime_problem", opened.sessionId, opened.npcInstanceId, "req-accept-far"),
   ]);
   assert.equal(actionMessages(result)[0].ok, false);
   assert.equal(actionMessages(result)[0].code, "out_of_range");
@@ -174,12 +155,9 @@ test("quest accept out of elder range is rejected", () => {
 test("full state restores accepted quests after join", () => {
   const elder = content.zones["zone.starter"].npcs[0];
   const actor = playerAt("user-alice", "Alice", elder.x, elder.y);
-  const accepted = applyMatchLoop(addPlayer(emptyZone(), actor), 2, contentHash, [
-    {
-      opcode: ClientOpcode.QUEST_ACCEPT,
-      raw: envelope({ questId: "quest.slime_problem", requestId: "req-accept-1" }),
-      userId: "user-alice",
-    },
+  const opened = openNpcSession(addPlayer(emptyZone(), actor), "user-alice", "npc.elder", 1, "req-accept-int5");
+  const accepted = applyMatchLoop(opened.state, 2, contentHash, [
+    acceptMessage("user-alice", "quest.slime_problem", opened.sessionId, opened.npcInstanceId, "req-accept-1"),
   ]);
   const body = JSON.parse(buildFullState(accepted.state, 9, "user-alice"));
   assert.equal(body.quests.length, 1);
@@ -227,39 +205,28 @@ function heraldPos() {
   return content.zones["zone.starter"].npcs.find((npc) => npc.npcId === "npc.test_herald") as { npcId: string; x: number; y: number };
 }
 
-function interact(npcId: string, requestId: string) {
-  return {
-    opcode: ClientOpcode.INTERACT,
-    raw: envelope({ targetId: npcId, requestId: requestId }),
-    userId: "user-alice",
-  };
+function acceptAt(sessionId: string, npcId: string, questId: string, requestId: string) {
+  return acceptMessage("user-alice", questId, sessionId, npcId, requestId);
 }
 
-function accept(questId: string, requestId: string) {
-  return {
-    opcode: ClientOpcode.QUEST_ACCEPT,
-    raw: envelope({ questId: questId, requestId: requestId }),
-    userId: "user-alice",
-  };
-}
-
-function turnIn(questId: string, npcId: string, requestId: string) {
-  return {
-    opcode: ClientOpcode.QUEST_TURN_IN,
-    raw: envelope({ questId: questId, npcId: npcId, requestId: requestId }),
-    userId: "user-alice",
-  };
+function turnInAt(sessionId: string, npcId: string, questId: string, requestId: string) {
+  return turnInMessage("user-alice", questId, sessionId, npcId, requestId);
 }
 
 test("talk_to_npc objective completes on approved interact after accept", () => {
   const herald = heraldPos();
   let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", herald.x, herald.y));
-  state = applyMatchLoop(state, 2, contentHash, [accept("quest.test.talk", "req-talk-accept1")]).state;
-  const talked = applyMatchLoop(state, 3, contentHash, [interact("npc.test_herald", "req-talk-int01")]);
+  const opened = openNpcSession(state, "user-alice", "npc.test_herald", 1, "req-talk-int00");
+  state = applyMatchLoop(opened.state, 2, contentHash, [
+    acceptAt(opened.sessionId, opened.npcInstanceId, "quest.test.talk", "req-talk-accept1"),
+  ]).state;
+  const talked = openNpcSession(state, "user-alice", "npc.test_herald", 3, "req-talk-int01");
   const progress = talked.state.players["user-alice"].questLog.quests["quest.test.talk"];
   assert.equal(progress.objectives[0].type, "talk_to_npc");
   assert.equal(progress.objectives[0].current, 1);
-  const done = applyMatchLoop(talked.state, 4, contentHash, [turnIn("quest.test.talk", "npc.test_herald", "req-talk-turn01")]);
+  const done = applyMatchLoop(talked.state, 4, contentHash, [
+    turnInAt(talked.sessionId, talked.npcInstanceId, "quest.test.talk", "req-talk-turn01"),
+  ]);
   assert.equal(actionMessages(done)[0].ok, true);
   assert.equal(done.state.players["user-alice"].questLog.quests["quest.test.talk"].status, "completed");
 });
@@ -267,7 +234,10 @@ test("talk_to_npc objective completes on approved interact after accept", () => 
 test("kill_enemy and defeat_boss objectives honor ids, tags, and zone", () => {
   const herald = heraldPos();
   let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", herald.x, herald.y));
-  state = applyMatchLoop(state, 2, contentHash, [accept("quest.test.kill", "req-kill-accept1")]).state;
+  const opened = openNpcSession(state, "user-alice", "npc.test_herald", 1, "req-kill-int01");
+  state = applyMatchLoop(opened.state, 2, contentHash, [
+    acceptAt(opened.sessionId, opened.npcInstanceId, "quest.test.kill", "req-kill-accept1"),
+  ]).state;
   const missed = applyTalkObjectives(state.players["user-alice"].questLog, "npc.test_herald");
   assert.equal(missed.changed, false);
   const wrong = applyKillObjectives(state.players["user-alice"].questLog, {
@@ -285,7 +255,9 @@ test("kill_enemy and defeat_boss objectives honor ids, tags, and zone", () => {
   });
   assert.equal(killed.changed, true);
   assert.equal(killed.log.quests["quest.test.kill"].objectives[0].current, 1);
-  state = applyMatchLoop(state, 3, contentHash, [accept("quest.test.boss", "req-boss-accept1")]).state;
+  state = applyMatchLoop(state, 3, contentHash, [
+    acceptAt(opened.sessionId, opened.npcInstanceId, "quest.test.boss", "req-boss-accept1"),
+  ]).state;
   const notBoss = applyKillObjectives(state.players["user-alice"].questLog, {
     enemyId: "test.enemy.cave_boss",
     tags: ["test"],
@@ -314,9 +286,14 @@ test("collect_item objective reads inventory and never client counts", () => {
     itemDefinitionsFromContent(content.items)["item.test_pebble"],
   );
   let state = addPlayer(emptyZone(), actor);
-  const accepted = applyMatchLoop(state, 2, contentHash, [accept("quest.test.collect", "req-collect-acc1")]);
+  const opened = openNpcSession(state, "user-alice", "npc.test_herald", 1, "req-collect-int1");
+  const accepted = applyMatchLoop(opened.state, 2, contentHash, [
+    acceptAt(opened.sessionId, opened.npcInstanceId, "quest.test.collect", "req-collect-acc1"),
+  ]);
   assert.equal(accepted.state.players["user-alice"].questLog.quests["quest.test.collect"].objectives[0].current, 1);
-  const done = applyMatchLoop(accepted.state, 3, contentHash, [turnIn("quest.test.collect", "npc.test_herald", "req-collect-tn1")]);
+  const done = applyMatchLoop(accepted.state, 3, contentHash, [
+    turnInAt(opened.sessionId, opened.npcInstanceId, "quest.test.collect", "req-collect-tn1"),
+  ]);
   assert.equal(actionMessages(done)[0].ok, true);
   assert.equal(done.state.players["user-alice"].questLog.quests["quest.test.collect"].status, "completed");
 });
@@ -324,7 +301,10 @@ test("collect_item objective reads inventory and never client counts", () => {
 test("enter_location completes after the player is inside the authored box", () => {
   const herald = heraldPos();
   let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", herald.x, herald.y));
-  state = applyMatchLoop(state, 2, contentHash, [accept("quest.test.enter", "req-enter-acc01")]).state;
+  const opened = openNpcSession(state, "user-alice", "npc.test_herald", 1, "req-enter-int01");
+  state = applyMatchLoop(opened.state, 2, contentHash, [
+    acceptAt(opened.sessionId, opened.npcInstanceId, "quest.test.enter", "req-enter-acc01"),
+  ]).state;
   assert.equal(state.players["user-alice"].questLog.quests["quest.test.enter"].objectives[0].current, 0);
   state.players["user-alice"].x = 80;
   state.players["user-alice"].y = 640;
@@ -336,7 +316,10 @@ test("ordered stages block later objectives until the current stage is complete"
   const herald = heraldPos();
   const actor = playerAt("user-alice", "Alice", herald.x, herald.y);
   let state = addPlayer(emptyZone(), actor);
-  state = applyMatchLoop(state, 2, contentHash, [accept("quest.test.main_chain", "req-chain-acc01")]).state;
+  const opened = openNpcSession(state, "user-alice", "npc.test_herald", 1, "req-chain-int00");
+  state = applyMatchLoop(opened.state, 2, contentHash, [
+    acceptAt(opened.sessionId, opened.npcInstanceId, "quest.test.main_chain", "req-chain-acc01"),
+  ]).state;
   const withPebble = addOrStackItem(
     state.players["user-alice"].inventory !== undefined
       ? state.players["user-alice"].inventory
@@ -347,28 +330,37 @@ test("ordered stages block later objectives until the current stage is complete"
     itemDefinitionsFromContent(content.items)["item.test_pebble"],
   );
   state.players["user-alice"].inventory = withPebble;
-  const beforeTalk = applyMatchLoop(state, 3, contentHash, [accept("quest.test.main_chain", "req-chain-sync1")]);
+  const beforeTalk = applyMatchLoop(state, 3, contentHash, [
+    acceptAt(opened.sessionId, opened.npcInstanceId, "quest.test.main_chain", "req-chain-sync1"),
+  ]);
   const objectives = beforeTalk.state.players["user-alice"].questLog.quests["quest.test.main_chain"].objectives;
   assert.equal(objectives[0].current, 0);
   assert.equal(objectives[1].current, 0);
-  const talked = applyMatchLoop(beforeTalk.state, 4, contentHash, [interact("npc.test_herald", "req-chain-talk1")]);
+  const talked = openNpcSession(beforeTalk.state, "user-alice", "npc.test_herald", 4, "req-chain-talk1");
   const afterTalk = talked.state.players["user-alice"].questLog.quests["quest.test.main_chain"].objectives;
   assert.equal(afterTalk[0].current, 1);
-  const synced = applyMatchLoop(talked.state, 5, contentHash, [accept("quest.test.main_chain", "req-chain-sync2")]);
+  const synced = applyMatchLoop(talked.state, 5, contentHash, [
+    acceptAt(talked.sessionId, talked.npcInstanceId, "quest.test.main_chain", "req-chain-sync2"),
+  ]);
   const afterCollect = synced.state.players["user-alice"].questLog.quests["quest.test.main_chain"].objectives;
   assert.equal(afterCollect[1].current, 1);
-  const returned = applyMatchLoop(synced.state, 6, contentHash, [interact("npc.test_herald", "req-chain-ret01")]);
+  const returned = openNpcSession(synced.state, "user-alice", "npc.test_herald", 6, "req-chain-ret01");
   const afterReturn = returned.state.players["user-alice"].questLog.quests["quest.test.main_chain"].objectives;
   assert.equal(afterReturn[2].current, 1);
-  const done = applyMatchLoop(returned.state, 7, contentHash, [turnIn("quest.test.main_chain", "npc.test_herald", "req-chain-tn01")]);
+  const done = applyMatchLoop(returned.state, 7, contentHash, [
+    turnInAt(returned.sessionId, returned.npcInstanceId, "quest.test.main_chain", "req-chain-tn01"),
+  ]);
   assert.equal(actionMessages(done)[0].ok, true);
   assert.equal(done.state.players["user-alice"].questLog.quests["quest.test.main_chain"].status, "completed");
 });
 
 test("missing quest prerequisite is rejected", () => {
   const herald = heraldPos();
-  const state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", herald.x, herald.y));
-  const result = applyMatchLoop(state, 2, contentHash, [accept("quest.test.gated", "req-gated-acc01")]);
+  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", herald.x, herald.y));
+  const opened = openNpcSession(state, "user-alice", "npc.test_herald", 1, "req-gated-int01");
+  const result = applyMatchLoop(opened.state, 2, contentHash, [
+    acceptAt(opened.sessionId, opened.npcInstanceId, "quest.test.gated", "req-gated-acc01"),
+  ]);
   assert.equal(actionMessages(result)[0].ok, false);
   assert.equal(actionMessages(result)[0].code, "missing_prerequisite");
 });
@@ -376,11 +368,18 @@ test("missing quest prerequisite is rejected", () => {
 test("duplicate completion is rejected", () => {
   const herald = heraldPos();
   let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", herald.x, herald.y));
-  state = applyMatchLoop(state, 2, contentHash, [accept("quest.test.talk", "req-dup-acc0001")]).state;
-  state = applyMatchLoop(state, 3, contentHash, [interact("npc.test_herald", "req-dup-int0001")]).state;
-  const first = applyMatchLoop(state, 4, contentHash, [turnIn("quest.test.talk", "npc.test_herald", "req-dup-tn0001")]);
+  const opened = openNpcSession(state, "user-alice", "npc.test_herald", 1, "req-dup-int0000");
+  state = applyMatchLoop(opened.state, 2, contentHash, [
+    acceptAt(opened.sessionId, opened.npcInstanceId, "quest.test.talk", "req-dup-acc0001"),
+  ]).state;
+  const talked = openNpcSession(state, "user-alice", "npc.test_herald", 3, "req-dup-int0001");
+  const first = applyMatchLoop(talked.state, 4, contentHash, [
+    turnInAt(talked.sessionId, talked.npcInstanceId, "quest.test.talk", "req-dup-tn0001"),
+  ]);
   assert.equal(actionMessages(first)[0].ok, true);
-  const second = applyMatchLoop(first.state, 5, contentHash, [turnIn("quest.test.talk", "npc.test_herald", "req-dup-tn0002")]);
+  const second = applyMatchLoop(first.state, 5, contentHash, [
+    turnInAt(talked.sessionId, talked.npcInstanceId, "quest.test.talk", "req-dup-tn0002"),
+  ]);
   assert.equal(actionMessages(second)[0].ok, false);
   assert.equal(actionMessages(second)[0].code, "already_completed");
 });
@@ -394,9 +393,14 @@ test("quest extra rewards grant ability unlocks and unspent points", () => {
   const beforeAttr = actor.progression.unspentAttributePoints;
   const beforeSkill = actor.progression.unspentSkillPoints;
   let state = addPlayer(emptyZone(), actor);
-  state = applyMatchLoop(state, 2, contentHash, [accept("quest.test.reward", "req-rew-acc0001")]).state;
-  state = applyMatchLoop(state, 3, contentHash, [interact("npc.test_herald", "req-rew-int0001")]).state;
-  const done = applyMatchLoop(state, 4, contentHash, [turnIn("quest.test.reward", "npc.test_herald", "req-rew-tn0001")]);
+  const opened = openNpcSession(state, "user-alice", "npc.test_herald", 1, "req-rew-int0000");
+  state = applyMatchLoop(opened.state, 2, contentHash, [
+    acceptAt(opened.sessionId, opened.npcInstanceId, "quest.test.reward", "req-rew-acc0001"),
+  ]).state;
+  const talked = openNpcSession(state, "user-alice", "npc.test_herald", 3, "req-rew-int0001");
+  const done = applyMatchLoop(talked.state, 4, contentHash, [
+    turnInAt(talked.sessionId, talked.npcInstanceId, "quest.test.reward", "req-rew-tn0001"),
+  ]);
   assert.equal(actionMessages(done)[0].ok, true);
   const progression = done.state.players["user-alice"].progression;
   assert.equal(progression !== undefined, true);

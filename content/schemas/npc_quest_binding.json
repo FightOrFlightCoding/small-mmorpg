@@ -8,7 +8,7 @@
   "properties": {
     "type": {
       "type": "string",
-      "enum": ["quest_offer", "quest_turn_in"]
+      "enum": ["quest_offer", "quest_turn_in", "offer", "turn_in", "offer_and_turn_in"]
     },
     "questIds": {
       "type": "array",

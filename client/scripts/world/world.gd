@@ -235,6 +235,7 @@ func _apply_zone_state() -> void:
 	_hud.refresh(state, _entities.summaries(), false)
 	_hud.refresh_journal(QuestService.journal_view())
 	_hud.refresh_inventory()
+	_refresh_quest_markers()
 
 
 func _adopt_ack_seq(ack: int) -> void:
@@ -684,6 +685,13 @@ func _on_action_result(payload: Dictionary) -> void:
 func _on_quests_changed() -> void:
 	if _hud != null:
 		_hud.refresh_journal(QuestService.journal_view())
+	_refresh_quest_markers()
+
+
+func _refresh_quest_markers() -> void:
+	if _entities == null:
+		return
+	_entities.apply_quest_markers(QuestService.marker_payload())
 
 
 func _on_inventory_changed() -> void:

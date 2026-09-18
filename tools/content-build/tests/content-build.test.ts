@@ -184,6 +184,10 @@ test("NPC routes, home bounds, and service references are validated", () => {
     payload.npcs["npc.elder"].services.map((service: { type: string }) => service.type),
     ["dialogue", "quest_offer", "quest_turn_in"],
   );
+  assert.deepEqual(
+    payload.npcs["npc.test_herald"].services.map((service: { type: string }) => service.type),
+    ["dialogue", "offer_and_turn_in"],
+  );
 
   const missingRoute = clone(loadValid());
   find(missingRoute, "npc.elder")["routeId"] = "route.missing";

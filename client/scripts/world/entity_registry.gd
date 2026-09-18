@@ -54,6 +54,23 @@ func npc_id_at_world_point(world_pos: Vector2) -> String:
 	return best_id
 
 
+func apply_quest_markers(markers: Array) -> void:
+	var by_id: Dictionary = {}
+	for entry in markers:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var npc_id := String(entry.get("npcId", ""))
+		if npc_id.is_empty():
+			continue
+		by_id[npc_id] = String(entry.get("marker", ""))
+	for key in _nodes.keys():
+		var node: Node = _nodes[key]
+		if not (node is NpcAvatar):
+			continue
+		var avatar := node as NpcAvatar
+		avatar.set_quest_marker(String(by_id.get(avatar.server_id, "")))
+
+
 func summaries() -> PackedStringArray:
 	var names: PackedStringArray = PackedStringArray()
 	var keys: Array = _nodes.keys()
@@ -77,7 +94,7 @@ func apply_full_state(state: Dictionary) -> void:
 	_apply_kind(KIND_ENEMY, state.get("enemies", []), keep, false)
 	_apply_kind(KIND_LOOT, state.get("loot", []), keep, false)
 	for extra_key in state.keys():
-		if extra_key in ["players", "npcs", "enemies", "loot", "quests", "inventory", "self_id", "selfId", "tick", "zone_id", "zoneId", "protocol_version", "protocolVersion", "content_hash", "contentHash", "ack_seq"]:
+		if extra_key in ["players", "npcs", "enemies", "loot", "quests", "npc_quest_markers", "npcQuestMarkers", "inventory", "self_id", "selfId", "tick", "zone_id", "zoneId", "protocol_version", "protocolVersion", "content_hash", "contentHash", "ack_seq"]:
 			continue
 		if typeof(state[extra_key]) == TYPE_ARRAY and extra_key.ends_with("s"):
 			var kind_guess := String(extra_key)
