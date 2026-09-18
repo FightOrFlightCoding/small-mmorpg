@@ -503,8 +503,12 @@ test("pause and resume freeze pose until the last interaction session closes", (
   resumeNpcMovement(npc, route, 11, TICK_RATE);
   assert.notEqual(npc.movement?.phase, "paused");
   const loopSrc = readFileSync(join(process.cwd(), "src/domain/match_loop.ts"), "utf8");
-  assert.equal(loopSrc.includes("pauseNpcMovement"), true);
-  assert.equal(loopSrc.includes("resumeNpcMovement"), true);
+  assert.equal(loopSrc.includes("refreshNpcPauses"), true);
+  const persistSrc = readFileSync(join(process.cwd(), "src/domain/persistence.ts"), "utf8");
+  assert.equal(persistSrc.includes("refreshNpcPauses"), true);
+  const moveSrc = readFileSync(join(process.cwd(), "src/domain/npc_movement.ts"), "utf8");
+  assert.equal(moveSrc.includes("export function pauseNpcMovement"), true);
+  assert.equal(moveSrc.includes("export function resumeNpcMovement"), true);
 });
 
 test("INTERACT pauses cosmetic NPC movement and broadcasts the paused plan", () => {
