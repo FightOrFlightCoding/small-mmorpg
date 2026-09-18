@@ -37,10 +37,11 @@ func test_dialogue_does_not_open_without_matching_approval() -> void:
 		"result_ok": true,
 		"code": "ok",
 		"request_id": "req-other",
-		"target_id": "npc.elder",
+		"target_id": "npc.other",
 	})
 	assert_bool(opened).is_false()
 	assert_int(presenter.open_count).is_equal(0)
+	assert_bool(presenter._window.is_loading()).is_true()
 
 
 func test_dialogue_opens_after_server_ok() -> void:
@@ -231,3 +232,87 @@ func test_interaction_window_and_presenter_do_not_duplicate_signals() -> void:
 	})).is_true()
 	assert_int(opened[0]).is_equal(1)
 	assert_int(presenter.open_count).is_equal(1)
+
+
+func test_pending_intent_accepts_matching_npc_even_if_request_id_differs() -> void:
+	var presenter: DialoguePresenter = auto_free(DialoguePresenter.new())
+	add_child(presenter)
+	await get_tree().process_frame
+	presenter.note_intent("npc.cert_quartermaster", "req-cert-a")
+	assert_bool(presenter._window.is_loading()).is_true()
+	var opened := presenter.handle_interaction_result({
+		"result_ok": true,
+		"code": "ok",
+		"request_id": "req-cert-b",
+		"target_id": "npc.cert_quartermaster",
+		"dialogue_id": "dialogue.npc.cert_quartermaster",
+		"interaction_session_id": "sess-cert-1",
+		"current_node_id": "start",
+		"allowed_option_ids": ["opt.not_now"],
+		"available_service_ids": ["quest_offer", "vendor"],
+	})
+	assert_bool(opened).is_true()
+	assert_bool(presenter._window.is_loading()).is_false()
+	assert_str(presenter._window._status.text).is_equal("")
+	assert_str(presenter._window._body.text).contains("north-east ridge")
+	assert_int(presenter._window._options.get_child_count()).is_equal(1)
+	assert_int(presenter._window._services.get_child_count()).is_equal(2)
+
+
+func test_platform_quest_presents_text_and_accept_without_options() -> void:
+	var presenter: DialoguePresenter = auto_free(DialoguePresenter.new())
+	add_child(presenter)
+	await get_tree().process_frame
+	presenter.note_intent("npc.platform_quest", "req-pq-1")
+	assert_str(presenter._window._status.text).is_equal("Waiting for the server…")
+	var opened := presenter.handle_interaction_result({
+		"result_ok": true,
+		"code": "ok",
+		"request_id": "req-pq-1",
+		"target_id": "npc.platform_quest",
+		"dialogue_id": "dialogue.npc.platform_quest",
+		"interaction_session_id": "sess-pq-1",
+		"current_node_id": "start",
+		"allowed_option_ids": [],
+		"available_service_ids": ["quest_offer"],
+	})
+	assert_bool(opened).is_true()
+	assert_bool(presenter._window.is_loading()).is_false()
+	assert_str(presenter._window._status.text).is_equal("")
+	assert_str(presenter._window._body.text).contains("Speak with me again")
+	assert_int(presenter._window._options.get_child_count()).is_equal(0)
+	assert_int(presenter._window._services.get_child_count()).is_equal(1)
+	assert_str((presenter._window._services.get_child(0) as Button).text).is_equal("Accept quest")
+
+
+func test_loading_timeout_and_recoverable_error_clear_waiting_status() -> void:
+	var presenter: DialoguePresenter = auto_free(DialoguePresenter.new())
+	add_child(presenter)
+	await get_tree().process_frame
+	presenter.note_intent("npc.platform_quest", "req-timeout")
+	presenter._on_loading_timeout()
+	assert_bool(presenter._window.is_loading()).is_false()
+	assert_str(presenter._window._status.text).is_equal("The server did not answer.")
+	assert_str(presenter.pending_request_id).is_equal("")
+	presenter.note_intent("npc.cert_quartermaster", "req-rate")
+	AppState.report_recoverable("rate_limited", "Too many interact requests.")
+	assert_bool(presenter._window.is_loading()).is_false()
+	assert_str(presenter._window._status.text).is_equal("Too many interact requests.")
+
+
+func test_failed_interaction_result_with_message_keeps_request_id() -> void:
+	var parsed: Dictionary = MatchProtocol.parse_interaction_result(
+		JSON.stringify({
+			"protocolVersion": 1,
+			"ok": false,
+			"code": "out_of_range",
+			"requestId": "req-fail-1",
+			"targetId": "npc.platform_quest",
+			"message": "Too far from that NPC.",
+		})
+	)
+	assert_bool(bool(parsed.get("ok", false))).is_true()
+	assert_bool(bool(parsed.get("result_ok", true))).is_false()
+	assert_str(String(parsed.get("request_id", ""))).is_equal("req-fail-1")
+	assert_str(String(parsed.get("target_id", ""))).is_equal("npc.platform_quest")
+	assert_str(String(parsed.get("message", ""))).is_equal("Too far from that NPC.")

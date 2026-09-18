@@ -129,8 +129,13 @@ func _apply_placeholder() -> void:
 	if _interaction_area != null:
 		_interaction_area.monitoring = false
 		_interaction_area.monitorable = false
-		_interaction_area.input_pickable = true
+		_interaction_area.input_pickable = false
+		_interaction_area.collision_layer = 0
 		_interaction_area.collision_mask = 0
+	if _interaction_shape == null:
+		_interaction_shape = get_node_or_null("InteractionArea/InteractionShape") as CollisionShape2D
+	if _interaction_shape != null:
+		_interaction_shape.disabled = true
 
 
 func _apply_interaction_radius(npc_id: String) -> void:

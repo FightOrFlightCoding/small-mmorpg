@@ -248,6 +248,7 @@ export function applyMatchLoop(
     const seen = messagesThisTick[incoming.userId] !== undefined ? messagesThisTick[incoming.userId] : 0;
     if (seen >= MAX_MESSAGES_PER_PLAYER_PER_TICK) {
       notifyRateLimited(incoming.userId, "unknown", tick, outbound, rejections, rateNotified);
+      echoInteractFamilyFailure(incoming.opcode, incoming.raw, incoming.userId, "rate_limited", "Too many unknown requests.", outbound);
       continue;
     }
     messagesThisTick[incoming.userId] = seen + 1;
@@ -257,10 +258,12 @@ export function applyMatchLoop(
       const sys = systemMessage(parsed.code, parsed.message);
       outbound.push({ opcode: sys.opcode, body: sys.body, toUserId: incoming.userId });
       rejections.push({ userId: incoming.userId, action: action, code: parsed.code, tick: tick });
+      echoInteractFamilyFailure(incoming.opcode, incoming.raw, incoming.userId, parsed.code, parsed.message, outbound);
       continue;
     }
     if (!consumeActionRate(next.actionRates, incoming.userId, action, tick)) {
       notifyRateLimited(incoming.userId, action, tick, outbound, rejections, rateNotified);
+      echoInteractFamilyFailure(incoming.opcode, incoming.raw, incoming.userId, "rate_limited", "Too many " + action + " requests.", outbound);
       continue;
     }
     const outboundBefore = outbound.length;
@@ -483,6 +486,48 @@ function notifyRateLimited(
   const sys = systemMessage("rate_limited", "Too many " + action + " requests.");
   outbound.push({ opcode: sys.opcode, body: sys.body, toUserId: userId });
   rejections.push({ userId: userId, action: action, code: "rate_limited", tick: tick });
+}
+
+function isInteractFamilyOpcode(opcode: number): boolean {
+  return (
+    opcode === ClientOpcode.INTERACT ||
+    opcode === ClientOpcode.DIALOGUE_CHOOSE ||
+    opcode === ClientOpcode.INTERACTION_CLOSE
+  );
+}
+
+function echoInteractFamilyFailure(
+  opcode: number,
+  raw: string,
+  userId: string,
+  code: string,
+  message: string,
+  outbound: MatchOutbound[],
+): void {
+  if (!isInteractFamilyOpcode(opcode)) {
+    return;
+  }
+  let requestId: string | undefined;
+  let targetId: string | undefined;
+  try {
+    const data = JSON.parse(raw) as { [key: string]: unknown };
+    if (typeof data.requestId === "string") {
+      requestId = data.requestId;
+    }
+    if (typeof data.targetId === "string") {
+      targetId = data.targetId;
+    } else if (typeof data.npcInstanceId === "string") {
+      targetId = data.npcInstanceId;
+    }
+  } catch {
+    requestId = undefined;
+  }
+  const extra: { [key: string]: unknown } = {};
+  if (message.length > 0) {
+    extra.message = message;
+  }
+  const result = interactionResult(code, false, requestId, targetId, extra);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
 }
 
 function collectFailedApplies(

@@ -222,28 +222,20 @@ static func parse_find_or_create(raw: String, expected_content_hash: String) -> 
 
 static func parse_interaction_result(raw: String) -> Dictionary:
 	var parsed: Dictionary = _parse_object(raw)
-	if parsed.has("ok") and not bool(parsed["ok"]) and parsed.has("message"):
-		return parsed
+	var request_id := String(parsed.get("requestId", parsed.get("request_id", "")))
+	var target_id := String(parsed.get("targetId", parsed.get("target_id", "")))
+	if parsed.has("ok") and not bool(parsed["ok"]) and not parsed.has("protocolVersion"):
+		return _interaction_result_row(false, false, String(parsed.get("code", "interaction_failed")), request_id, target_id, parsed)
 	if not _version_ok(parsed):
-		return _fail("protocol_mismatch", "The interaction result protocol version does not match this client.")
-	return {
-		"ok": true,
-		"result_ok": bool(parsed.get("ok", false)),
-		"code": String(parsed.get("code", "unknown")),
-		"request_id": String(parsed.get("requestId", "")),
-		"target_id": String(parsed.get("targetId", "")),
-		"dialogue_id": String(parsed.get("dialogueId", "")),
-		"services": _optional_array(parsed, "services"),
-		"context": _optional_object(parsed, "context"),
-		"interaction_session_id": String(parsed.get("interactionSessionId", "")),
-		"current_node_id": String(parsed.get("currentNodeId", "")),
-		"allowed_option_ids": _optional_array(parsed, "allowedOptionIds"),
-		"available_service_ids": _optional_array(parsed, "availableServiceIds"),
-		"expires_at_tick": int(parsed.get("expiresAtTick", 0)),
-		"vendor_id": String(parsed.get("vendorId", "")),
-		"currency_id": String(parsed.get("currencyId", "")),
-		"stock": _optional_array(parsed, "stock"),
-	}
+		return _interaction_result_row(
+			false,
+			false,
+			"protocol_mismatch",
+			request_id,
+			target_id,
+			{"message": "The interaction result protocol version does not match this client."}
+		)
+	return _interaction_result_row(true, bool(parsed.get("ok", false)), String(parsed.get("code", "unknown")), request_id, target_id, parsed)
 
 
 static func parse_action_result(raw: String) -> Dictionary:
@@ -543,6 +535,41 @@ static func _ack_seq(players: Array, self_id: String) -> int:
 		if typeof(entry) == TYPE_DICTIONARY and String(entry.get("userId", "")) == self_id:
 			return int(entry.get("lastProcessedSeq", 0))
 	return 0
+
+
+static func _interaction_result_row(
+	envelope_ok: bool,
+	result_ok: bool,
+	code: String,
+	request_id: String,
+	target_id: String,
+	parsed: Dictionary
+) -> Dictionary:
+	return {
+		"ok": envelope_ok,
+		"result_ok": result_ok,
+		"code": code,
+		"message": String(parsed.get("message", "")),
+		"request_id": request_id,
+		"target_id": target_id,
+		"dialogue_id": String(parsed.get("dialogueId", parsed.get("dialogue_id", ""))),
+		"services": _optional_array(parsed, "services"),
+		"context": _optional_object(parsed, "context"),
+		"interaction_session_id": String(parsed.get("interactionSessionId", parsed.get("interaction_session_id", ""))),
+		"current_node_id": String(parsed.get("currentNodeId", parsed.get("current_node_id", ""))),
+		"allowed_option_ids": _first_optional_array(parsed, "allowedOptionIds", "allowed_option_ids"),
+		"available_service_ids": _first_optional_array(parsed, "availableServiceIds", "available_service_ids"),
+		"expires_at_tick": int(parsed.get("expiresAtTick", parsed.get("expires_at_tick", 0))),
+		"vendor_id": String(parsed.get("vendorId", parsed.get("vendor_id", ""))),
+		"currency_id": String(parsed.get("currencyId", parsed.get("currency_id", ""))),
+		"stock": _optional_array(parsed, "stock"),
+	}
+
+
+static func _first_optional_array(data: Dictionary, primary: String, fallback: String) -> Array:
+	if data.has(primary):
+		return _optional_array(data, primary)
+	return _optional_array(data, fallback)
 
 
 static func _fail(code: String, message: String) -> Dictionary:

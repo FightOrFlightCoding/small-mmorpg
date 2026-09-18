@@ -30,8 +30,11 @@ func test_placeholder_square_name_marker_and_interaction_area() -> void:
 	assert_object(area).is_not_null()
 	assert_bool(area.monitoring).is_false()
 	assert_bool(area.monitorable).is_false()
-	assert_bool(area.input_pickable).is_true()
+	assert_bool(area.input_pickable).is_false()
+	assert_int(area.collision_layer).is_equal(0)
 	assert_int(area.collision_mask).is_equal(0)
+	var interaction_shape: CollisionShape2D = avatar.get_node("InteractionArea/InteractionShape") as CollisionShape2D
+	assert_bool(interaction_shape.disabled).is_true()
 	assert_object(avatar.get_node_or_null("StaticBody2D")).is_null()
 	assert_object(avatar.get_node_or_null("CharacterBody2D")).is_null()
 	assert_object(avatar.get_node_or_null("RigidBody2D")).is_null()

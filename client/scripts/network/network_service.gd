@@ -1676,7 +1676,6 @@ func _on_match_state(opcode: int, payload: String) -> void:
 		var interaction: Dictionary = MatchProtocol.parse_interaction_result(payload)
 		if not bool(interaction.get("ok", false)):
 			AppState.report_recoverable(String(interaction.get("code", "interaction_failed")), String(interaction.get("message", "Interaction failed.")))
-			return
 		interaction_result_received.emit(interaction)
 		return
 	if opcode == MatchProtocol.SERVER_ACTION_RESULT:

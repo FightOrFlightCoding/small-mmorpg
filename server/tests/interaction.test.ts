@@ -473,6 +473,11 @@ test("interact actions are rate limited in the interact bucket", () => {
   }
   const result = applyMatchLoop(state, 1, contentHash, flood);
   assert.ok(result.rejections.some((row) => row.action === "interact" && row.code === "rate_limited"));
+  const limited = result.outbound.filter((item) => item.opcode === ServerOpcode.INTERACTION_RESULT);
+  assert.ok(limited.some((item) => {
+    const body = JSON.parse(item.body) as { ok?: boolean; code?: string; requestId?: string; message?: string };
+    return body.ok === false && body.code === "rate_limited" && body.requestId === "req-rl-" + String(ACTION_LIMITS.interact).padStart(2, "0");
+  }));
 });
 
 test("JSON-persisted or null interaction sessions do not crash the match loop", () => {

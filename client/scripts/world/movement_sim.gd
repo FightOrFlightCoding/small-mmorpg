@@ -46,16 +46,6 @@ static func from_content(zone_id: String = "zone.starter") -> MovementSim:
 				float(box.get("width", 0.0)),
 				float(box.get("height", 0.0))
 			))
-	var npc_spawns: Variant = zone.get("npcs", [])
-	if typeof(npc_spawns) == TYPE_ARRAY:
-		var size := sim.half_extent * 2.0
-		for entry in npc_spawns:
-			if typeof(entry) != TYPE_DICTIONARY:
-				continue
-			var npc: Dictionary = entry
-			var nx := float(npc.get("x", 0.0))
-			var ny := float(npc.get("y", 0.0))
-			sim.collisions.append(Rect2(nx - sim.half_extent, ny - sim.half_extent, size, size))
 	return sim
 
 

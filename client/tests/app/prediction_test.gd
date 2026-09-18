@@ -221,14 +221,21 @@ func test_extended_slide_stays_outside_obstacle() -> void:
 	assert_bool(sim.blocked_at(rec.predicted)).is_false()
 
 
-func test_npc_from_content_blocks_prediction() -> void:
+func test_npc_from_content_is_not_solid() -> void:
 	assert_bool(ContentRegistry.load_bundle()).is_true()
+	var zone: Dictionary = ContentRegistry.get_by_id("zone.starter")
+	var authored := 0
+	var boxes: Variant = zone.get("collisions", [])
+	if typeof(boxes) == TYPE_ARRAY:
+		authored = (boxes as Array).size()
 	var sim := MovementSim.from_content()
+	assert_int(sim.collisions.size()).is_equal(authored)
+	assert_bool(sim.blocked_at(Vector2(1440, 1344))).is_false()
 	var rec := _reconciler_with(sim)
 	rec.reset(Vector2(1440, 1400))
 	for i in range(20):
 		rec.predict(i + 1, Vector2.UP)
-	assert_float(rec.predicted.y).is_greater_equal(1368.0 - 0.01)
+	assert_float(rec.predicted.y).is_less(1368.0)
 	assert_bool(sim.blocked_at(rec.predicted)).is_false()
 
 

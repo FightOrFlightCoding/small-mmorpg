@@ -183,3 +183,22 @@ func test_parse_trade_state_keeps_ok_false_without_message() -> void:
 	assert_bool(bool(parsed["ok"])).is_false()
 	assert_str(String(parsed.get("code", ""))).is_equal("out_of_range")
 	assert_str(String(parsed.get("message", ""))).is_not_empty()
+
+
+func test_parse_interaction_result_normalizes_failure_with_message() -> void:
+	var parsed: Dictionary = MatchProtocol.parse_interaction_result(
+		JSON.stringify({
+			"protocolVersion": 1,
+			"ok": false,
+			"code": "rate_limited",
+			"requestId": "req-parse-rl",
+			"targetId": "npc.cert_quartermaster",
+			"message": "Too many interact requests.",
+		})
+	)
+	assert_bool(bool(parsed.get("ok", false))).is_true()
+	assert_bool(bool(parsed.get("result_ok", true))).is_false()
+	assert_str(String(parsed.get("request_id", ""))).is_equal("req-parse-rl")
+	assert_str(String(parsed.get("target_id", ""))).is_equal("npc.cert_quartermaster")
+	assert_str(String(parsed.get("code", ""))).is_equal("rate_limited")
+	assert_str(String(parsed.get("message", ""))).is_equal("Too many interact requests.")

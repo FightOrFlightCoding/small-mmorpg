@@ -6,6 +6,8 @@ extends Node
 signal dialogue_opened(npc_id: String)
 signal dialogue_closed
 
+const LOADING_TIMEOUT_SEC := 2.0
+
 var pending_request_id: String = ""
 var pending_npc_id: String = ""
 var last_opened_npc_id: String = ""
@@ -14,6 +16,7 @@ var open_count: int = 0
 var _window: NpcInteractionWindow
 var _choice_request_id: String = ""
 var _suspended_for_vendor: bool = false
+var _loading_timer: Timer
 
 
 func _ready() -> void:
@@ -24,6 +27,8 @@ func _ready() -> void:
 		VendorService.vendor_opened.connect(_on_vendor_opened)
 	if not VendorService.vendor_closed.is_connected(_on_vendor_closed):
 		VendorService.vendor_closed.connect(_on_vendor_closed)
+	if not AppState.recoverable_error.is_connected(_on_recoverable_error):
+		AppState.recoverable_error.connect(_on_recoverable_error)
 
 
 func is_open() -> bool:
@@ -36,30 +41,28 @@ func note_intent(npc_id: String, request_id: String) -> void:
 	_ensure_window()
 	_window.show_loading(_npc_name(npc_id))
 	WindowManager.open(WindowManager.DIALOGUE)
+	_arm_loading_timeout()
 
 
 func handle_interaction_result(result: Dictionary) -> bool:
-	var request_id := String(result.get("request_id", ""))
-	var target_id := String(result.get("target_id", ""))
-	var session_id := String(result.get("interaction_session_id", ""))
-	if request_id == pending_request_id and not pending_request_id.is_empty():
+	var request_id := String(result.get("request_id", result.get("requestId", "")))
+	var target_id := String(result.get("target_id", result.get("targetId", "")))
+	var session_id := String(result.get("interaction_session_id", result.get("interactionSessionId", "")))
+	if _matches_pending_intent(request_id, target_id):
 		if not bool(result.get("result_ok", false)):
-			_ensure_window()
-			_window.show_error(_npc_name(pending_npc_id), _error_message(result))
-			pending_request_id = ""
-			pending_npc_id = ""
+			_show_intent_error(pending_npc_id, result)
+			_clear_pending_intent()
 			return false
 		var npc_id := pending_npc_id
 		if npc_id.is_empty():
 			npc_id = target_id
-		pending_request_id = ""
-		pending_npc_id = ""
+		_clear_pending_intent()
 		return _present(npc_id, result)
 	if request_id == _choice_request_id and not _choice_request_id.is_empty():
 		_choice_request_id = ""
+		_stop_loading_timer()
 		if not bool(result.get("result_ok", false)):
-			_ensure_window()
-			_window.show_error(_npc_name(last_opened_npc_id), _error_message(result))
+			_show_intent_error(last_opened_npc_id, result)
 			return false
 		return _present(last_opened_npc_id, result)
 	if not session_id.is_empty() and session_id == last_session_id:
@@ -67,7 +70,7 @@ func handle_interaction_result(result: Dictionary) -> bool:
 		if not bool(result.get("result_ok", false)) and _is_session_terminal(code):
 			_invalidate(code)
 			return false
-		if bool(result.get("result_ok", false)) or not String(result.get("current_node_id", "")).is_empty():
+		if bool(result.get("result_ok", false)) or not String(result.get("current_node_id", result.get("currentNodeId", ""))).is_empty():
 			var npc_id := last_opened_npc_id
 			if npc_id.is_empty():
 				npc_id = target_id
@@ -83,23 +86,23 @@ func close_dialogue(send_close: bool = true) -> void:
 	var npc_id := last_opened_npc_id
 	if send_close and not session.is_empty() and not npc_id.is_empty() and not NetworkService.match_id.is_empty():
 		NetworkService.send_interaction_close(session, npc_id, MatchProtocol.new_request_id())
-	pending_request_id = ""
-	pending_npc_id = ""
+	_clear_pending_intent()
 	_choice_request_id = ""
 	_finish_close()
 
 
 func _present(npc_id: String, result: Dictionary) -> bool:
+	_stop_loading_timer()
 	_ensure_window()
 	QuestService.set_speaker(npc_id)
 	last_opened_npc_id = npc_id
 	var session := String(result.get("interaction_session_id", last_session_id))
 	var is_new_session := last_session_id.is_empty() or session != last_session_id
 	last_session_id = session
-	var node_id := String(result.get("current_node_id", ""))
-	var option_ids: Array = result.get("allowed_option_ids", [])
+	var node_id := String(result.get("current_node_id", result.get("currentNodeId", "")))
+	var option_ids: Array = result.get("allowed_option_ids", result.get("allowedOptionIds", []))
 	var service_ids: Array = result.get("available_service_ids", result.get("services", []))
-	var dialogue_id := String(result.get("dialogue_id", ""))
+	var dialogue_id := String(result.get("dialogue_id", result.get("dialogueId", "")))
 	_window.present({
 		"npc_id": npc_id,
 		"npc_name": _npc_name(npc_id),
@@ -121,6 +124,7 @@ func _on_option(option_id: String) -> void:
 		return
 	_choice_request_id = MatchProtocol.new_request_id()
 	_window.show_loading(_npc_name(last_opened_npc_id))
+	_arm_loading_timeout()
 	NetworkService.send_dialogue_choose(last_session_id, option_id, _choice_request_id)
 
 
@@ -158,10 +162,13 @@ func _on_window_closed(window_id: String) -> void:
 
 
 func _invalidate(_code: String) -> void:
+	_clear_pending_intent()
+	_choice_request_id = ""
 	_finish_close()
 
 
 func _finish_close() -> void:
+	_stop_loading_timer()
 	_suspended_for_vendor = false
 	QuestService.set_speaker("")
 	last_session_id = ""
@@ -186,6 +193,83 @@ func _ensure_window() -> void:
 		_window.service_chosen.connect(_on_service)
 	if not _window.close_requested.is_connected(_on_close):
 		_window.close_requested.connect(_on_close)
+
+
+func _matches_pending_intent(request_id: String, target_id: String) -> bool:
+	if pending_request_id.is_empty():
+		return false
+	if request_id == pending_request_id:
+		return true
+	if not pending_npc_id.is_empty() and target_id == pending_npc_id:
+		return true
+	return request_id.is_empty() and target_id.is_empty()
+
+
+func _show_intent_error(npc_id: String, result: Dictionary) -> void:
+	_stop_loading_timer()
+	_ensure_window()
+	_window.show_error(_npc_name(npc_id), _error_message(result))
+
+
+func _clear_pending_intent() -> void:
+	pending_request_id = ""
+	pending_npc_id = ""
+	_stop_loading_timer()
+
+
+func _arm_loading_timeout() -> void:
+	_ensure_loading_timer()
+	_loading_timer.start(LOADING_TIMEOUT_SEC)
+
+
+func _stop_loading_timer() -> void:
+	if _loading_timer != null:
+		_loading_timer.stop()
+
+
+func _ensure_loading_timer() -> void:
+	if _loading_timer != null and is_instance_valid(_loading_timer):
+		return
+	_loading_timer = Timer.new()
+	_loading_timer.one_shot = true
+	_loading_timer.timeout.connect(_on_loading_timeout)
+	add_child(_loading_timer)
+
+
+func _on_loading_timeout() -> void:
+	if pending_request_id.is_empty() and _choice_request_id.is_empty():
+		return
+	if _window == null or not _window.is_loading():
+		return
+	var npc_id := pending_npc_id if not pending_npc_id.is_empty() else last_opened_npc_id
+	_show_intent_error(npc_id, {"code": "interaction_timeout", "message": "The server did not answer."})
+	_clear_pending_intent()
+	_choice_request_id = ""
+
+
+func _on_recoverable_error(code: String, message: String) -> void:
+	if _window == null or not _window.is_loading():
+		return
+	if pending_request_id.is_empty() and _choice_request_id.is_empty():
+		return
+	if not _is_unanswered_interact_code(code):
+		return
+	_show_intent_error(
+		pending_npc_id if not pending_npc_id.is_empty() else last_opened_npc_id,
+		{"code": code, "message": message}
+	)
+	_clear_pending_intent()
+	_choice_request_id = ""
+
+
+func _is_unanswered_interact_code(code: String) -> bool:
+	if code == "rate_limited" or code == "invalid_request_id" or code == "payload_too_large":
+		return true
+	if code == "malformed_json" or code == "unknown_opcode" or code == "protocol_mismatch":
+		return true
+	if code == "invalid_payload" or code == "invalid_id" or code.begins_with("unknown_field"):
+		return true
+	return false
 
 
 func _npc_name(npc_id: String) -> String:
@@ -254,6 +338,9 @@ func _localized_text(entry: Dictionary) -> String:
 
 
 func _error_message(result: Dictionary) -> String:
+	var message := String(result.get("message", ""))
+	if not message.is_empty():
+		return message
 	var code := String(result.get("code", "interaction_failed"))
 	match code:
 		"out_of_range":
@@ -270,6 +357,10 @@ func _error_message(result: Dictionary) -> String:
 			return "That reply is not available."
 		"invalid_session":
 			return "The conversation is no longer valid."
+		"rate_limited":
+			return "Too many interact requests."
+		"invalid_request_id":
+			return "The server rejected that interaction."
 		_:
 			return "The server rejected that interaction."
 

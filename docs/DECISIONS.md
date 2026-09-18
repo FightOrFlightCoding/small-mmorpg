@@ -860,4 +860,10 @@ Prompt 18 elder spoken lines, slime rewards, and merchant prices are unchanged. 
 
 Nakama JSON-roundtrips match state between ticks. A `null` or incomplete `interactionSession` (missing `allowedOptionIds` / `availableServiceIds`) made `cloneStarterZoneState` throw `Cannot read property 'allowedOptionIds' of undefined` on every tick. `matchLoop` caught that, skipped `SNAPSHOT`, and the client showed `snapshot_timeout` after login even though `FULL_STATE` had arrived. Clone, count, and tick paths now treat null/missing session fields as empty; match-loop errors still broadcast a fallback snapshot. Recreate Nakama after this build so the poisoned public match is replaced.
 
+## 2026-09-18 — NPC collision is fully removed; dialogue must not stick on waiting
+
+NPC-C01 already dropped server NPC AABBs. The Godot movement sim still injected a 24×24 box per zone NPC spawn, so prediction treated NPCs as solid while the match did not. `MovementSim.from_content` no longer adds those boxes. `NpcAvatar` `InteractionArea` uses collision layer/mask 0, `input_pickable` false, and a disabled shape. Click range stays a script radius; the server still owns distance.
+
+Stuck “Waiting for the server…” on some NPCs (Cert Quartermaster, Platform Questgiver) is not authored behavior. The server already returns `INTERACTION_RESULT` for those NPCs. The window stayed loading when the result was a failure-with-`message` (client parse dropped it), when `requestId` did not match the latest click, or when `INTERACT` was rejected as a system message (`rate_limited`, protocol errors) with no result. Parse now always keeps `request_id`, the presenter matches the pending NPC, unanswered interact errors and a 2s timeout leave loading, and interact-family rejects also echo `INTERACTION_RESULT`. Recreate Nakama after this build.
+
 
