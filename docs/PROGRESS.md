@@ -24,7 +24,7 @@ Content validation now rejects duplicate NPC placements and unknown NPC service 
 | Content validation/tests | 26/26 passed, including NPC placement/service checks |
 | Server hermetic tests | 759 passed, 13 expected live-test skips |
 | Server typecheck/build | passed; existing circular-dependency warning only |
-| Auth gateway hermetic tests | passed via compiled test-file glob |
+| Auth gateway hermetic tests | 52/52 passed via compiled test-file glob |
 | Godot 4.7.1 client GdUnit | 314/314 passed, 0 failures, 0 orphans |
 
 Pre-existing Node 22.14 runner compatibility remains documented: `scripts/test-content.sh` and `scripts/test-auth-gateway.sh` call `node --test` with a directory and fail before test discovery. Their direct compiled-file glob equivalents pass; NPC-01 does not change those unrelated wrappers.
