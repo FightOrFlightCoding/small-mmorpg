@@ -2,11 +2,13 @@ import { cloneEquipment, type PlayerEquipment } from "./equipment";
 import { cloneInventory, type PlayerInventory } from "./inventory";
 import { dict } from "./maps";
 import {
+  MATCH_TICK_RATE,
   cloneStarterZoneState,
   playerCount,
   type MatchPlayer,
   type StarterZoneState,
 } from "./match_state";
+import { refreshNpcPauses } from "./npc_movement";
 import { cloneProgression, type CharacterProgression } from "./progression";
 import { cloneQuestLog, type QuestLog } from "./quest";
 import { cloneCooldownMap, cloneResourceMap } from "./ability";
@@ -84,6 +86,9 @@ export function applySafeLeave(state: StarterZoneState, userId: string): PlayerL
   if (playerCount(next) === 0) {
     next.emptyTicks = 0;
   }
+  if (refreshNpcPauses(next.npcs, next.players, next.npcRoutesById, 0, MATCH_TICK_RATE)) {
+    next.npcSnapshotDirty = true;
+  }
   return {
     state: next,
     checkpoint: withBind(
@@ -116,6 +121,9 @@ export function applyUnexpectedDisconnect(state: StarterZoneState, userId: strin
   interruptCast(remaining, "disconnected", tick, []);
   if (remaining.interactionSession !== undefined) {
     remaining.interactionSession.state = "invalidated";
+  }
+  if (refreshNpcPauses(next.npcs, next.players, next.npcRoutesById, tick, MATCH_TICK_RATE)) {
+    next.npcSnapshotDirty = true;
   }
   return {
     state: next,
@@ -153,6 +161,9 @@ export function expireLinkDeadPlayers(state: StarterZoneState, tick: number): {
   if (players.length > 0 && playerCount(state) === 0) {
     state.emptyTicks = 0;
   }
+  if (players.length > 0 && refreshNpcPauses(state.npcs, state.players, state.npcRoutesById, tick, MATCH_TICK_RATE)) {
+    state.npcSnapshotDirty = true;
+  }
   return { checkpoints: checkpoints, players: players };
 }
 
@@ -167,6 +178,9 @@ export function applyPlayerTransfer(state: StarterZoneState, userId: string): Pl
   delete next.disconnected[userId];
   if (playerCount(next) === 0) {
     next.emptyTicks = 0;
+  }
+  if (refreshNpcPauses(next.npcs, next.players, next.npcRoutesById, 0, MATCH_TICK_RATE)) {
+    next.npcSnapshotDirty = true;
   }
   return {
     state: next,

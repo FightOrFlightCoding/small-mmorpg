@@ -1,0 +1,15 @@
+{
+  "id": "vendor.platform_kiosk",
+  "kind": "vendor",
+  "displayName": "Platform Kiosk",
+  "currencyId": "gold",
+  "stock": [
+    {
+      "itemId": "item.test_potion",
+      "buyPrice": 10,
+      "classRequirements": [],
+      "levelRequirement": 0
+    }
+  ],
+  "sellMultiplier": 0.5
+}

@@ -1,0 +1,14 @@
+{
+  "id": "route.platform_short_loop",
+  "kind": "npc_route",
+  "displayName": "Platform Short Loop",
+  "routeType": "loop",
+  "speed": 32,
+  "maxDistanceFromHome": 48,
+  "dwellMin": 0,
+  "dwellMax": 0,
+  "waypoints": [
+    { "id": "home", "x": 0, "y": 0 },
+    { "id": "east", "x": 48, "y": 0 }
+  ]
+}

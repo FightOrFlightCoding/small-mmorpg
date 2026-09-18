@@ -1,0 +1,60 @@
+{
+  "id": "dialogue.npc.platform_quest",
+  "kind": "dialogue",
+  "displayName": "Platform Questgiver",
+  "displayNameKey": "dialogue.npc.platform_quest.name",
+  "startNodeId": "start",
+  "nodes": {
+    "start": {
+      "id": "start",
+      "lines": [
+        {
+          "text": "Speak with me again after you accept, then I can close the greeting.",
+          "textKey": "dialogue.npc.platform_quest.start.0"
+        }
+      ]
+    },
+    "in_progress": {
+      "id": "in_progress",
+      "lines": [
+        {
+          "text": "That is the talk I needed.",
+          "textKey": "dialogue.npc.platform_quest.in_progress.0"
+        }
+      ]
+    },
+    "ready": {
+      "id": "ready",
+      "lines": [
+        {
+          "text": "I can take the greeting now.",
+          "textKey": "dialogue.npc.platform_quest.ready.0"
+        }
+      ]
+    },
+    "completed": {
+      "id": "completed",
+      "lines": [
+        {
+          "text": "The platform greeting is done.",
+          "textKey": "dialogue.npc.platform_quest.completed.0"
+        }
+      ]
+    }
+  },
+  "entry": [
+    {
+      "nodeId": "completed",
+      "conditions": [{ "type": "offered_quest_status", "status": "completed" }]
+    },
+    {
+      "nodeId": "ready",
+      "conditions": [{ "type": "offered_quest_status", "status": "ready" }]
+    },
+    {
+      "nodeId": "in_progress",
+      "conditions": [{ "type": "offered_quest_status", "status": "accepted" }]
+    },
+    { "nodeId": "start" }
+  ]
+}

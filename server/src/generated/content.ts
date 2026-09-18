@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "3b1fe2f9b196850d6434503f6c2262867bcd81e6c811c6291cd0510649186084";
+export const contentHash = "bf283255559cf5145b9b4e90ad0ebfca4e09c27f7ffaa9c241347729d0cc5fcb";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = ["dialogue.npc.lab_exit","dialogue.npc.lab_inn","dialogue.npc.lab_keeper","dialogue.npc.lab_trainer","dialogue.npc.lab_vendor","npc.lab_exit","npc.lab_inn","npc.lab_keeper","npc.lab_trainer","npc.lab_vendor","quest.lab_tour","spawn.lab.boss","spawn.lab.caster","spawn.lab.melee","spawn.lab.ranged","test.zone.systems_lab","vendor.lab_general"] as const;
 export const content = {
@@ -4221,6 +4221,248 @@ export const content = {
       },
       "startNodeId": "start"
     },
+    "dialogue.npc.platform_combined": {
+      "displayName": "Platform Steward",
+      "displayNameKey": "dialogue.npc.platform_combined.name",
+      "entry": [
+        {
+          "conditions": [
+            {
+              "status": "completed",
+              "type": "offered_quest_status"
+            }
+          ],
+          "nodeId": "completed"
+        },
+        {
+          "conditions": [
+            {
+              "status": "ready",
+              "type": "offered_quest_status"
+            }
+          ],
+          "nodeId": "ready"
+        },
+        {
+          "conditions": [
+            {
+              "status": "accepted",
+              "type": "offered_quest_status"
+            }
+          ],
+          "nodeId": "in_progress"
+        },
+        {
+          "nodeId": "start"
+        }
+      ],
+      "id": "dialogue.npc.platform_combined",
+      "kind": "dialogue",
+      "nodes": {
+        "completed": {
+          "id": "completed",
+          "lines": [
+            {
+              "text": "The combined proof is done. Goods remain for sale.",
+              "textKey": "dialogue.npc.platform_combined.completed.0"
+            }
+          ]
+        },
+        "farewell": {
+          "id": "farewell",
+          "lines": [
+            {
+              "text": "The loop continues when we are done talking.",
+              "textKey": "dialogue.npc.platform_combined.farewell.0"
+            }
+          ]
+        },
+        "in_progress": {
+          "id": "in_progress",
+          "lines": [
+            {
+              "text": "Speak with me again and I can close the errand.",
+              "textKey": "dialogue.npc.platform_combined.in_progress.0"
+            }
+          ]
+        },
+        "ready": {
+          "id": "ready",
+          "lines": [
+            {
+              "text": "That greeting is complete. I can take it.",
+              "textKey": "dialogue.npc.platform_combined.ready.0"
+            }
+          ]
+        },
+        "start": {
+          "id": "start",
+          "lines": [
+            {
+              "text": "I walk, talk, offer a greeting, and sell a potion.",
+              "textKey": "dialogue.npc.platform_combined.start.0"
+            }
+          ],
+          "options": [
+            {
+              "id": "opt.not_now",
+              "nextNodeId": "farewell",
+              "text": "Not now.",
+              "textKey": "dialogue.npc.platform_combined.opt.not_now"
+            }
+          ]
+        }
+      },
+      "startNodeId": "start"
+    },
+    "dialogue.npc.platform_greeter": {
+      "displayName": "Platform Greeter",
+      "displayNameKey": "dialogue.npc.platform_greeter.name",
+      "id": "dialogue.npc.platform_greeter",
+      "kind": "dialogue",
+      "nodes": {
+        "start": {
+          "id": "start",
+          "lines": [
+            {
+              "text": "A simple hello is all I keep.",
+              "textKey": "dialogue.npc.platform_greeter.start.0"
+            }
+          ]
+        }
+      },
+      "startNodeId": "start"
+    },
+    "dialogue.npc.platform_guide": {
+      "displayName": "Platform Guide",
+      "displayNameKey": "dialogue.npc.platform_guide.name",
+      "id": "dialogue.npc.platform_guide",
+      "kind": "dialogue",
+      "nodes": {
+        "farewell": {
+          "id": "farewell",
+          "lines": [
+            {
+              "text": "The path is content, not code.",
+              "textKey": "dialogue.npc.platform_guide.farewell.0"
+            }
+          ]
+        },
+        "start": {
+          "id": "start",
+          "lines": [
+            {
+              "text": "I walk a short authored graph. One reply is enough.",
+              "textKey": "dialogue.npc.platform_guide.start.0"
+            }
+          ],
+          "options": [
+            {
+              "id": "opt.understood",
+              "nextNodeId": "farewell",
+              "text": "Understood.",
+              "textKey": "dialogue.npc.platform_guide.opt.understood"
+            }
+          ]
+        }
+      },
+      "startNodeId": "start"
+    },
+    "dialogue.npc.platform_merchant": {
+      "displayName": "Platform Merchant",
+      "displayNameKey": "dialogue.npc.platform_merchant.name",
+      "id": "dialogue.npc.platform_merchant",
+      "kind": "dialogue",
+      "nodes": {
+        "start": {
+          "id": "start",
+          "lines": [
+            {
+              "text": "I sell one potion. The price is mine.",
+              "textKey": "dialogue.npc.platform_merchant.start.0"
+            }
+          ]
+        }
+      },
+      "startNodeId": "start"
+    },
+    "dialogue.npc.platform_quest": {
+      "displayName": "Platform Questgiver",
+      "displayNameKey": "dialogue.npc.platform_quest.name",
+      "entry": [
+        {
+          "conditions": [
+            {
+              "status": "completed",
+              "type": "offered_quest_status"
+            }
+          ],
+          "nodeId": "completed"
+        },
+        {
+          "conditions": [
+            {
+              "status": "ready",
+              "type": "offered_quest_status"
+            }
+          ],
+          "nodeId": "ready"
+        },
+        {
+          "conditions": [
+            {
+              "status": "accepted",
+              "type": "offered_quest_status"
+            }
+          ],
+          "nodeId": "in_progress"
+        },
+        {
+          "nodeId": "start"
+        }
+      ],
+      "id": "dialogue.npc.platform_quest",
+      "kind": "dialogue",
+      "nodes": {
+        "completed": {
+          "id": "completed",
+          "lines": [
+            {
+              "text": "The platform greeting is done.",
+              "textKey": "dialogue.npc.platform_quest.completed.0"
+            }
+          ]
+        },
+        "in_progress": {
+          "id": "in_progress",
+          "lines": [
+            {
+              "text": "That is the talk I needed.",
+              "textKey": "dialogue.npc.platform_quest.in_progress.0"
+            }
+          ]
+        },
+        "ready": {
+          "id": "ready",
+          "lines": [
+            {
+              "text": "I can take the greeting now.",
+              "textKey": "dialogue.npc.platform_quest.ready.0"
+            }
+          ]
+        },
+        "start": {
+          "id": "start",
+          "lines": [
+            {
+              "text": "Speak with me again after you accept, then I can close the greeting.",
+              "textKey": "dialogue.npc.platform_quest.start.0"
+            }
+          ]
+        }
+      },
+      "startNodeId": "start"
+    },
     "dialogue.npc.proof_giver": {
       "displayName": "Proof Giver",
       "displayNameKey": "dialogue.npc.proof_giver.name",
@@ -6870,6 +7112,77 @@ export const content = {
     }
   },
   "npcRoutes": {
+    "route.platform_short_loop": {
+      "displayName": "Platform Short Loop",
+      "dwellMax": 0,
+      "dwellMin": 0,
+      "id": "route.platform_short_loop",
+      "kind": "npc_route",
+      "maxDistanceFromHome": 48,
+      "routeType": "loop",
+      "speed": 32,
+      "waypoints": [
+        {
+          "id": "home",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "id": "east",
+          "x": 48,
+          "y": 0
+        }
+      ]
+    },
+    "route.platform_weighted": {
+      "displayName": "Platform Weighted Graph",
+      "dwellMax": 0.4,
+      "dwellMin": 0.2,
+      "edges": [
+        {
+          "from": "home",
+          "to": "east",
+          "weight": 2
+        },
+        {
+          "from": "home",
+          "to": "south",
+          "weight": 1
+        },
+        {
+          "from": "east",
+          "to": "home",
+          "weight": 1
+        },
+        {
+          "from": "south",
+          "to": "home",
+          "weight": 1
+        }
+      ],
+      "id": "route.platform_weighted",
+      "kind": "npc_route",
+      "maxDistanceFromHome": 32,
+      "routeType": "weighted_route_graph",
+      "speed": 24,
+      "waypoints": [
+        {
+          "id": "home",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "id": "east",
+          "x": 32,
+          "y": 0
+        },
+        {
+          "id": "south",
+          "x": 0,
+          "y": 32
+        }
+      ]
+    },
     "route.stationary": {
       "displayName": "Stationary",
       "dwellMax": 0,
@@ -6956,6 +7269,158 @@ export const content = {
         }
       ],
       "visualId": "visual.npc_elder",
+      "zoneId": "zone.starter"
+    },
+    "npc.platform_combined": {
+      "dialogueId": "dialogue.npc.platform_combined",
+      "displayName": "Platform Steward",
+      "displayNameKey": "npc.platform_combined.name",
+      "homePosition": {
+        "x": 2160,
+        "y": 1488
+      },
+      "id": "npc.platform_combined",
+      "interactionRange": 48,
+      "kind": "npc",
+      "position": {
+        "x": 2160,
+        "y": 1488
+      },
+      "routeId": "route.platform_short_loop",
+      "services": [
+        {
+          "type": "dialogue"
+        },
+        {
+          "questIds": [
+            "quest.platform_combined"
+          ],
+          "type": "quest_offer"
+        },
+        {
+          "questIds": [
+            "quest.platform_combined"
+          ],
+          "type": "quest_turn_in"
+        },
+        {
+          "type": "vendor",
+          "vendorId": "vendor.platform_kiosk"
+        }
+      ],
+      "visualId": "visual.npc_platform_combined",
+      "zoneId": "zone.starter"
+    },
+    "npc.platform_greeter": {
+      "dialogueId": "dialogue.npc.platform_greeter",
+      "displayName": "Platform Greeter",
+      "displayNameKey": "npc.platform_greeter.name",
+      "homePosition": {
+        "x": 1120,
+        "y": 1784
+      },
+      "id": "npc.platform_greeter",
+      "interactionRange": 48,
+      "kind": "npc",
+      "position": {
+        "x": 1120,
+        "y": 1784
+      },
+      "routeId": "route.stationary",
+      "services": [
+        {
+          "type": "dialogue"
+        }
+      ],
+      "visualId": "visual.npc_platform_greeter",
+      "zoneId": "zone.starter"
+    },
+    "npc.platform_guide": {
+      "dialogueId": "dialogue.npc.platform_guide",
+      "displayName": "Platform Guide",
+      "displayNameKey": "npc.platform_guide.name",
+      "homePosition": {
+        "x": 1240,
+        "y": 1784
+      },
+      "id": "npc.platform_guide",
+      "interactionRange": 48,
+      "kind": "npc",
+      "position": {
+        "x": 1240,
+        "y": 1784
+      },
+      "routeId": "route.platform_weighted",
+      "services": [
+        {
+          "type": "dialogue"
+        }
+      ],
+      "visualId": "visual.npc_platform_guide",
+      "zoneId": "zone.starter"
+    },
+    "npc.platform_merchant": {
+      "dialogueId": "dialogue.npc.platform_merchant",
+      "displayName": "Platform Merchant",
+      "displayNameKey": "npc.platform_merchant.name",
+      "homePosition": {
+        "x": 1480,
+        "y": 1784
+      },
+      "id": "npc.platform_merchant",
+      "interactionRange": 48,
+      "kind": "npc",
+      "position": {
+        "x": 1480,
+        "y": 1784
+      },
+      "routeId": "route.stationary",
+      "services": [
+        {
+          "type": "dialogue"
+        },
+        {
+          "type": "vendor",
+          "vendorId": "vendor.platform_kiosk"
+        }
+      ],
+      "visualId": "visual.npc_platform_merchant",
+      "zoneId": "zone.starter"
+    },
+    "npc.platform_quest": {
+      "dialogueId": "dialogue.npc.platform_quest",
+      "displayName": "Platform Questgiver",
+      "displayNameKey": "npc.platform_quest.name",
+      "homePosition": {
+        "x": 1360,
+        "y": 1784
+      },
+      "id": "npc.platform_quest",
+      "interactionRange": 48,
+      "kind": "npc",
+      "position": {
+        "x": 1360,
+        "y": 1784
+      },
+      "routeId": "route.stationary",
+      "services": [
+        {
+          "type": "dialogue"
+        },
+        {
+          "questIds": [
+            "quest.platform_talk"
+          ],
+          "type": "quest_offer"
+        },
+        {
+          "questIds": [
+            "quest.platform_talk"
+          ],
+          "type": "quest_turn_in"
+        }
+      ],
+      "visualId": "visual.npc_platform_quest",
       "zoneId": "zone.starter"
     },
     "npc.proof_giver": {
@@ -7283,6 +7748,50 @@ export const content = {
         "xp": 3
       },
       "turnInNpcId": "npc.cert_quartermaster"
+    },
+    "quest.platform_combined": {
+      "acceptNpcId": "npc.platform_combined",
+      "category": "side",
+      "completeOnce": true,
+      "consume": [],
+      "displayName": "Platform Combined Errand",
+      "id": "quest.platform_combined",
+      "kind": "quest",
+      "objectives": [
+        {
+          "npcId": "npc.platform_combined",
+          "quantity": 1,
+          "type": "talk_to_npc"
+        }
+      ],
+      "rewards": {
+        "gold": 1,
+        "items": [],
+        "xp": 1
+      },
+      "turnInNpcId": "npc.platform_combined"
+    },
+    "quest.platform_talk": {
+      "acceptNpcId": "npc.platform_quest",
+      "category": "side",
+      "completeOnce": true,
+      "consume": [],
+      "displayName": "Platform Greeting",
+      "id": "quest.platform_talk",
+      "kind": "quest",
+      "objectives": [
+        {
+          "npcId": "npc.platform_quest",
+          "quantity": 1,
+          "type": "talk_to_npc"
+        }
+      ],
+      "rewards": {
+        "gold": 1,
+        "items": [],
+        "xp": 1
+      },
+      "turnInNpcId": "npc.platform_quest"
     },
     "quest.proof_errand": {
       "acceptNpcId": "npc.proof_giver",
@@ -10394,6 +10903,21 @@ export const content = {
         }
       ]
     },
+    "vendor.platform_kiosk": {
+      "currencyId": "gold",
+      "displayName": "Platform Kiosk",
+      "id": "vendor.platform_kiosk",
+      "kind": "vendor",
+      "sellMultiplier": 0.5,
+      "stock": [
+        {
+          "buyPrice": 10,
+          "classRequirements": [],
+          "itemId": "item.test_potion",
+          "levelRequirement": 0
+        }
+      ]
+    },
     "vendor.test_general": {
       "currencyId": "gold",
       "displayName": "Test General Goods",
@@ -10653,6 +11177,31 @@ export const content = {
           "npcId": "npc.cert_quartermaster",
           "x": 2000,
           "y": 1664
+        },
+        {
+          "npcId": "npc.platform_greeter",
+          "x": 1120,
+          "y": 1784
+        },
+        {
+          "npcId": "npc.platform_guide",
+          "x": 1240,
+          "y": 1784
+        },
+        {
+          "npcId": "npc.platform_quest",
+          "x": 1360,
+          "y": 1784
+        },
+        {
+          "npcId": "npc.platform_merchant",
+          "x": 1480,
+          "y": 1784
+        },
+        {
+          "npcId": "npc.platform_combined",
+          "x": 2160,
+          "y": 1488
         }
       ],
       "playerSpawn": {

@@ -845,4 +845,15 @@ NPC-06 reuses canonical vendor, inventory, wallet, and transaction services. It 
 
 No new RPCs, storage collections, migrations, dependencies, or vendor addons.
 
+## 2026-09-18 — NPC-07 lifecycle, security, and final certification
+
+NPC-07 hardens accepted NPC-01 through NPC-06. It does not add NPC types, opcodes, storage collections, RPCs, vendor addons, or a second dialogue/quest/merchant engine.
+
+- Interaction sessions invalidate on disconnect, link-dead, transfer, safe leave, death, range, and TTL. Persistence leave paths call `refreshNpcPauses` immediately so cosmetic movement resumes when no usable sessions remain.
+- NPC pose is match-lifetime only and is omitted from checkpoints, export, and restart. Quest logs, inventory, and gold persist and reload on join/resync/restore.
+- Content-only proof: `npc.platform_greeter`, `npc.platform_guide`, `npc.platform_quest`, `npc.platform_merchant`, `npc.platform_combined`, plus `route.platform_short_loop`, `route.platform_weighted`, `quest.platform_talk`, `quest.platform_combined`, and `vendor.platform_kiosk`. No runtime or protocol change was required.
+- `vendor.ts` and existing vendor JSON are unchanged. Suggested tag `npc-platform-v1` is not created without user approval.
+
+Prompt 18 elder spoken lines, slime rewards, and merchant prices are unchanged. No new dependencies or `client/addons/` edits.
+
 

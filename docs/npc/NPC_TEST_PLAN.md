@@ -1,44 +1,76 @@
-# NPC test plan (NPC-06)
+# NPC test plan (NPC-07)
 
-NPC-06 records session-gated vendor buy through canonical `vendor.ts` / `transaction.ts`, static unlimited stock, and reusable `MerchantWindow`. NPC-05 coverage remains.
+NPC-07 certifies lifecycle, security, and content-only proof on top of NPC-01 through NPC-06. No new NPC feature is in scope.
 
-## Automated coverage
+## Security coverage (`npc_security.test.ts`)
 
-| Check | Owner | Expected proof |
-| --- | --- | --- |
-| Open shop | `npc_vendor.test.ts` | `INTERACT` returns vendor service, `vendorId`, `currencyId` `gold`, and catalog stock. |
-| Unknown vendor | `npc_vendor.test.ts` | Missing vendor catalog id is `invalid_id`. |
-| Unknown stock item | `npc_vendor.test.ts` | Item not on stock is `invalid_id`. |
-| Price spoof | `npc_vendor.test.ts`, `protocol.test.ts` | Client `price` is `unknown_field:price`; `gold` / `resultingBalance` are `stat_injection`. |
-| Quantity zero | `npc_vendor.test.ts` | `invalid_amount`; gold unchanged. |
-| Negative quantity | `npc_vendor.test.ts` | `invalid_amount`. |
-| Excessive quantity | `npc_vendor.test.ts` | Quantity above 99 is `invalid_amount`. |
-| Insufficient currency | `npc_vendor.test.ts`, `vendor.test.ts` | `insufficient_gold`. |
-| Full inventory | `npc_vendor.test.ts`, `vendor.test.ts` | `inventory_full`. |
-| Class/level restriction | `npc_vendor.test.ts` | `class_restricted` / `level_too_low`. |
-| Valid purchase | `npc_vendor.test.ts`, `vendor.test.ts` | Gold deducted once; item granted; `INVENTORY_STATE` + `WALLET_STATE`. |
-| Duplicate request | `npc_vendor.test.ts`, `vendor.test.ts` | Same `requestId` replays without a second grant. |
-| Interrupted transaction | `npc_vendor.test.ts` | Failed commit is `persist_failed`; gold and inventory unchanged. |
-| Reconnect | `npc_vendor.test.ts` | `FULL_STATE` restores gold and purchased items. |
-| Two simultaneous buyers | `npc_vendor.test.ts` | Unlimited stock; both purchases succeed. |
-| Audit event | `npc_vendor.test.ts` | `TX_REASON_VENDOR` audit with gold delta. |
-| Session invalidation | `npc_vendor.test.ts` | Buy after close is `invalid_session`. |
-| Merchant UI | `merchant_window_test.gd`, `vendor_inn_service_test.gd` | Window shows name, list, price, quantity, gold, Buy, Back; buy payload has no price/gold/`npcId`. |
+| Check | Expected proof |
+| --- | --- |
+| Forged NPC ID | `invalid_target` |
+| Forged session ID | `invalid_session` |
+| Foreign session | `invalid_session` |
+| Expired session | `session_expired` |
+| Wrong match | `invalid_session` |
+| Out of range | `out_of_range` |
+| Dead character | `player_dead` |
+| Link-dead character | `link_dead` |
+| Transfer | `already_transferring` |
+| Dialogue option injection | `invalid_option`; node unchanged |
+| Unknown service | Dialogue-only NPC `VENDOR_BUY` is `invalid_service` |
+| Quest-state injection | Client `status` is `unknown_field`; quest not accepted |
+| Quest reward replay | Same turn-in `requestId` does not grant twice |
+| Merchant price spoof | `unknown_field:price` |
+| Merchant item injection | Off-stock item is `invalid_id` |
+| Merchant quantity abuse | 0 / negative / 100 are `invalid_amount`; gold unchanged |
+| Duplicate transaction | Same buy `requestId` deducts once |
+| Interaction spam | Interact bucket `rate_limited` |
+| Oversized payload | `payload_too_large` |
+| Unknown fields | Strict parse rejection |
+| Protocol mismatch | Join `protocol_mismatch` |
+| Content mismatch | Join `content_mismatch` |
 
-NPC-04/NPC-05 interaction, dialogue, quest, and marker coverage remains in `interaction.test.ts`, `npc_quest.test.ts`, and `interaction_client_test.gd`.
+NPC-06 vendor coverage in `npc_vendor.test.ts` remains. NPC-04/NPC-05 interaction, dialogue, quest, and marker coverage remains in `interaction.test.ts`, `npc_quest.test.ts`, and `interaction_client_test.gd`.
+
+## Lifecycle coverage (`npc_lifecycle.test.ts`)
+
+| Check | Expected proof |
+| --- | --- |
+| Login / public-world join | `FULL_STATE` lists production and proof NPCs plus persisted quest and gold |
+| Full-state resync | `RESYNC_REQUEST` returns the same wallet/quest records |
+| Character switch | New character has no session and no leaked quest log |
+| Unexpected disconnect | Session `invalidated`; NPC resumes; buy is `link_dead` |
+| Ten-second link-dead | Avatar remains until `LINK_DEAD_TICKS`, then despawns |
+| Safe Return to Character Select | Player removed; quests queued to persist; session gone |
+| Logout / match restart | Purchase remains; combined NPC rebuilds at home |
+| Zone transfer | Player removed; merchant not paused |
+| Soft delete + restore | Completed quest and purchased item reload; no session |
+| Account export | Quests and gold present; `rngState` and NPC pose omitted |
+| Account deletion | Empty character list has no quest/item records |
+| Movement ticks | Cosmetic travel `persistOpCount` is 0 |
+
+## Content-only proof (`npc_platform.test.ts`, `npc_platform_content_test.gd`)
+
+| Check | Expected proof |
+| --- | --- |
+| Dialogue-only NPC | `npc.platform_greeter` |
+| Single dialogue option | `npc.platform_guide` + `route.platform_weighted` |
+| Quest NPC | `npc.platform_quest` + `quest.platform_talk` |
+| Merchant NPC | `npc.platform_merchant` + `vendor.platform_kiosk` |
+| Combined NPC | `npc.platform_combined` + loop route + quest + vendor |
+| Two-client journey | Shared pose, pass-through, mob ignore, no combat target, concurrent dialogue, pause, optional response, quest accept/turn-in, buy once, disconnect closes session, resume, reconnect restores records, restart at home |
 
 ## Baseline results and reproducible commands
 
-NPC-06 hermetic gates (Node 22.14). Directory-form `node --test dist/tests` wrappers can fail before discovery. Direct compiled-file glob invocation is the authoritative path:
+NPC-07 hermetic gates (Node 22.14). Directory-form `node --test dist/tests` wrappers can fail before discovery. Direct compiled-file glob invocation is the authoritative path:
 
 | Gate | Result |
 | --- | --- |
-| Foundation audit | `FOUNDATION_AUDIT_OK` (34 storage records, 40 client opcodes, 15 server opcodes, 29 RPCs) |
-| Content validation/tests | 28/28 passed |
-| Server hermetic tests | 830 passed, 13 expected live-test skips |
-| Server typecheck/build | passed; existing circular-dependency warning only |
-| Auth gateway hermetic tests | 52/52 passed via compiled test-file glob |
-| Godot 4.7.1 client GdUnit | 327/327 passed, 0 failures, 0 orphans |
+| Foundation audit | pending |
+| Content validation/tests | pending |
+| Server hermetic tests | pending |
+| Server typecheck/build | pending |
+| Auth gateway hermetic tests | pending |
+| Godot 4.7.1 client GdUnit | pending |
 
 ```bash
 bash scripts/test-audit.sh
@@ -50,4 +82,4 @@ GODOT_BIN=godot bash scripts/test-client.sh
 
 ## Manual regression
 
-After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main`, then verify: talking to the test vendor opens dialogue, Browse goods opens the merchant window, buying a potion deducts 10 gold once, Back returns to dialogue, and a second client can buy the same stock.
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main`, then run the two-client journey in [NPC_PLATFORM_READY.md](NPC_PLATFORM_READY.md). Confirm the Prompt 18 elder/slime path still completes. Suggested release tag `npc-platform-v1` is not created until the user approves.

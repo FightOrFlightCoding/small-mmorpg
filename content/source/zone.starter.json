@@ -45,6 +45,31 @@
       "npcId": "npc.cert_quartermaster",
       "x": 2000,
       "y": 1664
+    },
+    {
+      "npcId": "npc.platform_greeter",
+      "x": 1120,
+      "y": 1784
+    },
+    {
+      "npcId": "npc.platform_guide",
+      "x": 1240,
+      "y": 1784
+    },
+    {
+      "npcId": "npc.platform_quest",
+      "x": 1360,
+      "y": 1784
+    },
+    {
+      "npcId": "npc.platform_merchant",
+      "x": 1480,
+      "y": 1784
+    },
+    {
+      "npcId": "npc.platform_combined",
+      "x": 2160,
+      "y": 1488
     }
   ],
   "enemies": [

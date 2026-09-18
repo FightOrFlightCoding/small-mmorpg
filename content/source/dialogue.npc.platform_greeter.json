@@ -1,0 +1,18 @@
+{
+  "id": "dialogue.npc.platform_greeter",
+  "kind": "dialogue",
+  "displayName": "Platform Greeter",
+  "displayNameKey": "dialogue.npc.platform_greeter.name",
+  "startNodeId": "start",
+  "nodes": {
+    "start": {
+      "id": "start",
+      "lines": [
+        {
+          "text": "A simple hello is all I keep.",
+          "textKey": "dialogue.npc.platform_greeter.start.0"
+        }
+      ]
+    }
+  }
+}

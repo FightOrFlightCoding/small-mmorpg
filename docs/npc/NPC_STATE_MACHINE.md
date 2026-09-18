@@ -1,6 +1,6 @@
-# NPC state machines (NPC-06)
+# NPC state machines (NPC-07)
 
-These are the target state models. NPC-04 ticks cosmetic route plans and pauses them while any live interaction session exists. NPC-05 evaluates quest dialogue/marker state from the canonical quest log. NPC-06 session-gates vendor buy on the same live session.
+These are the certified state models. Cosmetic route plans pause while any usable interaction session exists. Quest dialogue/marker state comes from the canonical quest log. Vendor buy is session-gated on that same live session. Movement is transient. Quest and merchant results persist.
 
 ## Cosmetic movement
 
@@ -8,9 +8,9 @@ These are the target state models. NPC-04 ticks cosmetic route plans and pauses 
 | --- | --- | --- |
 | `IDLE` | Server holds a stable pose (stationary, dwell, or no legal next node). | `MOVING` on an authorized cosmetic route; `PAUSED_FOR_INTERACTION` when the first live session opens. |
 | `MOVING` | Server owns a straight-line segment between authored waypoints; clients interpolate the plan. | `IDLE` on destination/route stop; `PAUSED_FOR_INTERACTION` when the first live session opens. |
-| `PAUSED_FOR_INTERACTION` | Movement is frozen at the current interpolated pose and the paused plan is broadcast. | `IDLE` or `MOVING` when the last session closes or expires. |
+| `PAUSED_FOR_INTERACTION` | Movement is frozen at the current interpolated pose and the paused plan is broadcast. | `IDLE` or `MOVING` when the last usable session closes, expires, or is invalidated (including disconnect, transfer, and leave). |
 
-Movement is cosmetic: it does not create a combat target, collision body, threat entry, damageable state, or client-owned transform. The server resolves interaction distance against the current interpolated pose. Randomization may affect only the next authored route choice, speed within content bounds, dwell within content bounds, and initial start delay. NPCs never select arbitrary world positions. Plans are match-lifetime and are not persisted.
+Movement is cosmetic: it does not create a combat target, collision body, threat entry, damageable state, or client-owned transform. The server resolves interaction distance against the current interpolated pose. Randomization may affect only the next authored route choice, speed within content bounds, dwell within content bounds, and initial start delay. NPCs never select arbitrary world positions. Plans are match-lifetime and are not persisted. A complete server or match restart may rebuild the NPC at `homePosition`.
 
 ## Interaction session
 
@@ -24,7 +24,7 @@ Movement is cosmetic: it does not create a combat target, collision body, threat
 
 Opening requires match presence, character ownership, a live NPC instance in the same zone, server distance within the NPC range, an eligible living player, and the interact rate limit. Repeated `requestId` values replay the stored `INTERACTION_RESULT` and do not re-run `talk_to_npc`. Dialogue choice uses a new `requestId` against the live session. `VENDOR_BUY` uses a new `requestId` against the live session (same successful id may replay). Transitioning to a reward-bearing existing service re-runs that service's current server validation and idempotency; a presentation session is not a transaction authorization.
 
-Match-owned `interactionSession`, `interactByRequestId`, `dialogueChoiceByRequestId`, and `interactionCloseByRequestId` are not persistent storage records. Cosmetic movement plans live on the match NPC and pause while any usable session targets that NPC.
+Match-owned `interactionSession`, `interactByRequestId`, `dialogueChoiceByRequestId`, and `interactionCloseByRequestId` are not persistent storage records. Cosmetic movement plans live on the match NPC and pause while any usable session targets that NPC. `refreshNpcPauses` runs from the match tick and from persistence leave/disconnect/transfer/link-dead despawn.
 
 ## Quest dialogue and markers
 
@@ -37,4 +37,4 @@ Match-owned `interactionSession`, `interactByRequestId`, `dialogueChoiceByReques
 | `ready` | All objectives satisfied; not turned in. | `?` |
 | `completed` | Turned in. | none |
 
-Marker priority on one NPC: ready, then available, then active incomplete, then none. Markers refresh after accept, objective progress, completion, login, zone join, `FULL_STATE`, and character switch.
+Marker priority on one NPC: ready, then available, then active incomplete, then none. Markers refresh after accept, objective progress, completion, login, zone join, `FULL_STATE`, and character switch. Completed quest status loads from character storage after restart; NPC pose does not.

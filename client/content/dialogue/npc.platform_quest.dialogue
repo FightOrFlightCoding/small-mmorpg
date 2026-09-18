@@ -1,0 +1,27 @@
+~ start
+if QuestService.is_completed_offered()
+	=> completed
+elif QuestService.is_ready_offered()
+	=> ready
+elif QuestService.is_accepted_offered()
+	=> in_progress
+else
+	Giver: Speak with me again after you accept, then I can close the greeting.
+	- I will greet you.
+		do QuestService.request_accept_offered()
+		=> END
+	=> END
+
+~ in_progress
+Giver: That is the talk I needed.
+=> END
+
+~ ready
+Giver: I can take the greeting now.
+- Turn it in.
+	do QuestService.request_turn_in_offered()
+	=> END
+
+~ completed
+Giver: The platform greeting is done.
+=> END

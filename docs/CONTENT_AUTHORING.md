@@ -277,3 +277,19 @@ One temporary production chain with **no** protocol, persistence, or runtime fea
 | `client/content/asset_manifest.json` | Visual set + item icon |
 
 Regenerate catalogs after these files. `test.zone.systems_lab` and `npc.lab_*` / `quest.lab_tour` / `spawn.lab.*` / `vendor.lab_general` are development-only and must not appear in the production bundle.
+
+## Content-only NPC platform proof (NPC-07)
+
+Ordinary dialogue, quest-giver, and merchant NPCs are authored without a new opcode, storage collection, UI scene, NPC script, transaction path, quest handler, or movement implementation. Guides: [NPC_CONTENT_GUIDE.md](npc/NPC_CONTENT_GUIDE.md), [NPC_DIALOGUE_GUIDE.md](npc/NPC_DIALOGUE_GUIDE.md), [NPC_QUEST_BINDING_GUIDE.md](npc/NPC_QUEST_BINDING_GUIDE.md), [NPC_VENDOR_GUIDE.md](npc/NPC_VENDOR_GUIDE.md).
+
+| File | Role |
+| --- | --- |
+| `content/source/npc.platform_greeter.json` | Dialogue only (no options) |
+| `content/source/npc.platform_guide.json` | One optional response on `route.platform_weighted` |
+| `content/source/npc.platform_quest.json` | Talk-to-NPC offer/turn-in |
+| `content/source/npc.platform_merchant.json` | `vendor.platform_kiosk` (potion 10) |
+| `content/source/npc.platform_combined.json` | Dialogue + quest + merchant on `route.platform_short_loop` |
+| `content/source/quest.platform_talk.json` / `quest.platform_combined.json` | Gold 1 / XP 1 talk quests |
+| `client/content/dialogue/npc.platform_*.dialogue` | Presentation mappings |
+
+Prompt 18 potion **10**, training sword **15**, cert mail **5**, and elder spoken lines stay unchanged. Do not edit `vendor.ts` or existing vendor JSON to add a merchant.

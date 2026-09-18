@@ -1,0 +1,22 @@
+{
+  "id": "quest.platform_talk",
+  "kind": "quest",
+  "displayName": "Platform Greeting",
+  "category": "side",
+  "acceptNpcId": "npc.platform_quest",
+  "turnInNpcId": "npc.platform_quest",
+  "objectives": [
+    {
+      "type": "talk_to_npc",
+      "npcId": "npc.platform_quest",
+      "quantity": 1
+    }
+  ],
+  "consume": [],
+  "rewards": {
+    "gold": 1,
+    "xp": 1,
+    "items": []
+  },
+  "completeOnce": true
+}
