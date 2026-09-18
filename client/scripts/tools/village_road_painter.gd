@@ -40,15 +40,59 @@ func paint_from_plan(
 	for entry in cells:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
-		var cell := Vector2i(int(entry.get("x", 0)), int(entry.get("y", 0)))
-		var mask := int(entry.get("mask", 0))
-		if mask <= 0:
-			continue
-		var variant := int(entry.get("variant", 0))
-		roads.set_cell(cell, ROAD_SOURCE_ID, atlas_coords(mask, variant))
-		occupied[cell] = true
-	_clear_details_with_buffer(details, occupied)
+		if int(entry.get("mask", 0)) == 15:
+			occupied[Vector2i(int(entry.get("x", 0)), int(entry.get("y", 0)))] = true
+	for extra in ResidentialHousePlacer.access_path_cells():
+		occupied[extra] = true
+	var width := int((data.get("map", {}) as Dictionary).get("width_cells", 64))
+	var height := int((data.get("map", {}) as Dictionary).get("height_cells", 48))
+	var masks := occupancy_to_masks(occupied, width, height)
+	var painted: Dictionary = {}
+	for y in range(height):
+		for x in range(width):
+			var mask := int(masks.get(Vector2i(x, y), 0))
+			if mask <= 0:
+				continue
+			var cell := Vector2i(x, y)
+			var variant := 0
+			if mask == 15:
+				variant = occupancy_hash(x, y, 18427 + 19) % 5
+			roads.set_cell(cell, ROAD_SOURCE_ID, atlas_coords(mask, variant))
+			painted[cell] = true
+	_clear_details_with_buffer(details, painted)
 	return data
+
+
+static func occupancy_to_masks(occupied: Dictionary, width: int, height: int) -> Dictionary:
+	var verts: Dictionary = {}
+	for cell: Vector2i in occupied.keys():
+		verts[Vector2i(cell.x, cell.y)] = true
+		verts[Vector2i(cell.x + 1, cell.y)] = true
+		verts[Vector2i(cell.x, cell.y + 1)] = true
+		verts[Vector2i(cell.x + 1, cell.y + 1)] = true
+	var masks: Dictionary = {}
+	for y in range(height):
+		for x in range(width):
+			var value := 0
+			if verts.get(Vector2i(x, y), false):
+				value |= 1
+			if verts.get(Vector2i(x + 1, y), false):
+				value |= 2
+			if verts.get(Vector2i(x + 1, y + 1), false):
+				value |= 4
+			if verts.get(Vector2i(x, y + 1), false):
+				value |= 8
+			if value > 0:
+				masks[Vector2i(x, y)] = value
+	return masks
+
+
+static func occupancy_hash(x: int, y: int, seed: int) -> int:
+	var n := posmod(x * 374761393 + y * 668265263 + seed * 1274126177, 4294967296)
+	n = n ^ (n >> 13)
+	n = posmod(n * 1274126177, 4294967296)
+	n = n ^ (n >> 16)
+	return n
 
 
 func _clear_details_with_buffer(details: TileMapLayer, occupied: Dictionary) -> void:

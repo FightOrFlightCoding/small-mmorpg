@@ -1,0 +1,40 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/buildings/residential_house_2d.gd" id="1_house"]
+
+[node name="ResidentialHouse2D" type="Node2D"]
+y_sort_enabled = false
+texture_filter = 0
+script = ExtResource("1_house")
+
+[node name="Shadow" type="Sprite2D" parent="."]
+z_index = -1
+texture_filter = 0
+centered = false
+offset = Vector2(0, 0)
+
+[node name="Exterior" type="Sprite2D" parent="."]
+texture_filter = 0
+centered = false
+
+[node name="SolidBody" type="StaticBody2D" parent="."]
+collision_layer = 1
+collision_mask = 0
+
+[node name="BuildingCollision" type="CollisionPolygon2D" parent="SolidBody"]
+
+[node name="DoorArea" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 1
+monitoring = true
+monitorable = true
+
+[node name="DoorShape" type="CollisionShape2D" parent="DoorArea"]
+
+[node name="EntranceMarker" type="Marker2D" parent="."]
+position = Vector2(0, 18)
+
+[node name="SortOriginMarker" type="Marker2D" parent="."]
+
+[node name="DebugFootprint" type="Node2D" parent="."]
+visible = false

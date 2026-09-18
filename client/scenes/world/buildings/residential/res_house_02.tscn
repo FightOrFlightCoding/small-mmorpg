@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/world/buildings/residential/residential_house_base.tscn" id="1_base"]
+
+[node name="ResidentialHouse2D" instance=ExtResource("1_base")]
+house_id = "residence_02"

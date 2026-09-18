@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "92b11cb3cb1acae3ca9ea7a886332d2d617e5fd6b5e27b653b8b340fe5b30bb5";
+export const contentHash = "6bec48bc7eef7a920b6397df3150d513611499fb2314c03700dc8dc8bcb950fd";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = ["npc.lab_exit","npc.lab_inn","npc.lab_keeper","npc.lab_trainer","npc.lab_vendor","quest.lab_tour","spawn.lab.boss","spawn.lab.caster","spawn.lab.melee","spawn.lab.ranged","test.zone.systems_lab","vendor.lab_general"] as const;
 export const content = {
@@ -9987,6 +9987,42 @@ export const content = {
           "width": 48,
           "x": 1544,
           "y": 1864
+        },
+        {
+          "height": 182,
+          "width": 320,
+          "x": 1344,
+          "y": 768
+        },
+        {
+          "height": 182,
+          "width": 320,
+          "x": 1536,
+          "y": 384
+        },
+        {
+          "height": 182,
+          "width": 384,
+          "x": 2048,
+          "y": 448
+        },
+        {
+          "height": 182,
+          "width": 320,
+          "x": 2880,
+          "y": 1088
+        },
+        {
+          "height": 150,
+          "width": 256,
+          "x": 1024,
+          "y": 1536
+        },
+        {
+          "height": 182,
+          "width": 320,
+          "x": 1408,
+          "y": 1920
         }
       ],
       "displayName": "Starter Valley",

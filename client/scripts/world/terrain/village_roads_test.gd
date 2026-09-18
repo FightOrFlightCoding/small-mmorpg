@@ -35,6 +35,8 @@ func _ready() -> void:
 	)
 	_grass.paint_world_rect(_ground, _details, _bounds.size, GrassFoundationPainter.seed_for_zone("zone.starter"))
 	_road_painter.paint_from_plan(_roads, _details, _plan)
+	y_sort_enabled = true
+	ResidentialHousePlacer.sync_into(self)
 	_configure_player()
 	_apply_camera_limits()
 	var args := OS.get_cmdline_user_args()
@@ -53,6 +55,21 @@ func _ready() -> void:
 		_player.position = VillageRoadPainter.plaza_pixel(_plan)
 		_player.set_idle_facing(Vector2.UP)
 		_clamp_camera()
+	elif mode == "houses-overview":
+		_camera.zoom = Vector2(0.234, 0.234)
+		_camera.position = _bounds.size * 0.5
+	elif mode == "houses-north":
+		_focus_house("residence_02", Vector2(0, 48))
+	elif mode == "houses-east":
+		_focus_house("residence_04", Vector2(0, 48))
+	elif mode == "houses-south":
+		_focus_house("residence_06", Vector2(0, 36))
+	elif mode == "houses-door":
+		_focus_house("residence_01", Vector2(0, 28), true)
+	elif mode == "houses-debug":
+		_show_debug_footprints()
+		_camera.zoom = Vector2(0.234, 0.234)
+		_camera.position = _bounds.size * 0.5
 	else:
 		_clamp_camera()
 	if not mode.is_empty():
@@ -80,7 +97,7 @@ func _configure_player() -> void:
 	visual["direction_count"] = int(vis_set.get("directionCount", 4))
 	visual["missing"] = false
 	_player.configure("player", "road-test", "C01", visual, true)
-	_player.z_index = 7
+	_player.z_index = ResidentialHousePlacer.SORT_Z
 	_player.set_vitals(1, 1, true)
 	var health := _player.get_node_or_null("HealthBack")
 	if health is CanvasItem:
@@ -147,18 +164,77 @@ func _add_overview_labels() -> void:
 		_labels.add_child(label)
 
 
+func _focus_house(house_id: String, player_offset: Vector2, at_door: bool = false) -> void:
+	var house: Node2D = get_node_or_null(house_id) as Node2D
+	if house == null:
+		_clamp_camera()
+		return
+	_camera.zoom = Vector2(1, 1)
+	if at_door:
+		var marker: Marker2D = house.get_node_or_null("EntranceMarker") as Marker2D
+		if marker != null:
+			_player.position = house.to_global(marker.position)
+		else:
+			_player.position = house.position + player_offset
+	else:
+		_player.position = house.position + player_offset
+	_player.set_idle_facing(Vector2.UP)
+	_clamp_camera()
+
+
+func _show_debug_footprints() -> void:
+	for entry in ResidentialHousePlacer.houses():
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var definition: Dictionary = entry
+		var house: Node2D = get_node_or_null(String(definition.get("house_id", ""))) as Node2D
+		if house == null:
+			continue
+		var collision: CollisionPolygon2D = house.get_node_or_null("SolidBody/BuildingCollision") as CollisionPolygon2D
+		if collision != null:
+			var overlay := Polygon2D.new()
+			overlay.polygon = collision.polygon
+			overlay.color = Color(0.95, 0.2, 0.15, 0.35)
+			overlay.z_index = 12
+			house.add_child(overlay)
+		var marker: Marker2D = house.get_node_or_null("EntranceMarker") as Marker2D
+		if marker != null:
+			var diamond := Polygon2D.new()
+			diamond.position = marker.position
+			diamond.color = Color(0.2, 0.9, 0.35, 0.9)
+			diamond.polygon = PackedVector2Array([
+				Vector2(0, -8),
+				Vector2(8, 0),
+				Vector2(0, 8),
+				Vector2(-8, 0),
+			])
+			diamond.z_index = 13
+			house.add_child(diamond)
+
+
 func _screenshot_mode(args: PackedStringArray) -> String:
 	for arg in args:
 		if arg == "--screenshot-roads-spawn" or arg.begins_with("--screenshot-roads-spawn="):
 			return "spawn"
 		if arg == "--screenshot-roads-square" or arg.begins_with("--screenshot-roads-square="):
 			return "square"
-		if arg == "--screenshot-roads-overview" or arg.begins_with("--screenshot-roads-overview="):
+		if arg.begins_with("--screenshot-roads-overview") or arg == "--screenshot-roads-overview":
 			return "overview"
+		if arg.begins_with("--screenshot-houses-"):
+			var name := arg.substr("--screenshot-houses-".length())
+			var cut := name.find("=")
+			if cut >= 0:
+				name = name.substr(0, cut)
+			return "houses-%s" % name
 	return ""
 
 
 func _screenshot_path(args: PackedStringArray, mode: String) -> String:
+	if mode.begins_with("houses-"):
+		for arg in args:
+			if arg.begins_with("--screenshot-%s=" % mode):
+				return arg.substr(("--screenshot-%s=" % mode).length())
+		return "user://residential_%s.png" % mode
 	for arg in args:
 		if arg.begins_with("--screenshot-roads-%s=" % mode):
 			return arg.substr(("--screenshot-roads-%s=" % mode).length())
@@ -166,6 +242,8 @@ func _screenshot_path(args: PackedStringArray, mode: String) -> String:
 
 
 func _capture_screenshot(path: String) -> void:
+	await RenderingServer.frame_post_draw
+	await RenderingServer.frame_post_draw
 	await RenderingServer.frame_post_draw
 	await RenderingServer.frame_post_draw
 	var image: Image = get_viewport().get_texture().get_image()

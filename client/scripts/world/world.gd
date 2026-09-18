@@ -147,6 +147,8 @@ func _bind_zone_presentation(zone_id: String) -> void:
 	_rendered_zone_id = zone_id
 	if _zone != null:
 		_zone.render_zone(ContentRegistry.get_by_id(zone_id))
+	if zone_id == "zone.starter" and _entities != null:
+		ResidentialHousePlacer.sync_into(_entities)
 	_sim = MovementSim.from_content(zone_id)
 	if _reconciler != null:
 		_reconciler.sim = _sim

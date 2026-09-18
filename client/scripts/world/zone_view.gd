@@ -24,6 +24,7 @@ func render_zone(zone: Dictionary) -> void:
 	_add_bounds(width, height)
 	_add_collisions(zone.get("collisions", []), visual)
 	_clear_grass_details_under_collisions(zone.get("collisions", []))
+	_clear_grass_details_under_houses()
 	_add_spawn(zone.get("playerSpawn", {}))
 
 
@@ -145,6 +146,9 @@ func _add_collisions(collisions: Variant, visual: Dictionary) -> void:
 			float(rect.get("width", 16.0)),
 			float(rect.get("height", 16.0)),
 		)
+		if ResidentialHousePlacer.is_house_collision(box):
+			index += 1
+			continue
 		var poly := Polygon2D.new()
 		poly.name = "Collision_%s" % str(index)
 		poly.position = box.position
@@ -208,6 +212,13 @@ func _add_spawn(spawn: Variant) -> void:
 	label.add_theme_font_size_override("font_size", 11)
 	marker.add_child(label)
 	add_child(marker)
+
+
+func _clear_grass_details_under_houses() -> void:
+	if _grass_details == null:
+		return
+	for box in ResidentialHousePlacer.house_collision_rects():
+		_grass_painter.clear_details_under_pixel_rect(_grass_details, box.grow(64.0))
 
 
 func collision_count() -> int:

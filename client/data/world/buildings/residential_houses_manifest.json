@@ -1,0 +1,1214 @@
+{
+  "version": 1,
+  "generated": true,
+  "map_id": "zone.starter",
+  "tile_size": 64,
+  "houses": [
+    {
+      "house_id": "residence_01",
+      "variant": "01",
+      "scene_path": "res://scenes/world/buildings/residential/res_house_01.tscn",
+      "exterior_texture_path": "res://assets/world/buildings/residential/res_house_01_exterior.png",
+      "shadow_texture_path": "res://assets/world/buildings/residential/res_house_01_shadow.png",
+      "canvas_size": [
+        512,
+        448
+      ],
+      "asset_origin": [
+        256,
+        400
+      ],
+      "footprint_polygon": [
+        [
+          -160,
+          -192
+        ],
+        [
+          160,
+          -192
+        ],
+        [
+          160,
+          -10
+        ],
+        [
+          -160,
+          -10
+        ]
+      ],
+      "collision_aabb_local": [
+        -160,
+        -192,
+        320,
+        182
+      ],
+      "door_local_position": [
+        -16,
+        -16
+      ],
+      "door_area_local": [
+        -16,
+        4,
+        40,
+        22
+      ],
+      "entrance_marker_local_position": [
+        -16,
+        18
+      ],
+      "approximate_footprint_tiles": [
+        5.0,
+        3.0
+      ],
+      "preferred_normalized_position": {
+        "x": 0.4,
+        "y": 0.37
+      },
+      "map_normalized_position": {
+        "x": 0.3672,
+        "y": 0.3125
+      },
+      "map_cell_position": [
+        23,
+        15
+      ],
+      "map_world_position": [
+        1504,
+        960
+      ],
+      "collision_world_aabb": {
+        "x": 1344,
+        "y": 768,
+        "width": 320,
+        "height": 182
+      },
+      "door_world_position": [
+        1488,
+        964
+      ],
+      "entrance_marker_world_position": [
+        1488,
+        978
+      ],
+      "entrance_path_cells": [
+        {
+          "x": 22,
+          "y": 15
+        },
+        {
+          "x": 22,
+          "y": 16
+        },
+        {
+          "x": 23,
+          "y": 15
+        },
+        {
+          "x": 23,
+          "y": 16
+        },
+        {
+          "x": 24,
+          "y": 15
+        },
+        {
+          "x": 24,
+          "y": 16
+        }
+      ],
+      "entrance_path_length_tiles": 1,
+      "nearest_road_route": "route_b_west",
+      "future_interior_id": null,
+      "resident_assignment": null,
+      "occlusion_polygon_local": [
+        [
+          -150,
+          -140
+        ],
+        [
+          150,
+          -140
+        ],
+        [
+          198,
+          -166
+        ],
+        [
+          198,
+          -26
+        ],
+        [
+          150,
+          0
+        ],
+        [
+          -150,
+          0
+        ]
+      ],
+      "nudge_normalized": {
+        "x": -0.0328,
+        "y": -0.0575
+      },
+      "road_clearance_tiles": 0,
+      "neighbor_gap_tiles": 8,
+      "nudge_reason": "Preferred lot overlaps the plaza/road occupancy. Origin moved to the nearest grass island that keeps the village-plan cluster, stays off reserved special lots, and still has a short door path."
+    },
+    {
+      "house_id": "residence_02",
+      "variant": "02",
+      "scene_path": "res://scenes/world/buildings/residential/res_house_02.tscn",
+      "exterior_texture_path": "res://assets/world/buildings/residential/res_house_02_exterior.png",
+      "shadow_texture_path": "res://assets/world/buildings/residential/res_house_02_shadow.png",
+      "canvas_size": [
+        512,
+        448
+      ],
+      "asset_origin": [
+        256,
+        400
+      ],
+      "footprint_polygon": [
+        [
+          -160,
+          -192
+        ],
+        [
+          160,
+          -192
+        ],
+        [
+          160,
+          -10
+        ],
+        [
+          -160,
+          -10
+        ]
+      ],
+      "collision_aabb_local": [
+        -160,
+        -192,
+        320,
+        182
+      ],
+      "door_local_position": [
+        8,
+        -16
+      ],
+      "door_area_local": [
+        8,
+        4,
+        40,
+        22
+      ],
+      "entrance_marker_local_position": [
+        8,
+        18
+      ],
+      "approximate_footprint_tiles": [
+        5.0,
+        3.0
+      ],
+      "preferred_normalized_position": {
+        "x": 0.47,
+        "y": 0.34
+      },
+      "map_normalized_position": {
+        "x": 0.4141,
+        "y": 0.1875
+      },
+      "map_cell_position": [
+        26,
+        9
+      ],
+      "map_world_position": [
+        1696,
+        576
+      ],
+      "collision_world_aabb": {
+        "x": 1536,
+        "y": 384,
+        "width": 320,
+        "height": 182
+      },
+      "door_world_position": [
+        1704,
+        580
+      ],
+      "entrance_marker_world_position": [
+        1704,
+        594
+      ],
+      "entrance_path_cells": [
+        {
+          "x": 25,
+          "y": 9
+        },
+        {
+          "x": 25,
+          "y": 10
+        },
+        {
+          "x": 25,
+          "y": 11
+        },
+        {
+          "x": 26,
+          "y": 9
+        },
+        {
+          "x": 26,
+          "y": 10
+        },
+        {
+          "x": 26,
+          "y": 11
+        },
+        {
+          "x": 26,
+          "y": 12
+        },
+        {
+          "x": 26,
+          "y": 13
+        },
+        {
+          "x": 26,
+          "y": 14
+        },
+        {
+          "x": 27,
+          "y": 9
+        },
+        {
+          "x": 27,
+          "y": 10
+        },
+        {
+          "x": 27,
+          "y": 11
+        },
+        {
+          "x": 27,
+          "y": 12
+        },
+        {
+          "x": 27,
+          "y": 13
+        },
+        {
+          "x": 27,
+          "y": 14
+        }
+      ],
+      "entrance_path_length_tiles": 5,
+      "nearest_road_route": "route_e_north_connector",
+      "future_interior_id": null,
+      "resident_assignment": null,
+      "occlusion_polygon_local": [
+        [
+          -154,
+          -136
+        ],
+        [
+          154,
+          -136
+        ],
+        [
+          200,
+          -160
+        ],
+        [
+          200,
+          -24
+        ],
+        [
+          154,
+          0
+        ],
+        [
+          -154,
+          0
+        ]
+      ],
+      "nudge_normalized": {
+        "x": -0.0559,
+        "y": -0.1525
+      },
+      "road_clearance_tiles": 0,
+      "neighbor_gap_tiles": 3.16,
+      "nudge_reason": "Preferred lot overlaps the plaza/road occupancy. Origin moved to the nearest grass island that keeps the village-plan cluster, stays off reserved special lots, and still has a short door path."
+    },
+    {
+      "house_id": "residence_03",
+      "variant": "03",
+      "scene_path": "res://scenes/world/buildings/residential/res_house_03.tscn",
+      "exterior_texture_path": "res://assets/world/buildings/residential/res_house_03_exterior.png",
+      "shadow_texture_path": "res://assets/world/buildings/residential/res_house_03_shadow.png",
+      "canvas_size": [
+        512,
+        448
+      ],
+      "asset_origin": [
+        256,
+        400
+      ],
+      "footprint_polygon": [
+        [
+          -192,
+          -192
+        ],
+        [
+          192,
+          -192
+        ],
+        [
+          192,
+          -10
+        ],
+        [
+          -192,
+          -10
+        ]
+      ],
+      "collision_aabb_local": [
+        -192,
+        -192,
+        384,
+        182
+      ],
+      "door_local_position": [
+        -10,
+        -16
+      ],
+      "door_area_local": [
+        -10,
+        4,
+        40,
+        22
+      ],
+      "entrance_marker_local_position": [
+        -10,
+        18
+      ],
+      "approximate_footprint_tiles": [
+        6.0,
+        3.0
+      ],
+      "preferred_normalized_position": {
+        "x": 0.55,
+        "y": 0.35
+      },
+      "map_normalized_position": {
+        "x": 0.5469,
+        "y": 0.2083
+      },
+      "map_cell_position": [
+        35,
+        10
+      ],
+      "map_world_position": [
+        2240,
+        640
+      ],
+      "collision_world_aabb": {
+        "x": 2048,
+        "y": 448,
+        "width": 384,
+        "height": 182
+      },
+      "door_world_position": [
+        2230,
+        644
+      ],
+      "entrance_marker_world_position": [
+        2230,
+        658
+      ],
+      "entrance_path_cells": [
+        {
+          "x": 33,
+          "y": 10
+        },
+        {
+          "x": 33,
+          "y": 11
+        },
+        {
+          "x": 33,
+          "y": 12
+        },
+        {
+          "x": 33,
+          "y": 13
+        },
+        {
+          "x": 33,
+          "y": 14
+        },
+        {
+          "x": 34,
+          "y": 10
+        },
+        {
+          "x": 34,
+          "y": 11
+        },
+        {
+          "x": 34,
+          "y": 12
+        },
+        {
+          "x": 34,
+          "y": 13
+        },
+        {
+          "x": 34,
+          "y": 14
+        },
+        {
+          "x": 35,
+          "y": 10
+        },
+        {
+          "x": 35,
+          "y": 11
+        },
+        {
+          "x": 35,
+          "y": 12
+        },
+        {
+          "x": 35,
+          "y": 13
+        },
+        {
+          "x": 35,
+          "y": 14
+        }
+      ],
+      "entrance_path_length_tiles": 4,
+      "nearest_road_route": "route_d_north_watermill",
+      "future_interior_id": null,
+      "resident_assignment": null,
+      "occlusion_polygon_local": [
+        [
+          -168,
+          -164
+        ],
+        [
+          168,
+          -164
+        ],
+        [
+          210,
+          -190
+        ],
+        [
+          210,
+          -26
+        ],
+        [
+          168,
+          0
+        ],
+        [
+          -168,
+          0
+        ]
+      ],
+      "nudge_normalized": {
+        "x": -0.0031,
+        "y": -0.1417
+      },
+      "road_clearance_tiles": 0,
+      "neighbor_gap_tiles": 3.0,
+      "nudge_reason": "Preferred lot overlaps the plaza/road occupancy. Origin moved to the nearest grass island that keeps the village-plan cluster, stays off reserved special lots, and still has a short door path."
+    },
+    {
+      "house_id": "residence_04",
+      "variant": "04",
+      "scene_path": "res://scenes/world/buildings/residential/res_house_04.tscn",
+      "exterior_texture_path": "res://assets/world/buildings/residential/res_house_04_exterior.png",
+      "shadow_texture_path": "res://assets/world/buildings/residential/res_house_04_shadow.png",
+      "canvas_size": [
+        512,
+        448
+      ],
+      "asset_origin": [
+        256,
+        400
+      ],
+      "footprint_polygon": [
+        [
+          -160,
+          -192
+        ],
+        [
+          160,
+          -192
+        ],
+        [
+          160,
+          -10
+        ],
+        [
+          -160,
+          -10
+        ]
+      ],
+      "collision_aabb_local": [
+        -160,
+        -192,
+        320,
+        182
+      ],
+      "door_local_position": [
+        26,
+        -16
+      ],
+      "door_area_local": [
+        26,
+        4,
+        40,
+        22
+      ],
+      "entrance_marker_local_position": [
+        26,
+        18
+      ],
+      "approximate_footprint_tiles": [
+        5.0,
+        3.0
+      ],
+      "preferred_normalized_position": {
+        "x": 0.64,
+        "y": 0.43
+      },
+      "map_normalized_position": {
+        "x": 0.7422,
+        "y": 0.4167
+      },
+      "map_cell_position": [
+        47,
+        20
+      ],
+      "map_world_position": [
+        3040,
+        1280
+      ],
+      "collision_world_aabb": {
+        "x": 2880,
+        "y": 1088,
+        "width": 320,
+        "height": 182
+      },
+      "door_world_position": [
+        3066,
+        1284
+      ],
+      "entrance_marker_world_position": [
+        3066,
+        1298
+      ],
+      "entrance_path_cells": [
+        {
+          "x": 46,
+          "y": 20
+        },
+        {
+          "x": 47,
+          "y": 20
+        },
+        {
+          "x": 48,
+          "y": 20
+        }
+      ],
+      "entrance_path_length_tiles": 0,
+      "nearest_road_route": "route_g_east",
+      "future_interior_id": null,
+      "resident_assignment": null,
+      "occlusion_polygon_local": [
+        [
+          -158,
+          -142
+        ],
+        [
+          158,
+          -142
+        ],
+        [
+          208,
+          -168
+        ],
+        [
+          208,
+          -26
+        ],
+        [
+          158,
+          0
+        ],
+        [
+          -158,
+          0
+        ]
+      ],
+      "nudge_normalized": {
+        "x": 0.1022,
+        "y": -0.0133
+      },
+      "road_clearance_tiles": 0,
+      "neighbor_gap_tiles": 8,
+      "nudge_reason": "Preferred lot overlaps the plaza/road occupancy. Origin moved to the nearest grass island that keeps the village-plan cluster, stays off reserved special lots, and still has a short door path."
+    },
+    {
+      "house_id": "residence_05",
+      "variant": "05",
+      "scene_path": "res://scenes/world/buildings/residential/res_house_05.tscn",
+      "exterior_texture_path": "res://assets/world/buildings/residential/res_house_05_exterior.png",
+      "shadow_texture_path": "res://assets/world/buildings/residential/res_house_05_shadow.png",
+      "canvas_size": [
+        512,
+        448
+      ],
+      "asset_origin": [
+        256,
+        400
+      ],
+      "footprint_polygon": [
+        [
+          -128,
+          -160
+        ],
+        [
+          128,
+          -160
+        ],
+        [
+          128,
+          -10
+        ],
+        [
+          -128,
+          -10
+        ]
+      ],
+      "collision_aabb_local": [
+        -128,
+        -160,
+        256,
+        150
+      ],
+      "door_local_position": [
+        -8,
+        -16
+      ],
+      "door_area_local": [
+        -8,
+        4,
+        40,
+        22
+      ],
+      "entrance_marker_local_position": [
+        -8,
+        18
+      ],
+      "approximate_footprint_tiles": [
+        4.0,
+        2.5
+      ],
+      "preferred_normalized_position": {
+        "x": 0.35,
+        "y": 0.56
+      },
+      "map_normalized_position": {
+        "x": 0.2812,
+        "y": 0.5521
+      },
+      "map_cell_position": [
+        18,
+        26
+      ],
+      "map_world_position": [
+        1152,
+        1696
+      ],
+      "collision_world_aabb": {
+        "x": 1024,
+        "y": 1536,
+        "width": 256,
+        "height": 150
+      },
+      "door_world_position": [
+        1144,
+        1700
+      ],
+      "entrance_marker_world_position": [
+        1144,
+        1714
+      ],
+      "entrance_path_cells": [
+        {
+          "x": 16,
+          "y": 27
+        },
+        {
+          "x": 16,
+          "y": 28
+        },
+        {
+          "x": 17,
+          "y": 27
+        },
+        {
+          "x": 17,
+          "y": 28
+        },
+        {
+          "x": 18,
+          "y": 27
+        },
+        {
+          "x": 18,
+          "y": 28
+        }
+      ],
+      "entrance_path_length_tiles": 2,
+      "nearest_road_route": "route_i_southwest",
+      "future_interior_id": null,
+      "resident_assignment": null,
+      "occlusion_polygon_local": [
+        [
+          -124,
+          -134
+        ],
+        [
+          124,
+          -134
+        ],
+        [
+          164,
+          -156
+        ],
+        [
+          164,
+          -22
+        ],
+        [
+          124,
+          0
+        ],
+        [
+          -124,
+          0
+        ]
+      ],
+      "nudge_normalized": {
+        "x": -0.0687,
+        "y": -0.0079
+      },
+      "road_clearance_tiles": 0,
+      "neighbor_gap_tiles": 8,
+      "nudge_reason": "Preferred lot overlaps the plaza/road occupancy. Origin moved to the nearest grass island that keeps the village-plan cluster, stays off reserved special lots, and still has a short door path."
+    },
+    {
+      "house_id": "residence_06",
+      "variant": "06",
+      "scene_path": "res://scenes/world/buildings/residential/res_house_06.tscn",
+      "exterior_texture_path": "res://assets/world/buildings/residential/res_house_06_exterior.png",
+      "shadow_texture_path": "res://assets/world/buildings/residential/res_house_06_shadow.png",
+      "canvas_size": [
+        512,
+        448
+      ],
+      "asset_origin": [
+        256,
+        400
+      ],
+      "footprint_polygon": [
+        [
+          -160,
+          -192
+        ],
+        [
+          160,
+          -192
+        ],
+        [
+          160,
+          -10
+        ],
+        [
+          -160,
+          -10
+        ]
+      ],
+      "collision_aabb_local": [
+        -160,
+        -192,
+        320,
+        182
+      ],
+      "door_local_position": [
+        -20,
+        -16
+      ],
+      "door_area_local": [
+        -20,
+        4,
+        40,
+        22
+      ],
+      "entrance_marker_local_position": [
+        -20,
+        18
+      ],
+      "approximate_footprint_tiles": [
+        5.0,
+        3.0
+      ],
+      "preferred_normalized_position": {
+        "x": 0.43,
+        "y": 0.6
+      },
+      "map_normalized_position": {
+        "x": 0.3828,
+        "y": 0.6875
+      },
+      "map_cell_position": [
+        24,
+        33
+      ],
+      "map_world_position": [
+        1568,
+        2112
+      ],
+      "collision_world_aabb": {
+        "x": 1408,
+        "y": 1920,
+        "width": 320,
+        "height": 182
+      },
+      "door_world_position": [
+        1548,
+        2116
+      ],
+      "entrance_marker_world_position": [
+        1548,
+        2130
+      ],
+      "entrance_path_cells": [
+        {
+          "x": 24,
+          "y": 33
+        },
+        {
+          "x": 24,
+          "y": 34
+        },
+        {
+          "x": 25,
+          "y": 33
+        },
+        {
+          "x": 25,
+          "y": 34
+        },
+        {
+          "x": 26,
+          "y": 33
+        },
+        {
+          "x": 26,
+          "y": 34
+        },
+        {
+          "x": 27,
+          "y": 32
+        },
+        {
+          "x": 27,
+          "y": 33
+        },
+        {
+          "x": 27,
+          "y": 34
+        }
+      ],
+      "entrance_path_length_tiles": 3,
+      "nearest_road_route": "route_i_southwest",
+      "future_interior_id": null,
+      "resident_assignment": null,
+      "occlusion_polygon_local": [
+        [
+          -156,
+          -138
+        ],
+        [
+          156,
+          -138
+        ],
+        [
+          202,
+          -162
+        ],
+        [
+          202,
+          -24
+        ],
+        [
+          156,
+          0
+        ],
+        [
+          -156,
+          0
+        ]
+      ],
+      "nudge_normalized": {
+        "x": -0.0472,
+        "y": 0.0875
+      },
+      "road_clearance_tiles": 0,
+      "neighbor_gap_tiles": 4.17,
+      "nudge_reason": "Preferred lot overlaps the plaza/road occupancy. Origin moved to the nearest grass island that keeps the village-plan cluster, stays off reserved special lots, and still has a short door path."
+    }
+  ],
+  "access_path_cells": [
+    {
+      "x": 16,
+      "y": 27
+    },
+    {
+      "x": 16,
+      "y": 28
+    },
+    {
+      "x": 17,
+      "y": 27
+    },
+    {
+      "x": 17,
+      "y": 28
+    },
+    {
+      "x": 18,
+      "y": 27
+    },
+    {
+      "x": 18,
+      "y": 28
+    },
+    {
+      "x": 22,
+      "y": 15
+    },
+    {
+      "x": 22,
+      "y": 16
+    },
+    {
+      "x": 23,
+      "y": 15
+    },
+    {
+      "x": 23,
+      "y": 16
+    },
+    {
+      "x": 24,
+      "y": 15
+    },
+    {
+      "x": 24,
+      "y": 16
+    },
+    {
+      "x": 24,
+      "y": 33
+    },
+    {
+      "x": 24,
+      "y": 34
+    },
+    {
+      "x": 25,
+      "y": 9
+    },
+    {
+      "x": 25,
+      "y": 10
+    },
+    {
+      "x": 25,
+      "y": 11
+    },
+    {
+      "x": 25,
+      "y": 33
+    },
+    {
+      "x": 25,
+      "y": 34
+    },
+    {
+      "x": 26,
+      "y": 9
+    },
+    {
+      "x": 26,
+      "y": 10
+    },
+    {
+      "x": 26,
+      "y": 11
+    },
+    {
+      "x": 26,
+      "y": 12
+    },
+    {
+      "x": 26,
+      "y": 13
+    },
+    {
+      "x": 26,
+      "y": 14
+    },
+    {
+      "x": 26,
+      "y": 33
+    },
+    {
+      "x": 26,
+      "y": 34
+    },
+    {
+      "x": 27,
+      "y": 9
+    },
+    {
+      "x": 27,
+      "y": 10
+    },
+    {
+      "x": 27,
+      "y": 11
+    },
+    {
+      "x": 27,
+      "y": 12
+    },
+    {
+      "x": 27,
+      "y": 13
+    },
+    {
+      "x": 27,
+      "y": 14
+    },
+    {
+      "x": 27,
+      "y": 32
+    },
+    {
+      "x": 27,
+      "y": 33
+    },
+    {
+      "x": 27,
+      "y": 34
+    },
+    {
+      "x": 33,
+      "y": 10
+    },
+    {
+      "x": 33,
+      "y": 11
+    },
+    {
+      "x": 33,
+      "y": 12
+    },
+    {
+      "x": 33,
+      "y": 13
+    },
+    {
+      "x": 33,
+      "y": 14
+    },
+    {
+      "x": 34,
+      "y": 10
+    },
+    {
+      "x": 34,
+      "y": 11
+    },
+    {
+      "x": 34,
+      "y": 12
+    },
+    {
+      "x": 34,
+      "y": 13
+    },
+    {
+      "x": 34,
+      "y": 14
+    },
+    {
+      "x": 35,
+      "y": 10
+    },
+    {
+      "x": 35,
+      "y": 11
+    },
+    {
+      "x": 35,
+      "y": 12
+    },
+    {
+      "x": 35,
+      "y": 13
+    },
+    {
+      "x": 35,
+      "y": 14
+    },
+    {
+      "x": 46,
+      "y": 20
+    },
+    {
+      "x": 47,
+      "y": 20
+    },
+    {
+      "x": 48,
+      "y": 20
+    }
+  ],
+  "reserved_special_building_zones_checked": [
+    "barn_livestock",
+    "blacksmith",
+    "fields_orchard",
+    "general_store",
+    "main_road_south",
+    "shrine_graveyard",
+    "stables_inn",
+    "village_hall",
+    "village_square_monument",
+    "watermill"
+  ],
+  "notes": [
+    "Ordinary residential exteriors only. No interiors, NPCs, yards, or special buildings.",
+    "The dense plaza/road network cannot keep a 2-tile gap beside every 4\u20136 tile house. Placement forbids overlapping roads and reserved special lots, then prefers the smallest nudge from the authored cluster."
+  ]
+}

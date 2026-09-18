@@ -1,7 +1,7 @@
 {
   "protocolVersion": 1,
   "contentSchemaVersion": 1,
-  "contentHash": "92b11cb3cb1acae3ca9ea7a886332d2d617e5fd6b5e27b653b8b340fe5b30bb5",
+  "contentHash": "6bec48bc7eef7a920b6397df3150d513611499fb2314c03700dc8dc8bcb950fd",
   "exactDependencies": {
     "server/package.json:typescript": "5.8.3",
     "server/package.json:nakama-runtime": "github:heroiclabs/nakama-common#v1.47.0",
@@ -510,6 +510,7 @@
       "client/scripts/world/world.gd",
       "client/scripts/world/zone_view.gd",
       "client/scripts/world/terrain/village_roads_test.gd",
+      "client/tests/app/residential_houses_test.gd",
       "client/scripts/world/movement_sim.gd",
       "client/content/asset_manifest.json"
     ],
