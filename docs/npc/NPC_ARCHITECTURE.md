@@ -31,3 +31,7 @@ NPCs are a distinct noncombat entity family. The target architecture gives them 
 Extend `npc.ts`, `interaction.ts`, `match_state.ts`, `match_loop.ts`, `EntityRegistry`, `InteractIntent`, `DialoguePresenter`, the generic quest/vendor/inn/cave/respec owners, and the existing content build/audit tools. Do not add elder, merchant, innkeeper, trainer, quest, inventory, currency, dialogue, combat, or account subsystems.
 
 The current implementation already keeps NPCs out of `targeting.ts`, enemy AI, combat events, and snapshots. It exposes them from `FULL_STATE.npcs`; ordinary `SNAPSHOT` traffic currently does not include them because their poses are static. Later cosmetic motion must add server-authoritative NPC pose updates without turning NPCs into combatants.
+
+## NPC-01 change inventory
+
+NPC-01 changes only `docs/npc/NPC_*.md`, `tools/content-build/src/validate.ts`, `tools/content-build/tests/content-build.test.ts`, `tools/foundation-audit/audit.cjs`, and `docs/PROGRESS.md`. It does not change content source, generated bundle/catalog, server runtime behavior, client behavior, opcodes/RPCs, storage schemas, migrations, dependencies, or `client/addons/`.
