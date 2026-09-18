@@ -25,7 +25,6 @@ import { memoryCommitter, TX_REASON_VENDOR, type TransactionCommitter, type Tran
 import {
   buyMessage,
   closeMessage,
-  envelope,
   interactionPayload,
   openNpcSession,
 } from "./npc_session";

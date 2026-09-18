@@ -12,6 +12,14 @@ export function envelope(extra: { [key: string]: unknown } = {}): string {
   return JSON.stringify(body);
 }
 
+export function interactMessage(userId: string, npcId: string, requestId: string) {
+  return {
+    opcode: ClientOpcode.INTERACT,
+    raw: envelope({ targetId: npcId, requestId: requestId }),
+    userId: userId,
+  };
+}
+
 export function closeMessage(
   userId: string,
   sessionId: string,

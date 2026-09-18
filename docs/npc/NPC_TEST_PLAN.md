@@ -29,7 +29,16 @@ NPC-04/NPC-05 interaction, dialogue, quest, and marker coverage remains in `inte
 
 ## Baseline results and reproducible commands
 
-Recorded after NPC-06 hermetic gates pass. Directory-form `node --test dist/tests` wrappers can fail before discovery. Direct compiled-file glob invocation is the authoritative path:
+NPC-06 hermetic gates (Node 22.14). Directory-form `node --test dist/tests` wrappers can fail before discovery. Direct compiled-file glob invocation is the authoritative path:
+
+| Gate | Result |
+| --- | --- |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (34 storage records, 40 client opcodes, 15 server opcodes, 29 RPCs) |
+| Content validation/tests | 28/28 passed |
+| Server hermetic tests | 830 passed, 13 expected live-test skips |
+| Server typecheck/build | passed; existing circular-dependency warning only |
+| Auth gateway hermetic tests | 52/52 passed via compiled test-file glob |
+| Godot 4.7.1 client GdUnit | 327/327 passed, 0 failures, 0 orphans |
 
 ```bash
 bash scripts/test-audit.sh

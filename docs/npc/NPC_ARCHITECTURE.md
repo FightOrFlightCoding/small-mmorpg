@@ -1,8 +1,8 @@
 # NPC architecture contract (NPC-06)
 
 **Last accepted gameplay/progression phase:** PROG-15 — Deterministic Balance Simulator and Final Progression Certification.  
-**Last accepted NPC phase:** NPC-05 — Quest integration.  
-**Current requested phase:** NPC-06 — Merchant integration.
+**Last accepted NPC phase:** NPC-06 — Merchant integration.  
+**Current requested phase:** NPC-06 (accepted). Do not start NPC-07.
 
 NPC-06 extends the NPC-05 contract. It does not add NPC types, public-world sharding, PvP, guilds, or a second shop/inventory/currency/transaction system. It reuses canonical `vendor.ts` / `transaction.ts` / wallet / inventory. It keeps the accepted elder/quest journey, Prompt 18 merchant prices, and `VENDOR_SELL`.
 

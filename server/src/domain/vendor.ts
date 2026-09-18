@@ -185,12 +185,6 @@ export function applyVendorBuy(input: VendorBuyInput): VendorTradeOutcome {
     return failTrade("invalid_id", inventory, input.gold);
   }
   const level = input.playerLevel !== undefined ? input.playerLevel : 1;
-  if (stock.levelRequirement !== undefined && level < stock.levelRequirement) {
-    return failTrade("level_too_low", inventory, input.gold);
-  }
-  if (itemDef.levelRequirement !== undefined && level < itemDef.levelRequirement) {
-    return failTrade("level_too_low", inventory, input.gold);
-  }
   const classId = input.classId !== undefined ? input.classId : "";
   const classReqs = stock.classRequirements !== undefined ? stock.classRequirements : [];
   if (classReqs.length > 0 && classReqs.indexOf(classId) === -1) {
@@ -199,6 +193,12 @@ export function applyVendorBuy(input: VendorBuyInput): VendorTradeOutcome {
   const itemClassReqs = itemDef.classRequirements !== undefined ? itemDef.classRequirements : [];
   if (itemClassReqs.length > 0 && itemClassReqs.indexOf(classId) === -1) {
     return failTrade("class_restricted", inventory, input.gold);
+  }
+  if (stock.levelRequirement !== undefined && level < stock.levelRequirement) {
+    return failTrade("level_too_low", inventory, input.gold);
+  }
+  if (itemDef.levelRequirement !== undefined && level < itemDef.levelRequirement) {
+    return failTrade("level_too_low", inventory, input.gold);
   }
   const price = stock.buyPrice * quantity;
   if (input.gold < price) {
