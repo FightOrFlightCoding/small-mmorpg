@@ -1,33 +1,47 @@
 # Progress
 
-Last accepted phase: **PROG-15 — Deterministic Balance Simulator and Final Progression Certification**.
+Last accepted phase: **NPC-01 — Architecture Contract and Conflict Closure**.
 
-Current phase: NPC-01 — Audit and Architecture Contract Only (accepted).
+Current phase: NPC-01 (accepted). Do not start NPC-02.
 
 Canonical git line: **`origin/main`**. Playable work is committed there. The Windows clone stays on `main` and runs `scripts/local-play.ps1 -Branch main`.
 
 The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. PROG-08 remains accepted. PROG-09 remains accepted. PROG-10 remains accepted. PROG-11 remains accepted. PROG-12 remains accepted. PROG-13 remains accepted. PROG-14 remains accepted. PROG-15 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
 
+
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
 
-## NPC-01 audit and architecture contract (2026-09-18)
+## NPC-01 architecture contract and conflict closure (2026-09-18)
 
-NPC-01 is accepted as documentation and repository-audit work only. The last accepted gameplay/progression phase remains **PROG-15**. No player-visible NPC, quest, merchant, inn, trainer, dialogue, combat, class, or progression behavior changed. No opcode, RPC, storage record, migration, dependency, generated content artifact, or vendor file changed.
+NPC-01 is accepted. The last accepted gameplay/progression phase remains **PROG-15**. NPC-02 is not started. No new NPC types, opcodes, RPCs, storage collections, migrations, dependencies, vendor addons, or progression formulas were added. Prompt 18 elder spoken lines, quest rewards, and merchant prices are unchanged.
 
-The NPC contract set is [NPC_ARCHITECTURE.md](npc/NPC_ARCHITECTURE.md), [NPC_CONTENT_MODEL.md](npc/NPC_CONTENT_MODEL.md), [NPC_PROTOCOL_CATALOG.md](npc/NPC_PROTOCOL_CATALOG.md), [NPC_STATE_MACHINE.md](npc/NPC_STATE_MACHINE.md), [NPC_SECURITY_MODEL.md](npc/NPC_SECURITY_MODEL.md), [NPC_TEST_PLAN.md](npc/NPC_TEST_PLAN.md), and [NPC_CURRENT_CONFLICTS.md](npc/NPC_CURRENT_CONFLICTS.md). It assigns content, runtime instance, cosmetic movement, interaction-session, dialogue, quest-binding, merchant-stock, rendering, marker, and transaction ownership to existing modules. Target movement states are `IDLE`, `MOVING`, and `PAUSED_FOR_INTERACTION`; target interaction-session states are `OPEN`, `ACTIVE`, `CLOSED`, `EXPIRED`, and `INVALIDATED`.
+The contract set is [NPC_ARCHITECTURE.md](npc/NPC_ARCHITECTURE.md), [NPC_CONTENT_MODEL.md](npc/NPC_CONTENT_MODEL.md), [NPC_PROTOCOL_CATALOG.md](npc/NPC_PROTOCOL_CATALOG.md), [NPC_STATE_MACHINE.md](npc/NPC_STATE_MACHINE.md), [NPC_SECURITY_MODEL.md](npc/NPC_SECURITY_MODEL.md), [NPC_TEST_PLAN.md](npc/NPC_TEST_PLAN.md), and [NPC_CURRENT_CONFLICTS.md](npc/NPC_CURRENT_CONFLICTS.md). Every previously recorded conflict row is **RESOLVED**:
 
-Content validation now rejects duplicate NPC placements and unknown NPC service types, in addition to existing duplicate-ID and missing-reference checks. The foundation audit confirms that NPCs remain outside combat targeting and enemy threat selection; that `MatchNpc` has no combat state; that client vendor requests cannot submit price or gold; and that dialogue `do` actions use approved project-owned adapters. Current NPC physical movement blocking, absent right-click interaction, the respec NPC-ID overlay, literal dialogue bindings, and lack of explicit interaction-session state are documented migration debt, not silently accepted behavior. The existing elder/quest journey remains unchanged.
+| ID | Closure |
+| --- | --- |
+| NPC-C01 | NPCs removed from gameplay AABB collision; `NpcAvatar` has a non-monitoring `InteractionArea`. |
+| NPC-C02 | Right-click is the default interact pick; keyboard `interact` remains the same `INTERACT` intention. |
+| NPC-C03 | Authored `respec` on `npc.test_innkeeper` / `npc.lab_trainer`; `RESPEC_TRAINER_NPC_IDS` overlay deleted. |
+| NPC-C04 | Elder/proof/cert dialogue uses `QuestService` offered helpers bound to NPC content services. |
+| NPC-C05 | Match-owned `interactionSession`; NPC poses stay static on `FULL_STATE`. |
+| NPC-C06 | Interact, vendor, inn, cave, quest, and trainer authorization use `resolveInteraction` `requiredService`. |
+| NPC-C07 | Repeated `INTERACT` request IDs replay the stored result and do not re-run `talk_to_npc`. |
+
+Content hash `b103bcc75e9845f4d4facc967bfab56b1dcd041bcb913e189132109a18d7eb94` (respec now in NPC source).
 
 | Gate | Result |
 | --- | --- |
 | Foundation audit | `FOUNDATION_AUDIT_OK` (34 storage records, 38 client opcodes, 15 server opcodes, 29 RPCs) |
-| Content validation/tests | 26/26 passed, including NPC placement/service checks |
-| Server hermetic tests | 759 passed, 13 expected live-test skips |
+| Content validation/tests | 26/26 passed, including NPC placement/service checks and innkeeper `respec` |
+| Server hermetic tests | 760 passed, 13 expected live-test skips |
 | Server typecheck/build | passed; existing circular-dependency warning only |
 | Auth gateway hermetic tests | 52/52 passed via compiled test-file glob |
-| Godot 4.7.1 client GdUnit | 314/314 passed, 0 failures, 0 orphans |
+| Godot 4.7.1 client GdUnit | 317/317 passed, 0 failures, 0 orphans |
 
-Pre-existing Node 22.14 runner compatibility remains documented: `scripts/test-content.sh` and `scripts/test-auth-gateway.sh` call `node --test` with a directory and fail before test discovery. Their direct compiled-file glob equivalents pass; NPC-01 does not change those unrelated wrappers.
+Pre-existing Node 22.14 runner compatibility remains documented: `scripts/test-content.sh` and `scripts/test-auth-gateway.sh` call `node --test` with a directory and fail before test discovery. Their direct compiled-file glob equivalents pass.
+
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen `client/`.
+
 
 ## Phase 0 acceptance (2026-08-15)
 
