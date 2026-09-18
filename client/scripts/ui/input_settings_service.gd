@@ -42,6 +42,7 @@ func ensure_actions() -> void:
 	_ensure("chat_focus", KEY_T)
 	_ensure("open_settings", KEY_O)
 	_ensure("target_select", KEY_TAB)
+	_ensure_mouse("interact_pointer", MOUSE_BUTTON_RIGHT)
 	_capture_defaults()
 
 
@@ -52,6 +53,7 @@ func bindable_actions() -> PackedStringArray:
 		"move_up",
 		"move_down",
 		"interact",
+		"interact_pointer",
 		"attack",
 		"pickup",
 		"target_select",
@@ -144,15 +146,33 @@ func load_from_disk() -> void:
 		if typeof(codes) != TYPE_ARRAY:
 			continue
 		for code in codes:
-			var event := InputEventKey.new()
-			event.physical_keycode = int(code)
-			InputMap.action_add_event(name, event)
+			var event := _event_from_stored(code)
+			if event != null:
+				InputMap.action_add_event(name, event)
+
+
+func _event_from_stored(code: Variant) -> InputEvent:
+	if typeof(code) == TYPE_DICTIONARY:
+		var row: Dictionary = code
+		if String(row.get("kind", "")) == "mouse":
+			var mouse := InputEventMouseButton.new()
+			mouse.button_index = int(row.get("button", MOUSE_BUTTON_RIGHT)) as MouseButton
+			return mouse
+		var key := InputEventKey.new()
+		key.physical_keycode = int(row.get("code", 0)) as Key
+		return key
+	var event := InputEventKey.new()
+	event.physical_keycode = int(code) as Key
+	return event
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if awaiting_rebind_action.is_empty():
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
+		rebind(awaiting_rebind_action, event)
+		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseButton and event.pressed:
 		rebind(awaiting_rebind_action, event)
 		get_viewport().set_input_as_handled()
 
@@ -163,6 +183,15 @@ func _ensure(action: String, keycode: int) -> void:
 	InputMap.add_action(action)
 	var event := InputEventKey.new()
 	event.physical_keycode = keycode
+	InputMap.action_add_event(action, event)
+
+
+func _ensure_mouse(action: String, button: MouseButton) -> void:
+	if InputMap.has_action(action):
+		return
+	InputMap.add_action(action)
+	var event := InputEventMouseButton.new()
+	event.button_index = button
 	InputMap.action_add_event(action, event)
 
 
@@ -186,7 +215,9 @@ func _serialize() -> Dictionary:
 		var codes: Array = []
 		for event in InputMap.action_get_events(action):
 			if event is InputEventKey:
-				codes.append(int((event as InputEventKey).physical_keycode))
+				codes.append({"kind": "key", "code": int((event as InputEventKey).physical_keycode)})
+			elif event is InputEventMouseButton:
+				codes.append({"kind": "mouse", "button": int((event as InputEventMouseButton).button_index)})
 		out[action] = codes
 	return out
 

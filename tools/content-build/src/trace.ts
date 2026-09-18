@@ -295,6 +295,22 @@ export function outboundRefs(payload: ContentPayload, id: string): string[] {
   if (route) {
     return refs;
   }
+  const dialogue = payload.dialogues[id];
+  if (dialogue) {
+    const nodeIds = Object.keys(dialogue.nodes);
+    for (let n = 0; n < nodeIds.length; n++) {
+      const node = dialogue.nodes[nodeIds[n]];
+      const options = node.options !== undefined ? node.options : [];
+      for (let o = 0; o < options.length; o++) {
+        pushConditionRefs(refs, options[o].conditions);
+      }
+    }
+    const entry = dialogue.entry !== undefined ? dialogue.entry : [];
+    for (let e = 0; e < entry.length; e++) {
+      pushConditionRefs(refs, entry[e].conditions);
+    }
+    return refs;
+  }
   const progression = payload.classProgressions[id];
   if (progression) {
     refs.push(progression.classId);
@@ -448,6 +464,27 @@ function pushMapKeys(refs: string[], map: Record<string, number> | undefined): v
   const keys = Object.keys(map);
   for (let i = 0; i < keys.length; i++) {
     refs.push(keys[i]);
+  }
+}
+
+function pushConditionRefs(
+  refs: string[],
+  conditions: Array<{ questId?: string; classId?: string; itemId?: string }> | undefined,
+): void {
+  if (conditions === undefined) {
+    return;
+  }
+  for (let i = 0; i < conditions.length; i++) {
+    const condition = conditions[i];
+    if (condition.questId !== undefined) {
+      refs.push(condition.questId);
+    }
+    if (condition.classId !== undefined) {
+      refs.push(condition.classId);
+    }
+    if (condition.itemId !== undefined) {
+      refs.push(condition.itemId);
+    }
   }
 }
 

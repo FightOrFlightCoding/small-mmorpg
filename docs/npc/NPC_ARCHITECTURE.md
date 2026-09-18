@@ -1,19 +1,19 @@
-# NPC architecture contract (NPC-03)
+# NPC architecture contract (NPC-04)
 
 **Last accepted gameplay/progression phase:** PROG-15 — Deterministic Balance Simulator and Final Progression Certification.  
-**Current requested phase:** NPC-03 — cosmetic route movement and synchronization (accepted). Do not start NPC-04.
+**Current requested phase:** NPC-04 — right-click interaction and dialogue.
 
-NPC-03 extends the NPC-02 contract. It does not add NPC types, public-world sharding, PvP, guilds, or a second quest/inventory/dialogue/combat system. It keeps the accepted elder/quest journey and progression formulas.
+NPC-04 extends the NPC-03 contract. It does not add NPC types, public-world sharding, PvP, guilds, or a second quest/inventory/dialogue/combat system. It keeps the accepted elder/quest journey and progression formulas.
 
 ## Ownership
 
 | Concern | Owner | Contract |
 | --- | --- | --- |
-| NPC content | `content/schemas/npc.json` (title `npc_definition`), `npc_route.json`, `npc_service_binding.json`, `npc_quest_binding.json`, `dialogue_definition.json`, `vendor.json` (title `vendor_definition`), `content/source/` | Stable IDs, `displayNameKey`, zone, `homePosition`, `routeId`, interaction range, `visualId`, typed services. Generated bundle/catalog are derived artifacts. |
+| NPC content | `content/schemas/npc.json` (title `npc_definition`), `npc_route.json`, `npc_service_binding.json`, `npc_quest_binding.json`, `dialogue_definition.json`, `vendor.json` (title `vendor_definition`), `content/source/` | Stable IDs, `displayNameKey`, zone, `homePosition`, `routeId`, interaction range, `visualId`, typed services. Generated bundle/catalog are derived artifacts. Dialogue graphs are hashed `dialogue` documents. |
 | Runtime instances | `npc.ts` `NpcRuntimeInstance`, `match_state.ts` `MatchNpc` alias | One generic noncombat actor per placement. Pose, home, route id, interaction range, dialogue id, visual id. No HP, threat, AI, or collision fields. |
-| Movement | `npc_movement.ts`, `match_loop.ts` | Server owns the cosmetic plan (current/next node, revision, segment endpoints and times, idle-until, deterministic RNG). Clients interpolate from match ticks. No collision resolution or pathfinding. Pause/resume exist for later interaction and are not wired to `INTERACT`. |
-| Interaction sessions | `interaction.ts`, `match_loop.ts` | Server validates live NPC, zone, server poses, range, and `requiredService` gates, then records match-owned `interactionSession` / `interactByRequestId`. `INTERACTION_RESULT` is presentation, not a reward transaction. |
-| Dialogue state | `DialoguePresenter` / `DialogueCatalog` / `QuestService` offered helpers | Client presentation only, opened after matching successful `INTERACTION_RESULT`. Dialogue scripts remain client-local mappings keyed by `dialogueId`; `dialogue_definition` is the shared schema for that ID contract. |
+| Movement | `npc_movement.ts`, `match_loop.ts` | Server owns the cosmetic plan. The first live interaction session on an NPC pauses movement and broadcasts the paused plan; the last close/expiry resumes the authored route. Multiple players may hold sessions at once. |
+| Interaction sessions | `interaction.ts`, `match_loop.ts` | `INTERACT` creates a short-lived match-owned session. Later dialogue actions require `interactionSessionId` plus `requestId`. `INTERACTION_RESULT` is presentation, not a reward transaction. |
+| Dialogue state | `dialogue.ts`, `DialoguePresenter`, `NpcInteractionWindow` | Server evaluates content graphs (lines, options, conditions, next-node refs, no scripts) and returns node/option/service ids. The client renders localized text. Quest/vendor/inn/cave/respec remain existing service owners. |
 | Quest bindings | `quest.ts`, `quest_objectives.ts`, `quest_reward.ts`, `npc_quest_binding` | Existing generic quest engine validates accept/turn-in NPC and service; elder `quest.slime_problem` stays on the generic NPC definition. |
 | Merchant stock | `vendor.ts`, `transaction.ts`, `vendor_definition` | Static content stock and server-computed price/sell value; transactions use the existing atomic boundary. |
 | Client rendering | `EntityRegistry`, `NpcAvatar`, `ContentRegistry`, asset manifest | One generic `NpcAvatar`: `Node2D`, placeholder square, name label, marker anchor, interaction-only `Area2D`, no physics body. |
@@ -22,7 +22,7 @@ NPC-03 extends the NPC-02 contract. It does not add NPC types, public-world shar
 
 ## Authority boundary
 
-The Godot client may choose a nearby NPC for usability (right-click default, keyboard accessibility) and send `INTERACT { targetId, requestId }`; it may render dialogue and panels after server approval. The Nakama match remains authoritative for NPC existence, server pose, interaction range, quest eligibility/progress/rewards, stock, prices, inventory, wallet gold, healing, binding, cave tickets, and trainer respec cost/results.
+The Godot client may choose a nearby NPC for usability (configurable `interact_pointer`, right-mouse default, keyboard `interact`) and send `INTERACT { targetId, requestId }`; it may render the reusable NPC window after server approval. The Nakama match remains authoritative for NPC existence, server pose, interaction range, dialogue node/options, session lifetime, quest eligibility/progress/rewards, stock, prices, inventory, wallet gold, healing, binding, cave tickets, and trainer respec cost/results.
 
 NPCs are a distinct noncombat entity family. They have no HP, threat, combat effects, hostile/friendly target slot, AoE membership, or gameplay collision. Targeting, threat, damage, healing, death, and loot pipelines reject NPC ids. Interaction is an `Area2D`-style presentation affordance/range hint, with server distance validation as the authority. Clients never submit NPC transforms.
 
@@ -32,6 +32,6 @@ Extend `npc.ts`, `npc_movement.ts`, `interaction.ts`, `match_state.ts`, `match_l
 
 NPCs stay out of hostile/friendly combat targeting, AoE combat queries, enemy AI, threat, damage, healing, death, and loot. They are exposed from `FULL_STATE.npcs` with public movement plans. Ordinary `SNAPSHOT` traffic includes NPC plans only when a movement revision changes.
 
-## NPC-03 change inventory
+## NPC-04 change inventory
 
-Server-coordinated cosmetic route movement for `stationary`, `loop`, `ping_pong`, and `weighted_route_graph`. Randomization may affect only the next authored route choice, speed within content bounds, dwell within content bounds, and initial start delay. NPCs never select arbitrary world positions. Late joiners reconstruct the current interpolated pose from `FULL_STATE`. Movement is match-lifetime only and is not persisted. Production NPCs, including the elder, remain on `route.stationary`. No new opcodes/RPCs, storage collections, migrations, dependencies, progression formulas, or `client/addons/`.
+Right-click (`interact_pointer`) and keyboard interact send the same `INTERACT` intention. The server opens a short-lived interaction session, returns the current dialogue node id plus allowed option and service ids, and pauses cosmetic NPC movement on the first live session. `DIALOGUE_CHOOSE` (39) and `INTERACTION_CLOSE` (40) require the session id. Content dialogue graphs have one or more lines, zero or more options, conditions, and next-node references, with no arbitrary scripts. The client renders localized text in `NpcInteractionWindow`. Sessions invalidate on close, range, death, link-dead, disconnect, transfer, match leave, and expiry. Multiple players may use the same NPC. No new RPCs, storage collections, migrations, dependencies, progression formulas, or `client/addons/`. Do not start NPC-05.

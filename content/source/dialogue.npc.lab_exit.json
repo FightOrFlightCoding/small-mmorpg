@@ -1,0 +1,35 @@
+{
+  "id": "dialogue.npc.lab_exit",
+  "kind": "dialogue",
+  "displayName": "Lab Exit",
+  "displayNameKey": "dialogue.npc.lab_exit.name",
+  "startNodeId": "start",
+  "nodes": {
+    "start": {
+      "id": "start",
+      "lines": [
+        {
+          "text": "Leave the systems lab for the valley?",
+          "textKey": "dialogue.npc.lab_exit.start.0"
+        }
+      ],
+      "options": [
+        {
+          "id": "opt.stay",
+          "text": "Stay.",
+          "nextNodeId": "stay"
+        }
+      ]
+    },
+    "stay": {
+      "id": "stay",
+      "lines": [
+        {
+          "text": "The lab still holds.",
+          "textKey": "dialogue.npc.lab_exit.stay.0"
+        }
+      ]
+    }
+  },
+  "developmentOnly": true
+}

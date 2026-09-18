@@ -3855,7 +3855,7 @@
       "visualAssetSetId": "visual.class_warden"
     }
   },
-  "contentHash": "0f93d3f90765f7f778c2687992b409472e964eabc9f09601866c77d57ba8915a",
+  "contentHash": "67ca46f20bd51fbe6981c38164c9844701183d27bfbc7ad378e8fc810404f9b4",
   "derivedStats": {
     "test.stat.attack": {
       "components": [
@@ -3991,6 +3991,11 @@
     }
   },
   "developmentOnly": [
+    "dialogue.npc.lab_exit",
+    "dialogue.npc.lab_inn",
+    "dialogue.npc.lab_keeper",
+    "dialogue.npc.lab_trainer",
+    "dialogue.npc.lab_vendor",
     "npc.lab_exit",
     "npc.lab_inn",
     "npc.lab_keeper",
@@ -4004,6 +4009,532 @@
     "test.zone.systems_lab",
     "vendor.lab_general"
   ],
+  "dialogues": {
+    "dialogue.npc.cert_quartermaster": {
+      "displayName": "Quartermaster",
+      "displayNameKey": "dialogue.npc.cert_quartermaster.name",
+      "entry": [
+        {
+          "conditions": [
+            {
+              "status": "completed",
+              "type": "offered_quest_status"
+            }
+          ],
+          "nodeId": "completed"
+        },
+        {
+          "conditions": [
+            {
+              "status": "ready",
+              "type": "offered_quest_status"
+            }
+          ],
+          "nodeId": "ready"
+        },
+        {
+          "conditions": [
+            {
+              "status": "accepted",
+              "type": "offered_quest_status"
+            }
+          ],
+          "nodeId": "in_progress"
+        },
+        {
+          "nodeId": "start"
+        }
+      ],
+      "id": "dialogue.npc.cert_quartermaster",
+      "kind": "dialogue",
+      "nodes": {
+        "completed": {
+          "id": "completed",
+          "lines": [
+            {
+              "text": "The cert errand is done. Mail is still for sale.",
+              "textKey": "dialogue.npc.cert_quartermaster.completed.0"
+            }
+          ]
+        },
+        "farewell": {
+          "id": "farewell",
+          "lines": [
+            {
+              "text": "The ridge can wait.",
+              "textKey": "dialogue.npc.cert_quartermaster.farewell.0"
+            }
+          ]
+        },
+        "in_progress": {
+          "id": "in_progress",
+          "lines": [
+            {
+              "text": "The scout is still on the ridge.",
+              "textKey": "dialogue.npc.cert_quartermaster.in_progress.0"
+            }
+          ]
+        },
+        "keep": {
+          "id": "keep",
+          "lines": [
+            {
+              "text": "Return when the scout is down.",
+              "textKey": "dialogue.npc.cert_quartermaster.keep.0"
+            }
+          ]
+        },
+        "ready": {
+          "id": "ready",
+          "lines": [
+            {
+              "text": "That scout is down. I will close the errand.",
+              "textKey": "dialogue.npc.cert_quartermaster.ready.0"
+            }
+          ],
+          "options": [
+            {
+              "id": "opt.keep_hunting",
+              "nextNodeId": "keep",
+              "text": "Keep hunting."
+            }
+          ]
+        },
+        "start": {
+          "id": "start",
+          "lines": [
+            {
+              "text": "A scout is camping the north-east ridge. Drive it off.",
+              "textKey": "dialogue.npc.cert_quartermaster.start.0"
+            }
+          ],
+          "options": [
+            {
+              "id": "opt.not_now",
+              "nextNodeId": "farewell",
+              "text": "Not now."
+            }
+          ]
+        }
+      },
+      "startNodeId": "start"
+    },
+    "dialogue.npc.elder": {
+      "displayName": "Elder",
+      "displayNameKey": "dialogue.npc.elder.name",
+      "entry": [
+        {
+          "conditions": [
+            {
+              "status": "completed",
+              "type": "offered_quest_status"
+            }
+          ],
+          "nodeId": "completed"
+        },
+        {
+          "conditions": [
+            {
+              "status": "ready",
+              "type": "offered_quest_status"
+            }
+          ],
+          "nodeId": "ready"
+        },
+        {
+          "conditions": [
+            {
+              "status": "accepted",
+              "type": "offered_quest_status"
+            }
+          ],
+          "nodeId": "in_progress"
+        },
+        {
+          "nodeId": "start"
+        }
+      ],
+      "id": "dialogue.npc.elder",
+      "kind": "dialogue",
+      "nodes": {
+        "completed": {
+          "id": "completed",
+          "lines": [
+            {
+              "text": "The village is safer thanks to you. We will not forget this.",
+              "textKey": "dialogue.npc.elder.completed.0"
+            }
+          ]
+        },
+        "farewell": {
+          "id": "farewell",
+          "lines": [
+            {
+              "text": "Come back when you are ready.",
+              "textKey": "dialogue.npc.elder.farewell.0"
+            }
+          ]
+        },
+        "in_progress": {
+          "id": "in_progress",
+          "lines": [
+            {
+              "text": "The slimes still trouble the pond. Bring me one slime gel.",
+              "textKey": "dialogue.npc.elder.in_progress.0"
+            }
+          ]
+        },
+        "ready": {
+          "id": "ready",
+          "lines": [
+            {
+              "text": "You have the gel. I can take it now and see you rewarded.",
+              "textKey": "dialogue.npc.elder.ready.0"
+            }
+          ],
+          "options": [
+            {
+              "id": "opt.not_yet",
+              "nextNodeId": "return_later",
+              "text": "Not yet.",
+              "textKey": "dialogue.npc.elder.opt.not_yet"
+            }
+          ]
+        },
+        "return_later": {
+          "id": "return_later",
+          "lines": [
+            {
+              "text": "Return when you are ready.",
+              "textKey": "dialogue.npc.elder.return_later.0"
+            }
+          ]
+        },
+        "start": {
+          "id": "start",
+          "lines": [
+            {
+              "text": "Traveler, the village needs your help.",
+              "textKey": "dialogue.npc.elder.start.0"
+            },
+            {
+              "text": "Slimes have overrun the pond. Bring me one slime gel and I will see you rewarded.",
+              "textKey": "dialogue.npc.elder.start.1"
+            }
+          ],
+          "options": [
+            {
+              "id": "opt.not_now",
+              "nextNodeId": "farewell",
+              "text": "Not now.",
+              "textKey": "dialogue.npc.elder.opt.not_now"
+            }
+          ]
+        }
+      },
+      "startNodeId": "start"
+    },
+    "dialogue.npc.proof_giver": {
+      "displayName": "Proof Giver",
+      "displayNameKey": "dialogue.npc.proof_giver.name",
+      "entry": [
+        {
+          "conditions": [
+            {
+              "status": "completed",
+              "type": "offered_quest_status"
+            }
+          ],
+          "nodeId": "completed"
+        },
+        {
+          "conditions": [
+            {
+              "status": "ready",
+              "type": "offered_quest_status"
+            }
+          ],
+          "nodeId": "ready"
+        },
+        {
+          "conditions": [
+            {
+              "status": "accepted",
+              "type": "offered_quest_status"
+            }
+          ],
+          "nodeId": "in_progress"
+        },
+        {
+          "nodeId": "start"
+        }
+      ],
+      "id": "dialogue.npc.proof_giver",
+      "kind": "dialogue",
+      "nodes": {
+        "completed": {
+          "id": "completed",
+          "lines": [
+            {
+              "text": "The proof chain is done.",
+              "textKey": "dialogue.npc.proof_giver.completed.0"
+            }
+          ]
+        },
+        "farewell": {
+          "id": "farewell",
+          "lines": [
+            {
+              "text": "The errand can wait.",
+              "textKey": "dialogue.npc.proof_giver.farewell.0"
+            }
+          ]
+        },
+        "in_progress": {
+          "id": "in_progress",
+          "lines": [
+            {
+              "text": "The proof token still sits on that critter.",
+              "textKey": "dialogue.npc.proof_giver.in_progress.0"
+            }
+          ]
+        },
+        "keep": {
+          "id": "keep",
+          "lines": [
+            {
+              "text": "Bring the token when you are ready.",
+              "textKey": "dialogue.npc.proof_giver.keep.0"
+            }
+          ]
+        },
+        "ready": {
+          "id": "ready",
+          "lines": [
+            {
+              "text": "That is the token. I will take it.",
+              "textKey": "dialogue.npc.proof_giver.ready.0"
+            }
+          ],
+          "options": [
+            {
+              "id": "opt.keep",
+              "nextNodeId": "keep",
+              "text": "Keep it."
+            }
+          ]
+        },
+        "start": {
+          "id": "start",
+          "lines": [
+            {
+              "text": "Bring me one proof token from the far-corner critter.",
+              "textKey": "dialogue.npc.proof_giver.start.0"
+            }
+          ],
+          "options": [
+            {
+              "id": "opt.not_now",
+              "nextNodeId": "farewell",
+              "text": "Not now."
+            }
+          ]
+        }
+      },
+      "startNodeId": "start"
+    },
+    "dialogue.npc.test_cave_exit": {
+      "displayName": "Cave Exit",
+      "displayNameKey": "dialogue.npc.test_cave_exit.name",
+      "id": "dialogue.npc.test_cave_exit",
+      "kind": "dialogue",
+      "nodes": {
+        "start": {
+          "id": "start",
+          "lines": [
+            {
+              "text": "Leave the cave for the valley?",
+              "textKey": "dialogue.npc.test_cave_exit.start.0"
+            }
+          ],
+          "options": [
+            {
+              "id": "opt.stay",
+              "nextNodeId": "stay",
+              "text": "Stay."
+            }
+          ]
+        },
+        "stay": {
+          "id": "stay",
+          "lines": [
+            {
+              "text": "The cave still holds.",
+              "textKey": "dialogue.npc.test_cave_exit.stay.0"
+            }
+          ]
+        }
+      },
+      "startNodeId": "start"
+    },
+    "dialogue.npc.test_cave_portal": {
+      "displayName": "Cave Portal",
+      "displayNameKey": "dialogue.npc.test_cave_portal.name",
+      "id": "dialogue.npc.test_cave_portal",
+      "kind": "dialogue",
+      "nodes": {
+        "start": {
+          "id": "start",
+          "lines": [
+            {
+              "text": "Enter the private cave? Solo characters get their own instance. Party members share one.",
+              "textKey": "dialogue.npc.test_cave_portal.start.0"
+            }
+          ],
+          "options": [
+            {
+              "id": "opt.stay",
+              "nextNodeId": "stay",
+              "text": "Stay in the valley."
+            }
+          ]
+        },
+        "stay": {
+          "id": "stay",
+          "lines": [
+            {
+              "text": "The cave remains open.",
+              "textKey": "dialogue.npc.test_cave_portal.stay.0"
+            }
+          ]
+        }
+      },
+      "startNodeId": "start"
+    },
+    "dialogue.npc.test_herald": {
+      "displayName": "Test Herald",
+      "displayNameKey": "dialogue.npc.test_herald.name",
+      "id": "dialogue.npc.test_herald",
+      "kind": "dialogue",
+      "nodes": {
+        "farewell": {
+          "id": "farewell",
+          "lines": [
+            {
+              "text": "Suit yourself.",
+              "textKey": "dialogue.npc.test_herald.farewell.0"
+            }
+          ]
+        },
+        "more": {
+          "id": "more",
+          "lines": [
+            {
+              "text": "Talk, kill, collect, and party errands. Take one when you are ready.",
+              "textKey": "dialogue.npc.test_herald.more.0"
+            }
+          ],
+          "options": [
+            {
+              "id": "opt.back",
+              "nextNodeId": "start",
+              "text": "Understood."
+            }
+          ]
+        },
+        "start": {
+          "id": "start",
+          "lines": [
+            {
+              "text": "I keep test errands, not stories. Ask if you need a task.",
+              "textKey": "dialogue.npc.test_herald.start.0"
+            }
+          ],
+          "options": [
+            {
+              "id": "opt.not_now",
+              "nextNodeId": "farewell",
+              "text": "Not now."
+            },
+            {
+              "id": "opt.hear_more",
+              "nextNodeId": "more",
+              "text": "What do you keep?"
+            }
+          ]
+        }
+      },
+      "startNodeId": "start"
+    },
+    "dialogue.npc.test_innkeeper": {
+      "displayName": "Test Innkeeper",
+      "displayNameKey": "dialogue.npc.test_innkeeper.name",
+      "id": "dialogue.npc.test_innkeeper",
+      "kind": "dialogue",
+      "nodes": {
+        "farewell": {
+          "id": "farewell",
+          "lines": [
+            {
+              "text": "The hearth stays lit.",
+              "textKey": "dialogue.npc.test_innkeeper.farewell.0"
+            }
+          ]
+        },
+        "start": {
+          "id": "start",
+          "lines": [
+            {
+              "text": "Rest here for five gold. You will heal, restore your resources, and bind your return point.",
+              "textKey": "dialogue.npc.test_innkeeper.start.0"
+            }
+          ],
+          "options": [
+            {
+              "id": "opt.not_now",
+              "nextNodeId": "farewell",
+              "text": "Not now."
+            }
+          ]
+        }
+      },
+      "startNodeId": "start"
+    },
+    "dialogue.npc.test_vendor": {
+      "displayName": "Test Vendor",
+      "displayNameKey": "dialogue.npc.test_vendor.name",
+      "id": "dialogue.npc.test_vendor",
+      "kind": "dialogue",
+      "nodes": {
+        "farewell": {
+          "id": "farewell",
+          "lines": [
+            {
+              "text": "Come back with coin.",
+              "textKey": "dialogue.npc.test_vendor.farewell.0"
+            }
+          ]
+        },
+        "start": {
+          "id": "start",
+          "lines": [
+            {
+              "text": "I buy and sell ordinary goods. Prices are mine, not yours.",
+              "textKey": "dialogue.npc.test_vendor.start.0"
+            }
+          ],
+          "options": [
+            {
+              "id": "opt.not_now",
+              "nextNodeId": "farewell",
+              "text": "Not now."
+            }
+          ]
+        }
+      },
+      "startNodeId": "start"
+    }
+  },
   "effectDefinitions": {
     "effect.mage.absolute_zero.freeze": {
       "classification": "canonical",

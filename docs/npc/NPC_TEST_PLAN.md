@@ -1,24 +1,28 @@
-# NPC test plan (NPC-03)
+# NPC test plan (NPC-04)
 
-NPC-03 records server-owned cosmetic route plans, client interpolation from match ticks, full-state late join, and snapshot traffic only on movement-revision changes. Dialogue pause is not started.
+NPC-04 records server-owned interaction sessions, content dialogue graphs, right-click `interact_pointer`, the reusable NPC window, and pause/resume of cosmetic movement while any live session exists.
 
 ## Automated coverage
 
 | Check | Owner | Expected proof |
 | --- | --- | --- |
-| Deterministic route selection | `server/tests/npc_movement.test.ts` | Same seed produces the same weighted visit sequence. |
-| Route bounds | `npc_movement.test.ts` | Waypoints beyond `maxDistanceFromHome` are never selected. |
-| Valid waypoint transitions | `npc_movement.test.ts` | Loop/ping-pong/weighted hops follow authored order or edges only. |
-| Loop / ping-pong / weighted | `npc_movement.test.ts` | Visit order wraps, reverses at ends, and respects edge weights. |
-| Dwell timing | `npc_movement.test.ts` | Authored dwell keeps the NPC idle for the expected ticks. |
-| Movement revision | `npc_movement.test.ts` | Revision changes on new plans, not every mid-segment tick. |
-| Old-plan rejection | `npc_movement.test.ts`, `client/tests/app/npc_avatar_test.gd` | Incoming revision ≤ current is ignored except forced full-state resync. |
-| Late join / full-state resync | `npc_movement.test.ts`, `npc_avatar_test.gd` | `FULL_STATE` pose matches interpolate(plan, tick); full-state force-applies. |
-| No NPC persistence writes | `npc_movement.test.ts` | Match-loop persist arrays stay empty for movement; a new match resets to home. |
-| No mob interaction / no player collision | `npc_movement.test.ts`, `movement.test.ts` | Moving NPCs do not change combat/HP and do not block player `resolveMove`. |
-| Snapshot traffic | `npc_movement.test.ts` | Stationary production NPCs omit `SNAPSHOT.npcs`; moving NPCs publish plans only when dirty. |
-| Pause/resume API | `npc_movement.test.ts`, audit | `pauseNpcMovement`/`resumeNpcMovement` exist and are not called from `INTERACT`. |
-| NPC combat boundary | audit, `npc_runtime.test.ts` | Unchanged: no HP/threat/AI; targeting/loot reject NPC ids. |
+| In-range interaction | `server/tests/interaction.test.ts` | `INTERACT` returns `ok` and a session. |
+| Out-of-range rejection | `interaction.test.ts` | `out_of_range`. |
+| Unknown NPC | `interaction.test.ts` | `invalid_target`. |
+| Dead character | `interaction.test.ts` | `player_dead`. |
+| Link-dead character | `interaction.test.ts` | `link_dead`. |
+| Dialogue start | `interaction.test.ts`, `dialogue.test.ts` | Current node id, allowed option ids, available service ids, expiry. |
+| Valid choice | `interaction.test.ts`, `dialogue.test.ts` | Next node id. |
+| Invalid choice | `interaction.test.ts`, `dialogue.test.ts` | `invalid_option`; node unchanged. |
+| Expired session | `interaction.test.ts` | `session_expired`. |
+| Session replay | `interaction.test.ts` | Same `requestId` replays session fields without re-applying talk objectives. |
+| Multiple players | `interaction.test.ts`, `npc_movement.test.ts` | Independent sessions on one NPC. |
+| Movement pause | `npc_movement.test.ts` | First `INTERACT` sets `paused` and `SNAPSHOT.npcs` includes the plan. |
+| Movement resume | `npc_movement.test.ts` | Last close resumes the route. |
+| Rate limiting | `interaction.test.ts` | Ninth interact in the window is `rate_limited`. |
+| Right-click UI | `interaction_client_test.gd` | `interact_pointer` defaults to right mouse; `try_interact_at` sends `INTERACT`. |
+| No duplicate signals | `interaction_client_test.gd` | Window and presenter connect once; one `dialogue_opened`. |
+| Dialogue graphs | `tools/content-build/tests/content-build.test.ts` | One-line and two-line graphs compile; missing next nodes and scripts fail. |
 
 ## Baseline results and reproducible commands
 
@@ -32,8 +36,6 @@ bash scripts/test-audit.sh
 GODOT_BIN=godot bash scripts/test-client.sh
 ```
 
-NPC-03 results: audit `FOUNDATION_AUDIT_OK`; content-build 27/27; server 783 passed + 13 expected skips; typecheck/build passed; auth-gateway 52/52; Godot GdUnit 320/320, 0 orphans.
-
 ## Manual regression
 
-After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main`, then verify: two clients see the same elder pose, movement (when a moving route is present) is smooth, NPCs stay near their home route, snapshots do not stream NPC positions every frame, and elder quest/interact behavior is unchanged.
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main`, then verify: right-click opens the NPC window, one-line and two-line NPCs speak their authored lines, optional choices advance on the server, two clients can talk to the same NPC, and movement pauses while anyone is in session.

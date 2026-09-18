@@ -284,7 +284,8 @@ function payloadHas(payload: ContentPayload, id: string): boolean {
     payload.lootTables[id] !== undefined ||
     payload.spawns[id] !== undefined ||
     payload.vendors[id] !== undefined ||
-    payload.npcRoutes[id] !== undefined
+    payload.npcRoutes[id] !== undefined ||
+    payload.dialogues[id] !== undefined
   );
 }
 

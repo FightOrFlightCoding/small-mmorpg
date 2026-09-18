@@ -1,7 +1,7 @@
 {
   "protocolVersion": 1,
   "contentSchemaVersion": 1,
-  "contentHash": "0f93d3f90765f7f778c2687992b409472e964eabc9f09601866c77d57ba8915a",
+  "contentHash": "67ca46f20bd51fbe6981c38164c9844701183d27bfbc7ad378e8fc810404f9b4",
   "exactDependencies": {
     "server/package.json:typescript": "5.8.3",
     "server/package.json:nakama-runtime": "github:heroiclabs/nakama-common#v1.47.0",
@@ -104,7 +104,9 @@
     "AUTO_ASSIGN_UNSPENT_POINTS": 35,
     "ALLOCATE_ATTRIBUTES_BATCH": 36,
     "TRAINER_RESPEC": 37,
-    "PURCHASE_TALENT": 38
+    "PURCHASE_TALENT": 38,
+    "DIALOGUE_CHOOSE": 39,
+    "INTERACTION_CLOSE": 40
   },
   "serverOpcodes": {
     "FULL_STATE": 101,
@@ -222,6 +224,19 @@
     "class.mystic.json",
     "class.warrior.json",
     "curve.vibecode.l10.json",
+    "dialogue.npc.cert_quartermaster.json",
+    "dialogue.npc.elder.json",
+    "dialogue.npc.lab_exit.json",
+    "dialogue.npc.lab_inn.json",
+    "dialogue.npc.lab_keeper.json",
+    "dialogue.npc.lab_trainer.json",
+    "dialogue.npc.lab_vendor.json",
+    "dialogue.npc.proof_giver.json",
+    "dialogue.npc.test_cave_exit.json",
+    "dialogue.npc.test_cave_portal.json",
+    "dialogue.npc.test_herald.json",
+    "dialogue.npc.test_innkeeper.json",
+    "dialogue.npc.test_vendor.json",
     "effect.mage.absolute_zero.freeze.json",
     "effect.mage.arcane_bolt.hit.json",
     "effect.mage.auto_attack.hit.json",

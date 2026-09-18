@@ -1,0 +1,55 @@
+{
+  "id": "dialogue.npc.test_herald",
+  "kind": "dialogue",
+  "displayName": "Test Herald",
+  "displayNameKey": "dialogue.npc.test_herald.name",
+  "startNodeId": "start",
+  "nodes": {
+    "start": {
+      "id": "start",
+      "lines": [
+        {
+          "text": "I keep test errands, not stories. Ask if you need a task.",
+          "textKey": "dialogue.npc.test_herald.start.0"
+        }
+      ],
+      "options": [
+        {
+          "id": "opt.not_now",
+          "text": "Not now.",
+          "nextNodeId": "farewell"
+        },
+        {
+          "id": "opt.hear_more",
+          "text": "What do you keep?",
+          "nextNodeId": "more"
+        }
+      ]
+    },
+    "more": {
+      "id": "more",
+      "lines": [
+        {
+          "text": "Talk, kill, collect, and party errands. Take one when you are ready.",
+          "textKey": "dialogue.npc.test_herald.more.0"
+        }
+      ],
+      "options": [
+        {
+          "id": "opt.back",
+          "text": "Understood.",
+          "nextNodeId": "start"
+        }
+      ]
+    },
+    "farewell": {
+      "id": "farewell",
+      "lines": [
+        {
+          "text": "Suit yourself.",
+          "textKey": "dialogue.npc.test_herald.farewell.0"
+        }
+      ]
+    }
+  }
+}

@@ -1,8 +1,8 @@
 # Progress
 
-Last accepted phase: **NPC-03 — Cosmetic route movement and synchronization**.
+Last accepted phase: **NPC-04 — Right-click interaction and dialogue**.
 
-Current phase: NPC-03 (accepted). Do not start NPC-04.
+Current phase: NPC-04 (accepted). Do not start NPC-05.
 
 Canonical git line: **`origin/main`**. Playable work is committed there. The Windows clone stays on `main` and runs `scripts/local-play.ps1 -Branch main`.
 
@@ -10,6 +10,30 @@ The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains
 
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
+
+## NPC-04 right-click interaction and dialogue (2026-09-18)
+
+NPC-04 is accepted. The last accepted gameplay/progression phase remains **PROG-15**. NPC-05 is not started. No new NPC types, RPCs, storage collections, migrations, dependencies, vendor addons, or progression formulas were added. Prompt 18 elder spoken lines, quest rewards, and merchant prices are unchanged.
+
+Right-click (`interact_pointer`, right mouse default) and keyboard interact send the same `INTERACT { targetId, requestId }` intention. The match validates character ownership, account/match presence, alive, not link-dead, not transferring, NPC existence, current range, and the interact rate limit, then opens a short-lived interaction session. `DIALOGUE_CHOOSE` (39) and `INTERACTION_CLOSE` (40) require `interactionSessionId`. The first live session on an NPC pauses cosmetic movement and broadcasts the paused plan; the last close or expiry resumes the authored route. Multiple players may hold sessions at once.
+
+Content dialogue graphs have one or more lines, zero or more options, conditions, and next-node references, with no arbitrary scripts. The server returns the current node id, allowed option ids, available service ids, and session expiry. The client localizes text in `NpcInteractionWindow`. Accept/turn-in remain service buttons bound through offered quest helpers. Prompt 18 `.dialogue` files remain for freeze compile tests.
+
+Content hash `67ca46f20bd51fbe6981c38164c9844701183d27bfbc7ad378e8fc810404f9b4` (hashed `dialogue` documents).
+
+| Gate | Result |
+| --- | --- |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (34 storage records, 40 client opcodes, 15 server opcodes, 29 RPCs) |
+| Content validation/tests | 28/28 passed, including dialogue graph compile/script rejection |
+| Server hermetic tests | 797 passed, 13 expected live-test skips |
+| Server typecheck/build | passed; existing circular-dependency warning only |
+| Auth gateway hermetic tests | 52/52 passed via compiled test-file glob |
+| Godot 4.7.1 client GdUnit | 323/323 passed, 0 failures, 0 orphans |
+
+Pre-existing Node 22.14 runner compatibility remains documented: `scripts/test-content.sh` and `scripts/test-auth-gateway.sh` call `node --test` with a directory and fail before test discovery. Their direct compiled-file glob equivalents pass.
+
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen `client/`.
+
 
 ## NPC-03 cosmetic route movement and synchronization (2026-09-18)
 

@@ -1,0 +1,35 @@
+{
+  "id": "dialogue.npc.lab_vendor",
+  "kind": "dialogue",
+  "displayName": "Lab Vendor",
+  "displayNameKey": "dialogue.npc.lab_vendor.name",
+  "startNodeId": "start",
+  "nodes": {
+    "start": {
+      "id": "start",
+      "lines": [
+        {
+          "text": "Lab stock covers weapons, a head slot, a chest slot, potions, and pebbles.",
+          "textKey": "dialogue.npc.lab_vendor.start.0"
+        }
+      ],
+      "options": [
+        {
+          "id": "opt.not_now",
+          "text": "Not now.",
+          "nextNodeId": "farewell"
+        }
+      ]
+    },
+    "farewell": {
+      "id": "farewell",
+      "lines": [
+        {
+          "text": "Come back with coin.",
+          "textKey": "dialogue.npc.lab_vendor.farewell.0"
+        }
+      ]
+    }
+  },
+  "developmentOnly": true
+}

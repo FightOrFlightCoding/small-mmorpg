@@ -344,7 +344,8 @@ function countDefs(payload: ContentPayload): number {
     Object.keys(payload.lootTables).length +
     Object.keys(payload.spawns).length +
     Object.keys(payload.vendors).length +
-    Object.keys(payload.npcRoutes).length
+    Object.keys(payload.npcRoutes).length +
+    Object.keys(payload.dialogues).length
   );
 }
 

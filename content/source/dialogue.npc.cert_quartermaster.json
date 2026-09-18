@@ -1,0 +1,109 @@
+{
+  "id": "dialogue.npc.cert_quartermaster",
+  "kind": "dialogue",
+  "displayName": "Quartermaster",
+  "displayNameKey": "dialogue.npc.cert_quartermaster.name",
+  "startNodeId": "start",
+  "nodes": {
+    "start": {
+      "id": "start",
+      "lines": [
+        {
+          "text": "A scout is camping the north-east ridge. Drive it off.",
+          "textKey": "dialogue.npc.cert_quartermaster.start.0"
+        }
+      ],
+      "options": [
+        {
+          "id": "opt.not_now",
+          "text": "Not now.",
+          "nextNodeId": "farewell"
+        }
+      ]
+    },
+    "farewell": {
+      "id": "farewell",
+      "lines": [
+        {
+          "text": "The ridge can wait.",
+          "textKey": "dialogue.npc.cert_quartermaster.farewell.0"
+        }
+      ]
+    },
+    "in_progress": {
+      "id": "in_progress",
+      "lines": [
+        {
+          "text": "The scout is still on the ridge.",
+          "textKey": "dialogue.npc.cert_quartermaster.in_progress.0"
+        }
+      ]
+    },
+    "ready": {
+      "id": "ready",
+      "lines": [
+        {
+          "text": "That scout is down. I will close the errand.",
+          "textKey": "dialogue.npc.cert_quartermaster.ready.0"
+        }
+      ],
+      "options": [
+        {
+          "id": "opt.keep_hunting",
+          "text": "Keep hunting.",
+          "nextNodeId": "keep"
+        }
+      ]
+    },
+    "keep": {
+      "id": "keep",
+      "lines": [
+        {
+          "text": "Return when the scout is down.",
+          "textKey": "dialogue.npc.cert_quartermaster.keep.0"
+        }
+      ]
+    },
+    "completed": {
+      "id": "completed",
+      "lines": [
+        {
+          "text": "The cert errand is done. Mail is still for sale.",
+          "textKey": "dialogue.npc.cert_quartermaster.completed.0"
+        }
+      ]
+    }
+  },
+  "entry": [
+    {
+      "nodeId": "completed",
+      "conditions": [
+        {
+          "type": "offered_quest_status",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "nodeId": "ready",
+      "conditions": [
+        {
+          "type": "offered_quest_status",
+          "status": "ready"
+        }
+      ]
+    },
+    {
+      "nodeId": "in_progress",
+      "conditions": [
+        {
+          "type": "offered_quest_status",
+          "status": "accepted"
+        }
+      ]
+    },
+    {
+      "nodeId": "start"
+    }
+  ]
+}

@@ -26,6 +26,7 @@ import {
   type NpcRouteContent,
 } from "./npc_movement";
 import type { VendorDefinition } from "./vendor";
+import { cloneInteractionSession, cloneInteractPresentation } from "./interaction";
 import { dict } from "./maps";
 import { cloneProgression, publicProgression, type CharacterProgression } from "./progression";
 import { cloneActionRates, emptyActionRates, type PlayerActionRate } from "./rate_limit";
@@ -133,10 +134,36 @@ export interface MatchPlayer {
   transferIssuedAtTick?: number;
   caveEnterByRequestId?: { [requestId: string]: string };
   interactByRequestId?: {
-    [requestId: string]: { ok: boolean; code: string; targetId: string; dialogueId?: string; services?: string[] };
+    [requestId: string]: {
+      ok: boolean;
+      code: string;
+      targetId: string;
+      dialogueId?: string;
+      services?: string[];
+      interactionSessionId?: string;
+      currentNodeId?: string;
+      allowedOptionIds?: string[];
+      availableServiceIds?: string[];
+      expiresAtTick?: number;
+    };
   };
   interactRequestTicks?: { [requestId: string]: number };
-  interactionSession?: { requestId: string; targetId: string; state: "open" | "active" | "closed" };
+  interactionSession?: import("./interaction").InteractionSession;
+  dialogueChoiceByRequestId?: {
+    [requestId: string]: {
+      ok: boolean;
+      code: string;
+      interactionSessionId: string;
+      optionId: string;
+      currentNodeId?: string;
+      allowedOptionIds?: string[];
+      availableServiceIds?: string[];
+      expiresAtTick?: number;
+    };
+  };
+  dialogueChoiceRequestTicks?: { [requestId: string]: number };
+  interactionCloseByRequestId?: { [requestId: string]: { ok: boolean; code: string } };
+  interactionCloseRequestTicks?: { [requestId: string]: number };
   linkDead?: boolean;
   linkDeadUntilTick?: number;
   safeLeaveCommitted?: boolean;
@@ -283,9 +310,11 @@ export interface StarterZoneState {
   lootTablesById?: { [id: string]: LootTableDefinition };
   npcsById?: { [id: string]: NpcDefinition };
   npcRoutesById?: { [id: string]: NpcRouteContent };
+  dialoguesById?: { [id: string]: import("./dialogue").DialogueDefinition };
   vendorsById?: { [id: string]: VendorDefinition };
   processedDeathEventIds?: { [eventId: string]: boolean };
   actionRates: { [userId: string]: PlayerActionRate };
+  npcSnapshotDirty?: boolean;
   progressionCatalog?: ProgressionCatalog;
   equipmentSlotsByTag?: { [tag: string]: EquipmentSlotContent };
   classEquipmentTags?: { [classId: string]: string[] };
@@ -423,6 +452,7 @@ export interface StarterZoneCatalogExtras {
   lootTablesById?: { [id: string]: LootTableDefinition };
   npcsById?: { [id: string]: NpcDefinition };
   npcRoutesById?: { [id: string]: NpcRouteContent };
+  dialoguesById?: { [id: string]: import("./dialogue").DialogueDefinition };
   vendorsById?: { [id: string]: VendorDefinition };
   groupCreditRules?: GroupCreditRules;
   instanceType?: "public_world" | "party_cave";
@@ -550,9 +580,11 @@ export function createStarterZoneState(
     lootTablesById: extras.lootTablesById,
     npcsById: extras.npcsById,
     npcRoutesById: extras.npcRoutesById,
+    dialoguesById: extras.dialoguesById,
     vendorsById: extras.vendorsById,
     processedDeathEventIds: {},
     actionRates: emptyActionRates(),
+    npcSnapshotDirty: false,
     equipmentSlotsByTag: extras.equipmentSlotsByTag,
     classEquipmentTags: extras.classEquipmentTags,
     inventoryCapacity: numberOr(
@@ -861,14 +893,11 @@ function cloneMatchPlayer(p: MatchPlayer, state: StarterZoneState): MatchPlayer 
     caveEnterByRequestId: dict(p.caveEnterByRequestId),
     interactByRequestId: cloneInteractByRequestId(p.interactByRequestId),
     interactRequestTicks: cloneCooldownMap(p.interactRequestTicks),
-    interactionSession:
-      p.interactionSession !== undefined
-        ? {
-            requestId: p.interactionSession.requestId,
-            targetId: p.interactionSession.targetId,
-            state: p.interactionSession.state,
-          }
-        : undefined,
+    interactionSession: cloneInteractionSession(p.interactionSession),
+    dialogueChoiceByRequestId: cloneDialogueChoiceByRequestId(p.dialogueChoiceByRequestId),
+    dialogueChoiceRequestTicks: cloneCooldownMap(p.dialogueChoiceRequestTicks),
+    interactionCloseByRequestId: cloneAbilityUseMap(p.interactionCloseByRequestId),
+    interactionCloseRequestTicks: cloneCooldownMap(p.interactionCloseRequestTicks),
     linkDead: p.linkDead === true,
     linkDeadUntilTick: typeof p.linkDeadUntilTick === "number" ? p.linkDeadUntilTick : undefined,
     safeLeaveCommitted: p.safeLeaveCommitted === true,
@@ -931,9 +960,11 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     lootTablesById: state.lootTablesById,
     npcsById: state.npcsById,
     npcRoutesById: state.npcRoutesById,
+    dialoguesById: state.dialoguesById,
     vendorsById: state.vendorsById,
     processedDeathEventIds: dict(state.processedDeathEventIds),
     actionRates: cloneActionRates(state.actionRates),
+    npcSnapshotDirty: state.npcSnapshotDirty === true,
     progressionCatalog: state.progressionCatalog,
     equipmentSlotsByTag: state.equipmentSlotsByTag,
     classEquipmentTags: state.classEquipmentTags,
@@ -1214,23 +1245,24 @@ function cloneAbilityUseMap(
 }
 
 function cloneInteractByRequestId(
-  map:
-    | {
-        [requestId: string]: {
-          ok: boolean;
-          code: string;
-          targetId: string;
-          dialogueId?: string;
-          services?: string[];
-        };
-      }
-    | undefined,
-): {
-  [requestId: string]: { ok: boolean; code: string; targetId: string; dialogueId?: string; services?: string[] };
-} {
-  const out: {
-    [requestId: string]: { ok: boolean; code: string; targetId: string; dialogueId?: string; services?: string[] };
-  } = {};
+  map: MatchPlayer["interactByRequestId"] | undefined,
+): NonNullable<MatchPlayer["interactByRequestId"]> {
+  const out: NonNullable<MatchPlayer["interactByRequestId"]> = {};
+  const source = dict(map);
+  const keys = Object.keys(source);
+  for (let i = 0; i < keys.length; i++) {
+    const copied = cloneInteractPresentation(source[keys[i]]);
+    if (copied !== undefined) {
+      out[keys[i]] = copied;
+    }
+  }
+  return out;
+}
+
+function cloneDialogueChoiceByRequestId(
+  map: MatchPlayer["dialogueChoiceByRequestId"] | undefined,
+): NonNullable<MatchPlayer["dialogueChoiceByRequestId"]> {
+  const out: NonNullable<MatchPlayer["dialogueChoiceByRequestId"]> = {};
   const source = dict(map);
   const keys = Object.keys(source);
   for (let i = 0; i < keys.length; i++) {
@@ -1238,16 +1270,23 @@ function cloneInteractByRequestId(
     if (row == null) {
       continue;
     }
-    const copied: { ok: boolean; code: string; targetId: string; dialogueId?: string; services?: string[] } = {
+    const copied: NonNullable<MatchPlayer["dialogueChoiceByRequestId"]>[string] = {
       ok: row.ok === true,
       code: String(row.code),
-      targetId: String(row.targetId),
+      interactionSessionId: String(row.interactionSessionId),
+      optionId: String(row.optionId),
     };
-    if (row.dialogueId !== undefined) {
-      copied.dialogueId = String(row.dialogueId);
+    if (row.currentNodeId !== undefined) {
+      copied.currentNodeId = String(row.currentNodeId);
     }
-    if (Array.isArray(row.services)) {
-      copied.services = row.services.map((entry) => String(entry));
+    if (Array.isArray(row.allowedOptionIds)) {
+      copied.allowedOptionIds = row.allowedOptionIds.map((entry) => String(entry));
+    }
+    if (Array.isArray(row.availableServiceIds)) {
+      copied.availableServiceIds = row.availableServiceIds.map((entry) => String(entry));
+    }
+    if (typeof row.expiresAtTick === "number") {
+      copied.expiresAtTick = row.expiresAtTick;
     }
     out[keys[i]] = copied;
   }

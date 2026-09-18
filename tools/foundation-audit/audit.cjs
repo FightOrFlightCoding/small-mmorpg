@@ -349,8 +349,8 @@ function checkNpcBoundaries() {
   if (!matchLoop.includes("tickNpcMovement")) {
     fail("match loop must tick cosmetic NPC movement");
   }
-  if (matchLoop.includes("pauseNpcMovement") || matchLoop.includes("resumeNpcMovement")) {
-    fail("NPC-03 must not wire interaction pause/resume into INTERACT");
+  if (!matchLoop.includes("pauseNpcMovement") || !matchLoop.includes("resumeNpcMovement")) {
+    fail("interaction sessions must pause and resume NPC movement");
   }
   if (!matchState.includes("publicNpcs")) {
     fail("FULL_STATE must publish public NPC movement plans");
@@ -363,7 +363,7 @@ function checkNpcBoundaries() {
     fail("NPC movement must not pathfind or use collision resolution");
   }
   const world = read("client/scripts/world/world.gd");
-  if (!world.includes("MOUSE_BUTTON_RIGHT") || !world.includes("try_interact_at")) {
+  if (!world.includes("interact_pointer") || !world.includes("try_interact_at")) {
     fail("right-click interact affordance missing");
   }
   if (world.includes('_collect_poses(poses, "npc"')) {
@@ -397,6 +397,9 @@ function checkNpcBoundaries() {
   }
 
   const protocol = read("server/src/domain/protocol.ts");
+  if (!protocol.includes("DIALOGUE_CHOOSE") || !protocol.includes("INTERACTION_CLOSE")) {
+    fail("NPC-04 dialogue opcodes missing");
+  }
   if (
     !protocol.includes('OPCODE_KEYS[ClientOpcode.VENDOR_BUY] = ["npcId", "itemId", "quantity"];') ||
     !protocol.includes('OPCODE_KEYS[ClientOpcode.VENDOR_SELL] = ["npcId", "instanceId", "quantity"];')

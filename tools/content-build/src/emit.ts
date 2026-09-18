@@ -66,6 +66,7 @@ export function buildPackage(payload: ContentPayload, options: BuildPackageOptio
     spawns: canonicalPayload.spawns,
     vendors: canonicalPayload.vendors,
     npcRoutes: canonicalPayload.npcRoutes,
+    dialogues: canonicalPayload.dialogues,
   };
 }
 
@@ -112,6 +113,7 @@ export function toContentBundle(pkg: ContentPackage): ContentBundle {
     spawns: pkg.spawns,
     vendors: pkg.vendors,
     npcRoutes: pkg.npcRoutes,
+    dialogues: pkg.dialogues,
   };
 }
 
@@ -151,6 +153,7 @@ export function emitServerModule(bundle: ContentBundle): string {
     spawns: bundle.spawns,
     vendors: bundle.vendors,
     npcRoutes: bundle.npcRoutes,
+    dialogues: bundle.dialogues,
   };
   const body = JSON.stringify(canonicalize(payload), null, 2);
   return [

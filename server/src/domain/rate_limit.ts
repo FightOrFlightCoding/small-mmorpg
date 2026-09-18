@@ -46,7 +46,7 @@ export function actionForOpcode(opcode: number): RateAction {
   if (opcode === ClientOpcode.INPUT) {
     return "input";
   }
-  if (opcode === ClientOpcode.INTERACT) {
+  if (opcode === ClientOpcode.INTERACT || opcode === ClientOpcode.DIALOGUE_CHOOSE || opcode === ClientOpcode.INTERACTION_CLOSE) {
     return "interact";
   }
   if (opcode === ClientOpcode.ATTACK || opcode === ClientOpcode.USE_ABILITY || opcode === ClientOpcode.CANCEL_CAST || opcode === ClientOpcode.SET_TARGET) {

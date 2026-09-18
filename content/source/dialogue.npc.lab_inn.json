@@ -1,0 +1,35 @@
+{
+  "id": "dialogue.npc.lab_inn",
+  "kind": "dialogue",
+  "displayName": "Lab Inn",
+  "displayNameKey": "dialogue.npc.lab_inn.name",
+  "startNodeId": "start",
+  "nodes": {
+    "start": {
+      "id": "start",
+      "lines": [
+        {
+          "text": "Rest here to heal, restore resources, and bind.",
+          "textKey": "dialogue.npc.lab_inn.start.0"
+        }
+      ],
+      "options": [
+        {
+          "id": "opt.not_now",
+          "text": "Not now.",
+          "nextNodeId": "farewell"
+        }
+      ]
+    },
+    "farewell": {
+      "id": "farewell",
+      "lines": [
+        {
+          "text": "The hearth stays lit.",
+          "textKey": "dialogue.npc.lab_inn.farewell.0"
+        }
+      ]
+    }
+  },
+  "developmentOnly": true
+}

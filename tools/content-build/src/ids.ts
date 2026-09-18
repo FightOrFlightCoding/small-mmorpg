@@ -35,6 +35,7 @@ export const KIND_PREFIX: Record<string, string> = {
   loot_table: "loot",
   spawn: "spawn",
   vendor: "vendor",
+  dialogue: "dialogue",
 };
 
 export function isContentId(value: string): boolean {

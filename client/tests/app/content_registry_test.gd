@@ -33,7 +33,7 @@ func test_content_hash_is_exposed() -> void:
 	assert_bool(ContentRegistry.load_bundle()).is_true()
 	var hash := ContentRegistry.get_content_hash()
 	assert_int(hash.length()).is_equal(64)
-	assert_str(hash).is_equal("0f93d3f90765f7f778c2687992b409472e964eabc9f09601866c77d57ba8915a")
+	assert_str(hash).is_equal("67ca46f20bd51fbe6981c38164c9844701183d27bfbc7ad378e8fc810404f9b4")
 	assert_bool(ContentRegistry.has_id("zone.cave")).is_true()
 	assert_bool(ContentRegistry.has_id("item.proof_token")).is_true()
 	assert_bool(ContentRegistry.has_id("quest.proof_errand")).is_true()

@@ -1,0 +1,34 @@
+{
+  "id": "dialogue.npc.test_cave_portal",
+  "kind": "dialogue",
+  "displayName": "Cave Portal",
+  "displayNameKey": "dialogue.npc.test_cave_portal.name",
+  "startNodeId": "start",
+  "nodes": {
+    "start": {
+      "id": "start",
+      "lines": [
+        {
+          "text": "Enter the private cave? Solo characters get their own instance. Party members share one.",
+          "textKey": "dialogue.npc.test_cave_portal.start.0"
+        }
+      ],
+      "options": [
+        {
+          "id": "opt.stay",
+          "text": "Stay in the valley.",
+          "nextNodeId": "stay"
+        }
+      ]
+    },
+    "stay": {
+      "id": "stay",
+      "lines": [
+        {
+          "text": "The cave remains open.",
+          "textKey": "dialogue.npc.test_cave_portal.stay.0"
+        }
+      ]
+    }
+  }
+}

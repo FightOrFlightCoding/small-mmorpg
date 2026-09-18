@@ -56,6 +56,8 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ClientOpcode.ALLOCATE_ATTRIBUTES_BATCH, 36);
   assert.equal(ClientOpcode.TRAINER_RESPEC, 37);
   assert.equal(ClientOpcode.PURCHASE_TALENT, 38);
+  assert.equal(ClientOpcode.DIALOGUE_CHOOSE, 39);
+  assert.equal(ClientOpcode.INTERACTION_CLOSE, 40);
   assert.equal(ServerOpcode.FULL_STATE, 101);
   assert.equal(ServerOpcode.SNAPSHOT, 102);
   assert.equal(ServerOpcode.ACTION_RESULT, 103);
@@ -834,5 +836,51 @@ test("purchase talent parses intentions and rejects xp or rank injection", () =>
   assert.equal(isProtocolError(injectedUnlocks), true);
   if (isProtocolError(injectedUnlocks)) {
     assert.equal(injectedUnlocks.code, "stat_injection:unlockedAbilityIds");
+  }
+});
+
+test("dialogue choose and interaction close parse session fields only", () => {
+  const choose = parse(
+    ClientOpcode.DIALOGUE_CHOOSE,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      interactionSessionId: "sess-interact-01",
+      optionId: "opt.hear_more",
+      requestId: "req-choose-01",
+    }),
+  );
+  assert.equal(isProtocolError(choose), false);
+  if (!isProtocolError(choose)) {
+    assert.equal(choose.fields.interactionSessionId, "sess-interact-01");
+    assert.equal(choose.fields.optionId, "opt.hear_more");
+    assert.equal(choose.requestId, "req-choose-01");
+  }
+  const injected = parse(
+    ClientOpcode.DIALOGUE_CHOOSE,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      interactionSessionId: "sess-interact-01",
+      optionId: "opt.hear_more",
+      requestId: "req-choose-02",
+      currentNodeId: "start",
+    }),
+  );
+  assert.equal(isProtocolError(injected), true);
+  if (isProtocolError(injected)) {
+    assert.equal(injected.code, "unknown_field:currentNodeId");
+  }
+  const close = parse(
+    ClientOpcode.INTERACTION_CLOSE,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      interactionSessionId: "sess-interact-01",
+      npcInstanceId: "npc.test_herald",
+      requestId: "req-close-01",
+    }),
+  );
+  assert.equal(isProtocolError(close), false);
+  if (!isProtocolError(close)) {
+    assert.equal(close.fields.interactionSessionId, "sess-interact-01");
+    assert.equal(close.fields.npcInstanceId, "npc.test_herald");
   }
 });

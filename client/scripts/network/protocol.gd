@@ -54,6 +54,8 @@ const CLIENT_AUTO_ASSIGN_UNSPENT_POINTS: int = 35
 const CLIENT_ALLOCATE_ATTRIBUTES_BATCH: int = 36
 const CLIENT_TRAINER_RESPEC: int = 37
 const CLIENT_PURCHASE_TALENT: int = 38
+const CLIENT_DIALOGUE_CHOOSE: int = 39
+const CLIENT_INTERACTION_CLOSE: int = 40
 
 const SERVER_FULL_STATE: int = 101
 const SERVER_SNAPSHOT: int = 102
@@ -232,6 +234,11 @@ static func parse_interaction_result(raw: String) -> Dictionary:
 		"dialogue_id": String(parsed.get("dialogueId", "")),
 		"services": _optional_array(parsed, "services"),
 		"context": _optional_object(parsed, "context"),
+		"interaction_session_id": String(parsed.get("interactionSessionId", "")),
+		"current_node_id": String(parsed.get("currentNodeId", "")),
+		"allowed_option_ids": _optional_array(parsed, "allowedOptionIds"),
+		"available_service_ids": _optional_array(parsed, "availableServiceIds"),
+		"expires_at_tick": int(parsed.get("expiresAtTick", 0)),
 	}
 
 
