@@ -401,7 +401,7 @@ function checkNpcBoundaries() {
     fail("NPC-04 dialogue opcodes missing");
   }
   if (
-    !protocol.includes('OPCODE_KEYS[ClientOpcode.VENDOR_BUY] = ["npcId", "itemId", "quantity"];') ||
+    !protocol.includes('OPCODE_KEYS[ClientOpcode.VENDOR_BUY] = ["interactionSessionId", "npcInstanceId", "itemId", "quantity"];') ||
     !protocol.includes('OPCODE_KEYS[ClientOpcode.VENDOR_SELL] = ["npcId", "instanceId", "quantity"];')
   ) {
     fail("merchant price or gold entered a client vendor opcode");

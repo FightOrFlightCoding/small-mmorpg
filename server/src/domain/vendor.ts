@@ -11,7 +11,10 @@ import {
 } from "./inventory";
 import { findNpcService, type NpcDefinition } from "./npc";
 import type { QuestLog } from "./quest";
-import { applyGoldMutation } from "./wallet";
+import { applyGoldMutation, WALLET_CURRENCY_GOLD } from "./wallet";
+
+export const VENDOR_MAX_QUANTITY = 99;
+export const VENDOR_CURRENCY_GOLD = WALLET_CURRENCY_GOLD;
 
 export interface VendorStockEntry {
   itemId: string;
@@ -22,8 +25,20 @@ export interface VendorStockEntry {
 
 export interface VendorDefinition {
   id: string;
+  currencyId: string;
   stock: ReadonlyArray<VendorStockEntry>;
   sellMultiplier: number;
+}
+
+export interface VendorShopStock {
+  itemId: string;
+  buyPrice: number;
+}
+
+export interface VendorShopPresentation {
+  vendorId: string;
+  currencyId: string;
+  stock: VendorShopStock[];
 }
 
 export interface VendorTradeInput {
@@ -73,6 +88,7 @@ export interface VendorTradeOutcome {
 export function vendorDefinitionsFromContent(vendors: {
   [id: string]: {
     id: string;
+    currencyId?: string;
     stock: ReadonlyArray<{
       itemId: string;
       buyPrice: number;
@@ -98,9 +114,33 @@ export function vendorDefinitionsFromContent(vendors: {
       }
       stock.push(copied);
     }
-    map[ids[i]] = { id: entry.id, stock: stock, sellMultiplier: entry.sellMultiplier };
+    const currencyId = entry.currencyId !== undefined && entry.currencyId.length > 0 ? entry.currencyId : VENDOR_CURRENCY_GOLD;
+    map[ids[i]] = { id: entry.id, currencyId: currencyId, stock: stock, sellMultiplier: entry.sellMultiplier };
   }
   return map;
+}
+
+export function vendorShopPresentation(
+  npcDef: NpcDefinition | undefined,
+  vendorsById: { [id: string]: VendorDefinition },
+): VendorShopPresentation | undefined {
+  const service = findNpcService(npcDef, "vendor");
+  if (service === null || service.vendorId === undefined) {
+    return undefined;
+  }
+  const vendor = vendorsById[service.vendorId];
+  if (vendor === undefined) {
+    return undefined;
+  }
+  const stock: VendorShopStock[] = [];
+  for (let i = 0; i < vendor.stock.length; i++) {
+    stock.push({ itemId: vendor.stock[i].itemId, buyPrice: vendor.stock[i].buyPrice });
+  }
+  return {
+    vendorId: vendor.id,
+    currencyId: vendor.currencyId,
+    stock: stock,
+  };
 }
 
 export function applyVendorBuy(input: VendorBuyInput): VendorTradeOutcome {
@@ -122,11 +162,20 @@ export function applyVendorBuy(input: VendorBuyInput): VendorTradeOutcome {
   if (!access.ok) {
     return failTrade(access.code, inventory, input.gold);
   }
-  const quantity = input.quantity > 0 ? input.quantity : 1;
-  if (quantity !== Math.floor(quantity)) {
-    return failTrade("invalid_id", inventory, input.gold);
+  const quantity = input.quantity;
+  if (
+    typeof quantity !== "number" ||
+    !isFinite(quantity) ||
+    quantity !== Math.floor(quantity) ||
+    quantity < 1 ||
+    quantity > VENDOR_MAX_QUANTITY
+  ) {
+    return failTrade("invalid_amount", inventory, input.gold);
   }
   const vendor = access.vendor;
+  if (vendor.currencyId !== VENDOR_CURRENCY_GOLD) {
+    return failTrade("invalid_id", inventory, input.gold);
+  }
   const stock = findStock(vendor, input.itemId);
   if (stock === null) {
     return failTrade("invalid_id", inventory, input.gold);
@@ -136,12 +185,20 @@ export function applyVendorBuy(input: VendorBuyInput): VendorTradeOutcome {
     return failTrade("invalid_id", inventory, input.gold);
   }
   const level = input.playerLevel !== undefined ? input.playerLevel : 1;
+  const classId = input.classId !== undefined ? input.classId : "";
+  const classReqs = stock.classRequirements !== undefined ? stock.classRequirements : [];
+  if (classReqs.length > 0 && classReqs.indexOf(classId) === -1) {
+    return failTrade("class_restricted", inventory, input.gold);
+  }
+  const itemClassReqs = itemDef.classRequirements !== undefined ? itemDef.classRequirements : [];
+  if (itemClassReqs.length > 0 && itemClassReqs.indexOf(classId) === -1) {
+    return failTrade("class_restricted", inventory, input.gold);
+  }
   if (stock.levelRequirement !== undefined && level < stock.levelRequirement) {
     return failTrade("level_too_low", inventory, input.gold);
   }
-  const classReqs = stock.classRequirements !== undefined ? stock.classRequirements : [];
-  if (classReqs.length > 0 && classReqs.indexOf(input.classId !== undefined ? input.classId : "") === -1) {
-    return failTrade("class_restricted", inventory, input.gold);
+  if (itemDef.levelRequirement !== undefined && level < itemDef.levelRequirement) {
+    return failTrade("level_too_low", inventory, input.gold);
   }
   const price = stock.buyPrice * quantity;
   if (input.gold < price) {
@@ -293,6 +350,9 @@ function authorizeVendor(
   }
   const vendor = input.vendorsById[service.vendorId];
   if (vendor === undefined) {
+    return { ok: false, code: "invalid_id" };
+  }
+  if (vendor.currencyId !== VENDOR_CURRENCY_GOLD) {
     return { ok: false, code: "invalid_id" };
   }
   return { ok: true, vendor: vendor };

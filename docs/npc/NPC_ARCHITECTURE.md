@@ -1,38 +1,36 @@
-# NPC architecture contract (NPC-05)
+# NPC architecture contract (NPC-06)
 
 **Last accepted gameplay/progression phase:** PROG-15 — Deterministic Balance Simulator and Final Progression Certification.  
-**Last accepted NPC phase:** NPC-05 — Quest integration.  
-**Current requested phase:** NPC-05 (accepted). Do not start NPC-06.
+**Last accepted NPC phase:** NPC-06 — Merchant integration.  
+**Current requested phase:** NPC-06 (accepted). Do not start NPC-07.
 
-NPC-05 extends the NPC-04 contract. It does not add NPC types, public-world sharding, PvP, guilds, or a second quest/inventory/dialogue/combat system. It reuses canonical `QuestService` / `quest.ts` / `quest_reward.ts`. It keeps the accepted elder/quest journey and progression formulas.
+NPC-06 extends the NPC-05 contract. It does not add NPC types, public-world sharding, PvP, guilds, or a second shop/inventory/currency/transaction system. It reuses canonical `vendor.ts` / `transaction.ts` / wallet / inventory. It keeps the accepted elder/quest journey, Prompt 18 merchant prices, and `VENDOR_SELL`.
 
 ## Ownership
 
 | Concern | Owner | Contract |
 | --- | --- | --- |
-| NPC content | `content/schemas/npc.json` (title `npc_definition`), `npc_route.json`, `npc_service_binding.json`, `npc_quest_binding.json`, `dialogue_definition.json`, `vendor.json` (title `vendor_definition`), `content/source/` | Stable IDs, `displayNameKey`, zone, `homePosition`, `routeId`, interaction range, `visualId`, typed services. Generated bundle/catalog are derived artifacts. Dialogue graphs are hashed `dialogue` documents. |
+| NPC content | `content/schemas/npc.json` (title `npc_definition`), `npc_route.json`, `npc_service_binding.json`, `npc_quest_binding.json`, `dialogue_definition.json`, `vendor.json` (title `vendor_definition`), `content/source/` | Stable IDs, `displayNameKey`, zone, `homePosition`, `routeId`, interaction range, `visualId`, typed services. Generated bundle/catalog are derived artifacts. Dialogue graphs are hashed `dialogue` documents. Vendor documents require `currencyId` `gold`. |
 | Runtime instances | `npc.ts` `NpcRuntimeInstance`, `match_state.ts` `MatchNpc` alias | One generic noncombat actor per placement. Pose, home, route id, interaction range, dialogue id, visual id. No HP, threat, AI, or collision fields. |
 | Movement | `npc_movement.ts`, `match_loop.ts` | Server owns the cosmetic plan. The first live interaction session on an NPC pauses movement and broadcasts the paused plan; the last close/expiry resumes the authored route. Multiple players may hold sessions at once. |
-| Interaction sessions | `interaction.ts`, `match_loop.ts` | `INTERACT` creates a short-lived match-owned session. Dialogue choice, close, quest accept, and quest turn-in require `interactionSessionId`. `INTERACTION_RESULT` is presentation, not a reward transaction. |
-| Dialogue state | `dialogue.ts`, `DialoguePresenter`, `NpcInteractionWindow` | Server evaluates content graphs (lines, options, conditions, next-node refs, no scripts) and returns node/option/service ids. Quest dialogue states are `available`, `accepted`, `in_progress`, `ready`, `completed`, and `prerequisite_missing`. The client renders localized text. Quest/vendor/inn/cave/respec remain existing service owners. |
-| Quest bindings | `quest.ts`, `quest_objectives.ts`, `quest_reward.ts`, `npc_quest_binding` | Canonical quest engine validates accept/turn-in. Bind types `quest_offer` / `offer`, `quest_turn_in` / `turn_in`, and `offer_and_turn_in`. Elder `quest.slime_problem` stays on the generic NPC definition. |
-| Merchant stock | `vendor.ts`, `transaction.ts`, `vendor_definition` | Static content stock and server-computed price/sell value; transactions use the existing atomic boundary. |
-| Client rendering | `EntityRegistry`, `NpcAvatar`, `ContentRegistry`, asset manifest | One generic `NpcAvatar`: `Node2D`, placeholder square, name label, marker anchor, interaction-only `Area2D`, no physics body. |
-| Quest markers | `NpcAvatar` `MarkerLabel`, `QuestService`, `FULL_STATE` / `QUEST_STATE` `npcQuestMarkers` | Character-specific glyphs `!` available, `?` ready, `·` active incomplete. Priority ready > available > active incomplete > none. Never a client quest-state authority. Never on `SNAPSHOT`. |
+| Interaction sessions | `interaction.ts`, `match_loop.ts` | `INTERACT` creates a short-lived match-owned session. Dialogue choice, close, quest accept, quest turn-in, and vendor buy require `interactionSessionId`. `INTERACTION_RESULT` is presentation, not a reward transaction. |
+| Dialogue state | `dialogue.ts`, `DialoguePresenter`, `NpcInteractionWindow` | Server evaluates content graphs and returns node/option/service ids. The client renders localized text. Opening the merchant UI suspends dialogue without closing the session; Back restores it. |
+| Quest bindings | `quest.ts`, `quest_objectives.ts`, `quest_reward.ts`, `npc_quest_binding` | Canonical quest engine. Unchanged in NPC-06. |
+| Merchant stock | `vendor.ts`, `transaction.ts`, `vendor_definition`, `MerchantWindow` | Static unlimited content stock, canonical server price, optional class/level locks. Buy is session-gated and atomic through the existing transaction boundary. Sell remains the accepted `VENDOR_SELL` path. |
+| Client rendering | `EntityRegistry`, `NpcAvatar`, `ContentRegistry`, asset manifest | One generic `NpcAvatar`. Reusable `MerchantWindow` presents catalog, quantity, gold, Buy, result/error, and Back. |
+| Quest markers | `NpcAvatar` `MarkerLabel`, `QuestService`, `FULL_STATE` / `QUEST_STATE` `npcQuestMarkers` | Unchanged. |
 | Transactions | `quest_reward.ts`, `vendor.ts`, `inn.ts`, `transaction.ts`, Nakama stores | Rewarding operations remain idempotent and server-persisted; the NPC is only a validated service gate. |
 
 ## Authority boundary
 
-The Godot client may choose a nearby NPC for usability (configurable `interact_pointer`, right-mouse default, keyboard `interact`) and send `INTERACT { targetId, requestId }`; it may render the reusable NPC window after server approval. The Nakama match remains authoritative for NPC existence, server pose, interaction range, dialogue node/options, session lifetime, quest eligibility/progress/rewards, stock, prices, inventory, wallet gold, healing, binding, cave tickets, and trainer respec cost/results.
+The Godot client may choose a nearby NPC and send `INTERACT { targetId, requestId }`. `VENDOR_BUY` sends `{ interactionSessionId, npcInstanceId, itemId, quantity, requestId }` only. The client never submits price, gold, or resulting balance. The Nakama match remains authoritative for stock, canonical price, currency deduction, inventory grant, and audit.
 
-NPCs are a distinct noncombat entity family. They have no HP, threat, combat effects, hostile/friendly target slot, AoE membership, or gameplay collision. Targeting, threat, damage, healing, death, and loot pipelines reject NPC ids. Interaction is an `Area2D`-style presentation affordance/range hint, with server distance validation as the authority. Clients never submit NPC transforms.
+NPCs are a distinct noncombat entity family. They have no HP, threat, combat effects, hostile/friendly target slot, AoE membership, or gameplay collision.
 
 ## Existing modules to extend
 
-Extend `npc.ts`, `npc_movement.ts`, `interaction.ts`, `match_state.ts`, `match_loop.ts`, `targeting.ts`, `threat.ts`, `combat_pipeline.ts`, `EntityRegistry`, `NpcAvatar`, `InteractIntent`, `DialoguePresenter`, the generic quest/vendor/inn/cave/respec owners, and the existing content build/audit tools. Do not add elder, merchant, innkeeper, trainer, quest, inventory, currency, dialogue, combat, or account subsystems.
+Extend `npc.ts`, `interaction.ts`, `match_state.ts`, `match_loop.ts`, `vendor.ts`, `VendorService`, `DialoguePresenter`, `MerchantWindow`, and the existing content build/audit tools. Do not add a second merchant, inventory, or currency subsystem.
 
-NPCs stay out of hostile/friendly combat targeting, AoE combat queries, enemy AI, threat, damage, healing, death, and loot. They are exposed from `FULL_STATE.npcs` with public movement plans. Ordinary `SNAPSHOT` traffic includes NPC plans only when a movement revision changes.
+## NPC-06 change inventory
 
-## NPC-05 change inventory
-
-`QUEST_ACCEPT` (6) and `QUEST_TURN_IN` (7) require `{ interactionSessionId, npcInstanceId, questId, requestId }`. The match reuses canonical `applyQuestAccept` / `applyQuestTurnIn`: session gate, NPC offer/turn-in bind, prerequisites, server-side objectives, idempotent accept, rewards once. Success returns canonical quest state plus accepted or completion dialogue on `INTERACTION_RESULT`. Character-specific markers refresh after accept, objective progress, completion, login, zone join, `FULL_STATE` resync, and character switch. `npc.test_herald` authors one `offer_and_turn_in` binding. A new quest NPC is content-only. No new RPCs, storage collections, migrations, dependencies, progression formulas, or `client/addons/`. Do not start NPC-06.
+`VENDOR_BUY` (19) requires `{ interactionSessionId, npcInstanceId, itemId, quantity?, requestId }`. The match validates a live session (same `requestId` may replay without one), NPC vendor bind, stock entry, positive bounded quantity (1–99), canonical server price, currency, inventory capacity, and item definition. Purchase deducts gold, grants the item, persists inventory and balance, writes `TX_REASON_VENDOR` audit, and returns canonical `INVENTORY_STATE` plus `WALLET_STATE`. Stock is static and unlimited. `VENDOR_SELL` is preserved. A new merchant is content-only (`vendor.*` plus an NPC `vendor` service). No new RPCs, storage collections, migrations, dependencies, progression formulas, or `client/addons/`. Do not start NPC-07.

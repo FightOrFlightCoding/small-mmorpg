@@ -10,6 +10,7 @@ import {
 } from "../src/domain/match_state";
 import { emptyQuestLog, questDefinitionsFromContent } from "../src/domain/quest";
 import { npcDefinitionsFromContent } from "../src/domain/npc";
+import { dialogueDefinitionsFromContent } from "../src/domain/dialogue";
 import { vendorDefinitionsFromContent } from "../src/domain/vendor";
 import {
   addOrStackItem,
@@ -18,16 +19,8 @@ import {
   type PlayerInventory,
 } from "../src/domain/inventory";
 import { emptyEquipment } from "../src/domain/equipment";
-import { ClientOpcode, PROTOCOL_VERSION, ServerOpcode } from "../src/domain/protocol";
-
-function envelope(extra: { [key: string]: unknown } = {}): string {
-  const body: { [key: string]: unknown } = { protocolVersion: PROTOCOL_VERSION };
-  const keys = Object.keys(extra);
-  for (let i = 0; i < keys.length; i++) {
-    body[keys[i]] = extra[keys[i]];
-  }
-  return JSON.stringify(body);
-}
+import { ClientOpcode, ServerOpcode } from "../src/domain/protocol";
+import { buyMessage, envelope, openNpcSession } from "./npc_session";
 
 function serviceZone(): StarterZoneState {
   return createStarterZoneState(
@@ -45,6 +38,7 @@ function serviceZone(): StarterZoneState {
     {
       npcsById: npcDefinitionsFromContent(content.npcs),
       vendorsById: vendorDefinitionsFromContent(content.vendors),
+      dialoguesById: dialogueDefinitionsFromContent(content.dialogues),
     },
   );
 }
@@ -83,13 +77,13 @@ function actions(result: ReturnType<typeof applyMatchLoop>) {
 test("vendor buy grants the item at the server price", () => {
   const vendor = vendorPos();
   const state = addPlayer(serviceZone(), playerAt(vendor.x, vendor.y, 20));
-  const result = applyMatchLoop(state, 2, contentHash, [
-    {
-      opcode: ClientOpcode.VENDOR_BUY,
-      raw: envelope({ npcId: "npc.test_vendor", itemId: "item.test_potion", requestId: "req-buy-potion01" }),
-      userId: "user-alice",
-    },
-  ]);
+  const opened = openNpcSession(state, "user-alice", "npc.test_vendor", 1, "req-buy-open0001");
+  const result = applyMatchLoop(
+    opened.state,
+    2,
+    contentHash,
+    [buyMessage("user-alice", "item.test_potion", opened.sessionId, opened.npcInstanceId, "req-buy-potion01")],
+  );
   assert.equal(actions(result)[0].ok, true);
   assert.equal(result.state.players["user-alice"].gold, 10);
   const items = result.state.players["user-alice"].inventory !== undefined ? result.state.players["user-alice"].inventory.items : [];
@@ -125,13 +119,13 @@ test("vendor sell pays the server multiplier and rejects unsellable items", () =
 test("vendor buy with insufficient gold is rejected", () => {
   const vendor = vendorPos();
   const state = addPlayer(serviceZone(), playerAt(vendor.x, vendor.y, 0));
-  const result = applyMatchLoop(state, 2, contentHash, [
-    {
-      opcode: ClientOpcode.VENDOR_BUY,
-      raw: envelope({ npcId: "npc.test_vendor", itemId: "item.test_potion", requestId: "req-buy-poor0001" }),
-      userId: "user-alice",
-    },
-  ]);
+  const opened = openNpcSession(state, "user-alice", "npc.test_vendor", 1, "req-buy-pooropen");
+  const result = applyMatchLoop(
+    opened.state,
+    2,
+    contentHash,
+    [buyMessage("user-alice", "item.test_potion", opened.sessionId, opened.npcInstanceId, "req-buy-poor0001")],
+  );
   assert.equal(actions(result)[0].ok, false);
   assert.equal(actions(result)[0].code, "insufficient_gold");
 });
@@ -141,13 +135,13 @@ test("vendor buy into a full inventory is rejected", () => {
   const items = itemDefinitionsFromContent(content.items);
   const inventory = addOrStackItem(emptyInventory(1), "item.test_pebble", 1, "pebble-full", items["item.test_pebble"]);
   const state = addPlayer(serviceZone(), playerAt(vendor.x, vendor.y, 50, inventory));
-  const result = applyMatchLoop(state, 2, contentHash, [
-    {
-      opcode: ClientOpcode.VENDOR_BUY,
-      raw: envelope({ npcId: "npc.test_vendor", itemId: "item.training_sword", requestId: "req-buy-full0001" }),
-      userId: "user-alice",
-    },
-  ]);
+  const opened = openNpcSession(state, "user-alice", "npc.test_vendor", 1, "req-buy-fullopen");
+  const result = applyMatchLoop(
+    opened.state,
+    2,
+    contentHash,
+    [buyMessage("user-alice", "item.training_sword", opened.sessionId, opened.npcInstanceId, "req-buy-full0001")],
+  );
   assert.equal(actions(result)[0].ok, false);
   assert.equal(actions(result)[0].code, "inventory_full");
 });
@@ -174,20 +168,19 @@ test("equipped items cannot be sold", () => {
 test("vendor buy is idempotent for the same request id", () => {
   const vendor = vendorPos();
   const state = addPlayer(serviceZone(), playerAt(vendor.x, vendor.y, 20));
-  const first = applyMatchLoop(state, 2, contentHash, [
-    {
-      opcode: ClientOpcode.VENDOR_BUY,
-      raw: envelope({ npcId: "npc.test_vendor", itemId: "item.test_potion", requestId: "req-buy-idem0001" }),
-      userId: "user-alice",
-    },
-  ]);
-  const replay = applyMatchLoop(first.state, 3, contentHash, [
-    {
-      opcode: ClientOpcode.VENDOR_BUY,
-      raw: envelope({ npcId: "npc.test_vendor", itemId: "item.test_potion", requestId: "req-buy-idem0001" }),
-      userId: "user-alice",
-    },
-  ]);
+  const opened = openNpcSession(state, "user-alice", "npc.test_vendor", 1, "req-buy-idemopen");
+  const first = applyMatchLoop(
+    opened.state,
+    2,
+    contentHash,
+    [buyMessage("user-alice", "item.test_potion", opened.sessionId, opened.npcInstanceId, "req-buy-idem0001")],
+  );
+  const replay = applyMatchLoop(
+    first.state,
+    3,
+    contentHash,
+    [buyMessage("user-alice", "item.test_potion", opened.sessionId, opened.npcInstanceId, "req-buy-idem0001")],
+  );
   assert.equal(actions(replay)[0].ok, true);
   assert.equal(replay.state.players["user-alice"].gold, 10);
 });

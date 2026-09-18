@@ -787,15 +787,19 @@ func send_release_respawn(request_id: String) -> Dictionary:
 	)
 
 
-func send_vendor_buy(npc_id: String, item_id: String, quantity: int = 1, request_id: String = "") -> Dictionary:
+func send_vendor_buy(session_id: String, npc_instance_id: String, item_id: String, quantity: int = 1, request_id: String = "") -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
 	var rid := request_id
 	if rid.is_empty():
 		rid = MatchProtocol.new_request_id()
-	var extra: Dictionary = {"npcId": npc_id, "itemId": item_id, "requestId": rid}
-	if quantity != 1:
-		extra["quantity"] = quantity
+	var extra: Dictionary = {
+		"interactionSessionId": session_id,
+		"npcInstanceId": npc_instance_id,
+		"itemId": item_id,
+		"quantity": quantity,
+		"requestId": rid,
+	}
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_VENDOR_BUY,
 		MatchProtocol.client_envelope_json(extra)

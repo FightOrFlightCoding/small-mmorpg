@@ -13,12 +13,17 @@ var last_session_id: String = ""
 var open_count: int = 0
 var _window: NpcInteractionWindow
 var _choice_request_id: String = ""
+var _suspended_for_vendor: bool = false
 
 
 func _ready() -> void:
 	_ensure_window()
 	if not WindowManager.window_closed.is_connected(_on_window_closed):
 		WindowManager.window_closed.connect(_on_window_closed)
+	if not VendorService.vendor_opened.is_connected(_on_vendor_opened):
+		VendorService.vendor_opened.connect(_on_vendor_opened)
+	if not VendorService.vendor_closed.is_connected(_on_vendor_closed):
+		VendorService.vendor_closed.connect(_on_vendor_closed)
 
 
 func is_open() -> bool:
@@ -126,6 +131,7 @@ func _on_service(service_id: String) -> void:
 		"quest_turn_in":
 			QuestService.request_turn_in_offered(last_session_id, last_opened_npc_id)
 		"vendor":
+			_suspend_for_vendor()
 			VendorService.open_from_dialogue()
 		"inn":
 			InnService.open_from_dialogue()
@@ -156,8 +162,11 @@ func _invalidate(_code: String) -> void:
 
 
 func _finish_close() -> void:
+	_suspended_for_vendor = false
 	QuestService.set_speaker("")
 	last_session_id = ""
+	if VendorService.is_open():
+		VendorService.reset()
 	if _window != null:
 		_window.close_window()
 	if WindowManager.is_open(WindowManager.DIALOGUE):
@@ -271,3 +280,24 @@ func _is_session_terminal(code: String) -> bool:
 			return true
 		_:
 			return false
+
+
+func _suspend_for_vendor() -> void:
+	_suspended_for_vendor = true
+	if _window != null:
+		_window.visible = false
+
+
+func _on_vendor_opened(_npc_id: String, _vendor_id: String) -> void:
+	_suspend_for_vendor()
+
+
+func _on_vendor_closed() -> void:
+	if not _suspended_for_vendor:
+		return
+	_suspended_for_vendor = false
+	if last_session_id.is_empty():
+		return
+	if _window != null:
+		_window.visible = true
+	WindowManager.open(WindowManager.DIALOGUE)

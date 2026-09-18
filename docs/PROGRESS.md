@@ -1,8 +1,8 @@
 # Progress
 
-Last accepted phase: **NPC-05 — Quest integration**.
+Last accepted phase: **NPC-06 — Merchant integration**.
 
-Current phase: NPC-05 (accepted). Do not start NPC-06.
+Current phase: NPC-06 (accepted). Do not start NPC-07.
 
 Canonical git line: **`origin/main`**. Playable work is committed there. The Windows clone stays on `main` and runs `scripts/local-play.ps1 -Branch main`.
 
@@ -10,6 +10,28 @@ The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains
 
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
+
+## NPC-06 merchant integration (2026-09-18)
+
+NPC-06 is accepted. The last accepted gameplay/progression phase remains **PROG-15**. NPC-07 is not started. No new NPC types, RPCs, storage collections, migrations, dependencies, vendor addons, or progression formulas were added. Prompt 18 elder spoken lines, quest rewards, and merchant prices are unchanged.
+
+Merchant buy reuses canonical `vendor.ts` / inventory / wallet / `transaction.ts`. Vendor documents require `currencyId` `gold` and static unlimited `stock` (`itemId`, canonical `buyPrice`, optional class/level locks). `VENDOR_BUY` (19) requires `{ interactionSessionId, npcInstanceId, itemId, quantity?, requestId }`. The match validates the live session, NPC vendor bind, stock, positive bounded quantity (1–99), server price, currency, inventory capacity, and item definition. Purchase deducts gold, grants the item, persists inventory and balance, writes `TX_REASON_VENDOR`, and returns canonical inventory and wallet. Same `requestId` replays without a second grant. The client never submits price, gold, or resulting balance. `MerchantWindow` presents NPC name, item list, icon placeholder, description, price, quantity, player gold, Buy, result/error, and Back to dialogue. `VENDOR_SELL` is preserved. A new merchant is content-only.
+
+Content hash `3b1fe2f9b196850d6434503f6c2262867bcd81e6c811c6291cd0510649186084` (vendor `currencyId` `gold`).
+
+| Gate | Result |
+| --- | --- |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (34 storage records, 40 client opcodes, 15 server opcodes, 29 RPCs) |
+| Content validation/tests | 28/28 passed, including vendor `currencyId` |
+| Server hermetic tests | 830 passed, 13 expected live-test skips |
+| Server typecheck/build | passed; existing circular-dependency warning only |
+| Auth gateway hermetic tests | 52/52 passed via compiled test-file glob |
+| Godot 4.7.1 client GdUnit | 327/327 passed, 0 failures, 0 orphans |
+
+Pre-existing Node 22.14 runner compatibility remains documented: `scripts/test-content.sh` and `scripts/test-auth-gateway.sh` call `node --test` with a directory and fail before test discovery. Their direct compiled-file glob equivalents pass.
+
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen `client/`.
+
 
 ## NPC-05 quest integration (2026-09-18)
 

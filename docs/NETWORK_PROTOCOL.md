@@ -49,7 +49,7 @@ Match and RPC payloads for the slice are JSON objects.
 | 16 | `UNLOCK_ABILITY` | `{ protocolVersion, abilityId, requestId }` | Spends unspent skill points on Foundation test classes. Production `class.*` rejects this opcode (`unsupported_class`); ownership is derived. |
 | 17 | `SET_TARGET` | `{ protocolVersion, targetId?, intent?, requestId }` | Selects current hostile or friendly target. Empty `targetId` clears. `intent` `hostile` against a player is `pvp_disabled`. |
 | 18 | `RELEASE_RESPAWN` | `{ protocolVersion, requestId }` | Explicit PvE release while dead. Auto-respawn after 3s still applies. |
-| 19 | `VENDOR_BUY` | `{ protocolVersion, npcId, itemId, quantity?, requestId }` | Reward opcode. Server stock and prices. Client `price` / `gold` rejected. |
+| 19 | `VENDOR_BUY` | `{ protocolVersion, interactionSessionId, npcInstanceId, itemId, quantity?, requestId }` | Reward opcode. Requires a live interaction session. Server stock and prices. Client `price` / `gold` / `resultingBalance` rejected. Quantity omitted means 1. |
 | 20 | `VENDOR_SELL` | `{ protocolVersion, npcId, instanceId, quantity?, requestId }` | Reward opcode. Server sell value. Equipped items are locked. |
 | 21 | `INN_REST` | `{ protocolVersion, npcId, mode?, requestId }` | Reward opcode. `mode` `inn` or `healer`. Server gold, heal, resources, bind. |
 | 22 | `CAVE_ENTER` | `{ protocolVersion, npcId, requestId }` | Intention only. Match loop issues a one-time transfer ticket in `ACTION_RESULT` extras. |

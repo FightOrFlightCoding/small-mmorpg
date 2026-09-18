@@ -20,6 +20,23 @@ export function interactMessage(userId: string, npcId: string, requestId: string
   };
 }
 
+export function closeMessage(
+  userId: string,
+  sessionId: string,
+  npcInstanceId: string,
+  requestId: string,
+) {
+  return {
+    opcode: ClientOpcode.INTERACTION_CLOSE,
+    raw: envelope({
+      interactionSessionId: sessionId,
+      npcInstanceId: npcInstanceId,
+      requestId: requestId,
+    }),
+    userId: userId,
+  };
+}
+
 export function acceptMessage(
   userId: string,
   questId: string,
@@ -35,6 +52,30 @@ export function acceptMessage(
       npcInstanceId: npcInstanceId,
       requestId: requestId,
     }),
+    userId: userId,
+  };
+}
+
+export function buyMessage(
+  userId: string,
+  itemId: string,
+  sessionId: string,
+  npcInstanceId: string,
+  requestId: string,
+  quantity?: number,
+) {
+  const extra: { [key: string]: unknown } = {
+    itemId: itemId,
+    interactionSessionId: sessionId,
+    npcInstanceId: npcInstanceId,
+    requestId: requestId,
+  };
+  if (quantity !== undefined) {
+    extra.quantity = quantity;
+  }
+  return {
+    opcode: ClientOpcode.VENDOR_BUY,
+    raw: envelope(extra),
     userId: userId,
   };
 }
@@ -67,6 +108,9 @@ export function interactionPayload(result: ReturnType<typeof applyMatchLoop>): {
   currentNodeId?: string;
   availableServiceIds?: string[];
   services?: string[];
+  vendorId?: string;
+  currencyId?: string;
+  stock?: Array<{ itemId: string; buyPrice: number }>;
 } {
   const row = result.outbound.find((item) => item.opcode === ServerOpcode.INTERACTION_RESULT);
   if (row === undefined) {
@@ -81,6 +125,9 @@ export function interactionPayload(result: ReturnType<typeof applyMatchLoop>): {
     currentNodeId?: string;
     availableServiceIds?: string[];
     services?: string[];
+    vendorId?: string;
+    currencyId?: string;
+    stock?: Array<{ itemId: string; buyPrice: number }>;
   };
 }
 

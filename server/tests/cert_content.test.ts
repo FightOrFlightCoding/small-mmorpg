@@ -17,7 +17,7 @@ import { vendorDefinitionsFromContent } from "../src/domain/vendor";
 import { emptyInventory, itemDefinitionsFromContent } from "../src/domain/inventory";
 import { emptyEquipment } from "../src/domain/equipment";
 import { ClientOpcode, PROTOCOL_VERSION, ServerOpcode } from "../src/domain/protocol";
-import { acceptMessage, openNpcSession, turnInMessage } from "./npc_session";
+import { acceptMessage, buyMessage, openNpcSession, turnInMessage } from "./npc_session";
 
 function envelope(extra: { [key: string]: unknown } = {}): string {
   const body: { [key: string]: unknown } = { protocolVersion: PROTOCOL_VERSION };
@@ -163,13 +163,13 @@ test("content-only cert scout quest completes through existing opcodes", () => {
 test("content-only cert mail buys through the existing vendor opcode", () => {
   const giver = npcPos("npc.cert_quartermaster");
   const state = addPlayer(certZone(), playerAt(giver.x, giver.y, 5));
-  const bought = applyMatchLoop(state, 2, contentHash, [
-    {
-      opcode: ClientOpcode.VENDOR_BUY,
-      raw: envelope({ npcId: "npc.cert_quartermaster", itemId: "item.cert_mail", requestId: "req-cert-buy0001" }),
-      userId: "user-alice",
-    },
-  ]);
+  const opened = openNpcSession(state, "user-alice", "npc.cert_quartermaster", 1, "req-cert-buyopen");
+  const bought = applyMatchLoop(
+    opened.state,
+    2,
+    contentHash,
+    [buyMessage("user-alice", "item.cert_mail", opened.sessionId, opened.npcInstanceId, "req-cert-buy0001")],
+  );
   assert.equal(actions(bought)[0].ok, true);
   const items = bought.state.players["user-alice"].inventory !== undefined
     ? bought.state.players["user-alice"].inventory.items

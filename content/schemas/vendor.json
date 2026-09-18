@@ -4,11 +4,12 @@
   "title": "vendor_definition",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "kind", "displayName", "stock", "sellMultiplier"],
+  "required": ["id", "kind", "displayName", "currencyId", "stock", "sellMultiplier"],
   "properties": {
     "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
     "kind": { "const": "vendor" },
     "displayName": { "type": "string", "minLength": 1 },
+    "currencyId": { "const": "gold" },
     "stock": {
       "type": "array",
       "minItems": 1,

@@ -832,4 +832,17 @@ NPC-05 reuses the canonical quest engine. It does not add a second quest system.
 
 Prompt 18 elder spoken lines, slime rewards, and merchant prices are unchanged. No new RPCs, storage collections, migrations, dependencies, or vendor addons.
 
+## 2026-09-18 — NPC-06 merchant integration
+
+NPC-06 reuses canonical vendor, inventory, wallet, and transaction services. It does not add a second shop or currency engine.
+
+- `VENDOR_BUY` requires `interactionSessionId`, `npcInstanceId`, `itemId`, optional `quantity`, and `requestId`. A repeated successful `requestId` may replay without a live session.
+- Vendor documents require `currencyId` `gold`. Stock is static and unlimited: `itemId`, canonical `buyPrice`, optional class/level locks.
+- Quantity omitted means 1. Zero, negative, non-integer, and values above 99 are `invalid_amount`.
+- Client `price` / `gold` / `resultingBalance` are protocol rejections. The match deducts gold, grants the item, persists inventory and wallet, and writes `TX_REASON_VENDOR`.
+- `MerchantWindow` is reusable presentation. Back restores dialogue without closing the interaction session. `VENDOR_SELL` is preserved.
+- A new merchant is content-only. Prompt 18 potion (10), training sword (15), cert mail (5), and sell multiplier 0.5 are unchanged.
+
+No new RPCs, storage collections, migrations, dependencies, or vendor addons.
+
 

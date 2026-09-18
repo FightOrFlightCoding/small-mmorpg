@@ -240,6 +240,9 @@ static func parse_interaction_result(raw: String) -> Dictionary:
 		"allowed_option_ids": _optional_array(parsed, "allowedOptionIds"),
 		"available_service_ids": _optional_array(parsed, "availableServiceIds"),
 		"expires_at_tick": int(parsed.get("expiresAtTick", 0)),
+		"vendor_id": String(parsed.get("vendorId", "")),
+		"currency_id": String(parsed.get("currencyId", "")),
+		"stock": _optional_array(parsed, "stock"),
 	}
 
 

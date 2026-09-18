@@ -2,6 +2,7 @@
   "id": "vendor.cert_quartermaster",
   "kind": "vendor",
   "displayName": "Cert Quartermaster",
+  "currencyId": "gold",
   "stock": [
     {
       "itemId": "item.cert_mail",

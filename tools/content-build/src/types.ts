@@ -174,6 +174,7 @@ export interface VendorDef {
   id: string;
   kind: "vendor";
   displayName: string;
+  currencyId: "gold";
   stock: VendorStockDef[];
   sellMultiplier: number;
 }

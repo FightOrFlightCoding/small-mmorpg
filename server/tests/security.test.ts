@@ -425,7 +425,12 @@ test("inventory, equipment, vendor, quest, cave, and trade use separate rate buc
   for (let i = 0; i < ACTION_LIMITS.vendor + 1; i++) {
     vendorFlood.push({
       opcode: ClientOpcode.VENDOR_BUY,
-      raw: envelope({ npcId: "npc.test_vendor", itemId: "item.test_potion", requestId: "req-ven-" + String(i).padStart(2, "0") }),
+      raw: envelope({
+        interactionSessionId: "sess-flood-vendor",
+        npcInstanceId: "npc.test_vendor",
+        itemId: "item.test_potion",
+        requestId: "req-ven-" + String(i).padStart(2, "0"),
+      }),
       userId: "user-alice",
     });
   }

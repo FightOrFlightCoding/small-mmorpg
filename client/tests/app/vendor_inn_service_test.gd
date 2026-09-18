@@ -18,15 +18,19 @@ func test_vendor_buy_does_not_send_a_client_price() -> void:
 	NetworkService.backend = fake
 	NetworkService.match_id = "match-starter-shared"
 	VendorService.last_npc_id = "npc.test_vendor"
+	VendorService.last_session_id = "sess-test01"
 	VendorService.request_buy("item.test_potion", 1)
 	await get_tree().process_frame
 	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_VENDOR_BUY)
 	var payload: Dictionary = JSON.parse_string(fake.last_send_payload)
-	assert_str(String(payload.get("npcId", ""))).is_equal("npc.test_vendor")
+	assert_str(String(payload.get("interactionSessionId", ""))).is_equal("sess-test01")
+	assert_str(String(payload.get("npcInstanceId", ""))).is_equal("npc.test_vendor")
 	assert_str(String(payload.get("itemId", ""))).is_equal("item.test_potion")
+	assert_bool(payload.has("npcId")).is_false()
 	assert_bool(payload.has("requestId")).is_true()
 	assert_bool(payload.has("price")).is_false()
 	assert_bool(payload.has("gold")).is_false()
+	assert_bool(payload.has("resultingBalance")).is_false()
 
 
 func test_inn_rest_sends_npc_id_without_health_values() -> void:

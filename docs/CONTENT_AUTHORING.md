@@ -244,7 +244,7 @@ Objectives: `talk_to_npc`, `kill_enemy`, `collect_item` / `acquire_item`, `enter
 powershell -File scripts/content.ps1 new vendor --id vendor.example
 ```
 
-Attach `{ "type": "vendor", "vendorId": "vendor.example" }` on an NPC. Stock ids must exist. Lab example (development-only): `content/source/vendor.lab_general.json`. Production example: `content/source/vendor.test_general.json`. Optional CSV: `--type vendor_stock`.
+Attach `{ "type": "vendor", "vendorId": "vendor.example" }` on an NPC. Stock ids must exist. Required `currencyId` is `gold` (the existing wallet currency). Each stock row is `itemId`, canonical `buyPrice`, optional `classRequirements`, optional `levelRequirement`. Stock is static and unlimited. Lab example (development-only): `content/source/vendor.lab_general.json`. Production example: `content/source/vendor.test_general.json`. Optional CSV: `--type vendor_stock`. A new merchant is content-only.
 
 ## Adding a cave boss
 
