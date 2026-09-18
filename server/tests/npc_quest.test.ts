@@ -150,7 +150,7 @@ test("herald offer_and_turn_in binds offer and turn-in", () => {
   const herald = npcDefinitionsFromContent(content.npcs)["npc.test_herald"];
   assert.equal(npcBindsQuest(herald, "quest.test.talk", "offer"), true);
   assert.equal(npcBindsQuest(herald, "quest.test.talk", "turn_in"), true);
-	assert.equal(npcBindsQuest(herald, "quest.slime_problem", "offer"), false);
+  assert.equal(npcBindsQuest(herald, "quest.slime_problem", "offer"), false);
 });
 
 test("in_progress dialogue state is distinct from accepted and ready", () => {
@@ -314,6 +314,17 @@ test("turn in requires session, applies rewards once, returns completion dialogu
   assert.equal(actionMessages(second)[0].ok, false);
   assert.equal(actionMessages(second)[0].code, "already_completed");
   assert.equal(second.state.players["user-alice"].gold, 25);
+});
+
+test("unknown quest id is invalid_id not invalid_service", () => {
+  const elder = elderPos();
+  const state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", elder.x, elder.y));
+  const opened = openNpcSession(state, "user-alice", "npc.elder", 1, "req-npc05-unkint");
+  const result = applyMatchLoop(opened.state, 2, contentHash, [
+    acceptMessage("user-alice", "quest.missing", opened.sessionId, opened.npcInstanceId, "req-npc05-unkacc"),
+  ]);
+  assert.equal(actionMessages(result)[0].ok, false);
+  assert.equal(actionMessages(result)[0].code, "invalid_id");
 });
 
 test("wrong NPC cannot accept or turn in", () => {

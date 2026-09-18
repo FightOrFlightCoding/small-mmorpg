@@ -44,7 +44,7 @@ import {
   type InteractionInput,
   type InteractionSession,
 } from "./interaction";
-import { NPC_SERVICE_DIALOGUE, npcBindsQuest } from "./npc";
+import { NPC_SERVICE_DIALOGUE, npcBindsQuest, type NpcDefinition, type QuestBindRole } from "./npc";
 import { pauseNpcMovement, resumeNpcMovement, tickNpcMovement } from "./npc_movement";
 import {
   allowedOptionIds,
@@ -1047,10 +1047,11 @@ function handleQuestAccept(
     const npc = findNpc(state.npcs, session.npcInstanceId);
     const catalogId = npc !== null ? npc.npcId : session.npcInstanceId;
     const npcDef = npcCatalog(state)[catalogId];
-    if (npcDef !== undefined && !npcBindsQuest(npcDef, parsed.fields.questId, "offer")) {
-      const failed = actionResult("invalid_service", false, requestId);
+    const bind = questActionBindGate(state, npcDef, parsed.fields.questId, "offer");
+    if (!bind.ok) {
+      const failed = actionResult(bind.code, false, requestId);
       outbound.push({ opcode: failed.opcode, body: failed.body, toUserId: userId });
-      pushQuestDialogue(state, player, session, tick, outbound, requestId, userId, "invalid_service", false);
+      pushQuestDialogue(state, player, session, tick, outbound, requestId, userId, bind.code, false);
       return;
     }
   }
@@ -1135,10 +1136,11 @@ function handleQuestTurnIn(
     const npc = findNpc(state.npcs, session.npcInstanceId);
     const catalogId = npc !== null ? npc.npcId : session.npcInstanceId;
     const npcDef = npcCatalog(state)[catalogId];
-    if (npcDef !== undefined && !npcBindsQuest(npcDef, parsed.fields.questId, "turn_in")) {
-      const failed = actionResult("invalid_service", false, requestId);
+    const bind = questActionBindGate(state, npcDef, parsed.fields.questId, "turn_in");
+    if (!bind.ok) {
+      const failed = actionResult(bind.code, false, requestId);
       outbound.push({ opcode: failed.opcode, body: failed.body, toUserId: userId });
-      pushQuestDialogue(state, player, session, tick, outbound, requestId, userId, "invalid_service", false);
+      pushQuestDialogue(state, player, session, tick, outbound, requestId, userId, bind.code, false);
       return;
     }
   }
@@ -3514,6 +3516,21 @@ function pushAbilityState(
 
 function npcCatalog(state: StarterZoneState) {
   return state.npcsById !== undefined ? state.npcsById : {};
+}
+
+function questActionBindGate(
+  state: StarterZoneState,
+  npcDef: NpcDefinition | undefined,
+  questId: string,
+  role: QuestBindRole,
+): { ok: boolean; code: string } {
+  if (state.questsById[questId] === undefined) {
+    return { ok: false, code: "invalid_id" };
+  }
+  if (npcDef !== undefined && !npcBindsQuest(npcDef, questId, role)) {
+    return { ok: false, code: "invalid_service" };
+  }
+  return { ok: true, code: "ok" };
 }
 
 function playerInCachedParty(state: StarterZoneState, player: MatchPlayer): boolean {
