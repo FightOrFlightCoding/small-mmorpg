@@ -261,6 +261,7 @@ func _remote_poses(state: Dictionary) -> Dictionary:
 	_collect_poses(poses, "player", state.get("players", []), self_id)
 	_collect_poses(poses, "enemy", state.get("enemies", []), "")
 	_collect_poses(poses, "loot", state.get("loot", []), "")
+	_collect_poses(poses, "corpse", state.get("corpses", []), "")
 	return poses
 
 
@@ -534,6 +535,12 @@ func try_interact() -> void:
 func try_interact_at(world_pos: Vector2) -> bool:
 	if _input_blocked() or not _local_alive() or NetworkService.match_id.is_empty():
 		return false
+	var corpse_id := ""
+	if _entities != null:
+		corpse_id = _entities.corpse_id_at_world_point(world_pos)
+	if not corpse_id.is_empty():
+		CorpseService.request_open(corpse_id)
+		return true
 	var npc_id := ""
 	if _entities != null:
 		npc_id = _entities.npc_id_at_world_point(world_pos)
@@ -568,6 +575,10 @@ func try_attack() -> void:
 
 func try_pickup() -> void:
 	if _input_blocked() or not _local_alive() or NetworkService.match_id.is_empty():
+		return
+	var corpse_id := CorpseService.nearest_corpse_id(_reconciler.display, AppState.zone_view.get("corpses", []))
+	if not corpse_id.is_empty():
+		CorpseService.request_loot_all(corpse_id)
 		return
 	var loot_id := PickupIntent.nearest_loot_id(_reconciler.display, AppState.zone_view.get("loot", []))
 	if loot_id.is_empty():
@@ -787,6 +798,12 @@ func _pickup_message(code: String) -> String:
 		return "Too far from that item."
 	if code == "invalid_target":
 		return "That loot is gone."
+	if code == "not_eligible":
+		return "You cannot loot that yet."
+	if code == "loot_item_no_longer_available":
+		return "That loot is gone."
+	if code == "roll_pending":
+		return "Need/Greed is still pending."
 	if code == "inventory_full":
 		return "Your inventory is full."
 	if code == "player_dead":

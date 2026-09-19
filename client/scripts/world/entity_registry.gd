@@ -7,12 +7,14 @@ const KIND_PLAYER := "player"
 const KIND_NPC := "npc"
 const KIND_ENEMY := "enemy"
 const KIND_LOOT := "loot"
+const KIND_CORPSE := "corpse"
 
 const SCENE_PATHS := {
 	KIND_PLAYER: "res://scenes/world/player_avatar.tscn",
 	KIND_NPC: "res://scenes/world/npc_avatar.tscn",
 	KIND_ENEMY: "res://scenes/world/enemy_avatar.tscn",
 	KIND_LOOT: "res://scenes/world/loot_avatar.tscn",
+	KIND_CORPSE: "res://scenes/world/corpse_avatar.tscn",
 }
 
 var follow_camera: Camera2D
@@ -45,6 +47,23 @@ func npc_id_at_world_point(world_pos: Vector2) -> String:
 		if not (node is NpcAvatar):
 			continue
 		var avatar := node as NpcAvatar
+		if not avatar.contains_world_point(world_pos):
+			continue
+		var distance := world_pos.distance_to(avatar.global_position)
+		if distance <= best_d:
+			best_d = distance
+			best_id = avatar.server_id
+	return best_id
+
+
+func corpse_id_at_world_point(world_pos: Vector2) -> String:
+	var best_id := ""
+	var best_d := INF
+	for key in _nodes.keys():
+		var node: Node = _nodes[key]
+		if not (node is CorpseAvatar):
+			continue
+		var avatar := node as CorpseAvatar
 		if not avatar.contains_world_point(world_pos):
 			continue
 		var distance := world_pos.distance_to(avatar.global_position)
@@ -93,14 +112,15 @@ func apply_full_state(state: Dictionary) -> void:
 	_apply_kind(KIND_NPC, state.get("npcs", []), keep, false)
 	_apply_kind(KIND_ENEMY, state.get("enemies", []), keep, false)
 	_apply_kind(KIND_LOOT, state.get("loot", []), keep, false)
+	_apply_kind(KIND_CORPSE, state.get("corpses", []), keep, false)
 	for extra_key in state.keys():
-		if extra_key in ["players", "npcs", "enemies", "loot", "quests", "npc_quest_markers", "npcQuestMarkers", "inventory", "self_id", "selfId", "tick", "zone_id", "zoneId", "protocol_version", "protocolVersion", "content_hash", "contentHash", "ack_seq"]:
+		if extra_key in ["players", "npcs", "enemies", "loot", "corpses", "quests", "npc_quest_markers", "npcQuestMarkers", "inventory", "equipment", "derived", "wallet", "progression", "abilities", "party", "instance", "self_id", "selfId", "tick", "zone_id", "zoneId", "protocol_version", "protocolVersion", "content_hash", "contentHash", "ack_seq"]:
 			continue
 		if typeof(state[extra_key]) == TYPE_ARRAY and extra_key.ends_with("s"):
 			var kind_guess := String(extra_key)
 			if kind_guess.ends_with("s"):
 				kind_guess = kind_guess.substr(0, kind_guess.length() - 1)
-			if kind_guess not in [KIND_PLAYER, KIND_NPC, KIND_ENEMY, KIND_LOOT]:
+			if kind_guess not in [KIND_PLAYER, KIND_NPC, KIND_ENEMY, KIND_LOOT, KIND_CORPSE]:
 				_reject_kind(kind_guess)
 	_prune(keep)
 	_attach_camera()
@@ -123,6 +143,9 @@ func apply_snapshot(state: Dictionary, interp_duration: float = 0.1) -> void:
 	if state.has("loot"):
 		prune_prefixes.append("loot:")
 		_apply_kind(KIND_LOOT, state.get("loot", []), keep, true, interp_duration)
+	if state.has("corpses"):
+		prune_prefixes.append("corpse:")
+		_apply_kind(KIND_CORPSE, state.get("corpses", []), keep, true, interp_duration)
 	var stale: Array = []
 	for key in _nodes.keys():
 		var key_text := String(key)
@@ -312,6 +335,14 @@ func _name_for(kind: String, record: Dictionary) -> String:
 		var item_id := String(record.get("itemId", ""))
 		var item: Dictionary = ContentRegistry.get_by_id(item_id)
 		return String(item.get("displayName", item_id))
+	if kind == KIND_CORPSE:
+		var enemy_id := String(record.get("enemyId", ""))
+		if not enemy_id.is_empty():
+			var enemy: Dictionary = ContentRegistry.get_by_id(enemy_id)
+			var named := String(enemy.get("displayName", ""))
+			if not named.is_empty():
+				return "%s remains" % named
+		return "Corpse"
 	return _id_for(kind, record)
 
 
@@ -327,6 +358,14 @@ func _visual_for(kind: String, record: Dictionary) -> Dictionary:
 			content_id = String(record.get("id", "")).split(":")[0]
 	elif kind == KIND_LOOT:
 		content_id = String(record.get("itemId", ""))
+	elif kind == KIND_CORPSE:
+		return {
+			"visual_id": "visual.corpse",
+			"missing": false,
+			"fallback_color": Color(0.42, 0.32, 0.24, 1),
+			"visual_set": {},
+			"direction_count": 4,
+		}
 	var visual_id := ContentRegistry.visual_id_for_content(content_id)
 	if visual_id.is_empty() and kind == KIND_LOOT and not content_id.is_empty():
 		visual_id = ContentRegistry.assets.icon_visual_id("item", content_id)

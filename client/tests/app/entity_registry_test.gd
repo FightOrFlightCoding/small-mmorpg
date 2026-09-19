@@ -82,6 +82,28 @@ func test_unknown_entity_kind_is_rejected() -> void:
 	assert_bool(registry.rejected_kinds.has("dragon")).is_true()
 
 
+func test_corpses_are_known_entities_without_combat_collision() -> void:
+	var registry := _registry()
+	var state := _alice_bob_state()
+	state["corpses"] = [{
+		"id": "corpse-slime-1",
+		"enemyId": "enemy.green_slime",
+		"x": 960,
+		"y": 400,
+	}]
+	registry.apply_full_state(state)
+	assert_bool(registry.rejected_kinds.has("corpse")).is_false()
+	assert_bool(registry.has_entity("corpse:corpse-slime-1")).is_true()
+	var avatar := registry.get_entity("corpse:corpse-slime-1") as CorpseAvatar
+	assert_object(avatar).is_not_null()
+	assert_str(avatar.display_name).contains("Slime")
+	assert_bool(avatar.contains_world_point(Vector2(960, 400))).is_true()
+	assert_str(registry.corpse_id_at_world_point(Vector2(960, 400))).is_equal("corpse-slime-1")
+	state["corpses"] = []
+	registry.apply_full_state(state)
+	assert_bool(registry.has_entity("corpse:corpse-slime-1")).is_false()
+
+
 func test_quest_markers_are_not_unknown_entities() -> void:
 	var registry := _registry()
 	var state := _alice_bob_state()

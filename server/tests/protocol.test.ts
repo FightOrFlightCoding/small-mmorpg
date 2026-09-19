@@ -59,6 +59,11 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ClientOpcode.DIALOGUE_CHOOSE, 39);
   assert.equal(ClientOpcode.INTERACTION_CLOSE, 40);
   assert.equal(ClientOpcode.RECOVER_OVERFLOW_ITEM, 41);
+  assert.equal(ClientOpcode.OPEN_CORPSE, 42);
+  assert.equal(ClientOpcode.CLOSE_CORPSE, 43);
+  assert.equal(ClientOpcode.CLAIM_CORPSE_ITEM, 44);
+  assert.equal(ClientOpcode.CLAIM_CORPSE_GOLD, 45);
+  assert.equal(ClientOpcode.LOOT_ALL_CORPSE, 46);
   assert.equal(ServerOpcode.FULL_STATE, 101);
   assert.equal(ServerOpcode.SNAPSHOT, 102);
   assert.equal(ServerOpcode.ACTION_RESULT, 103);
@@ -74,6 +79,8 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ServerOpcode.PARTY_STATE, 113);
   assert.equal(ServerOpcode.PARTY_EVENT, 114);
   assert.equal(ServerOpcode.TRADE_STATE, 115);
+  assert.equal(ServerOpcode.CORPSE_STATE, 116);
+  assert.equal(ServerOpcode.CORPSE_REMOVED, 117);
 });
 
 test("valid movement input parses direction and sequence only", () => {
@@ -922,4 +929,41 @@ test("dialogue choose and interaction close parse session fields only", () => {
   if (!isProtocolError(recover)) {
     assert.equal(recover.fields.instanceId, "ov-1");
   }
+  const openCorpse = parse(
+    ClientOpcode.OPEN_CORPSE,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      corpseId: "corpse-1",
+      requestId: "req-open-corpse1",
+    }),
+  );
+  assert.equal(isProtocolError(openCorpse), false);
+  if (!isProtocolError(openCorpse)) {
+    assert.equal(openCorpse.fields.corpseId, "corpse-1");
+  }
+  const claimItem = parse(
+    ClientOpcode.CLAIM_CORPSE_ITEM,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      corpseId: "corpse-1",
+      entryId: "entry-1",
+      toSlotIndex: 4,
+      requestId: "req-claim-item01",
+    }),
+  );
+  assert.equal(isProtocolError(claimItem), false);
+  if (!isProtocolError(claimItem)) {
+    assert.equal(claimItem.fields.entryId, "entry-1");
+    assert.equal(claimItem.toSlotIndex, 4);
+  }
+  const lootRecipients = parse(
+    ClientOpcode.CLAIM_CORPSE_GOLD,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      corpseId: "corpse-1",
+      requestId: "req-claim-gold01",
+      lootRecipients: ["char-a"],
+    }),
+  );
+  assert.equal(isProtocolError(lootRecipients), true);
 });

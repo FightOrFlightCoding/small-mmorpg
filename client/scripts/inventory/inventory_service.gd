@@ -384,6 +384,12 @@ func handle_drop(payload: Dictionary, dest: ItemSlotView) -> String:
 	var from_kind := String(payload.get("fromKind", "bag"))
 	var from_slot := int(payload.get("fromSlot", -1))
 	var split := bool(payload.get("split", false))
+	if dest.origin_kind == "corpse":
+		_reject_local("destination_unavailable", "You cannot put items on the corpse.")
+		DragDropService.reject("destination_unavailable")
+		return ""
+	if from_kind == "corpse":
+		return _drop_corpse_to_bag(payload, dest)
 	if instance_id.is_empty():
 		DragDropService.cancel()
 		return ""
@@ -456,6 +462,35 @@ func clear_pending() -> void:
 	pending = {}
 	if had:
 		pending_changed.emit()
+
+
+func _drop_corpse_to_bag(payload: Dictionary, dest: ItemSlotView) -> String:
+	if dest.origin_kind != "bag":
+		_reject_local("invalid_slot", "Drop corpse loot into a bag slot.")
+		DragDropService.reject("invalid_slot")
+		return ""
+	var entry_id := String(payload.get("entryId", payload.get("instanceId", "")))
+	if entry_id.is_empty():
+		DragDropService.cancel()
+		return ""
+	var dest_item: Dictionary = item_at_slot(dest.slot_index)
+	if not dest_item.is_empty():
+		var source: Dictionary = {
+			"itemId": String(payload.get("itemId", "")),
+			"quantity": int(payload.get("quantity", 1)),
+			"instanceId": entry_id,
+		}
+		var definition: Dictionary = ItemPresentation.definition_for(ItemPresentation.item_id_of(source))
+		if not ItemPresentation.stacks_compatible(source, dest_item, definition):
+			_reject_local("invalid_slot", "That bag slot is occupied.")
+			DragDropService.reject("invalid_slot")
+			return ""
+		if ItemPresentation.dest_stack_full(source, dest_item, definition):
+			_reject_local("stack_full", "That stack is already full.")
+			DragDropService.reject("stack_full")
+			return ""
+	DragDropService.complete()
+	return CorpseService.request_claim_item(entry_id, dest.slot_index)
 
 
 func _drop_bag_to_bag(instance_id: String, source: Dictionary, dest: ItemSlotView) -> String:
@@ -797,6 +832,8 @@ func _message_for(code: String) -> String:
 			return "That bag slot is not valid."
 		"inventory_stale":
 			return "Inventory changed. Refreshing."
+		"destination_unavailable":
+			return "You cannot put items on the corpse."
 		"not_equippable":
 			return "That item cannot be equipped."
 		_:

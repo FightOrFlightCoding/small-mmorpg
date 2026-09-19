@@ -902,3 +902,17 @@ ITEM-04 is the player-facing 6×5 bag. It does not add corpse, merchant, ground,
 - Equipment stays outside the bag. Drag bag→valid slot or right-click Equip; drag equipped→bag; full bag rejects unequip; derived attack still comes from the server.
 - GLoot stays behind `InventoryService`. Local GLoot edits still revert. Pending ghosts never finalize ownership. Timeout or `inventory_stale` requests canonical `FULL_STATE` and keeps the original `requestId`.
 - Conflicts ITEM-C15 and ITEM-C23 are CLOSED. Content hash unchanged from ITEM-03.
+
+## 2026-09-19 — ITEM-05 first-attacker tagging, corpse loot, gold, and Loot All
+
+ITEM-05 adds match-lifetime corpse containers and first-hit tagging. It does not resolve Need/Greed.
+
+- First damaging hit sets `tag_owner_character_id`, `tag_party_id`, immutable `encounter_roster`, `tagged_at`, `tag_revision`. Controlled attackers resolve to the owning character. Leash/full reset clears the tag. Late party joins are excluded; kicked members stay in the snapshot.
+- Death-eligible roster is created once (same-match, credit range, death during encounter, departure, identity). The client never nominates recipients.
+- Loot tables may mark entries `kind: item | gold`. Generation runs once at death; quantities split at max stack.
+- Corpse: 60 s private, 5 min expire, empty may vanish immediately. Ordinary party loot is first-come. Uncommon+ party drops enter `ROLL_PENDING` for ITEM-06. Quest items never roll.
+- Private gold: `floor(gold / n)` plus remainder (tag owner, then ascending character id). Durable per-share records when a multi-character wallet primitive is not fully atomic. Public gold is first claimant. Duplicate `requestId` replays.
+- Loot All: gold then items; skip active rolls and foreign awards; independent fit simulation; detailed per-entry results.
+- Prompt 18 dual-path: corpse plus 30 s sparkles linked by `corpseId`/`corpseEntryId`. Corpses are not reconstructed after match/server restart.
+- Opcodes 42–46 / 116–117. Storage record count remains 35. Content hash unchanged.
+- Conflicts ITEM-C04, ITEM-C05, ITEM-C06, ITEM-C07, ITEM-C08, ITEM-C18, ITEM-C26 are CLOSED. ITEM-C03 and PendingRollAward stay ITEM-06.

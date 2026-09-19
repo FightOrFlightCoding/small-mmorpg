@@ -11,6 +11,7 @@ import { effectModifiersFrom, hasControlTag } from "./effects";
 import { maybeResetBoss, tickBossPhases } from "./boss";
 import { interruptEnemyCast, tickEnemyCasts, tryEnemyAbility } from "./enemy_ability";
 import { despawnSpawn, resetEnemyToSpawn, respawnExistingIfDue, tickRespawns } from "./spawn_controller";
+import { resetEnemyTag } from "./enemy_tag";
 import {
   clearThreat,
   profileForEnemy,
@@ -245,6 +246,10 @@ function returnToSpawn(
     }
     resetEnemyToSpawn(enemy, true);
     return;
+  }
+  const tagged = enemy.tagOwnerCharacterId !== undefined ? enemy.tagOwnerCharacterId : "";
+  if (tagged.length > 0) {
+    resetEnemyTag(enemy);
   }
   enemy.aiState = EnemyAiState.Idle;
 }

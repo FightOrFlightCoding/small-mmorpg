@@ -43,6 +43,7 @@ const DIALOGUE := "dialogue"
 const VENDOR := "vendor"
 const INN := "inn"
 const CAVE := "cave"
+const CORPSE := "corpse"
 const DEATH := "death"
 const GAME_MENU := "game_menu"
 const ERROR := "error"
@@ -67,6 +68,7 @@ const CLOSEABLE := [
 	"vendor",
 	"inn",
 	"cave",
+	"corpse",
 	"game_menu",
 ]
 

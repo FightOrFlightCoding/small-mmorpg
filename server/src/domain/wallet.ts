@@ -54,6 +54,22 @@ export function emptyGoldLedger(): GoldLedger {
   return { mutationByRequestId: {} };
 }
 
+export function cloneGoldLedger(ledger: GoldLedger | undefined): GoldLedger {
+  const copy: GoldLedger = { mutationByRequestId: {} };
+  const source = ledger !== undefined ? ledger.mutationByRequestId : {};
+  const ids = Object.keys(source);
+  for (let i = 0; i < ids.length; i++) {
+    const row = source[ids[i]];
+    copy.mutationByRequestId[ids[i]] = {
+      ok: row.ok === true,
+      code: row.code,
+      delta: row.delta,
+      resultingBalance: row.resultingBalance,
+    };
+  }
+  return copy;
+}
+
 export function applyGoldMutation(input: GoldMutationInput, ledger?: GoldLedger): GoldMutationResult {
   const metadata = cloneMetadata(input.metadata);
   if (ledger !== undefined) {

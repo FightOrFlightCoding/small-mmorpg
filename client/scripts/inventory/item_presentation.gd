@@ -128,6 +128,10 @@ static func lock_reason(instance: Dictionary) -> String:
 			return "Locked: in a trade."
 		"DROP_INTENT":
 			return "Locked: drop in progress."
+		"roll_pending":
+			return "Need/Greed is pending."
+		"reserved":
+			return "Reserved for another player."
 		_:
 			return "Locked: %s." % reason
 

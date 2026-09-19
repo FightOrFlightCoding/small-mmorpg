@@ -46,6 +46,11 @@ export const ClientOpcode = {
   DIALOGUE_CHOOSE: 39,
   INTERACTION_CLOSE: 40,
   RECOVER_OVERFLOW_ITEM: 41,
+  OPEN_CORPSE: 42,
+  CLOSE_CORPSE: 43,
+  CLAIM_CORPSE_ITEM: 44,
+  CLAIM_CORPSE_GOLD: 45,
+  LOOT_ALL_CORPSE: 46,
 } as const;
 
 export const ServerOpcode = {
@@ -64,6 +69,8 @@ export const ServerOpcode = {
   PARTY_STATE: 113,
   PARTY_EVENT: 114,
   TRADE_STATE: 115,
+  CORPSE_STATE: 116,
+  CORPSE_REMOVED: 117,
 } as const;
 
 export type ClientOpcode = (typeof ClientOpcode)[keyof typeof ClientOpcode];
@@ -111,6 +118,11 @@ const CLIENT_OPCODES: ClientOpcode[] = [
   ClientOpcode.DIALOGUE_CHOOSE,
   ClientOpcode.INTERACTION_CLOSE,
   ClientOpcode.RECOVER_OVERFLOW_ITEM,
+  ClientOpcode.OPEN_CORPSE,
+  ClientOpcode.CLOSE_CORPSE,
+  ClientOpcode.CLAIM_CORPSE_ITEM,
+  ClientOpcode.CLAIM_CORPSE_GOLD,
+  ClientOpcode.LOOT_ALL_CORPSE,
 ];
 
 const REWARD_OPCODES: ClientOpcode[] = [
@@ -121,6 +133,9 @@ const REWARD_OPCODES: ClientOpcode[] = [
   ClientOpcode.VENDOR_SELL,
   ClientOpcode.INN_REST,
   ClientOpcode.TRAINER_RESPEC,
+  ClientOpcode.CLAIM_CORPSE_ITEM,
+  ClientOpcode.CLAIM_CORPSE_GOLD,
+  ClientOpcode.LOOT_ALL_CORPSE,
 ];
 
 const COMMON_KEYS = ["protocolVersion", "contentHash", "requestId"];
@@ -167,6 +182,11 @@ OPCODE_KEYS[ClientOpcode.PURCHASE_TALENT] = ["treeId", "nodeId", "requestedRank"
 OPCODE_KEYS[ClientOpcode.DIALOGUE_CHOOSE] = ["interactionSessionId", "optionId"];
 OPCODE_KEYS[ClientOpcode.INTERACTION_CLOSE] = ["interactionSessionId", "npcInstanceId"];
 OPCODE_KEYS[ClientOpcode.RECOVER_OVERFLOW_ITEM] = ["instanceId", "toSlotIndex", "expectedRevision"];
+OPCODE_KEYS[ClientOpcode.OPEN_CORPSE] = ["corpseId"];
+OPCODE_KEYS[ClientOpcode.CLOSE_CORPSE] = ["corpseId"];
+OPCODE_KEYS[ClientOpcode.CLAIM_CORPSE_ITEM] = ["corpseId", "entryId", "toSlotIndex", "expectedRevision"];
+OPCODE_KEYS[ClientOpcode.CLAIM_CORPSE_GOLD] = ["corpseId"];
+OPCODE_KEYS[ClientOpcode.LOOT_ALL_CORPSE] = ["corpseId", "expectedRevision"];
 
 const OUTCOME_KEYS = [
   "attack",
@@ -286,6 +306,11 @@ function requiresRequestId(opcode: ClientOpcode): boolean {
     opcode === ClientOpcode.SPLIT_STACK ||
     opcode === ClientOpcode.MOVE_ITEM ||
     opcode === ClientOpcode.RECOVER_OVERFLOW_ITEM ||
+    opcode === ClientOpcode.OPEN_CORPSE ||
+    opcode === ClientOpcode.CLOSE_CORPSE ||
+    opcode === ClientOpcode.CLAIM_CORPSE_ITEM ||
+    opcode === ClientOpcode.CLAIM_CORPSE_GOLD ||
+    opcode === ClientOpcode.LOOT_ALL_CORPSE ||
     opcode === ClientOpcode.USE_ABILITY ||
     opcode === ClientOpcode.CANCEL_CAST ||
     opcode === ClientOpcode.ASSIGN_HOTBAR ||
@@ -554,6 +579,13 @@ export function parseClientMessage(
     const toSlotIndex = data.toSlotIndex;
     if (typeof toSlotIndex !== "number" || !isFinite(toSlotIndex) || toSlotIndex !== Math.floor(toSlotIndex)) {
       return { code: "invalid_slot", message: "RECOVER toSlotIndex must be a finite integer." };
+    }
+    message.toSlotIndex = toSlotIndex;
+  }
+  if (opcode === ClientOpcode.CLAIM_CORPSE_ITEM && Object.prototype.hasOwnProperty.call(data, "toSlotIndex")) {
+    const toSlotIndex = data.toSlotIndex;
+    if (typeof toSlotIndex !== "number" || !isFinite(toSlotIndex) || toSlotIndex !== Math.floor(toSlotIndex)) {
+      return { code: "invalid_slot", message: "CLAIM toSlotIndex must be a finite integer." };
     }
     message.toSlotIndex = toSlotIndex;
   }
@@ -912,6 +944,41 @@ export function combatEvent(
       protocolVersion: PROTOCOL_VERSION,
       tick: tick,
       events: events,
+    }),
+  };
+}
+
+export function corpseStateMessage(
+  contentHash: string,
+  corpse: { [key: string]: unknown },
+  requestId?: string,
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    contentHash: contentHash,
+    corpse: corpse,
+  };
+  if (requestId !== undefined) {
+    payload.requestId = requestId;
+  }
+  return {
+    opcode: ServerOpcode.CORPSE_STATE,
+    body: JSON.stringify(payload),
+  };
+}
+
+export function corpseRemovedMessage(
+  contentHash: string,
+  corpseId: string,
+  reason: string,
+): { opcode: number; body: string } {
+  return {
+    opcode: ServerOpcode.CORPSE_REMOVED,
+    body: JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      contentHash: contentHash,
+      corpseId: corpseId,
+      reason: reason,
     }),
   };
 }

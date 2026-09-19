@@ -22,6 +22,8 @@ signal ability_state_received(payload: Dictionary)
 signal party_state_received(payload: Dictionary)
 signal party_event_received(payload: Dictionary)
 signal trade_state_received(payload: Dictionary)
+signal corpse_state_received(payload: Dictionary)
+signal corpse_removed_received(payload: Dictionary)
 signal gm_command_received(payload: Dictionary)
 signal system_notice_received(code: String, message: String)
 signal logged_out
@@ -591,6 +593,57 @@ func send_pickup(loot_id: String, request_id: String, expected_revision: int = -
 	_attach_expected_revision(extra, expected_revision)
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_PICKUP,
+		MatchProtocol.client_envelope_json(extra)
+	)
+
+
+func send_open_corpse(corpse_id: String, request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_OPEN_CORPSE,
+		MatchProtocol.client_envelope_json({"corpseId": corpse_id, "requestId": request_id})
+	)
+
+
+func send_close_corpse(corpse_id: String, request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_CLOSE_CORPSE,
+		MatchProtocol.client_envelope_json({"corpseId": corpse_id, "requestId": request_id})
+	)
+
+
+func send_claim_corpse_item(corpse_id: String, entry_id: String, request_id: String, expected_revision: int = -1, to_slot_index: int = -1) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var extra: Dictionary = {"corpseId": corpse_id, "entryId": entry_id, "requestId": request_id}
+	_attach_expected_revision(extra, expected_revision)
+	if to_slot_index >= 0:
+		extra["toSlotIndex"] = to_slot_index
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_CLAIM_CORPSE_ITEM,
+		MatchProtocol.client_envelope_json(extra)
+	)
+
+
+func send_claim_corpse_gold(corpse_id: String, request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_CLAIM_CORPSE_GOLD,
+		MatchProtocol.client_envelope_json({"corpseId": corpse_id, "requestId": request_id})
+	)
+
+
+func send_loot_all_corpse(corpse_id: String, request_id: String, expected_revision: int = -1) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var extra: Dictionary = {"corpseId": corpse_id, "requestId": request_id}
+	_attach_expected_revision(extra, expected_revision)
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_LOOT_ALL_CORPSE,
 		MatchProtocol.client_envelope_json(extra)
 	)
 
@@ -1803,6 +1856,19 @@ func _on_match_state(opcode: int, payload: String) -> void:
 			trade_state_received.emit(trade_state)
 			return
 		trade_state_received.emit(trade_state)
+		return
+	if opcode == MatchProtocol.SERVER_CORPSE_STATE:
+		var corpse_state: Dictionary = MatchProtocol.parse_corpse_state(payload)
+		if not bool(corpse_state.get("ok", false)):
+			AppState.report_recoverable(String(corpse_state.get("code", "corpse_state_failed")), String(corpse_state.get("message", "Corpse state was invalid.")))
+			return
+		corpse_state_received.emit(corpse_state)
+		return
+	if opcode == MatchProtocol.SERVER_CORPSE_REMOVED:
+		var corpse_removed: Dictionary = MatchProtocol.parse_corpse_removed(payload)
+		if not bool(corpse_removed.get("ok", false)):
+			return
+		corpse_removed_received.emit(corpse_removed)
 		return
 
 

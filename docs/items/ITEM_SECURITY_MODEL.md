@@ -1,4 +1,4 @@
-# Item security model (ITEM-03)
+# Item security model (ITEM-05)
 
 The client is an untrusted renderer. Defenses stay server-side. Parent: [SECURITY_MODEL.md](../SECURITY_MODEL.md).
 
@@ -23,18 +23,21 @@ The client is an untrusted renderer. Defenses stay server-side. Parent: [SECURIT
 | Equip with full bag | Unequip simulates capacity; `inventory_full`; stay equipped |
 | Overflow as extra bag | Grants never write overflow; recover requires a free bag slot; occupied dest is `invalid_slot` |
 | Forged overflow instance | `invalid_id` unless the stack is in that character's overflow |
-| Rate flood | 8 inventory/vendor/trade/recover per 10 ticks; 2048-byte bodies |
+| Rate flood | 8 inventory/vendor/trade/recover/corpse per 10 ticks; 2048-byte bodies |
 | Stale bag revision | Optional `expectedRevision`; reject + canonical `FULL_STATE` |
 | Indefinite item lock | TTL 120 s, tick expiry, orphan release |
+| Claim private corpse | Tag + roster + time; others `not_eligible` |
+| Concurrent corpse claim | One reservation; others `loot_item_no_longer_available`; same `requestId` replays |
+| Loot All while rolls open | Skip `ROLL_PENDING` and foreign `AWARDED_PENDING_PICKUP` |
+| Corpse gold spoof | Client sends `corpseId` only; split is server-side and idempotent |
+| Corpse recipient injection | Reject `lootRecipients` |
 
 ## Target threats not yet implemented
 
 | Attack | Required defense when that feature lands |
 | --- | --- |
 | Need/Greed client roll | Server integer 1–100; ignore client numbers |
-| Claim private corpse | Tag + roster + time; others `not_eligible` |
-| Pickup pending award | Winner only; others fail |
-| Loot All while rolls open | Skip `ROLL_PENDING` and foreign `AWARDED_PENDING_PICKUP` |
+| Pickup pending award | Winner only; others fail. `ROLL_PENDING` is reserved until ITEM-06 |
 | Client drop coordinates | Server chooses nearby valid pose |
 | Partial ground pickup | Reject; full stack only |
 | Forged forage grant | No client grant; node + range + idempotent `requestId`; reuse acquisition intent |

@@ -1,6 +1,6 @@
-# Item test plan (ITEM-04)
+# Item test plan (ITEM-05)
 
-ITEM-04 extends the live inventory UI. Acceptance is the gates below plus the ITEM-04 cases. Do not weaken tests.
+ITEM-05 extends live tagging, corpse loot, gold, and Loot All. Acceptance is the gates below plus the ITEM-05 cases. Do not weaken tests.
 
 ## Baseline (run on ITEM-04; 2026-09-19)
 
@@ -42,7 +42,10 @@ GODOT_BIN=godot bash scripts/test-client.sh
 | `server/tests/transaction.test.ts` / `wallet` tests | Gold ledger, version conflict |
 | `server/tests/security.test.ts` / `protocol.test.ts` | Injection, unknown fields, opcode 41, optional `expectedRevision` |
 | `client/tests/app/inventory_service_test.gd` | GLoot mirror, intents, overflow recover, Inventory Recovery panel, expected revision, INVENTORY_STATE revision |
-| `client/tests/app/bag_ui_test.gd` | 6×5 / 30 slots, fixed positions, move/swap/merge/excess, split/invalid split, locked, equip/unequip, full bag, tooltip, rarity text, fallback icon, stale/timeout resync, duplicate signals, character switch, logout/reconnect |
+| `server/tests/corpse.test.ts` | Tag/roster/leash, generation once, stack split, private/public/expire, claims, Loot All partial, gold split/remainder/public/duplicate, restart, empty removal |
+| `server/tests/enemy_tag.test.ts` | First attacker, party snapshot, late join excluded, kicked preserved, leash reset |
+| `client/tests/app/corpse_service_test.gd` | Open/claim/Loot All intentions; no recipients; window + bag; loot-all summary |
+| `client/tests/app/bag_ui_test.gd` | 6×5 / 30 slots plus corpse origin loot, bag stays usable, bag→corpse reject, occupied dest reject |
 | `client/tests/app/equipment_service_test.gd` | Equip mirror |
 | `client/tests/app/vendor_inn_service_test.gd` / `merchant_window_test.gd` | Buy UI, no price send |
 | `client/tests/app/trade_service_test.gd` | Trade mirror |
@@ -59,8 +62,18 @@ Vertical-slice item journey: slime gel pickup + elder turn-in (VS-T* in [VERTICA
 5. Equipment stays outside the bag. Full-bag unequip is rejected. Later trade/corpse/merchant windows override right-click through `ItemContextRouter`, not the slot component.
 6. `client/addons/` untouched; content hash unchanged from ITEM-03 (`7877dd576b022d59f0350be4430aca0b9d402db38b5e16e816ef361003c9cffd`).
 
+## ITEM-05 acceptance
+
+1. First-attacker tagging is authoritative. The encounter roster is immutable. Leash/full reset clears the tag.
+2. Loot is generated once at death. Stacks split at max stack. The client never nominates recipients.
+3. Private 60 s, public after the ITEM-06 stub, expire at 5 minutes. Empty corpses may vanish immediately.
+4. Ordinary party loot is first come. Uncommon+ party drops enter `ROLL_PENDING` and are not resolved. Quest items never roll.
+5. Gold distribution is exact and idempotent. Public remainder is first claimant.
+6. Loot All takes what fits and reports the rest. Sparkle dual-path keeps Prompt 18 slime pickup.
+7. Corpse restart behavior is transient. No new storage collection. Content hash unchanged.
+
 ## Later-phase tests (do not implement now)
 
-60 s / 5 min corpse; first-attacker tag snapshot; Need/Greed; Loot All partial; corpse gold remainder order; `AWARDED_PENDING_PICKUP`; all-pass public; player drop 5 min opcode; 20 trade slots; forage grant from a world node.
+Need/Greed resolution; `AWARDED_PENDING_PICKUP` winner pickup; all-pass public; player drop 5 min opcode; 20 trade slots; forage grant from a world node.
 
 If any **current** trade test fails before a later ITEM phase: repair in a focused pre-ITEM commit; do not retarget expectations without root cause.

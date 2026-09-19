@@ -1,4 +1,4 @@
-# Item content model (ITEM-03)
+# Item content model (ITEM-05)
 
 ITEM-03 does not change authored item JSON. Content hash remains the ITEM-02 digest.
 
@@ -53,11 +53,9 @@ Live tags: `main_hand`, `off_hand`, `head`, `chest`, `legs`, `feet`. Classes lis
 
 Schema: `content/schemas/loot_table.json`.
 
-Required: `ownershipPolicy`, `entries[]` with `itemDefinitionId`, min/max quantity, `chance`, optional `weight` / `groupId` / `guaranteed`.
+Required: `ownershipPolicy`, `entries[]` with `itemDefinitionId`, min/max quantity, `chance`, optional `weight` / `groupId` / `guaranteed` / `kind` (`item` | `gold`). Gold entries roll a quantity into corpse gold, not an item instance. Existing production tables are unchanged (content hash unchanged).
 
-No gold/currency entry type. No rarity filter. No corpse vs ground distinction.
-
-`loot.green_slime`: `ground_free`, guaranteed 1× `item.slime_gel`.
+`loot.green_slime`: `ground_free`, guaranteed 1× `item.slime_gel`. Mob deaths generate corpse loot once; slime also keeps a 30 s sparkle dual-path.
 
 Normalized runtime policy (`normalizedLootPolicy`):
 

@@ -107,7 +107,12 @@
     "PURCHASE_TALENT": 38,
     "DIALOGUE_CHOOSE": 39,
     "INTERACTION_CLOSE": 40,
-    "RECOVER_OVERFLOW_ITEM": 41
+    "RECOVER_OVERFLOW_ITEM": 41,
+    "OPEN_CORPSE": 42,
+    "CLOSE_CORPSE": 43,
+    "CLAIM_CORPSE_ITEM": 44,
+    "CLAIM_CORPSE_GOLD": 45,
+    "LOOT_ALL_CORPSE": 46
   },
   "serverOpcodes": {
     "FULL_STATE": 101,
@@ -124,7 +129,9 @@
     "ABILITY_STATE": 112,
     "PARTY_STATE": 113,
     "PARTY_EVENT": 114,
-    "TRADE_STATE": 115
+    "TRADE_STATE": 115,
+    "CORPSE_STATE": 116,
+    "CORPSE_REMOVED": 117
   },
   "storageRecords": [
     { "collection": "player", "key": "character", "permissionWrite": 0, "schemaVersion": 1 },

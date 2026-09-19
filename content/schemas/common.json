@@ -375,6 +375,7 @@
         "weight": { "$ref": "#/$defs/nonNegativeNumber" },
         "groupId": { "type": "string", "minLength": 1 },
         "guaranteed": { "type": "boolean" },
+        "kind": { "type": "string", "enum": ["item", "gold"] },
         "ownershipPolicy": {
           "type": "string",
           "enum": ["ground_free", "killer", "party_split"]

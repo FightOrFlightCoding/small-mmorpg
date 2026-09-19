@@ -21,6 +21,7 @@ import { distance } from "./movement";
 import { isNpcRuntimeId } from "./npc";
 import { addDamageThreat, applyHealThreatToEnemies, profileForEnemy, tauntDamageTakenMultiplier } from "./threat";
 import { noteAddDeath } from "./spawn_controller";
+import { applyFirstDamagingHitTag, resolveOwningCharacter } from "./enemy_tag";
 import { evaluateCanonicalHit, type PowerCategory } from "./canonical_stats";
 import type { CombatRandom } from "./combat_rng";
 import { evaluateStats, playerStatContext } from "./stats";
@@ -220,6 +221,21 @@ export function applyCombat(state: StarterZoneState, input: CombatApplyInput, ev
 
   const appliedAmount =
     input.action === "heal" ? remaining - target.health : target.health - remaining;
+  if (input.action === "damage" && appliedAmount > 0 && input.targetKind === "enemy") {
+    const owner = resolveOwningCharacter(state, input.sourceId, input.sourceKind);
+    const enemy = findEnemy(state.enemies, input.targetId);
+    if (owner !== null && enemy !== null) {
+      const party =
+        state.partyByCharacterId !== undefined ? state.partyByCharacterId[owner.characterId] : undefined;
+      applyFirstDamagingHitTag({
+        enemy: enemy,
+        attackerUserId: owner.userId,
+        attackerCharacterId: owner.characterId,
+        party: party,
+        tick: input.tick,
+      });
+    }
+  }
   events.push({
     type: input.action === "heal" ? "heal" : "hit",
     sourceId: input.sourceId,

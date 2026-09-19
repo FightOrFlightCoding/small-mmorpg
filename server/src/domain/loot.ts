@@ -20,6 +20,8 @@ export interface MatchLoot {
   x: number;
   y: number;
   expiresAtTick: number;
+  corpseId?: string;
+  corpseEntryId?: string;
 }
 
 export const LOOT_TTL_SEC = 30;
@@ -28,6 +30,7 @@ export interface LootDrop {
   itemId: string;
   quantity: number;
   guaranteed?: boolean;
+  kind?: "item" | "gold";
 }
 
 export interface PickupInput {
@@ -108,6 +111,63 @@ export function spawnRolledLoot(
       y: y,
       expiresAtTick: tick + expireTicks,
     });
+  }
+  return next;
+}
+
+export function spawnCorpseSparkles(
+  loot: MatchLoot[],
+  corpseId: string,
+  items: ReadonlyArray<{ entryId: string; itemId: string; quantity: number; instanceId: string; state: string }>,
+  x: number,
+  y: number,
+  tick: number,
+  expireTicks: number,
+  newId: () => string,
+): MatchLoot[] {
+  const next = cloneLoot(loot);
+  for (let i = 0; i < items.length; i++) {
+    const entry = items[i];
+    if (entry.state === "CLAIMED" || entry.state === "EXPIRED" || entry.itemId.length === 0) {
+      continue;
+    }
+    next.push({
+      id: newId(),
+      itemId: entry.itemId,
+      quantity: entry.quantity,
+      instanceId: entry.instanceId,
+      x: x,
+      y: y,
+      expiresAtTick: tick + expireTicks,
+      corpseId: corpseId,
+      corpseEntryId: entry.entryId,
+    });
+  }
+  return next;
+}
+
+export function findMatchLoot(loot: ReadonlyArray<MatchLoot>, lootId: string): MatchLoot | null {
+  return findLoot(loot, lootId);
+}
+
+export function removeCorpseLinkedLoot(loot: ReadonlyArray<MatchLoot>, corpseId: string, entryId?: string): MatchLoot[] {
+  const next: MatchLoot[] = [];
+  for (let i = 0; i < loot.length; i++) {
+    const entity = loot[i];
+    const linked = entity.corpseId !== undefined ? entity.corpseId : "";
+    if (linked !== corpseId) {
+      next.push(cloneLootEntity(entity));
+      continue;
+    }
+    if (entryId !== undefined && entryId.length > 0) {
+      const linkedEntry = entity.corpseEntryId !== undefined ? entity.corpseEntryId : "";
+      if (linkedEntry !== entryId) {
+        next.push(cloneLootEntity(entity));
+      }
+    }
+  }
+  return next;
+}
   }
   return next;
 }
@@ -264,7 +324,7 @@ function removeLoot(loot: ReadonlyArray<MatchLoot>, lootId: string): MatchLoot[]
 }
 
 function cloneLootEntity(entity: MatchLoot): MatchLoot {
-  return {
+  const cloned: MatchLoot = {
     id: entity.id,
     itemId: entity.itemId,
     quantity: entity.quantity,
@@ -273,4 +333,11 @@ function cloneLootEntity(entity: MatchLoot): MatchLoot {
     y: entity.y,
     expiresAtTick: entity.expiresAtTick,
   };
+  if (entity.corpseId !== undefined && entity.corpseId.length > 0) {
+    cloned.corpseId = entity.corpseId;
+  }
+  if (entity.corpseEntryId !== undefined && entity.corpseEntryId.length > 0) {
+    cloned.corpseEntryId = entity.corpseEntryId;
+  }
+  return cloned;
 }
