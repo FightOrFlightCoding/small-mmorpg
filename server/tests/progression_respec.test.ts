@@ -165,6 +165,8 @@ function liveTrade(): TradeRecord {
     offers: {},
     goldOffers: {},
     acceptanceRevisionByParticipant: {},
+    inventoryRevisionByParticipant: {},
+    capacityKeyByParticipant: {},
     createdAt: 1,
     expiresAt: 9_999,
     createdAtTick: 1,

@@ -1070,6 +1070,29 @@ test("match loop disconnect beyond grace cancels an open trade", () => {
   const left = applyPlayerLeave(accepted.state, "bob", 4);
   const cancelled = applyMatchLoop(left.state, 5, contentHash, [], makeIds());
   assert.equal(cancelled.state.trades[tradeId].state, "cancelled");
+  assert.equal(cancelled.state.trades[tradeId].cancelReason, "link_dead");
+});
+
+test("match loop player removal cancels an open trade as disconnected", () => {
+  let state = twoPlayers();
+  const invited = applyMatchLoop(
+    state,
+    2,
+    contentHash,
+    [tradeMsg("alice", ClientOpcode.TRADE_INVITE, { targetId: "bob", requestId: "rid-inv0004b" })],
+    makeIds(),
+  );
+  const tradeId = String(actionBodies(invited).find((body) => body.code === "ok").tradeId);
+  const accepted = applyMatchLoop(
+    invited.state,
+    3,
+    contentHash,
+    [tradeMsg("bob", ClientOpcode.TRADE_ACCEPT_INVITE, { tradeId: tradeId, requestId: "rid-acc0003b" })],
+    makeIds(),
+  );
+  delete accepted.state.players["bob"];
+  const cancelled = applyMatchLoop(accepted.state, 5, contentHash, [], makeIds());
+  assert.equal(cancelled.state.trades[tradeId].state, "cancelled");
   assert.equal(cancelled.state.trades[tradeId].cancelReason, "disconnected");
 });
 

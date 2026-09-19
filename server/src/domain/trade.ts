@@ -833,10 +833,7 @@ export function cancelReasonForTick(input: {
   if (input.actorA.health <= 0 || input.actorB.health <= 0) {
     return "player_dead";
   }
-  if (
-    (input.actorA.linkDead === true && input.actorA.online) ||
-    (input.actorB.linkDead === true && input.actorB.online)
-  ) {
+  if (input.actorA.linkDead === true || input.actorB.linkDead === true) {
     return "link_dead";
   }
   if (
@@ -1438,7 +1435,13 @@ function takeOffers(
       return { ok: false, code: "unowned_item", inventory: current, removed: removed };
     }
     current = next;
-    removed.push({ instanceId: line.instanceId, itemId: item.itemId, quantity: line.quantity });
+    removed.push({
+      instanceId: line.instanceId,
+      itemId: item.itemId,
+      quantity: line.quantity,
+      lockId: line.lockId,
+      slotIndex: line.slotIndex,
+    });
   }
   return { ok: true, code: "ok", inventory: current, removed: removed };
 }
