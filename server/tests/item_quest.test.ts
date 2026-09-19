@@ -279,25 +279,27 @@ test("quest items may be traded and possession moves with commit", () => {
 });
 
 test("dropping a quest item reduces possession and picking it up increases it", () => {
-  const inventory = bagWith("item.slime_gel", "gel-drop", 1);
+  const inventory = emptyInventory(30);
+  inventory.items.push(makeInstance("gel-drop", "item.slime_gel", 1, 0));
   const before = syncAcquireObjectives(gelLog(), inventory);
   assert.equal(before.log.quests["quest.slime_problem"].objectives[0].current, 1);
   const dropped = applyPlayerDrop({
-    playerHealth: 100,
+    playerHealth: 20,
     characterId: "char-alice",
-    playerX: 40,
-    playerY: 40,
+    playerX: 100,
+    playerY: 100,
+    facingX: 0,
+    facingY: 1,
     inventory: inventory,
     instanceId: "gel-drop",
-    quantity: 1,
-    requestId: "req-drop-gel",
+    requestId: "req-drop-quest1",
     groundItems: [],
     collisions: [],
     walkableBounds: { x: 0, y: 0, width: 400, height: 400 },
     itemsById: defs,
-    tick: 1,
+    tick: 10,
     tickRate: MATCH_TICK_RATE,
-    nowMs: 100,
+    nowMs: 1000,
     newIds: ids("drop"),
   });
   assert.equal(dropped.ok, true);
@@ -306,17 +308,17 @@ test("dropping a quest item reduces possession and picking it up increases it", 
   assert.equal(afterDrop.log.quests["quest.slime_problem"].status, QUEST_STATUS_ACCEPTED);
   assert.equal(afterDrop.log.quests["quest.slime_problem"].objectives[0].current, 0);
   const picked = applyGroundPickup({
-    playerHealth: 100,
+    playerHealth: 20,
     characterId: "char-alice",
-    playerX: 40,
-    playerY: 40,
+    playerX: 100,
+    playerY: 100,
     inventory: dropped.inventory,
     groundEntityId: dropped.spawned !== null ? dropped.spawned.groundEntityId : "",
-    requestId: "req-pick-gel",
+    requestId: "req-pick-quest1",
     groundItems: dropped.groundItems,
     pickupRange: 40,
     itemsById: defs,
-    nowMs: 200,
+    nowMs: 1100,
     newIds: ids("pick"),
   });
   assert.equal(picked.ok, true);
@@ -389,6 +391,7 @@ test("link-dead players cannot run item actions", () => {
   const spawn = content.zones["zone.starter"].playerSpawn;
   const actor = playerAt("user-alice", "Alice", spawn.x, spawn.y, bagWith("item.test_pebble", "peb-1", 1));
   actor.linkDead = true;
+  actor.linkDeadUntilTick = 1000;
   const state = addPlayer(emptyZone(), actor);
   const result = applyMatchLoop(state, 2, contentHash, [
     {

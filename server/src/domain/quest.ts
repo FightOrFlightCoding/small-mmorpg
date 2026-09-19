@@ -605,13 +605,19 @@ export function syncAcquireObjectives(
       if (objective.itemId === undefined) {
         continue;
       }
-      if (!isCurrentStageObjective(progress, objective)) {
+      const objectiveStage = objective.stageIndex !== undefined ? objective.stageIndex : 0;
+      const progressStage = progress.stageIndex !== undefined ? progress.stageIndex : 0;
+      if (objectiveStage > progressStage) {
         continue;
       }
       const owned = countQuestPossession(inventory, objective.itemId, extras, objective.countEquipment === true);
       const current = owned < objective.required ? owned : objective.required;
       if (current !== objective.current) {
         objective.current = current;
+        changed = true;
+      }
+      if (current < objective.required && progressStage > objectiveStage) {
+        progress.stageIndex = objectiveStage;
         changed = true;
       }
     }
