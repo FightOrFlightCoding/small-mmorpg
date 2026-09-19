@@ -1,4 +1,4 @@
-# Item content model (ITEM-07)
+# Item content model (ITEM-10)
 
 ITEM-03 does not change authored item JSON. Content hash remains the ITEM-02 digest.
 
@@ -75,8 +75,20 @@ Schema: `content/schemas/vendor.json`. `currencyId` must be `gold`. Stock: `item
 
 ## Quest item consumption
 
-Quest documents `consume[]` / `rewards.items[]` reference item ids. `acquire_item` / `collect_item` recount inventory possession (`syncAcquireObjectives`). Turn-in removes consumed stacks then grants rewards through `quest_reward.ts`.
+Quest documents `consume[]` / `rewards.items[]` reference item ids. `acquire_item` / `collect_item` recount bag possession (`syncAcquireObjectives` / `quest_sync.ts`). Trade offers are excluded. Equipment counts only when the objective sets `countEquipment`. Turn-in plans consume and rewards together through `planCapacity`; a full bag rejects with no mutation. Rewards never enter MigrationOverflow.
+
+A consume entry whose definition is `questItem` and fully tradeable/droppable must declare `itemReacquisition[]`:
+
+| Policy | Required source |
+| --- | --- |
+| `REPEATABLE_DROP` | At least one repeatable loot table / enemy / spawn that drops the item |
+| `REPEATABLE_INTERACTION` | At least one NPC source |
+| `MERCHANT_AVAILABLE` | At least one vendor that stocks the item |
+| `MULTIPLE_WORLD_SOURCES` | At least two repeatable world sources |
+| `EXPLICIT_EXTERNAL_ACQUISITION` | External source; production quests still need a repeatable world source |
+
+Production slime and proof errands use `REPEATABLE_DROP` against `loot.green_slime` / `loot.proof_critter`.
 
 ## Future foraging grant
 
-No gathering node content or opcode exists. Later grant sources must call the same `planCapacity` / `runItemTransaction` boundary with a new `sourceType` (for example `forage`) and must not add a second inventory writer. Acquisition intent is ready.
+`grantItemFromSource` is the project-owned trusted-server grant. Supported `sourceType` values: `forage_node`, `herb_bush`, `mining_node`, `fishing`, `crafting`, `world_interaction`, `quest_reward`, `admin_grant`. It validates definition and quantity, uses `planCapacity`, mints server instance ids, journals `eventId`, audits, and returns canonical inventory. Full bag → `INVENTORY_FULL`, `consumedSource: false`. No client opcode. Gathering-node depletion is out of this phase.

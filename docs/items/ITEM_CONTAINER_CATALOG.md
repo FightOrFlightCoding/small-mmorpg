@@ -1,4 +1,4 @@
-# Item container catalog (ITEM-09)
+# Item container catalog (ITEM-10)
 
 Containers are logical owners of item instances or gold. ITEM-01 records **live** vs **target**. Live names in code are used until a later phase migrates. ITEM-05 adds a client-visible corpse window over a match-lifetime `CorpseLootContainer`.
 

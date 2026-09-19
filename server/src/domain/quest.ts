@@ -8,7 +8,7 @@ import {
   NPC_QUEST_MARKER_READY,
   type NpcDefinition,
 } from "./npc";
-import { countItem, type PlayerInventory } from "./inventory";
+import { type ItemInstance, type PlayerInventory } from "./inventory";
 import { cloneTickMap, dict } from "./maps";
 import { cloneExtras, envelopeFromRecord } from "./save_schema";
 
@@ -35,6 +35,7 @@ export interface QuestObjectiveDef {
   instanceId?: string;
   location?: { x: number; y: number; width: number; height: number };
   partyCreditPolicy?: string;
+  countEquipment?: boolean;
 }
 
 export interface QuestStageDef {
@@ -89,6 +90,7 @@ export interface QuestObjectiveProgress {
   stageId?: string;
   stageIndex?: number;
   partyCreditPolicy?: string;
+  countEquipment?: boolean;
 }
 
 export interface QuestProgress {
@@ -546,9 +548,46 @@ function stampAcceptTick(log: QuestLog, requestId: string, tick: number | undefi
   log.acceptRequestTicks = ticks;
 }
 
+export interface QuestPossessionExtras {
+  equipment?: ReadonlyArray<ItemInstance>;
+  offeredQuantities?: { [instanceId: string]: number };
+}
+
+export function countQuestPossession(
+  inventory: PlayerInventory | undefined,
+  itemId: string,
+  extras?: QuestPossessionExtras,
+  countEquipment?: boolean,
+): number {
+  let total = 0;
+  if (inventory !== undefined && itemId.length > 0) {
+    const offered = extras !== undefined && extras.offeredQuantities !== undefined ? extras.offeredQuantities : {};
+    for (let i = 0; i < inventory.items.length; i++) {
+      const item = inventory.items[i];
+      if (item.itemId !== itemId) {
+        continue;
+      }
+      const offeredQty = typeof offered[item.instanceId] === "number" ? offered[item.instanceId] : 0;
+      const remaining = item.quantity - offeredQty;
+      if (remaining > 0) {
+        total += remaining;
+      }
+    }
+  }
+  if (countEquipment === true && extras !== undefined && extras.equipment !== undefined) {
+    for (let e = 0; e < extras.equipment.length; e++) {
+      if (extras.equipment[e].itemId === itemId) {
+        total += extras.equipment[e].quantity;
+      }
+    }
+  }
+  return total;
+}
+
 export function syncAcquireObjectives(
   log: QuestLog,
   inventory: PlayerInventory | undefined,
+  extras?: QuestPossessionExtras,
 ): { log: QuestLog; changed: boolean } {
   const next = cloneQuestLog(log);
   let changed = false;
@@ -569,7 +608,7 @@ export function syncAcquireObjectives(
       if (!isCurrentStageObjective(progress, objective)) {
         continue;
       }
-      const owned = countItem(inventory, objective.itemId);
+      const owned = countQuestPossession(inventory, objective.itemId, extras, objective.countEquipment === true);
       const current = owned < objective.required ? owned : objective.required;
       if (current !== objective.current) {
         objective.current = current;
@@ -662,6 +701,9 @@ export function createAcceptedProgress(definition: QuestDefinition): QuestProgre
       if (objective.partyCreditPolicy !== undefined) {
         progress.partyCreditPolicy = objective.partyCreditPolicy;
       }
+      if (objective.countEquipment === true) {
+        progress.countEquipment = true;
+      }
       objectives.push(progress);
     }
   }
@@ -705,6 +747,9 @@ function cloneQuestProgress(progress: QuestProgress): QuestProgress {
     }
     if (objective.stageIndex !== undefined) {
       copied.stageIndex = objective.stageIndex;
+    }
+    if (objective.countEquipment === true) {
+      copied.countEquipment = true;
     }
     objectives.push(copied);
   }
@@ -815,6 +860,9 @@ function copyObjective(objective: QuestObjectiveDef): QuestObjectiveDef {
   }
   if (objective.partyCreditPolicy !== undefined) {
     copied.partyCreditPolicy = objective.partyCreditPolicy;
+  }
+  if (objective.countEquipment === true) {
+    copied.countEquipment = true;
   }
   return copied;
 }

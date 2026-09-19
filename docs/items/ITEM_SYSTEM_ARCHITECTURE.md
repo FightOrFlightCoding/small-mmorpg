@@ -1,16 +1,16 @@
-# Item-system architecture contract (ITEM-09)
+# Item-system architecture contract (ITEM-10)
 
 **Last accepted gameplay phase:** NPC-07 — Lifecycle, security, and final certification (playable line `origin/main`, including later client crash/hang repairs).  
 **Last accepted progression phase:** PROG-15.  
-**Current requested phase:** ITEM-09 — Twenty-slot secure player trade.
+**Current requested phase:** ITEM-10 — Quest items, quest objectives, rewards, and future acquisition sources.
 
-ITEM-09 generalizes nearby player trade onto 20 offer slots per side with atomic commit. The client never finalizes bag or gold ownership before server confirmation. Do not create parallel inventory, equipment, wallet, loot, transaction, merchant, trade, or quest-item systems.
+ITEM-10 wires the completed item platform to quests and one shared future grant. The client never finalizes bag, gold, quest counts, or grants. Do not create parallel inventory, equipment, wallet, loot, transaction, merchant, trade, or quest-item systems.
 
 ## Preparation snapshot (this phase)
 
 | Topic | Value |
 | --- | --- |
-| Canonical git line | ITEM-09 stacks on ITEM-08 (`cursor/item-08-ground-drop-7369`). |
+| Canonical git line | ITEM-10 stacks on ITEM-09 (`cursor/item-09-trade-7369`). |
 | Inventory save envelope | Gameplay `schemaVersion` **1** (`SAVE_SCHEMA_VERSION`). Journal, intents, audits, and typed lock fields persist **inside** the inventory record. There is no 36th storage collection. Corpses and player ground items are match-lifetime only. |
 | Pre-existing test failures | **None.** Trade suite included. |
 | Duplicate ownership | One server inventory, one equipment map, one Nakama wallet `gold`, one match loot list, one corpse list, one player ground-item list, one trade state machine, one capacity simulator, one item transaction boundary. GLoot is a client mirror only. |
@@ -37,7 +37,8 @@ ITEM-09 generalizes nearby player trade onto 20 offer slots per side with atomic
 | Merchant | `vendor.ts`, `MerchantWindow`, NPC `vendor` service | Static unlimited catalog, server `buyPrice`, `stockEntryId`. `VENDOR_BUY` session-gated with preferred bag slot. **`VENDOR_SELL` exists but is not in the ITEM-07 window.** |
 | Wallet | `wallet.ts`, Nakama wallet `gold`, `player`/`wallet_ref` | Account-scoped gold. Not an item instance. Not a bag slot. |
 | Trade | `trade.ts`, `match_trade.ts`, `trade_store.ts`, `TradeService`, `TradeWindow` | Nearby same-match item+gold trade. Exactly 20 offer slots/side. Typed `TRADE` locks. `planTwoWayTrade` gates commit. Atomic `multiUpdate`. |
-| Quest items | `quest.ts` `syncAcquireObjectives`, `quest_reward.ts` consume | Possession recount. Gel and proof token are tradeable and droppable; `destroyable` is false. |
+| Quest items | `quest.ts` `syncAcquireObjectives`, `quest_sync.ts`, `quest_reward.ts` consume | Possession = bag minus trade offers; equipment only when `countEquipment`. Gel/proof are tradeable and droppable; `destroyable` is false. Never Need/Greed. |
+| Future grants | `item_grant.ts` `grantItemFromSource` | Trusted server only. Capacity simulator + `runItemTransaction`. Full bag grants nothing and does not consume the source. |
 | Transactions | `item_txn.ts`, `transaction.ts`, `nakama/transaction_store.ts` | One domain boundary plus OCC gold/inventory committers. Idempotent `requestId`. |
 | Locks | `item_lock.ts` on `ItemInstance` | Typed locks, TTL 120 s, tick expiry, orphan release. Partial quantity lock still immobilizes the stack. |
 | Journal / intents / audit | Inventory fields `journalByRequestId`, `intentsByRequestId`, `itemAudits` | No new storage key. Audit cap 32. |
@@ -62,13 +63,17 @@ The completed item platform, without implementing remaining features in ITEM-04:
 - Public player-dropped ground items, 5 min, full-stack pickup, server-selected placement. **Done in ITEM-08.**
 - Trade: **20** offer slots per side, gold offer, atomic commit.
 - All production items tradeable and droppable (including quest items). No soulbind / BoP / BoE.
-- Possession-based collection quests (already live; must survive drop/trade).
-- Future-safe foraging/gathering **grant path** through the same transaction core.
+- Possession-based collection quests. Bag minus live trade offers; equipment only when opted in; overflow/ground/corpse/merchant/other bags never count. **Done in ITEM-10.**
+- Future-safe foraging/gathering **grant path** through `grantItemFromSource`. **Done in ITEM-10.** Harvesting nodes themselves remain later.
 - One capacity simulator; container revisions; typed locks; audited idempotent mutations. **Done in ITEM-03.**
 
 ## Certified owners (reuse, do not fork)
 
-`inventory.ts`, `inventory_store.ts` (domain + nakama), `equipment.ts`, `equipment_store.ts`, `overflow.ts`, `overflow_store.ts` (domain + nakama), `item_migration.ts`, `item_capacity.ts`, `item_lock.ts`, `item_journal.ts`, `item_intent.ts`, `item_audit.ts`, `item_txn.ts`, `item_errors.ts`, `loot.ts`, `loot_table.ts`, `enemy_tag.ts`, `corpse.ts`, `loot_roll.ts`, `ground_item.ts`, `party_loot.ts`, `party_credit.ts`, `vendor.ts`, `trade.ts`, `match_trade.ts`, `trade_store.ts`, `wallet.ts`, `transaction.ts`, `transaction_store.ts`, `quest.ts`, `quest_reward.ts`, `quest_objectives.ts`, `match_loop.ts`, `match_state.ts`, `persistence.ts`, `InventoryService`, `EquipmentService`, `WalletService`, `VendorService`, `TradeService`, `TradeWindow`, `CorpseService`, `LootRollService`, `PickupIntent`, `MerchantWindow`, `CorpseWindow`, `LootRollWindow`, `GroundDropDialog`, `GroundItemAvatar`, `BagGrid`, `ItemSlotView`, `ItemPresentation`, `ItemContextRouter`, `SplitStackDialog`, `DragDropService` (bag/equipment ghosts plus ability preview), `TooltipService` (canonical item rows plus ability/hotbar).
+`inventory.ts`, `inventory_store.ts` (domain + nakama), `equipment.ts`, `equipment_store.ts`, `overflow.ts`, `overflow_store.ts` (domain + nakama), `item_migration.ts`, `item_capacity.ts`, `item_lock.ts`, `item_journal.ts`, `item_intent.ts`, `item_audit.ts`, `item_txn.ts`, `item_errors.ts`, `item_grant.ts`, `loot.ts`, `loot_table.ts`, `enemy_tag.ts`, `corpse.ts`, `loot_roll.ts`, `ground_item.ts`, `party_loot.ts`, `party_credit.ts`, `vendor.ts`, `trade.ts`, `match_trade.ts`, `trade_store.ts`, `wallet.ts`, `transaction.ts`, `transaction_store.ts`, `quest.ts`, `quest_sync.ts`, `quest_reward.ts`, `quest_objectives.ts`, `match_loop.ts`, `match_state.ts`, `persistence.ts`, `InventoryService`, `EquipmentService`, `WalletService`, `VendorService`, `TradeService`, `TradeWindow`, `CorpseService`, `LootRollService`, `PickupIntent`, `MerchantWindow`, `CorpseWindow`, `LootRollWindow`, `GroundDropDialog`, `GroundItemAvatar`, `BagGrid`, `ItemSlotView`, `ItemPresentation`, `ItemContextRouter`, `SplitStackDialog`, `DragDropService` (bag/equipment ghosts plus ability preview), `TooltipService` (canonical item rows plus ability/hotbar).
+
+## ITEM-10 change inventory
+
+Quest possession recounts after corpse loot, Need/Greed, ground pickup/drop, merchant buy, trade offer/commit/cancel, destroy, overflow recover, quest turn-in, and GM grant/remove. Collection counts bag quantity minus live trade offers; equipment only when the objective sets `countEquipment`. Quest items never open Need/Greed and stay first-come on the corpse. Production consume of a fully tradeable/droppable quest item must declare `itemReacquisition` with a repeatable world source. Turn-in plans consume+rewards together, rejects `inventory_full` with a required-capacity message, and never writes overflow. `grantItemFromSource` is the trusted-server grant for future gathering. No new opcode. No new storage collection. Content hash changes because slime/proof quests declare reacquisition.
 
 ## ITEM-09 change inventory
 

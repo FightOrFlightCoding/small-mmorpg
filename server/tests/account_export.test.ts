@@ -130,3 +130,40 @@ test("assembled export keeps canonical progression fields", () => {
   assert.equal(characters[0].progressionExport.autoAssignEnabled, true);
   assert.equal(exportContainsSecrets(payload), false);
 });
+
+test("assembled export includes bag, equipment, and item history", () => {
+  const payload = assembleAccountExport({
+    accountUserId: "user-old",
+    exportedAt: 50,
+    characters: [
+      {
+        characterId: "c1",
+        inventory: {
+          items: [{ instanceId: "gel-1", itemId: "item.slime_gel", quantity: 2 }],
+          itemAudits: [{ operationType: "item_grant", requestId: "evt-1", result: "ok" }],
+          journalByRequestId: { "evt-1": { state: "COMMITTED", requestId: "evt-1" } },
+        },
+        equipment: {
+          items: [{ instanceId: "sword-1", itemId: "item.training_sword", quantity: 1 }],
+        },
+      },
+    ],
+    transactions: [{ requestId: "tx-gel", goldDelta: 0, operationType: "item_grant" }],
+  });
+  const characters = payload.characters as Array<{
+    inventory: {
+      items: Array<{ itemId: string; quantity: number }>;
+      itemAudits: Array<{ requestId: string }>;
+      journalByRequestId: { [id: string]: { state: string } };
+    };
+    equipment: { items: Array<{ itemId: string }> };
+  }>;
+  assert.equal(characters[0].inventory.items[0].itemId, "item.slime_gel");
+  assert.equal(characters[0].inventory.items[0].quantity, 2);
+  assert.equal(characters[0].equipment.items[0].itemId, "item.training_sword");
+  assert.equal(characters[0].inventory.itemAudits[0].requestId, "evt-1");
+  assert.equal(characters[0].inventory.journalByRequestId["evt-1"].state, "COMMITTED");
+  const transactions = payload.transactions as Array<{ requestId: string }>;
+  assert.equal(transactions[0].requestId, "tx-gel");
+  assert.equal(exportContainsSecrets(payload), false);
+});

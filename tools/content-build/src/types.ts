@@ -340,6 +340,25 @@ export interface QuestObjectiveDef {
   instanceId?: string;
   location?: Aabb;
   partyCreditPolicy?: "solo" | "party";
+  countEquipment?: boolean;
+}
+
+export type ReacquisitionPolicy =
+  | "REPEATABLE_DROP"
+  | "REPEATABLE_INTERACTION"
+  | "MERCHANT_AVAILABLE"
+  | "MULTIPLE_WORLD_SOURCES"
+  | "EXPLICIT_EXTERNAL_ACQUISITION";
+
+export interface QuestReacquisitionSource {
+  type: "loot_table" | "enemy" | "spawn" | "vendor" | "npc" | "external";
+  id: string;
+}
+
+export interface QuestItemReacquisition {
+  itemId: string;
+  policy: ReacquisitionPolicy;
+  sources: QuestReacquisitionSource[];
 }
 
 export interface QuestStageDef {
@@ -369,6 +388,8 @@ export interface QuestDef {
     skillPoints?: number;
   };
   completeOnce: boolean;
+  itemReacquisition?: QuestItemReacquisition[];
+  developmentOnly?: boolean;
 }
 
 export interface ZoneDef {

@@ -1,8 +1,8 @@
-# Item test plan (ITEM-09)
+# Item test plan (ITEM-10)
 
-ITEM-09 extends ITEM-08 with twenty-slot secure player trade. Acceptance is the gates below plus the ITEM-09 cases. Do not weaken tests.
+ITEM-10 extends ITEM-09 with possession-based quest collection, atomic turn-in, reacquisition validation, and `grantItemFromSource`. Acceptance is the gates below plus the ITEM-10 cases. Do not weaken tests.
 
-## Baseline (run on ITEM-09; 2026-09-19)
+## Baseline (run on ITEM-10; 2026-09-19)
 
 Directory-form `node --test dist/tests` can fail on Node 22.14 before discovery. Glob invocation is authoritative.
 
@@ -38,7 +38,10 @@ GODOT_BIN=godot bash scripts/test-client.sh
 | `server/tests/vendor.test.ts` | Buy/sell, gold, full bag, equipped, unsellable, idempotent |
 | `server/tests/npc_vendor.test.ts` / `npc_security.test.ts` | Session-gated buy, price spoof, qty, preferred slot, multi-stack, stale revision, replay |
 | `server/tests/trade.test.ts` | Invite through recovery, 20 offer slots, locks, gold, revision, disconnect, transfer, capacity simulation |
-| `server/tests/quest_reward.test.ts` / `quest.test.ts` | Consume, grant, possession |
+| `server/tests/quest_reward.test.ts` / `quest.test.ts` / `item_quest.test.ts` | Consume, grant, possession minus offers, equipment opt-in, quest-item first-come / no roll, trade/drop recount, turn-in full bag, link-dead |
+| `server/tests/item_grant.test.ts` | Trusted `grantItemFromSource`: grant, duplicate eventId, full bag `INVENTORY_FULL` without consuming the source |
+| `server/tests/account_export.test.ts` / `character_lifecycle.test.ts` / `account_deletion.test.ts` | Export bag/equipment/history; restore preserves items; purge and account deletion remove items; reused email isolation |
+| `tools/content-build/tests/content-build.test.ts` | Repeatable reacquisition; missing policy; one-time source; production `EXPLICIT_EXTERNAL_ACQUISITION` |
 | `server/tests/transaction.test.ts` / `wallet` tests | Gold ledger, version conflict |
 | `server/tests/security.test.ts` / `protocol.test.ts` | Injection, unknown fields, opcode 41, optional `expectedRevision` |
 | `client/tests/app/inventory_service_test.gd` | GLoot mirror, intents, overflow recover, Inventory Recovery panel, expected revision, INVENTORY_STATE revision |
@@ -117,8 +120,18 @@ Vertical-slice item journey: slime gel pickup + elder turn-in (VS-T* in [VERTICA
 6. Disconnect, link-dead, death, range, transfer, timeout, and invalidated sources cancel and release every trade lock.
 7. No item or gold changes ownership before final commit. Changing an offer only sets the warning/revision state.
 
+## ITEM-10 acceptance
+
+1. Collection progress is possession in the character bag minus live trade offers. Equipment counts only when the quest objective sets `countEquipment`. Overflow, ground, corpse, merchant stock, and other characters never count.
+2. Trading or dropping a quest item may reduce progress. Receiving or picking one up may increase it. Progress does not fail the quest when it drops.
+3. Quest items never start Need/Greed. They use ordinary first-come corpse behavior, become public at 60 s, and expire with the corpse. They may be traded or dropped after acquisition.
+4. A production quest that consumes a fully tradeable/droppable quest item must declare `itemReacquisition` with at least one repeatable source. `EXPLICIT_EXTERNAL_ACQUISITION` alone is invalid for production.
+5. Turn-in revalidates possession, simulates consume+reward capacity, then consumes, rewards, completes, and audits. A full bag blocks turn-in: no consume, no XP, no gold, no completion, and a precise required-capacity message. Rewards never enter overflow.
+6. `grantItemFromSource` is trusted-server only. Duplicate `eventId` replays. A grant that does not fit returns `INVENTORY_FULL`, grants nothing, and does not consume the world source. No client-authoritative grant opcode.
+7. Character export includes bag/equipment/history. Soft-delete restore preserves items. Purge and account deletion remove items and transaction state. Reused email does not inherit them. Link-dead blocks item actions.
+
 ## Later-phase tests (do not implement now)
 
-Forage grant from a world node.
+Harvesting, cooking, mining, or blacksmithing node depletion. Auctions, mail, offline trade, player-to-merchant selling.
 
 If any **current** trade test fails before a later ITEM phase: repair in a focused pre-ITEM commit; do not retarget expectations without root cause.

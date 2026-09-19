@@ -97,6 +97,7 @@ class MemoryLifecycle implements CharacterLifecycleDeps {
   purgedSteps: string[] = [];
   starterGrants = 0;
   progressions = new Map<string, CharacterProgression>();
+  inventories = new Map<string, Array<{ instanceId: string; itemId: string; quantity: number }>>();
   progressionCatalog = catalogFromContent(content);
 
   nowMs = () => this.now;
@@ -152,6 +153,9 @@ class MemoryLifecycle implements CharacterLifecycleDeps {
     progression.createdAt = this.now;
     progression.updatedAt = this.now;
     this.progressions.set(_userId + ":" + record.characterId, progression);
+    this.inventories.set(_userId + ":" + record.characterId, [
+      { instanceId: "starter-" + record.characterId, itemId: "item.training_sword", quantity: 1 },
+    ]);
   };
   readProgression = (userId: string, characterId: string) => {
     return this.progressions.get(userId + ":" + characterId) ?? null;
@@ -184,6 +188,9 @@ class MemoryLifecycle implements CharacterLifecycleDeps {
     this.purgedSteps.push(record.characterId + ":" + step);
     if (step === "progression") {
       this.progressions.delete(userId + ":" + record.characterId);
+    }
+    if (step === "inventory") {
+      this.inventories.delete(userId + ":" + record.characterId);
     }
   };
 }
@@ -807,6 +814,30 @@ test("soft-delete restore preserves progression exactly and does not regrant", (
   assert.equal(after?.purchasedBranchNodeRanks["talent.warrior.berserker.slaughter"], 1);
   assert.deepEqual(after?.hotbarAssignments, ["ability.warrior.heavy_strike", "ability.warrior.whirlwind", "", ""]);
   assert.equal(after?.xpByEventId["kill:enemy.green_slime:0:1"]?.amount, 10);
+});
+
+test("soft-delete restore preserves bag items and purge removes them", () => {
+  const mem = new MemoryLifecycle();
+  mem.ids = ["c1", "c2"];
+  handleCharacterCreate("user-a", createPayload("Keep", "class.warrior"), mem);
+  mem.inventories.set("user-a:c1", [{ instanceId: "gel-keep", itemId: "item.slime_gel", quantity: 2 }]);
+  handleCharacterDeleteRequest("user-a", deletePayload("c1", "Keep"), mem);
+  assert.equal(mem.inventories.get("user-a:c1")?.[0].itemId, "item.slime_gel");
+  const restored = handleCharacterRestore("user-a", idPayload("c1"), mem);
+  assert.equal(restored.status, "ACTIVE");
+  assert.equal(mem.inventories.get("user-a:c1")?.[0].quantity, 2);
+  handleCharacterDeleteRequest("user-a", deletePayload("c1", "Keep"), mem);
+  mem.now += SOFT_DELETE_RETENTION_MS + 1;
+  const purged = handleCharacterPurge("user-a", idPayload("c1"), mem);
+  assert.equal(purged.purged, true);
+  assert.equal(mem.inventories.has("user-a:c1"), false);
+  handleCharacterCreate("user-a", createPayload("Newbie", "class.warrior"), mem);
+  const created = mem.inventories.get("user-a:c2");
+  assert.equal(created?.[0].itemId, "item.training_sword");
+  assert.equal(
+    created !== undefined && created.some((item) => item.itemId === "item.slime_gel"),
+    false,
+  );
 });
 
 test("purge then recreate does not inherit previous progression", () => {

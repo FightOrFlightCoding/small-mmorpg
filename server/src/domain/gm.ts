@@ -1,4 +1,6 @@
-import { addOrStackItem, acceptItemFailureCode, consumeItem, publicInventory, type ItemDefinition } from "./inventory";
+import { consumeItem, publicInventory, type ItemDefinition } from "./inventory";
+import { GRANT_SOURCE_ADMIN, grantItemFromSource } from "./item_grant";
+import { TX_REASON_ADMIN_GRANT } from "./transaction";
 import { CAVE_ZONE_ID } from "./instance";
 import { dict } from "./maps";
 import {
@@ -12,16 +14,10 @@ import {
 import { depenetrate } from "./movement";
 import { cloneProgression, grantXp } from "./progression";
 import { applyGmProgressionCommand } from "./gm_progression";
-import {
-  QUEST_STATUS_ACCEPTED,
-  QUEST_STATUS_COMPLETED,
-  cloneQuestLog,
-  createAcceptedProgress,
-  type QuestDefinition,
-} from "./quest";
+import { QUEST_STATUS_ACCEPTED, QUEST_STATUS_COMPLETED, cloneQuestLog, createAcceptedProgress, syncAcquireObjectives, type QuestDefinition, type QuestPossessionExtras } from "./quest";
 import { activateSpawn } from "./spawn_controller";
 import { killEnemy, type CombatEvent } from "./combat";
-import { cancelTrade, cloneTradeRecord, findLiveTradeForCharacter } from "./trade";
+import { cancelTrade, cloneTradeRecord, findLiveTradeForCharacter, offeredQuantitiesForCharacter } from "./trade";
 import { publicEquipment } from "./equipment";
 
 export const GM_COLLECTION = "gm";
@@ -365,10 +361,10 @@ export function applyGmToMatch(
     return empty;
   }
   if (request.command === "grant_test_item") {
-    return grantItem(player, request, items, nowMs);
+    return grantItem(state, player, request, items, nowMs);
   }
   if (request.command === "remove_test_item") {
-    return removeItem(player, request);
+    return removeItem(state, player, request);
   }
   if (request.command === "grant_test_gold") {
     const amount = request.amount !== undefined ? request.amount : 0;
@@ -472,6 +468,7 @@ function inspectPlayer(player: MatchPlayer): { [key: string]: unknown } {
 }
 
 function grantItem(
+  state: StarterZoneState,
   player: MatchPlayer,
   request: GmCommandRequest,
   items: { [id: string]: ItemDefinition },
@@ -487,22 +484,38 @@ function grantItem(
   }
   const quantity = request.quantity !== undefined && request.quantity > 0 ? Math.floor(request.quantity) : 1;
   const equippedItems = player.equipment !== undefined ? player.equipment.items : undefined;
-  const failCode = acceptItemFailureCode(player.inventory, itemId, quantity, definition, equippedItems);
-  if (failCode.length > 0) {
-    return emptyApply(failCode);
-  }
-  player.inventory = addOrStackItem(player.inventory, itemId, quantity, request.requestId, definition, {
-    sourceType: "admin",
+  let n = 0;
+  const granted = grantItemFromSource({
+    characterId: player.characterId,
+    sourceType: GRANT_SOURCE_ADMIN,
     sourceId: request.requestId,
-    createdAt: nowMs,
+    itemDefinitionId: itemId,
+    quantity: quantity,
+    eventId: "gm-grant:" + request.requestId,
+    inventory: player.inventory,
+    definitions: items,
+    equippedItems: equippedItems,
+    newIds: function () {
+      n += 1;
+      return request.requestId + ":grant:" + String(n);
+    },
+    nowMs: nowMs,
   });
+  if (!granted.ok) {
+    const failed = emptyApply(granted.code);
+    failed.result = { message: granted.message };
+    return failed;
+  }
+  player.inventory = granted.inventory;
+  player.inventory.persistReason = TX_REASON_ADMIN_GRANT;
   const result = emptyApply("ok");
-  result.persistInventory = true;
-  result.result = { itemId: itemId, quantity: quantity };
+  result.persistInventory = granted.persist;
+  result.persistQuests = syncGmQuestPossession(state, player);
+  result.result = { itemId: itemId, quantity: quantity, replay: granted.replay };
   return result;
 }
 
-function removeItem(player: MatchPlayer, request: GmCommandRequest): GmApplyResult {
+function removeItem(state: StarterZoneState, player: MatchPlayer, request: GmCommandRequest): GmApplyResult {
   const itemId = request.itemId !== undefined ? request.itemId : "";
   if (player.inventory === undefined) {
     return emptyApply("inventory_missing");
@@ -515,8 +528,21 @@ function removeItem(player: MatchPlayer, request: GmCommandRequest): GmApplyResu
   player.inventory = next;
   const result = emptyApply("ok");
   result.persistInventory = true;
+  result.persistQuests = syncGmQuestPossession(state, player);
   result.result = { itemId: itemId, quantity: quantity };
   return result;
+}
+
+function syncGmQuestPossession(state: StarterZoneState, player: MatchPlayer): boolean {
+  const extras: QuestPossessionExtras = {};
+  if (player.equipment !== undefined) {
+    extras.equipment = player.equipment.items;
+  }
+  const trade = findLiveTradeForCharacter(dict(state.trades), player.characterId);
+  extras.offeredQuantities = offeredQuantitiesForCharacter(trade, player.characterId);
+  const synced = syncAcquireObjectives(player.questLog, player.inventory, extras);
+  player.questLog = synced.log;
+  return synced.changed;
 }
 
 function grantAdminXp(player: MatchPlayer, request: GmCommandRequest, state: StarterZoneState): GmApplyResult {

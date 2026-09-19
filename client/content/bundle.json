@@ -3855,7 +3855,7 @@
       "visualAssetSetId": "visual.class_warden"
     }
   },
-  "contentHash": "7877dd576b022d59f0350be4430aca0b9d402db38b5e16e816ef361003c9cffd",
+  "contentHash": "d7e71fa4bd525906da2ee6d4244745d63980b738bfa7ad2a7b94c5010cc13bd9",
   "derivedStats": {
     "test.stat.attack": {
       "components": [
@@ -7880,6 +7880,18 @@
       ],
       "displayName": "Proof Errand",
       "id": "quest.proof_errand",
+      "itemReacquisition": [
+        {
+          "itemId": "item.proof_token",
+          "policy": "REPEATABLE_DROP",
+          "sources": [
+            {
+              "id": "loot.proof_critter",
+              "type": "loot_table"
+            }
+          ]
+        }
+      ],
       "kind": "quest",
       "objectives": [
         {
@@ -7907,6 +7919,18 @@
       ],
       "displayName": "Slime Problem",
       "id": "quest.slime_problem",
+      "itemReacquisition": [
+        {
+          "itemId": "item.slime_gel",
+          "policy": "REPEATABLE_DROP",
+          "sources": [
+            {
+              "id": "loot.green_slime",
+              "type": "loot_table"
+            }
+          ]
+        }
+      ],
       "kind": "quest",
       "objectives": [
         {

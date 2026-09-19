@@ -1,6 +1,6 @@
-# Item protocol catalog (ITEM-09)
+# Item protocol catalog (ITEM-10)
 
-Live opcodes from [PROTOCOL_CATALOG.md](../PROTOCOL_CATALOG.md) and `server/src/domain/protocol.ts`. Foundation audit at ITEM-09: **49** client opcodes, **19** server opcodes, **29** RPCs, **35** storage records. Corpse containers, loot rolls, and player ground items are match-lifetime only (no new storage collection).
+Live opcodes from [PROTOCOL_CATALOG.md](../PROTOCOL_CATALOG.md) and `server/src/domain/protocol.ts`. Foundation audit at ITEM-10: **49** client opcodes, **19** server opcodes, **29** RPCs, **35** storage records. Corpse containers, loot rolls, and player ground items are match-lifetime only (no new storage collection).
 
 Item mutations may include optional `expectedRevision` (camelCase). Omitted keeps older clients. Present and stale → `inventory_stale` and canonical `FULL_STATE`. Trade accept still carries trade-record `revision` (not bag). Container `revision` is included on `INVENTORY_STATE` / `EQUIPMENT_STATE` / overflow / `CORPSE_STATE`.
 
@@ -55,7 +55,7 @@ Stable ITEM codes (snake_case): `inventory_stale`, `inventory_full`, `invalid_sl
 
 ## RPCs
 
-No item-grant RPC for players. `gm_command` may grant items/gold under allowlist + audit. Character create initializes class `startingEquipment` stacks once. Account export includes inventory/gold; NPC pose/loot/corpse lists omitted as match-transient.
+No item-grant RPC for players. `grantItemFromSource` is trusted-server only. `gm_command` `grant_test_item` wraps it with `admin_grant`. Character create initializes class `startingEquipment` stacks once. Account export includes inventory/equipment/item history/gold; NPC pose/loot/corpse lists omitted as match-transient.
 
 ## Target operations not on the wire
 
@@ -67,6 +67,6 @@ Later ITEM phases must add intentions (update `tools/foundation-audit/expected.j
 | Player ground drop | Opcode 48 / 49 / 119 live | — |
 | Twenty-slot trade | Opcodes 24–31 / 115 live | — |
 | Ground pickup (player drop) | `PICKUP_GROUND_ITEM` | — |
-| Foraging grant | Acquisition intent ready | No world-node grant opcode |
+| Foraging grant | `grantItemFromSource` (trusted server) | No world-node opcode; harvesting remains later |
 
 Do not let the client submit roll numbers, winners, corpse expiry, drop coordinates, or a generic container mutation.

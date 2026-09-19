@@ -1472,6 +1472,22 @@ function giveOffers(
   return { ok: true, code: "ok", inventory: current };
 }
 
+export function offeredQuantitiesForCharacter(
+  trade: TradeRecord | null | undefined,
+  characterId: string,
+): { [instanceId: string]: number } {
+  const offered: { [instanceId: string]: number } = {};
+  if (trade == null) {
+    return offered;
+  }
+  const lines = occupiedOfferLines(trade, characterId);
+  for (let i = 0; i < lines.length; i++) {
+    const current = offered[lines[i].instanceId];
+    offered[lines[i].instanceId] = (current !== undefined ? current : 0) + lines[i].quantity;
+  }
+  return offered;
+}
+
 function cloneOfferLine(line: TradeOfferLine, fallbackSlot: number): TradeOfferLine {
   const slot =
     typeof line.slotIndex === "number" && line.slotIndex >= 0 && line.slotIndex < TRADE_OFFER_SLOTS

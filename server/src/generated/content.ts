@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "7877dd576b022d59f0350be4430aca0b9d402db38b5e16e816ef361003c9cffd";
+export const contentHash = "d7e71fa4bd525906da2ee6d4244745d63980b738bfa7ad2a7b94c5010cc13bd9";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = ["dialogue.npc.lab_exit","dialogue.npc.lab_inn","dialogue.npc.lab_keeper","dialogue.npc.lab_trainer","dialogue.npc.lab_vendor","npc.lab_exit","npc.lab_inn","npc.lab_keeper","npc.lab_trainer","npc.lab_vendor","quest.lab_tour","spawn.lab.boss","spawn.lab.caster","spawn.lab.melee","spawn.lab.ranged","test.zone.systems_lab","vendor.lab_general"] as const;
 export const content = {
@@ -7864,6 +7864,18 @@ export const content = {
       ],
       "displayName": "Proof Errand",
       "id": "quest.proof_errand",
+      "itemReacquisition": [
+        {
+          "itemId": "item.proof_token",
+          "policy": "REPEATABLE_DROP",
+          "sources": [
+            {
+              "id": "loot.proof_critter",
+              "type": "loot_table"
+            }
+          ]
+        }
+      ],
       "kind": "quest",
       "objectives": [
         {
@@ -7891,6 +7903,18 @@ export const content = {
       ],
       "displayName": "Slime Problem",
       "id": "quest.slime_problem",
+      "itemReacquisition": [
+        {
+          "itemId": "item.slime_gel",
+          "policy": "REPEATABLE_DROP",
+          "sources": [
+            {
+              "id": "loot.green_slime",
+              "type": "loot_table"
+            }
+          ]
+        }
+      ],
       "kind": "quest",
       "objectives": [
         {

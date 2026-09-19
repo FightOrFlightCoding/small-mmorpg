@@ -28,5 +28,14 @@
       }
     ]
   },
-  "completeOnce": true
+  "completeOnce": true,
+  "itemReacquisition": [
+    {
+      "itemId": "item.slime_gel",
+      "policy": "REPEATABLE_DROP",
+      "sources": [
+        { "type": "loot_table", "id": "loot.green_slime" }
+      ]
+    }
+  ]
 }
