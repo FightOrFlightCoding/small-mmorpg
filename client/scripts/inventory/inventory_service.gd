@@ -1,10 +1,14 @@
 extends Node
 
-## Project-owned GLoot adapter. Canonical inventory is server-owned.
+## Project-owned GLoot adapter plus the 30-slot bag. Canonical inventory is server-owned.
 
 signal inventory_changed
+signal pending_changed
 signal item_activated(instance_id: String)
 signal request_started(request_id: String)
+signal notice(message: String)
+
+const PENDING_TIMEOUT_SEC := 8.0
 
 var mirror: Inventory
 var capacity: int = 30
@@ -13,23 +17,30 @@ var items: Array = []
 var overflow_items: Array = []
 var selected_instance_id: String = ""
 var selected_overflow_instance_id: String = ""
+var last_request_id: String = ""
+var last_reject_code: String = ""
+var last_notice: String = ""
+var pending: Dictionary = {}
+var pending_timeout_sec: float = PENDING_TIMEOUT_SEC
 
 var _constraint: ItemCountConstraint
 var _applying: bool = false
 var _canonical: Dictionary = {"capacity": 30, "items": [], "overflow": []}
 var _has_revision: bool = false
+var _pending_timer: Timer
+var _split_dialog: SplitStackDialog
+var _press_slot: Dictionary = {}
 
 
 func _ready() -> void:
 	_ensure_mirror()
-	if not AppState.zone_state_updated.is_connected(_on_zone_state_updated):
-		AppState.zone_state_updated.connect(_on_zone_state_updated)
-	if not AppState.logged_out.is_connected(reset):
-		AppState.logged_out.connect(reset)
-	if not AppState.content_loaded.is_connected(_on_content_loaded):
-		AppState.content_loaded.connect(_on_content_loaded)
-	if not NetworkService.inventory_state_received.is_connected(_on_inventory_state):
-		NetworkService.inventory_state_received.connect(_on_inventory_state)
+	_ensure_timer()
+	WindowManager.connect_once(AppState.zone_state_updated, _on_zone_state_updated)
+	WindowManager.connect_once(AppState.logged_out, reset)
+	WindowManager.connect_once(AppState.character_loaded, _on_character_loaded)
+	WindowManager.connect_once(AppState.content_loaded, _on_content_loaded)
+	WindowManager.connect_once(NetworkService.inventory_state_received, _on_inventory_state)
+	WindowManager.connect_once(NetworkService.action_result_received, _on_action_result)
 	if not ContentRegistry.get_content_hash().is_empty():
 		configure_from_content()
 
@@ -43,13 +54,31 @@ func reset() -> void:
 	_has_revision = false
 	selected_instance_id = ""
 	selected_overflow_instance_id = ""
+	clear_pending()
+	last_reject_code = ""
+	last_notice = ""
+	_press_slot = {}
+	_close_split_dialog()
 	_ensure_mirror()
 	_rebuild_mirror()
 	inventory_changed.emit()
 
 
 func reset_for_tests() -> void:
+	pending_timeout_sec = PENDING_TIMEOUT_SEC
 	reset()
+
+
+func clear_presentation_state() -> void:
+	selected_instance_id = ""
+	selected_overflow_instance_id = ""
+	clear_pending()
+	_press_slot = {}
+	_close_split_dialog()
+	if DragDropService.active:
+		DragDropService.cancel()
+	TooltipService.hide_tooltip()
+	pending_changed.emit()
 
 
 func configure_from_content() -> void:
@@ -109,13 +138,90 @@ func apply_canonical(state: Dictionary) -> void:
 	if _constraint != null:
 		_constraint.capacity = maxi(1, capacity)
 	_rebuild_mirror()
+	var followup := pending.duplicate(true)
+	var request_id := String(state.get("request_id", state.get("requestId", "")))
+	if not request_id.is_empty() and request_id == String(pending.get("request_id", "")):
+		clear_pending()
+	elif not pending.is_empty() and String(pending.get("kind", "")) != "unequip_to":
+		clear_pending()
 	inventory_changed.emit()
+	_maybe_follow_unequip(followup)
 
 
 func expected_revision() -> int:
 	if not _has_revision:
 		return -1
 	return revision
+
+
+func occupied_slot_count() -> int:
+	return items.size()
+
+
+func item_at_slot(slot_index: int) -> Dictionary:
+	if slot_index < 0 or slot_index >= capacity:
+		return {}
+	var placed: Dictionary = _placed_items()
+	if placed.has(slot_index):
+		return (placed[slot_index] as Dictionary).duplicate(true)
+	return {}
+
+
+func _placed_items() -> Dictionary:
+	var placed: Dictionary = {}
+	var unplaced: Array = []
+	for entry in items:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var item: Dictionary = entry
+		var slot := int(item.get("slotIndex", -1))
+		if slot >= 0 and slot < capacity and not placed.has(slot):
+			placed[slot] = item
+		else:
+			unplaced.append(item)
+	for item in unplaced:
+		for slot in range(capacity):
+			if placed.has(slot):
+				continue
+			var copy: Dictionary = (item as Dictionary).duplicate(true)
+			copy["slotIndex"] = slot
+			placed[slot] = copy
+			break
+	return placed
+
+
+func item_by_instance(instance_id: String) -> Dictionary:
+	if instance_id.is_empty():
+		return {}
+	for entry in items:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("instanceId", "")) == instance_id:
+			return (entry as Dictionary).duplicate(true)
+	return {}
+
+
+func first_empty_slot() -> int:
+	var used := {}
+	for entry in items:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var slot := int(entry.get("slotIndex", -1))
+		if slot >= 0 and slot < capacity:
+			used[slot] = true
+	for slot in range(capacity):
+		if not bool(used.get(slot, false)):
+			return slot
+	return -1
+
+
+func slot_is_pending(slot_index: int) -> bool:
+	if pending.is_empty():
+		return false
+	var slots: Variant = pending.get("slots", [])
+	if typeof(slots) != TYPE_ARRAY:
+		return false
+	return (slots as Array).has(slot_index)
 
 
 func request_pickup(loot_id: String) -> String:
@@ -131,16 +237,28 @@ func request_destroy(instance_id: String, quantity: int = -1) -> String:
 		return ""
 	var request_id := MatchProtocol.new_request_id()
 	NetworkService.send_destroy_item(instance_id, request_id, quantity, expected_revision())
-	request_started.emit(request_id)
+	_begin_pending(request_id, "destroy", [instance_id], _slots_for_instance(instance_id))
 	return request_id
 
 
 func request_split(instance_id: String, quantity: int) -> String:
 	if instance_id.is_empty() or quantity < 1:
+		_reject_local("invalid_split", "Choose a split quantity between 1 and the stack minus one.")
 		return ""
+	var item: Dictionary = item_by_instance(instance_id)
+	if not item.is_empty():
+		if ItemPresentation.is_locked(item):
+			_reject_local("item_locked", ItemPresentation.lock_reason(item))
+			return ""
+		if quantity >= int(item.get("quantity", 0)):
+			_reject_local("invalid_split", "Choose a split quantity between 1 and the stack minus one.")
+			return ""
+		if occupied_slot_count() >= capacity:
+			_reject_local("inventory_full", "The bag is full.")
+			return ""
 	var request_id := MatchProtocol.new_request_id()
 	NetworkService.send_split_stack(instance_id, quantity, request_id, expected_revision())
-	request_started.emit(request_id)
+	_begin_pending(request_id, "split", [instance_id], _slots_for_instance(instance_id))
 	return request_id
 
 
@@ -149,7 +267,7 @@ func request_recover_overflow(instance_id: String, to_slot_index: int = -1) -> S
 		return ""
 	var request_id := MatchProtocol.new_request_id()
 	NetworkService.send_recover_overflow_item(instance_id, request_id, to_slot_index, expected_revision())
-	request_started.emit(request_id)
+	_begin_pending(request_id, "recover", [instance_id], [])
 	return request_id
 
 
@@ -158,7 +276,10 @@ func request_move(instance_id: String, to_slot_index: int) -> String:
 		return ""
 	var request_id := MatchProtocol.new_request_id()
 	NetworkService.send_move_item(instance_id, to_slot_index, request_id, expected_revision())
-	request_started.emit(request_id)
+	var slots: Array = _slots_for_instance(instance_id)
+	if not slots.has(to_slot_index):
+		slots.append(to_slot_index)
+	_begin_pending(request_id, "move", [instance_id], slots)
 	return request_id
 
 
@@ -190,6 +311,21 @@ func attach_list(host: Control) -> Control:
 	return list
 
 
+func attach_bag(host: Control) -> Control:
+	if host == null:
+		return null
+	var existing := host.get_node_or_null("Bag")
+	if existing != null:
+		if existing is BagGrid:
+			(existing as BagGrid).refresh()
+		return existing
+	var grid := BagGrid.new()
+	grid.name = "Bag"
+	grid.set_anchors_preset(Control.PRESET_FULL_RECT)
+	host.add_child(grid)
+	return grid
+
+
 func quantity_of(item_id: String) -> int:
 	var total := 0
 	for entry in items:
@@ -199,6 +335,264 @@ func quantity_of(item_id: String) -> int:
 			continue
 		total += int(entry.get("quantity", 0))
 	return total
+
+
+func handle_slot_pressed(slot: ItemSlotView) -> void:
+	if slot == null:
+		return
+	if slot.origin_kind == "bag":
+		var item: Dictionary = item_at_slot(slot.slot_index)
+		selected_instance_id = String(item.get("instanceId", ""))
+	elif slot.origin_kind == "equipment":
+		selected_instance_id = String(slot.instance.get("instanceId", ""))
+	if slot.is_empty():
+		_press_slot = {"kind": slot.origin_kind, "slot_index": slot.slot_index, "equipment_tag": slot.equipment_tag}
+		return
+	var split := Input.is_key_pressed(KEY_SHIFT)
+	_press_slot = {
+		"kind": slot.origin_kind,
+		"slot_index": slot.slot_index,
+		"equipment_tag": slot.equipment_tag,
+		"instance_id": String(slot.instance.get("instanceId", "")),
+		"split": split,
+	}
+	DragDropService.begin({
+		"kind": "equipment_item" if slot.origin_kind == "equipment" else "bag_item",
+		"instanceId": String(slot.instance.get("instanceId", "")),
+		"fromSlot": slot.slot_index,
+		"fromKind": slot.origin_kind,
+		"equipmentTag": slot.equipment_tag,
+		"split": split,
+		"quantity": int(slot.instance.get("quantity", 1)),
+		"itemId": ItemPresentation.item_id_of(slot.instance),
+	})
+
+
+func handle_slot_activated(slot: ItemSlotView) -> void:
+	if slot == null or slot.is_empty():
+		return
+	selected_instance_id = String(slot.instance.get("instanceId", ""))
+	if not selected_instance_id.is_empty():
+		item_activated.emit(selected_instance_id)
+
+
+func handle_drop(payload: Dictionary, dest: ItemSlotView) -> String:
+	if dest == null:
+		DragDropService.cancel()
+		return ""
+	var instance_id := String(payload.get("instanceId", ""))
+	var from_kind := String(payload.get("fromKind", "bag"))
+	var from_slot := int(payload.get("fromSlot", -1))
+	var split := bool(payload.get("split", false))
+	if instance_id.is_empty():
+		DragDropService.cancel()
+		return ""
+	if dest.origin_kind == "bag" and dest.slot_index == from_slot and from_kind == "bag":
+		DragDropService.cancel()
+		return ""
+	var source: Dictionary = item_by_instance(instance_id)
+	if source.is_empty() and from_kind == "equipment":
+		source = EquipmentService.item_by_instance(instance_id)
+	if source.is_empty():
+		DragDropService.reject("item_not_found")
+		return ""
+	if ItemPresentation.is_locked(source):
+		var reason := ItemPresentation.lock_reason(source)
+		_reject_local("item_locked", reason)
+		DragDropService.reject("item_locked")
+		return ""
+	if split and from_kind == "bag":
+		DragDropService.complete()
+		var dest_index := dest.slot_index if dest.origin_kind == "bag" else -1
+		prompt_split(instance_id, dest_index)
+		return ""
+	if dest.origin_kind == "equipment":
+		DragDropService.complete()
+		return _drop_onto_equipment(instance_id, source, dest)
+	if from_kind == "equipment":
+		DragDropService.complete()
+		return _drop_equipment_into_bag(instance_id, dest)
+	return _drop_bag_to_bag(instance_id, source, dest)
+
+
+func prompt_split(instance_id: String, dest_slot: int = -1) -> bool:
+	var item: Dictionary = item_by_instance(instance_id)
+	if item.is_empty():
+		_reject_local("invalid_split", "That stack is not in the bag.")
+		return false
+	if ItemPresentation.is_locked(item):
+		_reject_local("item_locked", ItemPresentation.lock_reason(item))
+		return false
+	var quantity := int(item.get("quantity", 0))
+	if quantity < 2:
+		_reject_local("invalid_split", "Choose a split quantity between 1 and the stack minus one.")
+		return false
+	_ensure_split_dialog()
+	return _split_dialog.open_for(instance_id, quantity - 1, dest_slot)
+
+
+func retry_last_request() -> String:
+	if last_request_id.is_empty():
+		return ""
+	return last_request_id
+
+
+func request_canonical_refresh() -> void:
+	var preserved := last_request_id
+	NetworkService.request_resync()
+	last_request_id = preserved
+	if DragDropService.active:
+		DragDropService.reject("resync")
+
+
+func force_pending_timeout() -> void:
+	_on_pending_timeout()
+
+
+func clear_pending() -> void:
+	if _pending_timer != null:
+		_pending_timer.stop()
+	var had := not pending.is_empty()
+	pending = {}
+	if had:
+		pending_changed.emit()
+
+
+func _drop_bag_to_bag(instance_id: String, source: Dictionary, dest: ItemSlotView) -> String:
+	var dest_item: Dictionary = item_at_slot(dest.slot_index)
+	if dest_item.is_empty():
+		DragDropService.complete()
+		return request_move(instance_id, dest.slot_index)
+	if String(dest_item.get("instanceId", "")) == instance_id:
+		DragDropService.cancel()
+		return ""
+	if ItemPresentation.is_locked(dest_item):
+		var reason := ItemPresentation.lock_reason(dest_item)
+		_reject_local("item_locked", reason)
+		DragDropService.reject("item_locked")
+		return ""
+	var definition: Dictionary = ItemPresentation.definition_for(ItemPresentation.item_id_of(source))
+	if ItemPresentation.dest_stack_full(source, dest_item, definition):
+		_reject_local("stack_full", "That stack is already full.")
+		DragDropService.reject("stack_full")
+		return ""
+	DragDropService.complete()
+	return request_move(instance_id, dest.slot_index)
+
+
+func _drop_onto_equipment(instance_id: String, source: Dictionary, dest: ItemSlotView) -> String:
+	var definition: Dictionary = ItemPresentation.definition_for(ItemPresentation.item_id_of(source))
+	if not bool(definition.get("equippable", false)):
+		_reject_local("not_equippable", "That item cannot be equipped.")
+		return ""
+	var tag := dest.equipment_tag if not dest.equipment_tag.is_empty() else EquipmentService.selected_slot
+	var tags: Variant = definition.get("equipmentSlotTags", [])
+	var allowed := false
+	if typeof(tags) == TYPE_ARRAY:
+		for entry in tags:
+			if String(entry) == tag:
+				allowed = true
+				break
+	if not allowed and String(definition.get("equipSlot", "")) == tag:
+		allowed = true
+	if not allowed:
+		_reject_local("invalid_slot", "That item does not fit that equipment slot.")
+		return ""
+	var request_id := EquipmentService.request_equip(instance_id, tag)
+	if request_id.is_empty():
+		return ""
+	pending = {
+		"request_id": request_id,
+		"kind": "equip",
+		"instance_ids": [instance_id],
+		"slots": _slots_for_instance(instance_id),
+	}
+	last_request_id = request_id
+	_arm_pending_timer()
+	pending_changed.emit()
+	return request_id
+
+
+func _drop_equipment_into_bag(instance_id: String, dest: ItemSlotView) -> String:
+	if first_empty_slot() < 0:
+		_reject_local("inventory_full", "The bag is full.")
+		return ""
+	var tag := _equipment_tag_for_instance(instance_id)
+	if tag.is_empty():
+		tag = EquipmentService.selected_slot
+	var request_id := EquipmentService.request_unequip(tag)
+	if request_id.is_empty():
+		return ""
+	pending = {
+		"request_id": request_id,
+		"kind": "unequip_to",
+		"instance_id": instance_id,
+		"dest_slot": dest.slot_index,
+		"slots": [dest.slot_index],
+	}
+	last_request_id = request_id
+	_arm_pending_timer()
+	pending_changed.emit()
+	return request_id
+
+
+func _equipment_tag_for_instance(instance_id: String) -> String:
+	for key in EquipmentService.slots.keys():
+		if String(EquipmentService.slots[key]) == instance_id:
+			return String(key)
+	return ""
+
+
+func _maybe_follow_unequip(followup: Dictionary) -> void:
+	if String(followup.get("kind", "")) != "unequip_to":
+		return
+	var instance_id := String(followup.get("instance_id", ""))
+	var dest_slot := int(followup.get("dest_slot", -1))
+	if instance_id.is_empty() or dest_slot < 0:
+		return
+	var item: Dictionary = item_by_instance(instance_id)
+	if item.is_empty():
+		pending = followup
+		_arm_pending_timer()
+		pending_changed.emit()
+		return
+	if int(item.get("slotIndex", -1)) == dest_slot:
+		return
+	request_move(instance_id, dest_slot)
+
+
+func _begin_pending(request_id: String, kind: String, instance_ids: Array, slots: Array) -> void:
+	last_request_id = request_id
+	pending = {
+		"request_id": request_id,
+		"kind": kind,
+		"instance_ids": instance_ids.duplicate(),
+		"slots": slots.duplicate(),
+	}
+	_arm_pending_timer()
+	request_started.emit(request_id)
+	pending_changed.emit()
+
+
+func _arm_pending_timer() -> void:
+	_ensure_timer()
+	_pending_timer.stop()
+	_pending_timer.wait_time = maxf(0.05, pending_timeout_sec)
+	_pending_timer.start()
+
+
+func _slots_for_instance(instance_id: String) -> Array:
+	var item: Dictionary = item_by_instance(instance_id)
+	if item.is_empty():
+		return []
+	return [int(item.get("slotIndex", -1))]
+
+
+func _reject_local(code: String, message: String) -> void:
+	last_reject_code = code
+	last_notice = message
+	notice.emit(message)
+	AppState.report_recoverable(code, message)
 
 
 func _ensure_mirror() -> void:
@@ -216,6 +610,36 @@ func _ensure_mirror() -> void:
 		mirror.item_removed.connect(_on_local_item_removed)
 	if not mirror.item_moved.is_connected(_on_local_item_moved):
 		mirror.item_moved.connect(_on_local_item_moved)
+
+
+func _ensure_timer() -> void:
+	if _pending_timer != null:
+		return
+	_pending_timer = Timer.new()
+	_pending_timer.name = "PendingTimeout"
+	_pending_timer.one_shot = true
+	add_child(_pending_timer)
+	_pending_timer.timeout.connect(_on_pending_timeout)
+
+
+func _ensure_split_dialog() -> void:
+	if _split_dialog != null:
+		return
+	_split_dialog = SplitStackDialog.new()
+	_split_dialog.name = "SplitStackDialog"
+	add_child(_split_dialog)
+	_split_dialog.confirmed.connect(_on_split_confirmed)
+
+
+func _close_split_dialog() -> void:
+	if _split_dialog != null:
+		_split_dialog.visible = false
+
+
+func _on_split_confirmed(quantity: int) -> void:
+	if _split_dialog == null:
+		return
+	request_split(_split_dialog.instance_id, quantity)
 
 
 func _rebuild_mirror() -> void:
@@ -262,7 +686,7 @@ func item_id_of_instance(instance_id: String) -> String:
 			continue
 		if String(entry.get("instanceId", "")) == instance_id:
 			return String(entry.get("itemId", ""))
-	return ""
+	return EquipmentService.item_id_of_equipped(instance_id)
 
 
 func _bind_list_signals(list: CtrlInventory) -> void:
@@ -306,6 +730,10 @@ func _on_content_loaded(_content_hash: String) -> void:
 	configure_from_content()
 
 
+func _on_character_loaded(_created: bool) -> void:
+	reset()
+
+
 func _on_zone_state_updated() -> void:
 	if not AppState.zone_view_is_full:
 		return
@@ -319,4 +747,57 @@ func _on_inventory_state(payload: Dictionary) -> void:
 		"capacity": payload.get("capacity", 30),
 		"items": payload.get("items", []),
 		"overflow": payload.get("overflow", {}),
+		"revision": payload.get("revision", 0),
+		"request_id": payload.get("request_id", payload.get("requestId", "")),
 	})
+
+
+func _on_action_result(payload: Dictionary) -> void:
+	var request_id := String(payload.get("request_id", payload.get("requestId", "")))
+	if request_id.is_empty() or request_id != String(pending.get("request_id", last_request_id)):
+		return
+	var result_ok := bool(payload.get("result_ok", payload.get("ok", false)))
+	if result_ok:
+		return
+	var code := String(payload.get("code", "action_failed"))
+	var message := String(payload.get("message", ""))
+	if message.is_empty():
+		message = _message_for(code)
+	clear_pending()
+	if DragDropService.active:
+		DragDropService.reject(code)
+	_reject_local(code, message)
+	if code == "inventory_stale":
+		request_canonical_refresh()
+
+
+func _on_pending_timeout() -> void:
+	if pending.is_empty():
+		return
+	var preserved := last_request_id
+	clear_pending()
+	if DragDropService.active:
+		DragDropService.reject("request_timeout")
+	last_request_id = preserved
+	_reject_local("request_timeout", "The bag request timed out. Refreshing from the server.")
+	request_canonical_refresh()
+
+
+func _message_for(code: String) -> String:
+	match code:
+		"item_locked":
+			return "That item is locked."
+		"stack_full":
+			return "That stack is already full."
+		"inventory_full":
+			return "The bag is full."
+		"invalid_split":
+			return "Choose a split quantity between 1 and the stack minus one."
+		"invalid_slot":
+			return "That bag slot is not valid."
+		"inventory_stale":
+			return "Inventory changed. Refreshing."
+		"not_equippable":
+			return "That item cannot be equipped."
+		_:
+			return "The bag action failed."

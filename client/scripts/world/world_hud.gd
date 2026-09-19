@@ -387,7 +387,7 @@ func refresh_party() -> void:
 func refresh_inventory() -> void:
 	if _inventory_capacity == null:
 		return
-	var occupied := InventoryService.item_count()
+	var occupied := InventoryService.occupied_slot_count()
 	_inventory_capacity.text = "%s / %s stacks" % [str(occupied), str(InventoryService.capacity)]
 	_refresh_recovery_panel()
 
@@ -484,23 +484,19 @@ func _on_split_pressed() -> void:
 	var instance_id := InventoryService.selected_instance_id
 	if instance_id.is_empty():
 		return
-	var quantity := 0
-	for entry in InventoryService.items:
-		if typeof(entry) != TYPE_DICTIONARY:
-			continue
-		if String(entry.get("instanceId", "")) != instance_id:
-			continue
-		quantity = int(entry.get("quantity", 0))
-		break
-	if quantity < 2:
-		return
-	InventoryService.request_split(instance_id, int(floor(float(quantity) / 2.0)))
+	InventoryService.prompt_split(instance_id)
 
 
 func _on_slot_selected(index: int) -> void:
 	if _slot_option == null or index < 0 or index >= _slot_option.item_count:
 		return
 	EquipmentService.selected_slot = _slot_option.get_item_text(index)
+	if _slot_view is ItemSlotView:
+		(_slot_view as ItemSlotView).equipment_tag = EquipmentService.selected_slot
+		(_slot_view as ItemSlotView).refresh(EquipmentService.item_at_tag(EquipmentService.selected_slot), false)
+	if _slot_view is ItemSlotView:
+		(_slot_view as ItemSlotView).equipment_tag = EquipmentService.selected_slot
+		(_slot_view as ItemSlotView).refresh(EquipmentService.item_at_tag(EquipmentService.selected_slot), false)
 
 
 func _fill_slot_option() -> void:
@@ -769,11 +765,13 @@ func _on_unlock_row_pressed(row: Control) -> void:
 func _bind_inventory() -> void:
 	if _inventory_host == null or _inventory_list != null:
 		return
-	_inventory_list = InventoryService.attach_list(_inventory_host)
+	_inventory_list = InventoryService.attach_bag(_inventory_host)
 	if not InventoryService.inventory_changed.is_connected(refresh_inventory):
 		InventoryService.inventory_changed.connect(refresh_inventory)
+	if not InventoryService.notice.is_connected(_on_party_notice):
+		InventoryService.notice.connect(_on_party_notice)
 	if _slot_host != null and _slot_view == null:
-		_slot_view = EquipmentService.attach_slot(_slot_host)
+		_slot_view = EquipmentService.attach_equipment_slot(_slot_host, EquipmentService.selected_slot)
 
 
 func _build_recovery_panel() -> void:
@@ -841,6 +839,8 @@ func _on_recover_overflow_pressed() -> void:
 
 
 func _exit_tree() -> void:
+	if InventoryService.notice.is_connected(_on_party_notice):
+		InventoryService.notice.disconnect(_on_party_notice)
 	if InventoryService.inventory_changed.is_connected(refresh_inventory):
 		InventoryService.inventory_changed.disconnect(refresh_inventory)
 	if InventoryService.item_activated.is_connected(_on_item_activated):

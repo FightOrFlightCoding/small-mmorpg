@@ -179,6 +179,49 @@ test("metadata-incompatible stacks do not merge", () => {
   assert.equal(after.length, 2);
 });
 
+test("moving onto a full compatible stack is stack_full without mutation", () => {
+  const gel = gelDef();
+  let inventory = addOrStackItem(emptyInventory(), "item.slime_gel", 20, "gel-full-a", gel);
+  inventory = addOrStackItem(inventory, "item.slime_gel", 20, "gel-full-b", gel);
+  assert.equal(inventory.items.length, 2);
+  const destSlot = inventory.items[0].slotIndex;
+  const sourceSlot = inventory.items[1].slotIndex;
+  const moved = applyMoveItem({
+    playerHealth: 100,
+    inventory: inventory,
+    instanceId: "gel-full-b",
+    toSlotIndex: destSlot,
+    requestId: "req-stack-full1",
+    itemsById: itemsById(),
+  });
+  assert.equal(moved.ok, false);
+  assert.equal(moved.code, "stack_full");
+  assert.equal(findItem(moved.inventory, "gel-full-a")?.slotIndex, destSlot);
+  assert.equal(findItem(moved.inventory, "gel-full-b")?.slotIndex, sourceSlot);
+  assert.equal(findItem(moved.inventory, "gel-full-a")?.quantity, 20);
+  assert.equal(findItem(moved.inventory, "gel-full-b")?.quantity, 20);
+});
+
+test("compatible partial stacks merge and leave excess in the source", () => {
+  const gel = gelDef();
+  let inventory = addOrStackItem(emptyInventory(), "item.slime_gel", 12, "gel-partial-a", gel);
+  inventory = addOrStackItem(inventory, "item.slime_gel", 15, "gel-partial-b", gel);
+  assert.equal(inventory.items.length, 2);
+  const destSlot = inventory.items[0].slotIndex;
+  const moved = applyMoveItem({
+    playerHealth: 100,
+    inventory: inventory,
+    instanceId: "gel-partial-b",
+    toSlotIndex: destSlot,
+    requestId: "req-merge-excess1",
+    itemsById: itemsById(),
+  });
+  assert.equal(moved.ok, true);
+  assert.equal(findItem(moved.inventory, "gel-partial-a")?.quantity, 20);
+  assert.equal(findItem(moved.inventory, "gel-partial-b")?.quantity, 7);
+  assert.equal(findItem(moved.inventory, "gel-partial-b")?.slotIndex, inventory.items[1].slotIndex);
+});
+
 test("compatible stacks merge and split without inventing client instance ids", () => {
   const gel = gelDef();
   let inventory = addOrStackItem(emptyInventory(), "item.slime_gel", 4, "gel-merge", gel);

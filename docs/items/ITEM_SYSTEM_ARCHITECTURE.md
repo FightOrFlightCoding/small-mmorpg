@@ -6,6 +6,8 @@
 
 ITEM-03 extends the live inventory/equipment/wallet/transaction core. It does **not** add corpse, merchant, ground-drop, or trade UI. It does **not** expose a generic arbitrary-container command. Do not create parallel inventory, equipment, wallet, loot, transaction, merchant, trade, or quest-item systems.
 
+ITEM-04 adds the player-facing 6×5 bag, canonical tooltips, drag-drop / split / merge / swap, and equipment drag. It does **not** add corpse, merchant, ground, or trade windows. The client never finalizes bag or equipment ownership before server confirmation.
+
 ## Preparation snapshot (this phase)
 
 | Topic | Value |
@@ -28,7 +30,7 @@ ITEM-03 extends the live inventory/equipment/wallet/transaction core. It does **
 | Equipment | `equipment.ts` `PlayerEquipment.slots` + `items[]` | Content tags `main_hand`, `off_hand`, `head`, `chest`, `legs`, `feet`. Equipped instances **leave the bag**. Unequip uses the planner and needs a free slot. |
 | Overflow | `overflow.ts` `MigrationOverflow` | Server-owned recovery container. Drain into bag only. Drop compensation may use overflow. Not extra storage. |
 | GLoot | `InventoryService`, `EquipmentService` | Presentation rebuild from `INVENTORY_STATE` / `EQUIPMENT_STATE`. Local GLoot edits revert. Do not edit `client/addons/gloot`. |
-| Inventory UI | `world_hud.tscn` `Inventory` panel plus Inventory Recovery | `CtrlInventory` list, equip/unequip, destroy, split-half, overflow recover. Mutations send optional `expectedRevision`. |
+| Inventory UI | `world_hud.tscn` `Inventory` panel plus Inventory Recovery | 6×5 `BagGrid` (slots 0–29), item tooltips, drag-drop / right-click via `ItemContextRouter`, equip/unequip, destroy, split selector, overflow recover. Mutations send optional `expectedRevision`. |
 | Loot tables | `loot_table.ts`, `content/schemas/loot_table.json` | LCG `kill:<instanceId>:<deathCount>`. Policies `ground_free` / `killer` / `party_split` / `personal` / `server_assigned`. |
 | Ground loot | `loot.ts` `MatchLoot`, match `state.loot` | Public 30 s TTL. Spawned at death pose. Not persisted. SNAPSHOT omits `instanceId`. Pickup uses acquisition intent. |
 | Party credit / loot | `party_credit.ts`, `party_loot.ts` | Credit = killer + threat contributors in range. `party_split` maps to **personal duplicate grants**. No Need/Greed. |
