@@ -1,4 +1,4 @@
-# Item security model (ITEM-07)
+# Item security model (ITEM-08)
 
 The client is an untrusted renderer. Defenses stay server-side. Parent: [SECURITY_MODEL.md](../SECURITY_MODEL.md).
 
@@ -23,7 +23,7 @@ The client is an untrusted renderer. Defenses stay server-side. Parent: [SECURIT
 | Equip with full bag | Unequip simulates capacity; `inventory_full`; stay equipped |
 | Overflow as extra bag | Grants never write overflow; recover requires a free bag slot; occupied dest is `invalid_slot` |
 | Forged overflow instance | `invalid_id` unless the stack is in that character's overflow |
-| Rate flood | 8 inventory/vendor/trade/recover/corpse per 10 ticks; 2048-byte bodies |
+| Rate flood | 8 inventory (including `DROP_ITEM`)/vendor/trade/recover/corpse/pickup (including `PICKUP_GROUND_ITEM`) per 10 ticks; 2048-byte bodies |
 | Stale bag revision | Optional `expectedRevision`; reject + canonical `FULL_STATE` |
 | Indefinite item lock | TTL 120 s, tick expiry, orphan release |
 | Claim private corpse | Tag + roster + time; others `not_eligible` |
@@ -33,13 +33,15 @@ The client is an untrusted renderer. Defenses stay server-side. Parent: [SECURIT
 | Corpse recipient injection | Reject `lootRecipients` |
 | Need/Greed client roll | `stat_injection:roll`; server integer 1–100; ignore client numbers |
 | Pickup pending award | Winner only; others `not_eligible`. `ROLL_PENDING` rejects `roll_pending` until resolution |
+| Client drop coordinates | `stat_injection:x` / `y`; server `placeGroundDrop` from character pose + hint |
+| Partial ground pickup | Whole stack or `inventory_full`; never split a ground stack |
+| Concurrent ground pickup | First claimant; others `ground_item_no_longer_available` |
+| Ground-drop spam | 20 active player-created entities; reject the new drop |
 
 ## Target threats not yet implemented
 
 | Attack | Required defense when that feature lands |
 | --- | --- |
-| Client drop coordinates | Server chooses nearby valid pose |
-| Partial ground pickup | Reject; full stack only |
 | Forged forage grant | No client grant; node + range + idempotent `requestId`; reuse acquisition intent |
 
 ## Character / session

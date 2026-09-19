@@ -108,6 +108,23 @@ function minimumTranslation(body: Aabb, box: Aabb): Vec2 {
   return { x: 0, y: yPush };
 }
 
+export function pointBlocked(
+  x: number,
+  y: number,
+  halfExtent: number,
+  collisions: ReadonlyArray<Aabb>,
+  walkableBounds: Aabb,
+): boolean {
+  const minX = walkableBounds.x + halfExtent;
+  const maxX = walkableBounds.x + walkableBounds.width - halfExtent;
+  const minY = walkableBounds.y + halfExtent;
+  const maxY = walkableBounds.y + walkableBounds.height - halfExtent;
+  if (x < minX || x > maxX || y < minY || y > maxY) {
+    return true;
+  }
+  return overlapsObstacle(x, y, halfExtent, collisions) !== null;
+}
+
 export function depenetrate(
   x: number,
   y: number,

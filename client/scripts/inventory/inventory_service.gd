@@ -29,6 +29,7 @@ var _canonical: Dictionary = {"capacity": 30, "items": [], "overflow": []}
 var _has_revision: bool = false
 var _pending_timer: Timer
 var _split_dialog: SplitStackDialog
+var _drop_dialog: GroundDropDialog
 var _press_slot: Dictionary = {}
 
 
@@ -59,6 +60,7 @@ func reset() -> void:
 	last_notice = ""
 	_press_slot = {}
 	_close_split_dialog()
+	_close_drop_dialog()
 	_ensure_mirror()
 	_rebuild_mirror()
 	inventory_changed.emit()
@@ -75,6 +77,7 @@ func clear_presentation_state() -> void:
 	clear_pending()
 	_press_slot = {}
 	_close_split_dialog()
+	_close_drop_dialog()
 	if DragDropService.active:
 		DragDropService.cancel()
 	TooltipService.hide_tooltip()
@@ -230,6 +233,54 @@ func request_pickup(loot_id: String) -> String:
 	var request_id := MatchProtocol.new_request_id()
 	NetworkService.send_pickup(loot_id, request_id, expected_revision())
 	return request_id
+
+
+func request_pickup_ground(ground_entity_id: String) -> String:
+	if ground_entity_id.is_empty():
+		return ""
+	var request_id := MatchProtocol.new_request_id()
+	NetworkService.send_pickup_ground_item(ground_entity_id, request_id, expected_revision())
+	return request_id
+
+
+func request_ground_drop(instance_id: String, quantity: int = -1, hint_dx: float = 0.0, hint_dy: float = 0.0) -> String:
+	if instance_id.is_empty():
+		return ""
+	var item: Dictionary = item_by_instance(instance_id)
+	if item.is_empty():
+		_reject_local("item_not_found", "That item is not in the bag.")
+		return ""
+	if ItemPresentation.is_locked(item):
+		_reject_local("item_locked", ItemPresentation.lock_reason(item))
+		return ""
+	var stack := int(item.get("quantity", 1))
+	var drop_qty := quantity if quantity >= 1 else stack
+	if drop_qty < 1 or drop_qty > stack:
+		_reject_local("invalid_quantity", "Choose a drop quantity between 1 and the stack.")
+		return ""
+	var request_id := MatchProtocol.new_request_id()
+	NetworkService.send_drop_item(instance_id, request_id, drop_qty, expected_revision(), hint_dx, hint_dy)
+	_begin_pending(request_id, "drop", [instance_id], _slots_for_instance(instance_id))
+	return request_id
+
+
+func prompt_ground_drop(instance_id: String, hint_dx: float = 0.0, hint_dy: float = 0.0) -> bool:
+	var item: Dictionary = item_by_instance(instance_id)
+	if item.is_empty():
+		_reject_local("item_not_found", "That item is not in the bag.")
+		return false
+	if ItemPresentation.is_locked(item):
+		_reject_local("item_locked", ItemPresentation.lock_reason(item))
+		return false
+	var quantity := int(item.get("quantity", 1))
+	if quantity < 1:
+		return false
+	var definition: Dictionary = ItemPresentation.definition_for(ItemPresentation.item_id_of(item))
+	var needs_confirm := ItemPresentation.requires_drop_confirm(definition)
+	if quantity == 1 and not needs_confirm:
+		return not request_ground_drop(instance_id, 1, hint_dx, hint_dy).is_empty()
+	_ensure_drop_dialog()
+	return _drop_dialog.open_for(instance_id, quantity, needs_confirm, hint_dx, hint_dy)
 
 
 func request_destroy(instance_id: String, quantity: int = -1) -> String:
@@ -393,6 +444,22 @@ func handle_slot_activated(slot: ItemSlotView) -> void:
 	selected_instance_id = String(slot.instance.get("instanceId", ""))
 	if not selected_instance_id.is_empty():
 		item_activated.emit(selected_instance_id)
+
+
+func handle_world_drop(payload: Dictionary, hint: Vector2 = Vector2.ZERO) -> String:
+	var instance_id := String(payload.get("instanceId", ""))
+	var from_kind := String(payload.get("fromKind", "bag"))
+	if instance_id.is_empty() or from_kind != "bag":
+		if from_kind == "equipment":
+			_reject_local("item_equipped", "Unequip that item into the bag before dropping it.")
+			DragDropService.reject("item_equipped")
+			return ""
+		DragDropService.cancel()
+		return ""
+	DragDropService.complete()
+	if prompt_ground_drop(instance_id, hint.x, hint.y):
+		return last_request_id
+	return ""
 
 
 func handle_drop(payload: Dictionary, dest: ItemSlotView) -> String:
@@ -728,6 +795,26 @@ func _on_split_confirmed(quantity: int) -> void:
 	request_split(_split_dialog.instance_id, quantity)
 
 
+func _ensure_drop_dialog() -> void:
+	if _drop_dialog != null:
+		return
+	_drop_dialog = GroundDropDialog.new()
+	_drop_dialog.name = "GroundDropDialog"
+	add_child(_drop_dialog)
+	_drop_dialog.confirmed.connect(_on_drop_confirmed)
+
+
+func _close_drop_dialog() -> void:
+	if _drop_dialog != null:
+		_drop_dialog.visible = false
+
+
+func _on_drop_confirmed(quantity: int) -> void:
+	if _drop_dialog == null:
+		return
+	request_ground_drop(_drop_dialog.instance_id, quantity, _drop_dialog.hint_dx, _drop_dialog.hint_dy)
+
+
 func _rebuild_mirror() -> void:
 	if mirror == null:
 		return
@@ -885,6 +972,14 @@ func _message_for(code: String) -> String:
 			return "Inventory changed. Refreshing."
 		"destination_unavailable":
 			return "You cannot put items on the corpse."
+		"item_equipped":
+			return "Unequip that item into the bag before dropping it."
+		"invalid_quantity":
+			return "Choose a drop quantity between 1 and the stack."
+		"ground_drop_limit":
+			return "You already have too many items on the ground."
+		"ground_item_no_longer_available":
+			return "That ground item is gone."
 		"not_equippable":
 			return "That item cannot be equipped."
 		_:

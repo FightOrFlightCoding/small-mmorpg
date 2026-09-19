@@ -101,14 +101,14 @@ Interrupted `RESERVED` / `COMMITTING` retries without duplicating items. Failed 
 
 ## Drop intent
 
-Domain helper `executeDropIntent` (no client drop opcode in ITEM-03):
+`DROP_ITEM` (48) calls `executeDropIntent`:
 
 1. Lock the stack (`DROP_INTENT`).
-2. Persist pending intent + bag removal.
-3. Create a transient ground entity.
+2. Persist pending intent + bag removal (journal on the inventory record).
+3. Create a match-lifetime public `GroundItem`.
 4. Mark committed.
 
-If failure occurs before the entity exists: restore to the bag when the planner fits; otherwise MigrationOverflow. Never silently lose the item. A completed ground drop may disappear after a later full match/server restart by design ([ITEM-C25](ITEM_CURRENT_CONFLICTS.md)).
+If failure occurs before the entity exists: restore to the bag when the planner fits; otherwise MigrationOverflow. Never silently lose the item. A completed ground drop may disappear after a later full match/server restart by design ([ITEM-C25](ITEM_CURRENT_CONFLICTS.md)). Duplicate `requestId` replays the existing entity and does not spawn a second.
 
 ## Audit events
 
@@ -155,7 +155,7 @@ Live columns describe Foundation today plus ITEM-03. Target columns are the comp
 | Corpse gold claim | Corpse gold → wallet | Private: eligible roster. Public: first claimant | N/A | Gold all-or-nothing | None (not an item) | Wallet | Exactly-once per corpse | `loot` | `not_eligible`, empty roster |
 | Merchant purchase | Catalog → bag | Live interaction session + vendor NPC | Simulator | No | None on catalog | Inventory+wallet `multiUpdate` | `mutationByRequestId` | `vendor` | `insufficient_gold`, `invalid_amount`, `invalid_session`, `inventory_stale` |
 | Merchant sell (live only) | Bag → gold | Vendor range | N/A | No | Block locked/equipped | Same | Same | `vendor` | `unsellable`, `item_locked`, `inventory_stale` |
-| Ground drop | Bag → GroundItem | Domain helper only (no opcode) | N/A (frees a slot) | No partial quantity on ground | `DROP_INTENT` then release | Match-only entity | `requestId` | drop audit | `not_droppable`, `player_dead`, `destination_unavailable` |
+| Ground drop | Bag → GroundItem | `DROP_ITEM` 48 | N/A (frees a slot) | Quantity 1..stack; ground is always a public stack | `DROP_INTENT` then release | Match-only entity | `requestId` | drop audit | `not_droppable`, `player_dead`, `destination_unavailable`, `ground_drop_limit` |
 | Ground pickup | Ground → bag | Pickup range | Whole stack must fit | No | Acquisition intent | Inventory | `pickupByRequestId` | `loot` | `inventory_full`, `out_of_range`, `inventory_stale` |
 | Trade offer | Bag → TradeOffer (locked in bag) | Open trade, 80 px | Target: ≤20 lines | No | `TRADE` | Trade record | `requestId` | none until commit | `not_tradeable`, `item_equipped` |
 | Trade gold | Wallet reserved | Open trade | Spendable minus reserved | No | Reservation | Trade record | `requestId` | none until commit | `insufficient_gold` |

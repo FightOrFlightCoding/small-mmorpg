@@ -213,3 +213,69 @@ func test_inventory_recovery_panel_shows_overflow_only() -> void:
 	})
 	hud.refresh_inventory()
 	assert_bool(panel.visible).is_false()
+
+
+func test_ground_drop_sends_instance_quantity_and_hints_not_coordinates() -> void:
+	InventoryService.apply_canonical({
+		"capacity": 30,
+		"revision": 2,
+		"items": [{"instanceId": "inst-cloth", "itemId": "item.test_cloth", "quantity": 5, "metadata": {}}],
+	})
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	var request_id := InventoryService.request_ground_drop("inst-cloth", 2, 8.0, -3.0)
+	await get_tree().process_frame
+	assert_str(request_id).is_not_empty()
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_DROP_ITEM)
+	var payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_str(String(payload.get("instanceId", ""))).is_equal("inst-cloth")
+	assert_int(int(payload.get("quantity", 0))).is_equal(2)
+	assert_float(float(payload.get("hintDx", 0.0))).is_equal(8.0)
+	assert_float(float(payload.get("hintDy", 0.0))).is_equal(-3.0)
+	assert_bool(payload.has("x")).is_false()
+	assert_bool(payload.has("y")).is_false()
+	assert_int(int(payload.get("expectedRevision", 0))).is_equal(2)
+
+
+func test_pickup_ground_sends_entity_id_and_request_id_only() -> void:
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	var request_id := InventoryService.request_pickup_ground("ground-gel-1")
+	await get_tree().process_frame
+	assert_str(request_id).is_not_empty()
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_PICKUP_GROUND_ITEM)
+	var payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_str(String(payload.get("groundEntityId", ""))).is_equal("ground-gel-1")
+	assert_str(String(payload.get("requestId", ""))).is_equal(request_id)
+	assert_bool(payload.has("instanceId")).is_false()
+	assert_bool(payload.has("quantity")).is_false()
+
+
+func test_world_drop_from_equipment_is_rejected() -> void:
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	var request_id := InventoryService.handle_world_drop({
+		"instanceId": "inst-sword",
+		"fromKind": "equipment",
+	}, Vector2(10, 0))
+	assert_str(request_id).is_empty()
+	assert_int(fake.last_send_opcode).is_equal(0)
+
+
+func test_uncommon_drop_prompt_requires_public_confirmation() -> void:
+	InventoryService.apply_canonical({
+		"capacity": 30,
+		"items": [{"instanceId": "inst-iron", "itemId": "item.iron_sword", "quantity": 1, "metadata": {}}],
+	})
+	assert_bool(InventoryService.prompt_ground_drop("inst-iron")).is_true()
+	var dialog: GroundDropDialog = InventoryService.get_node_or_null("GroundDropDialog")
+	assert_object(dialog).is_not_null()
+	assert_bool(dialog.visible).is_true()
+	assert_str(dialog._warning.text).is_equal(GroundDropDialog.PUBLIC_WARNING)
+	assert_bool(dialog._drop_button.disabled).is_true()
+	dialog._confirm_check.button_pressed = true
+	dialog._on_confirm_toggled(true)
+	assert_bool(dialog._drop_button.disabled).is_false()

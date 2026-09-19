@@ -1,4 +1,4 @@
-# Item container catalog (ITEM-07)
+# Item container catalog (ITEM-08)
 
 Containers are logical owners of item instances or gold. ITEM-01 records **live** vs **target**. Live names in code are used until a later phase migrates. ITEM-05 adds a client-visible corpse window over a match-lifetime `CorpseLootContainer`.
 
@@ -48,9 +48,13 @@ Target for this ITEM pack: merchants **sell to players only**; player sell is ou
 
 ## GroundItemContainer
 
-**Absent as a typed container.** Live: the same `state.loot: MatchLoot[]` used for mob drops.
+Live: match-lifetime `state.groundItems: GroundItem[]` (`ground_item.ts`). Not a player storage collection. Separate from Prompt 18 `state.loot` sparkles (30 s TTL).
 
-Target: public player-dropped stacks, 5 min TTL, server-selected nearby placement, full-stack pickup only, transient across match/server restart. States: `PUBLIC_AVAILABLE` → `CLAIMING` → `CLAIMED` / `EXPIRED`. ITEM-03 provides `executeDropIntent` without a drop opcode.
+Public immediately (`PUBLIC_AVAILABLE`). No physical collision; client click radius is presentation-only. Server placement from authoritative character pose, optional `hintDx`/`hintDy`, drop radius, walkable bounds, and wall checks. Full-stack pickup only. Expire at 5 minutes. Lost on match/server restart ([ITEM-C25](ITEM_CURRENT_CONFLICTS.md)).
+
+States: `PUBLIC_AVAILABLE` → `CLAIMING` → `CLAIMED` / `EXPIRED`. Anti-spam: 20 active player-created entities per character (`PLAYER_GROUND_DROP_LIMIT`); reject the new drop, do not delete an older item.
+
+Opcode `DROP_ITEM` (48) uses `executeDropIntent`. Opcode `PICKUP_GROUND_ITEM` (49) uses acquisition intent + `planCapacity` acquire. `GROUND_ITEM_REMOVED` (119) broadcasts claimed/expired.
 
 ## TradeOfferContainer
 

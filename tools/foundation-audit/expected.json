@@ -113,7 +113,9 @@
     "CLAIM_CORPSE_ITEM": 44,
     "CLAIM_CORPSE_GOLD": 45,
     "LOOT_ALL_CORPSE": 46,
-    "SUBMIT_LOOT_ROLL": 47
+    "SUBMIT_LOOT_ROLL": 47,
+    "DROP_ITEM": 48,
+    "PICKUP_GROUND_ITEM": 49
   },
   "serverOpcodes": {
     "FULL_STATE": 101,
@@ -133,7 +135,8 @@
     "TRADE_STATE": 115,
     "CORPSE_STATE": 116,
     "CORPSE_REMOVED": 117,
-    "LOOT_ROLL_STATE": 118
+    "LOOT_ROLL_STATE": 118,
+    "GROUND_ITEM_REMOVED": 119
   },
   "storageRecords": [
     { "collection": "player", "key": "character", "permissionWrite": 0, "schemaVersion": 1 },

@@ -63,6 +63,8 @@ const CLIENT_CLAIM_CORPSE_ITEM: int = 44
 const CLIENT_CLAIM_CORPSE_GOLD: int = 45
 const CLIENT_LOOT_ALL_CORPSE: int = 46
 const CLIENT_SUBMIT_LOOT_ROLL: int = 47
+const CLIENT_DROP_ITEM: int = 48
+const CLIENT_PICKUP_GROUND_ITEM: int = 49
 
 const SERVER_FULL_STATE: int = 101
 const SERVER_SNAPSHOT: int = 102
@@ -82,6 +84,7 @@ const SERVER_TRADE_STATE: int = 115
 const SERVER_CORPSE_STATE: int = 116
 const SERVER_CORPSE_REMOVED: int = 117
 const SERVER_LOOT_ROLL_STATE: int = 118
+const SERVER_GROUND_ITEM_REMOVED: int = 119
 
 const FIND_OR_CREATE_STARTER_ZONE_RPC: String = "find_or_create_starter_zone"
 const SESSION_HANDSHAKE_RPC: String = "session_handshake"
@@ -162,6 +165,7 @@ static func parse_full_state(raw: String, expected_content_hash: String) -> Dict
 			"enemies": (parsed["enemies"] as Array).duplicate(true),
 			"loot": loot.duplicate(true),
 			"corpses": _optional_array(parsed, "corpses"),
+			"groundItems": _optional_array(parsed, "groundItems"),
 			"quests": _optional_array(parsed, "quests"),
 			"npc_quest_markers": _optional_array(parsed, "npcQuestMarkers"),
 			"inventory": _optional_inventory(parsed),
@@ -195,7 +199,7 @@ static func parse_snapshot(raw: String, expected_content_hash: String, previous:
 		view["zone_id"] = String(parsed["zoneId"])
 	view["players"] = (parsed["players"] as Array).duplicate(true)
 	view["ack_seq"] = _ack_seq(view["players"], String(view.get("self_id", "")))
-	for key in ["npcs", "enemies", "loot", "corpses", "quests"]:
+	for key in ["npcs", "enemies", "loot", "corpses", "groundItems", "quests"]:
 		if typeof(parsed.get(key, null)) == TYPE_ARRAY:
 			view[key] = (parsed[key] as Array).duplicate(true)
 	return {"ok": true, "view": view}
@@ -454,6 +458,19 @@ static func parse_corpse_removed(raw: String) -> Dictionary:
 	return {
 		"ok": true,
 		"corpse_id": String(parsed.get("corpseId", "")),
+		"reason": String(parsed.get("reason", "")),
+	}
+
+
+static func parse_ground_item_removed(raw: String) -> Dictionary:
+	var parsed: Dictionary = _parse_object(raw)
+	if parsed.has("ok") and not bool(parsed["ok"]):
+		return parsed
+	if not _version_ok(parsed):
+		return _fail("protocol_mismatch", "The ground-item-removed protocol version does not match this client.")
+	return {
+		"ok": true,
+		"ground_entity_id": String(parsed.get("groundEntityId", "")),
 		"reason": String(parsed.get("reason", "")),
 	}
 

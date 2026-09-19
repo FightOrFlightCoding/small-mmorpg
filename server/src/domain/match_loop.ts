@@ -7,6 +7,7 @@ import {
   corpseRemovedMessage,
   corpseStateMessage,
   equipmentState,
+  groundItemRemovedMessage,
   interactionResult,
   inventoryState,
   isProtocolError,
@@ -62,7 +63,7 @@ import { ITEM_ERROR_INVENTORY_FULL, ITEM_ERROR_INVENTORY_STALE } from "./item_er
 import { applyCaveEnter, applyInnRest } from "./inn";
 import { applyCaveWipeIfNeeded, markCaveBossDefeated, evaluateCaveExit, type CaveTransferIntent } from "./cave";
 import { TRANSFER_TICKET_TTL_MS } from "./instance";
-import { TX_REASON_EQUIPMENT, TX_REASON_INN, TX_REASON_ITEM_DESTROY, TX_REASON_ITEM_MOVE, TX_REASON_ITEM_SPLIT, TX_REASON_LOOT, TX_REASON_RESPEC, TX_REASON_VENDOR, type TransactionCommitter } from "./transaction";
+import { TX_REASON_EQUIPMENT, TX_REASON_INN, TX_REASON_ITEM_DESTROY, TX_REASON_ITEM_DROP, TX_REASON_ITEM_MOVE, TX_REASON_ITEM_SPLIT, TX_REASON_LOOT, TX_REASON_RESPEC, TX_REASON_VENDOR, type TransactionCommitter } from "./transaction";
 import { type TradeCommitter, type TradeRecord } from "./trade";
 import { cancelTradesForUser, handleTradeMessage, isTradeOpcode, recoverCommittingTrades, spendableGold, tickTrades } from "./match_trade";
 import {
@@ -94,6 +95,11 @@ import {
 } from "./equipment";
 import { applyRecoverOverflow, emptyOverflow, isOverflowEmpty, type MigrationOverflow } from "./overflow";
 import { applyPickup, expireLoot, findMatchLoot, lootExpireTicks, removeCorpseLinkedLoot, spawnCorpseSparkles } from "./loot";
+import {
+  applyGroundPickup,
+  applyPlayerDrop,
+  expireGroundItems,
+} from "./ground_item";
 import {
   collectNewEnemyDeaths,
   hashSeed,
@@ -380,6 +386,7 @@ export function applyMatchLoop(
   broadcastCorpseLifecycle(next, goldTick.removed, goldTick.updated, outbound, tick);
   pruneLootRolls(next, goldTick.removed);
   next.loot = expireLoot(next.loot, tick);
+  expireAndBroadcastGroundItems(next, tick, outbound);
   applyEnterQuestProgress(next, persistByUser, outbound);
   tickTrades(next, tick, outbound, persistInventoryByUser, persistTradesById);
   if (commitTrade !== undefined) {
@@ -858,6 +865,14 @@ function handleValidated(
   }
   if (parsed.opcode === ClientOpcode.SUBMIT_LOOT_ROLL) {
     handleSubmitLootRoll(parsed, userId, state, tick, outbound);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.DROP_ITEM) {
+    handleDropItem(parsed, userId, state, tick, outbound, persistByUser, persistInventoryByUser, persistOverflowByUser, makeId);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.PICKUP_GROUND_ITEM) {
+    handlePickupGroundItem(parsed, userId, state, tick, outbound, persistByUser, persistInventoryByUser, persistEquipmentByUser, makeId);
     return;
   }
   if (parsed.opcode === ClientOpcode.EQUIP) {
@@ -2216,6 +2231,175 @@ function handleRecoverOverflow(
   if (outcome.ok) {
     const inventoryStateMsg = inventoryState(state.contentHash, publicBag(player), parsed.requestId);
     outbound.push({ opcode: inventoryStateMsg.opcode, body: inventoryStateMsg.body, toUserId: userId });
+  }
+}
+
+function handleDropItem(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  tick: number,
+  outbound: MatchOutbound[],
+  persistByUser: { [userId: string]: QuestLog },
+  persistInventoryByUser: { [userId: string]: PlayerInventory },
+  persistOverflowByUser: { [userId: string]: OverflowPersist },
+  makeId: () => string,
+): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  if (!Array.isArray(state.groundItems)) {
+    state.groundItems = [];
+  }
+  const inventory = player.inventory !== undefined ? player.inventory : emptyInventory(state.inventoryCapacity);
+  const overflow = player.overflow !== undefined ? player.overflow : emptyOverflow();
+  const transferring =
+    player.safeLeaveCommitted === true ||
+    player.transferState === "issued" ||
+    player.transferState === "pending";
+  const outcome = applyPlayerDrop({
+    playerHealth: player.health,
+    linkDead: player.linkDead === true,
+    transferring: transferring,
+    characterId: player.characterId,
+    playerX: player.x,
+    playerY: player.y,
+    facingX: player.facingX,
+    facingY: player.facingY,
+    hintDx: parsed.hintDx,
+    hintDy: parsed.hintDy,
+    inventory: inventory,
+    overflow: overflow,
+    equipment: player.equipment,
+    instanceId: parsed.fields.instanceId !== undefined ? parsed.fields.instanceId : "",
+    quantity: parsed.quantity,
+    requestId: parsed.requestId as string,
+    expectedRevision: parsed.expectedRevision,
+    groundItems: state.groundItems,
+    collisions: state.collisions,
+    walkableBounds: state.walkableBounds,
+    itemsById: state.itemsById,
+    tick: tick,
+    tickRate: MATCH_TICK_RATE,
+    nowMs: tickMs(tick),
+    newIds: makeId,
+  });
+  player.inventory = outcome.inventory;
+  player.overflow = outcome.overflow;
+  state.groundItems = outcome.groundItems;
+  if (outcome.persist) {
+    outcome.inventory.persistReason = TX_REASON_ITEM_DROP;
+    persistInventoryByUser[userId] = outcome.inventory;
+    if (outcome.code === "destination_unavailable") {
+      persistOverflowByUser[userId] = {
+        userId: userId,
+        characterId: player.characterId,
+        overflow: outcome.overflow,
+        deleteOverflow: isOverflowEmpty(outcome.overflow),
+      };
+    }
+  }
+  if (!outcome.replay) {
+    const synced = syncAcquireObjectives(player.questLog, player.inventory);
+    player.questLog = synced.log;
+    if (synced.changed) {
+      persistByUser[userId] = cloneQuestLog(synced.log);
+      pushQuestState(state, userId, outbound, parsed.requestId);
+    }
+  }
+  const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  pushStaleCanonical(state, userId, tick, outbound, outcome.code);
+  if (outcome.ok || outcome.code === "destination_unavailable") {
+    const inventoryStateMsg = inventoryState(state.contentHash, publicBag(player), parsed.requestId);
+    outbound.push({ opcode: inventoryStateMsg.opcode, body: inventoryStateMsg.body, toUserId: userId });
+  }
+}
+
+function handlePickupGroundItem(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  tick: number,
+  outbound: MatchOutbound[],
+  persistByUser: { [userId: string]: QuestLog },
+  persistInventoryByUser: { [userId: string]: PlayerInventory },
+  persistEquipmentByUser: { [userId: string]: PlayerEquipment },
+  makeId: () => string,
+): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  if (!Array.isArray(state.groundItems)) {
+    state.groundItems = [];
+  }
+  const transferring =
+    player.safeLeaveCommitted === true ||
+    player.transferState === "issued" ||
+    player.transferState === "pending";
+  const outcome = applyGroundPickup({
+    playerHealth: player.health,
+    linkDead: player.linkDead === true,
+    transferring: transferring,
+    characterId: player.characterId,
+    playerX: player.x,
+    playerY: player.y,
+    inventory: player.inventory,
+    equippedItems: player.equipment !== undefined ? player.equipment.items : undefined,
+    groundEntityId: parsed.fields.groundEntityId !== undefined ? parsed.fields.groundEntityId : "",
+    requestId: parsed.requestId as string,
+    expectedRevision: parsed.expectedRevision,
+    groundItems: state.groundItems,
+    pickupRange: state.pickupRange,
+    itemsById: state.itemsById,
+    tick: tick,
+    nowMs: tickMs(tick),
+    newIds: makeId,
+  });
+  player.inventory = outcome.inventory;
+  state.groundItems = outcome.groundItems;
+  if (outcome.persist) {
+    outcome.inventory.persistReason = TX_REASON_LOOT;
+    persistInventoryByUser[userId] = outcome.inventory;
+  }
+  if (outcome.ok && !outcome.replay) {
+    const synced = syncAcquireObjectives(player.questLog, player.inventory);
+    player.questLog = synced.log;
+    if (synced.changed) {
+      persistByUser[userId] = cloneQuestLog(synced.log);
+      pushQuestState(state, userId, outbound, parsed.requestId);
+    }
+  }
+  if (outcome.removed !== null && !outcome.replay) {
+    const removed = groundItemRemovedMessage(state.contentHash, outcome.removed.groundEntityId, "claimed");
+    outbound.push({ opcode: removed.opcode, body: removed.body });
+  }
+  refreshDerivedFromInventory(state, userId, persistEquipmentByUser);
+  const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  pushStaleCanonical(state, userId, tick, outbound, outcome.code);
+  if (outcome.ok) {
+    const inventoryMsg = inventoryState(state.contentHash, publicBag(player), parsed.requestId);
+    outbound.push({ opcode: inventoryMsg.opcode, body: inventoryMsg.body, toUserId: userId });
+  }
+}
+
+function expireAndBroadcastGroundItems(state: StarterZoneState, tick: number, outbound: MatchOutbound[]): void {
+  if (!Array.isArray(state.groundItems)) {
+    state.groundItems = [];
+    return;
+  }
+  const expired = expireGroundItems(state.groundItems, tick);
+  state.groundItems = expired.items;
+  for (let i = 0; i < expired.removed.length; i++) {
+    const msg = groundItemRemovedMessage(state.contentHash, expired.removed[i].groundEntityId, "expired");
+    outbound.push({ opcode: msg.opcode, body: msg.body });
   }
 }
 

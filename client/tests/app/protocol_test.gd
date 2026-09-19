@@ -64,6 +64,8 @@ func test_join_metadata_carries_selection_ticket_not_character_id() -> void:
 	assert_int(MatchProtocol.CLIENT_CLAIM_CORPSE_GOLD).is_equal(45)
 	assert_int(MatchProtocol.CLIENT_LOOT_ALL_CORPSE).is_equal(46)
 	assert_int(MatchProtocol.CLIENT_SUBMIT_LOOT_ROLL).is_equal(47)
+	assert_int(MatchProtocol.CLIENT_DROP_ITEM).is_equal(48)
+	assert_int(MatchProtocol.CLIENT_PICKUP_GROUND_ITEM).is_equal(49)
 	assert_int(MatchProtocol.SERVER_FULL_STATE).is_equal(101)
 	assert_int(MatchProtocol.SERVER_SNAPSHOT).is_equal(102)
 	assert_int(MatchProtocol.SERVER_ACTION_RESULT).is_equal(103)
@@ -82,6 +84,7 @@ func test_join_metadata_carries_selection_ticket_not_character_id() -> void:
 	assert_int(MatchProtocol.SERVER_CORPSE_STATE).is_equal(116)
 	assert_int(MatchProtocol.SERVER_CORPSE_REMOVED).is_equal(117)
 	assert_int(MatchProtocol.SERVER_LOOT_ROLL_STATE).is_equal(118)
+	assert_int(MatchProtocol.SERVER_GROUND_ITEM_REMOVED).is_equal(119)
 	assert_float(MatchProtocol.INPUT_SEND_HZ).is_equal(10.0)
 	assert_float(MatchProtocol.SNAPSHOT_RATE_HZ).is_equal(10.0)
 	assert_float(MatchProtocol.SNAPSHOT_TIMEOUT_SEC).is_equal(2.0)
@@ -266,8 +269,23 @@ func test_parse_corpse_state_and_loot_all_result() -> void:
 			"enemies": [],
 			"loot": [],
 			"corpses": [{"id": "corpse-1", "x": 10, "y": 20}],
+			"groundItems": [{"groundEntityId": "ground-1", "itemId": "item.slime_gel", "quantity": 1, "x": 12, "y": 18, "rarity": "rarity.common"}],
 		}),
 		hash
 	)
 	assert_bool(bool(full.get("ok", false))).is_true()
 	assert_int((full["view"]["corpses"] as Array).size()).is_equal(1)
+	assert_int((full["view"]["groundItems"] as Array).size()).is_equal(1)
+
+
+func test_parse_ground_item_removed() -> void:
+	var parsed: Dictionary = MatchProtocol.parse_ground_item_removed(
+		JSON.stringify({
+			"protocolVersion": 1,
+			"groundEntityId": "ground-1",
+			"reason": "expired",
+		})
+	)
+	assert_bool(bool(parsed.get("ok", false))).is_true()
+	assert_str(String(parsed.get("ground_entity_id", ""))).is_equal("ground-1")
+	assert_str(String(parsed.get("reason", ""))).is_equal("expired")

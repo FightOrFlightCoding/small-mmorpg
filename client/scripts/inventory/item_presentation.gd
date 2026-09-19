@@ -68,6 +68,11 @@ static func rarity_color(definition: Dictionary) -> Color:
 	return DesignTokens.TEXT
 
 
+static func requires_drop_confirm(definition: Dictionary) -> bool:
+	var rarity := rarity_id(definition)
+	return rarity in ["rarity.uncommon", "rarity.rare", "rarity.epic", "rarity.legendary"]
+
+
 static func description_text(definition: Dictionary, item_id: String) -> String:
 	var key := String(definition.get("descriptionKey", ""))
 	if not key.is_empty():

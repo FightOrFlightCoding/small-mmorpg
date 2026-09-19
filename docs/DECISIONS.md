@@ -940,3 +940,17 @@ ITEM-07 migrates merchant buy onto the accepted NPC interaction session and the 
 - The merchant window shows name, stock icons/tooltips, canonical prices, player bag, gold, quantity selector, and buy result. Right-click buys one; Shift-right-click or the selector chooses quantity; drag to empty/compatible bag slots sets `preferredSlot`. Bag→merchant drag is rejected. `VENDOR_SELL` remains live but hidden in this window.
 - A new merchant stock list is content-only. Opcodes stay 47/18. Storage record count remains 35. Content hash unchanged.
 
+## 2026-09-19 — ITEM-08 public ground drops and ground pickup
+
+ITEM-08 adds player-created public ground items and authoritative pickup. It does not implement 20 trade slots, forage, or player-to-merchant selling.
+
+- Dragging a bag item into the world begins `DROP_ITEM`. Default quantity is the whole stack; quantity must be 1..stack. Uncommon+ requires client confirmation copy: “This item will be public and can be picked up by anyone.”
+- Server placement uses authoritative pose, optional `hintDx`/`hintDy`, drop radius, walkable bounds, and wall checks. Client `x`/`y` are `stat_injection`.
+- Anti-spam: `PLAYER_GROUND_DROP_LIMIT` **20** active player-created ground entities per character (noncanonical). At the limit, reject the new drop; do not delete an older item.
+- Durable `executeDropIntent`: no loss before entity creation; no duplicate ground entity; no duplicate bag item; compensate on creation failure. Interrupted `COMMITTING` restores the bag or overflow.
+- Ground entities are public immediately, match-lifetime, 5 min TTL (`GROUND_ITEM_TTL_SEC` 300). Not reconstructed after match/server restart (ITEM-C25).
+- `PICKUP_GROUND_ITEM` is all-or-nothing. Concurrent claimants: exactly one succeeds; others `ground_item_no_longer_available`.
+- Quest-item drop recounts possession without failing the quest; pickup may advance the picker’s matching quest. Equipped items must be unequipped into the bag first.
+- Opcodes 48 / 49 / 119. Storage record count remains 35. Content hash unchanged.
+- Conflicts ITEM-C10 and ITEM-C25 are CLOSED.
+

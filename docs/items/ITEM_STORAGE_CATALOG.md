@@ -58,11 +58,12 @@ Do not add custom SQL. Do not add a 36th storage record for the journal.
 | State | Persistence |
 | --- | --- |
 | `state.loot` `MatchLoot[]` | Lost on match restart; 30 s TTL |
+| `state.groundItems` `GroundItem[]` | Lost on match restart; 5 min TTL; not reconstructed |
 | Enemy death `processedDeathEventIds` | Match memory; idempotent loot/XP |
 | Party cache `lootPolicy` | Invalidated on party `revision` |
 | Item locks | Serialized **inside** inventory instances; TTL + orphan recovery; must not survive completed logout; trade recovery rehydrates from trade record |
 | Character serial | Per-match in-memory mutex; JSON-roundtripped match state does not need to persist it |
-| Transient ground drop entity | Domain helper only; lost on match restart by design |
+| Transient ground drop entity | Match `state.groundItems`; lost on match restart by design |
 | `state.corpses` `CorpseLootContainer[]` | Lost on match restart; 60 s private / 5 min expire |
 | `state.lootRolls` `LootRoll[]` | Lost on match restart; closes at the 60 s private boundary |
 

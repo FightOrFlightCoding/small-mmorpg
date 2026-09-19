@@ -104,6 +104,32 @@ func test_corpses_are_known_entities_without_combat_collision() -> void:
 	assert_bool(registry.has_entity("corpse:corpse-slime-1")).is_false()
 
 
+func test_ground_items_are_known_entities_without_physics_collision() -> void:
+	var registry := _registry()
+	var state := _alice_bob_state()
+	state["groundItems"] = [{
+		"groundEntityId": "ground-1",
+		"itemId": "item.slime_gel",
+		"quantity": 2,
+		"x": 250,
+		"y": 390,
+		"rarity": "rarity.common",
+	}]
+	registry.apply_full_state(state)
+	assert_bool(registry.rejected_kinds.has("ground")).is_false()
+	assert_bool(registry.has_entity("ground:ground-1")).is_true()
+	var avatar := registry.get_entity("ground:ground-1") as GroundItemAvatar
+	assert_object(avatar).is_not_null()
+	assert_str(avatar.display_name.to_lower()).contains("gel")
+	assert_bool(avatar.contains_world_point(Vector2(250, 390))).is_true()
+	assert_str(registry.ground_entity_id_at_world_point(Vector2(250, 390))).is_equal("ground-1")
+	assert_object(avatar.get_node_or_null("CollisionShape2D")).is_null()
+	assert_object(avatar.get_node_or_null("StaticBody2D")).is_null()
+	state["groundItems"] = []
+	registry.apply_full_state(state)
+	assert_bool(registry.has_entity("ground:ground-1")).is_false()
+
+
 func test_quest_markers_are_not_unknown_entities() -> void:
 	var registry := _registry()
 	var state := _alice_bob_state()

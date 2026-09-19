@@ -1,6 +1,7 @@
 import { applyCapacityPlan, planCapacity, type CapacityPlan, type CapacityPlanInput, type IncomingStack, type OutgoingQuantity } from "./item_capacity";
 import {
   ITEM_ERROR_DESTINATION_UNAVAILABLE,
+  ITEM_ERROR_INVALID_QUANTITY,
   ITEM_ERROR_ITEM_NOT_FOUND,
   ITEM_ERROR_TRANSACTION_CONFLICT,
   ITEM_ERROR_TRANSACTION_RECOVERY_PENDING,
@@ -457,9 +458,14 @@ export function executeDropIntent(input: {
   newIds: () => string;
   failBeforeEntity?: boolean;
   journal?: ItemJournalStore;
+  existingGroundItems?: ReadonlyArray<TransientGroundItem & { groundEntityId?: string }>;
+  createdAtTick?: number;
+  expiresAtTick?: number;
+  rarity?: string;
 }): {
   ok: boolean;
   code: string;
+  replay: boolean;
   inventory: PlayerInventory;
   overflow: MigrationOverflow;
   ground: TransientGroundItem | null;
@@ -467,16 +473,18 @@ export function executeDropIntent(input: {
   journal: ItemJournalRecord;
   audits: ItemMutationAudit[];
 } {
-  const journal = input.journal !== undefined ? input.journal : memoryJournalStore();
+  const journal = input.journal !== undefined ? input.journal : journalStoreFromInventory(input.inventory);
   const previous = journal.getByRequestId(input.requestId);
   if (previous !== undefined && previous.state === JOURNAL_COMMITTED) {
     const intent = intentFromInventory(input.inventory, input.requestId);
+    const ground = existingGroundFromIntent(input, intent);
     return {
       ok: true,
       code: "ok",
+      replay: true,
       inventory: cloneInventory(input.inventory),
       overflow: cloneOverflow(input.overflow),
-      ground: null,
+      ground: ground,
       intent: intent !== undefined ? intent : createDropIntent({
         intentId: previous.transactionId,
         requestId: input.requestId,
@@ -488,6 +496,89 @@ export function executeDropIntent(input: {
       journal: previous,
       audits: [],
     };
+  }
+  if (previous !== undefined && (previous.state === JOURNAL_COMPENSATED || previous.state === JOURNAL_FAILED)) {
+    const intent = intentFromInventory(input.inventory, input.requestId);
+    return {
+      ok: false,
+      code: previous.failureCode.length > 0 ? previous.failureCode : ITEM_ERROR_DESTINATION_UNAVAILABLE,
+      replay: true,
+      inventory: cloneInventory(input.inventory),
+      overflow: cloneOverflow(input.overflow),
+      ground: null,
+      intent: intent !== undefined ? intent : markIntentFailed(
+        createDropIntent({
+          intentId: previous.transactionId,
+          requestId: input.requestId,
+          characterId: input.characterId,
+          item: makeInstance(input.instanceId, "", input.quantity, -1),
+          quantity: input.quantity,
+          nowMs: input.nowMs,
+        }),
+        input.nowMs,
+        previous.failureCode,
+      ),
+      journal: previous,
+      audits: [],
+    };
+  }
+  if (previous !== undefined && journalNeedsRecovery(previous.state)) {
+    const intent = intentFromInventory(input.inventory, input.requestId);
+    const recoveredGround = existingGroundFromIntent(input, intent);
+    if (recoveredGround !== null) {
+      const nextInventory = cloneInventory(input.inventory);
+      const committed = intent !== undefined ? markIntentCommitted(intent, input.nowMs, recoveredGround.id) : undefined;
+      if (committed !== undefined) {
+        rememberIntent(nextInventory, committed);
+      }
+      const record = cloneJournalRecord(previous);
+      record.state = JOURNAL_COMMITTED;
+      record.updatedAt = input.nowMs;
+      record.recoveryStatus = "retry";
+      journal.put(record);
+      rememberJournal(nextInventory, record);
+      return {
+        ok: true,
+        code: "ok",
+        replay: true,
+        inventory: nextInventory,
+        overflow: cloneOverflow(input.overflow),
+        ground: recoveredGround,
+        intent: committed !== undefined ? committed : createDropIntent({
+          intentId: previous.transactionId,
+          requestId: input.requestId,
+          characterId: input.characterId,
+          item: makeInstance(input.instanceId, "", input.quantity, -1),
+          quantity: input.quantity,
+          nowMs: input.nowMs,
+        }),
+        journal: record,
+        audits: [],
+      };
+    }
+    if (intent !== undefined) {
+      const restored = compensateDropToBagOrOverflow(input.inventory, input.overflow, intent, input.definitions, input.nowMs);
+      const compensated = markIntentCompensated(intent, input.nowMs);
+      rememberIntent(restored.inventory, compensated);
+      const record = cloneJournalRecord(previous);
+      record.state = JOURNAL_COMPENSATED;
+      record.failureCode = ITEM_ERROR_DESTINATION_UNAVAILABLE;
+      record.recoveryStatus = restored.usedOverflow ? "overflow" : "restored";
+      record.updatedAt = input.nowMs;
+      journal.put(record);
+      rememberJournal(restored.inventory, record);
+      return {
+        ok: false,
+        code: ITEM_ERROR_DESTINATION_UNAVAILABLE,
+        replay: false,
+        inventory: restored.inventory,
+        overflow: restored.overflow,
+        ground: null,
+        intent: compensated,
+        journal: record,
+        audits: [],
+      };
+    }
   }
   let inventory = cloneInventory(input.inventory);
   const item = findItem(inventory, input.instanceId);
@@ -503,6 +594,7 @@ export function executeDropIntent(input: {
     return {
       ok: false,
       code: ITEM_ERROR_ITEM_NOT_FOUND,
+      replay: false,
       inventory: inventory,
       overflow: cloneOverflow(input.overflow),
       ground: null,
@@ -512,6 +604,27 @@ export function executeDropIntent(input: {
     };
   }
   const quantity = input.quantity > 0 ? input.quantity : item.quantity;
+  if (quantity < 1 || quantity !== Math.floor(quantity) || quantity > item.quantity) {
+    const failedQty = createDropIntent({
+      intentId: input.newIds(),
+      requestId: input.requestId,
+      characterId: input.characterId,
+      item: item,
+      quantity: quantity,
+      nowMs: input.nowMs,
+    });
+    return {
+      ok: false,
+      code: ITEM_ERROR_INVALID_QUANTITY,
+      replay: false,
+      inventory: inventory,
+      overflow: cloneOverflow(input.overflow),
+      ground: null,
+      intent: markIntentFailed(failedQty, input.nowMs, ITEM_ERROR_INVALID_QUANTITY),
+      journal: emptyJournalRecord(input.newIds(), input.requestId, "item_drop", [input.characterId], input.nowMs),
+      audits: [],
+    };
+  }
   const locked = acquireItemLock({
     inventory: inventory,
     instanceId: item.instanceId,
@@ -525,6 +638,7 @@ export function executeDropIntent(input: {
     return {
       ok: false,
       code: locked.code,
+      replay: false,
       inventory: locked.inventory,
       overflow: cloneOverflow(input.overflow),
       ground: null,
@@ -582,6 +696,7 @@ export function executeDropIntent(input: {
     return {
       ok: false,
       code: ITEM_ERROR_DESTINATION_UNAVAILABLE,
+      replay: false,
       inventory: restored.inventory,
       overflow: restored.overflow,
       ground: null,
@@ -608,11 +723,17 @@ export function executeDropIntent(input: {
   }
   const ground: TransientGroundItem = {
     id: input.newIds(),
-    instanceId: input.newIds(),
+    instanceId: quantity === item.quantity ? item.instanceId : input.newIds(),
     itemId: item.itemId,
     quantity: quantity,
     x: input.x,
     y: input.y,
+    createdByCharacterId: input.characterId,
+    createdAtTick: input.createdAtTick,
+    expiresAtTick: input.expiresAtTick,
+    state: "PUBLIC_AVAILABLE",
+    revision: 1,
+    rarity: input.rarity,
   };
   intent = markIntentCommitted(intent, input.nowMs, ground.id);
   rememberIntent(inventory, intent);
@@ -640,6 +761,7 @@ export function executeDropIntent(input: {
   return {
     ok: true,
     code: "ok",
+    replay: false,
     inventory: inventory,
     overflow: cloneOverflow(input.overflow),
     ground: ground,
@@ -754,6 +876,60 @@ function cloneInventoryItem(item: ItemInstance): ItemInstance {
     stackKey: item.stackKey,
     metadata: item.metadata,
   });
+}
+
+function journalStoreFromInventory(inventory: PlayerInventory): ItemJournalStore {
+  const seed: ItemJournalRecord[] = [];
+  const map = inventory.journalByRequestId;
+  if (map !== undefined) {
+    const keys = Object.keys(map);
+    for (let i = 0; i < keys.length; i++) {
+      seed.push(map[keys[i]]);
+    }
+  }
+  return memoryJournalStore(seed);
+}
+
+function existingGroundFromIntent(
+  input: {
+    existingGroundItems?: ReadonlyArray<TransientGroundItem & { groundEntityId?: string }>;
+    x: number;
+    y: number;
+    instanceId: string;
+    quantity: number;
+    characterId: string;
+    createdAtTick?: number;
+    expiresAtTick?: number;
+    rarity?: string;
+  },
+  intent: ItemIntent | undefined,
+): TransientGroundItem | null {
+  if (intent === undefined || intent.groundEntityId === undefined || intent.groundEntityId.length === 0) {
+    return null;
+  }
+  const list = input.existingGroundItems !== undefined ? input.existingGroundItems : [];
+  for (let i = 0; i < list.length; i++) {
+    const entity = list[i];
+    const id = entity.groundEntityId !== undefined && entity.groundEntityId.length > 0 ? entity.groundEntityId : entity.id;
+    if (id !== intent.groundEntityId) {
+      continue;
+    }
+    return {
+      id: id,
+      instanceId: entity.instanceId,
+      itemId: entity.itemId,
+      quantity: entity.quantity,
+      x: entity.x,
+      y: entity.y,
+      createdByCharacterId: entity.createdByCharacterId,
+      createdAtTick: entity.createdAtTick,
+      expiresAtTick: entity.expiresAtTick,
+      state: entity.state,
+      revision: entity.revision,
+      rarity: entity.rarity,
+    };
+  }
+  return null;
 }
 
 function rememberJournal(inventory: PlayerInventory, record: ItemJournalRecord): void {

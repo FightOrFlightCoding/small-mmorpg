@@ -750,6 +750,28 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 | Rate limit | Shares PICKUP window (8) |
 | Tests | `loot_roll.test.ts`, `protocol.test.ts`, `loot_roll_service_test.gd` |
 
+### 48 `DROP_ITEM`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, instanceId, quantity?, hintDx?, hintDy?, requestId, expectedRevision? }` |
+| Authority | Bag ownership, droppable, unlocked, not equipped, alive, not link-dead/transferring, quantity 1..stack, 20 active-drop limit. Server chooses a nearby reachable pose. Client `x`/`y` are `stat_injection`. |
+| Idempotency | Journal `requestId` replay; does not spawn a second ground entity |
+| Errors | `item_equipped`, `item_locked`, `invalid_quantity`, `ground_drop_limit`, `destination_unavailable`, `player_dead`, `link_dead`, `already_transferring`, `inventory_stale`, `invalid_id` |
+| Rate limit | Shares DESTROY/SPLIT/MOVE inventory window (8) |
+| Tests | `ground_item.test.ts`, `protocol.test.ts`, `inventory_service_test.gd`, `ground_drop_dialog_test.gd` |
+
+### 49 `PICKUP_GROUND_ITEM`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, groundEntityId, requestId, expectedRevision? }` |
+| Authority | Same match, range, `PUBLIC_AVAILABLE`, character state, whole stack fits via `planCapacity` acquire |
+| Idempotency | Successful `requestId` replay without a second grant |
+| Errors | `ground_item_no_longer_available`, `out_of_range`, `inventory_full`, `player_dead`, `link_dead`, `already_transferring`, `inventory_stale` |
+| Rate limit | Shares PICKUP window (8) |
+| Tests | `ground_item.test.ts`, `protocol.test.ts`, `inventory_service_test.gd` |
+
 No other client opcodes exist. Unknown opcode → `unknown_opcode`.
 
 ## Server → client match opcodes
@@ -758,8 +780,8 @@ No client rate limit. Occupied matches send **102** every tick.
 
 | Opcode | Name | Body (summary) | Tests |
 | --- | --- | --- | --- |
-| 101 | `FULL_STATE` | tick, zone, self, players, npcs, enemies, loot, corpses, quests, inventory, equipment, derived, wallet, progression, abilities, optional party, optional instance | `protocol.test.ts`, `zone_join_test.gd`, `progression.test.ts`, `ability.test.ts`, `party_service_test.gd`, `cave.test.ts` |
-| 102 | `SNAPSHOT` | tick, players, enemies, loot, corpses | `movement.test.ts`, `entity_registry_test.gd` |
+| 101 | `FULL_STATE` | tick, zone, self, players, npcs, enemies, loot, corpses, groundItems, quests, inventory, equipment, derived, wallet, progression, abilities, optional party, optional instance | `protocol.test.ts`, `zone_join_test.gd`, `progression.test.ts`, `ability.test.ts`, `party_service_test.gd`, `cave.test.ts` |
+| 102 | `SNAPSHOT` | tick, players, enemies, loot, corpses, groundItems | `movement.test.ts`, `entity_registry_test.gd` |
 | 103 | `ACTION_RESULT` | ok, code, requestId?, message?, ticket extras, optional tradeId, optional `lootAll[]` | combat/inventory/quest/cave/trade/lease/corpse tests |
 | 104 | `COMBAT_EVENT` | tick, events[] (`hit`, `heal`, `death`, `respawn`, `interrupt`, `effect_*`, `resource`, `threat`, `credit`, `message`) | `combat.test.ts`, `combat_pipeline.test.ts`, `boss.test.ts`, `combat_client_test.gd` |
 | 105 | `INVENTORY_STATE` | capacity, items, revision, optional overflow | `inventory.test.ts`, `item_model.test.ts` |
@@ -776,6 +798,7 @@ No client rate limit. Occupied matches send **102** every tick.
 | 116 | `CORPSE_STATE` | viewer corpse: ids, pose, gold, items (entryId/itemId/quantity/state), timers, eligible, public, revision | `corpse.test.ts`, `corpse_service_test.gd` |
 | 117 | `CORPSE_REMOVED` | `corpseId`, `reason` (`empty` / `expired`) | `corpse.test.ts` |
 | 118 | `LOOT_ROLL_STATE` | Viewer roll: item, quantity, ownChoice, closesAt, result, revision | `loot_roll.test.ts`, `loot_roll_service_test.gd` |
+| 119 | `GROUND_ITEM_REMOVED` | `groundEntityId`, `reason` (`claimed` / `expired`) | `ground_item.test.ts`, `protocol_test.gd` |
 
 `FULL_STATE` may include optional `party` for the recipient and optional `instance` (`type`, `instanceId`, `zoneTemplateId`, `completionState`, `bossAlive`, owners). Snapshots do not carry party membership. Join metadata: `{ protocolVersion, contentHash }` strings plus `selectionTicket` or `transferTicket`. Mismatch → join reject / fatal client error. Transfer join rejects `ticket_reused`, `ticket_expired`, `ticket_wrong_character`, `ticket_wrong_destination`, `still_in_origin`, `already_elsewhere`. Email accounts that are not playable are rejected at `matchJoinAttempt` (`email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted`).
 

@@ -65,6 +65,8 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ClientOpcode.CLAIM_CORPSE_GOLD, 45);
   assert.equal(ClientOpcode.LOOT_ALL_CORPSE, 46);
   assert.equal(ClientOpcode.SUBMIT_LOOT_ROLL, 47);
+  assert.equal(ClientOpcode.DROP_ITEM, 48);
+  assert.equal(ClientOpcode.PICKUP_GROUND_ITEM, 49);
   assert.equal(ServerOpcode.FULL_STATE, 101);
   assert.equal(ServerOpcode.SNAPSHOT, 102);
   assert.equal(ServerOpcode.ACTION_RESULT, 103);
@@ -83,6 +85,7 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ServerOpcode.CORPSE_STATE, 116);
   assert.equal(ServerOpcode.CORPSE_REMOVED, 117);
   assert.equal(ServerOpcode.LOOT_ROLL_STATE, 118);
+  assert.equal(ServerOpcode.GROUND_ITEM_REMOVED, 119);
 });
 
 test("valid movement input parses direction and sequence only", () => {
@@ -997,4 +1000,74 @@ test("dialogue choose and interaction close parse session fields only", () => {
     }),
   );
   assert.equal(isProtocolError(injectedRoll), true);
+  if (isProtocolError(injectedRoll)) {
+    assert.equal(injectedRoll.code, "stat_injection:roll");
+  }
+});
+
+test("DROP_ITEM parses hints and rejects trusted coordinates", () => {
+  const parsed = parse(
+    ClientOpcode.DROP_ITEM,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      instanceId: "ore-1",
+      quantity: 3,
+      hintDx: 1,
+      hintDy: 0,
+      requestId: "req-drop-ok0001",
+      expectedRevision: 4,
+    }),
+  );
+  assert.equal(isProtocolError(parsed), false);
+  if (!isProtocolError(parsed)) {
+    assert.equal(parsed.fields.instanceId, "ore-1");
+    assert.equal(parsed.quantity, 3);
+    assert.equal(parsed.hintDx, 1);
+    assert.equal(parsed.hintDy, 0);
+    assert.equal(parsed.expectedRevision, 4);
+  }
+  const injected = parse(
+    ClientOpcode.DROP_ITEM,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      instanceId: "ore-1",
+      requestId: "req-drop-xy0001",
+      x: 12,
+      y: 40,
+    }),
+  );
+  assert.equal(isProtocolError(injected), true);
+  if (isProtocolError(injected)) {
+    assert.equal(injected.code, "stat_injection:x");
+  }
+});
+
+test("PICKUP_GROUND_ITEM requires groundEntityId and rejects instance injection", () => {
+  const parsed = parse(
+    ClientOpcode.PICKUP_GROUND_ITEM,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      groundEntityId: "ground-1",
+      requestId: "req-pick-ok0001",
+      expectedRevision: 8,
+    }),
+  );
+  assert.equal(isProtocolError(parsed), false);
+  if (!isProtocolError(parsed)) {
+    assert.equal(parsed.fields.groundEntityId, "ground-1");
+    assert.equal(parsed.expectedRevision, 8);
+  }
+  const injected = parse(
+    ClientOpcode.PICKUP_GROUND_ITEM,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      groundEntityId: "ground-1",
+      requestId: "req-pick-inst001",
+      instanceId: "forged-1",
+    }),
+  );
+  assert.equal(isProtocolError(injected), true);
+  if (isProtocolError(injected)) {
+    assert.equal(injected.code, "stat_injection:instanceId");
+  }
 });
