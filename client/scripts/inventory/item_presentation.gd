@@ -71,7 +71,7 @@ static func rarity_color(definition: Dictionary) -> Color:
 static func description_text(definition: Dictionary, item_id: String) -> String:
 	var key := String(definition.get("descriptionKey", ""))
 	if not key.is_empty():
-		var translated := tr(key)
+		var translated := TranslationServer.translate(key)
 		if not translated.is_empty() and translated != key:
 			return translated
 	var named := String(definition.get("displayName", item_id))
