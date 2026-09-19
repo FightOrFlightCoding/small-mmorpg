@@ -1,6 +1,6 @@
-# Current item-system conflicts (ITEM-09)
+# Current item-system conflicts (ITEM-10)
 
-ITEM-09 closed the 20-slot secure player trade. Remaining rows stay OPEN until a later numbered ITEM phase names them.
+ITEM-10 closed quest possession, turn-in rewards, and the shared future grant path. Remaining rows stay OPEN until a later numbered ITEM phase names them.
 
 Status: `OPEN` = live Foundation differs from the completed ITEM platform. `KEEP` = live behavior that a later phase may still keep (for example `VENDOR_SELL`) until that phase names the change.
 
@@ -29,7 +29,7 @@ Status: `OPEN` = live Foundation differs from the completed ITEM platform. `KEEP
 | ITEM-C21 | CLOSED | Match persistEconomy stamps `item_destroy` / `item_split` / `item_move` / `loot` / `equipment` via `inventory.persistReason` | Reason matches the mutation | ITEM-03 |
 | ITEM-C22 | CLOSED | `planCapacity` / `planTwoWayTrade` serve grant, trade, unequip, preferred slot, outgoing, and locks; `acceptItemFailureCode` delegates | Full multi-stack planner | ITEM-03 |
 | ITEM-C23 | CLOSED | `DragDropService` bag/equipment payloads and ghosts; slots send intentions only | Bag drag-drop intentions | ITEM-04 |
-| ITEM-C24 | OPEN | No foraging/gathering grant | Future source uses existing transaction/inventory | Later grant-path phase. Acquisition intent is ready |
+| ITEM-C24 | CLOSED | `grantItemFromSource` is the trusted-server grant; GM `grant_test_item` uses it; no client grant opcode | Future source uses existing transaction/inventory | ITEM-10. Harvesting/cooking/mining/blacksmithing remain later |
 | ITEM-C25 | CLOSED | Sparkles, corpses, and player ground items are match-lifetime; restart drops unclaimed ground/corpse loot | Player drops also transient; corpses match-lifetime | ITEM-08 documented limitation; do not persist ground items |
 | ITEM-C26 | CLOSED | Slime death still spawns a corpse-linked gel sparkle; F/`PICKUP` and corpse claim both grant | Must remain completable when corpse rules land | ITEM-05 dual-path |
 

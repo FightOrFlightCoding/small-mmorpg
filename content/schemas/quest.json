@@ -30,6 +30,10 @@
     },
     "rewards": { "$ref": "#/$defs/rewards" },
     "completeOnce": { "type": "boolean" },
+    "itemReacquisition": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/itemReacquisition" }
+    },
     "schemaVersion": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/definitionSchemaVersion" },
     "developmentOnly": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/developmentOnly" }
   },
@@ -94,7 +98,42 @@
         "zoneId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
         "instanceId": { "type": "string", "minLength": 1 },
         "location": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/aabb" },
-        "partyCreditPolicy": { "type": "string", "enum": ["solo", "party"] }
+        "partyCreditPolicy": { "type": "string", "enum": ["solo", "party"] },
+        "countEquipment": { "type": "boolean" }
+      }
+    },
+    "itemReacquisition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["itemId", "policy", "sources"],
+      "properties": {
+        "itemId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+        "policy": {
+          "type": "string",
+          "enum": [
+            "REPEATABLE_DROP",
+            "REPEATABLE_INTERACTION",
+            "MERCHANT_AVAILABLE",
+            "MULTIPLE_WORLD_SOURCES",
+            "EXPLICIT_EXTERNAL_ACQUISITION"
+          ]
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "id"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["loot_table", "enemy", "spawn", "vendor", "npc", "external"]
+              },
+              "id": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" }
+            }
+          }
+        }
       }
     },
     "rewards": {

@@ -6,7 +6,7 @@ Extend `transaction.ts` / `nakama/transaction_store.ts` and the ITEM-03 domain h
 
 | Path | When | Atomicity |
 | --- | --- | --- |
-| `runItemTransaction` (`item_txn.ts`) | Shared domain boundary for planned item/gold mutations (loot, trade simulation, drop/acquire intents, tests) | Journal + capacity plan + gold ledger; persist via existing committers |
+| `grantItemFromSource` (`item_grant.ts`) | Trusted future/admin grants (GM `grant_test_item` included) | `planCapacity` then `runItemTransaction`; journal `eventId`; full bag does not consume the source |
 | `commitTransaction` (`nk.multiUpdate`) | Gold + inventory/equipment/quests together (vendor, inn, quest reward, match persistEconomy) | Storage OCC + wallet |
 | `writeInventory` / `writeInventoryOnce` | Inventory-only match mutations batched then wrapped as persistEconomy | OCC |
 | `trade_store.ts` | Two inventories + two wallets + trade record + indexes + audits | `multiUpdate`; `committing` snapshot on interrupt |
@@ -18,7 +18,7 @@ Match `persistEconomy` stamps `inventory.persistReason` (`loot`, `equipment`, `i
 
 ## Live reason types (`TX_REASON_*`)
 
-`loot`, `quest_reward`, `equipment`, `item_destroy`, `item_split`, `item_move`, `item_drop`, `item_acquire`, `admin_grant`, `vendor`, `inn`, `trade`, `respec`.
+`loot`, `quest_reward`, `equipment`, `item_destroy`, `item_split`, `item_move`, `item_drop`, `item_acquire`, `admin_grant`, `vendor`, `inn`, `trade`, `respec`. Future grants stamp `persistReason` `item_grant` (GM uses `admin_grant`).
 
 ## Capacity simulator
 

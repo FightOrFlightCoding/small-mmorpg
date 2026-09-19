@@ -407,6 +407,40 @@ test("duplicate quest rewards are rejected", () => {
   assert.ok(codes.indexOf("duplicate_quest_reward:item.iron_sword") !== -1);
 });
 
+test("tradeable quest items require a repeatable reacquisition source", () => {
+  const payload = validateDocuments(SCHEMA_DIR, loadValid());
+  const slime = payload.quests["quest.slime_problem"];
+  assert.ok(slime.itemReacquisition !== undefined && slime.itemReacquisition.length > 0);
+  assert.equal(slime.itemReacquisition[0].policy, "REPEATABLE_DROP");
+  const proof = payload.quests["quest.proof_errand"];
+  assert.ok(proof.itemReacquisition !== undefined && proof.itemReacquisition.length > 0);
+  assert.equal(proof.itemReacquisition[0].policy, "REPEATABLE_DROP");
+
+  const missing = clone(loadValid());
+  delete find(missing, "quest.slime_problem")["itemReacquisition"];
+  const missingCodes = codesOf(() => validateDocuments(SCHEMA_DIR, missing));
+  assert.ok(missingCodes.indexOf("missing_reacquisition:item.slime_gel") !== -1);
+
+  const oneTime = clone(loadValid());
+  find(oneTime, "enemy.green_slime")["respawnDelay"] = 0;
+  find(oneTime, "spawn.starter.green_slime")["respawnDelay"] = 0;
+  const oneTimeCodes = codesOf(() => validateDocuments(SCHEMA_DIR, oneTime));
+  assert.ok(oneTimeCodes.indexOf("nonrepeatable_quest_source:loot.green_slime") !== -1);
+  assert.ok(oneTimeCodes.indexOf("nonrepeatable_quest_source:item.slime_gel") !== -1);
+  assert.ok(oneTimeCodes.indexOf("unrecoverable_quest_item:item.slime_gel") !== -1);
+
+  const externalOnly = clone(loadValid());
+  find(externalOnly, "quest.slime_problem")["itemReacquisition"] = [
+    {
+      itemId: "item.slime_gel",
+      policy: "EXPLICIT_EXTERNAL_ACQUISITION",
+      sources: [{ type: "external", id: "external.lab" }],
+    },
+  ];
+  const externalCodes = codesOf(() => validateDocuments(SCHEMA_DIR, externalOnly));
+  assert.ok(externalCodes.indexOf("unrecoverable_quest_item:item.slime_gel") !== -1);
+});
+
 test("generation is deterministic", () => {
   const payload = validateDocuments(SCHEMA_DIR, loadValid());
   const first = buildBundle(payload);

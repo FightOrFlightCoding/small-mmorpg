@@ -23,5 +23,14 @@
     "xp": 5,
     "items": []
   },
-  "completeOnce": true
+  "completeOnce": true,
+  "itemReacquisition": [
+    {
+      "itemId": "item.proof_token",
+      "policy": "REPEATABLE_DROP",
+      "sources": [
+        { "type": "loot_table", "id": "loot.proof_critter" }
+      ]
+    }
+  ]
 }

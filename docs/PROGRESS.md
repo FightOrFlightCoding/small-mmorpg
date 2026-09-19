@@ -1,14 +1,47 @@
 # Progress
 
-Last accepted phase: **ITEM-09 — Twenty-slot secure player trade**.
+Last accepted phase: **ITEM-10 — Quest items, quest objectives, rewards, and future acquisition sources**.
 
-Current phase: ITEM-09 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
+Current phase: ITEM-10 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
 
 Canonical git line: **`origin/main`**. Playable work is committed there. The Windows clone stays on `main` and runs `scripts/local-play.ps1 -Branch main`.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01 through ITEM-09 remain accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01 through ITEM-10 remain accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
+
+## ITEM-10 quest items, turn-in, and future grant (2026-09-19)
+
+ITEM-10 is accepted. It wires the completed item platform to quests and one shared future grant. It does not implement harvesting, cooking, mining, blacksmithing, auctions, mail, offline trade, or merchant selling. Do not start later ITEM phases.
+
+Collection progress is bag possession minus live trade offers. Equipment counts only when a quest objective sets `countEquipment`. Overflow, ground, corpse, merchant stock, and other characters never count. Possession recounts after corpse loot, Need/Greed, ground pickup/drop, merchant buy, trade offer/commit/cancel, destroy, overflow recover, turn-in, and GM grant/remove. Trading or dropping a quest item may reduce progress without failing the quest; receiving one may increase it. After a collect stage advances, a later drop or trade rewinds that stage.
+
+Quest items never start Need/Greed. They stay first-come on the corpse, become public at 60 s when unclaimed, expire with the corpse, and may be traded or dropped after acquisition.
+
+Production consume of a fully tradeable/droppable quest item must declare `itemReacquisition` with at least one repeatable source. `EXPLICIT_EXTERNAL_ACQUISITION` alone is invalid for production. Slime Problem and Proof Errand use `REPEATABLE_DROP`.
+
+Turn-in revalidates possession, plans consume plus rewards through `planCapacity`, then consumes, rewards, completes, and audits. A full bag blocks turn-in: no consume, no XP, no gold, no completion, and a precise required-capacity message. Rewards never enter overflow.
+
+`grantItemFromSource` is trusted-server only (`eventId` idempotency). A grant that does not fit returns `INVENTORY_FULL`, grants nothing, and does not consume the world source. GM `grant_test_item` uses it. No client-authoritative grant opcode.
+
+Character export includes bag/equipment/history. Soft-delete restore preserves items. Purge and account deletion remove items and transaction state. Reused email does not inherit them. Link-dead blocks item actions.
+
+No new opcode. Storage record count remains **35**. Content hash: `d7e71fa4bd525906da2ee6d4244745d63980b738bfa7ad2a7b94c5010cc13bd9`.
+
+Conflict ITEM-C24 is CLOSED.
+
+| Gate | Result |
+| --- | --- |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 49 client opcodes, 19 server opcodes, 29 RPCs) |
+| Content validation/tests | 29/29 passed |
+| Server hermetic tests | 1028 passed, 13 expected live-test skips |
+| Server typecheck/build | passed |
+| Auth gateway hermetic tests | 52/52 passed |
+| Godot 4.7.1 client GdUnit | 371/371 passed, 0 failures, 0 orphans |
+
+Pre-existing Node 22.14 runner compatibility remains documented: directory-form `node --test` wrappers can fail before discovery. Direct compiled-file glob equivalents pass.
+
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen `client/`. Recreate Nakama so `contentHash` matches.
 
 ## ITEM-09 twenty-slot secure player trade (2026-09-19)
 

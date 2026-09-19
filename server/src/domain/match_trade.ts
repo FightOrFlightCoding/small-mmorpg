@@ -33,6 +33,8 @@ import {
   type TradeDecision,
   type TradeRecord,
 } from "./trade";
+import { type QuestLog } from "./quest";
+import { syncPlayerQuestPossession } from "./quest_sync";
 
 interface TradeOutbound {
   opcode: number;
@@ -61,6 +63,7 @@ export function handleTradeMessage(
   skipStorageUsers: { [userId: string]: boolean },
   makeId: () => string,
   commitTrade?: TradeCommitter,
+  persistByUser?: { [userId: string]: QuestLog },
 ): void {
   ensureTradeMaps(state);
   const player = state.players[userId];
@@ -84,7 +87,7 @@ export function handleTradeMessage(
   const other = otherActor(state, trade, player.characterId);
   if (parsed.opcode === ClientOpcode.TRADE_ACCEPT_INVITE) {
     if (other === null) {
-      finishDecision(cancelTrade(trade, "disconnected", requestId), state, outbound, persistInventoryByUser, persistTrades, skipStorageUsers, requestId, userId);
+      finishDecision(cancelTrade(trade, "disconnected", requestId), state, outbound, persistInventoryByUser, persistTrades, skipStorageUsers, requestId, userId, persistByUser);
       return;
     }
     finishDecision(
@@ -96,6 +99,7 @@ export function handleTradeMessage(
       skipStorageUsers,
       requestId,
       userId,
+      persistByUser,
     );
     return;
   }
@@ -109,11 +113,12 @@ export function handleTradeMessage(
       skipStorageUsers,
       requestId,
       userId,
+      persistByUser,
     );
     return;
   }
   if (other === null) {
-    finishDecision(cancelTrade(trade, "disconnected", requestId), state, outbound, persistInventoryByUser, persistTrades, skipStorageUsers, requestId, userId);
+    finishDecision(cancelTrade(trade, "disconnected", requestId), state, outbound, persistInventoryByUser, persistTrades, skipStorageUsers, requestId, userId, persistByUser);
     return;
   }
   if (parsed.opcode === ClientOpcode.TRADE_SET_OFFER) {
@@ -137,6 +142,7 @@ export function handleTradeMessage(
       skipStorageUsers,
       requestId,
       userId,
+      persistByUser,
     );
     return;
   }
@@ -157,6 +163,7 @@ export function handleTradeMessage(
       skipStorageUsers,
       requestId,
       userId,
+      persistByUser,
     );
     return;
   }
@@ -171,6 +178,7 @@ export function handleTradeMessage(
       skipStorageUsers,
       requestId,
       userId,
+      persistByUser,
     );
     return;
   }
@@ -186,10 +194,10 @@ export function handleTradeMessage(
       requestId: requestId,
     });
     if (decision.shouldCommit === true && decision.prepared !== undefined) {
-      commitDecision(decision, state, outbound, persistInventoryByUser, persistTrades, skipStorageUsers, commitTrade, requestId, userId);
+      commitDecision(decision, state, outbound, persistInventoryByUser, persistTrades, skipStorageUsers, commitTrade, requestId, userId, persistByUser);
       return;
     }
-    finishDecision(decision, state, outbound, persistInventoryByUser, persistTrades, skipStorageUsers, requestId, userId);
+    finishDecision(decision, state, outbound, persistInventoryByUser, persistTrades, skipStorageUsers, requestId, userId, persistByUser);
     return;
   }
   if (parsed.opcode === ClientOpcode.TRADE_CANCEL) {
@@ -202,6 +210,7 @@ export function handleTradeMessage(
       skipStorageUsers,
       requestId,
       userId,
+      persistByUser,
     );
   }
 }
@@ -212,6 +221,7 @@ export function tickTrades(
   outbound: TradeOutbound[],
   persistInventoryByUser: { [userId: string]: PlayerInventory },
   persistTrades: { [tradeId: string]: TradeRecord },
+  persistByUser?: { [userId: string]: QuestLog },
 ): void {
   ensureTradeMaps(state);
   const trades = dict(state.trades);
@@ -245,6 +255,8 @@ export function tickTrades(
             persistTrades,
             {},
             undefined,
+            undefined,
+            persistByUser,
           );
         }
       }
@@ -258,6 +270,8 @@ export function tickTrades(
       persistTrades,
       {},
       undefined,
+      undefined,
+      persistByUser,
     );
   }
 }
@@ -269,6 +283,7 @@ export function cancelTradesForUser(
   outbound: TradeOutbound[],
   persistInventoryByUser: { [userId: string]: PlayerInventory },
   persistTrades: { [tradeId: string]: TradeRecord },
+  persistByUser?: { [userId: string]: QuestLog },
 ): void {
   ensureTradeMaps(state);
   const player = state.players[userId] !== undefined ? state.players[userId] : parkedPlayer(state, userId);
@@ -282,7 +297,7 @@ export function cancelTradesForUser(
   if (trade.state === "committing") {
     return;
   }
-  finishDecision(cancelTrade(trade, reason), state, outbound, persistInventoryByUser, persistTrades, {}, undefined);
+  finishDecision(cancelTrade(trade, reason), state, outbound, persistInventoryByUser, persistTrades, {}, undefined, undefined, persistByUser);
 }
 
 export function recoverCommittingTrades(
@@ -292,6 +307,7 @@ export function recoverCommittingTrades(
   persistInventoryByUser?: { [userId: string]: PlayerInventory },
   persistTrades?: { [tradeId: string]: TradeRecord },
   skipStorageUsers?: { [userId: string]: boolean },
+  persistByUser?: { [userId: string]: QuestLog },
 ): void {
   ensureTradeMaps(state);
   const trades = dict(state.trades);
@@ -335,6 +351,7 @@ export function recoverCommittingTrades(
       }
       broadcastTrade(state, recovered.trade, outbound, requestId);
     }
+    recountTradeQuests(state, recovered.trade, persistByUser, outbound, snapshot.requestId);
   }
 }
 
@@ -387,9 +404,10 @@ function commitDecision(
   commitTrade: TradeCommitter | undefined,
   requestId: string,
   actorUserId?: string,
+  persistByUser?: { [userId: string]: QuestLog },
 ): void {
   if (decision.prepared === undefined) {
-    finishDecision(decision, state, outbound, persistInventoryByUser, persistTrades, skipStorageUsers, requestId, actorUserId);
+    finishDecision(decision, state, outbound, persistInventoryByUser, persistTrades, skipStorageUsers, requestId, actorUserId, persistByUser);
     return;
   }
   storeTrade(state, decision.trade);
@@ -399,7 +417,7 @@ function commitDecision(
   const playerA = state.players[userA];
   const playerB = state.players[userB];
   if (playerA === undefined || playerB === undefined) {
-    finishDecision(cancelTrade(decision.trade, "disconnected", requestId), state, outbound, persistInventoryByUser, persistTrades, skipStorageUsers, requestId, actorUserId);
+    finishDecision(cancelTrade(decision.trade, "disconnected", requestId), state, outbound, persistInventoryByUser, persistTrades, skipStorageUsers, requestId, actorUserId, persistByUser);
     return;
   }
   if (commitTrade !== undefined) {
@@ -431,6 +449,7 @@ function commitDecision(
     persistTrades[committed.trade.tradeId] = committed.trade;
     pushEconomy(state, playerA, committed.inventoryA, committed.goldA, outbound, requestId);
     pushEconomy(state, playerB, committed.inventoryB, committed.goldB, outbound, requestId);
+    recountTradeQuests(state, committed.trade, persistByUser, outbound, requestId);
     const ok = actionResult("ok", true, requestId, { tradeId: committed.trade.tradeId });
     outbound.push({ opcode: ok.opcode, body: ok.body, toUserId: playerA.userId });
     outbound.push({ opcode: ok.opcode, body: ok.body, toUserId: playerB.userId });
@@ -473,6 +492,7 @@ function commitDecision(
   outbound.push({ opcode: ok.opcode, body: ok.body, toUserId: playerA.userId });
   outbound.push({ opcode: ok.opcode, body: ok.body, toUserId: playerB.userId });
   broadcastTrade(state, completed, outbound, requestId);
+  recountTradeQuests(state, completed, persistByUser, outbound, requestId);
 }
 
 function finishDecision(
@@ -484,6 +504,7 @@ function finishDecision(
   skipStorageUsers: { [userId: string]: boolean },
   requestId: string | undefined,
   actorUserId?: string,
+  persistByUser?: { [userId: string]: QuestLog },
 ): void {
   const previous = dict(state.trades)[decision.trade.tradeId];
   storeTrade(state, decision.trade);
@@ -506,6 +527,7 @@ function finishDecision(
     outbound.push({ opcode: result.opcode, body: result.body, toUserId: actorId });
   }
   broadcastTrade(state, decision.trade, outbound, requestId);
+  recountTradeQuests(state, decision.trade, persistByUser, outbound, requestId);
   void skipStorageUsers;
 }
 
@@ -529,6 +551,17 @@ function applyCommitted(
   }
   storeTrade(state, trade);
   clearTradeIndex(state, trade);
+}
+
+function recountTradeQuests(
+  state: StarterZoneState,
+  trade: TradeRecord,
+  persistByUser: { [userId: string]: QuestLog } | undefined,
+  outbound?: TradeOutbound[],
+  requestId?: string,
+): void {
+  syncPlayerQuestPossession(state, trade.participantA.accountUserId, persistByUser, outbound, requestId);
+  syncPlayerQuestPossession(state, trade.participantB.accountUserId, persistByUser, outbound, requestId);
 }
 
 function applyInventory(

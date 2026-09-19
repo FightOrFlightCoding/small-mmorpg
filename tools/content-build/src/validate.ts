@@ -35,6 +35,7 @@ import type {
   PlayerDef,
   ProgressionTimelineDef,
   QuestDef,
+  QuestItemReacquisition,
   ReferenceBuildDef,
   ResourceDef,
   SourceDocument,
@@ -256,7 +257,19 @@ export function validateDocuments(
   }
   const questIds = Object.keys(quests);
   for (let i = 0; i < questIds.length; i++) {
-    checkQuest(quests[questIds[i]], npcs, items, enemies, abilities, classes, quests, issues);
+    checkQuest(
+      quests[questIds[i]],
+      npcs,
+      items,
+      enemies,
+      abilities,
+      classes,
+      quests,
+      lootTables,
+      spawns,
+      vendors,
+      issues,
+    );
   }
   const zoneIds = Object.keys(zones);
   for (let i = 0; i < zoneIds.length; i++) {
@@ -964,6 +977,9 @@ function checkQuest(
   abilities: Record<string, AbilityDef>,
   classes: Record<string, ClassDef>,
   questsById: Record<string, QuestDef>,
+  lootTables: Record<string, LootTableDef>,
+  spawns: Record<string, SpawnDef>,
+  vendors: Record<string, VendorDef>,
   issues: ContentIssue[],
 ): void {
   requireNpc(quest.acceptNpcId, npcs, issues);
@@ -1034,6 +1050,7 @@ function checkQuest(
       }
     }
   }
+  checkQuestReacquisition(quest, items, enemies, lootTables, spawns, vendors, npcs, issues);
 }
 
 function flattenedQuestObjectives(quest: QuestDef): NonNullable<QuestDef["objectives"]> {
@@ -1091,6 +1108,283 @@ function checkQuestObjective(
   if (objective.quantity !== undefined && objective.quantity < 1) {
     issues.push(issue("impossible_quest_stage:quantity"));
   }
+}
+
+function checkQuestReacquisition(
+  quest: QuestDef,
+  items: Record<string, ItemDef>,
+  enemies: Record<string, EnemyDef>,
+  lootTables: Record<string, LootTableDef>,
+  spawns: Record<string, SpawnDef>,
+  vendors: Record<string, VendorDef>,
+  npcs: Record<string, NpcDef>,
+  issues: ContentIssue[],
+): void {
+  const consume = quest.consume !== undefined ? quest.consume : [];
+  const required: { [itemId: string]: boolean } = {};
+  for (let i = 0; i < consume.length; i++) {
+    const item = items[consume[i].itemId];
+    if (item !== undefined && isFullyTransferableQuestItem(item)) {
+      required[consume[i].itemId] = true;
+    }
+  }
+  const requiredIds = Object.keys(required);
+  const declared = quest.itemReacquisition !== undefined ? quest.itemReacquisition : [];
+  const seen: { [itemId: string]: boolean } = {};
+  for (let d = 0; d < declared.length; d++) {
+    const entry = declared[d];
+    if (seen[entry.itemId] === true) {
+      issues.push(issue("duplicate_reacquisition:" + entry.itemId));
+      continue;
+    }
+    seen[entry.itemId] = true;
+    if (required[entry.itemId] !== true) {
+      continue;
+    }
+    checkReacquisitionEntry(quest, entry, enemies, lootTables, spawns, vendors, npcs, issues);
+  }
+  for (let r = 0; r < requiredIds.length; r++) {
+    if (seen[requiredIds[r]] !== true) {
+      issues.push(issue("missing_reacquisition:" + requiredIds[r]));
+    }
+  }
+}
+
+function checkReacquisitionEntry(
+  quest: QuestDef,
+  entry: QuestItemReacquisition,
+  enemies: Record<string, EnemyDef>,
+  lootTables: Record<string, LootTableDef>,
+  spawns: Record<string, SpawnDef>,
+  vendors: Record<string, VendorDef>,
+  npcs: Record<string, NpcDef>,
+  issues: ContentIssue[],
+): void {
+  const sources = entry.sources !== undefined ? entry.sources : [];
+  if (sources.length === 0) {
+    issues.push(issue("missing_reacquisition_source:" + entry.itemId));
+    return;
+  }
+  let repeatableWorld = 0;
+  let validDeclared = 0;
+  let externalCount = 0;
+  for (let s = 0; s < sources.length; s++) {
+    const source = sources[s];
+    const checked = evaluateReacquisitionSource(
+      entry.itemId,
+      source.type,
+      source.id,
+      enemies,
+      lootTables,
+      spawns,
+      vendors,
+      npcs,
+      issues,
+    );
+    if (!checked.exists) {
+      continue;
+    }
+    validDeclared += 1;
+    if (source.type === "external") {
+      externalCount += 1;
+      continue;
+    }
+    if (checked.repeatable) {
+      repeatableWorld += 1;
+    }
+  }
+  if (validDeclared === 0) {
+    issues.push(issue("missing_reacquisition_source:" + entry.itemId));
+  }
+  if (entry.policy === "REPEATABLE_DROP" && repeatableWorld < 1) {
+    issues.push(issue("nonrepeatable_quest_source:" + entry.itemId));
+  }
+  if (entry.policy === "REPEATABLE_INTERACTION") {
+    let npcSources = 0;
+    for (let n = 0; n < sources.length; n++) {
+      if (sources[n].type === "npc" && npcs[sources[n].id]) {
+        npcSources += 1;
+      }
+    }
+    if (npcSources < 1) {
+      issues.push(issue("missing_reacquisition_source:" + entry.itemId));
+    }
+  }
+  if (entry.policy === "MERCHANT_AVAILABLE") {
+    let vendorSources = 0;
+    for (let v = 0; v < sources.length; v++) {
+      if (sources[v].type === "vendor" && vendorStocksItem(vendors[sources[v].id], entry.itemId)) {
+        vendorSources += 1;
+      }
+    }
+    if (vendorSources < 1) {
+      issues.push(issue("missing_reacquisition_source:" + entry.itemId));
+    }
+  }
+  if (entry.policy === "MULTIPLE_WORLD_SOURCES" && repeatableWorld < 2) {
+    issues.push(issue("insufficient_reacquisition_sources:" + entry.itemId));
+  }
+  const production = quest.developmentOnly !== true;
+  if (repeatableWorld < 1) {
+    const developmentExternal =
+      !production && entry.policy === "EXPLICIT_EXTERNAL_ACQUISITION" && externalCount > 0;
+    if (!developmentExternal) {
+      issues.push(issue("unrecoverable_quest_item:" + entry.itemId));
+    }
+  }
+}
+
+function evaluateReacquisitionSource(
+  itemId: string,
+  type: string,
+  id: string,
+  enemies: Record<string, EnemyDef>,
+  lootTables: Record<string, LootTableDef>,
+  spawns: Record<string, SpawnDef>,
+  vendors: Record<string, VendorDef>,
+  npcs: Record<string, NpcDef>,
+  issues: ContentIssue[],
+): { exists: boolean; repeatable: boolean } {
+  if (type === "loot_table") {
+    const table = lootTables[id];
+    if (!table) {
+      issues.push(issue("missing_reference:" + id));
+      return { exists: false, repeatable: false };
+    }
+    if (!lootTableHasItem(table, itemId)) {
+      issues.push(issue("missing_quest_item_source:" + id));
+      return { exists: false, repeatable: false };
+    }
+    const repeatable = lootTableIsRepeatable(id, enemies, spawns);
+    if (!repeatable) {
+      issues.push(issue("nonrepeatable_quest_source:" + id));
+    }
+    return { exists: true, repeatable: repeatable };
+  }
+  if (type === "enemy") {
+    const enemy = enemies[id];
+    if (!enemy) {
+      issues.push(issue("missing_reference:" + id));
+      return { exists: false, repeatable: false };
+    }
+    if (!enemyDropsItem(enemy, itemId, lootTables)) {
+      issues.push(issue("missing_quest_item_source:" + id));
+      return { exists: false, repeatable: false };
+    }
+    const repeatable = enemy.respawnDelay > 0 || spawnRepeatableForEnemy(id, spawns);
+    if (!repeatable) {
+      issues.push(issue("nonrepeatable_quest_source:" + id));
+    }
+    return { exists: true, repeatable: repeatable };
+  }
+  if (type === "spawn") {
+    const spawn = spawns[id];
+    if (!spawn) {
+      issues.push(issue("missing_reference:" + id));
+      return { exists: false, repeatable: false };
+    }
+    const enemy = enemies[spawn.enemyId];
+    if (enemy === undefined || !enemyDropsItem(enemy, itemId, lootTables)) {
+      issues.push(issue("missing_quest_item_source:" + id));
+      return { exists: false, repeatable: false };
+    }
+    const repeatable = spawn.respawnDelay > 0;
+    if (!repeatable) {
+      issues.push(issue("nonrepeatable_quest_source:" + id));
+    }
+    return { exists: true, repeatable: repeatable };
+  }
+  if (type === "vendor") {
+    const vendor = vendors[id];
+    if (!vendor) {
+      issues.push(issue("missing_reference:" + id));
+      return { exists: false, repeatable: false };
+    }
+    if (!vendorStocksItem(vendor, itemId)) {
+      issues.push(issue("missing_quest_item_source:" + id));
+      return { exists: false, repeatable: false };
+    }
+    return { exists: true, repeatable: true };
+  }
+  if (type === "npc") {
+    if (!npcs[id]) {
+      issues.push(issue("missing_reference:" + id));
+      return { exists: false, repeatable: false };
+    }
+    return { exists: true, repeatable: true };
+  }
+  if (type === "external") {
+    return { exists: true, repeatable: false };
+  }
+  issues.push(issue("invalid_reacquisition_source:" + type));
+  return { exists: false, repeatable: false };
+}
+
+function isFullyTransferableQuestItem(item: ItemDef): boolean {
+  return item.questItem === true && item.tradeable !== false && item.droppable !== false;
+}
+
+function lootTableHasItem(table: LootTableDef, itemId: string): boolean {
+  const entries = table.entries !== undefined ? table.entries : [];
+  for (let i = 0; i < entries.length; i++) {
+    if (entries[i].itemDefinitionId === itemId) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function enemyDropsItem(enemy: EnemyDef, itemId: string, lootTables: Record<string, LootTableDef>): boolean {
+  if (enemy.lootTableId !== undefined && lootTables[enemy.lootTableId] !== undefined) {
+    if (lootTableHasItem(lootTables[enemy.lootTableId], itemId)) {
+      return true;
+    }
+  }
+  const loot = enemy.loot !== undefined ? enemy.loot : [];
+  for (let i = 0; i < loot.length; i++) {
+    if (loot[i].itemId === itemId) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function lootTableIsRepeatable(
+  lootTableId: string,
+  enemies: Record<string, EnemyDef>,
+  spawns: Record<string, SpawnDef>,
+): boolean {
+  const enemyIds = Object.keys(enemies);
+  for (let i = 0; i < enemyIds.length; i++) {
+    const enemy = enemies[enemyIds[i]];
+    if (enemy.lootTableId === lootTableId && (enemy.respawnDelay > 0 || spawnRepeatableForEnemy(enemy.id, spawns))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function spawnRepeatableForEnemy(enemyId: string, spawns: Record<string, SpawnDef>): boolean {
+  const spawnIds = Object.keys(spawns);
+  for (let i = 0; i < spawnIds.length; i++) {
+    const spawn = spawns[spawnIds[i]];
+    if (spawn.enemyId === enemyId && spawn.respawnDelay > 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function vendorStocksItem(vendor: VendorDef | undefined, itemId: string): boolean {
+  if (vendor === undefined || vendor.stock === undefined) {
+    return false;
+  }
+  for (let i = 0; i < vendor.stock.length; i++) {
+    if (vendor.stock[i].itemId === itemId) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function checkZone(

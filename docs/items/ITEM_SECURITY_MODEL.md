@@ -6,7 +6,7 @@ The client is an untrusted renderer. Defenses stay server-side. Parent: [SECURIT
 
 | Attack | Defense |
 | --- | --- |
-| Item injection | No grant opcode; `permissionWrite: 0`; server `uuidv4` instance ids |
+| Item injection | No grant opcode; `permissionWrite: 0`; server `uuidv4` instance ids; `grantItemFromSource` is trusted-server only |
 | Stack overflow | Split at `maxStack`; never overstack; production max 99 |
 | Duplicate loot | First pickup despawns; `requestId` replay; acquisition intent |
 | Price spoof | `unknown_field:price`; `stat_injection:gold`; client may not send `itemId` / `npcInstanceId` on buy |

@@ -56,6 +56,7 @@ import {
   resolveDialogueNodeId,
 } from "./dialogue";
 import { applyQuestAccept, cloneQuestLog, publicNpcQuestMarkers, publicQuestPayloads, syncAcquireObjectives, type QuestLog } from "./quest";
+import { questPossessionExtras, syncPlayerQuestPossession } from "./quest_sync";
 import { applyTalkObjectives, applyKillObjectives, applyEnterLocation, enterLocationsFromQuests } from "./quest_objectives";
 import { applyVendorBuy, applyVendorSell, vendorShopPresentation, type VendorTradeOutcome } from "./vendor";
 import { expireInventoryLocks } from "./item_lock";
@@ -388,9 +389,9 @@ export function applyMatchLoop(
   next.loot = expireLoot(next.loot, tick);
   expireAndBroadcastGroundItems(next, tick, outbound);
   applyEnterQuestProgress(next, persistByUser, outbound);
-  tickTrades(next, tick, outbound, persistInventoryByUser, persistTradesById);
+  tickTrades(next, tick, outbound, persistInventoryByUser, persistTradesById, persistByUser);
   if (commitTrade !== undefined) {
-    recoverCommittingTrades(next, commitTrade, outbound, persistInventoryByUser, persistTradesById, skipStorageUsers);
+    recoverCommittingTrades(next, commitTrade, outbound, persistInventoryByUser, persistTradesById, skipStorageUsers, persistByUser);
   }
   pushCombatEvents(outbound, tick, combatEvents);
   expireDisconnected(next, tick);
@@ -678,7 +679,7 @@ function handleReturnToCharacterSelect(
   }
   player.safeLeaveCommitted = true;
   interruptCast(player, "safe_leave", tick, combatEvents);
-  cancelTradesForUser(state, userId, "disconnected", outbound, persistInventoryByUser, persistTradesById);
+  cancelTradesForUser(state, userId, "disconnected", outbound, persistInventoryByUser, persistTradesById, persistByUser);
   stampDepartingPlayerPersist(player, persistByUser, persistInventoryByUser, persistEquipmentByUser, persistProgressionByUser);
   const left = applySafeLeave(state, userId);
   if (left.checkpoint !== null) {
@@ -876,11 +877,11 @@ function handleValidated(
     return;
   }
   if (parsed.opcode === ClientOpcode.EQUIP) {
-    handleEquip(parsed, userId, state, tick, outbound, persistInventoryByUser, persistEquipmentByUser);
+    handleEquip(parsed, userId, state, tick, outbound, persistByUser, persistInventoryByUser, persistEquipmentByUser);
     return;
   }
   if (parsed.opcode === ClientOpcode.DESTROY_ITEM) {
-    handleDestroyItem(parsed, userId, state, tick, outbound, persistInventoryByUser, persistEquipmentByUser);
+    handleDestroyItem(parsed, userId, state, tick, outbound, persistByUser, persistInventoryByUser, persistEquipmentByUser);
     return;
   }
   if (parsed.opcode === ClientOpcode.SPLIT_STACK) {
@@ -892,7 +893,7 @@ function handleValidated(
     return;
   }
   if (parsed.opcode === ClientOpcode.RECOVER_OVERFLOW_ITEM) {
-    handleRecoverOverflow(parsed, userId, state, tick, outbound, persistInventoryByUser, persistOverflowByUser);
+    handleRecoverOverflow(parsed, userId, state, tick, outbound, persistByUser, persistInventoryByUser, persistOverflowByUser);
     return;
   }
   if (parsed.opcode === ClientOpcode.ALLOCATE_ATTRIBUTES) {
@@ -978,6 +979,7 @@ function handleValidated(
       skipStorageUsers,
       makeId,
       commitTrade,
+      persistByUser,
     );
     return;
   }
@@ -1235,7 +1237,7 @@ function handleQuestAccept(
     npcInstanceId: parsed.fields.npcInstanceId,
   });
   player.questLog = outcome.log;
-  const synced = syncAcquireObjectives(player.questLog, player.inventory);
+  const synced = syncAcquireObjectives(player.questLog, player.inventory, questPossessionExtras(state, player));
   player.questLog = synced.log;
   const entered = applyEnterLocation(
     player.questLog,
@@ -1332,7 +1334,11 @@ function handleQuestTurnIn(
     expectedRevision: parsed.expectedRevision,
   });
   if (!outcome.ok) {
-    const failed = actionResult(outcome.code, false, requestId);
+    const extra: { [key: string]: unknown } = {};
+    if (outcome.message !== undefined && outcome.message.length > 0) {
+      extra.message = outcome.message;
+    }
+    const failed = actionResult(outcome.code, false, requestId, extra);
     outbound.push({ opcode: failed.opcode, body: failed.body, toUserId: userId });
     pushStaleCanonical(state, userId, tick, outbound, outcome.code);
     if (prior === undefined && session !== undefined && isUsableInteractionSession(session, tick)) {
@@ -1474,12 +1480,7 @@ function handleVendorBuy(
     return;
   }
   refreshDerivedFromInventory(state, userId, persistEquipmentByUser);
-  const synced = syncAcquireObjectives(player.questLog, player.inventory);
-  player.questLog = synced.log;
-  if (synced.changed) {
-    persistByUser[userId] = cloneQuestLog(player.questLog);
-    pushQuestState(state, userId, outbound, requestId);
-  }
+  syncPlayerQuestPossession(state, userId, persistByUser, outbound, requestId);
   pushEconomyResult(state, userId, outbound, requestId, outcome.code, true);
 }
 
@@ -2101,12 +2102,7 @@ function handlePickup(
     persistInventoryByUser[userId] = outcome.inventory;
   }
   if (outcome.ok && !outcome.replay) {
-    const synced = syncAcquireObjectives(player.questLog, player.inventory);
-    player.questLog = synced.log;
-    if (synced.changed) {
-      persistByUser[userId] = cloneQuestLog(synced.log);
-      pushQuestState(state, userId, outbound, parsed.requestId);
-    }
+    syncPlayerQuestPossession(state, userId, persistByUser, outbound, parsed.requestId);
   }
   refreshDerivedFromInventory(state, userId, persistEquipmentByUser);
   const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
@@ -2128,6 +2124,7 @@ function handleEquip(
   state: StarterZoneState,
   tick: number,
   outbound: MatchOutbound[],
+  persistByUser: { [userId: string]: QuestLog },
   persistInventoryByUser: { [userId: string]: PlayerInventory },
   persistEquipmentByUser: { [userId: string]: PlayerEquipment },
 ): void {
@@ -2170,6 +2167,9 @@ function handleEquip(
     outcome.inventory.persistReason = TX_REASON_EQUIPMENT;
     persistInventoryByUser[userId] = outcome.inventory;
   }
+  if (outcome.ok) {
+    syncPlayerQuestPossession(state, userId, persistByUser, outbound, parsed.requestId);
+  }
   const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
   pushStaleCanonical(state, userId, tick, outbound, outcome.code);
@@ -2192,6 +2192,7 @@ function handleRecoverOverflow(
   state: StarterZoneState,
   tick: number,
   outbound: MatchOutbound[],
+  persistByUser: { [userId: string]: QuestLog },
   persistInventoryByUser: { [userId: string]: PlayerInventory },
   persistOverflowByUser: { [userId: string]: OverflowPersist },
 ): void {
@@ -2224,6 +2225,9 @@ function handleRecoverOverflow(
       overflow: outcome.overflow,
       deleteOverflow: outcome.deleteOverflow,
     };
+  }
+  if (outcome.ok) {
+    syncPlayerQuestPossession(state, userId, persistByUser, outbound, parsed.requestId);
   }
   const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
@@ -2303,12 +2307,7 @@ function handleDropItem(
     }
   }
   if (!outcome.replay) {
-    const synced = syncAcquireObjectives(player.questLog, player.inventory);
-    player.questLog = synced.log;
-    if (synced.changed) {
-      persistByUser[userId] = cloneQuestLog(synced.log);
-      pushQuestState(state, userId, outbound, parsed.requestId);
-    }
+    syncPlayerQuestPossession(state, userId, persistByUser, outbound, parsed.requestId);
   }
   const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
@@ -2369,12 +2368,7 @@ function handlePickupGroundItem(
     persistInventoryByUser[userId] = outcome.inventory;
   }
   if (outcome.ok && !outcome.replay) {
-    const synced = syncAcquireObjectives(player.questLog, player.inventory);
-    player.questLog = synced.log;
-    if (synced.changed) {
-      persistByUser[userId] = cloneQuestLog(synced.log);
-      pushQuestState(state, userId, outbound, parsed.requestId);
-    }
+    syncPlayerQuestPossession(state, userId, persistByUser, outbound, parsed.requestId);
   }
   if (outcome.removed !== null && !outcome.replay) {
     const removed = groundItemRemovedMessage(state.contentHash, outcome.removed.groundEntityId, "claimed");
@@ -2409,6 +2403,7 @@ function handleDestroyItem(
   state: StarterZoneState,
   tick: number,
   outbound: MatchOutbound[],
+  persistByUser: { [userId: string]: QuestLog },
   persistInventoryByUser: { [userId: string]: PlayerInventory },
   persistEquipmentByUser: { [userId: string]: PlayerEquipment },
 ): void {
@@ -2434,6 +2429,9 @@ function handleDestroyItem(
   if (outcome.persist) {
     outcome.inventory.persistReason = TX_REASON_ITEM_DESTROY;
     persistInventoryByUser[userId] = outcome.inventory;
+  }
+  if (outcome.ok && !outcome.replay) {
+    syncPlayerQuestPossession(state, userId, persistByUser, outbound, parsed.requestId);
   }
   refreshDerivedFromInventory(state, userId, persistEquipmentByUser);
   const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
@@ -3040,12 +3038,7 @@ function handleLootAllCorpse(
     persistInventoryByUser[userId] = outcome.inventory;
   }
   if (outcome.ok && !outcome.replay) {
-    const synced = syncAcquireObjectives(player.questLog, player.inventory);
-    player.questLog = synced.log;
-    if (synced.changed) {
-      persistByUser[userId] = cloneQuestLog(synced.log);
-      pushQuestState(state, userId, outbound, parsed.requestId);
-    }
+    syncPlayerQuestPossession(state, userId, persistByUser, outbound, parsed.requestId);
   }
   refreshDerivedFromInventory(state, userId, persistEquipmentByUser);
   const result = actionResult(outcome.code, outcome.ok, parsed.requestId, { lootAll: outcome.results });
@@ -3075,12 +3068,7 @@ function finishCorpseItemClaim(
     persistInventoryByUser[userId] = outcome.inventory;
   }
   if (outcome.ok && !outcome.replay) {
-    const synced = syncAcquireObjectives(player.questLog, player.inventory);
-    player.questLog = synced.log;
-    if (synced.changed) {
-      persistByUser[userId] = cloneQuestLog(synced.log);
-      pushQuestState(state, userId, outbound, requestId);
-    }
+    syncPlayerQuestPossession(state, userId, persistByUser, outbound, requestId);
   }
   refreshDerivedFromInventory(state, userId, persistEquipmentByUser);
   const result = actionResult(outcome.code, outcome.ok, requestId);
@@ -3364,12 +3352,7 @@ function applyNeedGreedMutation(
     if (mutation.persistUserIds.indexOf(located.userId) !== -1) {
       inventory.persistReason = TX_REASON_LOOT;
       persistInventoryByUser[located.userId] = inventory;
-      const synced = syncAcquireObjectives(located.player.questLog, inventory);
-      located.player.questLog = synced.log;
-      if (synced.changed) {
-        persistByUser[located.userId] = cloneQuestLog(synced.log);
-        pushQuestState(state, located.userId, outbound, "");
-      }
+      syncPlayerQuestPossession(state, located.userId, persistByUser, outbound, "");
       refreshDerivedFromInventory(state, located.userId, persistEquipmentByUser);
       if (state.players[located.userId] !== undefined) {
         const inv = inventoryState(state.contentHash, publicBag(located.player));

@@ -967,3 +967,14 @@ ITEM-09 generalizes the live player trade onto 20 offer slots per side. It does 
 - Storage record count remains 35. Content hash unchanged.
 - Conflict ITEM-C11 is CLOSED.
 
+## 2026-09-19 — ITEM-10 quest items, turn-in, and future grant
+
+ITEM-10 wires the item platform to quests and one shared future grant. It does not implement harvesting, cooking, mining, blacksmithing, auctions, mail, offline trade, or merchant selling.
+
+- Collection progress is bag possession minus live trade offers. Equipment counts only when `countEquipment` is true. Overflow, ground, corpse, merchant, and other characters never count.
+- Quest items never Need/Greed. They stay first-come on the corpse, become public at 60 s, expire with the corpse, and may be traded or dropped after acquisition.
+- Production consume of a fully tradeable/droppable quest item requires `itemReacquisition` with a repeatable source. `EXPLICIT_EXTERNAL_ACQUISITION` alone is invalid for production.
+- Turn-in is all-or-nothing through `planCapacity` (consume + rewards). Full bag: `inventory_full`, precise required-capacity message, no consume/XP/gold/completion, no overflow.
+- `grantItemFromSource` is trusted-server only (`eventId` idempotency). Full bag returns `INVENTORY_FULL` and does not consume the source. GM `grant_test_item` uses it.
+- Conflict ITEM-C24 is CLOSED. Storage record count remains 35. Content hash changes with slime/proof reacquisition documents.
+

@@ -52,6 +52,8 @@ interface MemoryWorld {
   settings: boolean;
   inviteBindings: boolean;
   progressions: { [characterId: string]: boolean };
+  inventories: { [characterId: string]: string };
+  itemTransactions: { [characterId: string]: boolean };
   job: AccountDeletionJob | null;
 }
 
@@ -83,6 +85,8 @@ function seedWorld(): MemoryWorld {
     settings: true,
     inviteBindings: true,
     progressions: { "char-live": true, "char-deleted": true },
+    inventories: { "char-live": "item.slime_gel", "char-deleted": "item.training_sword" },
+    itemTransactions: { "char-live": true, "char-deleted": true },
     job: null,
   };
 }
@@ -131,6 +135,8 @@ function memoryDeps(world: MemoryWorld): AccountDeletionDeps {
         world.purged.push(characterId);
       }
       delete world.progressions[characterId];
+      delete world.inventories[characterId];
+      delete world.itemTransactions[characterId];
     },
     wipeGold: function () {
       world.gold = 0;
@@ -197,6 +203,8 @@ function assertComplete(world: MemoryWorld): void {
   assert.equal(world.lease, false);
   assert.deepEqual(world.purged, ["char-live", "char-deleted"]);
   assert.deepEqual(world.progressions, {});
+  assert.deepEqual(world.inventories, {});
+  assert.deepEqual(world.itemTransactions, {});
   assert.equal(world.gold, 0);
   assert.equal(world.emailIndex, "");
   assert.equal(world.pendingEmailChange, false);
@@ -386,6 +394,25 @@ test("stale email index hits are ignored after the profile is gone", () => {
   if (mixed.ok) {
     assert.equal(mixed.userId, "user-new");
   }
+});
+
+test("reusing a deleted email does not inherit inventories or item transactions", () => {
+  const world = seedWorld();
+  const finished = runAccountDeletionSaga({ job: startJob(world), deps: memoryDeps(world) });
+  world.job = finished;
+  assertComplete(world);
+  assert.equal(world.inventories["char-live"], undefined);
+  assert.equal(world.itemTransactions["char-live"], undefined);
+  const reused = seedWorld();
+  reused.emailIndex = "user-new";
+  reused.characters = ["char-new"];
+  reused.inventories = { "char-new": "item.training_sword" };
+  reused.itemTransactions = {};
+  reused.progressions = { "char-new": true };
+  assert.notEqual(reused.emailIndex, "user-old");
+  assert.equal(reused.inventories["char-live"], undefined);
+  assert.equal(reused.itemTransactions["char-live"], undefined);
+  assert.equal(reused.inventories["char-new"], "item.training_sword");
 });
 
 test("each deletion phase is recorded independently", () => {
