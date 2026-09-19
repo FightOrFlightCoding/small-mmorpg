@@ -1,30 +1,29 @@
-# Item lock model (ITEM-01)
+# Item lock model (ITEM-03)
 
-Locks are temporary. They are not soulbinding. Production items have no bind flags.
+Locks are temporary. They are not soulbinding. Production items have no bind flags. Item locks cannot remain indefinitely after recovery: every tick expires `lockExpiresAt`, and orphan locks whose `lockId` is not live are cleared.
 
-## Live representation
+Do not add a parallel lock table. Locks live on `ItemInstance`.
+
+## Representation
 
 On each `ItemInstance`:
 
-- `lockReason: string` (empty = unlocked)
-- `lockId: string` (operation id)
-
-Helpers: `isItemLocked`, `setItemLock`, `clearLocksByLockId`.
-
-Locked stacks reject equip, destroy, vendor sell, and (when locked) consume. Trade set-offer requires unlocked, owned, tradeable, unequipped stacks then sets:
-
-| Field | Value |
+| Field | Role |
 | --- | --- |
-| `lockReason` | `"trade"` (`TRADE_LOCK_REASON`) |
-| `lockId` | `tradeId` |
+| `lockId` | Operation id (`tradeId`, `requestId`, …) |
+| `lockType` | Typed lock from the table below |
+| `lockReason` | Wire/legacy string (`trade` for `TRADE`; otherwise `lockType` lowercased) |
+| `lockQuantity` | Locked quantity (partial-stack offers) |
+| `lockOwnerOperation` | Owner operation name |
+| `lockCreatedAt` | Ms |
+| `lockExpiresAt` | Ms; `0` means no TTL (orphan recovery still clears) |
+| `schemaVersion` | `ITEM_LOCK_SCHEMA_VERSION` **1** |
 
-Partial `takeItemQuantity` clears locks on the remainder.
+Helpers: `isItemLocked`, `setItemLock`, `clearLocksByLockId`, `acquireItemLock`, `validateItemLock`, `releaseItemLock`, `expireInventoryLocks`, `expireOrphanLocks`, `stackIsImmovable`, `itemLockFromInstance`.
 
-No other production lock reasons are written. Tests/docs may mention `"quest"`; turn-in consumes by item id and skips locked stacks in `consumeItem`, which can fail a turn-in if the only copies are trade-locked.
+Default TTL is `ITEM_LOCK_TTL_MS` **120000**. The match loop expires locks every tick and persists when any lock is cleared.
 
-## Target lock types
-
-Later ITEM phases may use these **names** (store in `lockReason` or a typed field without a parallel lock table):
+## Lock types
 
 | Type | Owner operation | Typical `lockId` |
 | --- | --- | --- |
@@ -37,9 +36,19 @@ Later ITEM phases may use these **names** (store in `lockReason` or a typed fiel
 | `QUEST_TURN_IN` | Consume list during `multiUpdate` | turn-in `requestId` |
 | `ADMIN_REPAIR` | GM repair | audit id |
 
+Production trade still writes `lockReason: "trade"` so live `item_locked` checks keep working. `setItemLock` also stamps `lockType: TRADE`.
+
+## Partial-stack offers
+
+A trade (or other) offer may lock a **quantity** smaller than the stack. The source stack itself remains **immovable** for the duration (`stackIsImmovable`): it is not a merge destination, cannot move, split, equip, destroy, or sell until the lock releases or expires.
+
 ## Release (required)
 
 Success, cancellation, timeout, disconnect handling, recovery, and server-restart repair where the lock is persisted.
+
+- TTL expiry: `expireInventoryLocks` on each match tick.
+- Orphan recovery: `expireOrphanLocks(inventory, liveLockIds)` when the owning trade/operation is gone.
+- Explicit: `releaseItemLock` / `clearLocksByLockId`.
 
 Live trade: cancel/complete/expiry/`cancel_trade` / account deletion runner calls `clearLocksByLockId`. Committing trades must not unlock until commit or recovered failure.
 

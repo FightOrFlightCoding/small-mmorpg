@@ -53,6 +53,10 @@ export const INVENTORY_SAVE_KEYS = [
   "pickupRequestTicks",
   "mutationByRequestId",
   "mutationRequestTicks",
+  "journalByRequestId",
+  "intentsByRequestId",
+  "itemAudits",
+  "persistReason",
 ];
 export const EQUIPMENT_SAVE_KEYS = [
   "schemaVersion",

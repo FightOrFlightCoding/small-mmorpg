@@ -1,6 +1,6 @@
-# Item container catalog (ITEM-02)
+# Item container catalog (ITEM-03)
 
-Containers are logical owners of item instances or gold. ITEM-01 records **live** vs **target**. Live names in code are used until a later phase migrates.
+Containers are logical owners of item instances or gold. ITEM-01 records **live** vs **target**. Live names in code are used until a later phase migrates. ITEM-03 does not add a client-visible container type.
 
 ## CharacterBag
 
@@ -11,7 +11,7 @@ Containers are logical owners of item instances or gold. ITEM-01 records **live*
 | Occupancy | `items.length` ≤ 30; `slotIndex` in `0 .. 29`; holes kept | Fixed 30 positions; empty slots allowed |
 | Equipment | Equipped instances **leave this bag** | Equipment **not** in this bag |
 | Gold | Not stored here | Unchanged |
-| Revision | Container `revision` + `mutationByRequestId` / `pickupByRequestId` | `expected_revision` remains later |
+| Revision | Container `revision` + `mutationByRequestId` / `pickupByRequestId`; optional `expectedRevision` | Stale → `inventory_stale` + `FULL_STATE` |
 | Owner | Server match | Unchanged |
 
 ## EquipmentContainer
@@ -48,11 +48,11 @@ Target for this ITEM pack: merchants **sell to players only**; player sell is ou
 
 **Absent as a typed container.** Live: the same `state.loot: MatchLoot[]` used for mob drops.
 
-Target: public player-dropped stacks, 5 min TTL, server-selected nearby placement, full-stack pickup only, transient across match/server restart. States: `PUBLIC_AVAILABLE` → `CLAIMING` → `CLAIMED` / `EXPIRED`.
+Target: public player-dropped stacks, 5 min TTL, server-selected nearby placement, full-stack pickup only, transient across match/server restart. States: `PUBLIC_AVAILABLE` → `CLAIMING` → `CLAIMED` / `EXPIRED`. ITEM-03 provides `executeDropIntent` without a drop opcode.
 
 ## TradeOfferContainer
 
-Live: `TradeRecord.offers[characterId]: TradeOfferLine[]` plus `goldOffers`. Unbounded list (practical cap = bag stack count). Offered instances stay in CharacterBag with lock `trade` / `tradeId`.
+Live: `TradeRecord.offers[characterId]: TradeOfferLine[]` plus `goldOffers`. Unbounded list (practical cap = bag stack count). Offered instances stay in CharacterBag with typed `TRADE` lock (`lockReason` still `"trade"`). Partial quantity locks still make the source stack immovable. Commit is gated by `planTwoWayTrade`.
 
 Target: **20** item-offer slots per participant + one gold field. UI shows local bag, local offer, remote offer, both gold, both acceptances, revision — never the remote bag.
 

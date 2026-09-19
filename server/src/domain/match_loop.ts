@@ -55,10 +55,12 @@ import {
 import { applyQuestAccept, cloneQuestLog, publicNpcQuestMarkers, publicQuestPayloads, syncAcquireObjectives, type QuestLog } from "./quest";
 import { applyTalkObjectives, applyKillObjectives, applyEnterLocation, enterLocationsFromQuests } from "./quest_objectives";
 import { applyVendorBuy, applyVendorSell, vendorShopPresentation, type VendorTradeOutcome } from "./vendor";
+import { expireInventoryLocks } from "./item_lock";
+import { ITEM_ERROR_INVENTORY_STALE } from "./item_errors";
 import { applyCaveEnter, applyInnRest } from "./inn";
 import { applyCaveWipeIfNeeded, markCaveBossDefeated, evaluateCaveExit, type CaveTransferIntent } from "./cave";
 import { TRANSFER_TICKET_TTL_MS } from "./instance";
-import { TX_REASON_INN, TX_REASON_RESPEC, TX_REASON_VENDOR, type TransactionCommitter } from "./transaction";
+import { TX_REASON_EQUIPMENT, TX_REASON_INN, TX_REASON_ITEM_DESTROY, TX_REASON_ITEM_MOVE, TX_REASON_ITEM_SPLIT, TX_REASON_LOOT, TX_REASON_RESPEC, TX_REASON_VENDOR, type TransactionCommitter } from "./transaction";
 import { type TradeCommitter, type TradeRecord } from "./trade";
 import { cancelTradesForUser, handleTradeMessage, isTradeOpcode, recoverCommittingTrades, spendableGold, tickTrades } from "./match_trade";
 import {
@@ -251,6 +253,7 @@ export function applyMatchLoop(
   expireStaleTransfers(next, tick);
   const makeId = newId !== undefined ? newId : sequentialIdFactory(tick);
   reconcileAllEquipment(next, persistEquipmentByUser);
+  expireMatchItemLocks(next, tick, persistInventoryByUser);
 
   for (let i = 0; i < messages.length; i++) {
     const incoming = messages[i];
@@ -805,7 +808,7 @@ function handleValidated(
     return;
   }
   if (parsed.opcode === ClientOpcode.RECOVER_OVERFLOW_ITEM) {
-    handleRecoverOverflow(parsed, userId, state, outbound, persistInventoryByUser, persistOverflowByUser);
+    handleRecoverOverflow(parsed, userId, state, tick, outbound, persistInventoryByUser, persistOverflowByUser);
     return;
   }
   if (parsed.opcode === ClientOpcode.ALLOCATE_ATTRIBUTES) {
@@ -1242,10 +1245,12 @@ function handleQuestTurnIn(
     classId: player.classId,
     inParty: playerInCachedParty(state, player),
     npcInstanceId: npcId,
+    expectedRevision: parsed.expectedRevision,
   });
   if (!outcome.ok) {
     const failed = actionResult(outcome.code, false, requestId);
     outbound.push({ opcode: failed.opcode, body: failed.body, toUserId: userId });
+    pushStaleCanonical(state, userId, tick, outbound, outcome.code);
     if (prior === undefined && session !== undefined && isUsableInteractionSession(session, tick)) {
       pushQuestDialogue(state, player, session, tick, outbound, requestId, userId, outcome.code, false);
     }
@@ -1371,10 +1376,12 @@ function handleVendorBuy(
     inParty: playerInCachedParty(state, player),
     newId: makeId,
     tick: tick,
+    expectedRevision: parsed.expectedRevision,
   });
   if (!outcome.ok) {
     const failed = actionResult(outcome.code, false, requestId);
     outbound.push({ opcode: failed.opcode, body: failed.body, toUserId: userId });
+    pushStaleCanonical(state, userId, tick, outbound, outcome.code);
     return;
   }
   if (!commitVendorTrade(player, userId, requestId, npcInstanceId, outcome, persistInventoryByUser, skipStorageUsers, commitTxn)) {
@@ -1435,10 +1442,12 @@ function handleVendorSell(
     inParty: playerInCachedParty(state, player),
     newId: makeId,
     tick: tick,
+    expectedRevision: parsed.expectedRevision,
   });
   if (!outcome.ok) {
     const failed = actionResult(outcome.code, false, requestId);
     outbound.push({ opcode: failed.opcode, body: failed.body, toUserId: userId });
+    pushStaleCanonical(state, userId, tick, outbound, outcome.code);
     return;
   }
   if (!commitVendorTrade(player, userId, requestId, parsed.fields.npcId, outcome, persistInventoryByUser, skipStorageUsers, commitTxn)) {
@@ -1950,10 +1959,14 @@ function handlePickup(
     itemsById: state.itemsById,
     tick: tick,
     equippedItems: player.equipment !== undefined ? player.equipment.items : undefined,
+    expectedRevision: parsed.expectedRevision,
+    characterId: player.characterId,
+    nowMs: tickMs(tick),
   });
   player.inventory = outcome.inventory;
   state.loot = outcome.loot;
   if (outcome.persist) {
+    outcome.inventory.persistReason = TX_REASON_LOOT;
     persistInventoryByUser[userId] = outcome.inventory;
   }
   if (outcome.ok && !outcome.replay) {
@@ -1967,6 +1980,7 @@ function handlePickup(
   refreshDerivedFromInventory(state, userId, persistEquipmentByUser);
   const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  pushStaleCanonical(state, userId, tick, outbound, outcome.code);
   if (outcome.ok) {
     const inventory = inventoryState(
       state.contentHash,
@@ -2013,6 +2027,7 @@ function handleEquip(
     playerLevel: player.progression !== undefined ? player.progression.level : 1,
     classEquipmentTags: classTags,
     equipmentSlotsByTag: state.equipmentSlotsByTag,
+    expectedRevision: parsed.expectedRevision,
   });
   player.equipment = outcome.equipment;
   player.inventory = outcome.inventory;
@@ -2021,10 +2036,12 @@ function handleEquip(
     persistEquipmentByUser[userId] = cloneEquipment(outcome.equipment);
   }
   if (outcome.persistInventory) {
+    outcome.inventory.persistReason = TX_REASON_EQUIPMENT;
     persistInventoryByUser[userId] = outcome.inventory;
   }
   const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  pushStaleCanonical(state, userId, tick, outbound, outcome.code);
   if (outcome.ok) {
     const equipment = equipmentState(
       state.contentHash,
@@ -2042,6 +2059,7 @@ function handleRecoverOverflow(
   parsed: ParsedClientMessage,
   userId: string,
   state: StarterZoneState,
+  tick: number,
   outbound: MatchOutbound[],
   persistInventoryByUser: { [userId: string]: PlayerInventory },
   persistOverflowByUser: { [userId: string]: OverflowPersist },
@@ -2062,10 +2080,12 @@ function handleRecoverOverflow(
     toSlotIndex: parsed.toSlotIndex,
     requestId: parsed.requestId as string,
     itemsById: state.itemsById,
+    expectedRevision: parsed.expectedRevision,
   });
   player.inventory = outcome.inventory;
   player.overflow = outcome.overflow;
   if (outcome.persist) {
+    outcome.inventory.persistReason = TX_REASON_ITEM_MOVE;
     persistInventoryByUser[userId] = outcome.inventory;
     persistOverflowByUser[userId] = {
       userId: userId,
@@ -2076,6 +2096,7 @@ function handleRecoverOverflow(
   }
   const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  pushStaleCanonical(state, userId, tick, outbound, outcome.code);
   if (outcome.ok) {
     const inventoryStateMsg = inventoryState(state.contentHash, publicBag(player), parsed.requestId);
     outbound.push({ opcode: inventoryStateMsg.opcode, body: inventoryStateMsg.body, toUserId: userId });
@@ -2107,14 +2128,17 @@ function handleDestroyItem(
     requestId: parsed.requestId as string,
     itemsById: state.itemsById,
     tick: tick,
+    expectedRevision: parsed.expectedRevision,
   });
   player.inventory = outcome.inventory;
   if (outcome.persist) {
+    outcome.inventory.persistReason = TX_REASON_ITEM_DESTROY;
     persistInventoryByUser[userId] = outcome.inventory;
   }
   refreshDerivedFromInventory(state, userId, persistEquipmentByUser);
   const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  pushStaleCanonical(state, userId, tick, outbound, outcome.code);
   if (outcome.ok) {
     const inventoryStateMsg = inventoryState(
       state.contentHash,
@@ -2151,13 +2175,16 @@ function handleSplitStack(
     itemsById: state.itemsById,
     newId: makeId,
     tick: tick,
+    expectedRevision: parsed.expectedRevision,
   });
   player.inventory = outcome.inventory;
   if (outcome.persist) {
+    outcome.inventory.persistReason = TX_REASON_ITEM_SPLIT;
     persistInventoryByUser[userId] = outcome.inventory;
   }
   const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  pushStaleCanonical(state, userId, tick, outbound, outcome.code);
   if (outcome.ok) {
     const inventoryStateMsg = inventoryState(
       state.contentHash,
@@ -2191,13 +2218,16 @@ function handleMoveItem(
     requestId: parsed.requestId as string,
     itemsById: state.itemsById,
     tick: tick,
+    expectedRevision: parsed.expectedRevision,
   });
   player.inventory = outcome.inventory;
   if (outcome.persist) {
+    outcome.inventory.persistReason = TX_REASON_ITEM_MOVE;
     persistInventoryByUser[userId] = outcome.inventory;
   }
   const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  pushStaleCanonical(state, userId, tick, outbound, outcome.code);
   if (outcome.ok) {
     const inventoryStateMsg = inventoryState(
       state.contentHash,
@@ -2270,6 +2300,48 @@ function refreshDerivedFromInventory(
   if (reconciled.persist) {
     persistEquipmentByUser[userId] = cloneEquipment(reconciled.equipment);
   }
+}
+
+function expireMatchItemLocks(
+  state: StarterZoneState,
+  tick: number,
+  persistInventoryByUser: { [userId: string]: PlayerInventory },
+): void {
+  const nowMs = tickMs(tick);
+  const ids = Object.keys(state.players);
+  for (let i = 0; i < ids.length; i++) {
+    const userId = ids[i];
+    const player = state.players[userId];
+    if (player.inventory === undefined) {
+      continue;
+    }
+    const expired = expireInventoryLocks(player.inventory, nowMs);
+    if (expired.changed) {
+      player.inventory = expired.inventory;
+      persistInventoryByUser[userId] = expired.inventory;
+    }
+  }
+}
+
+function tickMs(tick: number): number {
+  return tick * Math.floor(1000 / MATCH_TICK_RATE);
+}
+
+function pushStaleCanonical(
+  state: StarterZoneState,
+  userId: string,
+  tick: number,
+  outbound: MatchOutbound[],
+  code: string,
+): void {
+  if (code !== ITEM_ERROR_INVENTORY_STALE) {
+    return;
+  }
+  outbound.push({
+    opcode: fullStateOpcode(),
+    body: buildFullState(state, tick, userId),
+    toUserId: userId,
+  });
 }
 
 function publicBag(player: MatchPlayer): { [key: string]: unknown } {

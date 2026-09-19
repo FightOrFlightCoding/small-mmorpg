@@ -431,6 +431,21 @@ test("inventory mutation opcodes parse instance ids and reject client balances",
   assert.equal(isProtocolError(move), false);
   if (!isProtocolError(move)) {
     assert.equal(move.toSlotIndex, 4);
+    assert.equal(move.expectedRevision, undefined);
+  }
+  const withRevision = parse(
+    ClientOpcode.MOVE_ITEM,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      instanceId: "cloth-a",
+      toSlotIndex: 4,
+      requestId: "req-move-rev1xxx",
+      expectedRevision: 12,
+    }),
+  );
+  assert.equal(isProtocolError(withRevision), false);
+  if (!isProtocolError(withRevision)) {
+    assert.equal(withRevision.expectedRevision, 12);
   }
   const injected = parse(
     ClientOpcode.DESTROY_ITEM,

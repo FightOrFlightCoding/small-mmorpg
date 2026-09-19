@@ -1536,7 +1536,12 @@ function persistEconomy(
       requestId: "match-persist-" + userId + "-" + String(tick),
       characterId: row.characterId !== undefined ? row.characterId : "",
       userId: userId,
-      reasonType: hasInventory ? TX_REASON_LOOT : TX_REASON_EQUIPMENT,
+      reasonType:
+        row.inventory !== undefined && row.inventory.persistReason !== undefined && row.inventory.persistReason.length > 0
+          ? row.inventory.persistReason
+          : hasInventory
+            ? TX_REASON_LOOT
+            : TX_REASON_EQUIPMENT,
       reasonId: hasInventory ? "inventory" : "equipment",
       goldDelta: 0,
       currentGold: 0,

@@ -99,6 +99,15 @@ export function storedInventoryFromValue(value: unknown): PlayerInventory | null
     }
     inventory.mutationRequestTicks = ticks;
   }
+  if (data.journalByRequestId !== null && typeof data.journalByRequestId === "object" && !Array.isArray(data.journalByRequestId)) {
+    inventory.journalByRequestId = data.journalByRequestId as PlayerInventory["journalByRequestId"];
+  }
+  if (data.intentsByRequestId !== null && typeof data.intentsByRequestId === "object" && !Array.isArray(data.intentsByRequestId)) {
+    inventory.intentsByRequestId = data.intentsByRequestId as PlayerInventory["intentsByRequestId"];
+  }
+  if (Array.isArray(data.itemAudits)) {
+    inventory.itemAudits = data.itemAudits as PlayerInventory["itemAudits"];
+  }
   return cloneInventory(inventory);
 }
 
@@ -119,6 +128,10 @@ function publicStoredInventory(inventory: PlayerInventory): { [key: string]: unk
       lockReason: item.lockReason,
       lockId: item.lockId,
       lockType: item.lockType,
+      lockQuantity: item.lockQuantity,
+      lockOwnerOperation: item.lockOwnerOperation,
+      lockCreatedAt: item.lockCreatedAt,
+      lockExpiresAt: item.lockExpiresAt,
       version: item.version,
       schemaVersion: item.schemaVersion,
       slotIndex: item.slotIndex,
@@ -169,6 +182,15 @@ function publicStoredInventory(inventory: PlayerInventory): { [key: string]: unk
   if (inventory.mutationRequestTicks !== undefined) {
     gameplay.mutationRequestTicks = inventory.mutationRequestTicks;
   }
+  if (inventory.journalByRequestId !== undefined) {
+    gameplay.journalByRequestId = inventory.journalByRequestId;
+  }
+  if (inventory.intentsByRequestId !== undefined) {
+    gameplay.intentsByRequestId = inventory.intentsByRequestId;
+  }
+  if (inventory.itemAudits !== undefined) {
+    gameplay.itemAudits = inventory.itemAudits;
+  }
   return attachEnvelope(
     gameplay,
     envelopeFromRecord(inventory),
@@ -216,6 +238,10 @@ function parseItem(value: unknown): ItemInstance | null {
     lockReason: typeof data.lockReason === "string" ? data.lockReason : "",
     lockId: typeof data.lockId === "string" ? data.lockId : "",
     lockType: typeof data.lockType === "string" ? data.lockType : "",
+    lockQuantity: typeof data.lockQuantity === "number" && isFinite(data.lockQuantity) ? data.lockQuantity : 0,
+    lockOwnerOperation: typeof data.lockOwnerOperation === "string" ? data.lockOwnerOperation : "",
+    lockCreatedAt: typeof data.lockCreatedAt === "number" && isFinite(data.lockCreatedAt) ? data.lockCreatedAt : 0,
+    lockExpiresAt: typeof data.lockExpiresAt === "number" && isFinite(data.lockExpiresAt) ? data.lockExpiresAt : 0,
     version: typeof data.version === "number" && data.version >= 1 ? Math.floor(data.version) : 1,
     schemaVersion: typeof data.schemaVersion === "number" && data.schemaVersion >= 1 ? Math.floor(data.schemaVersion) : 1,
     slotIndex: typeof data.slotIndex === "number" && isFinite(data.slotIndex) ? data.slotIndex : -1,

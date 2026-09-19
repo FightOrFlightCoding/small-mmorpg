@@ -562,14 +562,16 @@ func send_quest_turn_in(quest_id: String, npc_id: String, request_id: String = "
 	var rid := request_id
 	if rid.is_empty():
 		rid = MatchProtocol.new_request_id()
+	var extra: Dictionary = {
+		"questId": quest_id,
+		"interactionSessionId": session_id,
+		"npcInstanceId": npc_id,
+		"requestId": rid,
+	}
+	_attach_expected_revision(extra)
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_QUEST_TURN_IN,
-		MatchProtocol.client_envelope_json({
-			"questId": quest_id,
-			"interactionSessionId": session_id,
-			"npcInstanceId": npc_id,
-			"requestId": rid,
-		})
+		MatchProtocol.client_envelope_json(extra)
 	)
 
 
@@ -582,71 +584,80 @@ func send_attack(target_id: String, request_id: String) -> Dictionary:
 	)
 
 
-func send_pickup(loot_id: String, request_id: String) -> Dictionary:
+func send_pickup(loot_id: String, request_id: String, expected_revision: int = -1) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var extra: Dictionary = {"lootId": loot_id, "requestId": request_id}
+	_attach_expected_revision(extra, expected_revision)
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_PICKUP,
-		MatchProtocol.client_envelope_json({"lootId": loot_id, "requestId": request_id})
+		MatchProtocol.client_envelope_json(extra)
 	)
 
 
-func send_equip(instance_id: String, slot: String, request_id: String) -> Dictionary:
+func send_equip(instance_id: String, slot: String, request_id: String, expected_revision: int = -1) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
 	var extra: Dictionary = {"slot": slot, "requestId": request_id}
 	if not instance_id.is_empty():
 		extra["instanceId"] = instance_id
+	_attach_expected_revision(extra, expected_revision)
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_EQUIP,
 		MatchProtocol.client_envelope_json(extra)
 	)
 
 
-func send_destroy_item(instance_id: String, request_id: String, quantity: int = -1) -> Dictionary:
+func send_destroy_item(instance_id: String, request_id: String, quantity: int = -1, expected_revision: int = -1) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
 	var extra: Dictionary = {"instanceId": instance_id, "requestId": request_id}
 	if quantity >= 1:
 		extra["quantity"] = quantity
+	_attach_expected_revision(extra, expected_revision)
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_DESTROY_ITEM,
 		MatchProtocol.client_envelope_json(extra)
 	)
 
 
-func send_split_stack(instance_id: String, quantity: int, request_id: String) -> Dictionary:
+func send_split_stack(instance_id: String, quantity: int, request_id: String, expected_revision: int = -1) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var extra: Dictionary = {
+		"instanceId": instance_id,
+		"quantity": quantity,
+		"requestId": request_id,
+	}
+	_attach_expected_revision(extra, expected_revision)
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_SPLIT_STACK,
-		MatchProtocol.client_envelope_json({
-			"instanceId": instance_id,
-			"quantity": quantity,
-			"requestId": request_id,
-		})
+		MatchProtocol.client_envelope_json(extra)
 	)
 
 
-func send_move_item(instance_id: String, to_slot_index: int, request_id: String) -> Dictionary:
+func send_move_item(instance_id: String, to_slot_index: int, request_id: String, expected_revision: int = -1) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var extra: Dictionary = {
+		"instanceId": instance_id,
+		"toSlotIndex": to_slot_index,
+		"requestId": request_id,
+	}
+	_attach_expected_revision(extra, expected_revision)
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_MOVE_ITEM,
-		MatchProtocol.client_envelope_json({
-			"instanceId": instance_id,
-			"toSlotIndex": to_slot_index,
-			"requestId": request_id,
-		})
+		MatchProtocol.client_envelope_json(extra)
 	)
 
 
-func send_recover_overflow_item(instance_id: String, request_id: String, to_slot_index: int = -1) -> Dictionary:
+func send_recover_overflow_item(instance_id: String, request_id: String, to_slot_index: int = -1, expected_revision: int = -1) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
 	var extra: Dictionary = {"instanceId": instance_id, "requestId": request_id}
 	if to_slot_index >= 0:
 		extra["toSlotIndex"] = to_slot_index
+	_attach_expected_revision(extra, expected_revision)
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_RECOVER_OVERFLOW_ITEM,
 		MatchProtocol.client_envelope_json(extra)
@@ -812,6 +823,7 @@ func send_vendor_buy(session_id: String, npc_instance_id: String, item_id: Strin
 		"quantity": quantity,
 		"requestId": rid,
 	}
+	_attach_expected_revision(extra)
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_VENDOR_BUY,
 		MatchProtocol.client_envelope_json(extra)
@@ -827,6 +839,7 @@ func send_vendor_sell(npc_id: String, instance_id: String, quantity: int = 0, re
 	var extra: Dictionary = {"npcId": npc_id, "instanceId": instance_id, "requestId": rid}
 	if quantity > 0:
 		extra["quantity"] = quantity
+	_attach_expected_revision(extra)
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_VENDOR_SELL,
 		MatchProtocol.client_envelope_json(extra)
@@ -1533,6 +1546,14 @@ func reset_for_tests() -> void:
 	DevIdentity.force_release_config = false
 	SessionCache.clear()
 	AccountService.reset_for_tests()
+
+
+func _attach_expected_revision(extra: Dictionary, expected_revision: int = -1) -> void:
+	var revision := expected_revision
+	if revision < 0:
+		revision = InventoryService.expected_revision()
+	if revision >= 0:
+		extra["expectedRevision"] = revision
 
 
 func _backend() -> RefCounted:

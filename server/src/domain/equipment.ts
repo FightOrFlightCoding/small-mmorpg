@@ -1,16 +1,16 @@
 import {
   findItem,
-  firstEmptySlotIndex,
   isItemLocked,
   itemSlotTags,
   cloneInventory,
   cloneItem,
   emptyInventory,
-  occupiedSlots,
   type ItemDefinition,
   type ItemInstance,
   type PlayerInventory,
 } from "./inventory";
+import { applyCapacityPlan, planCapacity } from "./item_capacity";
+import { staleRevisionCode } from "./item_errors";
 import { cloneTickMap, dict } from "./maps";
 import { cloneExtras, envelopeFromRecord } from "./save_schema";
 
@@ -66,6 +66,7 @@ export interface EquipInput {
   playerLevel?: number;
   classEquipmentTags?: ReadonlyArray<string>;
   equipmentSlotsByTag?: { [tag: string]: EquipmentSlotContent };
+  expectedRevision?: number;
 }
 
 export interface EquipDecision {
@@ -314,9 +315,9 @@ export function applyEquip(input: EquipInput): EquipDecision {
   const current = cloneEquipment(input.equipment);
   const bag = cloneInventory(input.inventory !== undefined ? input.inventory : emptyInventory());
   const previous = current.equipByRequestId[input.requestId];
-  if (previous !== undefined && previous.ok) {
+  if (previous !== undefined) {
     return {
-      ok: true,
+      ok: previous.ok,
       code: previous.code,
       replay: true,
       persist: false,
@@ -325,6 +326,10 @@ export function applyEquip(input: EquipInput): EquipDecision {
       inventory: bag,
       derivedAttack: derivedAttack(input.baseAttack, current, bag, input.itemsById),
     };
+  }
+  const stale = staleRevisionCode(bag.revision, input.expectedRevision);
+  if (stale.length > 0) {
+    return fail(stale, current, bag, input);
   }
   if (input.playerHealth <= 0) {
     return fail("player_dead", current, bag, input);
@@ -410,18 +415,31 @@ function applyUnequip(current: PlayerEquipment, bag: PlayerInventory, input: Equ
     current.revision += 1;
     return succeed("ok", current, bag, input, "", false);
   }
-  const dest = firstEmptySlotIndex(bag);
-  if (dest < 0 || dest >= bag.capacity || occupiedSlots(bag) >= bag.capacity) {
+  const destPlan = planCapacity({
+    inventory: bag,
+    incoming: [
+      {
+        itemId: equipped.itemId,
+        quantity: equipped.quantity,
+        instanceId: equipped.instanceId,
+        stackKey: equipped.stackKey,
+        metadata: equipped.metadata,
+        sourceType: equipped.sourceType,
+        sourceId: equipped.sourceId,
+        createdAt: equipped.createdAt,
+      },
+    ],
+    definitions: input.itemsById,
+    operationMode: "unequip",
+  });
+  if (!destPlan.fits) {
     current.items.push(equipped);
-    return fail("inventory_full", current, bag, input);
+    return fail(destPlan.failureCode.length > 0 ? destPlan.failureCode : "inventory_full", current, bag, input);
   }
-  equipped.slotIndex = dest;
-  equipped.version += 1;
-  bag.items.push(equipped);
+  const placed = applyCapacityPlan(bag, destPlan, []);
   current.slots[input.slot] = "";
-  bag.revision += 1;
   current.revision += 1;
-  return succeed("ok", current, bag, input, "", true);
+  return succeed("ok", current, placed, input, "", true);
 }
 
 function equipValidationCode(

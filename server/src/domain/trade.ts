@@ -22,6 +22,8 @@ import {
 import { applyGoldMutation, type GoldLedger } from "./wallet";
 import type { ActiveCast } from "./ability";
 import { hasControlTag, type ActiveEffect } from "./effects";
+import { planTwoWayTrade } from "./item_capacity";
+import { LOCK_TYPE_TRADE } from "./item_lock";
 
 export const TRADE_SCHEMA_VERSION = 1;
 export const TRADE_RANGE_PX = 80;
@@ -514,7 +516,11 @@ export function setTradeOffer(input: {
   if (quantity < 1 || quantity !== Math.floor(quantity) || quantity > item.quantity) {
     return failOn(input.trade, "invalid_amount", input.requestId);
   }
-  const locked = setItemLock(inventory, item.instanceId, TRADE_LOCK_REASON, input.trade.tradeId);
+  const locked = setItemLock(inventory, item.instanceId, TRADE_LOCK_REASON, input.trade.tradeId, {
+    lockType: LOCK_TYPE_TRADE,
+    quantity: quantity,
+    ownerOperation: "trade",
+  });
   const next = bumpRevision(input.trade);
   const lines = offerLines(next, input.actor.characterId);
   const replaced: TradeOfferLine[] = [];
@@ -850,6 +856,22 @@ export function prepareTradeCommit(input: {
   const goldBOffer = goldOffer(input.trade, input.actorB.characterId);
   if (input.actorA.gold < goldAOffer || input.actorB.gold < goldBOffer) {
     return fail("insufficient_gold");
+  }
+  const tradePlan = planTwoWayTrade({
+    left: input.actorA.inventory,
+    right: input.actorB.inventory,
+    leftOffers: offerLines(input.trade, input.actorA.characterId).map(function (line) {
+      return { instanceId: line.instanceId, quantity: line.quantity };
+    }),
+    rightOffers: offerLines(input.trade, input.actorB.characterId).map(function (line) {
+      return { instanceId: line.instanceId, quantity: line.quantity };
+    }),
+    definitions: input.itemsById,
+    leftEquipped: input.actorA.equipment !== undefined ? input.actorA.equipment.items : undefined,
+    rightEquipped: input.actorB.equipment !== undefined ? input.actorB.equipment.items : undefined,
+  });
+  if (!tradePlan.fits) {
+    return fail(tradePlan.failureCode.length > 0 ? tradePlan.failureCode : "inventory_full");
   }
   const takenA = takeOffers(
     input.actorA.inventory,

@@ -1,4 +1,6 @@
-# Item content model (ITEM-02)
+# Item content model (ITEM-03)
+
+ITEM-03 does not change authored item JSON. Content hash remains the ITEM-02 digest.
 
 Authored under `content/source/`. Schemas under `content/schemas/`. Generated catalogs are derived artifacts. Test items use `item.test_*` / `loot.test*` and `developmentOnly` where applicable. Production generate must not leak development-only definitions.
 
@@ -79,4 +81,4 @@ Quest documents `consume[]` / `rewards.items[]` reference item ids. `acquire_ite
 
 ## Future foraging grant
 
-No gathering node content or opcode exists. Later grant sources must call the same `addOrStackItem` + transaction boundary with a new `sourceType` (for example `forage`) and must not add a second inventory writer.
+No gathering node content or opcode exists. Later grant sources must call the same `planCapacity` / `runItemTransaction` boundary with a new `sourceType` (for example `forage`) and must not add a second inventory writer. Acquisition intent is ready.
