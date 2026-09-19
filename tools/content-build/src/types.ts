@@ -181,6 +181,9 @@ export interface NpcRouteDef {
 export interface VendorStockDef {
   itemId: string;
   buyPrice: number;
+  stockEntryId?: string;
+  displayOrder?: number;
+  quantityConstraints?: { min?: number; max?: number };
   classRequirements?: string[];
   levelRequirement?: number;
 }

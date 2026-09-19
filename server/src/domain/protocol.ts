@@ -162,7 +162,7 @@ OPCODE_KEYS[ClientOpcode.ASSIGN_HOTBAR] = ["slotIndex", "abilityId"];
 OPCODE_KEYS[ClientOpcode.UNLOCK_ABILITY] = ["abilityId"];
 OPCODE_KEYS[ClientOpcode.SET_TARGET] = ["targetId", "intent"];
 OPCODE_KEYS[ClientOpcode.RELEASE_RESPAWN] = [];
-OPCODE_KEYS[ClientOpcode.VENDOR_BUY] = ["interactionSessionId", "npcInstanceId", "itemId", "quantity", "expectedRevision"];
+OPCODE_KEYS[ClientOpcode.VENDOR_BUY] = ["interactionSessionId", "vendorId", "stockEntryId", "quantity", "preferredSlot", "expectedRevision"];
 OPCODE_KEYS[ClientOpcode.VENDOR_SELL] = ["npcId", "instanceId", "quantity", "expectedRevision"];
 OPCODE_KEYS[ClientOpcode.INN_REST] = ["npcId", "mode"];
 OPCODE_KEYS[ClientOpcode.CAVE_ENTER] = ["npcId"];
@@ -258,7 +258,7 @@ const OUTCOME_KEYS = [
 
 const INPUT_NUMBER_KEYS = ["seq", "axisX", "axisY"];
 const ALLOCATE_NUMBER_KEYS = ["amount"];
-const INVENTORY_NUMBER_KEYS = ["quantity", "toSlotIndex", "expectedRevision"];
+const INVENTORY_NUMBER_KEYS = ["quantity", "toSlotIndex", "expectedRevision", "preferredSlot"];
 const ABILITY_NUMBER_KEYS = ["targetX", "targetY", "slotIndex", "requestedRank"];
 const TRADE_NUMBER_KEYS = ["revision"];
 const BOOLEAN_KEYS = ["enabled"];
@@ -280,6 +280,7 @@ export interface ParsedClientMessage {
   amount?: number;
   quantity?: number;
   toSlotIndex?: number;
+  preferredSlot?: number;
   expectedRevision?: number;
   targetX?: number;
   targetY?: number;
@@ -593,6 +594,13 @@ export function parseClientMessage(
       return { code: "invalid_slot", message: "CLAIM toSlotIndex must be a finite integer." };
     }
     message.toSlotIndex = toSlotIndex;
+  }
+  if (opcode === ClientOpcode.VENDOR_BUY && Object.prototype.hasOwnProperty.call(data, "preferredSlot")) {
+    const preferredSlot = data.preferredSlot;
+    if (typeof preferredSlot !== "number" || !isFinite(preferredSlot) || preferredSlot !== Math.floor(preferredSlot)) {
+      return { code: "invalid_slot", message: "VENDOR preferredSlot must be a finite integer." };
+    }
+    message.preferredSlot = preferredSlot;
   }
   if (opcode === ClientOpcode.USE_ABILITY) {
     const hasX = Object.prototype.hasOwnProperty.call(data, "targetX");

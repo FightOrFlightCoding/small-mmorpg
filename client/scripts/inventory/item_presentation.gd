@@ -215,6 +215,8 @@ static func stat_modifier_lines(definition: Dictionary) -> PackedStringArray:
 
 
 static func contextual_value_text(instance: Dictionary, definition: Dictionary) -> String:
+	if instance.has("buyPrice"):
+		return "Price: %sg" % str(int(instance.get("buyPrice", 0)))
 	if is_locked(instance):
 		return lock_reason(instance)
 	var sell := int(definition.get("sellValue", 0))

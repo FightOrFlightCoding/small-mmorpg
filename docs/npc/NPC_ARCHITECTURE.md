@@ -24,7 +24,7 @@ NPC-07 hardens and certifies NPC-01 through NPC-06. It does not add NPC types, o
 
 ## Authority boundary
 
-The Godot client may choose a nearby NPC and send `INTERACT { targetId, requestId }`. `VENDOR_BUY` sends `{ interactionSessionId, npcInstanceId, itemId, quantity, requestId }` only. The client never submits price, gold, resulting balance, quest status, NPC pose, or a fabricated session. The Nakama match remains authoritative for stock, canonical price, currency deduction, inventory grant, quest state, and audit.
+The Godot client may choose a nearby NPC and send `INTERACT { targetId, requestId }`. `VENDOR_BUY` sends `{ interactionSessionId, vendorId, stockEntryId, quantity, preferredSlot?, requestId, expectedRevision? }` only. The client never submits price, gold, resulting balance, quest status, NPC pose, or a fabricated session. The Nakama match remains authoritative for stock, canonical price, currency deduction, inventory grant, quest state, and audit.
 
 NPCs are a distinct noncombat entity family. They have no HP, threat, combat effects, hostile/friendly target slot, AoE membership, or gameplay collision.
 

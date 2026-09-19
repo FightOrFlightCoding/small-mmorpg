@@ -1,4 +1,4 @@
-# Item security model (ITEM-06)
+# Item security model (ITEM-07)
 
 The client is an untrusted renderer. Defenses stay server-side. Parent: [SECURITY_MODEL.md](../SECURITY_MODEL.md).
 
@@ -9,7 +9,7 @@ The client is an untrusted renderer. Defenses stay server-side. Parent: [SECURIT
 | Item injection | No grant opcode; `permissionWrite: 0`; server `uuidv4` instance ids |
 | Stack overflow | Split at `maxStack`; never overstack; production max 99 |
 | Duplicate loot | First pickup despawns; `requestId` replay; acquisition intent |
-| Price spoof | `unknown_field:price`; `stat_injection:gold` |
+| Price spoof | `unknown_field:price`; `stat_injection:gold`; client may not send `itemId` / `npcInstanceId` on buy |
 | Quantity abuse | Vendor 1–99; finite integers; planner `invalid_quantity` |
 | Locked mutation | `item_locked`; typed locks; whole stack immovable |
 | Unowned trade | `unowned_item` / `not_tradeable` / `item_not_owned` |

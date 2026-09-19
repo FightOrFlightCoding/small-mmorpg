@@ -1,14 +1,41 @@
 # Progress
 
-Last accepted phase: **ITEM-06 — Party Need/Greed rolls and pending winner awards**.
+Last accepted phase: **ITEM-07 — Merchant purchasing and bag integration**.
 
-Current phase: ITEM-06 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
+Current phase: ITEM-07 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
 
 Canonical git line: **`origin/main`**. Playable work is committed there. The Windows clone stays on `main` and runs `scripts/local-play.ps1 -Branch main`.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01 through ITEM-06 remain accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01 through ITEM-07 remain accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
+
+## ITEM-07 merchant purchasing and bag integration (2026-09-19)
+
+ITEM-07 is accepted. It is merchant-to-player purchasing on the accepted NPC interaction session and the 30-slot bag. It does not implement player-to-merchant selling, player ground drop, 20 trade slots, or forage. Do not start later ITEM phases.
+
+`VENDOR_BUY` reuses the live interaction session. The client sends `interactionSessionId`, `vendorId`, `stockEntryId`, quantity, optional `preferredSlot`, `requestId`, and optional `expectedRevision`. NPC identity comes from that session. Client `price` / `gold` / leftover `itemId` / `npcInstanceId` are protocol rejections.
+
+Canonical vendor content owns `vendorId`, `currencyId`, `stockEntryId`, `buyPrice`, quantity constraints, optional class/level requirements, and `displayOrder`. Unauthored `stockEntryId` is `${vendorId}:${itemId}`. Stock is unlimited; simultaneous buyers do not compete. A new stock list is content-only.
+
+Purchases are all-or-nothing: validate session, range, character, vendor bind, stock entry, bounded quantity, requirements, gold, bag capacity, inventory revision, and idempotency; then debit gold, create or stack every purchased item, persist bag and wallet, audit, and return canonical state. `planCapacity` with `preferredStrict` when a slot is supplied plans every stack before commit. A quantity that does not fit grants nothing and deducts no gold.
+
+The merchant window shows name, stock icons and tooltips, canonical prices, player bag, gold, quantity selector, and buy result. Right-click buys one; Shift-right-click or the selector chooses quantity; drag onto an empty or compatible bag slot sets `preferredSlot`; incompatible occupied slots reject. Bag→merchant drag is rejected. `VENDOR_SELL` remains live and tested but is hidden from this window (ITEM-C12 KEEP).
+
+Opcodes stay 47 / 18. Storage record count remains **35**. Content hash unchanged: `7877dd576b022d59f0350be4430aca0b9d402db38b5e16e816ef361003c9cffd`.
+
+| Gate | Result |
+| --- | --- |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 47 client opcodes, 18 server opcodes, 29 RPCs) |
+| Content validation/tests | 28/28 passed |
+| Server hermetic tests | 972 passed, 13 expected live-test skips |
+| Server typecheck/build | passed |
+| Auth gateway hermetic tests | 52/52 passed |
+| Godot 4.7.1 client GdUnit | 361/361 passed, 0 failures, 0 orphans |
+
+Pre-existing Node 22.14 runner compatibility remains documented: directory-form `node --test` wrappers can fail before discovery. Direct compiled-file glob equivalents pass.
+
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen `client/`. Recreate Nakama so `contentHash` matches.
 
 ## ITEM-06 party Need/Greed rolls and pending winner awards (2026-09-19)
 

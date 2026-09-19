@@ -1,4 +1,4 @@
-# Item content model (ITEM-06)
+# Item content model (ITEM-07)
 
 ITEM-03 does not change authored item JSON. Content hash remains the ITEM-02 digest.
 
@@ -67,7 +67,7 @@ Normalized runtime policy (`normalizedLootPolicy`):
 
 ## Vendor catalogs
 
-Schema: `content/schemas/vendor.json`. `currencyId` must be `gold`. Stock: `itemId` + `buyPrice` + optional class/level locks. `sellMultiplier` required. Stock is infinite and static. No buyback, scarcity, or restock documents.
+Schema: `content/schemas/vendor.json`. `currencyId` must be `gold`. Stock: `itemId` + canonical `buyPrice` + optional `stockEntryId`, `displayOrder`, `quantityConstraints`, class/level locks. Runtime `stockEntryId` defaults to `${vendorId}:${itemId}` when unauthored. `sellMultiplier` required. Stock is infinite and static. No buyback, scarcity, or restock documents. A new stock list is content-only.
 
 ## Player bag capacity (content)
 

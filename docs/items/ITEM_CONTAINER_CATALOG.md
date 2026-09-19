@@ -1,4 +1,4 @@
-# Item container catalog (ITEM-06)
+# Item container catalog (ITEM-07)
 
 Containers are logical owners of item instances or gold. ITEM-01 records **live** vs **target**. Live names in code are used until a later phase migrates. ITEM-05 adds a client-visible corpse window over a match-lifetime `CorpseLootContainer`.
 
@@ -42,7 +42,7 @@ Need/Greed is live. Qualifying Uncommon-or-higher party-tagged drops open a roll
 
 ## MerchantCatalog
 
-Live: content `vendor` documents + `vendor.ts` `VendorDefinition.stock`. Not an item container. Infinite static rows. Buy creates new instances into CharacterBag. Sell (live) removes bag stacks for gold.
+Live: content `vendor` documents + `vendor.ts` `VendorDefinition.stock`. Not an item container. Infinite static rows keyed by `stockEntryId`. Buy creates new instances into CharacterBag through `planCapacity` / `applyCapacityPlan`. Player sell remains live as `VENDOR_SELL` but is hidden from the ITEM-07 merchant window.
 
 Target for this ITEM pack: merchants **sell to players only**; player sell is out of this implementation. Live `VENDOR_SELL` remains until a later phase names removal ([ITEM-C12](ITEM_CURRENT_CONFLICTS.md)).
 

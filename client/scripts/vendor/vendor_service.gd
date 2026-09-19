@@ -39,8 +39,13 @@ func reset() -> void:
 	last_currency_id = "gold"
 	last_request_id = ""
 	last_stock = []
-	if _window != null:
+	if _window != null and is_instance_valid(_window):
 		_window.close_window()
+		remove_child(_window)
+		_window.free()
+	_window = null
+	if WindowManager.is_open(WindowManager.VENDOR):
+		WindowManager.close(WindowManager.VENDOR)
 	if was_open:
 		_emit_closed()
 
@@ -50,7 +55,7 @@ func reset_for_tests() -> void:
 
 
 func is_open() -> bool:
-	return _window != null and _window.is_open()
+	return _window != null and is_instance_valid(_window) and _window.is_open()
 
 
 func open_from_dialogue() -> void:
@@ -75,38 +80,48 @@ func open_from_dialogue() -> void:
 
 
 func close_to_dialogue() -> void:
-	if _window != null:
+	if is_open():
 		_window.close_window()
 	_emit_closed()
 
 
-func request_buy(item_id: String, quantity: int = 1) -> void:
-	if last_npc_id.is_empty() or item_id.is_empty() or last_session_id.is_empty():
+func request_buy(stock_or_item: String, quantity: int = 1, preferred_slot: int = -1) -> void:
+	if last_npc_id.is_empty() or stock_or_item.is_empty() or last_session_id.is_empty() or last_vendor_id.is_empty():
 		return
+	var stock_entry_id := stock_or_item
+	if not stock_or_item.contains(":"):
+		stock_entry_id = "%s:%s" % [last_vendor_id, stock_or_item]
 	last_request_id = MatchProtocol.new_request_id()
-	if _window != null and _window.is_open():
+	if is_open():
 		_window.show_busy()
 	NetworkService.send_vendor_buy(
 		last_session_id,
-		last_npc_id,
-		item_id,
+		last_vendor_id,
+		stock_entry_id,
 		quantity,
-		last_request_id
+		last_request_id,
+		preferred_slot
 	)
+
+
+func selected_quantity() -> int:
+	if _window != null and _window.is_open():
+		return _window.selected_quantity()
+	return 1
 
 
 func request_sell(instance_id: String, quantity: int = 0) -> void:
 	if last_npc_id.is_empty() or instance_id.is_empty():
 		return
 	last_request_id = MatchProtocol.new_request_id()
-	if _window != null and _window.is_open():
+	if is_open():
 		_window.show_busy()
 	NetworkService.send_vendor_sell(last_npc_id, instance_id, quantity, last_request_id)
 
 
 func stock_entries(vendor_id: String = "") -> Array:
 	if not last_stock.is_empty() and (vendor_id.is_empty() or vendor_id == last_vendor_id):
-		return last_stock
+		return _with_stock_entry_ids(last_stock, last_vendor_id)
 	var id := vendor_id
 	if id.is_empty():
 		id = last_vendor_id
@@ -114,7 +129,24 @@ func stock_entries(vendor_id: String = "") -> Array:
 	var stock: Variant = vendor.get("stock", [])
 	if typeof(stock) != TYPE_ARRAY:
 		return []
-	return stock
+	return _with_stock_entry_ids(stock as Array, id)
+
+
+func _with_stock_entry_ids(rows: Array, vendor_id: String) -> Array:
+	var out: Array = []
+	var index := 0
+	for entry in rows:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var copy: Dictionary = (entry as Dictionary).duplicate(true)
+		var item_id := String(copy.get("itemId", ""))
+		if String(copy.get("stockEntryId", "")).is_empty() and not vendor_id.is_empty() and not item_id.is_empty():
+			copy["stockEntryId"] = "%s:%s" % [vendor_id, item_id]
+		if not copy.has("displayOrder"):
+			copy["displayOrder"] = index
+		out.append(copy)
+		index += 1
+	return out
 
 
 func _on_interaction_result(payload: Dictionary) -> void:
@@ -150,7 +182,7 @@ func _on_action_result(payload: Dictionary) -> void:
 	if request_id.is_empty() or request_id != last_request_id:
 		return
 	last_request_id = ""
-	if _window == null or not _window.is_open():
+	if not is_open():
 		return
 	if bool(payload.get("result_ok", false)):
 		_window.show_status("Purchase complete.")
@@ -160,7 +192,7 @@ func _on_action_result(payload: Dictionary) -> void:
 
 
 func _on_wallet_changed() -> void:
-	if _window != null and _window.is_open():
+	if is_open():
 		_window.set_player_gold(WalletService.gold)
 
 
@@ -169,14 +201,14 @@ func _on_window_closed(window_id: String) -> void:
 		return
 	if _closing:
 		return
-	if _window == null or not _window.is_open():
+	if _window == null or not is_instance_valid(_window) or not _window.is_open():
 		return
 	_window.close_window()
 	_emit_closed()
 
 
-func _on_buy(item_id: String, quantity: int) -> void:
-	request_buy(item_id, quantity)
+func _on_buy(stock_entry_id: String, quantity: int, preferred_slot: int = -1) -> void:
+	request_buy(stock_entry_id, quantity, preferred_slot)
 
 
 func _on_sell(instance_id: String, quantity: int) -> void:
@@ -245,6 +277,10 @@ func _error_message(code: String) -> String:
 			return "You cannot afford that."
 		"inventory_full":
 			return "Your inventory is full."
+		"invalid_slot", "stack_incompatible", "stack_full":
+			return "That bag slot cannot hold this purchase."
+		"inventory_stale":
+			return "Your bag changed. Try again."
 		"invalid_amount":
 			return "That quantity is not allowed."
 		"invalid_id":

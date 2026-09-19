@@ -1,4 +1,4 @@
-# Current item-system conflicts (ITEM-06)
+# Current item-system conflicts (ITEM-07)
 
 ITEM-05 closed first-attacker tagging, corpse containers, gold split, Loot All, and the 60 s / 5 min corpse window. Remaining rows stay OPEN until a later numbered ITEM phase names them.
 

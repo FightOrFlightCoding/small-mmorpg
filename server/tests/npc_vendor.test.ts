@@ -16,7 +16,9 @@ import { VENDOR_MAX_QUANTITY, vendorDefinitionsFromContent } from "../src/domain
 import {
   addOrStackItem,
   emptyInventory,
+  findItemBySlot,
   itemDefinitionsFromContent,
+  makeInstance,
   type PlayerInventory,
 } from "../src/domain/inventory";
 import { emptyEquipment } from "../src/domain/equipment";
@@ -123,6 +125,14 @@ test("opening a vendor shop returns catalog stock and gold currency", () => {
   assert.equal(body.currencyId, "gold");
   assert.ok(Array.isArray(body.stock));
   assert.equal(body.stock.some((row) => row.itemId === "item.test_potion" && row.buyPrice === 10), true);
+  assert.equal(
+    body.stock.some(
+      (row) =>
+        row.itemId === "item.test_potion" &&
+        row.stockEntryId === "vendor.test_general:item.test_potion",
+    ),
+    true,
+  );
 });
 
 test("unknown vendor catalog id is rejected", () => {
@@ -163,8 +173,8 @@ test("client price and resulting balance are protocol rejections", () => {
     JSON.stringify({
       protocolVersion: PROTOCOL_VERSION,
       interactionSessionId: "sess-price01",
-      npcInstanceId: "npc.test_vendor",
-      itemId: "item.test_potion",
+      vendorId: "vendor.test_general",
+      stockEntryId: "vendor.test_general:item.test_potion",
       price: 1,
       requestId: "req-npc06-price1",
     }),
@@ -179,8 +189,8 @@ test("client price and resulting balance are protocol rejections", () => {
     JSON.stringify({
       protocolVersion: PROTOCOL_VERSION,
       interactionSessionId: "sess-price02",
-      npcInstanceId: "npc.test_vendor",
-      itemId: "item.test_potion",
+      vendorId: "vendor.test_general",
+      stockEntryId: "vendor.test_general:item.test_potion",
       resultingBalance: 999,
       requestId: "req-npc06-price2",
     }),
@@ -189,6 +199,22 @@ test("client price and resulting balance are protocol rejections", () => {
   assert.equal(isProtocolError(balance), true);
   if (isProtocolError(balance)) {
     assert.equal(balance.code, "stat_injection:resultingBalance");
+  }
+  const leftoverItemId = parseClientMessage(
+    ClientOpcode.VENDOR_BUY,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      interactionSessionId: "sess-price03",
+      vendorId: "vendor.test_general",
+      stockEntryId: "vendor.test_general:item.test_potion",
+      itemId: "item.test_potion",
+      requestId: "req-npc06-price3",
+    }),
+    contentHash,
+  );
+  assert.equal(isProtocolError(leftoverItemId), true);
+  if (isProtocolError(leftoverItemId)) {
+    assert.equal(leftoverItemId.code, "unknown_field:itemId");
   }
 });
 
@@ -486,4 +512,184 @@ test("NPC without vendor service cannot sell", () => {
   );
   assert.equal(actions(result)[0].ok, false);
   assert.equal(actions(result)[0].code, "invalid_service");
+});
+
+test("buy after walking out of range is rejected", () => {
+  const vendor = vendorPos();
+  const state = addPlayer(serviceZone(), playerAt(vendor.x, vendor.y, 20));
+  const opened = openNpcSession(state, "user-alice", "npc.test_vendor", 1, "req-npc07-range1");
+  opened.state.players["user-alice"].x = vendor.x + 800;
+  opened.state.players["user-alice"].y = vendor.y + 800;
+  const result = applyMatchLoop(
+    opened.state,
+    2,
+    contentHash,
+    [buyMessage("user-alice", "item.test_potion", opened.sessionId, opened.npcInstanceId, "req-npc07-range2")],
+  );
+  assert.equal(actions(result)[0].ok, false);
+  assert.equal(actions(result)[0].code, "out_of_range");
+  assert.equal(result.state.players["user-alice"].gold, 20);
+});
+
+test("client vendor id must match the NPC vendor bind", () => {
+  const vendor = vendorPos();
+  const state = addPlayer(serviceZone(), playerAt(vendor.x, vendor.y, 20));
+  const opened = openNpcSession(state, "user-alice", "npc.test_vendor", 1, "req-npc07-own01");
+  const result = applyMatchLoop(
+    opened.state,
+    2,
+    contentHash,
+    [
+      buyMessage("user-alice", "item.test_potion", opened.sessionId, opened.npcInstanceId, "req-npc07-own02", undefined, {
+        vendorId: "vendor.platform_kiosk",
+        stockEntryId: "vendor.platform_kiosk:item.test_potion",
+      }),
+    ],
+  );
+  assert.equal(actions(result)[0].ok, false);
+  assert.equal(actions(result)[0].code, "invalid_id");
+  assert.equal(result.state.players["user-alice"].gold, 20);
+});
+
+test("unknown stock entry id is rejected", () => {
+  const vendor = vendorPos();
+  const state = addPlayer(serviceZone(), playerAt(vendor.x, vendor.y, 20));
+  const opened = openNpcSession(state, "user-alice", "npc.test_vendor", 1, "req-npc07-unk01");
+  const result = applyMatchLoop(
+    opened.state,
+    2,
+    contentHash,
+    [
+      buyMessage("user-alice", "item.test_potion", opened.sessionId, opened.npcInstanceId, "req-npc07-unk02", undefined, {
+        stockEntryId: "vendor.test_general:item.missing",
+      }),
+    ],
+  );
+  assert.equal(actions(result)[0].ok, false);
+  assert.equal(actions(result)[0].code, "invalid_id");
+});
+
+test("stale inventory revision rejects without granting", () => {
+  const vendor = vendorPos();
+  const state = addPlayer(serviceZone(), playerAt(vendor.x, vendor.y, 20));
+  const opened = openNpcSession(state, "user-alice", "npc.test_vendor", 1, "req-npc07-stale1");
+  const result = applyMatchLoop(
+    opened.state,
+    2,
+    contentHash,
+    [
+      buyMessage("user-alice", "item.test_potion", opened.sessionId, opened.npcInstanceId, "req-npc07-stale2", undefined, {
+        expectedRevision: 99,
+      }),
+    ],
+  );
+  assert.equal(actions(result)[0].ok, false);
+  assert.equal(actions(result)[0].code, "inventory_stale");
+  assert.equal(result.state.players["user-alice"].gold, 20);
+  assert.equal(itemCount(result.state, "user-alice", "item.test_potion"), 0);
+});
+
+test("multi-stack purchase plans every stack before commit", () => {
+  const vendor = vendorPos();
+  const state = addPlayer(serviceZone(), playerAt(vendor.x, vendor.y, 200));
+  const opened = openNpcSession(state, "user-alice", "npc.test_vendor", 1, "req-npc07-ms001");
+  const result = applyMatchLoop(
+    opened.state,
+    2,
+    contentHash,
+    [buyMessage("user-alice", "item.test_potion", opened.sessionId, opened.npcInstanceId, "req-npc07-ms002", 15)],
+  );
+  assert.equal(actions(result)[0].ok, true);
+  assert.equal(result.state.players["user-alice"].gold, 50);
+  assert.equal(itemCount(result.state, "user-alice", "item.test_potion"), 15);
+  const items = result.state.players["user-alice"].inventory !== undefined ? result.state.players["user-alice"].inventory.items : [];
+  const potionStacks = items.filter((row) => row.itemId === "item.test_potion");
+  assert.equal(potionStacks.length, 2);
+  assert.equal(potionStacks[0].quantity + potionStacks[1].quantity, 15);
+});
+
+test("preferred empty slot receives the purchased stack", () => {
+  const vendor = vendorPos();
+  const state = addPlayer(serviceZone(), playerAt(vendor.x, vendor.y, 20));
+  const opened = openNpcSession(state, "user-alice", "npc.test_vendor", 1, "req-npc07-pref1");
+  const result = applyMatchLoop(
+    opened.state,
+    2,
+    contentHash,
+    [
+      buyMessage("user-alice", "item.test_potion", opened.sessionId, opened.npcInstanceId, "req-npc07-pref2", 1, {
+        preferredSlot: 7,
+      }),
+    ],
+  );
+  assert.equal(actions(result)[0].ok, true);
+  const placed = findItemBySlot(result.state.players["user-alice"].inventory as PlayerInventory, 7);
+  assert.equal(placed !== null && placed.itemId === "item.test_potion", true);
+  assert.equal(placed !== null ? placed.quantity : 0, 1);
+});
+
+test("preferred compatible partial stack merges there", () => {
+  const vendor = vendorPos();
+  const inventory = emptyInventory();
+  inventory.items.push(makeInstance("potion-partial", "item.test_potion", 3, 5, { sourceType: "vendor", sourceId: "seed", createdAt: 0 }));
+  const state = addPlayer(serviceZone(), playerAt(vendor.x, vendor.y, 20, inventory));
+  const opened = openNpcSession(state, "user-alice", "npc.test_vendor", 1, "req-npc07-merge1");
+  const result = applyMatchLoop(
+    opened.state,
+    2,
+    contentHash,
+    [
+      buyMessage("user-alice", "item.test_potion", opened.sessionId, opened.npcInstanceId, "req-npc07-merge2", 2, {
+        preferredSlot: 5,
+      }),
+    ],
+  );
+  assert.equal(actions(result)[0].ok, true);
+  const merged = findItemBySlot(result.state.players["user-alice"].inventory as PlayerInventory, 5);
+  assert.equal(merged !== null ? merged.instanceId : "", "potion-partial");
+  assert.equal(merged !== null ? merged.quantity : 0, 5);
+  assert.equal(itemCount(result.state, "user-alice", "item.test_potion"), 5);
+  assert.equal(result.state.players["user-alice"].gold, 0);
+});
+
+test("preferred incompatible occupied slot is rejected", () => {
+  const vendor = vendorPos();
+  const items = itemDefinitionsFromContent(content.items);
+  const inventory = addOrStackItem(emptyInventory(), "item.training_sword", 1, "sword-occ", items["item.training_sword"]);
+  inventory.items[0].slotIndex = 4;
+  const state = addPlayer(serviceZone(), playerAt(vendor.x, vendor.y, 20, inventory));
+  const opened = openNpcSession(state, "user-alice", "npc.test_vendor", 1, "req-npc07-inc01");
+  const result = applyMatchLoop(
+    opened.state,
+    2,
+    contentHash,
+    [
+      buyMessage("user-alice", "item.test_potion", opened.sessionId, opened.npcInstanceId, "req-npc07-inc02", 1, {
+        preferredSlot: 4,
+      }),
+    ],
+  );
+  assert.equal(actions(result)[0].ok, false);
+  assert.equal(actions(result)[0].code, "stack_incompatible");
+  assert.equal(result.state.players["user-alice"].gold, 20);
+  assert.equal(itemCount(result.state, "user-alice", "item.test_potion"), 0);
+});
+
+test("multi-stack buy that cannot fit grants nothing", () => {
+  const vendor = vendorPos();
+  const items = itemDefinitionsFromContent(content.items);
+  let inventory = emptyInventory(2);
+  inventory = addOrStackItem(inventory, "item.test_pebble", 1, "pebble-a", items["item.test_pebble"]);
+  const state = addPlayer(serviceZone(), playerAt(vendor.x, vendor.y, 200, inventory));
+  const opened = openNpcSession(state, "user-alice", "npc.test_vendor", 1, "req-npc07-cap01");
+  const result = applyMatchLoop(
+    opened.state,
+    2,
+    contentHash,
+    [buyMessage("user-alice", "item.test_potion", opened.sessionId, opened.npcInstanceId, "req-npc07-cap02", 15)],
+  );
+  assert.equal(actions(result)[0].ok, false);
+  assert.equal(actions(result)[0].code, "inventory_full");
+  assert.equal(result.state.players["user-alice"].gold, 200);
+  assert.equal(itemCount(result.state, "user-alice", "item.test_potion"), 0);
 });

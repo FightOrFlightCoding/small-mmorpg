@@ -1,7 +1,5 @@
 import { findNpc, resolveInteraction, type InteractionNpc } from "./interaction";
 import {
-  addOrStackItem,
-  acceptItemFailureCode,
   cloneInventory,
   emptyInventory,
   findItem,
@@ -10,6 +8,8 @@ import {
   type ItemInstance,
   type PlayerInventory,
 } from "./inventory";
+import { applyCapacityPlan, planCapacity, type IncomingStack } from "./item_capacity";
+import { appendItemAudits, itemAuditFromChange } from "./item_audit";
 import { findNpcService, type NpcDefinition } from "./npc";
 import type { QuestLog } from "./quest";
 import { applyGoldMutation, WALLET_CURRENCY_GOLD } from "./wallet";
@@ -18,9 +18,17 @@ import { staleRevisionCode } from "./item_errors";
 export const VENDOR_MAX_QUANTITY = 99;
 export const VENDOR_CURRENCY_GOLD = WALLET_CURRENCY_GOLD;
 
+export interface VendorQuantityConstraints {
+  min: number;
+  max: number;
+}
+
 export interface VendorStockEntry {
+  stockEntryId: string;
   itemId: string;
   buyPrice: number;
+  displayOrder: number;
+  quantityConstraints: VendorQuantityConstraints;
   classRequirements?: ReadonlyArray<string>;
   levelRequirement?: number;
 }
@@ -28,13 +36,19 @@ export interface VendorStockEntry {
 export interface VendorDefinition {
   id: string;
   currencyId: string;
+  schemaVersion?: number;
   stock: ReadonlyArray<VendorStockEntry>;
   sellMultiplier: number;
 }
 
 export interface VendorShopStock {
+  stockEntryId: string;
   itemId: string;
   buyPrice: number;
+  displayOrder: number;
+  quantityConstraints: VendorQuantityConstraints;
+  classRequirements?: ReadonlyArray<string>;
+  levelRequirement?: number;
 }
 
 export interface VendorShopPresentation {
@@ -66,11 +80,14 @@ export interface VendorTradeInput {
   newId: () => string;
   tick?: number;
   expectedRevision?: number;
+  characterId?: string;
 }
 
 export interface VendorBuyInput extends VendorTradeInput {
-  itemId: string;
+  vendorId: string;
+  stockEntryId: string;
   quantity: number;
+  preferredSlot?: number;
 }
 
 export interface VendorSellInput extends VendorTradeInput {
@@ -89,13 +106,24 @@ export interface VendorTradeOutcome {
   metadata: { [key: string]: unknown };
 }
 
+export function stockEntryIdFor(vendorId: string, itemId: string, authored?: string): string {
+  if (authored !== undefined && authored.length > 0) {
+    return authored;
+  }
+  return vendorId + ":" + itemId;
+}
+
 export function vendorDefinitionsFromContent(vendors: {
   [id: string]: {
     id: string;
     currencyId?: string;
+    schemaVersion?: number;
     stock: ReadonlyArray<{
       itemId: string;
       buyPrice: number;
+      stockEntryId?: string;
+      displayOrder?: number;
+      quantityConstraints?: { min?: number; max?: number };
       classRequirements?: ReadonlyArray<string>;
       levelRequirement?: number;
     }>;
@@ -109,7 +137,25 @@ export function vendorDefinitionsFromContent(vendors: {
     const stock: VendorStockEntry[] = [];
     for (let s = 0; s < entry.stock.length; s++) {
       const row = entry.stock[s];
-      const copied: VendorStockEntry = { itemId: row.itemId, buyPrice: row.buyPrice };
+      const constraints = row.quantityConstraints !== undefined ? row.quantityConstraints : {};
+      const minQty =
+        typeof constraints.min === "number" && isFinite(constraints.min) && constraints.min >= 1
+          ? Math.floor(constraints.min)
+          : 1;
+      const maxQty =
+        typeof constraints.max === "number" && isFinite(constraints.max) && constraints.max >= 1
+          ? Math.floor(constraints.max)
+          : VENDOR_MAX_QUANTITY;
+      const copied: VendorStockEntry = {
+        stockEntryId: stockEntryIdFor(entry.id, row.itemId, row.stockEntryId),
+        itemId: row.itemId,
+        buyPrice: row.buyPrice,
+        displayOrder: row.displayOrder !== undefined ? row.displayOrder : s,
+        quantityConstraints: {
+          min: minQty,
+          max: maxQty > VENDOR_MAX_QUANTITY ? VENDOR_MAX_QUANTITY : maxQty,
+        },
+      };
       if (row.classRequirements !== undefined) {
         copied.classRequirements = row.classRequirements.slice();
       }
@@ -118,8 +164,23 @@ export function vendorDefinitionsFromContent(vendors: {
       }
       stock.push(copied);
     }
+    stock.sort(function (a, b) {
+      if (a.displayOrder !== b.displayOrder) {
+        return a.displayOrder - b.displayOrder;
+      }
+      return a.stockEntryId < b.stockEntryId ? -1 : a.stockEntryId > b.stockEntryId ? 1 : 0;
+    });
     const currencyId = entry.currencyId !== undefined && entry.currencyId.length > 0 ? entry.currencyId : VENDOR_CURRENCY_GOLD;
-    map[ids[i]] = { id: entry.id, currencyId: currencyId, stock: stock, sellMultiplier: entry.sellMultiplier };
+    const definition: VendorDefinition = {
+      id: entry.id,
+      currencyId: currencyId,
+      stock: stock,
+      sellMultiplier: entry.sellMultiplier,
+    };
+    if (entry.schemaVersion !== undefined) {
+      definition.schemaVersion = entry.schemaVersion;
+    }
+    map[ids[i]] = definition;
   }
   return map;
 }
@@ -143,7 +204,23 @@ export function vendorShopPresentation(
     if (row == null || row.itemId === undefined) {
       continue;
     }
-    stock.push({ itemId: row.itemId, buyPrice: row.buyPrice });
+    const presented: VendorShopStock = {
+      stockEntryId: row.stockEntryId,
+      itemId: row.itemId,
+      buyPrice: row.buyPrice,
+      displayOrder: row.displayOrder,
+      quantityConstraints: {
+        min: row.quantityConstraints.min,
+        max: row.quantityConstraints.max,
+      },
+    };
+    if (row.classRequirements !== undefined) {
+      presented.classRequirements = row.classRequirements.slice();
+    }
+    if (row.levelRequirement !== undefined) {
+      presented.levelRequirement = row.levelRequirement;
+    }
+    stock.push(presented);
   }
   return {
     vendorId: vendor.id,
@@ -175,6 +252,10 @@ export function applyVendorBuy(input: VendorBuyInput): VendorTradeOutcome {
   if (!access.ok) {
     return failTrade(access.code, inventory, input.gold);
   }
+  const vendor = access.vendor;
+  if (input.vendorId.length === 0 || input.vendorId !== vendor.id) {
+    return failTrade("invalid_id", inventory, input.gold);
+  }
   const quantity = input.quantity;
   if (
     typeof quantity !== "number" ||
@@ -185,15 +266,17 @@ export function applyVendorBuy(input: VendorBuyInput): VendorTradeOutcome {
   ) {
     return failTrade("invalid_amount", inventory, input.gold);
   }
-  const vendor = access.vendor;
   if (vendor.currencyId !== VENDOR_CURRENCY_GOLD) {
     return failTrade("invalid_id", inventory, input.gold);
   }
-  const stock = findStock(vendor, input.itemId);
+  const stock = findStockByEntry(vendor, input.stockEntryId);
   if (stock === null) {
     return failTrade("invalid_id", inventory, input.gold);
   }
-  const itemDef = input.itemsById[input.itemId];
+  if (quantity < stock.quantityConstraints.min || quantity > stock.quantityConstraints.max) {
+    return failTrade("invalid_amount", inventory, input.gold);
+  }
+  const itemDef = input.itemsById[stock.itemId];
   if (itemDef === undefined) {
     return failTrade("invalid_id", inventory, input.gold);
   }
@@ -217,28 +300,71 @@ export function applyVendorBuy(input: VendorBuyInput): VendorTradeOutcome {
   if (input.gold < price) {
     return failTrade("insufficient_gold", inventory, input.gold);
   }
-  const failCode = acceptItemFailureCode(inventory, input.itemId, quantity, itemDef, input.equippedItems);
-  if (failCode.length > 0) {
-    return failTrade(failCode, inventory, input.gold);
-  }
-  const nextInventory = addOrStackItem(inventory, input.itemId, quantity, input.newId(), itemDef, {
+  const incoming: IncomingStack = {
+    itemId: stock.itemId,
+    quantity: quantity,
     sourceType: "vendor",
     sourceId: vendor.id,
     createdAt: 0,
+  };
+  if (input.preferredSlot !== undefined) {
+    incoming.preferredSlot = input.preferredSlot;
+  }
+  const plan = planCapacity({
+    inventory: inventory,
+    incoming: [incoming],
+    definitions: input.itemsById,
+    equippedItems: input.equippedItems,
+    operationMode: "grant",
+    preferredStrict: input.preferredSlot !== undefined,
   });
-  rememberVendor(nextInventory, input.requestId, "ok", input.itemId, quantity, input.tick);
+  if (!plan.fits) {
+    const code = plan.failureCode.length > 0 ? plan.failureCode : "inventory_full";
+    return failTrade(code, inventory, input.gold);
+  }
+  const newIds: string[] = [];
+  for (let i = 0; i < plan.requiredNewInstanceIds; i++) {
+    newIds.push(input.newId());
+  }
+  const nextInventory = applyCapacityPlan(inventory, plan, newIds);
   const gold = applyGoldMutation({
-    characterId: "",
+    characterId: input.characterId !== undefined ? input.characterId : "",
     currentGold: input.gold,
     delta: -price,
     reasonType: "vendor",
     reasonId: vendor.id,
     requestId: input.requestId,
-    metadata: { source: "vendor_buy", itemId: input.itemId, quantity: quantity, price: price },
+    metadata: {
+      source: "vendor_buy",
+      vendorId: vendor.id,
+      stockEntryId: stock.stockEntryId,
+      itemId: stock.itemId,
+      quantity: quantity,
+      price: price,
+    },
   });
   if (!gold.ok) {
     return failTrade(gold.code, inventory, input.gold);
   }
+  rememberVendor(nextInventory, input.requestId, "ok", stock.itemId, quantity, input.tick);
+  nextInventory.itemAudits = appendItemAudits(nextInventory.itemAudits, [
+    itemAuditFromChange({
+      transactionId: input.requestId,
+      requestId: input.requestId,
+      characterId: input.characterId !== undefined ? input.characterId : "",
+      counterparty: vendor.id,
+      operationType: "vendor_buy",
+      definitionId: stock.itemId,
+      instanceId: firstGrantedInstanceId(plan, newIds),
+      quantityBefore: 0,
+      quantityAfter: quantity,
+      sourceContainer: "merchant_catalog",
+      destinationContainer: "character_bag",
+      goldDelta: gold.goldDelta,
+      timestamp: input.tick !== undefined ? input.tick : 0,
+      result: "ok",
+    }),
+  ]);
   return {
     ok: true,
     code: "ok",
@@ -386,13 +512,36 @@ function priorVendor(inventory: PlayerInventory, requestId: string): { ok: boole
   return { ok: record.ok, code: record.code };
 }
 
-function findStock(vendor: VendorDefinition, itemId: string): VendorStockEntry | null {
+function findStockByEntry(vendor: VendorDefinition, stockEntryId: string): VendorStockEntry | null {
   for (let i = 0; i < vendor.stock.length; i++) {
-    if (vendor.stock[i].itemId === itemId) {
+    if (vendor.stock[i].stockEntryId === stockEntryId) {
       return vendor.stock[i];
     }
   }
   return null;
+}
+
+function firstGrantedInstanceId(
+  plan: { plannedMerges: Array<{ instanceId: string }>; plannedNewStacks: Array<{ instanceId?: string; needsNewId: boolean }> },
+  newIds: string[],
+): string {
+  if (plan.plannedMerges.length > 0) {
+    return plan.plannedMerges[0].instanceId;
+  }
+  let idIndex = 0;
+  for (let i = 0; i < plan.plannedNewStacks.length; i++) {
+    const stack = plan.plannedNewStacks[i];
+    if (stack.needsNewId) {
+      const minted = idIndex < newIds.length ? newIds[idIndex] : "";
+      idIndex += 1;
+      if (minted.length > 0) {
+        return minted;
+      }
+    } else if (stack.instanceId !== undefined && stack.instanceId.length > 0) {
+      return stack.instanceId;
+    }
+  }
+  return "";
 }
 
 function rememberVendor(

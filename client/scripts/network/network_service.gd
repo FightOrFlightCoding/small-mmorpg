@@ -873,7 +873,7 @@ func send_release_respawn(request_id: String) -> Dictionary:
 	)
 
 
-func send_vendor_buy(session_id: String, npc_instance_id: String, item_id: String, quantity: int = 1, request_id: String = "") -> Dictionary:
+func send_vendor_buy(session_id: String, vendor_id: String, stock_entry_id: String, quantity: int = 1, request_id: String = "", preferred_slot: int = -1) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
 	var rid := request_id
@@ -881,11 +881,13 @@ func send_vendor_buy(session_id: String, npc_instance_id: String, item_id: Strin
 		rid = MatchProtocol.new_request_id()
 	var extra: Dictionary = {
 		"interactionSessionId": session_id,
-		"npcInstanceId": npc_instance_id,
-		"itemId": item_id,
+		"vendorId": vendor_id,
+		"stockEntryId": stock_entry_id,
 		"quantity": quantity,
 		"requestId": rid,
 	}
+	if preferred_slot >= 0:
+		extra["preferredSlot"] = preferred_slot
 	_attach_expected_revision(extra)
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_VENDOR_BUY,

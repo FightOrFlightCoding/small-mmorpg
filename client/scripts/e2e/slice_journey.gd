@@ -198,13 +198,13 @@ static func _quest_fields(session: SliceSession, quest_id: String) -> Dictionary
 
 static func _vendor_buy_fields(session: SliceSession, item_id: String, fallback_npc_id: String) -> Dictionary:
 	var interacted: Dictionary = session.last_interaction
-	var npc_id := String(interacted.get("target_id", fallback_npc_id))
-	if npc_id.is_empty():
-		npc_id = fallback_npc_id
+	var vendor_id := String(interacted.get("vendor_id", ""))
+	if vendor_id.is_empty():
+		vendor_id = "vendor.test_general"
 	return {
-		"itemId": item_id,
+		"vendorId": vendor_id,
+		"stockEntryId": "%s:%s" % [vendor_id, item_id],
 		"interactionSessionId": String(interacted.get("interaction_session_id", "")),
-		"npcInstanceId": npc_id,
 	}
 
 

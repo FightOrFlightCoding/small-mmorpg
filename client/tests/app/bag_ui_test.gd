@@ -15,6 +15,7 @@ func before_test() -> void:
 	ItemContextRouter.reset_for_tests()
 	WalletService.reset_for_tests()
 	CorpseService.reset_for_tests()
+	VendorService.reset_for_tests()
 	assert_bool(ContentRegistry.load_bundle()).is_true()
 	InventoryService.configure_from_content()
 	EquipmentService.configure_from_content()
@@ -27,6 +28,7 @@ func after_test() -> void:
 	InventoryService.reset_for_tests()
 	EquipmentService.reset_for_tests()
 	CorpseService.reset_for_tests()
+	VendorService.reset_for_tests()
 
 
 func _gel(slot: int, qty: int, instance_id: String = "inst-gel") -> Dictionary:
@@ -387,6 +389,16 @@ func test_context_router_stays_generic() -> void:
 	rolling["state"] = "ROLL_PENDING"
 	var rolling_actions: Array = ItemContextRouter.actions_for({"kind": "corpse"}, rolling)
 	assert_str(String((rolling_actions[0] as Dictionary).get("id", ""))).is_equal(ItemContextRouter.ACTION_LOCKED)
+	var merchant_item := {
+		"instanceId": "vendor.test_general:item.test_potion",
+		"stockEntryId": "vendor.test_general:item.test_potion",
+		"itemId": "item.test_potion",
+		"buyPrice": 10,
+		"quantity": 1,
+	}
+	var merchant_actions: Array = ItemContextRouter.actions_for({"kind": "merchant"}, merchant_item)
+	assert_int(merchant_actions.size()).is_equal(1)
+	assert_str(String((merchant_actions[0] as Dictionary).get("id", ""))).is_equal(ItemContextRouter.ACTION_BUY)
 
 
 func test_corpse_drag_rejects_bag_to_corpse_and_occupied_slot() -> void:
@@ -434,3 +446,44 @@ func test_corpse_drag_rejects_bag_to_corpse_and_occupied_slot() -> void:
 	assert_str(String(payload.get("entryId", ""))).is_equal("entry-gel")
 	assert_int(int(payload.get("toSlotIndex", -1))).is_equal(4)
 	assert_bool(payload.has("lootRecipients")).is_false()
+
+
+func test_merchant_drag_buys_into_empty_and_compatible_slots() -> void:
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	VendorService.last_npc_id = "npc.test_vendor"
+	VendorService.last_session_id = "sess-merchant-drag"
+	VendorService.last_vendor_id = "vendor.test_general"
+	InventoryService.apply_canonical({
+		"capacity": 30,
+		"revision": 4,
+		"items": [_sword(1, "sword-bag")],
+	})
+	var merchant_payload := {
+		"kind": "merchant_item",
+		"fromKind": "merchant",
+		"fromSlot": 0,
+		"stockEntryId": "vendor.test_general:item.test_potion",
+		"instanceId": "vendor.test_general:item.test_potion",
+		"itemId": "item.test_potion",
+		"quantity": 1,
+	}
+	var bought := InventoryService.handle_drop(merchant_payload, _bag_dest(8))
+	assert_str(bought).is_not_empty()
+	await get_tree().process_frame
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_VENDOR_BUY)
+	var payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_str(String(payload.get("vendorId", ""))).is_equal("vendor.test_general")
+	assert_str(String(payload.get("stockEntryId", ""))).is_equal("vendor.test_general:item.test_potion")
+	assert_int(int(payload.get("preferredSlot", -1))).is_equal(8)
+	assert_bool(payload.has("price")).is_false()
+	var rejected := InventoryService.handle_drop(merchant_payload, _bag_dest(1))
+	assert_str(rejected).is_empty()
+	assert_str(InventoryService.last_reject_code).is_equal("stack_incompatible")
+	var merchant_dest := auto_free(ItemSlotView.new()) as ItemSlotView
+	merchant_dest.origin_kind = "merchant"
+	merchant_dest.slot_index = 0
+	var sell_rejected := InventoryService.handle_drop(_payload("sword-bag", 1), merchant_dest)
+	assert_str(sell_rejected).is_empty()
+	assert_str(InventoryService.last_reject_code).is_equal("destination_unavailable")

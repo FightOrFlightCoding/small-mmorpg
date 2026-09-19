@@ -925,6 +925,7 @@ function checkVendor(
     issues.push(issue("invalid_currency:" + vendor.currencyId));
   }
   const seen: { [itemId: string]: boolean } = {};
+  const seenEntries: { [stockEntryId: string]: boolean } = {};
   for (let i = 0; i < vendor.stock.length; i++) {
     const stock = vendor.stock[i];
     requireItem(stock.itemId, items, issues);
@@ -932,6 +933,19 @@ function checkVendor(
       issues.push(issue("duplicate_vendor_stock:" + stock.itemId));
     }
     seen[stock.itemId] = true;
+    const entryId = stock.stockEntryId !== undefined && stock.stockEntryId.length > 0 ? stock.stockEntryId : vendor.id + ":" + stock.itemId;
+    if (seenEntries[entryId] === true) {
+      issues.push(issue("duplicate_vendor_stock_entry:" + entryId));
+    }
+    seenEntries[entryId] = true;
+    const constraints = stock.quantityConstraints;
+    if (constraints !== undefined) {
+      const minQty = constraints.min !== undefined ? constraints.min : 1;
+      const maxQty = constraints.max !== undefined ? constraints.max : 99;
+      if (minQty > maxQty) {
+        issues.push(issue("invalid_vendor_quantity:" + stock.itemId));
+      }
+    }
     const classReqs = stock.classRequirements !== undefined ? stock.classRequirements : [];
     for (let c = 0; c < classReqs.length; c++) {
       if (!classes[classReqs[c]]) {

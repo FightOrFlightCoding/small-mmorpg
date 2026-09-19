@@ -582,12 +582,16 @@ test("vendor and inn opcodes parse without client prices", () => {
     JSON.stringify({
       protocolVersion: PROTOCOL_VERSION,
       interactionSessionId: "sess-vendor-buy01",
-      npcInstanceId: "npc.test_vendor",
-      itemId: "item.test_potion",
+      vendorId: "vendor.test_general",
+      stockEntryId: "vendor.test_general:item.test_potion",
       requestId: "req-vendor-buy01",
     }),
   );
   assert.equal(isProtocolError(buy), false);
+  if (!isProtocolError(buy)) {
+    assert.equal(buy.fields.vendorId, "vendor.test_general");
+    assert.equal(buy.fields.stockEntryId, "vendor.test_general:item.test_potion");
+  }
   const sell = parse(
     ClientOpcode.VENDOR_SELL,
     JSON.stringify({
@@ -633,8 +637,8 @@ test("vendor price spoofing is rejected", () => {
     JSON.stringify({
       protocolVersion: PROTOCOL_VERSION,
       interactionSessionId: "sess-vendor-price1",
-      npcInstanceId: "npc.test_vendor",
-      itemId: "item.test_potion",
+      vendorId: "vendor.test_general",
+      stockEntryId: "vendor.test_general:item.test_potion",
       price: 1,
       requestId: "req-vendor-price1",
     }),

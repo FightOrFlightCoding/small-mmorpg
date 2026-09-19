@@ -409,7 +409,7 @@ function checkNpcBoundaries() {
     fail("NPC-04 dialogue opcodes missing");
   }
   if (
-    !protocol.includes('OPCODE_KEYS[ClientOpcode.VENDOR_BUY] = ["interactionSessionId", "npcInstanceId", "itemId", "quantity", "expectedRevision"];') ||
+    !protocol.includes('OPCODE_KEYS[ClientOpcode.VENDOR_BUY] = ["interactionSessionId", "vendorId", "stockEntryId", "quantity", "preferredSlot", "expectedRevision"];') ||
     !protocol.includes('OPCODE_KEYS[ClientOpcode.VENDOR_SELL] = ["npcId", "instanceId", "quantity", "expectedRevision"];') ||
     /OPCODE_KEYS\[ClientOpcode\.VENDOR_(?:BUY|SELL)\] = \[[^\]]*(?:price|gold)[^\]]*\]/.test(protocol)
   ) {

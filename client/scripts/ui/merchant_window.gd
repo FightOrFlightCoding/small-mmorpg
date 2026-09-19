@@ -1,9 +1,9 @@
 class_name MerchantWindow
 extends CanvasLayer
 
-## Reusable merchant presentation. Prices and balances stay server-authoritative.
+## Buy-only merchant presentation. Prices and balances stay server-authoritative.
 
-signal buy_requested(item_id: String, quantity: int)
+signal buy_requested(stock_entry_id: String, quantity: int, preferred_slot: int)
 signal sell_requested(instance_id: String, quantity: int)
 signal back_requested
 
@@ -13,7 +13,7 @@ var session_id: String = ""
 
 var _root: PanelContainer
 var _name_label: Label
-var _list: ItemList
+var _stock_grid: GridContainer
 var _icon: ColorRect
 var _description: Label
 var _price: Label
@@ -23,7 +23,10 @@ var _status: Label
 var _buy: Button
 var _sell: Button
 var _back: Button
+var _bag_host: Control
 var _stock: Array = []
+var _stock_slots: Array = []
+var _selected_index: int = -1
 var _loading: bool = false
 
 
@@ -43,23 +46,17 @@ func present(payload: Dictionary) -> void:
 	vendor_id = String(payload.get("vendor_id", vendor_id))
 	session_id = String(payload.get("interaction_session_id", session_id))
 	_name_label.text = String(payload.get("npc_name", npc_id))
-	_stock = payload.get("stock", [])
-	_list.clear()
-	for entry in _stock:
-		if typeof(entry) != TYPE_DICTIONARY:
-			continue
-		var item_id := String(entry.get("itemId", ""))
-		var item: Dictionary = ContentRegistry.get_by_id(item_id)
-		var label := String(item.get("displayName", item_id))
-		_list.add_item("%s — %sg" % [label, str(int(entry.get("buyPrice", 0)))])
-	if _list.item_count > 0:
-		_list.select(0)
-	_refresh_selection()
+	_stock = _normalized_stock(payload.get("stock", []))
+	_rebuild_stock_slots()
+	if _stock_slots.size() > 0:
+		_select_stock(0)
+	else:
+		_selected_index = -1
+		_refresh_selection()
 	set_player_gold(int(payload.get("gold", WalletService.gold)))
 	_status.text = ""
 	_status.modulate = DesignTokens.TEXT
 	_buy.disabled = false
-	_sell.disabled = false
 	visible = true
 
 
@@ -70,7 +67,6 @@ func set_player_gold(gold: int) -> void:
 func show_status(message: String, is_error: bool = false) -> void:
 	_loading = false
 	_buy.disabled = false
-	_sell.disabled = false
 	_status.text = message
 	_status.modulate = DesignTokens.ERROR if is_error else DesignTokens.SUCCESS
 
@@ -78,7 +74,6 @@ func show_status(message: String, is_error: bool = false) -> void:
 func show_busy(message: String = "Waiting for the server…") -> void:
 	_loading = true
 	_buy.disabled = true
-	_sell.disabled = true
 	_status.text = message
 	_status.modulate = DesignTokens.TEXT_MUTED
 
@@ -90,8 +85,8 @@ func close_window() -> void:
 	vendor_id = ""
 	session_id = ""
 	_stock = []
-	if _list != null:
-		_list.clear()
+	_selected_index = -1
+	_clear_stock_slots()
 	_status.text = ""
 
 
@@ -102,6 +97,13 @@ func selected_item_id() -> String:
 	return String(entry.get("itemId", ""))
 
 
+func selected_stock_entry_id() -> String:
+	var entry := _selected_entry()
+	if entry.is_empty():
+		return ""
+	return String(entry.get("stockEntryId", ""))
+
+
 func selected_quantity() -> int:
 	return int(_quantity.value)
 
@@ -110,10 +112,10 @@ func _build() -> void:
 	_root = PanelContainer.new()
 	_root.name = "Panel"
 	_root.set_anchors_preset(Control.PRESET_CENTER)
-	_root.offset_left = -280.0
-	_root.offset_top = -220.0
-	_root.offset_right = 280.0
-	_root.offset_bottom = 220.0
+	_root.offset_left = -360.0
+	_root.offset_top = -280.0
+	_root.offset_right = 360.0
+	_root.offset_bottom = 280.0
 	var style := StyleBoxFlat.new()
 	style.bg_color = DesignTokens.SURFACE
 	style.border_color = DesignTokens.BORDER
@@ -139,10 +141,12 @@ func _build() -> void:
 	body.add_theme_constant_override("separation", DesignTokens.SPACE_MD)
 	vbox.add_child(body)
 
-	_list = ItemList.new()
-	_list.custom_minimum_size = Vector2(240, 220)
-	_list.item_selected.connect(_on_item_selected)
-	body.add_child(_list)
+	_stock_grid = GridContainer.new()
+	_stock_grid.name = "Stock"
+	_stock_grid.columns = 5
+	_stock_grid.add_theme_constant_override("h_separation", 2)
+	_stock_grid.add_theme_constant_override("v_separation", 2)
+	body.add_child(_stock_grid)
 
 	var detail := VBoxContainer.new()
 	detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -188,6 +192,17 @@ func _build() -> void:
 	_status.add_theme_font_size_override("font_size", DesignTokens.FONT_CAPTION)
 	detail.add_child(_status)
 
+	var bag_label := Label.new()
+	bag_label.text = "Your bag"
+	bag_label.add_theme_font_size_override("font_size", DesignTokens.FONT_CAPTION)
+	bag_label.add_theme_color_override("font_color", DesignTokens.TEXT_MUTED)
+	vbox.add_child(bag_label)
+	_bag_host = Control.new()
+	_bag_host.name = "BagHost"
+	_bag_host.custom_minimum_size = Vector2(6 * (ItemSlotView.SLOT_SIZE + 2), 5 * (ItemSlotView.SLOT_SIZE + 2))
+	vbox.add_child(_bag_host)
+	InventoryService.attach_bag(_bag_host)
+
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", DesignTokens.SPACE_SM)
 	vbox.add_child(buttons)
@@ -195,7 +210,8 @@ func _build() -> void:
 	_buy.pressed.connect(_on_buy)
 	buttons.add_child(_buy)
 	_sell = _make_button("Sell selected", true)
-	_sell.pressed.connect(_on_sell)
+	_sell.visible = false
+	_sell.disabled = true
 	buttons.add_child(_sell)
 	_back = _make_button("Back to dialogue", true)
 	_back.pressed.connect(_on_back)
@@ -213,7 +229,89 @@ func _make_button(text: String, secondary: bool) -> Button:
 	return button
 
 
-func _on_item_selected(_index: int) -> void:
+func _normalized_stock(raw: Variant) -> Array:
+	var rows: Array = []
+	if typeof(raw) != TYPE_ARRAY:
+		return rows
+	var index := 0
+	for entry in raw:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var copy: Dictionary = (entry as Dictionary).duplicate(true)
+		var item_id := String(copy.get("itemId", ""))
+		if String(copy.get("stockEntryId", "")).is_empty() and not vendor_id.is_empty() and not item_id.is_empty():
+			copy["stockEntryId"] = "%s:%s" % [vendor_id, item_id]
+		if not copy.has("displayOrder"):
+			copy["displayOrder"] = index
+		rows.append(copy)
+		index += 1
+	rows.sort_custom(func(a, b): return int((a as Dictionary).get("displayOrder", 0)) < int((b as Dictionary).get("displayOrder", 0)))
+	return rows
+
+
+func _rebuild_stock_slots() -> void:
+	_clear_stock_slots()
+	var index := 0
+	for entry in _stock:
+		var slot := ItemSlotView.new()
+		slot.name = "MerchantSlot%s" % str(index)
+		slot.origin_kind = "merchant"
+		slot.slot_index = index
+		slot.slot_pressed.connect(_on_stock_pressed)
+		slot.slot_activated.connect(_on_stock_activated)
+		slot.slot_right_clicked.connect(_on_stock_right_clicked)
+		_stock_grid.add_child(slot)
+		slot.refresh(_stock_instance(entry as Dictionary))
+		_stock_slots.append(slot)
+		index += 1
+
+
+func _stock_instance(entry: Dictionary) -> Dictionary:
+	var item_id := String(entry.get("itemId", ""))
+	var stock_entry_id := String(entry.get("stockEntryId", ""))
+	return {
+		"instanceId": stock_entry_id,
+		"stockEntryId": stock_entry_id,
+		"itemId": item_id,
+		"quantity": 1,
+		"buyPrice": int(entry.get("buyPrice", 0)),
+		"displayOrder": int(entry.get("displayOrder", 0)),
+	}
+
+
+func _clear_stock_slots() -> void:
+	for child in _stock_grid.get_children():
+		_stock_grid.remove_child(child)
+		child.free()
+	_stock_slots.clear()
+
+
+func _on_stock_pressed(slot: ItemSlotView) -> void:
+	if slot == null:
+		return
+	_select_stock(slot.slot_index)
+	InventoryService.handle_slot_pressed(slot)
+
+
+func _on_stock_activated(slot: ItemSlotView) -> void:
+	if slot == null or _loading:
+		return
+	_select_stock(slot.slot_index)
+	_emit_buy(1, -1)
+
+
+func _on_stock_right_clicked(slot: ItemSlotView) -> void:
+	if slot == null:
+		return
+	_select_stock(slot.slot_index)
+	ItemContextRouter.handle_slot(slot)
+
+
+func _select_stock(index: int) -> void:
+	_selected_index = index
+	for i in range(_stock_slots.size()):
+		var view: ItemSlotView = _stock_slots[i]
+		view.modulate = Color(1.08, 1.08, 1.02, 1) if i == index else Color.WHITE
 	_refresh_selection()
 
 
@@ -226,34 +324,29 @@ func _refresh_selection() -> void:
 	if entry.is_empty():
 		_description.text = ""
 		_price.text = "Price: —"
+		_icon.color = DesignTokens.SURFACE_RAISED
 		return
 	var item_id := String(entry.get("itemId", ""))
 	var item: Dictionary = ContentRegistry.get_by_id(item_id)
-	_description.text = _item_description(item, item_id)
+	_description.text = ItemPresentation.description_text(item, item_id)
 	var unit := int(entry.get("buyPrice", 0))
 	var total := unit * selected_quantity()
 	_price.text = "Price: %sg" % str(total)
-
-
-func _item_description(item: Dictionary, item_id: String) -> String:
-	var key := String(item.get("descriptionKey", ""))
-	if not key.is_empty():
-		var translated := tr(key)
-		if not translated.is_empty() and translated != key:
-			return translated
-	var named := String(item.get("displayName", item_id))
-	if named.is_empty():
-		return item_id
-	return named
+	var constraints: Variant = entry.get("quantityConstraints", {})
+	if typeof(constraints) == TYPE_DICTIONARY:
+		_quantity.min_value = maxi(1, int((constraints as Dictionary).get("min", 1)))
+		_quantity.max_value = mini(99, int((constraints as Dictionary).get("max", 99)))
+	var texture := ItemPresentation.icon_texture(item)
+	if texture != null:
+		_icon.color = Color(0, 0, 0, 0)
+	else:
+		_icon.color = ItemPresentation.fallback_color(item)
 
 
 func _selected_entry() -> Dictionary:
-	if _list == null or _list.get_selected_items().is_empty():
+	if _selected_index < 0 or _selected_index >= _stock.size():
 		return {}
-	var index := int(_list.get_selected_items()[0])
-	if index < 0 or index >= _stock.size():
-		return {}
-	var entry: Variant = _stock[index]
+	var entry: Variant = _stock[_selected_index]
 	if typeof(entry) != TYPE_DICTIONARY:
 		return {}
 	return entry
@@ -262,21 +355,15 @@ func _selected_entry() -> Dictionary:
 func _on_buy() -> void:
 	if _loading:
 		return
-	var item_id := selected_item_id()
-	if item_id.is_empty():
+	_emit_buy(selected_quantity(), -1)
+
+
+func _emit_buy(quantity: int, preferred_slot: int) -> void:
+	var stock_entry_id := selected_stock_entry_id()
+	if stock_entry_id.is_empty():
 		show_status("Select an item to buy.", true)
 		return
-	buy_requested.emit(item_id, selected_quantity())
-
-
-func _on_sell() -> void:
-	if _loading:
-		return
-	var instance_id := InventoryService.selected_instance_id
-	if instance_id.is_empty():
-		show_status("Select an inventory item to sell.", true)
-		return
-	sell_requested.emit(instance_id, 0)
+	buy_requested.emit(stock_entry_id, quantity, preferred_slot)
 
 
 func _on_back() -> void:

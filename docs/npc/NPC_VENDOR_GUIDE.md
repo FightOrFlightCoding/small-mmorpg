@@ -8,7 +8,7 @@ Merchant buy reuses canonical `vendor.ts`, inventory, wallet, and `transaction.t
 powershell -File scripts/content.ps1 new vendor --id vendor.example_baker
 ```
 
-Required: `id`, `kind: "vendor"`, `displayName`, `currencyId` (`gold`), `stock` (one or more), `sellMultiplier`. Each stock row: `itemId`, canonical `buyPrice`, optional `classRequirements`, optional `levelRequirement`.
+Required: `id`, `kind: "vendor"`, `displayName`, `currencyId` (`gold`), `stock` (one or more), `sellMultiplier`. Each stock row: `itemId`, canonical `buyPrice`, optional `stockEntryId`, `displayOrder`, `quantityConstraints`, `classRequirements`, `levelRequirement`. Unauthored `stockEntryId` is `${vendorId}:${itemId}` at runtime.
 
 Bind the vendor on an NPC:
 
@@ -20,15 +20,15 @@ Stock is static and unlimited. There is no scarcity, restock, auction, or price 
 
 ## Buy protocol
 
-`VENDOR_BUY` is `{ interactionSessionId, npcInstanceId, itemId, quantity?, requestId }`. Quantity omitted means 1. Zero, negative, non-integer, and values above 99 are `invalid_amount`. The client must not send `price`, `gold`, or `resultingBalance`.
+`VENDOR_BUY` is `{ interactionSessionId, vendorId, stockEntryId, quantity?, preferredSlot?, requestId, expectedRevision? }`. Quantity omitted means 1. Zero, negative, non-integer, and values above 99 are `invalid_amount`. The client must not send `price`, `gold`, or `resultingBalance`. NPC identity comes from the live interaction session.
 
-The match requires a live session, NPC vendor bind, stock entry, server price, enough gold, inventory capacity, and a valid item definition. Purchase deducts gold, grants the item, persists inventory and wallet, writes `TX_REASON_VENDOR`, and returns canonical `INVENTORY_STATE` + `WALLET_STATE`. Same `requestId` replays without a second grant.
+The match requires a live session, range, character state, NPC vendor bind matching `vendorId`, stock entry, server price, enough gold, bag capacity for the entire quantity, and inventory revision. Purchase deducts gold, plans every stack, grants into the bag, persists inventory and wallet, writes `TX_REASON_VENDOR`, and returns canonical `INVENTORY_STATE` + `WALLET_STATE`. If the whole quantity does not fit, grant nothing and deduct no gold. Same `requestId` replays without a second grant.
 
-`VENDOR_SELL` remains the accepted sell path (`npcId`, `instanceId`, `quantity?`). Equipped items stay locked.
+`VENDOR_SELL` remains the accepted sell path (`npcId`, `instanceId`, `quantity?`) and is not presented in the ITEM-07 merchant window. Equipped items stay locked.
 
 ## UI
 
-`MerchantWindow` is reusable: NPC name, item list, icon placeholder, description, price, quantity, player gold, Buy, result/error, Back to dialogue. Back does not close the interaction session.
+`MerchantWindow` is reusable: NPC name, stock icons and tooltips, canonical prices, quantity selector, player gold, player bag, Buy, result/error, Back to dialogue. Right-click buys one; Shift-right-click or the quantity control chooses quantity; drag onto an empty bag slot or compatible partial stack sets `preferredSlot`. Dragging a bag item onto merchant stock is rejected. Back does not close the interaction session.
 
 ## Proof
 
