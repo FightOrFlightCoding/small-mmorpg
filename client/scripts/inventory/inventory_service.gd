@@ -410,6 +410,21 @@ func handle_slot_pressed(slot: ItemSlotView) -> void:
 			"itemId": ItemPresentation.item_id_of(slot.instance),
 		})
 		return
+	if slot.origin_kind == "trade_theirs":
+		return
+	if slot.origin_kind == "trade_mine":
+		if slot.is_empty():
+			_press_slot = {"kind": slot.origin_kind, "slot_index": slot.slot_index}
+			return
+		DragDropService.begin({
+			"kind": "trade_offer",
+			"instanceId": String(slot.instance.get("instanceId", "")),
+			"fromSlot": slot.slot_index,
+			"fromKind": "trade_mine",
+			"quantity": int(slot.instance.get("quantity", 1)),
+			"itemId": ItemPresentation.item_id_of(slot.instance),
+		})
+		return
 	if slot.origin_kind == "bag":
 		var item: Dictionary = item_at_slot(slot.slot_index)
 		selected_instance_id = String(item.get("instanceId", ""))
@@ -470,7 +485,17 @@ func handle_drop(payload: Dictionary, dest: ItemSlotView) -> String:
 	var from_kind := String(payload.get("fromKind", "bag"))
 	var from_slot := int(payload.get("fromSlot", -1))
 	var split := bool(payload.get("split", false))
-	if dest.origin_kind == "corpse" or dest.origin_kind == "merchant":
+	if dest.origin_kind == "corpse" or dest.origin_kind == "merchant" or dest.origin_kind == "trade_theirs":
+		_reject_local("destination_unavailable", "You cannot put items there.")
+		DragDropService.reject("destination_unavailable")
+		return ""
+	if dest.origin_kind == "trade_mine":
+		return _drop_bag_to_trade(payload, dest)
+	if from_kind == "trade_mine":
+		if dest.origin_kind == "bag":
+			DragDropService.complete()
+			TradeService.request_remove_offer(instance_id)
+			return ""
 		_reject_local("destination_unavailable", "You cannot put items there.")
 		DragDropService.reject("destination_unavailable")
 		return ""
@@ -550,6 +575,34 @@ func clear_pending() -> void:
 	pending = {}
 	if had:
 		pending_changed.emit()
+
+
+func _drop_bag_to_trade(payload: Dictionary, dest: ItemSlotView) -> String:
+	if dest.origin_kind != "trade_mine":
+		_reject_local("destination_unavailable", "You cannot put items there.")
+		DragDropService.reject("destination_unavailable")
+		return ""
+	var instance_id := String(payload.get("instanceId", ""))
+	if instance_id.is_empty():
+		DragDropService.cancel()
+		return ""
+	var source: Dictionary = item_by_instance(instance_id)
+	if source.is_empty():
+		source = payload
+	if ItemPresentation.is_locked(source):
+		var lock_reason := String(source.get("lockReason", source.get("lockType", "")))
+		if lock_reason != "trade" and lock_reason != "TRADE":
+			_reject_local("item_locked", ItemPresentation.lock_reason(source))
+			DragDropService.reject("item_locked")
+			return ""
+	var quantity := int(payload.get("quantity", source.get("quantity", 0)))
+	if bool(payload.get("split", false)) and quantity > 1:
+		TradeService.offer_from_bag(source, dest.slot_index)
+		DragDropService.complete()
+		return ""
+	DragDropService.complete()
+	TradeService.request_set_offer(instance_id, quantity, dest.slot_index)
+	return ""
 
 
 func _drop_corpse_to_bag(payload: Dictionary, dest: ItemSlotView) -> String:

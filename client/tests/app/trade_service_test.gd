@@ -39,9 +39,12 @@ func test_invite_offer_accept_and_cancel_are_intentions() -> void:
 		"acceptanceRevisionByParticipant": {},
 	})
 	assert_bool(TradeService.is_trading()).is_true()
-	TradeService.request_set_offer("inst-1", 2)
+	TradeService.request_set_offer("inst-1", 2, 3)
 	await get_tree().process_frame
 	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_TRADE_SET_OFFER)
+	var offer_payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_int(int(offer_payload.get("quantity", -1))).is_equal(2)
+	assert_int(int(offer_payload.get("slotIndex", -1))).is_equal(3)
 	TradeService.request_set_gold(5)
 	await get_tree().process_frame
 	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_TRADE_SET_GOLD)
@@ -74,6 +77,7 @@ func test_offer_change_sets_warning_and_does_not_move_items() -> void:
 	})
 	assert_bool(TradeService.offer_changed).is_true()
 	assert_int(InventoryService.items.size()).is_equal(0)
+	assert_str(TradeService.TRADE_CHANGED_MESSAGE).is_equal("The trade has changed.")
 
 
 func test_completed_trade_shows_result_without_local_grant() -> void:

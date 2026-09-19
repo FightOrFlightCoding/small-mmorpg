@@ -6,6 +6,9 @@ signal trade_changed
 signal invite_received(payload: Dictionary)
 signal trade_notice(message: String)
 
+const OFFER_SLOTS := 20
+const TRADE_CHANGED_MESSAGE := "The trade has changed."
+
 var trade: Dictionary = {}
 var last_error: String = ""
 var offer_changed: bool = false
@@ -14,6 +17,7 @@ var _seen_revision: int = -1
 var _character_id: String = ""
 var _pending_trade: bool = false
 var _last_handled_request_id: String = ""
+var _window: TradeWindow
 
 
 func _ready() -> void:
@@ -33,6 +37,7 @@ func reset() -> void:
 	_seen_revision = -1
 	_pending_trade = false
 	_last_handled_request_id = ""
+	_close_window()
 	trade_changed.emit()
 
 
@@ -48,6 +53,7 @@ func apply_trade(data: Dictionary) -> void:
 		trade = {}
 		offer_changed = false
 		_seen_revision = -1
+		_close_window()
 		trade_changed.emit()
 		return
 	var revision := int(next.get("revision", 0))
@@ -61,9 +67,15 @@ func apply_trade(data: Dictionary) -> void:
 	if state == "completed":
 		last_result = "Trade complete."
 		offer_changed = false
+		_close_window()
 	elif state == "cancelled":
 		last_result = "Trade cancelled."
 		offer_changed = false
+		_close_window()
+	elif state == "open":
+		_present_window()
+		if offer_changed:
+			trade_notice.emit(TRADE_CHANGED_MESSAGE)
 	trade_changed.emit()
 
 
@@ -101,12 +113,12 @@ func request_decline_invite() -> void:
 	NetworkService.send_trade_decline_invite(id)
 
 
-func request_set_offer(instance_id: String, quantity: int = 0) -> void:
+func request_set_offer(instance_id: String, quantity: int = 0, slot_index: int = -1) -> void:
 	var id := trade_id()
 	if id.is_empty() or instance_id.is_empty():
 		return
 	_pending_trade = true
-	NetworkService.send_trade_set_offer(id, instance_id, quantity)
+	NetworkService.send_trade_set_offer(id, instance_id, quantity, "", slot_index)
 
 
 func request_remove_offer(instance_id: String) -> void:
@@ -168,6 +180,8 @@ func _on_action_result(payload: Dictionary) -> void:
 	last_error = code
 	_pending_trade = false
 	trade_notice.emit(message_for_code(code))
+	if String(trade.get("state", "")) == "open":
+		_present_window()
 	trade_changed.emit()
 
 
@@ -260,6 +274,131 @@ func message_for_code(code: String) -> String:
 		return "That trade action is not valid."
 	if code == "zone_transfer":
 		return "Finish the zone transfer before trading."
+	if code == "offer_full":
+		return "Each side can offer at most 20 item stacks."
+	if code == "inventory_full":
+		return "That trade does not fit both bags."
+	if code == "link_dead":
+		return "A trader is link-dead."
+	if code == "invalid_slot":
+		return "That offer slot is not valid."
 	if code.is_empty() or code == "trade_failed":
 		return "The trade request failed."
 	return code
+
+
+func is_window_open() -> bool:
+	return _window != null and is_instance_valid(_window) and _window.is_open()
+
+
+func selected_offer_slot() -> int:
+	if _window == null or not is_instance_valid(_window):
+		return -1
+	return _window.selected_offer_slot
+
+
+func offer_from_bag(instance: Dictionary, slot_index: int = -1) -> void:
+	var instance_id := String(instance.get("instanceId", ""))
+	if instance_id.is_empty() or not is_trading():
+		return
+	var quantity := int(instance.get("quantity", 1))
+	var dest := slot_index
+	if dest < 0:
+		dest = selected_offer_slot()
+	if quantity > 1:
+		_ensure_window()
+		_window.prompt_quantity(instance_id, quantity, dest)
+		return
+	request_set_offer(instance_id, quantity, dest)
+
+
+func local_offers() -> Array:
+	return _offers_for(_local_character_id())
+
+
+func remote_offers() -> Array:
+	return _offers_for(_remote_character_id())
+
+
+func _offers_for(character_id: String) -> Array:
+	var offers: Variant = trade.get("offers", {})
+	if typeof(offers) != TYPE_DICTIONARY or character_id.is_empty():
+		return []
+	var rows: Variant = (offers as Dictionary).get(character_id, [])
+	return rows if typeof(rows) == TYPE_ARRAY else []
+
+
+func _remote_character_id() -> String:
+	var local_id := _local_character_id()
+	for key in ["participantA", "participantB"]:
+		var value: Variant = trade.get(key, {})
+		if typeof(value) != TYPE_DICTIONARY:
+			continue
+		var character_id := String((value as Dictionary).get("characterId", ""))
+		if not character_id.is_empty() and character_id != local_id:
+			return character_id
+	return ""
+
+
+func _gold_for(character_id: String) -> int:
+	var gold_offers: Variant = trade.get("goldOffers", {})
+	if typeof(gold_offers) != TYPE_DICTIONARY or character_id.is_empty():
+		return 0
+	return int((gold_offers as Dictionary).get(character_id, 0))
+
+
+func _accepted(character_id: String) -> bool:
+	var accepted: Variant = trade.get("acceptanceRevisionByParticipant", {})
+	if typeof(accepted) != TYPE_DICTIONARY or character_id.is_empty():
+		return false
+	var revision := revision()
+	return revision > 0 and int((accepted as Dictionary).get(character_id, 0)) == revision
+
+
+func _present_window() -> void:
+	_ensure_window()
+	var status := last_result
+	if not last_error.is_empty():
+		status = message_for_code(last_error)
+	elif offer_changed:
+		status = TRADE_CHANGED_MESSAGE
+	_window.present({
+		"state": String(trade.get("state", "")),
+		"revision": revision(),
+		"changed": offer_changed,
+		"other_name": other_display_name(),
+		"mine_offers": local_offers(),
+		"theirs_offers": remote_offers(),
+		"mine_gold": _gold_for(_local_character_id()),
+		"theirs_gold": _gold_for(_remote_character_id()),
+		"mine_accepted": _accepted(_local_character_id()),
+		"theirs_accepted": _accepted(_remote_character_id()),
+		"status": status,
+	})
+
+
+func _ensure_window() -> void:
+	if _window != null and is_instance_valid(_window):
+		return
+	_window = TradeWindow.new()
+	_window.name = "TradeWindow"
+	add_child(_window)
+	if not _window.offer_requested.is_connected(request_set_offer):
+		_window.offer_requested.connect(request_set_offer)
+	if not _window.remove_requested.is_connected(request_remove_offer):
+		_window.remove_requested.connect(request_remove_offer)
+	if not _window.gold_requested.is_connected(request_set_gold):
+		_window.gold_requested.connect(request_set_gold)
+	if not _window.accept_requested.is_connected(request_accept_revision):
+		_window.accept_requested.connect(request_accept_revision)
+	if not _window.cancel_requested.is_connected(request_cancel):
+		_window.cancel_requested.connect(request_cancel)
+
+
+func _close_window() -> void:
+	if _window != null and is_instance_valid(_window):
+		_window.close_window()
+		remove_child(_window)
+		_window.free()
+	_window = null
+

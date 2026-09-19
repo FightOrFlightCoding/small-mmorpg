@@ -9,6 +9,7 @@ import {
   emptyInventory,
   isItemLocked,
   itemDefinitionsFromContent,
+  makeInstance,
   setItemLock,
   type PlayerInventory,
 } from "../src/domain/inventory";
@@ -26,6 +27,7 @@ import { emptyQuestLog, questDefinitionsFromContent } from "../src/domain/quest"
 import {
   TRADE_INVITE_TTL_TICKS,
   TRADE_LOCK_REASON,
+  TRADE_OFFER_SLOTS,
   TRADE_RANGE_PX,
   acceptTradeInvite,
   acceptTradeRevision,
@@ -37,6 +39,8 @@ import {
   findLiveTradeForCharacter,
   memoryTradeCommitter,
   prepareTradeCommit,
+  publicTrade,
+  reconcileOpenTrade,
   recoverInterruptedTrade,
   removeTradeOffer,
   reservedGoldForCharacter,
@@ -72,6 +76,7 @@ function actor(input: {
   online?: boolean;
   transferState?: string;
   inCombat?: boolean;
+  linkDead?: boolean;
 }): TradeActor {
   return {
     userId: input.userId,
@@ -86,6 +91,7 @@ function actor(input: {
     transferState: input.transferState,
     inCombat: input.inCombat,
     online: input.online !== undefined ? input.online : true,
+    linkDead: input.linkDead,
   };
 }
 
@@ -147,6 +153,33 @@ test("invite creates an inviting trade between nearby living players", () => {
   assert.equal(result.trade.participantA.characterId, "char-alice");
   assert.equal(result.trade.participantB.characterId, "char-bob");
   assert.equal(result.trade.revision, 0);
+});
+
+test("accept invite opens a trade between both participants", () => {
+  const alice = actor({ userId: "alice", name: "Alice", inventory: emptyInventory() });
+  const bob = actor({ userId: "bob", name: "Bob", inventory: emptyInventory(), x: 12 });
+  const invited = createTradeInvite({
+    tradeId: "trade-accept",
+    inviter: alice,
+    invitee: bob,
+    tick: 1,
+    nowMs: 1,
+    matchId: "m",
+    requestId: "rid-i",
+    trades: {},
+  });
+  const accepted = acceptTradeInvite({
+    trade: invited.trade,
+    actor: bob,
+    other: alice,
+    tick: 2,
+    nowMs: 100,
+    requestId: "rid-a",
+  });
+  assert.equal(accepted.ok, true);
+  assert.equal(accepted.trade.state, "open");
+  assert.equal(accepted.trade.participantA.characterId, "char-alice");
+  assert.equal(accepted.trade.participantB.characterId, "char-bob");
 });
 
 test("decline cancels an invite", () => {
@@ -1061,4 +1094,389 @@ test("match loop transfer cancels an open trade", () => {
   const transferred = applyMatchLoop(accepted.state, 4, contentHash, [], makeIds());
   assert.equal(transferred.state.trades[tradeId].state, "cancelled");
   assert.equal(transferred.state.trades[tradeId].cancelReason, "zone_transfer");
+});
+
+function bagOfStacks(count: number, itemId = "item.test_pebble"): PlayerInventory {
+  const inventory = emptyInventory(30);
+  for (let i = 0; i < count; i++) {
+    inventory.items.push(makeInstance("stack-" + String(i), itemId, 1, i));
+  }
+  inventory.revision = 1;
+  return inventory;
+}
+
+test("twenty offer slots are accepted and the twenty-first is rejected", () => {
+  const session = openTrade(bagOfStacks(21), emptyInventory(30));
+  let trade = session.trade;
+  for (let i = 0; i < TRADE_OFFER_SLOTS; i++) {
+    const offered = setTradeOffer({
+      trade: trade,
+      actor: session.alice,
+      other: session.bob,
+      instanceId: "stack-" + String(i),
+      quantity: 1,
+      itemsById: itemsById,
+      requestId: "rid-slot-" + String(i),
+      slotIndex: i,
+    });
+    assert.equal(offered.ok, true);
+    trade = offered.trade;
+    session.alice.inventory = offered.inventoryA !== undefined ? offered.inventoryA : session.alice.inventory;
+  }
+  assert.equal(trade.offers[session.alice.characterId].length, TRADE_OFFER_SLOTS);
+  const extra = setTradeOffer({
+    trade: trade,
+    actor: session.alice,
+    other: session.bob,
+    instanceId: "stack-20",
+    quantity: 1,
+    itemsById: itemsById,
+    requestId: "rid-slot-21",
+  });
+  assert.equal(extra.ok, false);
+  assert.equal(extra.code, "offer_full");
+  const published = publicTrade(trade, itemsById);
+  const aliceOffers = published.offers as { [id: string]: Array<{ [key: string]: unknown }> };
+  assert.equal(published.offerSlots, TRADE_OFFER_SLOTS);
+  assert.equal(aliceOffers[session.alice.characterId].length, TRADE_OFFER_SLOTS);
+  assert.equal(aliceOffers[session.alice.characterId][0].lockId, "trade-1");
+  assert.equal(aliceOffers[session.alice.characterId][0].slotIndex, 0);
+});
+
+test("full-stack and partial-stack offers lock the source without moving ownership", () => {
+  const session = openTrade();
+  const partial = setTradeOffer({
+    trade: session.trade,
+    actor: session.alice,
+    other: session.bob,
+    instanceId: "pebble-a",
+    quantity: 2,
+    itemsById: itemsById,
+    requestId: "rid-partial",
+  });
+  assert.equal(partial.ok, true);
+  const locked = partial.inventoryA !== undefined ? partial.inventoryA : session.alice.inventory;
+  assert.equal(locked.items[0].quantity, 5);
+  assert.equal(locked.items[0].lockQuantity, 2);
+  assert.equal(isItemLocked(locked.items[0]), true);
+  let bobHas = false;
+  for (let i = 0; i < session.bob.inventory.items.length; i++) {
+    if (session.bob.inventory.items[i].instanceId === "pebble-a") {
+      bobHas = true;
+    }
+  }
+  assert.equal(bobHas, false);
+  session.alice.inventory = locked;
+  const full = setTradeOffer({
+    trade: partial.trade,
+    actor: session.alice,
+    other: session.bob,
+    instanceId: "pebble-a",
+    quantity: 5,
+    itemsById: itemsById,
+    requestId: "rid-full-stack",
+  });
+  assert.equal(full.ok, true);
+  assert.equal(full.trade.offers[session.alice.characterId][0].quantity, 5);
+  const stillAlice = full.inventoryA !== undefined ? full.inventoryA : locked;
+  assert.equal(stillAlice.items[0].quantity, 5);
+  assert.equal(stillAlice.items[0].instanceId, "pebble-a");
+});
+
+test("inventory capacity mutation clears acceptances while preserving valid offers", () => {
+  const session = openTrade();
+  const offered = setTradeOffer({
+    trade: session.trade,
+    actor: session.alice,
+    other: session.bob,
+    instanceId: "pebble-a",
+    quantity: 1,
+    itemsById: itemsById,
+    requestId: "rid-mut-o",
+  });
+  session.alice.inventory = offered.inventoryA !== undefined ? offered.inventoryA : session.alice.inventory;
+  const acceptA = acceptTradeRevision({
+    trade: offered.trade,
+    actor: session.alice,
+    other: session.bob,
+    revision: offered.trade.revision,
+    itemsById: itemsById,
+    makeId: ids("n"),
+    requestId: "rid-mut-a",
+  });
+  assert.equal(acceptA.trade.acceptanceRevisionByParticipant[session.alice.characterId], offered.trade.revision);
+  session.alice.inventory.items.push(makeInstance("extra-1", "item.test_potion", 1, 8));
+  session.alice.inventory.revision += 1;
+  const synced = reconcileOpenTrade({
+    trade: acceptA.trade,
+    actorA: session.alice,
+    actorB: session.bob,
+  });
+  assert.ok(synced !== null);
+  assert.equal(synced !== null && synced.trade.acceptanceRevisionByParticipant[session.alice.characterId], 0);
+  assert.equal(synced !== null && synced.trade.acceptanceRevisionByParticipant[session.bob.characterId], 0);
+  assert.equal(synced !== null && synced.trade.offers[session.alice.characterId][0].instanceId, "pebble-a");
+  assert.equal(synced !== null && synced.trade.state, "open");
+});
+
+test("source quantity recovery reduces the offer and clears acceptance", () => {
+  const session = openTrade();
+  const offered = setTradeOffer({
+    trade: session.trade,
+    actor: session.alice,
+    other: session.bob,
+    instanceId: "pebble-a",
+    quantity: 4,
+    itemsById: itemsById,
+    requestId: "rid-qty-o",
+  });
+  session.alice.inventory = offered.inventoryA !== undefined ? offered.inventoryA : session.alice.inventory;
+  offered.trade.acceptanceRevisionByParticipant[session.alice.characterId] = offered.trade.revision;
+  offered.trade.acceptanceRevisionByParticipant[session.bob.characterId] = offered.trade.revision;
+  session.alice.inventory.items[0].quantity = 2;
+  session.alice.inventory.revision += 1;
+  const synced = reconcileOpenTrade({
+    trade: offered.trade,
+    actorA: session.alice,
+    actorB: session.bob,
+  });
+  assert.ok(synced !== null);
+  assert.equal(synced !== null && synced.trade.offers[session.alice.characterId][0].quantity, 2);
+  assert.equal(synced !== null && synced.trade.acceptanceRevisionByParticipant[session.alice.characterId], 0);
+});
+
+test("invalidated source item cancels the trade and releases locks", () => {
+  const session = openTrade();
+  const offered = setTradeOffer({
+    trade: session.trade,
+    actor: session.alice,
+    other: session.bob,
+    instanceId: "pebble-a",
+    quantity: 1,
+    itemsById: itemsById,
+    requestId: "rid-inv-o",
+  });
+  session.alice.inventory = offered.inventoryA !== undefined ? offered.inventoryA : session.alice.inventory;
+  session.alice.inventory.items = [];
+  session.alice.inventory.revision += 1;
+  const synced = reconcileOpenTrade({
+    trade: offered.trade,
+    actorA: session.alice,
+    actorB: session.bob,
+  });
+  assert.ok(synced !== null);
+  assert.equal(synced !== null && synced.trade.state, "cancelled");
+  assert.equal(synced !== null && synced.trade.cancelReason, "unowned_item");
+});
+
+test("commit failure for full bags keeps the trade open and clears acceptances", () => {
+  const aliceInv = withItem("item.test_pebble", "pebble-a", 1, 1);
+  const bobInv = withItem("item.test_potion", "potion-b", 1, 1);
+  const session = openTrade(aliceInv, bobInv);
+  const offered = setTradeOffer({
+    trade: session.trade,
+    actor: session.alice,
+    other: session.bob,
+    instanceId: "pebble-a",
+    quantity: 1,
+    itemsById: itemsById,
+    requestId: "rid-keep-o",
+  });
+  session.alice.inventory = offered.inventoryA !== undefined ? offered.inventoryA : session.alice.inventory;
+  const acceptA = acceptTradeRevision({
+    trade: offered.trade,
+    actor: session.alice,
+    other: session.bob,
+    revision: offered.trade.revision,
+    itemsById: itemsById,
+    makeId: ids("n"),
+    requestId: "rid-keep-a",
+  });
+  const acceptB = acceptTradeRevision({
+    trade: acceptA.trade,
+    actor: session.bob,
+    other: session.alice,
+    revision: acceptA.trade.revision,
+    itemsById: itemsById,
+    makeId: ids("n"),
+    requestId: "rid-keep-b",
+  });
+  assert.equal(acceptB.ok, false);
+  assert.equal(acceptB.code, "inventory_full");
+  assert.equal(acceptB.shouldCommit, undefined);
+  assert.equal(acceptB.trade.state, "open");
+  assert.equal(acceptB.trade.acceptanceRevisionByParticipant[session.alice.characterId], 0);
+  assert.equal(acceptB.trade.acceptanceRevisionByParticipant[session.bob.characterId], 0);
+  assert.equal(acceptB.trade.offers[session.alice.characterId][0].instanceId, "pebble-a");
+});
+
+test("outgoing items free space so a full bag can still receive", () => {
+  const aliceInv = withItem("item.test_pebble", "pebble-a", 1, 30);
+  for (let i = 1; i < 30; i++) {
+    aliceInv.items.push(makeInstance("alice-fill-" + String(i), "item.training_sword", 1, i));
+  }
+  const bobInv = withItem("item.test_potion", "potion-b", 1, 30);
+  for (let i = 1; i < 30; i++) {
+    bobInv.items.push(makeInstance("bob-fill-" + String(i), "item.training_sword", 1, i));
+  }
+  const session = openTrade(aliceInv, bobInv);
+  const offerA = setTradeOffer({
+    trade: session.trade,
+    actor: session.alice,
+    other: session.bob,
+    instanceId: "pebble-a",
+    quantity: 1,
+    itemsById: itemsById,
+    requestId: "rid-free-a",
+  });
+  session.alice.inventory = offerA.inventoryA !== undefined ? offerA.inventoryA : session.alice.inventory;
+  const offerB = setTradeOffer({
+    trade: offerA.trade,
+    actor: session.bob,
+    other: session.alice,
+    instanceId: "potion-b",
+    quantity: 1,
+    itemsById: itemsById,
+    requestId: "rid-free-b",
+  });
+  session.bob.inventory = offerB.inventoryB !== undefined ? offerB.inventoryB : session.bob.inventory;
+  offerB.trade.acceptanceRevisionByParticipant[session.alice.characterId] = offerB.trade.revision;
+  offerB.trade.acceptanceRevisionByParticipant[session.bob.characterId] = offerB.trade.revision;
+  const prepared = prepareTradeCommit({
+    trade: offerB.trade,
+    actorA: session.alice,
+    actorB: session.bob,
+    itemsById: itemsById,
+    makeId: ids("n"),
+  });
+  assert.equal(prepared.ok, true);
+});
+
+test("stack merge during trade fits a full receiving bag", () => {
+  const aliceInv = withItem("item.test_pebble", "pebble-a", 5, 30);
+  const bobInv = withItem("item.test_pebble", "pebble-b", 10, 30);
+  for (let i = 1; i < 30; i++) {
+    bobInv.items.push(makeInstance("bob-block-" + String(i), "item.test_potion", 1, i));
+  }
+  const session = openTrade(aliceInv, bobInv);
+  const offered = setTradeOffer({
+    trade: session.trade,
+    actor: session.alice,
+    other: session.bob,
+    instanceId: "pebble-a",
+    quantity: 5,
+    itemsById: itemsById,
+    requestId: "rid-merge-o",
+  });
+  session.alice.inventory = offered.inventoryA !== undefined ? offered.inventoryA : session.alice.inventory;
+  offered.trade.acceptanceRevisionByParticipant[session.alice.characterId] = offered.trade.revision;
+  offered.trade.acceptanceRevisionByParticipant[session.bob.characterId] = offered.trade.revision;
+  const prepared = prepareTradeCommit({
+    trade: offered.trade,
+    actorA: session.alice,
+    actorB: session.bob,
+    itemsById: itemsById,
+    makeId: ids("n"),
+  });
+  assert.equal(prepared.ok, true);
+  let bobPebbles = 0;
+  for (let i = 0; i < prepared.inventoryB.items.length; i++) {
+    if (prepared.inventoryB.items[i].itemId === "item.test_pebble") {
+      bobPebbles += prepared.inventoryB.items[i].quantity;
+    }
+  }
+  assert.equal(bobPebbles, 15);
+});
+
+test("link-dead participants cancel an open trade", () => {
+  const session = openTrade();
+  session.bob.linkDead = true;
+  session.bob.online = true;
+  assert.equal(
+    cancelReasonForTick({ trade: session.trade, actorA: session.alice, actorB: session.bob, tick: 10 }),
+    "link_dead",
+  );
+});
+
+test("changed gold after reservation is rejected at commit without transferring", () => {
+  const session = openTrade();
+  const gold = setTradeGold({
+    trade: session.trade,
+    actor: session.alice,
+    other: session.bob,
+    amount: 20,
+    requestId: "rid-gold-later",
+  });
+  gold.trade.acceptanceRevisionByParticipant[session.alice.characterId] = gold.trade.revision;
+  gold.trade.acceptanceRevisionByParticipant[session.bob.characterId] = gold.trade.revision;
+  session.alice.gold = 5;
+  const prepared = prepareTradeCommit({
+    trade: gold.trade,
+    actorA: session.alice,
+    actorB: session.bob,
+    itemsById: itemsById,
+    makeId: ids("n"),
+  });
+  assert.equal(prepared.ok, false);
+  assert.equal(prepared.code, "insufficient_gold");
+  assert.equal(prepared.goldDeltaA, 0);
+  assert.equal(prepared.inventoryA.items[0].instanceId, "pebble-a");
+});
+
+test("match loop rejects a twenty-first offer and link-dead cancels", () => {
+  let state = twoPlayers();
+  const invited = applyMatchLoop(
+    state,
+    2,
+    contentHash,
+    [tradeMsg("alice", ClientOpcode.TRADE_INVITE, { targetId: "bob", requestId: "rid-inv0020" })],
+    makeIds(),
+  );
+  const tradeId = String(actionBodies(invited).find((body) => body.code === "ok").tradeId);
+  let next = applyMatchLoop(
+    invited.state,
+    3,
+    contentHash,
+    [tradeMsg("bob", ClientOpcode.TRADE_ACCEPT_INVITE, { tradeId: tradeId, requestId: "rid-acc0020" })],
+    makeIds(),
+  ).state;
+  const aliceInv = bagOfStacks(21);
+  next.players["alice"].inventory = aliceInv;
+  for (let i = 0; i < TRADE_OFFER_SLOTS; i++) {
+    next = applyMatchLoop(
+      next,
+      4 + i * 2,
+      contentHash,
+      [
+        tradeMsg("alice", ClientOpcode.TRADE_SET_OFFER, {
+          tradeId: tradeId,
+          instanceId: "stack-" + String(i),
+          quantity: 1,
+          slotIndex: i,
+          requestId: "rid-off20-" + String(i).padStart(2, "0"),
+        }),
+      ],
+      makeIds(),
+    ).state;
+  }
+  const overflow = applyMatchLoop(
+    next,
+    50,
+    contentHash,
+    [
+      tradeMsg("alice", ClientOpcode.TRADE_SET_OFFER, {
+        tradeId: tradeId,
+        instanceId: "stack-20",
+        quantity: 1,
+        requestId: "rid-off20-xx",
+      }),
+    ],
+    makeIds(),
+  );
+  const failed = actionBodies(overflow).find((body) => body.code === "offer_full");
+  assert.ok(failed !== undefined);
+  overflow.state.players["bob"].linkDead = true;
+  const afterLink = applyMatchLoop(overflow.state, 51, contentHash, [], makeIds());
+  assert.equal(afterLink.state.trades[tradeId].state, "cancelled");
+  assert.equal(afterLink.state.trades[tradeId].cancelReason, "link_dead");
 });

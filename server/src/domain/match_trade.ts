@@ -21,6 +21,7 @@ import {
   markTradeCompleted,
   noteAbsence,
   publicTrade,
+  reconcileOpenTrade,
   recoverInterruptedTrade,
   removeTradeOffer,
   reservedGoldForCharacter,
@@ -127,6 +128,7 @@ export function handleTradeMessage(
         quantity: quantity,
         itemsById: state.itemsById,
         requestId: requestId,
+        slotIndex: parsed.slotIndex,
       }),
       state,
       outbound,
@@ -232,6 +234,20 @@ export function tickTrades(
     trades[current.tradeId] = current;
     const reason = cancelReasonForTick({ trade: current, actorA: actorA, actorB: actorB, tick: tick });
     if (reason.length === 0) {
+      if (actorA !== null && actorB !== null) {
+        const reconciled = reconcileOpenTrade({ trade: current, actorA: actorA, actorB: actorB });
+        if (reconciled !== null) {
+          finishDecision(
+            reconciled,
+            state,
+            outbound,
+            persistInventoryByUser,
+            persistTrades,
+            {},
+            undefined,
+          );
+        }
+      }
       continue;
     }
     finishDecision(
@@ -572,7 +588,7 @@ function broadcastTrade(
   outbound: TradeOutbound[],
   requestId?: string,
 ): void {
-  const message = tradeStateMessage(state.contentHash, publicTrade(trade), requestId);
+  const message = tradeStateMessage(state.contentHash, publicTrade(trade, state.itemsById), requestId);
   outbound.push({ opcode: message.opcode, body: message.body, toUserId: trade.participantA.accountUserId });
   outbound.push({ opcode: message.opcode, body: message.body, toUserId: trade.participantB.accountUserId });
 }
@@ -617,7 +633,7 @@ function otherActor(state: StarterZoneState, trade: TradeRecord, characterId: st
 function actorForParticipant(state: StarterZoneState, userId: string): TradeActor | null {
   const live = state.players[userId];
   if (live !== undefined) {
-    return actorFromPlayer(live, live.linkDead !== true && live.safeLeaveCommitted !== true);
+    return actorFromPlayer(live, live.safeLeaveCommitted !== true);
   }
   const parked = parkedPlayer(state, userId);
   if (parked !== undefined) {
@@ -657,6 +673,7 @@ function actorFromPlayer(player: MatchPlayer, online: boolean): TradeActor {
     activeCast: player.activeCast,
     effects: player.effects,
     online: online,
+    linkDead: player.linkDead === true,
   };
 }
 

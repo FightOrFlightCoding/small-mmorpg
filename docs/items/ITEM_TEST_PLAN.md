@@ -1,6 +1,6 @@
-# Item test plan (ITEM-08)
+# Item test plan (ITEM-09)
 
-ITEM-08 extends ITEM-07 with public player ground drops and ground pickup. Acceptance is the gates below plus the ITEM-08 cases. Do not weaken tests.
+ITEM-09 extends ITEM-08 with twenty-slot secure player trade. Acceptance is the gates below plus the ITEM-09 cases. Do not weaken tests.
 
 ## Baseline (run on ITEM-08; 2026-09-19)
 
@@ -37,7 +37,7 @@ GODOT_BIN=godot bash scripts/test-client.sh
 | `server/tests/party_credit_loot.test.ts` | Credit range, personal/server_assigned, no client recipients |
 | `server/tests/vendor.test.ts` | Buy/sell, gold, full bag, equipped, unsellable, idempotent |
 | `server/tests/npc_vendor.test.ts` / `npc_security.test.ts` | Session-gated buy, price spoof, qty, preferred slot, multi-stack, stale revision, replay |
-| `server/tests/trade.test.ts` | Invite through recovery, locks, gold, revision, disconnect, transfer |
+| `server/tests/trade.test.ts` | Invite through recovery, 20 offer slots, locks, gold, revision, disconnect, transfer, capacity simulation |
 | `server/tests/quest_reward.test.ts` / `quest.test.ts` | Consume, grant, possession |
 | `server/tests/transaction.test.ts` / `wallet` tests | Gold ledger, version conflict |
 | `server/tests/security.test.ts` / `protocol.test.ts` | Injection, unknown fields, opcode 41, optional `expectedRevision` |
@@ -52,10 +52,11 @@ GODOT_BIN=godot bash scripts/test-client.sh
 | `client/tests/app/ground_drop_dialog_test.gd` | Quantity defaults to the stack; Uncommon+ warning and checkbox |
 | `client/tests/app/equipment_service_test.gd` | Equip mirror |
 | `client/tests/app/vendor_inn_service_test.gd` / `merchant_window_test.gd` | Buy UI, bag, no price send |
-| `client/tests/app/trade_service_test.gd` | Trade mirror |
+| `client/tests/app/trade_service_test.gd` | Trade mirror; slotIndex offer; offer-changed copy |
+| `client/tests/app/trade_window_test.gd` | 20 local/remote slots, gold, revision, local bag, no ownership prediction |
 | `client/tests/app/wallet_service_test.gd` | Gold label |
 
-Vertical-slice item journey: slime gel pickup + elder turn-in (VS-T* in [VERTICAL_SLICE.md](../VERTICAL_SLICE.md), e2e `slice_journey.gd` / cert journey). Trade journey: `trade.test.ts` + client trade service tests.
+Vertical-slice item journey: slime gel pickup + elder turn-in (VS-T* in [VERTICAL_SLICE.md](../VERTICAL_SLICE.md), e2e `slice_journey.gd` / cert journey). Trade journey: `trade.test.ts` + client trade service/window tests.
 
 ## ITEM-04 acceptance
 
@@ -106,8 +107,18 @@ Vertical-slice item journey: slime gel pickup + elder turn-in (VS-T* in [VERTICA
 6. Pickup is all-or-nothing. Exactly one claimant succeeds; others `ground_item_no_longer_available`. Duplicate `requestId` replays.
 7. Quest-item drop reduces possession progress without failing the quest. Pickup may advance the picker’s matching quest.
 
+## ITEM-09 acceptance
+
+1. Each side has exactly 20 item-offer slots. A twenty-first stack is `offer_full`.
+2. Gold offers are nonnegative integers, reserved against spendable balance, and transferred only at commit.
+3. Every offer change increments revision, clears both acceptances, broadcasts canonical offers, and shows “The trade has changed.”
+4. Commit uses `planTwoWayTrade` final-state simulation. A full bag may receive when outgoing stacks free enough room or incoming stacks merge.
+5. Commit is one atomic `multiUpdate` (or the existing committing snapshot / recovery path). Duplicate `requestId` does not mutate again.
+6. Disconnect, link-dead, death, range, transfer, timeout, and invalidated sources cancel and release every trade lock.
+7. No item or gold changes ownership before final commit. Changing an offer only sets the warning/revision state.
+
 ## Later-phase tests (do not implement now)
 
-20 trade slots; forage grant from a world node.
+Forage grant from a world node.
 
 If any **current** trade test fails before a later ITEM phase: repair in a focused pre-ITEM commit; do not retarget expectations without root cause.

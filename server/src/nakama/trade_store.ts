@@ -216,6 +216,8 @@ function tradeWriteValue(trade: TradeRecord): { [key: string]: unknown } {
     offers: trade.offers,
     goldOffers: trade.goldOffers,
     acceptanceRevisionByParticipant: trade.acceptanceRevisionByParticipant,
+    inventoryRevisionByParticipant: trade.inventoryRevisionByParticipant,
+    capacityKeyByParticipant: trade.capacityKeyByParticipant,
     createdAt: trade.createdAt,
     expiresAt: trade.expiresAt,
     createdAtTick: trade.createdAtTick,
@@ -269,6 +271,14 @@ function tradeFromValue(value: unknown): TradeRecord | null {
     offers: data.offers as TradeRecord["offers"],
     goldOffers: data.goldOffers as TradeRecord["goldOffers"],
     acceptanceRevisionByParticipant: data.acceptanceRevisionByParticipant as TradeRecord["acceptanceRevisionByParticipant"],
+    inventoryRevisionByParticipant:
+      data.inventoryRevisionByParticipant !== undefined
+        ? (data.inventoryRevisionByParticipant as TradeRecord["inventoryRevisionByParticipant"])
+        : {},
+    capacityKeyByParticipant:
+      data.capacityKeyByParticipant !== undefined
+        ? (data.capacityKeyByParticipant as TradeRecord["capacityKeyByParticipant"])
+        : {},
     createdAt: typeof data.createdAt === "number" ? data.createdAt : 0,
     expiresAt: typeof data.expiresAt === "number" ? data.expiresAt : 0,
     createdAtTick: typeof data.createdAtTick === "number" ? data.createdAtTick : 0,

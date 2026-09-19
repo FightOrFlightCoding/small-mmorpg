@@ -30,6 +30,7 @@ export const TRADE_RANGE_PX = 80;
 export const TRADE_INVITE_TTL_TICKS = 300;
 export const TRADE_TTL_TICKS = 1200;
 export const TRADE_DISCONNECT_GRACE_TICKS = 50;
+export const TRADE_OFFER_SLOTS = 20;
 export const TRADE_LOCK_REASON = "trade";
 export const TRADE_COLLECTION = "trade";
 export const TRADE_KEY = "t";
@@ -50,6 +51,8 @@ export interface TradeOfferLine {
   instanceId: string;
   itemId: string;
   quantity: number;
+  lockId: string;
+  slotIndex: number;
 }
 
 export interface TradeRequestRecord {
@@ -76,6 +79,8 @@ export interface TradeRecord {
   offers: { [characterId: string]: TradeOfferLine[] };
   goldOffers: { [characterId: string]: number };
   acceptanceRevisionByParticipant: { [characterId: string]: number };
+  inventoryRevisionByParticipant: { [characterId: string]: number };
+  capacityKeyByParticipant: { [characterId: string]: string };
   createdAt: number;
   expiresAt: number;
   createdAtTick: number;
@@ -106,6 +111,7 @@ export interface TradeActor {
   activeCast?: ActiveCast;
   effects?: ActiveEffect[];
   online: boolean;
+  linkDead?: boolean;
 }
 
 export interface TradeDecision {
@@ -173,11 +179,7 @@ export function cloneTradeRecord(trade: TradeRecord): TradeRecord {
     const copy: TradeOfferLine[] = [];
     if (Array.isArray(lines)) {
       for (let l = 0; l < lines.length; l++) {
-        copy.push({
-          instanceId: lines[l].instanceId,
-          itemId: lines[l].itemId,
-          quantity: lines[l].quantity,
-        });
+        copy.push(cloneOfferLine(lines[l], l));
       }
     }
     offers[key] = copy;
@@ -193,6 +195,18 @@ export function cloneTradeRecord(trade: TradeRecord): TradeRecord {
   const acceptKeys = Object.keys(acceptSource);
   for (let a = 0; a < acceptKeys.length; a++) {
     acceptance[acceptKeys[a]] = acceptSource[acceptKeys[a]];
+  }
+  const inventoryRevision: { [characterId: string]: number } = {};
+  const revisionSource = dict(trade.inventoryRevisionByParticipant);
+  const revisionKeys = Object.keys(revisionSource);
+  for (let r = 0; r < revisionKeys.length; r++) {
+    inventoryRevision[revisionKeys[r]] = revisionSource[revisionKeys[r]];
+  }
+  const capacityKeys: { [characterId: string]: string } = {};
+  const capacitySource = dict(trade.capacityKeyByParticipant);
+  const capacityKeyNames = Object.keys(capacitySource);
+  for (let c = 0; c < capacityKeyNames.length; c++) {
+    capacityKeys[capacityKeyNames[c]] = capacitySource[capacityKeyNames[c]];
   }
   const byRequestId: { [requestId: string]: TradeRequestRecord } = {};
   const reqSource = dict(trade.byRequestId);
@@ -221,6 +235,8 @@ export function cloneTradeRecord(trade: TradeRecord): TradeRecord {
     offers: offers,
     goldOffers: goldOffers,
     acceptanceRevisionByParticipant: acceptance,
+    inventoryRevisionByParticipant: inventoryRevision,
+    capacityKeyByParticipant: capacityKeys,
     createdAt: trade.createdAt,
     expiresAt: trade.expiresAt,
     createdAtTick: trade.createdAtTick,
@@ -272,7 +288,10 @@ export function cloneTrades(trades: { [tradeId: string]: TradeRecord } | null | 
   return copy;
 }
 
-export function publicTrade(trade: TradeRecord): { [key: string]: unknown } {
+export function publicTrade(
+  trade: TradeRecord,
+  itemsById?: { [id: string]: ItemDefinition },
+): { [key: string]: unknown } {
   return {
     tradeId: trade.tradeId,
     participantA: {
@@ -287,9 +306,10 @@ export function publicTrade(trade: TradeRecord): { [key: string]: unknown } {
     },
     state: trade.state,
     revision: trade.revision,
-    offers: cloneOfferMap(trade.offers),
+    offers: publicOfferMap(trade, itemsById),
     goldOffers: cloneGoldMap(trade.goldOffers),
     acceptanceRevisionByParticipant: cloneGoldMap(trade.acceptanceRevisionByParticipant),
+    offerSlots: TRADE_OFFER_SLOTS,
     createdAt: trade.createdAt,
     expiresAt: trade.expiresAt,
     cancelReason: trade.cancelReason !== undefined ? trade.cancelReason : "",
@@ -349,6 +369,9 @@ export function findLiveTradeForCharacter(
 export function actorRestricted(actor: TradeActor): string {
   if (!actor.online) {
     return "not_in_match";
+  }
+  if (actor.linkDead === true) {
+    return "link_dead";
   }
   if (actor.health <= 0) {
     return "player_dead";
@@ -454,6 +477,7 @@ export function acceptTradeInvite(input: {
   next.expiresAtTick = input.tick + TRADE_TTL_TICKS;
   next.expiresAt = input.nowMs + TRADE_TTL_TICKS * 100;
   clearAcceptances(next);
+  stampBagSync(next, input.other, input.actor);
   remember(next, input.requestId, true, "ok");
   return { ok: true, code: "ok", replay: false, trade: next };
 }
@@ -484,6 +508,7 @@ export function setTradeOffer(input: {
   quantity: number;
   itemsById: { [id: string]: ItemDefinition };
   requestId: string;
+  slotIndex?: number;
 }): TradeDecision {
   const replayed = replayOnTrade(input.trade, input.requestId);
   if (replayed !== null) {
@@ -516,27 +541,56 @@ export function setTradeOffer(input: {
   if (quantity < 1 || quantity !== Math.floor(quantity) || quantity > item.quantity) {
     return failOn(input.trade, "invalid_amount", input.requestId);
   }
-  const locked = setItemLock(inventory, item.instanceId, TRADE_LOCK_REASON, input.trade.tradeId, {
+  const lines = occupiedOfferLines(input.trade, input.actor.characterId);
+  const existingIndex = findOfferIndex(lines, item.instanceId);
+  let targetSlot = existingIndex >= 0 ? lines[existingIndex].slotIndex : firstEmptyOfferSlot(lines);
+  if (input.slotIndex !== undefined) {
+    if (input.slotIndex < 0 || input.slotIndex !== Math.floor(input.slotIndex) || input.slotIndex >= TRADE_OFFER_SLOTS) {
+      return failOn(input.trade, "invalid_slot", input.requestId);
+    }
+    targetSlot = input.slotIndex;
+  }
+  if (targetSlot < 0 || targetSlot >= TRADE_OFFER_SLOTS) {
+    return failOn(input.trade, "offer_full", input.requestId);
+  }
+  const occupant = offerAtSlot(lines, targetSlot);
+  if (occupant !== null && occupant.instanceId !== item.instanceId && existingIndex < 0 && occupiedOfferCount(lines) >= TRADE_OFFER_SLOTS) {
+    return failOn(input.trade, "offer_full", input.requestId);
+  }
+  const previous = existingIndex >= 0 ? lines[existingIndex] : null;
+  const unchanged =
+    previous !== null &&
+    previous.quantity === quantity &&
+    previous.slotIndex === targetSlot &&
+    occupant !== null &&
+    occupant.instanceId === item.instanceId;
+  let workingInventory = inventory;
+  if (occupant !== null && occupant.instanceId !== item.instanceId) {
+    workingInventory = clearInstanceLock(workingInventory, occupant.instanceId, input.trade.tradeId);
+  }
+  const locked = setItemLock(workingInventory, item.instanceId, TRADE_LOCK_REASON, input.trade.tradeId, {
     lockType: LOCK_TYPE_TRADE,
     quantity: quantity,
     ownerOperation: "trade",
   });
-  const next = bumpRevision(input.trade);
-  const lines = offerLines(next, input.actor.characterId);
+  const next = unchanged ? cloneTradeRecord(input.trade) : bumpRevision(input.trade);
   const replaced: TradeOfferLine[] = [];
-  let found = false;
   for (let i = 0; i < lines.length; i++) {
-    if (lines[i].instanceId === item.instanceId) {
-      replaced.push({ instanceId: item.instanceId, itemId: item.itemId, quantity: quantity });
-      found = true;
-    } else {
-      replaced.push(lines[i]);
+    const line = lines[i];
+    if (line.instanceId === item.instanceId || line.slotIndex === targetSlot) {
+      continue;
     }
+    replaced.push(cloneOfferLine(line, line.slotIndex));
   }
-  if (!found) {
-    replaced.push({ instanceId: item.instanceId, itemId: item.itemId, quantity: quantity });
-  }
+  replaced.push({
+    instanceId: item.instanceId,
+    itemId: item.itemId,
+    quantity: quantity,
+    lockId: input.trade.tradeId,
+    slotIndex: targetSlot,
+  });
   next.offers[input.actor.characterId] = replaced;
+  stampBagSync(next, input.actor, input.other);
   remember(next, input.requestId, true, "ok");
   const inventories = inventoriesForActor(input.trade, input.actor, input.other, locked);
   return {
@@ -580,6 +634,7 @@ export function removeTradeOffer(input: {
   const unlocked = clearInstanceLock(input.actor.inventory, input.instanceId, input.trade.tradeId);
   const next = bumpRevision(input.trade);
   next.offers[input.actor.characterId] = kept;
+  stampBagSync(next, input.actor, input.other);
   remember(next, input.requestId, true, "ok");
   const inventories = inventoriesForActor(input.trade, input.actor, input.other, unlocked);
   return {
@@ -675,8 +730,8 @@ export function acceptTradeRevision(input: {
   const acceptedB = next.acceptanceRevisionByParticipant[next.participantB.characterId];
   const both =
     acceptedA === next.revision && acceptedB === next.revision && next.revision > 0;
-  remember(next, input.requestId, true, "ok");
   if (!both) {
+    remember(next, input.requestId, true, "ok");
     return { ok: true, code: "ok", replay: false, trade: next };
   }
   const prepared = prepareTradeCommit({
@@ -687,8 +742,15 @@ export function acceptTradeRevision(input: {
     makeId: input.makeId,
   });
   if (!prepared.ok) {
-    return cancelTrade(next, prepared.code, input.requestId);
+    if (isUnsafeCommitFailure(prepared.code)) {
+      return cancelTrade(next, prepared.code, input.requestId);
+    }
+    clearAcceptances(next);
+    next.state = "open";
+    remember(next, input.requestId, false, prepared.code);
+    return { ok: false, code: prepared.code, replay: false, trade: next };
   }
+  remember(next, input.requestId, true, "ok");
   next.state = "committing";
   next.commitRequestId = input.requestId;
   next.commitSnapshot = {
@@ -772,6 +834,12 @@ export function cancelReasonForTick(input: {
     return "player_dead";
   }
   if (
+    (input.actorA.linkDead === true && input.actorA.online) ||
+    (input.actorB.linkDead === true && input.actorB.online)
+  ) {
+    return "link_dead";
+  }
+  if (
     input.actorA.transferState === "issued" ||
     input.actorA.transferState === "pending" ||
     input.actorB.transferState === "issued" ||
@@ -811,6 +879,61 @@ export function unlockTradeInventories(
   return {
     inventoryA: clearLocksByLockId(inventoryA, trade.tradeId),
     inventoryB: clearLocksByLockId(inventoryB, trade.tradeId),
+  };
+}
+
+export function reconcileOpenTrade(input: {
+  trade: TradeRecord;
+  actorA: TradeActor;
+  actorB: TradeActor;
+}): TradeDecision | null {
+  if (input.trade.state !== "open") {
+    return null;
+  }
+  const sides: Array<{ actor: TradeActor; other: TradeActor }> = [
+    { actor: input.actorA, other: input.actorB },
+    { actor: input.actorB, other: input.actorA },
+  ];
+  let next = cloneTradeRecord(input.trade);
+  let offersChanged = false;
+  let capacityChanged = false;
+  let inventoryA = cloneInventory(input.actorA.inventory);
+  let inventoryB = cloneInventory(input.actorB.inventory);
+  for (let s = 0; s < sides.length; s++) {
+    const actor = sides[s].actor;
+    const result = syncOffersForActor(next, actor);
+    if (result.cancelCode.length > 0) {
+      return cancelTrade(input.trade, result.cancelCode);
+    }
+    if (result.offersChanged) {
+      offersChanged = true;
+      next.offers[actor.characterId] = result.lines;
+      if (next.participantA.characterId === actor.characterId) {
+        inventoryA = result.inventory;
+      } else {
+        inventoryB = result.inventory;
+      }
+    }
+    const key = inventoryCapacityKey(actor.inventory);
+    const previousKey = next.capacityKeyByParticipant[actor.characterId];
+    if (typeof previousKey === "string" && previousKey.length > 0 && previousKey !== key) {
+      capacityChanged = true;
+    }
+    next.capacityKeyByParticipant[actor.characterId] = key;
+    next.inventoryRevisionByParticipant[actor.characterId] = actor.inventory.revision;
+  }
+  if (!offersChanged && !capacityChanged) {
+    return null;
+  }
+  next.revision = next.revision + 1;
+  clearAcceptances(next);
+  return {
+    ok: true,
+    code: "ok",
+    replay: false,
+    trade: next,
+    inventoryA: inventoryA,
+    inventoryB: inventoryB,
   };
 }
 
@@ -1119,6 +1242,8 @@ function newTrade(input: {
     offers: offers,
     goldOffers: goldOffers,
     acceptanceRevisionByParticipant: acceptance,
+    inventoryRevisionByParticipant: {},
+    capacityKeyByParticipant: {},
     createdAt: input.nowMs,
     expiresAt: input.nowMs + TRADE_INVITE_TTL_TICKS * 100,
     createdAtTick: input.tick,
@@ -1187,8 +1312,7 @@ function clearAcceptances(trade: TradeRecord): void {
 }
 
 function offerLines(trade: TradeRecord, characterId: string): TradeOfferLine[] {
-  const lines = trade.offers[characterId];
-  return Array.isArray(lines) ? lines : [];
+  return occupiedOfferLines(trade, characterId);
 }
 
 function goldOffer(trade: TradeRecord, characterId: string): number {
@@ -1345,25 +1469,217 @@ function giveOffers(
   return { ok: true, code: "ok", inventory: current };
 }
 
-function cloneOfferMap(offers: { [characterId: string]: TradeOfferLine[] }): { [characterId: string]: TradeOfferLine[] } {
-  const copy: { [characterId: string]: TradeOfferLine[] } = {};
-  const source = dict(offers);
-  const keys = Object.keys(source);
-  for (let i = 0; i < keys.length; i++) {
-    const lines = source[keys[i]];
-    const next: TradeOfferLine[] = [];
-    if (Array.isArray(lines)) {
-      for (let l = 0; l < lines.length; l++) {
-        next.push({
-          instanceId: lines[l].instanceId,
-          itemId: lines[l].itemId,
-          quantity: lines[l].quantity,
-        });
-      }
+function cloneOfferLine(line: TradeOfferLine, fallbackSlot: number): TradeOfferLine {
+  const slot =
+    typeof line.slotIndex === "number" && line.slotIndex >= 0 && line.slotIndex < TRADE_OFFER_SLOTS
+      ? line.slotIndex
+      : fallbackSlot;
+  return {
+    instanceId: line.instanceId,
+    itemId: line.itemId,
+    quantity: line.quantity,
+    lockId: typeof line.lockId === "string" && line.lockId.length > 0 ? line.lockId : "",
+    slotIndex: slot,
+  };
+}
+
+function occupiedOfferLines(trade: TradeRecord, characterId: string): TradeOfferLine[] {
+  const lines = trade.offers[characterId];
+  const occupied: TradeOfferLine[] = [];
+  if (!Array.isArray(lines)) {
+    return occupied;
+  }
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line == null || typeof line.instanceId !== "string" || line.instanceId.length === 0) {
+      continue;
     }
-    copy[keys[i]] = next;
+    if (typeof line.quantity !== "number" || line.quantity < 1) {
+      continue;
+    }
+    occupied.push(cloneOfferLine(line, occupied.length));
+  }
+  return occupied;
+}
+
+function occupiedOfferCount(lines: TradeOfferLine[]): number {
+  return lines.length;
+}
+
+function findOfferIndex(lines: TradeOfferLine[], instanceId: string): number {
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].instanceId === instanceId) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function offerAtSlot(lines: TradeOfferLine[], slotIndex: number): TradeOfferLine | null {
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].slotIndex === slotIndex) {
+      return lines[i];
+    }
+  }
+  return null;
+}
+
+function firstEmptyOfferSlot(lines: TradeOfferLine[]): number {
+  const used: { [slot: number]: boolean } = {};
+  for (let i = 0; i < lines.length; i++) {
+    used[lines[i].slotIndex] = true;
+  }
+  for (let slot = 0; slot < TRADE_OFFER_SLOTS; slot++) {
+    if (used[slot] !== true) {
+      return slot;
+    }
+  }
+  return -1;
+}
+
+function publicOfferMap(
+  trade: TradeRecord,
+  itemsById?: { [id: string]: ItemDefinition },
+): { [characterId: string]: Array<{ [key: string]: unknown }> } {
+  const copy: { [characterId: string]: Array<{ [key: string]: unknown }> } = {};
+  const ids = [trade.participantA.characterId, trade.participantB.characterId];
+  for (let i = 0; i < ids.length; i++) {
+    const characterId = ids[i];
+    const occupied = occupiedOfferLines(trade, characterId);
+    const slots: Array<{ [key: string]: unknown }> = [];
+    for (let slot = 0; slot < TRADE_OFFER_SLOTS; slot++) {
+      const line = offerAtSlot(occupied, slot);
+      if (line === null) {
+        slots.push({
+          slotIndex: slot,
+          instanceId: "",
+          itemId: "",
+          quantity: 0,
+          lockId: "",
+        });
+        continue;
+      }
+      slots.push(publicOfferLine(line, itemsById));
+    }
+    copy[characterId] = slots;
   }
   return copy;
+}
+
+function publicOfferLine(
+  line: TradeOfferLine,
+  itemsById?: { [id: string]: ItemDefinition },
+): { [key: string]: unknown } {
+  const payload: { [key: string]: unknown } = {
+    slotIndex: line.slotIndex,
+    instanceId: line.instanceId,
+    itemId: line.itemId,
+    quantity: line.quantity,
+    lockId: line.lockId,
+  };
+  const definition = itemsById !== undefined ? itemsById[line.itemId] : undefined;
+  if (definition !== undefined) {
+    payload.displayNameKey = definition.displayNameKey !== undefined ? definition.displayNameKey : "";
+    payload.rarity = definition.rarity !== undefined ? definition.rarity : "";
+    payload.iconAssetId = definition.iconAssetId !== undefined ? definition.iconAssetId : "";
+    payload.maxStack = definition.maxStack;
+    payload.definitionId = definition.id;
+  }
+  return payload;
+}
+
+function stampBagSync(trade: TradeRecord, actor: TradeActor, other: TradeActor): void {
+  trade.inventoryRevisionByParticipant[actor.characterId] = actor.inventory.revision;
+  trade.capacityKeyByParticipant[actor.characterId] = inventoryCapacityKey(actor.inventory);
+  trade.inventoryRevisionByParticipant[other.characterId] = other.inventory.revision;
+  trade.capacityKeyByParticipant[other.characterId] = inventoryCapacityKey(other.inventory);
+}
+
+function inventoryCapacityKey(inventory: PlayerInventory): string {
+  const parts: string[] = [String(inventory.items.length)];
+  const sorted = inventory.items.slice();
+  sorted.sort(function (a, b) {
+    if (a.instanceId < b.instanceId) {
+      return -1;
+    }
+    if (a.instanceId > b.instanceId) {
+      return 1;
+    }
+    return 0;
+  });
+  for (let i = 0; i < sorted.length; i++) {
+    parts.push(sorted[i].instanceId + ":" + sorted[i].itemId + ":" + String(sorted[i].quantity));
+  }
+  return parts.join("|");
+}
+
+function syncOffersForActor(
+  trade: TradeRecord,
+  actor: TradeActor,
+): { cancelCode: string; offersChanged: boolean; lines: TradeOfferLine[]; inventory: PlayerInventory } {
+  const lines = occupiedOfferLines(trade, actor.characterId);
+  const nextLines: TradeOfferLine[] = [];
+  let offersChanged = false;
+  let inventory = cloneInventory(actor.inventory);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const item = findItem(inventory, line.instanceId);
+    if (item === null) {
+      return {
+        cancelCode: "unowned_item",
+        offersChanged: true,
+        lines: nextLines,
+        inventory: inventory,
+      };
+    }
+    if (item.quantity < line.quantity) {
+      if (item.quantity < 1) {
+        return {
+          cancelCode: "unowned_item",
+          offersChanged: true,
+          lines: nextLines,
+          inventory: inventory,
+        };
+      }
+      nextLines.push({
+        instanceId: line.instanceId,
+        itemId: line.itemId,
+        quantity: item.quantity,
+        lockId: trade.tradeId,
+        slotIndex: line.slotIndex,
+      });
+      inventory = setItemLock(inventory, item.instanceId, TRADE_LOCK_REASON, trade.tradeId, {
+        lockType: LOCK_TYPE_TRADE,
+        quantity: item.quantity,
+        ownerOperation: "trade",
+      });
+      offersChanged = true;
+    } else {
+      nextLines.push(cloneOfferLine(line, line.slotIndex));
+    }
+  }
+  return { cancelCode: "", offersChanged: offersChanged, lines: nextLines, inventory: inventory };
+}
+
+function isUnsafeCommitFailure(code: string): boolean {
+  return (
+    code === "player_dead" ||
+    code === "not_in_match" ||
+    code === "already_transferring" ||
+    code === "out_of_range" ||
+    code === "unowned_item" ||
+    code === "item_equipped" ||
+    code === "not_tradeable" ||
+    code === "item_locked" ||
+    code === "link_dead" ||
+    code === "disconnected" ||
+    code === "zone_transfer" ||
+    code === "trade_cancelled" ||
+    code === "invalid_id" ||
+    code === "casting" ||
+    code === "in_combat" ||
+    code === "trade_restricted"
+  );
 }
 
 function cloneGoldMap(values: { [characterId: string]: number }): { [characterId: string]: number } {

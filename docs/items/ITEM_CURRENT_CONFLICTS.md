@@ -1,6 +1,6 @@
-# Current item-system conflicts (ITEM-08)
+# Current item-system conflicts (ITEM-09)
 
-ITEM-08 closed public player ground drops and ground pickup. Remaining rows stay OPEN until a later numbered ITEM phase names them.
+ITEM-09 closed the 20-slot secure player trade. Remaining rows stay OPEN until a later numbered ITEM phase names them.
 
 Status: `OPEN` = live Foundation differs from the completed ITEM platform. `KEEP` = live behavior that a later phase may still keep (for example `VENDOR_SELL`) until that phase names the change.
 
@@ -16,7 +16,7 @@ Status: `OPEN` = live Foundation differs from the completed ITEM platform. `KEEP
 | ITEM-C08 | CLOSED | `LOOT_ALL_CORPSE` with per-entry summary; skips rolls and foreign pending awards | Loot All with detailed summary; skip rolls and foreign pending awards | ITEM-05 |
 | ITEM-C09 | CLOSED | `item.slime_gel` / `item.proof_token` are tradeable and droppable; `destroyable` stays false | Quest items tradeable and droppable | ITEM-02. Possession recount remains live |
 | ITEM-C10 | CLOSED | `DROP_ITEM` / `PICKUP_GROUND_ITEM` spawn public 5 min ground items; `DESTROY_ITEM` still deletes | Public 5 min ground items; server placement; full-stack pickup | ITEM-08 |
-| ITEM-C11 | OPEN | `TradeOfferLine[]` unbounded | 20 offer slots per participant | Later trade phase |
+| ITEM-C11 | CLOSED | `TradeOfferLine[]` is 20 slots per side (`TRADE_OFFER_SLOTS`); 21st is `offer_full` | 20 offer slots per participant | ITEM-09 |
 | ITEM-C12 | KEEP | `VENDOR_SELL` (20) live and tested | This ITEM pack is buy-only | Keep sell until a later phase names removal |
 | ITEM-C13 | CLOSED | Optional `expectedRevision` on item opcodes; stale → `inventory_stale` + `FULL_STATE`; omitted keeps old clients | Monotonic revision + `expected_revision` | ITEM-03 |
 | ITEM-C14 | CLOSED | Schema `itemMaxStack` 1–99; equippable forced 1; no production item exceeds 99 | Non-gear 1–99, gear 1 | ITEM-02 |
@@ -41,7 +41,7 @@ Status: `OPEN` = live Foundation differs from the completed ITEM platform. `KEEP
 | Starter `item.training_sword` | `STARTER_ITEM_ID` |
 | Loot TTL 30 s | `LOOT_TTL_SEC` (sparkles). Corpse private 60 s / expire 300 s |
 | Pickup range 40 | `player.base.pickupRange` |
-| Trade range 80 px, invite 30 s, session 120 s | `TRADE_RANGE_PX`, `TRADE_INVITE_TTL_TICKS` 300, `TRADE_TTL_TICKS` 1200 |
+| Trade range 80 px, invite 30 s, session 120 s, 20 offer slots | `TRADE_RANGE_PX`, `TRADE_INVITE_TTL_TICKS` 300, `TRADE_TTL_TICKS` 1200, `TRADE_OFFER_SLOTS` 20 |
 | Vendor max qty 99 | `VENDOR_MAX_QUANTITY` (purchase cap, not stack cap) |
 | Item lock TTL 120 s | `ITEM_LOCK_TTL_MS` |
 | Player ground drop limit 20 | `PLAYER_GROUND_DROP_LIMIT` (noncanonical implementation value) |

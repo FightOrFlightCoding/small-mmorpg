@@ -57,7 +57,7 @@ Match and RPC payloads for the slice are JSON objects.
 | 24 | `TRADE_INVITE` | `{ protocolVersion, targetId, requestId }` | Invite a nearby living player. Server owns eligibility. |
 | 25 | `TRADE_ACCEPT_INVITE` | `{ protocolVersion, tradeId, requestId }` | Invitee accepts. |
 | 26 | `TRADE_DECLINE_INVITE` | `{ protocolVersion, tradeId, requestId }` | Invitee declines; invite cancels. |
-| 27 | `TRADE_SET_OFFER` | `{ protocolVersion, tradeId, instanceId, quantity?, requestId }` | Offer a locked owned stack. Quantity `0`/omit means the full stack. |
+| 27 | `TRADE_SET_OFFER` | `{ protocolVersion, tradeId, instanceId, quantity?, slotIndex?, requestId }` | Offer a locked owned stack into one of 20 slots. Quantity `0`/omit means the full stack. `slotIndex` 0–19 selects an empty or occupied offer square. |
 | 28 | `TRADE_REMOVE_OFFER` | `{ protocolVersion, tradeId, instanceId, requestId }` | Remove an offered stack and unlock it. |
 | 29 | `TRADE_SET_GOLD` | `{ protocolVersion, tradeId, amount, requestId }` | Offer gold. `gold` is `stat_injection`. |
 | 30 | `TRADE_ACCEPT_REVISION` | `{ protocolVersion, tradeId, revision, requestId }` | Accept the current revision. Commit only when both accepted the same current revision. |

@@ -1,4 +1,4 @@
-# Item container catalog (ITEM-08)
+# Item container catalog (ITEM-09)
 
 Containers are logical owners of item instances or gold. ITEM-01 records **live** vs **target**. Live names in code are used until a later phase migrates. ITEM-05 adds a client-visible corpse window over a match-lifetime `CorpseLootContainer`.
 
@@ -58,9 +58,9 @@ Opcode `DROP_ITEM` (48) uses `executeDropIntent`. Opcode `PICKUP_GROUND_ITEM` (4
 
 ## TradeOfferContainer
 
-Live: `TradeRecord.offers[characterId]: TradeOfferLine[]` plus `goldOffers`. Unbounded list (practical cap = bag stack count). Offered instances stay in CharacterBag with typed `TRADE` lock (`lockReason` still `"trade"`). Partial quantity locks still make the source stack immovable. Commit is gated by `planTwoWayTrade`.
+Live: `TradeRecord.offers[characterId]: TradeOfferLine[]` plus `goldOffers`. Exactly **20** item-offer slots per participant (`TRADE_OFFER_SLOTS`); empty slots are present on the wire with empty `instanceId`. Offered instances stay in CharacterBag with typed `TRADE` lock (`lockReason` still `"trade"`). Partial quantity locks still make the source stack immovable until release. Commit is gated by `planTwoWayTrade` final-state simulation. Ownership does not move until atomic commit.
 
-Target: **20** item-offer slots per participant + one gold field. UI shows local bag, local offer, remote offer, both gold, both acceptances, revision — never the remote bag.
+UI shows local bag, local 20-slot offer, remote 20-slot offer, both gold fields, both acceptances, and revision — never the remote bag. Every offer change increments revision, clears both acceptances, and shows “The trade has changed.”
 
 ## PendingRollAward
 

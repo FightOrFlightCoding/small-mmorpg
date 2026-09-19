@@ -136,7 +136,7 @@ Third-party libraries are implementation details. Game code talks to project-own
 | `DialoguePresenter` / `DialogueCatalog` | Dialogue Manager 3.10.5 | Opens dialogue only after a matching `INTERACTION_RESULT`. Prefers server `dialogueId`. Local `.dialogue` text; quest/vendor/inn/cave mutations go through project services. |
 | `VendorService` / `InnService` / `CaveService` | none | Buy/sell/rest/cave-enter/cave-exit intentions after server-approved services. Never send prices, gold, health, bind, destination match ids, or tickets. |
 | `PartyService` | none | Client-side mirror of server party state from `FULL_STATE` / `PARTY_STATE` / `PARTY_EVENT`. RPCs send owned `characterId` and `requestId` only. Never sends member lists or credit/loot recipients. Not a gameplay authority. |
-| `TradeService` | none | Client-side mirror of server trade state from `TRADE_STATE`. Sends invite/offer/gold/accept/cancel intentions only. Never predicts ownership or gold. Not a gameplay authority. |
+| `TradeService` / `TradeWindow` | none | Client-side mirror of server trade state from `TRADE_STATE`. Twenty local and remote offer slots, gold fields, acceptances, and revision. Sends invite/offer/gold/accept/cancel intentions only. Never predicts ownership or gold. Not a gameplay authority. |
 | `GmService` | none | Debug-only `gm_command` RPC intention plus required reason. Never grants locally. Not a gameplay authority. |
 | `Test runner scripts` | GdUnit4 6.2.0 | Client unit/scene tests |
 | `SliceJourney` / `SliceSession` | Nakama Godot SDK via `NakamaNetworkBackend` | Debug-only headless two-identity journey (`--e2e-slice`). Sends the same intentions as the graphical client. Unavailable in release builds. Not a gameplay authority. |

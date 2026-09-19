@@ -1135,7 +1135,7 @@ func _build_trade_panel() -> void:
 	vbox.add_child(_trade_session)
 	_trade_warning = Label.new()
 	_trade_warning.visible = false
-	_trade_warning.text = "Offer changed. Acceptances were cleared."
+	_trade_warning.text = "The trade has changed."
 	_trade_session.add_child(_trade_warning)
 	var columns := HBoxContainer.new()
 	_trade_session.add_child(columns)
@@ -1215,6 +1215,7 @@ func refresh_trade() -> void:
 		else:
 			_trade_result.text = ""
 	if _trade_warning != null:
+		_trade_warning.text = "The trade has changed."
 		_trade_warning.visible = TradeService.offer_changed
 	_layout_trade_panel()
 	var trade_state := String(TradeService.trade.get("state", ""))
@@ -1291,7 +1292,12 @@ func _fill_offer_list(target: ItemList, character_id: String, offer_map: Diction
 		for line in lines:
 			if typeof(line) != TYPE_DICTIONARY:
 				continue
-			target.add_item("%s x%s" % [String(line.get("itemId", "")), str(int(line.get("quantity", 0)))])
+			if String(line.get("instanceId", "")).is_empty():
+				continue
+			var named := String(line.get("itemId", ""))
+			var definition: Dictionary = ItemPresentation.definition_for(named)
+			var label := ItemPresentation.display_name(line, definition)
+			target.add_item("%s x%s" % [label, str(int(line.get("quantity", 0)))])
 	var gold := int(gold_map.get(character_id, 0))
 	if gold > 0:
 		target.add_item("%sg" % str(gold))

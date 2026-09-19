@@ -14,7 +14,7 @@ ITEM-02 closed content stack rules, bag capacity 30, equipment-out-of-bag, and M
 4. **Bag UI** — 6×5, tooltips, drag-drop calling `MOVE_ITEM` / split / merge; GLoot remains a mirror. **Done in ITEM-04.**
 5. **Corpse + tag + gold + Loot All** — **done in ITEM-05**. Need/Greed resolution **done in ITEM-06**. Dual-path slime sparkles keep Prompt 18. Reuse acquisition intent.
 6. **Player ground drop** — **done in ITEM-08.** 5 min public; server placement; full pickup. Reuses `executeDropIntent`.
-7. **Trade 20 offer slots** — cap live unbounded offers; UI already shows two offer lists.
+7. **Trade 20 offer slots** — **done in ITEM-09.** Cap live offers at 20; UI shows local bag, local/remote 20-slot grids, gold, acceptances, and revision.
 8. **Quest possession** — already live; ITEM-08 drop/pickup recounts `acquire_item` / `collect_item`. Gel remains reacquirable from slimes.
 9. **Merchant direction** — **ITEM-07 buy path is live** (session, `stockEntryId`, preferred slot, all-or-nothing multi-stack). `VENDOR_SELL` only if a later phase keeps or removes it.
 10. **Forage grant hook** — same transaction core, new `sourceType`. Acquisition intent is ready.
