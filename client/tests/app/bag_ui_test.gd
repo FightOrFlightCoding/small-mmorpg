@@ -14,6 +14,7 @@ func before_test() -> void:
 	UiStateService.reset_for_tests()
 	ItemContextRouter.reset_for_tests()
 	WalletService.reset_for_tests()
+	CorpseService.reset_for_tests()
 	assert_bool(ContentRegistry.load_bundle()).is_true()
 	InventoryService.configure_from_content()
 	EquipmentService.configure_from_content()
@@ -25,6 +26,7 @@ func after_test() -> void:
 	ItemContextRouter.reset_for_tests()
 	InventoryService.reset_for_tests()
 	EquipmentService.reset_for_tests()
+	CorpseService.reset_for_tests()
 
 
 func _gel(slot: int, qty: int, instance_id: String = "inst-gel") -> Dictionary:
@@ -367,4 +369,68 @@ func test_context_router_stays_generic() -> void:
 	assert_str(String((locked_actions[0] as Dictionary).get("id", ""))).is_equal(ItemContextRouter.ACTION_LOCKED)
 	ItemContextRouter.set_context(ItemContextRouter.CONTEXT_TRADE)
 	assert_int(ItemContextRouter.actions_for({"kind": "bag"}, sword).size()).is_equal(0)
+	ItemContextRouter.set_context(ItemContextRouter.CONTEXT_CORPSE)
+	assert_int(ItemContextRouter.actions_for({"kind": "bag"}, sword).size()).is_greater_equal(1)
 	ItemContextRouter.set_context(ItemContextRouter.CONTEXT_BAG)
+	CorpseService.last_corpse = {"eligible": true}
+	var corpse_item := {
+		"instanceId": "entry-1",
+		"entryId": "entry-1",
+		"itemId": "item.slime_gel",
+		"quantity": 1,
+		"state": "PRIVATE_AVAILABLE",
+	}
+	var corpse_actions: Array = ItemContextRouter.actions_for({"kind": "corpse"}, corpse_item)
+	assert_int(corpse_actions.size()).is_equal(1)
+	assert_str(String((corpse_actions[0] as Dictionary).get("id", ""))).is_equal(ItemContextRouter.ACTION_LOOT)
+	var rolling := corpse_item.duplicate(true)
+	rolling["state"] = "ROLL_PENDING"
+	var rolling_actions: Array = ItemContextRouter.actions_for({"kind": "corpse"}, rolling)
+	assert_str(String((rolling_actions[0] as Dictionary).get("id", ""))).is_equal(ItemContextRouter.ACTION_LOCKED)
+
+
+func test_corpse_drag_rejects_bag_to_corpse_and_occupied_slot() -> void:
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	CorpseService.last_corpse_id = "corpse-1"
+	InventoryService.apply_canonical({
+		"capacity": 30,
+		"revision": 3,
+		"items": [_gel(0, 2, "gel-bag"), _sword(1, "sword-bag")],
+	})
+	var corpse_dest := auto_free(ItemSlotView.new()) as ItemSlotView
+	corpse_dest.origin_kind = "corpse"
+	corpse_dest.slot_index = 0
+	var rejected := InventoryService.handle_drop(_payload("gel-bag", 0), corpse_dest)
+	assert_str(rejected).is_empty()
+	assert_str(InventoryService.last_reject_code).is_equal("destination_unavailable")
+	assert_int(fake.send_calls).is_equal(0)
+	var occupied := InventoryService.handle_drop({
+		"kind": "corpse_item",
+		"fromKind": "corpse",
+		"fromSlot": 0,
+		"entryId": "entry-gel",
+		"instanceId": "entry-gel",
+		"itemId": "item.slime_gel",
+		"quantity": 1,
+	}, _bag_dest(1))
+	assert_str(occupied).is_empty()
+	assert_str(InventoryService.last_reject_code).is_equal("invalid_slot")
+	var claimed := InventoryService.handle_drop({
+		"kind": "corpse_item",
+		"fromKind": "corpse",
+		"fromSlot": 0,
+		"entryId": "entry-gel",
+		"instanceId": "entry-gel",
+		"itemId": "item.slime_gel",
+		"quantity": 1,
+	}, _bag_dest(4))
+	assert_str(claimed).is_not_empty()
+	await get_tree().process_frame
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_CLAIM_CORPSE_ITEM)
+	var payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_str(String(payload.get("corpseId", ""))).is_equal("corpse-1")
+	assert_str(String(payload.get("entryId", ""))).is_equal("entry-gel")
+	assert_int(int(payload.get("toSlotIndex", -1))).is_equal(4)
+	assert_bool(payload.has("lootRecipients")).is_false()

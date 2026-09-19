@@ -15,6 +15,7 @@ export interface LootTableEntry {
   groupId?: string;
   guaranteed?: boolean;
   ownershipPolicy?: string;
+  kind?: "item" | "gold";
 }
 
 export interface LootTableDefinition {
@@ -225,10 +226,20 @@ function pushRolled(drops: LootDrop[], entry: LootTableEntry, rng: () => number)
   const max = entry.maximumQuantity >= min ? entry.maximumQuantity : min;
   const span = max - min + 1;
   const quantity = min + Math.floor(rng() * span);
+  if (entry.kind === "gold") {
+    drops.push({
+      itemId: "",
+      quantity: quantity,
+      guaranteed: entry.guaranteed === true,
+      kind: "gold",
+    });
+    return;
+  }
   drops.push({
     itemId: entry.itemDefinitionId,
     quantity: quantity,
     guaranteed: entry.guaranteed === true,
+    kind: "item",
   });
 }
 
@@ -280,6 +291,7 @@ function copyTable(table: LootTableDefinition): LootTableDefinition {
       groupId: entry.groupId,
       guaranteed: entry.guaranteed,
       ownershipPolicy: entry.ownershipPolicy,
+      kind: entry.kind,
     });
   }
   return {

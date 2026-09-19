@@ -1,14 +1,41 @@
 # Progress
 
-Last accepted phase: **ITEM-04 — Complete thirty-slot bag UI and bag interactions**.
+Last accepted phase: **ITEM-05 — First-attacker tagging, corpse loot, gold, and Loot All**.
 
-Current phase: ITEM-04 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
+Current phase: ITEM-05 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
 
 Canonical git line: **`origin/main`**. Playable work is committed there. The Windows clone stays on `main` and runs `scripts/local-play.ps1 -Branch main`.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01 through ITEM-04 remain accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01 through ITEM-05 remain accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
+
+## ITEM-05 first-attacker tagging, corpse loot, gold, and Loot All (2026-09-19)
+
+ITEM-05 is accepted. It is authoritative first-hit tagging and match-lifetime corpse loot. It does not resolve Need/Greed beyond reserving Uncommon-or-higher party drops as `ROLL_PENDING`. Do not start later ITEM phases.
+
+First damaging hit sets `tag_owner_character_id`, `tag_party_id`, immutable `encounter_roster`, `tagged_at`, and `tag_revision`. Controlled attackers resolve to the owning character. Leash/full reset clears the tag. Late joins are excluded; kicked members stay in the snapshot. The death-eligible roster is created once (same-match presence, credit range, death during encounter, departure, identity). The client never nominates recipients.
+
+Loot tables support item and gold entries, guaranteed/chance/weighted groups, and quantity ranges. Generation runs once at death; stacks split at max stack. The corpse is a match-lifetime container: 60 s private, public after the ITEM-06 roll stub, 5 min expire, empty may vanish immediately, no combat collision. Ordinary party loot is first successful claimant. Quest items never roll.
+
+Private gold splits `floor(gold / n)` plus remainder (tag owner, then ascending character id) with durable per-share records. Public remainder is first claimant. Duplicate `requestId` replays. Loot All takes gold then fitting items, skips active rolls and foreign awards, and returns per-entry results.
+
+Prompt 18 dual-path: corpse plus 30 s sparkles linked by `corpseId`/`corpseEntryId`. Corpses are not reconstructed after match/server restart. Opcodes 42–46 / 116–117. Storage record count remains **35**. Content hash unchanged: `7877dd576b022d59f0350be4430aca0b9d402db38b5e16e816ef361003c9cffd`.
+
+Conflicts ITEM-C04, ITEM-C05, ITEM-C06, ITEM-C07, ITEM-C08, ITEM-C18, and ITEM-C26 are CLOSED. ITEM-C03 and PendingRollAward stay ITEM-06.
+
+| Gate | Result |
+| --- | --- |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 46 client opcodes, 17 server opcodes, 29 RPCs) |
+| Content validation/tests | 28/28 passed |
+| Server hermetic tests | 937 passed, 13 expected live-test skips |
+| Server typecheck/build | passed |
+| Auth gateway hermetic tests | unchanged; 52/52 previously |
+| Godot 4.7.1 client GdUnit | 357/357 passed, 0 failures, 0 orphans |
+
+Pre-existing Node 22.14 runner compatibility remains documented: directory-form `node --test` wrappers can fail before discovery. Direct compiled-file glob equivalents pass.
+
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen `client/`. Recreate Nakama so `contentHash` matches.
 
 ## ITEM-04 complete thirty-slot bag UI and bag interactions (2026-09-19)
 

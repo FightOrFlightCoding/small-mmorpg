@@ -1,6 +1,6 @@
-# Item container catalog (ITEM-03)
+# Item container catalog (ITEM-05)
 
-Containers are logical owners of item instances or gold. ITEM-01 records **live** vs **target**. Live names in code are used until a later phase migrates. ITEM-03 does not add a client-visible container type.
+Containers are logical owners of item instances or gold. ITEM-01 records **live** vs **target**. Live names in code are used until a later phase migrates. ITEM-05 adds a client-visible corpse window over a match-lifetime `CorpseLootContainer`.
 
 ## CharacterBag
 
@@ -30,13 +30,15 @@ Live: `player` / `overflow` or `overflow_<compactId>` (`permissionWrite: 0`). Cr
 
 ## CorpseLootContainer
 
-**Absent live.** Live equivalent: `MatchLoot` public ground entities at the death pose (`loot.ts`), 30 s TTL, no owner, no gold, no roll state.
+Live: match-lifetime `CorpseLootContainer` on `StarterZoneState.corpses`. Not a player storage collection. Prompt 18 dual-path also spawns corpse-linked `MatchLoot` sparkles (`corpseId` / `corpseEntryId`) so F/`PICKUP` remains completable.
 
-Target states per corpse **entry**:
+Entry states:
 
 `PRIVATE_AVAILABLE` → `ROLL_PENDING` → `CLAIMING` → `AWARDED_PENDING_PICKUP` / `PUBLIC_AVAILABLE` → `CLAIMED` / `EXPIRED`
 
-Timing: 60 s private from death; public after roll resolution at that boundary; expire 5 minutes from death. Match-lifetime only (not player-save).
+Timing: 60 s private from death; public after the ITEM-06 roll stub at that boundary; expire 5 minutes from death. Empty corpses may vanish immediately. Sparkle TTL stays 30 s.
+
+Need/Greed resolution is **not** live. Qualifying Uncommon-or-higher party drops enter `ROLL_PENDING` and stay reserved for ITEM-06. Quest items never enter `ROLL_PENDING`. Ordinary party loot is first successful claimant.
 
 ## MerchantCatalog
 
@@ -58,7 +60,7 @@ Target: **20** item-offer slots per participant + one gold field. UI shows local
 
 ## PendingRollAward
 
-**Absent live.** Target: Need/Greed winner who cannot receive the whole stack. State `AWARDED_PENDING_PICKUP`, owner = winner only, remains on the corpse until 5 min expire, not public, not rerolled.
+**Absent live.** Target: Need/Greed winner who cannot receive the whole stack. State `AWARDED_PENDING_PICKUP`, owner = winner only, remains on the corpse until 5 min expire, not public, not rerolled. ITEM-05 reserves `ROLL_PENDING` only.
 
 ## Gold
 

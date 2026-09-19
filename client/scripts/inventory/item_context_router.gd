@@ -12,6 +12,7 @@ const CONTEXT_MERCHANT := "merchant"
 const ACTION_EQUIP := "equip"
 const ACTION_SPLIT := "split"
 const ACTION_LOCKED := "locked"
+const ACTION_LOOT := "loot"
 
 var context: String = CONTEXT_BAG
 var last_notice: String = ""
@@ -48,13 +49,26 @@ func handle_origin(origin: Dictionary, instance: Dictionary, at: Vector2 = Vecto
 	if last_actions.size() == 1 and String((last_actions[0] as Dictionary).get("id", "")) == ACTION_LOCKED:
 		_emit_notice(String((last_actions[0] as Dictionary).get("label", ItemPresentation.lock_reason(instance))))
 		return
+	if String(origin.get("kind", "bag")) == "corpse":
+		execute(ACTION_LOOT, origin, instance)
+		return
 	_show_menu(origin, instance, at)
 
 
 func actions_for(origin: Dictionary, instance: Dictionary) -> Array:
 	if String(instance.get("instanceId", "")).is_empty():
 		return []
-	if context == CONTEXT_TRADE or context == CONTEXT_CORPSE or context == CONTEXT_MERCHANT:
+	if String(origin.get("kind", "bag")) == "corpse":
+		if String(instance.get("state", "")) == "ROLL_PENDING":
+			return [{
+				"id": ACTION_LOCKED,
+				"label": "Need/Greed is pending.",
+				"disabled": true,
+			}]
+		if not CorpseService.entry_claimable(instance):
+			return []
+		return [{"id": ACTION_LOOT, "label": "Loot", "disabled": false}]
+	if context == CONTEXT_TRADE or context == CONTEXT_MERCHANT:
 		return []
 	var actions: Array = []
 	if ItemPresentation.is_locked(instance):
@@ -83,6 +97,8 @@ func execute(action_id: String, origin: Dictionary, instance: Dictionary) -> voi
 			EquipmentService.request_equip(instance_id, tag if not tag.is_empty() else EquipmentService.MAIN_HAND_SLOT)
 		ACTION_SPLIT:
 			InventoryService.prompt_split(instance_id)
+		ACTION_LOOT:
+			CorpseService.request_claim_item(String(instance.get("entryId", origin.get("entry_id", ""))))
 		ACTION_LOCKED:
 			_emit_notice(ItemPresentation.lock_reason(instance))
 		_:
@@ -94,6 +110,7 @@ func _origin_from_slot(slot: ItemSlotView) -> Dictionary:
 		"kind": slot.origin_kind,
 		"slot_index": slot.slot_index,
 		"equipment_tag": slot.equipment_tag,
+		"entry_id": String(slot.instance.get("entryId", "")),
 	}
 
 

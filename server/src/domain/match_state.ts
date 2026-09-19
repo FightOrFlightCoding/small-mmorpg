@@ -20,6 +20,8 @@ import {
 } from "./equipment";
 import { cloneOverflow, emptyOverflow, isOverflowEmpty, type MigrationOverflow } from "./overflow";
 import { cloneLoot, publicLoot, type LootDrop, type MatchLoot } from "./loot";
+import { cloneCorpses, publicCorpses, type CorpseLootContainer } from "./corpse";
+import { cloneGoldLedger, emptyGoldLedger, publicWallet, type GoldLedger } from "./wallet";
 import { createNpcRuntimeInstance, type NpcDefinition, type NpcRuntimeInstance } from "./npc";
 import {
   cloneNpcs,
@@ -33,7 +35,6 @@ import { dict } from "./maps";
 import { cloneProgression, publicProgression, type CharacterProgression } from "./progression";
 import { cloneActionRates, emptyActionRates, type PlayerActionRate } from "./rate_limit";
 import { evaluateStats, playerStatContext, type ProgressionCatalog } from "./stats";
-import { publicWallet } from "./wallet";
 import {
   cloneActiveCast,
   cloneCooldownMap,
@@ -281,6 +282,24 @@ export interface MatchEnemy {
   baseMoveSpeed?: number;
   baseAggroRadius?: number;
   baseAttackRange?: number;
+  controllerUserId?: string;
+  tagOwnerCharacterId?: string;
+  tagOwnerUserId?: string;
+  tagPartyId?: string;
+  encounterRoster?: Array<{ characterId: string; userId: string }>;
+  taggedAtTick?: number;
+  tagRevision?: number;
+  encounterPresence?: {
+    [characterId: string]: {
+      characterId: string;
+      userId: string;
+      lastPresentTick: number;
+      lastDeathTick: number;
+      lastX: number;
+      lastY: number;
+      departedMatch: boolean;
+    };
+  };
 }
 
 export interface StarterZoneState {
@@ -293,6 +312,8 @@ export interface StarterZoneState {
   enemies: MatchEnemy[];
   spawns: MatchSpawn[];
   loot: MatchLoot[];
+  corpses: CorpseLootContainer[];
+  goldLedger: GoldLedger;
   walkableBounds: Aabb;
   collisions: Aabb[];
   moveSpeed: number;
@@ -558,6 +579,8 @@ export function createStarterZoneState(
     enemies: enemies,
     spawns: spawns,
     loot: [],
+    corpses: [],
+    goldLedger: emptyGoldLedger(),
     walkableBounds: {
       x: zone.walkableBounds.x,
       y: zone.walkableBounds.y,
@@ -652,6 +675,7 @@ export function buildFullState(state: StarterZoneState, tick: number, selfId: st
     npcs: publicNpcs(state.npcs),
     enemies: enemiesList(state),
     loot: publicLoot(state.loot),
+    corpses: publicCorpses(Array.isArray(state.corpses) ? state.corpses : []),
     quests: questsFor(state, selfId),
     npcQuestMarkers: markersFor(state, selfId),
     inventory: inventoryFor(state, selfId),
@@ -680,6 +704,7 @@ export function buildSnapshot(state: StarterZoneState, tick: number, includeNpcP
       npcs: publicNpcs(state.npcs),
       enemies: enemiesList(state),
       loot: publicLoot(state.loot),
+      corpses: publicCorpses(Array.isArray(state.corpses) ? state.corpses : []),
     });
   }
   return JSON.stringify({
@@ -690,6 +715,7 @@ export function buildSnapshot(state: StarterZoneState, tick: number, includeNpcP
     players: playersList(state),
     enemies: enemiesList(state),
     loot: publicLoot(state.loot),
+    corpses: publicCorpses(Array.isArray(state.corpses) ? state.corpses : []),
   });
 }
 
@@ -811,6 +837,14 @@ function cloneEnemy(enemy: MatchEnemy): MatchEnemy {
     baseMoveSpeed: extra.baseMoveSpeed,
     baseAggroRadius: extra.baseAggroRadius,
     baseAttackRange: extra.baseAttackRange,
+    controllerUserId: enemy.controllerUserId !== undefined ? enemy.controllerUserId : "",
+    tagOwnerCharacterId: enemy.tagOwnerCharacterId !== undefined ? enemy.tagOwnerCharacterId : "",
+    tagOwnerUserId: enemy.tagOwnerUserId !== undefined ? enemy.tagOwnerUserId : "",
+    tagPartyId: enemy.tagPartyId !== undefined ? enemy.tagPartyId : "",
+    encounterRoster: cloneTagRoster(enemy.encounterRoster),
+    taggedAtTick: enemy.taggedAtTick !== undefined ? enemy.taggedAtTick : 0,
+    tagRevision: enemy.tagRevision !== undefined ? enemy.tagRevision : 0,
+    encounterPresence: cloneTagPresence(enemy.encounterPresence),
   };
 }
 
@@ -820,6 +854,70 @@ function cloneEnemies(enemies: MatchEnemy[]): MatchEnemy[] {
     list.push(cloneEnemy(enemies[i]));
   }
   return list;
+}
+
+function cloneTagRoster(
+  roster: ReadonlyArray<{ characterId: string; userId: string }> | undefined,
+): Array<{ characterId: string; userId: string }> {
+  const list: Array<{ characterId: string; userId: string }> = [];
+  const source = Array.isArray(roster) ? roster : [];
+  for (let i = 0; i < source.length; i++) {
+    list.push({ characterId: source[i].characterId, userId: source[i].userId });
+  }
+  return list;
+}
+
+function cloneTagPresence(
+  presence:
+    | {
+        [characterId: string]: {
+          characterId: string;
+          userId: string;
+          lastPresentTick: number;
+          lastDeathTick: number;
+          lastX: number;
+          lastY: number;
+          departedMatch: boolean;
+        };
+      }
+    | undefined,
+): {
+  [characterId: string]: {
+    characterId: string;
+    userId: string;
+    lastPresentTick: number;
+    lastDeathTick: number;
+    lastX: number;
+    lastY: number;
+    departedMatch: boolean;
+  };
+} {
+  const copy: {
+    [characterId: string]: {
+      characterId: string;
+      userId: string;
+      lastPresentTick: number;
+      lastDeathTick: number;
+      lastX: number;
+      lastY: number;
+      departedMatch: boolean;
+    };
+  } = {};
+  const source = dict(presence);
+  const ids = Object.keys(source);
+  for (let i = 0; i < ids.length; i++) {
+    const row = source[ids[i]];
+    copy[ids[i]] = {
+      characterId: row.characterId,
+      userId: row.userId,
+      lastPresentTick: row.lastPresentTick,
+      lastDeathTick: row.lastDeathTick,
+      lastX: row.lastX,
+      lastY: row.lastY,
+      departedMatch: row.departedMatch === true,
+    };
+  }
+  return copy;
 }
 
 function numberOr(value: number | undefined, fallback: number): number {
@@ -949,6 +1047,8 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     enemies: cloneEnemies(Array.isArray(state.enemies) ? state.enemies : []),
     spawns: cloneSpawns(state.spawns),
     loot: cloneLoot(Array.isArray(state.loot) ? state.loot : []),
+    corpses: cloneCorpses(state.corpses),
+    goldLedger: cloneGoldLedger(state.goldLedger),
     walkableBounds: state.walkableBounds,
     collisions: Array.isArray(state.collisions) ? state.collisions : [],
     moveSpeed: state.moveSpeed,
@@ -1469,6 +1569,7 @@ function copyLootDrops(drops: ReadonlyArray<LootDrop>): LootDrop[] {
       itemId: drop.itemId,
       quantity: drop.quantity,
       guaranteed: drop.guaranteed,
+      kind: drop.kind,
     });
   }
   return list;

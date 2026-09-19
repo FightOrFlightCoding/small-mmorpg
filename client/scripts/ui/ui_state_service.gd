@@ -39,6 +39,7 @@ func handle_character_switch(character_id: String) -> void:
 	WindowManager.close(WindowManager.INN)
 	WindowManager.close(WindowManager.DIALOGUE)
 	WindowManager.close(WindowManager.TRADE)
+	WindowManager.close(WindowManager.CORPSE)
 	WindowManager.close(WindowManager.GM)
 	WindowManager.close(WindowManager.SETTINGS)
 	WindowManager.close(WindowManager.CHARACTER)
@@ -61,6 +62,7 @@ func handle_zone_transfer(zone_id: String) -> void:
 	WindowManager.close(WindowManager.INN)
 	WindowManager.close(WindowManager.DIALOGUE)
 	WindowManager.close(WindowManager.TRADE)
+	WindowManager.close(WindowManager.CORPSE)
 	HudController.sync_windows()
 	ui_state_changed.emit()
 

@@ -684,6 +684,61 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 | Rate limit | Shares DESTROY/SPLIT/MOVE window (8) |
 | Tests | `item_model.test.ts`, `inventory_service_test.gd`, `protocol.test.ts` |
 
+### 42 `OPEN_CORPSE`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, corpseId, requestId }` |
+| Authority | Same match, alive, pickup range, active corpse. Client never sends recipients, timers, or entry state. |
+| Idempotency | Successful `requestId` replays the stored open result |
+| Errors | `invalid_target`, `out_of_range`, `player_dead` |
+| Rate limit | Shares PICKUP window (8) |
+| Tests | `corpse.test.ts`, `protocol.test.ts`, `corpse_service_test.gd` |
+
+### 43 `CLOSE_CORPSE`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, corpseId, requestId }` |
+| Authority | Removes the caller from the corpse viewer list |
+| Idempotency | Same `requestId` stores `ok` |
+| Errors | None material; missing corpse is ignored |
+| Rate limit | Shares PICKUP window (8) |
+| Tests | `corpse.test.ts`, `corpse_service_test.gd` |
+
+### 44 `CLAIM_CORPSE_ITEM`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, corpseId, entryId, toSlotIndex?, requestId, expectedRevision? }` |
+| Authority | Eligibility, ownership phase, entry state, bag capacity. Optional `toSlotIndex` is a preferred bag slot (`preferredStrict`). Client never nominates recipients. |
+| Idempotency | Successful `requestId` replays without a second grant |
+| Errors | `not_eligible`, `loot_item_no_longer_available`, `inventory_full`, `invalid_slot`, `out_of_range`, `player_dead`, `invalid_target`, `roll_pending`, `inventory_stale` |
+| Rate limit | Shares PICKUP window (8) |
+| Tests | `corpse.test.ts`, `protocol.test.ts`, `bag_ui_test.gd` |
+
+### 45 `CLAIM_CORPSE_GOLD`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, corpseId, requestId }` |
+| Authority | Private: one exactly-once split across the death-eligible roster. Public: first valid claimant receives remaining gold. Client never sends amount or recipients. |
+| Idempotency | Successful `requestId` replays the original result |
+| Errors | `not_eligible`, `loot_item_no_longer_available`, `out_of_range`, `player_dead`, `invalid_target` |
+| Rate limit | Shares PICKUP window (8) |
+| Tests | `corpse.test.ts`, `protocol.test.ts` |
+
+### 46 `LOOT_ALL_CORPSE`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, corpseId, requestId, expectedRevision? }` |
+| Authority | Gold first, then claimable item entries in corpse order. Skips `ROLL_PENDING` and awards reserved to someone else. Each item simulates fit independently. |
+| Idempotency | Successful `requestId` replays `lootAll[]` |
+| Errors | Same as claim for the envelope; per-entry codes in `lootAll` |
+| Rate limit | Shares PICKUP window (8) |
+| Tests | `corpse.test.ts`, `corpse_service_test.gd` |
+
 No other client opcodes exist. Unknown opcode → `unknown_opcode`.
 
 ## Server → client match opcodes
@@ -692,9 +747,9 @@ No client rate limit. Occupied matches send **102** every tick.
 
 | Opcode | Name | Body (summary) | Tests |
 | --- | --- | --- | --- |
-| 101 | `FULL_STATE` | tick, zone, self, players, npcs, enemies, loot, quests, inventory, equipment, derived, wallet, progression, abilities, optional party, optional instance | `protocol.test.ts`, `zone_join_test.gd`, `progression.test.ts`, `ability.test.ts`, `party_service_test.gd`, `cave.test.ts` |
-| 102 | `SNAPSHOT` | tick, players, enemies, loot | `movement.test.ts`, `entity_registry_test.gd` |
-| 103 | `ACTION_RESULT` | ok, code, requestId?, message?, ticket extras, optional tradeId | combat/inventory/quest/cave/trade/lease tests |
+| 101 | `FULL_STATE` | tick, zone, self, players, npcs, enemies, loot, corpses, quests, inventory, equipment, derived, wallet, progression, abilities, optional party, optional instance | `protocol.test.ts`, `zone_join_test.gd`, `progression.test.ts`, `ability.test.ts`, `party_service_test.gd`, `cave.test.ts` |
+| 102 | `SNAPSHOT` | tick, players, enemies, loot, corpses | `movement.test.ts`, `entity_registry_test.gd` |
+| 103 | `ACTION_RESULT` | ok, code, requestId?, message?, ticket extras, optional tradeId, optional `lootAll[]` | combat/inventory/quest/cave/trade/lease/corpse tests |
 | 104 | `COMBAT_EVENT` | tick, events[] (`hit`, `heal`, `death`, `respawn`, `interrupt`, `effect_*`, `resource`, `threat`, `credit`, `message`) | `combat.test.ts`, `combat_pipeline.test.ts`, `boss.test.ts`, `combat_client_test.gd` |
 | 105 | `INVENTORY_STATE` | capacity, items, revision, optional overflow | `inventory.test.ts`, `item_model.test.ts` |
 | 106 | `QUEST_STATE` | quests | `quest.test.ts` |
@@ -707,6 +762,8 @@ No client rate limit. Occupied matches send **102** every tick.
 | 113 | `PARTY_STATE` | optional `party` view for the recipient (ids, leader, members, revision, connection state, pending invite) | `party.test.ts`, `party_service_test.gd` |
 | 114 | `PARTY_EVENT` | `partyId`, `eventType`, optional `systemMessage` / loot assignment | `party.test.ts`, `party_credit_loot.test.ts` |
 | 115 | `TRADE_STATE` | canonical trade: ids, state, revision, offers, goldOffers, acceptances, expiresAt | `trade.test.ts`, `trade_service_test.gd` |
+| 116 | `CORPSE_STATE` | viewer corpse: ids, pose, gold, items (entryId/itemId/quantity/state), timers, eligible, public, revision | `corpse.test.ts`, `corpse_service_test.gd` |
+| 117 | `CORPSE_REMOVED` | `corpseId`, `reason` (`empty` / `expired`) | `corpse.test.ts` |
 
 `FULL_STATE` may include optional `party` for the recipient and optional `instance` (`type`, `instanceId`, `zoneTemplateId`, `completionState`, `bossAlive`, owners). Snapshots do not carry party membership. Join metadata: `{ protocolVersion, contentHash }` strings plus `selectionTicket` or `transferTicket`. Mismatch → join reject / fatal client error. Transfer join rejects `ticket_reused`, `ticket_expired`, `ticket_wrong_character`, `ticket_wrong_destination`, `still_in_origin`, `already_elsewhere`. Email accounts that are not playable are rejected at `matchJoinAttempt` (`email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted`).
 

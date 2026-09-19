@@ -58,6 +58,11 @@ func test_join_metadata_carries_selection_ticket_not_character_id() -> void:
 	assert_int(MatchProtocol.CLIENT_DIALOGUE_CHOOSE).is_equal(39)
 	assert_int(MatchProtocol.CLIENT_INTERACTION_CLOSE).is_equal(40)
 	assert_int(MatchProtocol.CLIENT_RECOVER_OVERFLOW_ITEM).is_equal(41)
+	assert_int(MatchProtocol.CLIENT_OPEN_CORPSE).is_equal(42)
+	assert_int(MatchProtocol.CLIENT_CLOSE_CORPSE).is_equal(43)
+	assert_int(MatchProtocol.CLIENT_CLAIM_CORPSE_ITEM).is_equal(44)
+	assert_int(MatchProtocol.CLIENT_CLAIM_CORPSE_GOLD).is_equal(45)
+	assert_int(MatchProtocol.CLIENT_LOOT_ALL_CORPSE).is_equal(46)
 	assert_int(MatchProtocol.SERVER_FULL_STATE).is_equal(101)
 	assert_int(MatchProtocol.SERVER_SNAPSHOT).is_equal(102)
 	assert_int(MatchProtocol.SERVER_ACTION_RESULT).is_equal(103)
@@ -73,6 +78,8 @@ func test_join_metadata_carries_selection_ticket_not_character_id() -> void:
 	assert_int(MatchProtocol.SERVER_PARTY_STATE).is_equal(113)
 	assert_int(MatchProtocol.SERVER_PARTY_EVENT).is_equal(114)
 	assert_int(MatchProtocol.SERVER_TRADE_STATE).is_equal(115)
+	assert_int(MatchProtocol.SERVER_CORPSE_STATE).is_equal(116)
+	assert_int(MatchProtocol.SERVER_CORPSE_REMOVED).is_equal(117)
 	assert_float(MatchProtocol.INPUT_SEND_HZ).is_equal(10.0)
 	assert_float(MatchProtocol.SNAPSHOT_RATE_HZ).is_equal(10.0)
 	assert_float(MatchProtocol.SNAPSHOT_TIMEOUT_SEC).is_equal(2.0)
@@ -203,3 +210,62 @@ func test_parse_interaction_result_normalizes_failure_with_message() -> void:
 	assert_str(String(parsed.get("target_id", ""))).is_equal("npc.cert_quartermaster")
 	assert_str(String(parsed.get("code", ""))).is_equal("rate_limited")
 	assert_str(String(parsed.get("message", ""))).is_equal("Too many interact requests.")
+
+
+func test_parse_corpse_state_and_loot_all_result() -> void:
+	var corpse_state: Dictionary = MatchProtocol.parse_corpse_state(
+		JSON.stringify({
+			"protocolVersion": 1,
+			"contentHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			"requestId": "req-open-c1",
+			"corpse": {
+				"corpseId": "corpse-1",
+				"goldAmount": 7,
+				"items": [{"entryId": "e1", "itemId": "item.slime_gel", "quantity": 1, "state": "PRIVATE_AVAILABLE"}],
+			},
+		})
+	)
+	assert_bool(bool(corpse_state.get("ok", false))).is_true()
+	assert_str(String(corpse_state.get("request_id", ""))).is_equal("req-open-c1")
+	assert_str(String((corpse_state["corpse"] as Dictionary).get("corpseId", ""))).is_equal("corpse-1")
+	var removed: Dictionary = MatchProtocol.parse_corpse_removed(
+		JSON.stringify({
+			"protocolVersion": 1,
+			"contentHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			"corpseId": "corpse-1",
+			"reason": "empty",
+		})
+	)
+	assert_bool(bool(removed.get("ok", false))).is_true()
+	assert_str(String(removed.get("corpse_id", ""))).is_equal("corpse-1")
+	assert_str(String(removed.get("reason", ""))).is_equal("empty")
+	var action: Dictionary = MatchProtocol.parse_action_result(
+		JSON.stringify({
+			"protocolVersion": 1,
+			"ok": true,
+			"code": "ok",
+			"requestId": "req-loot-all1",
+			"lootAll": [{"entryId": "gold", "kind": "gold", "code": "ok", "claimed": true}],
+		})
+	)
+	assert_bool(bool(action.get("ok", false))).is_true()
+	assert_int((action.get("loot_all", []) as Array).size()).is_equal(1)
+	assert_bool(GameService.start_boot()).is_true()
+	var hash := ContentRegistry.get_content_hash()
+	var full: Dictionary = MatchProtocol.parse_full_state(
+		JSON.stringify({
+			"protocolVersion": 1,
+			"contentHash": hash,
+			"tick": 4,
+			"zoneId": "zone.starter",
+			"selfId": "user-alice",
+			"players": [{"userId": "user-alice", "name": "Alice"}],
+			"npcs": [],
+			"enemies": [],
+			"loot": [],
+			"corpses": [{"id": "corpse-1", "x": 10, "y": 20}],
+		}),
+		hash
+	)
+	assert_bool(bool(full.get("ok", false))).is_true()
+	assert_int((full["view"]["corpses"] as Array).size()).is_equal(1)

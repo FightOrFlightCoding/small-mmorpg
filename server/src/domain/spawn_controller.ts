@@ -1,5 +1,6 @@
 import { NEVER_ATTACKED_TICK, cooldownTicks, type CombatEvent } from "./combat";
 import { dict } from "./maps";
+import { resetEnemyTag } from "./enemy_tag";
 import type {
   EnemyContent,
   MatchEnemy,
@@ -261,6 +262,7 @@ export function resetEnemyToSpawn(enemy: MatchEnemy, restoreHealth: boolean): vo
   enemy.moveSpeed = numberOr(enemy.baseMoveSpeed, enemy.moveSpeed);
   enemy.aggroRadius = numberOr(enemy.baseAggroRadius, enemy.aggroRadius);
   enemy.attackRange = numberOr(enemy.baseAttackRange, enemy.attackRange);
+  resetEnemyTag(enemy);
 }
 
 export function createEnemyFromDefinition(

@@ -57,6 +57,11 @@ const CLIENT_PURCHASE_TALENT: int = 38
 const CLIENT_DIALOGUE_CHOOSE: int = 39
 const CLIENT_INTERACTION_CLOSE: int = 40
 const CLIENT_RECOVER_OVERFLOW_ITEM: int = 41
+const CLIENT_OPEN_CORPSE: int = 42
+const CLIENT_CLOSE_CORPSE: int = 43
+const CLIENT_CLAIM_CORPSE_ITEM: int = 44
+const CLIENT_CLAIM_CORPSE_GOLD: int = 45
+const CLIENT_LOOT_ALL_CORPSE: int = 46
 
 const SERVER_FULL_STATE: int = 101
 const SERVER_SNAPSHOT: int = 102
@@ -73,6 +78,8 @@ const SERVER_ABILITY_STATE: int = 112
 const SERVER_PARTY_STATE: int = 113
 const SERVER_PARTY_EVENT: int = 114
 const SERVER_TRADE_STATE: int = 115
+const SERVER_CORPSE_STATE: int = 116
+const SERVER_CORPSE_REMOVED: int = 117
 
 const FIND_OR_CREATE_STARTER_ZONE_RPC: String = "find_or_create_starter_zone"
 const SESSION_HANDSHAKE_RPC: String = "session_handshake"
@@ -152,6 +159,7 @@ static func parse_full_state(raw: String, expected_content_hash: String) -> Dict
 			"npcs": (parsed["npcs"] as Array).duplicate(true),
 			"enemies": (parsed["enemies"] as Array).duplicate(true),
 			"loot": loot.duplicate(true),
+			"corpses": _optional_array(parsed, "corpses"),
 			"quests": _optional_array(parsed, "quests"),
 			"npc_quest_markers": _optional_array(parsed, "npcQuestMarkers"),
 			"inventory": _optional_inventory(parsed),
@@ -185,7 +193,7 @@ static func parse_snapshot(raw: String, expected_content_hash: String, previous:
 		view["zone_id"] = String(parsed["zoneId"])
 	view["players"] = (parsed["players"] as Array).duplicate(true)
 	view["ack_seq"] = _ack_seq(view["players"], String(view.get("self_id", "")))
-	for key in ["npcs", "enemies", "loot", "quests"]:
+	for key in ["npcs", "enemies", "loot", "corpses", "quests"]:
 		if typeof(parsed.get(key, null)) == TYPE_ARRAY:
 			view[key] = (parsed[key] as Array).duplicate(true)
 	return {"ok": true, "view": view}
@@ -258,6 +266,7 @@ static func parse_action_result(raw: String) -> Dictionary:
 		"zone_id": String(parsed.get("zoneId", "")),
 		"instance_type": String(parsed.get("instanceType", "")),
 		"trade_id": String(parsed.get("tradeId", "")),
+		"loot_all": _optional_array(parsed, "lootAll"),
 	}
 
 
@@ -417,6 +426,33 @@ static func parse_trade_state(raw: String) -> Dictionary:
 		"ok": true,
 		"request_id": String(parsed.get("requestId", "")),
 		"trade": _optional_object(parsed, "trade"),
+	}
+
+
+static func parse_corpse_state(raw: String) -> Dictionary:
+	var parsed: Dictionary = _parse_object(raw)
+	if parsed.has("ok") and not bool(parsed["ok"]):
+		return parsed
+	if not _version_ok(parsed):
+		return _fail("protocol_mismatch", "The corpse-state protocol version does not match this client.")
+	var corpse: Dictionary = _optional_object(parsed, "corpse")
+	return {
+		"ok": true,
+		"request_id": String(parsed.get("requestId", "")),
+		"corpse": corpse,
+	}
+
+
+static func parse_corpse_removed(raw: String) -> Dictionary:
+	var parsed: Dictionary = _parse_object(raw)
+	if parsed.has("ok") and not bool(parsed["ok"]):
+		return parsed
+	if not _version_ok(parsed):
+		return _fail("protocol_mismatch", "The corpse-removed protocol version does not match this client.")
+	return {
+		"ok": true,
+		"corpse_id": String(parsed.get("corpseId", "")),
+		"reason": String(parsed.get("reason", "")),
 	}
 
 
