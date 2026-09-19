@@ -67,9 +67,9 @@ export function emptyNpcMovement(x: number, y: number, seedText: string): NpcMov
   };
 }
 
-export function cloneNpcMovement(source: NpcMovementRuntime | undefined, x: number, y: number, seedText: string): NpcMovementRuntime {
+export function cloneNpcMovement(source: NpcMovementRuntime | undefined | null, x: number, y: number, seedText: string): NpcMovementRuntime {
   const fallback = emptyNpcMovement(x, y, seedText);
-  if (source === undefined) {
+  if (source == null || typeof source !== "object") {
     return fallback;
   }
   return {
@@ -595,7 +595,7 @@ function waypointIndex(waypoints: ReadonlyArray<NpcRouteWaypoint>, id: string): 
 }
 
 function ensureMovement(npc: NpcRuntimeInstance): NpcMovementRuntime {
-  if (npc.movement === undefined) {
+  if (npc.movement == null || typeof npc.movement !== "object") {
     npc.movement = emptyNpcMovement(npc.x, npc.y, npc.npcId);
   }
   return npc.movement;

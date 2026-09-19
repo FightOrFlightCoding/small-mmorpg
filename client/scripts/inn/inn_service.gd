@@ -54,6 +54,6 @@ func _on_interaction_result(payload: Dictionary) -> void:
 	var npc_id := String(payload.get("target_id", ""))
 	if npc_id.is_empty():
 		return
-	var services: Array = payload.get("services", [])
-	if services.has("inn") or services.has("healer") or services.has("respec"):
+	var services: Array = MatchProtocol.string_ids(payload.get("services", payload.get("available_service_ids", [])))
+	if services.find("inn") >= 0 or services.find("healer") >= 0 or services.find("respec") >= 0:
 		last_npc_id = npc_id

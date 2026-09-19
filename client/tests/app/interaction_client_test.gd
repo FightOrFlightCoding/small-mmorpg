@@ -8,6 +8,9 @@ func before_test() -> void:
 	AppState.reset_for_tests()
 	NetworkService.reset_for_tests()
 	QuestService.reset_for_tests()
+	VendorService.reset_for_tests()
+	InnService.reset_for_tests()
+	CaveService.reset_for_tests()
 	WindowManager.reset_for_tests()
 	assert_bool(ContentRegistry.load_bundle()).is_true()
 
@@ -293,11 +296,116 @@ func test_loading_timeout_and_recoverable_error_clear_waiting_status() -> void:
 	presenter._on_loading_timeout()
 	assert_bool(presenter._window.is_loading()).is_false()
 	assert_str(presenter._window._status.text).is_equal("The server did not answer.")
-	assert_str(presenter.pending_request_id).is_equal("")
+	assert_str(presenter.pending_request_id).is_equal("req-timeout")
+	var late := presenter.handle_interaction_result({
+		"result_ok": true,
+		"code": "ok",
+		"request_id": "req-timeout",
+		"target_id": "npc.platform_quest",
+		"dialogue_id": "dialogue.npc.platform_quest",
+		"interaction_session_id": "sess-late-1",
+		"current_node_id": "start",
+		"allowed_option_ids": [],
+		"available_service_ids": ["quest_offer"],
+	})
+	assert_bool(late).is_true()
+	assert_str(presenter._window._status.text).is_equal("")
+	assert_str(presenter._window._body.text).contains("Speak with me again")
 	presenter.note_intent("npc.cert_quartermaster", "req-rate")
 	AppState.report_recoverable("rate_limited", "Too many interact requests.")
 	assert_bool(presenter._window.is_loading()).is_false()
 	assert_str(presenter._window._status.text).is_equal("Too many interact requests.")
+
+
+func test_window_process_timeout_clears_waiting_copy() -> void:
+	var window: NpcInteractionWindow = auto_free(NpcInteractionWindow.new())
+	add_child(window)
+	await get_tree().process_frame
+	window.show_loading("Platform Questgiver")
+	window._loading_started_msec = Time.get_ticks_msec() - 2500
+	window._process(0.05)
+	assert_bool(window.is_loading()).is_false()
+	assert_str(window._status.text).is_equal("The server did not answer.")
+
+
+func test_null_option_and_service_lists_still_present() -> void:
+	var presenter: DialoguePresenter = auto_free(DialoguePresenter.new())
+	add_child(presenter)
+	await get_tree().process_frame
+	presenter.note_intent("npc.platform_quest", "req-null-lists")
+	var payload := {
+		"result_ok": true,
+		"code": "ok",
+		"request_id": "req-null-lists",
+		"target_id": "npc.platform_quest",
+		"dialogue_id": "dialogue.npc.platform_quest",
+		"interaction_session_id": "sess-null-1",
+		"current_node_id": "start",
+	}
+	payload["allowed_option_ids"] = null
+	payload["available_service_ids"] = null
+	payload["services"] = null
+	VendorService.reset_for_tests()
+	VendorService._on_interaction_result(payload)
+	assert_bool(presenter.handle_interaction_result(payload)).is_true()
+	assert_bool(presenter._window.is_loading()).is_false()
+	assert_str(presenter._window._body.text).contains("Speak with me again")
+	assert_int(presenter._window._services.get_child_count()).is_equal(0)
+
+
+func test_server_camel_case_payloads_roundtrip_through_parse_vendor_and_presenter() -> void:
+	var quest_raw := JSON.stringify({
+		"protocolVersion": 1,
+		"ok": true,
+		"code": "ok",
+		"requestId": "req-live-pq",
+		"targetId": "npc.platform_quest",
+		"dialogueId": "dialogue.npc.platform_quest",
+		"interactionSessionId": "sess-live-pq",
+		"currentNodeId": "start",
+		"allowedOptionIds": [],
+		"availableServiceIds": ["quest_offer"],
+		"services": ["quest_offer"],
+		"expiresAtTick": 301,
+	})
+	var quest_parsed: Dictionary = MatchProtocol.parse_interaction_result(quest_raw)
+	var presenter: DialoguePresenter = auto_free(DialoguePresenter.new())
+	add_child(presenter)
+	await get_tree().process_frame
+	presenter.note_intent("npc.platform_quest", "req-live-pq")
+	VendorService.reset_for_tests()
+	VendorService._on_interaction_result(quest_parsed)
+	assert_bool(presenter.handle_interaction_result(quest_parsed)).is_true()
+	assert_str(presenter._window._body.text).contains("Speak with me again")
+	assert_int(presenter._window._services.get_child_count()).is_equal(1)
+	var vendor_raw := JSON.stringify({
+		"protocolVersion": 1,
+		"ok": true,
+		"code": "ok",
+		"requestId": "req-live-cert",
+		"targetId": "npc.cert_quartermaster",
+		"dialogueId": "dialogue.npc.cert_quartermaster",
+		"interactionSessionId": "sess-live-cert",
+		"currentNodeId": "start",
+		"allowedOptionIds": ["opt.not_now"],
+		"availableServiceIds": ["quest_offer", "vendor"],
+		"services": ["quest_offer", "vendor"],
+		"vendorId": "vendor.cert_quartermaster",
+		"currencyId": "gold",
+		"stock": [{"itemId": "item.cert_mail", "buyPrice": 5}],
+		"expiresAtTick": 301,
+	})
+	var vendor_parsed: Dictionary = MatchProtocol.parse_interaction_result(vendor_raw)
+	presenter.note_intent("npc.cert_quartermaster", "req-live-cert")
+	VendorService._on_interaction_result(vendor_parsed)
+	InnService._on_interaction_result(vendor_parsed)
+	CaveService._on_interaction_result(vendor_parsed)
+	assert_bool(presenter.handle_interaction_result(vendor_parsed)).is_true()
+	assert_str(presenter._window._body.text).contains("north-east ridge")
+	assert_int(presenter._window._options.get_child_count()).is_equal(1)
+	assert_int(presenter._window._services.get_child_count()).is_equal(2)
+	assert_str(VendorService.last_vendor_id).is_equal("vendor.cert_quartermaster")
+	assert_int(VendorService.last_stock.size()).is_equal(1)
 
 
 func test_failed_interaction_result_with_message_keeps_request_id() -> void:

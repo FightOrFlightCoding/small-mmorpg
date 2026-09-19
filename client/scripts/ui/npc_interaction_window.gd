@@ -6,6 +6,7 @@ extends CanvasLayer
 signal option_chosen(option_id: String)
 signal service_chosen(service_id: String)
 signal close_requested
+signal loading_timed_out
 
 const SERVICE_LABELS := {
 	"quest_offer": "Accept quest",
@@ -30,12 +31,28 @@ var _options: VBoxContainer
 var _services: VBoxContainer
 var _close: Button
 var _loading: bool = false
+var _loading_started_msec: int = 0
+const LOADING_TIMEOUT_MSEC := 2000
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	set_process(true)
 	layer = 20
 	_build()
 	visible = false
+
+
+func _process(_delta: float) -> void:
+	if not _loading or not visible:
+		return
+	if Time.get_ticks_msec() - _loading_started_msec < LOADING_TIMEOUT_MSEC:
+		return
+	var named := ""
+	if _name_label != null:
+		named = _name_label.text
+	show_error(named, "The server did not answer.")
+	loading_timed_out.emit()
 
 
 func is_open() -> bool:
@@ -44,6 +61,7 @@ func is_open() -> bool:
 
 func show_loading(npc_name: String) -> void:
 	_loading = true
+	_loading_started_msec = Time.get_ticks_msec()
 	_name_label.text = npc_name
 	_body.text = ""
 	_status.text = "Waiting for the server…"
@@ -65,7 +83,6 @@ func show_error(npc_name: String, message: String) -> void:
 
 
 func present(payload: Dictionary) -> void:
-	_loading = false
 	npc_id = String(payload.get("npc_id", npc_id))
 	session_id = String(payload.get("interaction_session_id", session_id))
 	current_node_id = String(payload.get("current_node_id", ""))
@@ -74,26 +91,29 @@ func present(payload: Dictionary) -> void:
 	_status.text = ""
 	_status.modulate = DesignTokens.TEXT
 	_clear_buttons()
-	var options: Array = payload.get("options", [])
-	for entry in options:
-		if typeof(entry) != TYPE_DICTIONARY:
-			continue
-		var option: Dictionary = entry
-		var option_id := String(option.get("id", ""))
-		if option_id.is_empty():
-			continue
-		var button := _make_button(String(option.get("text", option_id)), false)
-		button.pressed.connect(_on_option.bind(option_id))
-		_options.add_child(button)
-	var services: Array = payload.get("services", [])
-	for service_id in services:
-		var id := String(service_id)
-		if id.is_empty() or id == "dialogue":
-			continue
-		var label := String(SERVICE_LABELS.get(id, id))
-		var button := _make_button(label, true)
-		button.pressed.connect(_on_service.bind(id))
-		_services.add_child(button)
+	var options: Variant = payload.get("options", [])
+	if typeof(options) == TYPE_ARRAY:
+		for entry in options:
+			if typeof(entry) != TYPE_DICTIONARY:
+				continue
+			var option: Dictionary = entry
+			var option_id := String(option.get("id", ""))
+			if option_id.is_empty():
+				continue
+			var button := _make_button(String(option.get("text", option_id)), false)
+			button.pressed.connect(_on_option.bind(option_id))
+			_options.add_child(button)
+	var services: Variant = payload.get("services", [])
+	if typeof(services) == TYPE_ARRAY:
+		for service_id in services:
+			var id := String(service_id)
+			if id.is_empty() or id == "dialogue":
+				continue
+			var label := String(SERVICE_LABELS.get(id, id))
+			var button := _make_button(label, true)
+			button.pressed.connect(_on_service.bind(id))
+			_services.add_child(button)
+	_loading = false
 	visible = true
 
 

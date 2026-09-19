@@ -59,10 +59,10 @@ func _on_interaction_result(payload: Dictionary) -> void:
 	var npc_id := String(payload.get("target_id", ""))
 	if npc_id.is_empty():
 		return
-	var services: Array = payload.get("services", [])
-	if services.has("cave_entrance"):
+	var services: Array = MatchProtocol.string_ids(payload.get("services", payload.get("available_service_ids", [])))
+	if services.find("cave_entrance") >= 0:
 		last_npc_id = npc_id
-	if services.has("cave_exit"):
+	if services.find("cave_exit") >= 0:
 		last_exit_npc_id = npc_id
 
 

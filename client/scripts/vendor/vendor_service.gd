@@ -127,8 +127,8 @@ func _on_interaction_result(payload: Dictionary) -> void:
 	var session_id := String(payload.get("interaction_session_id", ""))
 	if not session_id.is_empty():
 		last_session_id = session_id
-	var services: Array = payload.get("available_service_ids", payload.get("services", []))
-	if not services.has("vendor"):
+	var services: Array = MatchProtocol.string_ids(payload.get("available_service_ids", payload.get("services", [])))
+	if services.find("vendor") < 0:
 		return
 	last_npc_id = npc_id
 	var vendor_id := String(payload.get("vendor_id", ""))
@@ -138,9 +138,9 @@ func _on_interaction_result(payload: Dictionary) -> void:
 	var currency_id := String(payload.get("currency_id", ""))
 	if not currency_id.is_empty():
 		last_currency_id = currency_id
-	var stock: Array = payload.get("stock", [])
-	if not stock.is_empty():
-		last_stock = stock
+	var stock: Variant = payload.get("stock", [])
+	if typeof(stock) == TYPE_ARRAY and not (stock as Array).is_empty():
+		last_stock = (stock as Array).duplicate(true)
 
 
 func _on_action_result(payload: Dictionary) -> void:

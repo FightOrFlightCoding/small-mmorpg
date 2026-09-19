@@ -475,9 +475,24 @@ static func _hash_ok(data: Dictionary, expected_content_hash: String) -> bool:
 static func _optional_array(data: Dictionary, key: String) -> Array:
 	if not data.has(key):
 		return []
-	if typeof(data[key]) != TYPE_ARRAY:
+	return string_ids_or_rows(data[key])
+
+
+static func string_ids(value: Variant) -> Array:
+	var rows: Array = []
+	if typeof(value) != TYPE_ARRAY:
+		return rows
+	for entry in value:
+		var id := String(entry)
+		if not id.is_empty():
+			rows.append(id)
+	return rows
+
+
+static func string_ids_or_rows(value: Variant) -> Array:
+	if typeof(value) != TYPE_ARRAY:
 		return []
-	return (data[key] as Array).duplicate(true)
+	return (value as Array).duplicate(true)
 
 
 static func _optional_inventory(data: Dictionary) -> Dictionary:

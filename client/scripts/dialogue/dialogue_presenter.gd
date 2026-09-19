@@ -20,6 +20,7 @@ var _loading_timer: Timer
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_ensure_window()
 	if not WindowManager.window_closed.is_connected(_on_window_closed):
 		WindowManager.window_closed.connect(_on_window_closed)
@@ -56,8 +57,10 @@ func handle_interaction_result(result: Dictionary) -> bool:
 		var npc_id := pending_npc_id
 		if npc_id.is_empty():
 			npc_id = target_id
-		_clear_pending_intent()
-		return _present(npc_id, result)
+		var opened := _present(npc_id, result)
+		if opened:
+			_clear_pending_intent()
+		return opened
 	if request_id == _choice_request_id and not _choice_request_id.is_empty():
 		_choice_request_id = ""
 		_stop_loading_timer()
@@ -92,7 +95,6 @@ func close_dialogue(send_close: bool = true) -> void:
 
 
 func _present(npc_id: String, result: Dictionary) -> bool:
-	_stop_loading_timer()
 	_ensure_window()
 	QuestService.set_speaker(npc_id)
 	last_opened_npc_id = npc_id
@@ -100,9 +102,12 @@ func _present(npc_id: String, result: Dictionary) -> bool:
 	var is_new_session := last_session_id.is_empty() or session != last_session_id
 	last_session_id = session
 	var node_id := String(result.get("current_node_id", result.get("currentNodeId", "")))
-	var option_ids: Array = result.get("allowed_option_ids", result.get("allowedOptionIds", []))
-	var service_ids: Array = result.get("available_service_ids", result.get("services", []))
+	var option_ids: Array = MatchProtocol.string_ids(result.get("allowed_option_ids", result.get("allowedOptionIds", [])))
+	var service_ids: Array = MatchProtocol.string_ids(result.get("available_service_ids", result.get("services", [])))
 	var dialogue_id := String(result.get("dialogue_id", result.get("dialogueId", "")))
+	if dialogue_id.is_empty():
+		var npc: Dictionary = ContentRegistry.get_by_id(npc_id)
+		dialogue_id = String(npc.get("dialogueId", ""))
 	_window.present({
 		"npc_id": npc_id,
 		"npc_name": _npc_name(npc_id),
@@ -112,6 +117,7 @@ func _present(npc_id: String, result: Dictionary) -> bool:
 		"options": _option_rows(dialogue_id, node_id, option_ids),
 		"services": service_ids,
 	})
+	_stop_loading_timer()
 	if is_new_session:
 		open_count += 1
 		dialogue_opened.emit(npc_id)
@@ -193,16 +199,18 @@ func _ensure_window() -> void:
 		_window.service_chosen.connect(_on_service)
 	if not _window.close_requested.is_connected(_on_close):
 		_window.close_requested.connect(_on_close)
+	if not _window.loading_timed_out.is_connected(_on_window_loading_timeout):
+		_window.loading_timed_out.connect(_on_window_loading_timeout)
 
 
 func _matches_pending_intent(request_id: String, target_id: String) -> bool:
-	if pending_request_id.is_empty():
+	if pending_request_id.is_empty() and pending_npc_id.is_empty():
 		return false
-	if request_id == pending_request_id:
+	if not pending_request_id.is_empty() and request_id == pending_request_id:
 		return true
 	if not pending_npc_id.is_empty() and target_id == pending_npc_id:
 		return true
-	return request_id.is_empty() and target_id.is_empty()
+	return false
 
 
 func _show_intent_error(npc_id: String, result: Dictionary) -> void:
@@ -232,19 +240,23 @@ func _ensure_loading_timer() -> void:
 		return
 	_loading_timer = Timer.new()
 	_loading_timer.one_shot = true
+	_loading_timer.process_callback = Timer.TIMER_PROCESS_IDLE
+	_loading_timer.process_mode = Node.PROCESS_MODE_ALWAYS
 	_loading_timer.timeout.connect(_on_loading_timeout)
 	add_child(_loading_timer)
 
 
+func _on_window_loading_timeout() -> void:
+	# The window already replaced the waiting copy. Keep the pending request so a
+	# late INTERACTION_RESULT can still present.
+	pass
+
+
 func _on_loading_timeout() -> void:
-	if pending_request_id.is_empty() and _choice_request_id.is_empty():
-		return
 	if _window == null or not _window.is_loading():
 		return
 	var npc_id := pending_npc_id if not pending_npc_id.is_empty() else last_opened_npc_id
 	_show_intent_error(npc_id, {"code": "interaction_timeout", "message": "The server did not answer."})
-	_clear_pending_intent()
-	_choice_request_id = ""
 
 
 func _on_recoverable_error(code: String, message: String) -> void:
