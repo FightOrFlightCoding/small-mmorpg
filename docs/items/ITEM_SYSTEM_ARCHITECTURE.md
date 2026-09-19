@@ -2,7 +2,7 @@
 
 **Last accepted gameplay phase:** NPC-07 — Lifecycle, security, and final certification (playable line `origin/main`, including later client crash/hang repairs).  
 **Last accepted progression phase:** PROG-15.  
-**Current requested phase:** ITEM-10 — Quest items, quest objectives, rewards, and future acquisition sources.
+**Last accepted item phase:** ITEM-10 — Quest items, quest objectives, rewards, and future acquisition sources.
 
 ITEM-10 wires the completed item platform to quests and one shared future grant. The client never finalizes bag, gold, quest counts, or grants. Do not create parallel inventory, equipment, wallet, loot, transaction, merchant, trade, or quest-item systems.
 

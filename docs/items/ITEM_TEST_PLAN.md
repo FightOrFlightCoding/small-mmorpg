@@ -9,8 +9,8 @@ Directory-form `node --test dist/tests` can fail on Node 22.14 before discovery.
 | Gate | Result |
 | --- | --- |
 | Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 49 client opcodes, 19 server opcodes, 29 RPCs) |
-| Content validation/tests | 28/28 passed |
-| Server hermetic tests | 1013 passed, 13 expected live-test skips |
+| Content validation/tests | 29/29 passed |
+| Server hermetic tests | 1028 passed, 13 expected live-test skips |
 | Server typecheck/build | passed |
 | Auth gateway hermetic tests | 52/52 passed |
 | Godot 4.7.1 client GdUnit | 371/371 passed, 0 failures, 0 orphans |
