@@ -207,7 +207,11 @@ func _free_children(parent: Node) -> void:
 	var children: Array = parent.get_children()
 	for child in children:
 		parent.remove_child(child)
-		child.free()
+		# Never Object.free() here: option/service buttons emit pressed into
+		# show_loading(), which rebuilds this list. Immediate free crashes
+		# Godot ("previously freed") mid-callback. remove_child keeps counts
+		# correct; queue_free runs after the signal returns.
+		child.queue_free()
 
 
 func _on_option(option_id: String) -> void:

@@ -472,3 +472,29 @@ func test_vendor_inn_cave_listen_deferred_to_interaction_results() -> void:
 	assert_bool(vendor_deferred).is_true()
 	assert_bool(inn_deferred).is_true()
 	assert_bool(cave_deferred).is_true()
+
+
+func test_pressing_not_now_does_not_free_the_option_button_during_pressed() -> void:
+	var presenter: DialoguePresenter = auto_free(DialoguePresenter.new())
+	add_child(presenter)
+	await get_tree().process_frame
+	presenter.note_intent("npc.platform_combined", "req-steward-1")
+	assert_bool(presenter.handle_interaction_result({
+		"result_ok": true,
+		"code": "ok",
+		"request_id": "req-steward-1",
+		"target_id": "npc.platform_combined",
+		"dialogue_id": "dialogue.npc.platform_combined",
+		"interaction_session_id": "sess-steward-1",
+		"current_node_id": "start",
+		"allowed_option_ids": ["opt.not_now"],
+		"available_service_ids": ["quest_offer", "vendor"],
+	})).is_true()
+	assert_int(presenter._window._options.get_child_count()).is_equal(1)
+	var button := presenter._window._options.get_child(0) as Button
+	assert_str(button.text).is_equal("Not now.")
+	button.pressed.emit()
+	assert_bool(is_instance_valid(button)).is_true()
+	assert_bool(presenter._window.is_loading()).is_true()
+	assert_str(presenter._window._status.text).is_equal("Waiting for the server…")
+	assert_int(presenter._window._options.get_child_count()).is_equal(0)
