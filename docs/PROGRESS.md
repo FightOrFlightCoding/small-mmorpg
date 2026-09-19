@@ -1,18 +1,18 @@
 # Progress
 
-Last accepted phase: **ITEM-02 — Canonical item model, thirty-slot bag, equipment, and migration**.
+Last accepted phase: **ITEM-03 — Authoritative container, capacity, lock, and transaction core**.
 
-Current phase: ITEM-03 (implementation complete; hermetic gates pending on this revision). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
+Current phase: ITEM-03 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
 
 Canonical git line: **`origin/main`**. Playable work is committed there. The Windows clone stays on `main` and runs `scripts/local-play.ps1 -Branch main`.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01 and ITEM-02 remain accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01, ITEM-02, and ITEM-03 remain accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
 
 ## ITEM-03 authoritative container, capacity, lock, and transaction core (2026-09-19)
 
-ITEM-03 implements the shared domain layer used by later ITEM phases. It extends the existing inventory, equipment, wallet, and transaction core. It does not add corpse, merchant, ground-drop, or trade UI. It does not expose a generic arbitrary-container command.
+ITEM-03 is accepted. It extends the existing inventory, equipment, wallet, and transaction core. It does not add corpse, merchant, ground-drop, or trade UI changes. It does not expose a generic arbitrary-container command. Do not start later ITEM phases.
 
 One pure planner (`planCapacity` / `planTwoWayTrade`) places compatible partial stacks by lowest slot index, then empty slots by lowest slot index. A preferred slot may override when valid. Outgoing quantities free slots in the same plan. Equipment-to-bag preserves instance ids. `acceptItemFailureCode` delegates to the planner. Trade commit is gated by `planTwoWayTrade`.
 
@@ -24,12 +24,12 @@ Conflicts ITEM-C13, ITEM-C17, ITEM-C21, and ITEM-C22 are CLOSED. Content hash un
 
 | Gate | Result |
 | --- | --- |
-| Foundation audit | pending this revision |
-| Content validation/tests | pending this revision |
-| Server hermetic tests | pending this revision |
-| Server typecheck/build | pending this revision |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 41 client opcodes, 15 server opcodes, 29 RPCs) |
+| Content validation/tests | 28/28 passed |
+| Server hermetic tests | 906 passed, 13 expected live-test skips |
+| Server typecheck/build | passed |
 | Auth gateway hermetic tests | unchanged; 52/52 previously |
-| Godot 4.7.1 client GdUnit | pending this revision |
+| Godot 4.7.1 client GdUnit | 342/342 passed, 0 failures, 0 orphans |
 
 Pre-existing Node 22.14 runner compatibility remains documented: directory-form `node --test` wrappers can fail before discovery. Direct compiled-file glob equivalents pass.
 
