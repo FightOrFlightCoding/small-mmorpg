@@ -1,8 +1,8 @@
-# Item test plan (ITEM-05)
+# Item test plan (ITEM-06)
 
-ITEM-05 extends live tagging, corpse loot, gold, and Loot All. Acceptance is the gates below plus the ITEM-05 cases. Do not weaken tests.
+ITEM-06 extends ITEM-05 with Need/Greed rolls and pending winner awards. Acceptance is the gates below plus the ITEM-06 cases. Do not weaken tests.
 
-## Baseline (run on ITEM-05; 2026-09-19)
+## Baseline (run on ITEM-05; 2026-09-19; ITEM-06 re-runs the same commands)
 
 Directory-form `node --test dist/tests` can fail on Node 22.14 before discovery. Glob invocation is authoritative.
 
@@ -45,6 +45,8 @@ GODOT_BIN=godot bash scripts/test-client.sh
 | `server/tests/corpse.test.ts` | Tag/roster/leash, generation once, stack split, private/public/expire, claims, Loot All partial, gold split/remainder/public/duplicate, restart, empty removal |
 | `server/tests/enemy_tag.test.ts` | First attacker, party snapshot, late join excluded, kicked preserved, leash reset |
 | `client/tests/app/corpse_service_test.gd` | Open/claim/Loot All intentions; no recipients; window + bag; loot-all summary |
+| `server/tests/loot_roll.test.ts` | Rarity/quest/solo exclusions; one-eligible auto-award; Need/Greed/Pass; no response; Need outranks Greed; tie reroll; final choice; duplicate requestId; dead/reconnect; submitted choice survives disconnect; winner room/no room; pending claim/wrong claimant/expire; all-pass public; public-transition race; whole-stack fail-closed; deterministic 1–100 RNG; client roll injection |
+| `client/tests/app/loot_roll_service_test.gd` | Submit omits roll number; simultaneous cards; result feed |
 | `client/tests/app/bag_ui_test.gd` | 6×5 / 30 slots plus corpse origin loot, bag stays usable, bag→corpse reject, occupied dest reject |
 | `client/tests/app/equipment_service_test.gd` | Equip mirror |
 | `client/tests/app/vendor_inn_service_test.gd` / `merchant_window_test.gd` | Buy UI, no price send |
@@ -66,14 +68,24 @@ Vertical-slice item journey: slime gel pickup + elder turn-in (VS-T* in [VERTICA
 
 1. First-attacker tagging is authoritative. The encounter roster is immutable. Leash/full reset clears the tag.
 2. Loot is generated once at death. Stacks split at max stack. The client never nominates recipients.
-3. Private 60 s, public after the ITEM-06 stub, expire at 5 minutes. Empty corpses may vanish immediately.
-4. Ordinary party loot is first come. Uncommon+ party drops enter `ROLL_PENDING` and are not resolved. Quest items never roll.
+3. Private 60 s, Need/Greed resolves at that boundary, remaining unreserved entries become public, expire at 5 minutes. Empty corpses may vanish immediately.
+4. Ordinary party loot is first come. Uncommon+ party drops enter `ROLL_PENDING` and resolve Need/Greed. Quest items never roll.
 5. Gold distribution is exact and idempotent. Public remainder is first claimant.
 6. Loot All takes what fits and reports the rest. Sparkle dual-path keeps Prompt 18 slime pickup.
 7. Corpse restart behavior is transient. No new storage collection. Content hash unchanged.
 
+## ITEM-06 acceptance
+
+1. Qualifying Uncommon-or-higher party-tagged drops open a roll immediately on death when two or more characters are death-eligible.
+2. One death-eligible character auto-awards with no roll UI. Solo-tagged drops never roll. Quest items never roll.
+3. Anyone eligible may Need, Greed, or Pass. One accepted final choice. Duplicate `requestId` replays. The client never supplies a roll number.
+4. Dead and reconnected eligible characters may respond before the deadline. A submitted choice survives disconnect. Missing responses become Pass.
+5. Need outranks Greed. Server integers 1–100 with injectable RNG. Ties reroll among tied characters.
+6. Whole-stack awards: grant when the winner bag fits; otherwise `AWARDED_PENDING_PICKUP` winner-only until corpse expiry. No reroll. No public sparkle.
+7. All-pass becomes public at 60 s. Ordering: resolve rolls → awards → all-pass → remaining unreserved public. Same-tick public claims cannot interleave before resolution.
+
 ## Later-phase tests (do not implement now)
 
-Need/Greed resolution; `AWARDED_PENDING_PICKUP` winner pickup; all-pass public; player drop 5 min opcode; 20 trade slots; forage grant from a world node.
+Player drop 5 min opcode; 20 trade slots; forage grant from a world node.
 
 If any **current** trade test fails before a later ITEM phase: repair in a focused pre-ITEM commit; do not retarget expectations without root cause.

@@ -916,3 +916,16 @@ ITEM-05 adds match-lifetime corpse containers and first-hit tagging. It does not
 - Prompt 18 dual-path: corpse plus 30 s sparkles linked by `corpseId`/`corpseEntryId`. Corpses are not reconstructed after match/server restart.
 - Opcodes 42–46 / 116–117. Storage record count remains 35. Content hash unchanged.
 - Conflicts ITEM-C04, ITEM-C05, ITEM-C06, ITEM-C07, ITEM-C08, ITEM-C18, ITEM-C26 are CLOSED. ITEM-C03 and PendingRollAward stay ITEM-06.
+
+## 2026-09-19 — ITEM-06 party Need/Greed rolls and pending winner awards
+
+ITEM-06 resolves Need/Greed on Uncommon-or-higher party-tagged corpse drops. It does not add player ground drop, 20 trade slots, or forage.
+
+- Qualifying party-tagged entries open a match-lifetime roll when two or more characters are death-eligible. One eligible character auto-awards. Solo-tagged drops and quest items never roll.
+- Client submits `rollId`, `choice` (`NEED`/`GREED`/`PASS`), and `requestId`. One accepted final choice. Duplicate `requestId` replays. Client roll numbers are `stat_injection:roll`.
+- Dead and reconnected eligible members may respond before `closesAt` (the 60 s private boundary). Missing responses become Pass. Submitted choices survive disconnect.
+- Resolution order at 60 s: resolve rolls → awards → all-pass public → remaining unreserved public. Same-tick claims still see `ROLL_PENDING`.
+- Server integers 1–100 via injectable `CombatRandom`. Need outranks Greed. Ties reroll among tied characters.
+- Whole-stack award through `planCapacity` + acquisition intent. If the stack does not fit, `AWARDED_PENDING_PICKUP` is winner-only until corpse expiry. Rolling and pending entries do not spawn public sparkles.
+- Opcodes 47 / 118. Storage record count remains 35. Content hash unchanged.
+- Conflicts ITEM-C03 and ITEM-C19 are CLOSED.

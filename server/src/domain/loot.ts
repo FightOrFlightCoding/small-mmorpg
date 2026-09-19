@@ -128,7 +128,13 @@ export function spawnCorpseSparkles(
   const next = cloneLoot(loot);
   for (let i = 0; i < items.length; i++) {
     const entry = items[i];
-    if (entry.state === "CLAIMED" || entry.state === "EXPIRED" || entry.itemId.length === 0) {
+    if (
+      entry.state === "CLAIMED" ||
+      entry.state === "EXPIRED" ||
+      entry.state === "ROLL_PENDING" ||
+      entry.state === "AWARDED_PENDING_PICKUP" ||
+      entry.itemId.length === 0
+    ) {
       continue;
     }
     next.push({

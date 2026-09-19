@@ -739,6 +739,17 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 | Rate limit | Shares PICKUP window (8) |
 | Tests | `corpse.test.ts`, `corpse_service_test.gd` |
 
+### 47 `SUBMIT_LOOT_ROLL`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, rollId, choice, requestId }` (`choice` is `NEED` \| `GREED` \| `PASS`) |
+| Authority | Eligible character, open roll, before `closesAt`. One accepted final choice. Client never sends a roll number or winner. Dead and reconnected eligible members may respond. |
+| Idempotency | Duplicate `requestId` replays the original result |
+| Errors | `not_eligible`, `roll_closed`, `choice_already_submitted`, `invalid_choice`, `invalid_target` |
+| Rate limit | Shares PICKUP window (8) |
+| Tests | `loot_roll.test.ts`, `protocol.test.ts`, `loot_roll_service_test.gd` |
+
 No other client opcodes exist. Unknown opcode → `unknown_opcode`.
 
 ## Server → client match opcodes
@@ -764,6 +775,7 @@ No client rate limit. Occupied matches send **102** every tick.
 | 115 | `TRADE_STATE` | canonical trade: ids, state, revision, offers, goldOffers, acceptances, expiresAt | `trade.test.ts`, `trade_service_test.gd` |
 | 116 | `CORPSE_STATE` | viewer corpse: ids, pose, gold, items (entryId/itemId/quantity/state), timers, eligible, public, revision | `corpse.test.ts`, `corpse_service_test.gd` |
 | 117 | `CORPSE_REMOVED` | `corpseId`, `reason` (`empty` / `expired`) | `corpse.test.ts` |
+| 118 | `LOOT_ROLL_STATE` | Viewer roll: item, quantity, ownChoice, closesAt, result, revision | `loot_roll.test.ts`, `loot_roll_service_test.gd` |
 
 `FULL_STATE` may include optional `party` for the recipient and optional `instance` (`type`, `instanceId`, `zoneTemplateId`, `completionState`, `bossAlive`, owners). Snapshots do not carry party membership. Join metadata: `{ protocolVersion, contentHash }` strings plus `selectionTicket` or `transferTicket`. Mismatch → join reject / fatal client error. Transfer join rejects `ticket_reused`, `ticket_expired`, `ticket_wrong_character`, `ticket_wrong_destination`, `still_in_origin`, `already_elsewhere`. Email accounts that are not playable are rejected at `matchJoinAttempt` (`email_verification_required`, `account_disabled`, `account_deleting`, `account_deleted`).
 

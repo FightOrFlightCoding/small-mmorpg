@@ -1,4 +1,4 @@
-# Item content model (ITEM-05)
+# Item content model (ITEM-06)
 
 ITEM-03 does not change authored item JSON. Content hash remains the ITEM-02 digest.
 
@@ -18,7 +18,7 @@ Schema: `content/schemas/item.json`. Runtime type: `inventory.ts` `ItemDefinitio
 | `tradeable` | Optional; default **true** unless `false`; production required true | Unchanged |
 | `destroyable` | Optional; default **true** unless `false` | Distinct from droppable |
 | `droppable` | Present; production required true | Player drop still later |
-| `rarity` | `rarity.poor` … `rarity.legendary`; production required | Need/Greed still later |
+| `rarity` | `rarity.poor` … `rarity.legendary`; production required | Uncommon+ party Need/Greed is live |
 | `uniquePolicy` | `none` `character` `equipped` | Not soulbind. Keep until a later phase names removal |
 | `equipSlot` / `equipmentSlotTags` | Present | Unchanged tags; equipped container changes |
 | `classRequirements` / `levelRequirement` | Present | Equip gates only; Need is unrestricted |

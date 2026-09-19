@@ -63,6 +63,8 @@ Do not add custom SQL. Do not add a 36th storage record for the journal.
 | Item locks | Serialized **inside** inventory instances; TTL + orphan recovery; must not survive completed logout; trade recovery rehydrates from trade record |
 | Character serial | Per-match in-memory mutex; JSON-roundtripped match state does not need to persist it |
 | Transient ground drop entity | Domain helper only; lost on match restart by design |
+| `state.corpses` `CorpseLootContainer[]` | Lost on match restart; 60 s private / 5 min expire |
+| `state.lootRolls` `LootRoll[]` | Lost on match restart; closes at the 60 s private boundary |
 
 ## Absent target records (do not create in ITEM-03)
 

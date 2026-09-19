@@ -64,6 +64,7 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ClientOpcode.CLAIM_CORPSE_ITEM, 44);
   assert.equal(ClientOpcode.CLAIM_CORPSE_GOLD, 45);
   assert.equal(ClientOpcode.LOOT_ALL_CORPSE, 46);
+  assert.equal(ClientOpcode.SUBMIT_LOOT_ROLL, 47);
   assert.equal(ServerOpcode.FULL_STATE, 101);
   assert.equal(ServerOpcode.SNAPSHOT, 102);
   assert.equal(ServerOpcode.ACTION_RESULT, 103);
@@ -81,6 +82,7 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ServerOpcode.TRADE_STATE, 115);
   assert.equal(ServerOpcode.CORPSE_STATE, 116);
   assert.equal(ServerOpcode.CORPSE_REMOVED, 117);
+  assert.equal(ServerOpcode.LOOT_ROLL_STATE, 118);
 });
 
 test("valid movement input parses direction and sequence only", () => {
@@ -966,4 +968,29 @@ test("dialogue choose and interaction close parse session fields only", () => {
     }),
   );
   assert.equal(isProtocolError(lootRecipients), true);
+  const submitRoll = parse(
+    ClientOpcode.SUBMIT_LOOT_ROLL,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      rollId: "roll-1",
+      choice: "NEED",
+      requestId: "req-submit-roll1",
+    }),
+  );
+  assert.equal(isProtocolError(submitRoll), false);
+  if (!isProtocolError(submitRoll)) {
+    assert.equal(submitRoll.fields.rollId, "roll-1");
+    assert.equal(submitRoll.fields.choice, "NEED");
+  }
+  const injectedRoll = parse(
+    ClientOpcode.SUBMIT_LOOT_ROLL,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      rollId: "roll-1",
+      choice: "NEED",
+      requestId: "req-submit-roll2",
+      roll: 100,
+    }),
+  );
+  assert.equal(isProtocolError(injectedRoll), true);
 });

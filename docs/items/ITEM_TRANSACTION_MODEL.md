@@ -97,7 +97,7 @@ Interrupted `RESERVED` / `COMMITTING` retries without duplicating items. Failed 
 
 ## Acquisition intent
 
-`beginAcquisitionIntent` / `completeAcquisitionIntent` wrap persistent grants from transient sources (corpse claim, ground pickup, future Need/Greed award). A committed intent on the same `requestId` replays without a second award.
+`beginAcquisitionIntent` / `completeAcquisitionIntent` wrap persistent grants from transient sources (corpse claim, ground pickup, Need/Greed award). A committed intent on the same `requestId` replays without a second award. Direct Need/Greed awards simulate the whole stack with `planCapacity` before grant.
 
 ## Drop intent
 

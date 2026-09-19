@@ -274,12 +274,16 @@ export function createCorpse(input: {
   itemsById: { [id: string]: ItemDefinition };
   newId: () => string;
 }): CorpseLootContainer {
-  const partySize = input.encounterRoster.length;
+  const partyTagged = input.tagPartyId.length > 0 && input.encounterRoster.length >= 2;
+  const eligibleCount = input.deathEligibleRoster.length;
   const items: CorpseItemEntry[] = [];
   for (let i = 0; i < input.loot.items.length; i++) {
     const stack = input.loot.items[i];
     const definition = input.itemsById[stack.itemId];
-    const rolling = qualifiesForNeedGreed(definition, partySize);
+    const rolling =
+      partyTagged &&
+      qualifiesForNeedGreed(definition, input.encounterRoster.length) &&
+      eligibleCount >= 2;
     items.push({
       entryId: input.newId(),
       itemId: stack.itemId,
@@ -384,8 +388,14 @@ export function tickCorpses(
   return { corpses: next, removed: removed, updated: updated, goldByUser: nextGold };
 }
 
-export function resolvePendingRollsAtPublicBoundary(_corpse: CorpseLootContainer): void {
-  // ITEM-06 fills Need/Greed resolution. ITEM-05 only reserves ROLL_PENDING entries.
+export function resolvePendingRollsAtPublicBoundary(corpse: CorpseLootContainer): void {
+  for (let i = 0; i < corpse.items.length; i++) {
+    const entry = corpse.items[i];
+    if (entry.state === "ROLL_PENDING") {
+      entry.state = "PUBLIC_AVAILABLE";
+      entry.reservedToCharacterId = "";
+    }
+  }
 }
 
 export function applyPublicTransition(corpse: CorpseLootContainer): void {

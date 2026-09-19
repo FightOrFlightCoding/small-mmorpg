@@ -21,6 +21,7 @@ import {
 import { cloneOverflow, emptyOverflow, isOverflowEmpty, type MigrationOverflow } from "./overflow";
 import { cloneLoot, publicLoot, type LootDrop, type MatchLoot } from "./loot";
 import { cloneCorpses, publicCorpses, type CorpseLootContainer } from "./corpse";
+import { cloneLootRolls, type LootRoll } from "./loot_roll";
 import { cloneGoldLedger, emptyGoldLedger, publicWallet, type GoldLedger } from "./wallet";
 import { createNpcRuntimeInstance, type NpcDefinition, type NpcRuntimeInstance } from "./npc";
 import {
@@ -313,6 +314,7 @@ export interface StarterZoneState {
   spawns: MatchSpawn[];
   loot: MatchLoot[];
   corpses: CorpseLootContainer[];
+  lootRolls: LootRoll[];
   goldLedger: GoldLedger;
   walkableBounds: Aabb;
   collisions: Aabb[];
@@ -580,6 +582,7 @@ export function createStarterZoneState(
     spawns: spawns,
     loot: [],
     corpses: [],
+    lootRolls: [],
     goldLedger: emptyGoldLedger(),
     walkableBounds: {
       x: zone.walkableBounds.x,
@@ -1048,6 +1051,7 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     spawns: cloneSpawns(state.spawns),
     loot: cloneLoot(Array.isArray(state.loot) ? state.loot : []),
     corpses: cloneCorpses(state.corpses),
+    lootRolls: cloneLootRolls(state.lootRolls),
     goldLedger: cloneGoldLedger(state.goldLedger),
     walkableBounds: state.walkableBounds,
     collisions: Array.isArray(state.collisions) ? state.collisions : [],

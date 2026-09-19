@@ -24,6 +24,7 @@ signal party_event_received(payload: Dictionary)
 signal trade_state_received(payload: Dictionary)
 signal corpse_state_received(payload: Dictionary)
 signal corpse_removed_received(payload: Dictionary)
+signal loot_roll_state_received(payload: Dictionary)
 signal gm_command_received(payload: Dictionary)
 signal system_notice_received(code: String, message: String)
 signal logged_out
@@ -645,6 +646,15 @@ func send_loot_all_corpse(corpse_id: String, request_id: String, expected_revisi
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_LOOT_ALL_CORPSE,
 		MatchProtocol.client_envelope_json(extra)
+	)
+
+
+func send_submit_loot_roll(roll_id: String, choice: String, request_id: String) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_SUBMIT_LOOT_ROLL,
+		MatchProtocol.client_envelope_json({"rollId": roll_id, "choice": choice, "requestId": request_id})
 	)
 
 
@@ -1753,7 +1763,7 @@ func _on_match_state(opcode: int, payload: String) -> void:
 		if MatchProtocol.is_compatibility_code(code):
 			_fail_zone({"code": code, "message": message})
 			return
-		if code == "quest_complete":
+		if code == "quest_complete" or code.begins_with("loot_roll") or code == "inventory_full":
 			system_notice_received.emit(code, message)
 			return
 		AppState.report_recoverable(code, message)
@@ -1869,6 +1879,13 @@ func _on_match_state(opcode: int, payload: String) -> void:
 		if not bool(corpse_removed.get("ok", false)):
 			return
 		corpse_removed_received.emit(corpse_removed)
+		return
+	if opcode == MatchProtocol.SERVER_LOOT_ROLL_STATE:
+		var loot_roll: Dictionary = MatchProtocol.parse_loot_roll_state(payload)
+		if not bool(loot_roll.get("ok", false)):
+			AppState.report_recoverable(String(loot_roll.get("code", "loot_roll_failed")), String(loot_roll.get("message", "Loot roll was invalid.")))
+			return
+		loot_roll_state_received.emit(loot_roll)
 		return
 
 

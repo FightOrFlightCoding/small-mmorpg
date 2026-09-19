@@ -1,6 +1,6 @@
-# Item protocol catalog (ITEM-05)
+# Item protocol catalog (ITEM-06)
 
-Live opcodes from [PROTOCOL_CATALOG.md](../PROTOCOL_CATALOG.md) and `server/src/domain/protocol.ts`. Foundation audit at ITEM-05: **46** client opcodes, **17** server opcodes, **29** RPCs, **35** storage records. Corpse containers are match-lifetime only (no new storage collection).
+Live opcodes from [PROTOCOL_CATALOG.md](../PROTOCOL_CATALOG.md) and `server/src/domain/protocol.ts`. Foundation audit at ITEM-06: **47** client opcodes, **18** server opcodes, **29** RPCs, **35** storage records. Corpse containers and loot rolls are match-lifetime only (no new storage collection).
 
 Item mutations may include optional `expectedRevision` (camelCase). Omitted keeps older clients. Present and stale → `inventory_stale` and canonical `FULL_STATE`. Trade accept still carries trade-record `revision` (not bag). Container `revision` is included on `INVENTORY_STATE` / `EQUIPMENT_STATE` / overflow / `CORPSE_STATE`.
 
@@ -21,6 +21,7 @@ There is **no** generic arbitrary-container client command.
 | 44 | `CLAIM_CORPSE_ITEM` | `corpseId`, `entryId`, `toSlotIndex?`, `requestId`, `expectedRevision?` | Eligibility, phase, capacity. Preferred slot is strict. | Replay no second grant | `not_eligible`, `loot_item_no_longer_available`, `inventory_full`, `invalid_slot`, `roll_pending`, `inventory_stale` |
 | 45 | `CLAIM_CORPSE_GOLD` | `corpseId`, `requestId` | Private roster split or public remainder | Replay original result | `not_eligible`, `loot_item_no_longer_available` |
 | 46 | `LOOT_ALL_CORPSE` | `corpseId`, `requestId`, `expectedRevision?` | Gold then items; skip rolls and foreign awards | Replay `lootAll[]` | Per-entry codes; envelope `out_of_range` / `player_dead` / `inventory_stale` |
+| 47 | `SUBMIT_LOOT_ROLL` | `rollId`, `choice`, `requestId` | Eligible Need/Greed/Pass before deadline. One final choice. Server owns 1–100. | Replay original result | `not_eligible`, `roll_closed`, `choice_already_submitted`, `invalid_choice`, `invalid_target` |
 | 19 | `VENDOR_BUY` | `interactionSessionId`, `npcInstanceId`, `itemId`, `quantity?`, `requestId`, `expectedRevision?` | Session, stock, server price, qty 1–99 | Replay no second grant | `invalid_session`, `insufficient_gold`, `inventory_full`, `unknown_field:price`, `inventory_stale` |
 | 20 | `VENDOR_SELL` | `npcId`, `instanceId`, `quantity?`, `requestId`, `expectedRevision?` | Server `sellValue` × multiplier | Replay no second gold | `unsellable`, `item_locked`, `inventory_stale` |
 | 24–31 | `TRADE_*` | `targetId` / `tradeId` / `instanceId` / `amount` / `revision` / `requestId` | Range 80 px, locks, mutual accept, `planTwoWayTrade` | `requestId` + completed trade | `not_tradeable`, `revision_mismatch`, `insufficient_gold`, `inventory_full` |
@@ -44,6 +45,7 @@ Stable ITEM codes (snake_case): `inventory_stale`, `inventory_full`, `invalid_sl
 | 115 | `TRADE_STATE` | ids, state, revision, offers, goldOffers, acceptances, expiry |
 | 116 | `CORPSE_STATE` | Viewer corpse: entries, gold, timers, eligible, public, revision |
 | 117 | `CORPSE_REMOVED` | `corpseId`, `reason` |
+| 118 | `LOOT_ROLL_STATE` | Viewer roll: ids, item, quantity, ownChoice, countdown ticks, result |
 | 107 | `INTERACTION_RESULT` | Vendor shop presentation (`stock`, prices) — presentation, not a grant |
 | 111 | `QUEST_STATE` | Objectives including `acquire_item` counts from possession |
 | 103 | `ACTION_RESULT` | Optional `lootAll[]` for opcode 46 |
@@ -58,7 +60,7 @@ Later ITEM phases must add intentions (update `tools/foundation-audit/expected.j
 
 | Operation | Live stand-in | Gap |
 | --- | --- | --- |
-| Need / Greed / Pass | Uncommon+ party entries enter `ROLL_PENDING`; public-boundary resolver is a no-op until ITEM-06 | No roll opcodes; no winner award |
+| Need / Greed / Pass | Opcode 47 / 118 live | — |
 | Player ground drop | Domain `executeDropIntent`; live `DESTROY_ITEM` still deletes | No drop opcode / ground spawn |
 | Ground pickup (player drop) | `PICKUP` | Same public 30 s path |
 | Foraging grant | Acquisition intent ready | No world-node grant opcode |
