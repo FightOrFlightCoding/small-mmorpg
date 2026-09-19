@@ -890,3 +890,15 @@ ITEM-03 extends the live inventory/equipment/wallet/transaction core. It does no
 - Per-character serial plus lexicographic multi-character acquire/release. Typed locks (`TRADE`, `DROP_INTENT`, …) with TTL 120 s, tick expiry, and orphan release. Partial quantity locks still immobilize the source stack.
 - Journal/intents/audits persist **inside** the inventory record (`SAVE_SCHEMA_VERSION` stays **1**; still 35 storage records). Drop and acquisition intents are domain helpers; a completed ground drop may vanish after match restart.
 - Match persistEconomy stamps `item_destroy` / `item_split` / `item_move` / `loot` / `equipment`. `acceptItemFailureCode` delegates to the planner. Conflicts ITEM-C13, ITEM-C17, ITEM-C21, ITEM-C22 are CLOSED.
+
+## 2026-09-19 — ITEM-04 complete thirty-slot bag UI
+
+ITEM-04 is the player-facing 6×5 bag. It does not add corpse, merchant, ground, or trade windows.
+
+- HUD bag is 30 fixed squares (indices 0–29), used-slot count, and gold. Occupied squares show icon or visual-map fallback, quantity when above one, written rarity plus frame, lock overlay, and pending state.
+- Tooltips use canonical instance + definition data. Development builds may append ids/revisions in a separate debug block.
+- Drag/drop and right-click send `MOVE_ITEM` / `SPLIT_STACK` / `EQUIP` with `expectedRevision`. Compatible partials merge; leftover stays in the source; same full stacks reject `stack_full` with no mutation; locked items show the lock reason. Split quantity is 1 .. source-1; the server mints the new instance.
+- Right-click goes through `ItemContextRouter`. Trade/corpse/merchant phases may set context later. Slot views do not hard-code those windows.
+- Equipment stays outside the bag. Drag bag→valid slot or right-click Equip; drag equipped→bag; full bag rejects unequip; derived attack still comes from the server.
+- GLoot stays behind `InventoryService`. Local GLoot edits still revert. Pending ghosts never finalize ownership. Timeout or `inventory_stale` requests canonical `FULL_STATE` and keeps the original `requestId`.
+- Conflicts ITEM-C15 and ITEM-C23 are CLOSED. Content hash unchanged from ITEM-03.

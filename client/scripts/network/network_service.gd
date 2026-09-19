@@ -1720,7 +1720,6 @@ func _on_match_state(opcode: int, payload: String) -> void:
 			return
 		if not bool(action.get("ok", false)):
 			AppState.report_recoverable(String(action.get("code", "action_failed")), String(action.get("message", "The action failed.")))
-			return
 		action_result_received.emit(action)
 		return
 	if opcode == MatchProtocol.SERVER_QUEST_STATE:

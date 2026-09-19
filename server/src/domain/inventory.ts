@@ -924,20 +924,15 @@ export function applyMoveItem(input: {
     const maxStack = effectiveMaxStack(definition);
     const free = maxStack - dest.quantity;
     if (free <= 0) {
-      const fromSlot = item.slotIndex;
-      item.slotIndex = dest.slotIndex;
-      dest.slotIndex = fromSlot;
-      item.version += 1;
-      dest.version += 1;
-    } else {
-      const moved = Math.min(free, item.quantity);
-      dest.quantity += moved;
-      dest.version += 1;
-      item.quantity -= moved;
-      item.version += 1;
-      if (item.quantity <= 0) {
-        current.items = current.items.filter((entry) => entry.instanceId !== item.instanceId);
-      }
+      return rememberFailedMutation("stack_full", current, input.requestId, input.tick);
+    }
+    const moved = Math.min(free, item.quantity);
+    dest.quantity += moved;
+    dest.version += 1;
+    item.quantity -= moved;
+    item.version += 1;
+    if (item.quantity <= 0) {
+      current.items = current.items.filter((entry) => entry.instanceId !== item.instanceId);
     }
     return succeedMutation(current, input.requestId, {
       ok: true,

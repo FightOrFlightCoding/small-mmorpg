@@ -103,10 +103,12 @@ func test_inventory_state_opcode_rebuilds_from_server() -> void:
 				{"instanceId": "inst-sword", "itemId": "item.training_sword", "quantity": 1},
 				{"instanceId": "inst-gel", "itemId": "item.slime_gel", "quantity": 1},
 			],
+			"revision": 6,
 		})
 	)
 	assert_int(InventoryService.item_count()).is_equal(2)
 	assert_int(InventoryService.quantity_of("item.slime_gel")).is_equal(1)
+	assert_int(InventoryService.revision).is_equal(6)
 
 
 func test_nearby_loot_pick_ignores_far_targets() -> void:
@@ -138,6 +140,10 @@ func test_hud_lists_canonical_inventory() -> void:
 	assert_str(hud.get_node("Root/Inventory/Margin/VBox/Heading").text).is_equal("Inventory")
 	assert_object(hud.get_node("Root/Inventory/Margin/VBox/MutateRow/DestroyButton")).is_not_null()
 	assert_object(hud.get_node("Root/Inventory/Margin/VBox/MutateRow/SplitButton")).is_not_null()
+	var bag: BagGrid = hud.get_node("Root/Inventory/Margin/VBox/ListHost/Bag")
+	assert_object(bag).is_not_null()
+	assert_int(bag.slots.size()).is_equal(30)
+	assert_int(bag.columns).is_equal(6)
 
 
 func test_destroy_and_split_send_intentions_without_instance_id_invention() -> void:

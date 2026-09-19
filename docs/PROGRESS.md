@@ -1,14 +1,41 @@
 # Progress
 
-Last accepted phase: **ITEM-03 — Authoritative container, capacity, lock, and transaction core**.
+Last accepted phase: **ITEM-04 — Complete thirty-slot bag UI and bag interactions**.
 
-Current phase: ITEM-03 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
+Current phase: ITEM-04 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
 
 Canonical git line: **`origin/main`**. Playable work is committed there. The Windows clone stays on `main` and runs `scripts/local-play.ps1 -Branch main`.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01, ITEM-02, and ITEM-03 remain accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01 through ITEM-04 remain accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
+
+## ITEM-04 complete thirty-slot bag UI and bag interactions (2026-09-19)
+
+ITEM-04 is accepted. It is the player-facing 6×5 bag. It does not add corpse, merchant, ground, or trade windows. Do not start later ITEM phases.
+
+The inventory panel is thirty fixed squares, indices **0–29**, plus used-slot count and gold. Empty squares stay visible. Occupied squares show the item icon or the visual-map fallback, quantity when above one, written rarity plus a rarity frame, a lock overlay, and a pending-operation overlay. Slot order is not compacted.
+
+Tooltips use canonical instance and definition data: name, written rarity, quantity, category, description, equipment slot, level and class requirements, stat modifiers, quest-item indicator, tradeable, droppable, and vendor/lock contextual value. Development builds may append ids and revisions in a separate debug block.
+
+Drag/drop and right-click send `MOVE_ITEM` / `SPLIT_STACK` / `EQUIP` with `expectedRevision` and wait for server confirmation. Empty destination moves; compatible partials merge and leave excess in the source; different occupied items swap; same full stacks reject `stack_full` with no mutation; locked items reject and show the lock reason. Split quantity is 1 .. source−1; the server mints the new instance. Right-click goes through `ItemContextRouter` (Equip / Split Stack / lock reason). Trade, corpse, and merchant contexts stay empty for later phases. Slot views do not hard-code those windows.
+
+Equipment stays outside the bag. Drag bag→valid equipment slot or right-click Equip; drag equipped→bag; full-bag unequip is rejected; derived stats stay server-owned. GLoot remains behind `InventoryService`. Local GLoot edits revert. Pending ghosts never finalize ownership. Timeout or `inventory_stale` requests canonical `FULL_STATE` and keeps the original `requestId`.
+
+Conflicts ITEM-C15 and ITEM-C23 are CLOSED. Content hash unchanged: `7877dd576b022d59f0350be4430aca0b9d402db38b5e16e816ef361003c9cffd`.
+
+| Gate | Result |
+| --- | --- |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 41 client opcodes, 15 server opcodes, 29 RPCs) |
+| Content validation/tests | 28/28 passed |
+| Server hermetic tests | 908 passed, 13 expected live-test skips |
+| Server typecheck/build | passed |
+| Auth gateway hermetic tests | unchanged; 52/52 previously |
+| Godot 4.7.1 client GdUnit | 351/351 passed, 0 failures, 0 orphans |
+
+Pre-existing Node 22.14 runner compatibility remains documented: directory-form `node --test` wrappers can fail before discovery. Direct compiled-file glob equivalents pass.
+
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen `client/`. Recreate Nakama so `contentHash` matches.
 
 ## ITEM-03 authoritative container, capacity, lock, and transaction core (2026-09-19)
 

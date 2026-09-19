@@ -385,8 +385,8 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -320.0
-offset_top = -380.0
+offset_left = -340.0
+offset_top = -468.0
 offset_right = -16.0
 offset_bottom = -16.0
 grow_horizontal = 0
@@ -458,7 +458,7 @@ text = "Split"
 [node name="ListHost" type="Control" parent="Root/Inventory/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
-custom_minimum_size = Vector2(0, 140)
+custom_minimum_size = Vector2(0, 210)
 
 [node name="Hotbar" type="HBoxContainer" parent="Root"]
 layout_mode = 1

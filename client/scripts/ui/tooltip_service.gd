@@ -24,7 +24,7 @@ func _ready() -> void:
 	panel.add_child(margin)
 	_label = Label.new()
 	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_label.custom_minimum_size = Vector2(80, 0)
+	_label.custom_minimum_size = Vector2(220, 0)
 	margin.add_child(_label)
 
 

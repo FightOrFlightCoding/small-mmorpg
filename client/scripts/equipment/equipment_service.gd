@@ -16,6 +16,7 @@ var items: Array = []
 
 var _applying: bool = false
 var _ctrl: CtrlItemSlot
+var _equip_view: ItemSlotView
 
 
 func _ready() -> void:
@@ -131,6 +132,34 @@ func slot_tags() -> PackedStringArray:
 	return tags
 
 
+func item_by_instance(instance_id: String) -> Dictionary:
+	if instance_id.is_empty():
+		return {}
+	for entry in items:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("instanceId", "")) == instance_id:
+			return (entry as Dictionary).duplicate(true)
+	return {}
+
+
+func item_id_of_equipped(instance_id: String) -> String:
+	return _equipped_item_id(instance_id)
+
+
+func item_at_tag(equip_slot: String) -> Dictionary:
+	var instance_id := String(slots.get(equip_slot, ""))
+	if instance_id.is_empty():
+		return {}
+	var found := item_by_instance(instance_id)
+	if not found.is_empty():
+		return found
+	var item_id := _equipped_item_id(instance_id)
+	if item_id.is_empty():
+		return {}
+	return {"instanceId": instance_id, "itemId": item_id, "quantity": 1}
+
+
 func attach_slot(host: Control) -> Control:
 	_ensure_slot()
 	var existing := host.get_node_or_null("Slot")
@@ -147,6 +176,41 @@ func attach_slot(host: Control) -> Control:
 	view.item_slot = slot
 	_ctrl = view
 	return view
+
+
+func attach_equipment_slot(host: Control, equip_slot: String = MAIN_HAND_SLOT) -> Control:
+	if host == null:
+		return null
+	var existing := host.get_node_or_null("EquipSlot")
+	if existing is ItemSlotView:
+		_bind_equipment_view(existing as ItemSlotView, equip_slot)
+		return existing
+	var view := ItemSlotView.new()
+	view.name = "EquipSlot"
+	view.set_anchors_preset(Control.PRESET_FULL_RECT)
+	host.add_child(view)
+	_bind_equipment_view(view, equip_slot)
+	WindowManager.connect_once(equipment_changed, _refresh_attached_equipment)
+	return view
+
+
+func _bind_equipment_view(view: ItemSlotView, equip_slot: String) -> void:
+	_equip_view = view
+	view.origin_kind = "equipment"
+	view.slot_index = -1
+	view.equipment_tag = equip_slot if not equip_slot.is_empty() else selected_slot
+	WindowManager.connect_once(view.slot_pressed, InventoryService.handle_slot_pressed)
+	WindowManager.connect_once(view.slot_activated, InventoryService.handle_slot_activated)
+	WindowManager.connect_once(view.slot_right_clicked, ItemContextRouter.handle_slot)
+	view.refresh(item_at_tag(view.equipment_tag), false)
+	WindowManager.connect_once(equipment_changed, _refresh_attached_equipment)
+
+
+func _refresh_attached_equipment() -> void:
+	if _equip_view == null or not is_instance_valid(_equip_view):
+		return
+	var tag := _equip_view.equipment_tag if not _equip_view.equipment_tag.is_empty() else selected_slot
+	_equip_view.refresh(item_at_tag(tag), false)
 
 
 func _ensure_slot() -> void:

@@ -33,6 +33,8 @@ func handle_character_switch(character_id: String) -> void:
 	last_character_id = character_id
 	DragDropService.cancel()
 	TooltipService.hide_tooltip()
+	InventoryService.clear_presentation_state()
+	ItemContextRouter.reset_for_tests()
 	WindowManager.close(WindowManager.VENDOR)
 	WindowManager.close(WindowManager.INN)
 	WindowManager.close(WindowManager.DIALOGUE)
@@ -53,6 +55,8 @@ func handle_zone_transfer(zone_id: String) -> void:
 	last_zone_id = zone_id
 	DragDropService.cancel()
 	TooltipService.hide_tooltip()
+	InventoryService.clear_presentation_state()
+	ItemContextRouter.reset_for_tests()
 	WindowManager.close(WindowManager.VENDOR)
 	WindowManager.close(WindowManager.INN)
 	WindowManager.close(WindowManager.DIALOGUE)
@@ -105,6 +109,8 @@ func _on_logged_out() -> void:
 	WindowManager.reset_for_tests()
 	DragDropService.cancel()
 	TooltipService.hide_tooltip()
+	InventoryService.clear_presentation_state()
+	ItemContextRouter.reset_for_tests()
 	HudController.unbind()
 	ui_state_changed.emit()
 
