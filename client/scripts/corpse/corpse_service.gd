@@ -31,8 +31,11 @@ func reset() -> void:
 	last_corpse = {}
 	last_loot_all = []
 	last_notice = ""
-	if _window != null:
+	if _window != null and is_instance_valid(_window):
 		_window.close_window()
+		remove_child(_window)
+		_window.free()
+	_window = null
 	if WindowManager.is_open(WindowManager.CORPSE):
 		WindowManager.close(WindowManager.CORPSE)
 	if was_open:
@@ -44,7 +47,7 @@ func reset_for_tests() -> void:
 
 
 func is_open() -> bool:
-	return _window != null and _window.is_open()
+	return _window != null and is_instance_valid(_window) and _window.is_open()
 
 
 func nearest_corpse_id(player_pos: Vector2, corpses: Array, range_px: float = -1.0) -> String:
@@ -270,7 +273,7 @@ func _hide() -> void:
 	if _closing:
 		return
 	_closing = true
-	if _window != null:
+	if _window != null and is_instance_valid(_window):
 		_window.close_window()
 	if WindowManager.is_open(WindowManager.CORPSE):
 		WindowManager.close(WindowManager.CORPSE)

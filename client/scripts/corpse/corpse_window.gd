@@ -263,7 +263,7 @@ func _item_instance(entry: Dictionary) -> Dictionary:
 func _clear_slots() -> void:
 	for child in _grid.get_children():
 		_grid.remove_child(child)
-		child.queue_free()
+		child.free()
 	_slots.clear()
 
 

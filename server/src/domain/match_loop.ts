@@ -11,7 +11,6 @@ import {
   inventoryState,
   isProtocolError,
   parseClientMessage,
-  partyEventMessage,
   progressionState,
   questState,
   systemMessage,
@@ -79,7 +78,7 @@ import { applyEffectDefinition, effectModifiersFrom, enemyAsTarget, hasControlTa
 import { dueDelayedGround, tryConsumeOncePerCombat } from "./canonical_combat";
 import { entitiesInRadius } from "./targeting";
 import { simulateCombatants } from "./enemy_ai";
-import { publicInventory, applyDestroyItem, applyMoveItem, applySplitStack, emptyInventory, type ItemInstance, type PlayerInventory } from "./inventory";
+import { publicInventory, applyDestroyItem, applyMoveItem, applySplitStack, emptyInventory, type PlayerInventory } from "./inventory";
 import {
   applyEquip,
   cloneEquipment,

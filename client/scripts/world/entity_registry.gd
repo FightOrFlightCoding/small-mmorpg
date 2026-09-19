@@ -339,9 +339,9 @@ func _name_for(kind: String, record: Dictionary) -> String:
 		var enemy_id := String(record.get("enemyId", ""))
 		if not enemy_id.is_empty():
 			var enemy: Dictionary = ContentRegistry.get_by_id(enemy_id)
-			var named := String(enemy.get("displayName", ""))
-			if not named.is_empty():
-				return "%s remains" % named
+			var remains := String(enemy.get("displayName", ""))
+			if not remains.is_empty():
+				return "%s remains" % remains
 		return "Corpse"
 	return _id_for(kind, record)
 

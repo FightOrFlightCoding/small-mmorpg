@@ -10,7 +10,6 @@ import {
 import { applyCapacityPlan, planCapacity, type IncomingStack } from "./item_capacity";
 import {
   ITEM_ERROR_INVENTORY_FULL,
-  ITEM_ERROR_INVENTORY_STALE,
   ITEM_ERROR_INVALID_SLOT,
   ITEM_ERROR_STACK_INCOMPATIBLE,
   staleRevisionCode,
@@ -505,13 +504,19 @@ export function claimCorpseItem(input: {
   if (input.playerHealth <= 0) {
     return failItemClaim(input.corpse, inventory, input.requestId, "player_dead");
   }
+  const entry = findEntry(input.corpse, input.entryId);
+  if (entry !== null) {
+    const claimedAccess = itemAccessCode(input.corpse, entry, input.characterId);
+    if (claimedAccess === ERROR_LOOT_ITEM_NO_LONGER_AVAILABLE) {
+      return failItemClaim(input.corpse, inventory, input.requestId, claimedAccess);
+    }
+  }
   if (input.corpse.state !== "ACTIVE") {
     return failItemClaim(input.corpse, inventory, input.requestId, ERROR_CORPSE_MISSING);
   }
   if (distance(input.playerX, input.playerY, input.corpse.x, input.corpse.y) > input.pickupRange) {
     return failItemClaim(input.corpse, inventory, input.requestId, "out_of_range");
   }
-  const entry = findEntry(input.corpse, input.entryId);
   if (entry === null) {
     return failItemClaim(input.corpse, inventory, input.requestId, ERROR_CORPSE_MISSING);
   }
@@ -641,12 +646,6 @@ export function claimCorpseGold(input: {
   if (input.playerHealth <= 0) {
     return failGoldClaim(input.corpse, input.requestId, "player_dead", input.goldByUser);
   }
-  if (input.corpse.state !== "ACTIVE") {
-    return failGoldClaim(input.corpse, input.requestId, ERROR_CORPSE_MISSING, input.goldByUser);
-  }
-  if (distance(input.playerX, input.playerY, input.corpse.x, input.corpse.y) > input.pickupRange) {
-    return failGoldClaim(input.corpse, input.requestId, "out_of_range", input.goldByUser);
-  }
   if (
     input.corpse.goldAmount <= 0 ||
     input.corpse.goldState === "CLAIMED" ||
@@ -654,6 +653,12 @@ export function claimCorpseGold(input: {
     input.corpse.goldState === "CLAIMING"
   ) {
     return failGoldClaim(input.corpse, input.requestId, ERROR_LOOT_ITEM_NO_LONGER_AVAILABLE, input.goldByUser);
+  }
+  if (input.corpse.state !== "ACTIVE") {
+    return failGoldClaim(input.corpse, input.requestId, ERROR_CORPSE_MISSING, input.goldByUser);
+  }
+  if (distance(input.playerX, input.playerY, input.corpse.x, input.corpse.y) > input.pickupRange) {
+    return failGoldClaim(input.corpse, input.requestId, "out_of_range", input.goldByUser);
   }
   const publicPhase = input.corpse.publicTransitionDone === true || input.corpse.goldState === "PUBLIC_AVAILABLE";
   if (!publicPhase && !isDeathEligible(input.corpse, input.characterId)) {

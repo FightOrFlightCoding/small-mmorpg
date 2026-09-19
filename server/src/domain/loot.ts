@@ -168,9 +168,6 @@ export function removeCorpseLinkedLoot(loot: ReadonlyArray<MatchLoot>, corpseId:
   }
   return next;
 }
-  }
-  return next;
-}
 
 export function expireLoot(loot: MatchLoot[], tick: number): MatchLoot[] {
   const next: MatchLoot[] = [];
