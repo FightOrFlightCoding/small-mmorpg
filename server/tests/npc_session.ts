@@ -57,7 +57,7 @@ export function acceptMessage(
 }
 
 export function vendorIdForNpc(npcInstanceId: string): string {
-  if (npcInstanceId.indexOf("platform_merchant") !== -1) {
+  if (npcInstanceId.indexOf("platform_") !== -1) {
     return "vendor.platform_kiosk";
   }
   if (npcInstanceId.indexOf("cert") !== -1) {
