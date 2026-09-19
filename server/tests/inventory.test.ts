@@ -148,11 +148,11 @@ function gelCount(inventory: PlayerInventory | undefined): number {
   return total;
 }
 
-test("inventory initialization grants one training sword and capacity 20", () => {
+test("inventory initialization grants one training sword and capacity 30", () => {
   const first = initializeInventory(null, ids("init"));
   assert.equal(first.created, true);
   assert.equal(first.inventory.capacity, INVENTORY_CAPACITY);
-  assert.equal(first.inventory.capacity, 20);
+  assert.equal(first.inventory.capacity, 30);
   assert.equal(first.inventory.items.length, 1);
   assert.equal(first.inventory.items[0].itemId, STARTER_ITEM_ID);
   assert.equal(first.inventory.items[0].quantity, 1);
@@ -184,7 +184,7 @@ test("inventory storage writes are server-only", () => {
   assert.equal(roundTrip !== null, true);
   if (roundTrip !== null) {
     assert.equal(roundTrip.items[0].itemId, STARTER_ITEM_ID);
-    assert.equal(roundTrip.capacity, 20);
+    assert.equal(roundTrip.capacity, 30);
   }
 });
 
@@ -212,7 +212,7 @@ test("valid pickup adds slime gel, persists inventory, and broadcasts removal", 
   assert.equal(result.persistInventories[0].userId, "user-alice");
   const inv = inventoryMessages(result);
   assert.equal(inv.length, 1);
-  assert.equal(inv[0].capacity, 20);
+  assert.equal(inv[0].capacity, 30);
   const snap = JSON.parse(result.outbound.filter((item) => item.opcode === ServerOpcode.SNAPSHOT)[0].body);
   assert.deepEqual(snap.loot, []);
 });
@@ -245,7 +245,7 @@ test("full inventory rejects a new unstackable grant", () => {
     const next = addOrStackItem(full, STARTER_ITEM_ID, 1, "sword-extra-" + String(full.items.length), sword);
     full.items = next.items;
   }
-  assert.equal(full.items.length, 20);
+  assert.equal(full.items.length, 30);
   let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", spawn.x, spawn.y, full));
   state.loot = [gelLoot("loot-full", spawn.x, spawn.y)];
   const result = applyMatchLoop(state, 4, contentHash, [pickup("user-alice", "loot-full", "req-pickup-full1")], ids("loop"));
@@ -276,15 +276,16 @@ test("slime gel stacks into an existing instance", () => {
 test("grants never overflow maxStack and reject when capacity cannot hold the remainder", () => {
   const gel = content.items["item.slime_gel"];
   const empty = emptyInventory();
-  assert.equal(acceptItemFailureCode(empty, "item.slime_gel", 500, gel), "inventory_full");
-  assert.equal(acceptItemFailureCode(empty, "item.slime_gel", 400, gel), "");
-  const stacked = addOrStackItem(empty, "item.slime_gel", 400, "gel-bulk", gel);
+  assert.equal(acceptItemFailureCode(empty, "item.slime_gel", 601, gel), "inventory_full");
+  assert.equal(acceptItemFailureCode(empty, "item.slime_gel", 600, gel), "");
+  const stacked = addOrStackItem(empty, "item.slime_gel", 600, "gel-bulk", gel);
   let total = 0;
   for (let i = 0; i < stacked.items.length; i++) {
     assert.ok(stacked.items[i].quantity <= gel.maxStack);
     total += stacked.items[i].quantity;
   }
-  assert.equal(total, 400);
+  assert.equal(total, 600);
+  assert.equal(stacked.items.length, 30);
   assert.equal(acceptItemFailureCode(stacked, "item.slime_gel", 1, gel), "inventory_full");
 });
 

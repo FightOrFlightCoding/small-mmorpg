@@ -1,4 +1,4 @@
-# Item content model (ITEM-01)
+# Item content model (ITEM-02)
 
 Authored under `content/source/`. Schemas under `content/schemas/`. Generated catalogs are derived artifacts. Test items use `item.test_*` / `loot.test*` and `developmentOnly` where applicable. Production generate must not leak development-only definitions.
 
@@ -12,11 +12,11 @@ Schema: `content/schemas/item.json`. Runtime type: `inventory.ts` `ItemDefinitio
 | `displayName` / `displayNameKey` / `descriptionKey` | Present | Unchanged |
 | `visualId`, `iconAssetId`, `worldAssetId` | Present | Unchanged |
 | `category` | `weapon` `armor` `consumable` `quest` `material` `miscellaneous` | Keep; do not invent protocol enums of definition ids |
-| `maxStack` | `positiveInteger`, no 99 cap | Equippable forced 1; others 1–99; default 99; absolute 99 |
-| `tradeable` | Optional; default **true** unless `false` | All production items true |
+| `maxStack` | `itemMaxStack` 1–99; equippable forced 1 | Unchanged |
+| `tradeable` | Optional; default **true** unless `false`; production required true | Unchanged |
 | `destroyable` | Optional; default **true** unless `false` | Distinct from droppable |
-| `droppable` | **Absent** | Required true for production; player drop uses this |
-| `rarity` | **Absent** | Needed for Need/Greed (Uncommon+) |
+| `droppable` | Present; production required true | Player drop still later |
+| `rarity` | `rarity.poor` … `rarity.legendary`; production required | Need/Greed still later |
 | `uniquePolicy` | `none` `character` `equipped` | Not soulbind. Keep until a later phase names removal |
 | `equipSlot` / `equipmentSlotTags` | Present | Unchanged tags; equipped container changes |
 | `classRequirements` / `levelRequirement` | Present | Equip gates only; Need is unrestricted |
@@ -31,8 +31,8 @@ No soulbind, bind-on-pickup, bind-on-equip, account-bind, or character-bind fiel
 | --- | --- | --- | --- | --- | --- |
 | `item.training_sword` | weapon | 1 | true | true | Starter (`STARTER_ITEM_ID`); main_hand +2 |
 | `item.iron_sword` | weapon | 1 | true | true | Quest reward; main_hand +5 |
-| `item.slime_gel` | quest | 20 | **false** | **false** | Prompt 18 collect item |
-| `item.proof_token` | quest | 20 | **false** | **false** | Proof journey |
+| `item.slime_gel` | quest | 20 | **true** | **false** | Prompt 18 collect item; droppable true |
+| `item.proof_token` | quest | 20 | **true** | **false** | Proof journey; droppable true |
 | `item.cert_mail` | armor | 1 | true | true | chest |
 | `item.test_potion` | consumable | 10 | true | true | Test |
 | `item.test_pebble` | miscellaneous | 50 | true | true | Test; stack 50 ≠ 99 |
@@ -71,7 +71,7 @@ Schema: `content/schemas/vendor.json`. `currencyId` must be `gold`. Stock: `item
 
 ## Player bag capacity (content)
 
-`content/source/player.base.json` `inventoryCapacity`: **20**. `pickupRange`: **40**. Group credit default loot policy: **personal** (XP/party tables; slime table stays ground_free).
+`content/source/player.base.json` `inventoryCapacity`: **30**. `pickupRange`: **40**. Group credit default loot policy: **personal** (XP/party tables; slime table stays ground_free).
 
 ## Quest item consumption
 

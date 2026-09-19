@@ -144,15 +144,21 @@ After a visual, tileset, or catalog change is on `origin/main`, the Windows Godo
   "iconAssetId": "visual.item_proof_token",
   "worldAssetId": "visual.item_proof_token",
   "category": "quest",
+  "rarity": "rarity.common",
+  "questItem": true,
+  "equippable": false,
+  "droppable": true,
+  "tags": ["quest"],
   "maxStack": 20,
-  "tradeable": false,
+  "tradeable": true,
   "destroyable": false,
   "uniquePolicy": "none",
   "classRequirements": [],
   "levelRequirement": 0,
   "attackBonus": 0,
   "statModifiers": [],
-  "sellValue": 0
+  "sellValue": 0,
+  "schemaVersion": 1
 }
 ```
 

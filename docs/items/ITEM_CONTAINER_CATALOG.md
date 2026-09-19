@@ -1,4 +1,4 @@
-# Item container catalog (ITEM-01)
+# Item container catalog (ITEM-02)
 
 Containers are logical owners of item instances or gold. ITEM-01 records **live** vs **target**. Live names in code are used until a later phase migrates.
 
@@ -6,27 +6,27 @@ Containers are logical owners of item instances or gold. ITEM-01 records **live*
 
 | | Live | Target |
 | --- | --- | --- |
-| Identity | `PlayerInventory` (`capacity` + `items[]`) | 30 slots, indices 0–29 |
+| Identity | `PlayerInventory` (`capacity` **30** + `items[]`) | 30 slots, indices 0–29 |
 | Persistence | `player` / `inventory_<compactId>` (`permissionWrite: 0`) | Same collection; capacity 30 |
-| Occupancy | `items.length` ≤ capacity; `slotIndex` in `0 .. capacity-1` | Fixed 30 positions; empty slots allowed |
-| Equipment | Equipped instances **stay in this bag** | Equipment **not** in this bag |
+| Occupancy | `items.length` ≤ 30; `slotIndex` in `0 .. 29`; holes kept | Fixed 30 positions; empty slots allowed |
+| Equipment | Equipped instances **leave this bag** | Equipment **not** in this bag |
 | Gold | Not stored here | Unchanged |
-| Revision | Nakama OCC + `mutationByRequestId` / `pickupByRequestId` | Monotonic container revision + `expected_revision` |
+| Revision | Container `revision` + `mutationByRequestId` / `pickupByRequestId` | `expected_revision` remains later |
 | Owner | Server match | Unchanged |
 
 ## EquipmentContainer
 
 | | Live | Target |
 | --- | --- | --- |
-| Identity | `PlayerEquipment.slots[tag] = instanceId` | Canonical equipment container |
+| Identity | `PlayerEquipment.slots[tag] = instanceId` plus `items[]` | Canonical equipment container |
 | Persistence | `player` / `equipment_<compactId>` | Same |
-| Bag interaction | Instance remains in `PlayerInventory.items` | Instance leaves bag on equip; unequip requires a free bag slot |
+| Bag interaction | Instance leaves `PlayerInventory.items` on equip | Unequip requires a free bag slot |
 | Stats | `derivedAttack` + `equipmentModifiersFromGear` / canonical pipeline | Unchanged pipeline; instance source identity |
 | Repair | Missing instance clears the slot | Unchanged |
 
 ## MigrationOverflow
 
-**Absent live.** Target: temporary server-owned overflow when a capacity reduction or equipment-out-of-bag migration cannot place every stack. Must persist, be claimable only by the owner, and drain into CharacterBag. Do not invent a client-writable stash.
+Live: `player` / `overflow` or `overflow_<compactId>` (`permissionWrite: 0`). Created only when migration cannot place every stack into the 30-slot bag. Owner-only recover via `RECOVER_OVERFLOW_ITEM` into a free bag slot. Not a grant destination. Deleted when empty.
 
 ## CorpseLootContainer
 

@@ -1,4 +1,4 @@
-# Item storage catalog (ITEM-01)
+# Item storage catalog (ITEM-02)
 
 Subset of [STORAGE_CATALOG.md](../STORAGE_CATALOG.md) that the item platform reads or writes. Wallet gold is listed because it is canonical currency, not because it is a storage object. Defect: `permissionWrite !== 0` on a canonical record.
 
@@ -8,8 +8,9 @@ Gameplay save envelope remains `schemaVersion` **1**. Cave/location/transfer/tra
 
 | Collection / key | Purpose | Write | Item relevance |
 | --- | --- | --- | --- |
-| `player` / `inventory` or `inventory_<compactId>` | Stacks, instance ids, locks, pickup/mutation `requestId` maps | OCC; loot/equip/destroy/turn-in/vendor/trade | CharacterBag |
-| `player` / `equipment` or `equipment_<compactId>` | Slot → instanceId, equip `requestId` map | OCC | EquipmentContainer |
+| `player` / `inventory` or `inventory_<compactId>` | Stacks, instance ids, locks, pickup/mutation `requestId` maps, `revision` | OCC; loot/equip/destroy/turn-in/vendor/trade | CharacterBag |
+| `player` / `equipment` or `equipment_<compactId>` | Slot → instanceId, equipped `items[]`, equip `requestId` map, `revision` | OCC | EquipmentContainer |
+| `player` / `overflow` or `overflow_<compactId>` | MigrationOverflow stacks | OCC; recover-only | Recovery, not extra storage |
 | `player` / `quests` or `quests_<compactId>` | Log, accept/turn-in ids; consume/grant on turn-in | OCC; turn-in `multiUpdate` | Possession + consume |
 | `player` / `wallet_ref` | Pointer that gold lives in Nakama wallet | Envelope only | Not the balance |
 | `player` / `progression` | Not item storage; equipment modifiers feed stats | OCC | Recalc after equip |
@@ -56,6 +57,6 @@ There is no dedicated item-audit collection besides trade audit, GM audit, and g
 | Party cache `lootPolicy` | Invalidated on party `revision` |
 | Item locks | Serialized **inside** inventory instances; must not survive completed logout; trade recovery rehydrates from trade record |
 
-## Absent target records (do not create in ITEM-01)
+## Absent target records (do not create in ITEM-02)
 
-Corpse documents, roll documents, ground-item documents, migration-overflow documents, pending-roll-award documents, per-character gold wallets, container-revision fields on inventory JSON.
+Corpse documents, roll documents, ground-item documents, pending-roll-award documents, per-character gold wallets, `expected_revision` on inventory JSON. MigrationOverflow is live.

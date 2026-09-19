@@ -1,4 +1,4 @@
-# Item security model (ITEM-01)
+# Item security model (ITEM-02)
 
 The client is an untrusted renderer. Defenses stay server-side. Parent: [SECURITY_MODEL.md](../SECURITY_MODEL.md).
 
@@ -7,7 +7,7 @@ The client is an untrusted renderer. Defenses stay server-side. Parent: [SECURIT
 | Attack | Defense |
 | --- | --- |
 | Item injection | No grant opcode; `permissionWrite: 0`; server `uuidv4` instance ids |
-| Stack overflow | Split at `maxStack`; never overstack |
+| Stack overflow | Split at `maxStack`; never overstack; production max 99 |
 | Duplicate loot | First pickup despawns; `requestId` replay |
 | Price spoof | `unknown_field:price`; `stat_injection:gold` |
 | Quantity abuse | Vendor 1–99; finite integers |
@@ -19,7 +19,10 @@ The client is an untrusted renderer. Defenses stay server-side. Parent: [SECURIT
 | Group loot spoof | Reject `lootRecipients` / `creditUserIds` |
 | Duplicate death | `kill:<instanceId>:<deathCount>` |
 | Quest count spoof | Server possession recount |
-| Rate flood | 8 inventory/vendor/trade per 10 ticks; 2048-byte bodies |
+| Equip with full bag | Unequip simulates capacity; `inventory_full`; stay equipped |
+| Overflow as extra bag | Grants never write overflow; recover requires a free bag slot; occupied dest is `invalid_slot` |
+| Forged overflow instance | `invalid_id` unless the stack is in that character's overflow |
+| Rate flood | 8 inventory/vendor/trade/recover per 10 ticks; 2048-byte bodies |
 
 ## Target threats not yet implemented
 
@@ -32,7 +35,6 @@ The client is an untrusted renderer. Defenses stay server-side. Parent: [SECURIT
 | Client drop coordinates | Server chooses nearby valid pose |
 | Partial ground pickup | Reject; full stack only |
 | Stale bag revision | `expected_revision` reject + canonical bag |
-| Equip with full bag (after equipment leaves bag) | `inventory_full`; stay equipped |
 | Forged forage grant | No client grant; node + range + idempotent `requestId` |
 
 ## Character / session

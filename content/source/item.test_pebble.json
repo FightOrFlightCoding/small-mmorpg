@@ -8,6 +8,11 @@
   "iconAssetId": "visual.item_pebble",
   "worldAssetId": "visual.item_pebble",
   "category": "miscellaneous",
+  "rarity": "rarity.poor",
+  "questItem": false,
+  "equippable": false,
+  "droppable": true,
+  "tags": [],
   "maxStack": 50,
   "tradeable": true,
   "destroyable": true,
@@ -16,5 +21,6 @@
   "levelRequirement": 0,
   "attackBonus": 0,
   "statModifiers": [],
-  "sellValue": 0
+  "sellValue": 0,
+  "schemaVersion": 1
 }

@@ -11,6 +11,8 @@ import {
   type GmCommandRequest,
 } from "../domain/gm";
 import { emptyInventory, itemDefinitionsFromContent } from "../domain/inventory";
+import { emptyEquipment } from "../domain/equipment";
+import { emptyOverflow } from "../domain/overflow";
 import { questDefinitionsFromContent } from "../domain/quest";
 import { catalogFromContent } from "../domain/stats";
 import { initializeProgression, migrateToCanonicalProgression } from "../domain/progression";
@@ -33,6 +35,8 @@ import { readCharacter, writeCharacterCheckpoint } from "../nakama/character_sto
 import { readRoster } from "../nakama/roster_store";
 import { readActiveLocation, writeActiveLocation } from "../nakama/location_store";
 import { readInventory, writeInventory } from "../nakama/inventory_store";
+import { readEquipment } from "../nakama/equipment_store";
+import { readOverflow } from "../nakama/overflow_store";
 import { readProgression, writeProgression } from "../nakama/progression_store";
 import { readQuests, writeQuests } from "../nakama/quest_store";
 import { commitTransaction, readGold } from "../nakama/transaction_store";
@@ -442,6 +446,8 @@ function playerFromStorage(
     writeProgression(nk, target.userId, ensured.progression, target.characterId);
   }
   const inventory = readInventory(nk, target.userId, target.characterId);
+  const equipment = readEquipment(nk, target.userId, target.characterId);
+  const overflow = readOverflow(nk, target.userId, target.characterId);
   return {
     userId: target.userId,
     sessionId: "",
@@ -458,6 +464,8 @@ function playerFromStorage(
     axisY: 0,
     questLog: readQuests(nk, target.userId, target.characterId),
     inventory: inventory !== null ? inventory : emptyInventory(),
+    equipment: equipment !== null ? equipment : emptyEquipment(),
+    overflow: overflow !== null ? overflow : emptyOverflow(),
     progression: ensured.ok ? ensured.progression : existingProgression !== null ? existingProgression : initializeProgression(catalog, classId),
     gold: readGold(nk, target.userId),
   };

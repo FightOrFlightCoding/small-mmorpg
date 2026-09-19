@@ -14,7 +14,7 @@ func before_test() -> void:
 
 func test_canonical_rebuild_shows_server_items() -> void:
 	InventoryService.apply_canonical({
-		"capacity": 20,
+		"capacity": 30,
 		"items": [
 			{"instanceId": "inst-sword", "itemId": "item.training_sword", "quantity": 1, "metadata": {}},
 			{"instanceId": "inst-gel", "itemId": "item.slime_gel", "quantity": 2, "metadata": {}},
@@ -23,12 +23,12 @@ func test_canonical_rebuild_shows_server_items() -> void:
 	assert_int(InventoryService.item_count()).is_equal(2)
 	assert_int(InventoryService.quantity_of("item.training_sword")).is_equal(1)
 	assert_int(InventoryService.quantity_of("item.slime_gel")).is_equal(2)
-	assert_int(InventoryService.capacity).is_equal(20)
+	assert_int(InventoryService.capacity).is_equal(30)
 
 
 func test_unsupported_local_gloot_mutation_is_reverted() -> void:
 	InventoryService.apply_canonical({
-		"capacity": 20,
+		"capacity": 30,
 		"items": [{"instanceId": "inst-sword", "itemId": "item.training_sword", "quantity": 1, "metadata": {}}],
 	})
 	assert_int(InventoryService.item_count()).is_equal(1)
@@ -67,7 +67,7 @@ func test_full_state_inventory_restores_the_gloot_mirror() -> void:
 		"enemies": [],
 		"loot": [],
 		"inventory": {
-			"capacity": 20,
+			"capacity": 30,
 			"items": [{"instanceId": "inst-sword", "itemId": "item.training_sword", "quantity": 1, "metadata": {}}],
 		},
 	}), ContentRegistry.get_content_hash())
@@ -87,7 +87,7 @@ func test_inventory_state_opcode_rebuilds_from_server() -> void:
 			"protocolVersion": 1,
 			"contentHash": ContentRegistry.get_content_hash(),
 			"requestId": "req-pickup-ok1",
-			"capacity": 20,
+			"capacity": 30,
 			"items": [
 				{"instanceId": "inst-sword", "itemId": "item.training_sword", "quantity": 1},
 				{"instanceId": "inst-gel", "itemId": "item.slime_gel", "quantity": 1},
@@ -112,7 +112,7 @@ func test_nearby_loot_pick_ignores_far_targets() -> void:
 
 func test_hud_lists_canonical_inventory() -> void:
 	InventoryService.apply_canonical({
-		"capacity": 20,
+		"capacity": 30,
 		"items": [
 			{"instanceId": "inst-sword", "itemId": "item.training_sword", "quantity": 1, "metadata": {}},
 			{"instanceId": "inst-gel", "itemId": "item.slime_gel", "quantity": 3, "metadata": {}},
@@ -123,7 +123,7 @@ func test_hud_lists_canonical_inventory() -> void:
 	await get_tree().process_frame
 	hud.refresh_inventory()
 	var capacity: Label = hud.get_node("Root/Inventory/Margin/VBox/Capacity")
-	assert_str(capacity.text).contains("2 / 20")
+	assert_str(capacity.text).contains("2 / 30")
 	assert_str(hud.get_node("Root/Inventory/Margin/VBox/Heading").text).is_equal("Inventory")
 	assert_object(hud.get_node("Root/Inventory/Margin/VBox/MutateRow/DestroyButton")).is_not_null()
 	assert_object(hud.get_node("Root/Inventory/Margin/VBox/MutateRow/SplitButton")).is_not_null()
@@ -149,3 +149,50 @@ func test_destroy_and_split_send_intentions_without_instance_id_invention() -> v
 	assert_str(String(split_payload.get("instanceId", ""))).is_equal("inst-cloth")
 	assert_int(int(split_payload.get("quantity", 0))).is_equal(2)
 	assert_bool(split_payload.has("newInstanceId")).is_false()
+
+
+func test_overflow_recovery_sends_server_instance_id_only() -> void:
+	InventoryService.apply_canonical({
+		"capacity": 30,
+		"items": [{"instanceId": "inst-sword", "itemId": "item.training_sword", "quantity": 1, "metadata": {}}],
+		"overflow": {
+			"items": [{"instanceId": "inst-overflow", "itemId": "item.slime_gel", "quantity": 2}],
+			"revision": 1,
+		},
+	})
+	assert_int(InventoryService.overflow_items.size()).is_equal(1)
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	var request_id := InventoryService.request_recover_overflow("inst-overflow")
+	await get_tree().process_frame
+	assert_str(request_id).is_not_empty()
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_RECOVER_OVERFLOW_ITEM)
+	var payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_str(String(payload.get("instanceId", ""))).is_equal("inst-overflow")
+	assert_str(String(payload.get("requestId", ""))).is_equal(request_id)
+	assert_bool(payload.has("newInstanceId")).is_false()
+
+
+func test_inventory_recovery_panel_shows_overflow_only() -> void:
+	InventoryService.apply_canonical({
+		"capacity": 30,
+		"items": [{"instanceId": "inst-sword", "itemId": "item.training_sword", "quantity": 1, "metadata": {}}],
+		"overflow": {
+			"items": [{"instanceId": "inst-overflow", "itemId": "item.slime_gel", "quantity": 2}],
+			"revision": 1,
+		},
+	})
+	var hud: WorldHud = auto_free(preload("res://scenes/world/world_hud.tscn").instantiate())
+	add_child(hud)
+	await get_tree().process_frame
+	var panel: CanvasItem = hud.get_node("InventoryRecovery")
+	assert_object(panel).is_not_null()
+	assert_bool(panel.visible).is_true()
+	InventoryService.apply_canonical({
+		"capacity": 30,
+		"items": [{"instanceId": "inst-sword", "itemId": "item.training_sword", "quantity": 1, "metadata": {}}],
+		"overflow": {"items": [], "revision": 2},
+	})
+	hud.refresh_inventory()
+	assert_bool(panel.visible).is_false()

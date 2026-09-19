@@ -61,6 +61,14 @@ export interface ItemStatModifier {
   amount: number;
 }
 
+export type ItemRarity =
+  | "rarity.poor"
+  | "rarity.common"
+  | "rarity.uncommon"
+  | "rarity.rare"
+  | "rarity.epic"
+  | "rarity.legendary";
+
 export interface ItemDef {
   id: string;
   kind: "item";
@@ -71,6 +79,11 @@ export interface ItemDef {
   iconAssetId?: string;
   worldAssetId?: string;
   category: "weapon" | "armor" | "consumable" | "quest" | "material" | "miscellaneous";
+  rarity?: ItemRarity;
+  questItem?: boolean;
+  equippable?: boolean;
+  droppable?: boolean;
+  tags?: string[];
   maxStack: number;
   tradeable?: boolean;
   destroyable?: boolean;
@@ -82,6 +95,8 @@ export interface ItemDef {
   attackBonus?: number;
   statModifiers?: ItemStatModifier[];
   sellValue?: number;
+  schemaVersion?: number;
+  developmentOnly?: boolean;
 }
 
 export interface EquipmentSlotDef {

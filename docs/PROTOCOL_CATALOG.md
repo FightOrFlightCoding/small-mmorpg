@@ -243,7 +243,7 @@ Commands: `inspect_character`, `teleport_character`, `repair_invalid_location`, 
 
 ## Client → server match opcodes
 
-Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARGET 8; INTERACT/DIALOGUE_CHOOSE/INTERACTION_CLOSE/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/quest/VENDOR_BUY/VENDOR_SELL/INN_REST/CAVE_ENTER/CAVE_EXIT/TRADE_*/ALLOCATE_ATTRIBUTES/ALLOCATE_ATTRIBUTES_BATCH/TRAINER_RESPEC/PURCHASE_TALENT/ASSIGN_HOTBAR/UNLOCK_ABILITY/RETURN_TO_CHARACTER_SELECT/SELECT_BRANCH/SET_AUTO_ASSIGN/AUTO_ASSIGN_UNSPENT_POINTS 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
+Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARGET 8; INTERACT/DIALOGUE_CHOOSE/INTERACTION_CLOSE/PICKUP/EQUIP/DESTROY_ITEM/SPLIT_STACK/MOVE_ITEM/RECOVER_OVERFLOW_ITEM/quest/VENDOR_BUY/VENDOR_SELL/INN_REST/CAVE_ENTER/CAVE_EXIT/TRADE_*/ALLOCATE_ATTRIBUTES/ALLOCATE_ATTRIBUTES_BATCH/TRAINER_RESPEC/PURCHASE_TALENT/ASSIGN_HOTBAR/UNLOCK_ABILITY/RETURN_TO_CHARACTER_SELECT/SELECT_BRANCH/SET_AUTO_ASSIGN/AUTO_ASSIGN_UNSPENT_POINTS 8; RESYNC 2. Max 24 parsed messages per player per tick. Excess: `SYSTEM_MESSAGE` `rate_limited`.
 
 ### 1 `INPUT`
 
@@ -291,9 +291,9 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 | Field | Value |
 | --- | --- |
 | Body | `{ protocolVersion, instanceId?, slot, requestId }` |
-| Authority | Server ownership, category, slot tags, class, level, locks |
+| Authority | Server ownership, category, slot tags, class, level, locks. Equip removes the instance from the bag into `equipment.items`. Unequip requires a free bag slot. |
 | Idempotency | Successful `requestId` replays `ok` |
-| Errors | `unowned`, `not_equippable`, `invalid_slot`, `invalid_id`, `player_dead`, `item_locked`, `class_restricted`, `level_restricted`, `unique_restricted`, `invalid_category` |
+| Errors | `unowned`, `not_equippable`, `invalid_slot`, `invalid_id`, `player_dead`, `item_locked`, `class_restricted`, `level_restricted`, `unique_restricted`, `invalid_category`, `inventory_full` |
 | Tests | `equipment.test.ts`, `equipment_service_test.gd` |
 
 ### 6 `QUEST_ACCEPT`
@@ -673,6 +673,17 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 | Rate limit | Shares INTERACT window (8) |
 | Tests | `interaction.test.ts`, `npc_movement.test.ts` |
 
+### 41 `RECOVER_OVERFLOW_ITEM`
+
+| Field | Value |
+| --- | --- |
+| Body | `{ protocolVersion, instanceId, toSlotIndex?, requestId }` (`toSlotIndex` optional JSON number) |
+| Authority | Server-owned MigrationOverflow → a **free** bag slot only. Not a grant path. Does not merge into occupied stacks. |
+| Idempotency | Successful `requestId` replays `ok` |
+| Errors | `invalid_id`, `inventory_full`, `invalid_slot`, `item_locked`, `player_dead` |
+| Rate limit | Shares DESTROY/SPLIT/MOVE window (8) |
+| Tests | `item_model.test.ts`, `inventory_service_test.gd`, `protocol.test.ts` |
+
 No other client opcodes exist. Unknown opcode → `unknown_opcode`.
 
 ## Server → client match opcodes
@@ -685,11 +696,11 @@ No client rate limit. Occupied matches send **102** every tick.
 | 102 | `SNAPSHOT` | tick, players, enemies, loot | `movement.test.ts`, `entity_registry_test.gd` |
 | 103 | `ACTION_RESULT` | ok, code, requestId?, message?, ticket extras, optional tradeId | combat/inventory/quest/cave/trade/lease tests |
 | 104 | `COMBAT_EVENT` | tick, events[] (`hit`, `heal`, `death`, `respawn`, `interrupt`, `effect_*`, `resource`, `threat`, `credit`, `message`) | `combat.test.ts`, `combat_pipeline.test.ts`, `boss.test.ts`, `combat_client_test.gd` |
-| 105 | `INVENTORY_STATE` | capacity, items | `inventory.test.ts` |
+| 105 | `INVENTORY_STATE` | capacity, items, revision, optional overflow | `inventory.test.ts`, `item_model.test.ts` |
 | 106 | `QUEST_STATE` | quests | `quest.test.ts` |
 | 107 | `INTERACTION_RESULT` | ok, code, requestId, targetId, optional dialogueId/services/context/interactionSessionId/currentNodeId/allowedOptionIds/availableServiceIds/expiresAtTick | `interaction.test.ts` |
 | 108 | `SYSTEM_MESSAGE` | code, message | protocol/security/chat |
-| 109 | `EQUIPMENT_STATE` | slots, derived | `equipment.test.ts` |
+| 109 | `EQUIPMENT_STATE` | slots, items, revision, derived | `equipment.test.ts` |
 | 110 | `WALLET_STATE` | gold | `quest_reward.test.ts`, `wallet_service_test.gd` |
 | 111 | `PROGRESSION_STATE` | progression (class, level, XP, attributes, derived, unspent points) | `progression.test.ts`, `progression_service_test.gd` |
 | 112 | `ABILITY_STATE` | unlocked ids, hotbar (4 production / 8 test), optional `hotbarAssignments`, ranks, resources, cooldowns, active cast, effects | `ability.test.ts`, `ability_service_test.gd`, `progression_hotbar_ceiling.test.ts` |

@@ -48,6 +48,7 @@ export const INVENTORY_SAVE_KEYS = [
   "updatedAt",
   "capacity",
   "items",
+  "revision",
   "pickupByRequestId",
   "pickupRequestTicks",
   "mutationByRequestId",
@@ -58,6 +59,8 @@ export const EQUIPMENT_SAVE_KEYS = [
   "createdAt",
   "updatedAt",
   "slots",
+  "items",
+  "revision",
   "equipByRequestId",
   "equipRequestTicks",
 ];

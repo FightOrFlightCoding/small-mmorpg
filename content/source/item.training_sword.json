@@ -8,6 +8,11 @@
   "iconAssetId": "visual.item_training_sword",
   "worldAssetId": "visual.item_training_sword",
   "category": "weapon",
+  "rarity": "rarity.common",
+  "questItem": false,
+  "equippable": true,
+  "droppable": true,
+  "tags": [],
   "maxStack": 1,
   "tradeable": true,
   "destroyable": true,
@@ -18,5 +23,6 @@
   "levelRequirement": 0,
   "attackBonus": 2,
   "statModifiers": [{ "statId": "test.stat.attack", "amount": 2 }],
-  "sellValue": 1
+  "sellValue": 1,
+  "schemaVersion": 1
 }

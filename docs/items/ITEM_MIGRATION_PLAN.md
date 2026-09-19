@@ -1,16 +1,16 @@
-# Item migration plan (ITEM-01)
+# Item migration plan (ITEM-02)
 
-`SAVE_SCHEMA_VERSION` stays **1** until a later ITEM phase that actually changes inventory JSON. Prompt 23 already defaulted missing instance fields (`sourceType` `migration`, `createdAt` 0, empty locks, sequential `slotIndex`).
+`SAVE_SCHEMA_VERSION` stays **1**. Prompt 23 already defaulted missing instance fields (`sourceType` `migration`, `createdAt` 0, empty locks, sequential `slotIndex`). ITEM-02 migrates containers without raising the envelope.
 
 Do not re-grant starter swords, quest rewards, or gold during ITEM migrations. Preserve instance ids when a full stack moves.
 
-## Ordered workstreams (later numbered ITEM phases)
+## Ordered workstreams
 
-ITEM-01 does not name ITEM-02+. Implement only when a later prompt names the work. Dependency order:
+ITEM-02 closed content stack rules, bag capacity 30, equipment-out-of-bag, and MigrationOverflow. Implement later rows only when a later prompt names the work:
 
-1. **Content** — `rarity`, `droppable`, maxStack 1–99, bag 30 in `player.base` + `INVENTORY_CAPACITY` fallback, quest items `tradeable`/`droppable` true. Keep Prompt 18 gel/token behavior until that phase explicitly migrates them.
-2. **Capacity planner** — one dry-run simulator; container `revision`; `expected_revision` on mutations; typed locks.
-3. **Equipment out of bag** — instances leave CharacterBag; unequip needs a free slot; MigrationOverflow for characters who cannot fit after the split; recalc stats from instance ids.
+1. **Content** — **done in ITEM-02.** `rarity`, `droppable`, maxStack 1–99, bag 30 in `player.base` + `INVENTORY_CAPACITY` fallback, quest items `tradeable`/`droppable` true. Gel/proof stay non-destroyable.
+2. **Capacity planner** — one dry-run simulator; `expected_revision` on mutations; typed locks. Container `revision` is live.
+3. **Equipment out of bag** — **done in ITEM-02.** Instances leave CharacterBag; unequip needs a free slot; MigrationOverflow for characters who cannot fit after the split; recalc stats from instance ids.
 4. **Bag UI** — 6×5, tooltips, drag-drop calling `MOVE_ITEM` / split / merge; GLoot remains a mirror.
 5. **Corpse + tag + rolls + gold + Loot All** — replace public 30 s `MatchLoot` for mob deaths; keep slime journey grants equivalent until content says otherwise.
 6. **Player ground drop** — 5 min public; server placement; full pickup.
@@ -22,11 +22,13 @@ ITEM-01 does not name ITEM-02+. Implement only when a later prompt names the wor
 
 ## Saved inventory shape
 
-Live stored value: `capacity`, `items[]` (instance fields), request-id maps, envelope timestamps.
+Live stored value: `capacity`, `items[]` (instance fields), `revision`, request-id maps, envelope timestamps.
 
-When capacity becomes 30: existing `capacity: 20` records must migrate **once** on load to 30 without shuffling `slotIndex` unless a slot is `>= 30` (none should be). Do not compact holes.
+When capacity became 30: existing `capacity: 20` records migrate **once** on load to 30 without shuffling `slotIndex` unless a slot is `>= 30`. Do not compact holes.
 
-When equipment leaves the bag: equipped instance ids are removed from `items` and remain only in `equipment.slots`. Characters with 20/20 stacks plus gear need overflow or a reject-and-keep-old-shape policy — decide in that phase; default target is MigrationOverflow.
+When equipment left the bag: equipped instance ids are removed from bag `items` and stored on `equipment.items`. Characters who cannot fit remaining stacks after that split receive MigrationOverflow. Recover only into free bag slots. Delete overflow when empty.
+
+Repeated migration is idempotent and does not duplicate stacks. Compatible legacy stacks merge; equipment and metadata-incompatible instances do not.
 
 ## Match-transient
 

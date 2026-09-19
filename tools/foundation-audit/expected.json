@@ -1,7 +1,7 @@
 {
   "protocolVersion": 1,
   "contentSchemaVersion": 1,
-  "contentHash": "bf283255559cf5145b9b4e90ad0ebfca4e09c27f7ffaa9c241347729d0cc5fcb",
+  "contentHash": "7877dd576b022d59f0350be4430aca0b9d402db38b5e16e816ef361003c9cffd",
   "exactDependencies": {
     "server/package.json:typescript": "5.8.3",
     "server/package.json:nakama-runtime": "github:heroiclabs/nakama-common#v1.47.0",
@@ -106,7 +106,8 @@
     "TRAINER_RESPEC": 37,
     "PURCHASE_TALENT": 38,
     "DIALOGUE_CHOOSE": 39,
-    "INTERACTION_CLOSE": 40
+    "INTERACTION_CLOSE": 40,
+    "RECOVER_OVERFLOW_ITEM": 41
   },
   "serverOpcodes": {
     "FULL_STATE": 101,
@@ -132,6 +133,7 @@
     { "collection": "player", "key": "quests", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "player", "key": "inventory", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "player", "key": "equipment", "permissionWrite": 0, "schemaVersion": 1 },
+    { "collection": "player", "key": "overflow", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "player", "key": "wallet_ref", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "player", "key": "progression", "permissionWrite": 0, "schemaVersion": 1 },
     { "collection": "player", "key": "party", "permissionWrite": 0, "schemaVersion": 1 },

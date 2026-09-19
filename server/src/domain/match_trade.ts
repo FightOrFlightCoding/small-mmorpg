@@ -6,7 +6,7 @@ import {
   walletState,
   type ParsedClientMessage,
 } from "./protocol";
-import { publicInventory, type PlayerInventory } from "./inventory";
+import { emptyInventory, publicInventory, type PlayerInventory } from "./inventory";
 import { dict } from "./maps";
 import { type MatchPlayer, type StarterZoneState } from "./match_state";
 import {
@@ -650,7 +650,7 @@ function actorFromPlayer(player: MatchPlayer, online: boolean): TradeActor {
     y: player.y,
     health: player.health,
     gold: player.gold !== undefined ? player.gold : 0,
-    inventory: player.inventory !== undefined ? player.inventory : { capacity: 20, items: [], pickupByRequestId: {} },
+    inventory: player.inventory !== undefined ? player.inventory : emptyInventory(),
     equipment: player.equipment,
     transferState: player.transferState,
     inCombat: player.inCombat,

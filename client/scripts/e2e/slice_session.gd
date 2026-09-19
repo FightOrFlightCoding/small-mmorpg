@@ -425,7 +425,7 @@ func _on_match_state(opcode: int, payload: String) -> void:
 		var inventory: Dictionary = MatchProtocol.parse_inventory_state(payload)
 		if bool(inventory.get("ok", false)):
 			view["inventory"] = {
-				"capacity": inventory.get("capacity", 20),
+				"capacity": inventory.get("capacity", 30),
 				"items": inventory.get("items", []),
 			}
 		return

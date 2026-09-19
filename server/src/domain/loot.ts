@@ -6,6 +6,7 @@ import {
   emptyInventory,
   rememberPickup,
   type ItemDefinition,
+  type ItemInstance,
   type PlayerInventory,
 } from "./inventory";
 
@@ -38,6 +39,7 @@ export interface PickupInput {
   pickupRange: number;
   itemsById: { [id: string]: ItemDefinition };
   tick?: number;
+  equippedItems?: ReadonlyArray<ItemInstance>;
 }
 
 export interface PickupDecision {
@@ -166,7 +168,13 @@ export function applyPickup(input: PickupInput): PickupDecision {
   if (definition === undefined) {
     return fail("invalid_id", inventory, input.loot);
   }
-  const failCode = acceptItemFailureCode(inventory, entity.itemId, entity.quantity, definition);
+  const failCode = acceptItemFailureCode(
+    inventory,
+    entity.itemId,
+    entity.quantity,
+    definition,
+    input.equippedItems,
+  );
   if (failCode.length > 0) {
     return fail(failCode, inventory, input.loot);
   }

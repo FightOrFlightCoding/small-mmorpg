@@ -7,13 +7,15 @@ signal item_activated(instance_id: String)
 signal request_started(request_id: String)
 
 var mirror: Inventory
-var capacity: int = 20
+var capacity: int = 30
 var items: Array = []
+var overflow_items: Array = []
 var selected_instance_id: String = ""
+var selected_overflow_instance_id: String = ""
 
 var _constraint: ItemCountConstraint
 var _applying: bool = false
-var _canonical: Dictionary = {"capacity": 20, "items": []}
+var _canonical: Dictionary = {"capacity": 30, "items": [], "overflow": []}
 
 
 func _ready() -> void:
@@ -31,10 +33,12 @@ func _ready() -> void:
 
 
 func reset() -> void:
-	_canonical = {"capacity": 20, "items": []}
+	_canonical = {"capacity": 30, "items": [], "overflow": []}
 	items = []
-	capacity = 20
+	overflow_items = []
+	capacity = 30
 	selected_instance_id = ""
+	selected_overflow_instance_id = ""
 	_ensure_mirror()
 	_rebuild_mirror()
 	inventory_changed.emit()
@@ -70,7 +74,7 @@ func configure_from_content() -> void:
 
 func apply_canonical(state: Dictionary) -> void:
 	_ensure_mirror()
-	capacity = int(state.get("capacity", 20))
+	capacity = int(state.get("capacity", 30))
 	var incoming: Array = []
 	var raw: Variant = state.get("items", [])
 	if typeof(raw) == TYPE_ARRAY:
@@ -81,8 +85,21 @@ func apply_canonical(state: Dictionary) -> void:
 			if String(item.get("itemId", "")).is_empty():
 				continue
 			incoming.append(item)
-	_canonical = {"capacity": capacity, "items": incoming}
+	var overflow_incoming: Array = []
+	var overflow_raw: Variant = state.get("overflow", {})
+	if typeof(overflow_raw) == TYPE_DICTIONARY:
+		var overflow_items_raw: Variant = (overflow_raw as Dictionary).get("items", [])
+		if typeof(overflow_items_raw) == TYPE_ARRAY:
+			for entry in overflow_items_raw:
+				if typeof(entry) != TYPE_DICTIONARY:
+					continue
+				var overflow_item: Dictionary = (entry as Dictionary).duplicate(true)
+				if String(overflow_item.get("itemId", "")).is_empty():
+					continue
+				overflow_incoming.append(overflow_item)
+	_canonical = {"capacity": capacity, "items": incoming, "overflow": overflow_incoming}
 	items = incoming.duplicate(true)
+	overflow_items = overflow_incoming.duplicate(true)
 	if _constraint != null:
 		_constraint.capacity = maxi(1, capacity)
 	_rebuild_mirror()
@@ -111,6 +128,15 @@ func request_split(instance_id: String, quantity: int) -> String:
 		return ""
 	var request_id := MatchProtocol.new_request_id()
 	NetworkService.send_split_stack(instance_id, quantity, request_id)
+	request_started.emit(request_id)
+	return request_id
+
+
+func request_recover_overflow(instance_id: String, to_slot_index: int = -1) -> String:
+	if instance_id.is_empty():
+		return ""
+	var request_id := MatchProtocol.new_request_id()
+	NetworkService.send_recover_overflow_item(instance_id, request_id, to_slot_index)
 	request_started.emit(request_id)
 	return request_id
 
@@ -170,7 +196,7 @@ func _ensure_mirror() -> void:
 	mirror.name = "GLootInventory"
 	add_child(mirror)
 	_constraint = ItemCountConstraint.new()
-	_constraint.capacity = 20
+	_constraint.capacity = 30
 	mirror.add_child(_constraint)
 	if not mirror.item_added.is_connected(_on_local_item_added):
 		mirror.item_added.connect(_on_local_item_added)
@@ -215,6 +241,11 @@ func item_id_of_instance(instance_id: String) -> String:
 	if instance_id.is_empty():
 		return ""
 	for entry in items:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("instanceId", "")) == instance_id:
+			return String(entry.get("itemId", ""))
+	for entry in overflow_items:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
 		if String(entry.get("instanceId", "")) == instance_id:
@@ -273,6 +304,7 @@ func _on_zone_state_updated() -> void:
 
 func _on_inventory_state(payload: Dictionary) -> void:
 	apply_canonical({
-		"capacity": payload.get("capacity", 20),
+		"capacity": payload.get("capacity", 30),
 		"items": payload.get("items", []),
+		"overflow": payload.get("overflow", {}),
 	})

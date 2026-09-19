@@ -870,4 +870,12 @@ Stuck “Waiting for the server…” on some NPCs (Cert Quartermaster, Platform
 
 ITEM-01 catalogs the Foundation item platform and the target 30-slot / corpse / Need-Greed / ground-drop contract under `docs/items/`. It does not change opcodes, storage, GLoot, or player-visible loot. Gold stays the account Nakama wallet. Equipped instances stay in the bag until a later ITEM phase moves them. `VENDOR_SELL` stays until a later phase names removal. Quest gel/proof tokens stay non-tradeable until a later phase. Conflicts remain OPEN in [ITEM_CURRENT_CONFLICTS.md](items/ITEM_CURRENT_CONFLICTS.md). Extend `inventory.ts` / `loot.ts` / `vendor.ts` / `trade.ts` / `transaction.ts`; do not fork them.
 
+## 2026-09-19 — ITEM-02 canonical item model, thirty-slot bag, equipment, and migration
 
+ITEM-02 extends the live inventory/equipment core. It does not add corpse, merchant, ground-drop, or trade UI.
+
+- Production items require `rarity`, `tradeable: true`, `droppable: true`, stable `iconAssetId` / `worldAssetId`, and no bind/soulbind fields. Equippable `maxStack` is 1; non-equippable is 1–99. Wire/storage keep camelCase `itemId` / `maxStack`.
+- One stack-compatibility function: `stacksAreCompatible` (definition, stack key, canonical metadata, incompatible locks, definition maximum). Equipped instances live in `PlayerEquipment.items` and do not occupy bag slots.
+- Every character bag is capacity **30**, indices **0–29**, persistent order, no auto-compact. Unequip simulates capacity and rejects without mutation when the bag is full.
+- Excess migration stacks become server-owned `player` / `overflow` (`permissionWrite: 0`). Recover via opcode **41** into a free bag slot only. Overflow is not extra storage. Empty overflow is deleted.
+- `SAVE_SCHEMA_VERSION` stays **1**. `uniquePolicy` remains uniqueness, not soulbind. `VENDOR_SELL` stays. Quest gel/proof stay non-destroyable. 6×5 bag UI remains later ([ITEM-C15](items/ITEM_CURRENT_CONFLICTS.md)).

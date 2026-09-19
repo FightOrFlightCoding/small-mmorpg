@@ -8,6 +8,11 @@
   "iconAssetId": "visual.item_potion",
   "worldAssetId": "visual.item_potion",
   "category": "consumable",
+  "rarity": "rarity.common",
+  "questItem": false,
+  "equippable": false,
+  "droppable": true,
+  "tags": [],
   "maxStack": 10,
   "tradeable": true,
   "destroyable": true,
@@ -16,5 +21,6 @@
   "levelRequirement": 0,
   "attackBonus": 0,
   "statModifiers": [],
-  "sellValue": 3
+  "sellValue": 3,
+  "schemaVersion": 1
 }

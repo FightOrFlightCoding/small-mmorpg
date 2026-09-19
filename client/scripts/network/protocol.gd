@@ -56,6 +56,7 @@ const CLIENT_TRAINER_RESPEC: int = 37
 const CLIENT_PURCHASE_TALENT: int = 38
 const CLIENT_DIALOGUE_CHOOSE: int = 39
 const CLIENT_INTERACTION_CLOSE: int = 40
+const CLIENT_RECOVER_OVERFLOW_ITEM: int = 41
 
 const SERVER_FULL_STATE: int = 101
 const SERVER_SNAPSHOT: int = 102
@@ -296,8 +297,10 @@ static func parse_inventory_state(raw: String) -> Dictionary:
 	return {
 		"ok": true,
 		"request_id": String(parsed.get("requestId", "")),
-		"capacity": int(parsed.get("capacity", 20)),
+		"capacity": int(parsed.get("capacity", 30)),
 		"items": _optional_array(parsed, "items"),
+		"revision": int(parsed.get("revision", 0)),
+		"overflow": _optional_object(parsed, "overflow"),
 	}
 
 
@@ -311,6 +314,8 @@ static func parse_equipment_state(raw: String) -> Dictionary:
 		"ok": true,
 		"request_id": String(parsed.get("requestId", "")),
 		"slots": _optional_slots(parsed),
+		"items": _optional_array(parsed, "items"),
+		"revision": int(parsed.get("revision", 0)),
 		"derived": _optional_derived(parsed),
 	}
 

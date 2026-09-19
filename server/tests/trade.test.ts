@@ -362,14 +362,20 @@ test("unowned item cannot be offered", () => {
 });
 
 test("non-tradeable item cannot be offered", () => {
-  const session = openTrade(withItem("item.slime_gel", "gel-a", 2), emptyInventory());
+  const session = openTrade(withItem("item.test_pebble", "pebble-a", 2), emptyInventory());
+  const blocked = itemDefinitionsFromContent(content.items);
+  blocked["item.test_pebble"] = {
+    id: blocked["item.test_pebble"].id,
+    maxStack: blocked["item.test_pebble"].maxStack,
+    tradeable: false,
+  };
   const result = setTradeOffer({
     trade: session.trade,
     actor: session.alice,
     other: session.bob,
-    instanceId: "gel-a",
+    instanceId: "pebble-a",
     quantity: 1,
-    itemsById: itemsById,
+    itemsById: blocked,
     requestId: "rid-gel",
   });
   assert.equal(result.ok, false);

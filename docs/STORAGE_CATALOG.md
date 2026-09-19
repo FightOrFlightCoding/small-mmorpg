@@ -173,16 +173,38 @@ Inventory, quests, and equipment for a selected character use `inventory_<compac
 
 
 
+## `player` / `overflow`
+
+
+| Field             | Value                                                                                                                                                          |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Purpose           | Server-owned MigrationOverflow stacks that did not fit the 30-slot bag after ITEM-02 migration                                                                 |
+| Owner             | Server match / migrate CLI                                                                                                                                     |
+| Scope             | Account-scoped; per-character key `overflow_<compactId>` when a `characterId` is known, Prompt 18 key `overflow` as fallback                                    |
+| `permissionRead`  | 1                                                                                                                                                              |
+| `permissionWrite` | 0                                                                                                                                                              |
+| Schema version    | 1                                                                                                                                                              |
+| Creation          | Only when migration cannot place every stack into slots `0`–`29`. Never a loot, vendor, quest, trade, or GM grant destination.                                 |
+| Read              | `matchJoin`, character export, account export, GM inspect                                                                                                      |
+| Update            | `RECOVER_OVERFLOW_ITEM` into a free bag slot; empty records are deleted                                                                                        |
+| Concurrency       | OCC version                                                                                                                                                    |
+| Migration         | Join and CLI `migrateItemContainers`; repeated pass is idempotent                                                                                              |
+| Deletion          | Deleted when empty; character purge step `overflow`; account deletion                                                                                          |
+| Client access     | Mirror via `INVENTORY_STATE.overflow` / Inventory Recovery panel. Recover intention only.                                                                      |
+
+
+
+
 ## `player` / `equipment`
 
 
 | Field         | Value                                                          |
 | ------------- | -------------------------------------------------------------- |
-| Purpose       | Content-defined slot instance ids, equip `requestId` history   |
+| Purpose       | Content-defined slot instance ids, equipped `items[]`, equip `requestId` history   |
 | Owner         | Server match                                                   |
 | Scope         | Account-scoped; per-character key when selected                |
 | Read          | `matchJoin`                                                    |
-| Update        | Successful equip/unequip; join repair if instance missing      |
+| Update        | Successful equip/unequip (instances leave/return to the bag); join repair if instance missing      |
 | Concurrency   | OCC version                                                    |
 | Migration     | v0 → v1 on load; persist once. Equipped instance id preserved. |
 | Deletion      | None                                                           |

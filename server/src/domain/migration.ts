@@ -1,8 +1,14 @@
 import { storedCharacterFromValue, storedCharacterWriteValue } from "./character";
 import { storedEquipmentFromValue, storedEquipmentWriteValue } from "./equipment_store";
+import { emptyEquipment } from "./equipment";
 import { storedInventoryFromValue, storedInventoryWriteValue } from "./inventory_store";
+import { itemDefinitionsFromContent } from "./inventory";
+import { migrateItemContainers } from "./item_migration";
+import { storedOverflowFromValue, storedOverflowWriteValue } from "./overflow_store";
+import { emptyOverflow } from "./overflow";
 import { storedProgressionFromValue, storedProgressionWriteValue } from "./progression_store";
 import { storedQuestFromValue, storedQuestWriteValue } from "./quest_store";
+import { content } from "../generated/content";
 import {
   REASON_ALREADY_CURRENT,
   REASON_CORRUPTED_RECORD,
@@ -57,12 +63,14 @@ export interface AccountSaveSnapshot {
   equipment?: unknown;
   quests?: unknown;
   walletRef?: unknown;
+  overflow?: unknown;
   gold?: number;
   characterPresent?: boolean;
   inventoryPresent?: boolean;
   equipmentPresent?: boolean;
   questsPresent?: boolean;
   walletRefPresent?: boolean;
+  overflowPresent?: boolean;
 }
 
 export interface AccountRecordResult {
@@ -78,6 +86,8 @@ export interface AccountMigrationResult {
   changed: boolean;
   gold: number;
   records: AccountRecordResult[];
+  overflow?: { [key: string]: unknown } | null;
+  deleteOverflow?: boolean;
 }
 export const MIGRATION_CHARACTER_V0_V1: Migration = {
   id: "mig.character.v0_to_v1",
@@ -248,6 +258,17 @@ export function migrateAccount(snapshot: AccountSaveSnapshot): AccountMigrationR
     ok = false;
     reason = REASON_MISSING;
   }
+  let overflowValue: { [key: string]: unknown } | null = null;
+  let deleteOverflow = true;
+  if (ok) {
+    const containers = migrateAccountContainers(snapshot, records);
+    if (containers.changed) {
+      changed = true;
+      reason = REASON_MIGRATED;
+    }
+    overflowValue = containers.overflow;
+    deleteOverflow = containers.deleteOverflow;
+  }
   return {
     ok: ok,
     reason: reason,
@@ -256,7 +277,62 @@ export function migrateAccount(snapshot: AccountSaveSnapshot): AccountMigrationR
     changed: changed,
     gold: typeof snapshot.gold === "number" && isFinite(snapshot.gold) ? snapshot.gold : 0,
     records: records,
+    overflow: overflowValue,
+    deleteOverflow: deleteOverflow,
   };
+}
+
+function migrateAccountContainers(
+  snapshot: AccountSaveSnapshot,
+  records: AccountRecordResult[],
+): { changed: boolean; overflow: { [key: string]: unknown } | null; deleteOverflow: boolean } {
+  const inventoryRow = recordOf(records, "inventory");
+  const equipmentRow = recordOf(records, "equipment");
+  if (inventoryRow === null || !inventoryRow.result.ok || inventoryRow.result.value === null) {
+    return { changed: false, overflow: null, deleteOverflow: true };
+  }
+  const bag = storedInventoryFromValue(inventoryRow.result.value);
+  if (bag === null) {
+    return { changed: false, overflow: null, deleteOverflow: true };
+  }
+  const gear =
+    equipmentRow !== null && equipmentRow.result.ok && equipmentRow.result.value !== null
+      ? storedEquipmentFromValue(equipmentRow.result.value)
+      : emptyEquipment();
+  const overflowRaw =
+    snapshot.overflowPresent === true || snapshot.overflow !== undefined ? snapshot.overflow : undefined;
+  const overflow = overflowRaw !== undefined ? storedOverflowFromValue(overflowRaw) : emptyOverflow();
+  const migrated = migrateItemContainers(
+    bag,
+    gear !== null ? gear : emptyEquipment(),
+    overflow,
+    itemDefinitionsFromContent(content.items),
+  );
+  if (migrated.changed) {
+    inventoryRow.result.value = storedInventoryWriteValue(migrated.inventory);
+    inventoryRow.result.changed = true;
+    inventoryRow.result.reason = REASON_MIGRATED;
+    if (equipmentRow !== null && equipmentRow.result.ok) {
+      equipmentRow.result.value = storedEquipmentWriteValue(migrated.equipment);
+      equipmentRow.result.changed = true;
+      equipmentRow.result.reason = REASON_MIGRATED;
+      equipmentRow.result.missing = false;
+    }
+  }
+  return {
+    changed: migrated.changed,
+    overflow: migrated.deleteOverflow ? null : storedOverflowWriteValue(migrated.overflow),
+    deleteOverflow: migrated.deleteOverflow,
+  };
+}
+
+function recordOf(records: AccountRecordResult[], kind: RecordKind): AccountRecordResult | null {
+  for (let i = 0; i < records.length; i++) {
+    if (records[i].kind === kind) {
+      return records[i];
+    }
+  }
+  return null;
 }
 
 export function migrateWalletRef(snapshot: AccountSaveSnapshot): RecordMigrationResult {

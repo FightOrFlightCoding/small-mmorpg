@@ -70,6 +70,9 @@ const TRADE_RANGE_PX: float = 80.0
 
 var _inventory_list: Control
 var _slot_view: Control
+var _recovery_panel: PanelContainer
+var _recovery_list: ItemList
+var _recovery_button: Button
 var _attribute_row_fingerprint: String = ""
 var _unlock_row_fingerprint: String = ""
 var _inn_panel: PanelContainer
@@ -146,6 +149,7 @@ func _ready() -> void:
 		_respawn_button.pressed.connect(func() -> void: respawn_pressed.emit())
 	refresh_journal(QuestService.journal_view())
 	_bind_inventory()
+	_build_recovery_panel()
 	refresh_inventory()
 	refresh_equipment()
 	refresh_wallet()
@@ -385,6 +389,7 @@ func refresh_inventory() -> void:
 		return
 	var occupied := InventoryService.item_count()
 	_inventory_capacity.text = "%s / %s stacks" % [str(occupied), str(InventoryService.capacity)]
+	_refresh_recovery_panel()
 
 
 func refresh_equipment() -> void:
@@ -769,6 +774,70 @@ func _bind_inventory() -> void:
 		InventoryService.inventory_changed.connect(refresh_inventory)
 	if _slot_host != null and _slot_view == null:
 		_slot_view = EquipmentService.attach_slot(_slot_host)
+
+
+func _build_recovery_panel() -> void:
+	if _recovery_panel != null:
+		return
+	_recovery_panel = PanelContainer.new()
+	_recovery_panel.name = "InventoryRecovery"
+	_recovery_panel.visible = false
+	_recovery_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_recovery_panel.offset_left = -280.0
+	_recovery_panel.offset_top = -260.0
+	_recovery_panel.offset_right = -16.0
+	_recovery_panel.offset_bottom = -16.0
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	_recovery_panel.add_child(margin)
+	var vbox := VBoxContainer.new()
+	margin.add_child(vbox)
+	var title := Label.new()
+	title.text = "Inventory Recovery"
+	vbox.add_child(title)
+	var body := Label.new()
+	body.text = "Migration overflow. Move items into free bag slots only."
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(body)
+	_recovery_list = ItemList.new()
+	_recovery_list.custom_minimum_size = Vector2(0, 96)
+	vbox.add_child(_recovery_list)
+	_recovery_button = Button.new()
+	_recovery_button.text = "Recover into bag"
+	_recovery_button.pressed.connect(_on_recover_overflow_pressed)
+	vbox.add_child(_recovery_button)
+	add_child(_recovery_panel)
+
+
+func _refresh_recovery_panel() -> void:
+	if _recovery_panel == null or _recovery_list == null:
+		return
+	var overflow: Array = InventoryService.overflow_items
+	_recovery_panel.visible = overflow.size() > 0
+	_recovery_list.clear()
+	for entry in overflow:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var item: Dictionary = entry
+		var item_id := String(item.get("itemId", item.get("definitionId", "")))
+		var qty := int(item.get("quantity", 1))
+		_recovery_list.add_item("%s x%s" % [item_id, str(qty)])
+		_recovery_list.set_item_metadata(_recovery_list.item_count - 1, String(item.get("instanceId", "")))
+
+
+func _on_recover_overflow_pressed() -> void:
+	if _recovery_list == null:
+		return
+	var selected := _recovery_list.get_selected_items()
+	if selected.is_empty():
+		return
+	var instance_id := String(_recovery_list.get_item_metadata(selected[0]))
+	if instance_id.is_empty():
+		return
+	InventoryService.request_recover_overflow(instance_id)
 
 
 func _exit_tree() -> void:

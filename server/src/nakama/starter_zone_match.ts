@@ -15,7 +15,7 @@ import { clearLocksByLockId, initializeInventoryFromStacks, itemDefinitionsFromC
 import { TX_REASON_ADMIN_GRANT, TX_REASON_EQUIPMENT, TX_REASON_LOOT } from "../domain/transaction";
 import { validateJoinAttempt } from "../domain/join_validation";
 import { assertPlayableAccount } from "./playable_account";
-import { applyMatchLoop, snapshotForOthers, type IncomingMatchData, type EquipmentPersist, type InventoryPersist, type MatchLoopResult } from "../domain/match_loop";
+import { applyMatchLoop, snapshotForOthers, type IncomingMatchData, type EquipmentPersist, type InventoryPersist, type OverflowPersist, type MatchLoopResult } from "../domain/match_loop";
 import { PLAYER_RESPAWN_DELAY_SEC } from "../domain/combat";
 import { questDefinitionsFromContent } from "../domain/quest";
 import {
@@ -23,6 +23,9 @@ import {
   equipmentSlotsFromContent,
   loadEquipment,
 } from "../domain/equipment";
+import { migrateItemContainers } from "../domain/item_migration";
+import { emptyOverflow } from "../domain/overflow";
+import { readOverflow, writeOverflow, deleteOverflow } from "./overflow_store";
 import {
   CAVE_EMPTY_TIMEOUT_TICKS,
   CAVE_MATCH_MAX_PLAYERS,
@@ -317,6 +320,7 @@ export function matchJoinAttempt(
     }
     readInventory(nk, presence.userId, character.characterId);
     readEquipment(nk, presence.userId, character.characterId);
+    readOverflow(nk, presence.userId, character.characterId);
     readQuests(nk, presence.userId, character.characterId);
     readProgression(nk, presence.userId, character.characterId);
     if (!alreadyJoined && !hasTransfer) {
@@ -426,9 +430,24 @@ export function matchJoin(
     let gold!: number;
     let questLog!: ReturnType<typeof readQuests>;
     let progression!: ReturnType<typeof loadPlayerProgression>;
+    let overflowState = emptyOverflow();
     try {
       inventory = loadPlayerInventory(nk, presence.userId, character);
       loadedEquipment = loadEquipment(readEquipment(nk, presence.userId, character.characterId), inventory);
+      const overflow = readOverflow(nk, presence.userId, character.characterId);
+      const migrated = migrateItemContainers(inventory, loadedEquipment.equipment, overflow, zone.itemsById);
+      inventory = migrated.inventory;
+      overflowState = migrated.overflow;
+      loadedEquipment = { equipment: migrated.equipment, persist: loadedEquipment.persist && !migrated.changed };
+      if (migrated.changed) {
+        writeInventory(nk, presence.userId, migrated.inventory, character.characterId);
+        writeEquipment(nk, presence.userId, migrated.equipment, character.characterId);
+        if (migrated.deleteOverflow) {
+          deleteOverflow(nk, presence.userId, character.characterId);
+        } else {
+          writeOverflow(nk, presence.userId, migrated.overflow, character.characterId);
+        }
+      }
       gold = readGold(nk, presence.userId);
       questLog = readQuests(nk, presence.userId, character.characterId);
       progression = loadPlayerProgression(nk, presence.userId, character);
@@ -469,6 +488,7 @@ export function matchJoin(
       questLog: questLog,
       inventory: inventory,
       equipment: loadedEquipment.equipment,
+      overflow: overflowState,
       derivedAttack: derived,
       gold: gold,
       progression: progression.progression,
@@ -745,7 +765,7 @@ export function matchLoop(
     writeQuests(nk, persist.userId, persist.log, persist.characterId);
     logger.info(formatOpsLog("quest_reward", { user_id: persist.userId }));
   }
-  persistEconomy(nk, logger, tick, result.persistInventories, result.persistEquipment);
+  persistEconomy(nk, logger, tick, result.persistInventories, result.persistEquipment, result.persistOverflows);
   for (let t = 0; t < result.persistTrades.length; t++) {
     writeTrade(nk, result.persistTrades[t]);
     logger.info(formatOpsLog("trade_complete", { trade_id: result.persistTrades[t].tradeId }));
@@ -1484,6 +1504,7 @@ function persistEconomy(
   tick: number,
   inventories: InventoryPersist[],
   equipment: EquipmentPersist[],
+  overflows: OverflowPersist[],
 ): void {
   const byUser: {
     [userId: string]: {
@@ -1528,6 +1549,15 @@ function persistEconomy(
       continue;
     }
     logger.info(formatOpsLog("inventory_transaction", { user_id: userId, code: "ok" }));
+  }
+  for (let o = 0; o < overflows.length; o++) {
+    const persist = overflows[o];
+    if (persist.deleteOverflow) {
+      deleteOverflow(nk, persist.userId, persist.characterId);
+    } else {
+      writeOverflow(nk, persist.userId, persist.overflow, persist.characterId);
+    }
+    logger.info(formatOpsLog("inventory_transaction", { user_id: persist.userId, code: persist.deleteOverflow ? "overflow_deleted" : "overflow_ok" }));
   }
 }
 

@@ -184,9 +184,12 @@ test("existing Prompt 18 completed quest, equipped item, and wallet gold are pre
   assert.equal((equipment.slots as { main_hand: string }).main_hand, "inst-iron");
   const inventory = account.records.filter((row) => row.kind === "inventory")[0].result.value;
   assert.ok(inventory);
-  const items = inventory.items as Array<{ itemId: string }>;
-  assert.equal(items.length, 2);
+  const items = inventory.items as Array<{ itemId: string; instanceId: string }>;
   assert.equal(items.filter((item) => item.itemId === "item.training_sword").length, 1);
+  assert.equal(items.filter((item) => item.instanceId === "inst-iron").length, 0);
+  const equipmentItems = equipment.items as Array<{ instanceId: string }> | undefined;
+  assert.equal(equipmentItems !== undefined && equipmentItems.some((item) => item.instanceId === "inst-iron"), true);
+  assert.equal((inventory.capacity as number), 30);
   const again = migrateAccount({
     userId: "user-alice",
     character: account.records[0].result.value,
@@ -307,6 +310,7 @@ test("storage writes coerce null envelope fields to numbers", () => {
   const writtenInventory = storedInventoryWriteValue({
     capacity: 20,
     items: [],
+    revision: 0,
     pickupByRequestId: {},
     schemaVersion: null as unknown as number,
     createdAt: null as unknown as number,

@@ -52,6 +52,24 @@ function find(docs: SourceDocument[], id: string): Record<string, unknown> {
   throw new Error("missing fixture id " + id);
 }
 
+function debugWidget(extra: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: "item.debug_widget",
+    kind: "item",
+    displayName: "Debug Widget",
+    visualId: "visual.item_training_sword",
+    iconAssetId: "visual.item_training_sword",
+    worldAssetId: "visual.item_training_sword",
+    category: "miscellaneous",
+    rarity: "rarity.common",
+    maxStack: 1,
+    attackBonus: 0,
+    tradeable: true,
+    droppable: true,
+    ...extra,
+  };
+}
+
 function codesOf(run: () => void): string[] {
   try {
     run();
@@ -441,16 +459,7 @@ test("development-only definitions are excluded from the production payload", ()
   const docs = clone(loadValid());
   docs.push({
     fileName: "item.debug_widget.json",
-    data: {
-      id: "item.debug_widget",
-      kind: "item",
-      displayName: "Debug Widget",
-      visualId: "visual.item_training_sword",
-      category: "miscellaneous",
-      maxStack: 1,
-      attackBonus: 0,
-      developmentOnly: true,
-    },
+    data: debugWidget({ developmentOnly: true }),
   });
   const production = validateDocuments(SCHEMA_DIR, docs);
   const withDev = validateDocuments(SCHEMA_DIR, docs, { includeDevelopment: true });
@@ -481,15 +490,7 @@ test("content diff reports added, removed, and changed IDs", () => {
   find(rightDocs, "item.training_sword")["attackBonus"] = 9;
   rightDocs.push({
     fileName: "item.debug_widget.json",
-    data: {
-      id: "item.debug_widget",
-      kind: "item",
-      displayName: "Debug Widget",
-      visualId: "visual.item_training_sword",
-      category: "miscellaneous",
-      maxStack: 1,
-      attackBonus: 0,
-    },
+    data: debugWidget(),
   });
   const right = validateDocuments(SCHEMA_DIR, rightDocs);
   delete right.items["item.slime_gel"];
@@ -632,15 +633,7 @@ test("production definitions may not reference development-only ids", () => {
   const docs = clone(loadValid());
   docs.push({
     fileName: "item.debug_widget.json",
-    data: {
-      id: "item.debug_widget",
-      kind: "item",
-      displayName: "Debug Widget",
-      visualId: "visual.item_pebble",
-      category: "miscellaneous",
-      maxStack: 1,
-      developmentOnly: true,
-    },
+    data: debugWidget({ visualId: "visual.item_pebble", iconAssetId: "visual.item_pebble", worldAssetId: "visual.item_pebble", developmentOnly: true }),
   });
   const quest = find(docs, "quest.proof_errand");
   (quest["rewards"] as { items: Array<{ itemId: string; quantity: number }> }).items.push({

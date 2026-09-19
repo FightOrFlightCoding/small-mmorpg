@@ -38,7 +38,7 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 **Attack:** Client equips an unowned or unequippable instance, or sends a calculated attack value.
 
-**Defense:** `EQUIP` is `{ instanceId?, slot, requestId }`. The match checks the player is alive, owns the instance, the item is not locked, the category and slot tags match a content-defined slot, class and level requirements pass, unique-equipped policy is respected, and the `requestId` has not already succeeded. Derived stats are recalculated on the server after load, equip, unequip, inventory repair, XP/level changes, and attribute allocation. Client `attack` / `attackBonus` are `stat_injection`. Clients never generate item-instance IDs. `DESTROY_ITEM`, `SPLIT_STACK`, and `MOVE_ITEM` are intentions; rejected operations restore the GLoot mirror from canonical state.
+**Defense:** `EQUIP` is `{ instanceId?, slot, requestId }`. The match checks the player is alive, owns the instance, the item is not locked, the category and slot tags match a content-defined slot, class and level requirements pass, unique-equipped policy is respected, and the `requestId` has not already succeeded. Equip removes the instance from the bag. Unequip simulates bag capacity and is `inventory_full` with no mutation when it cannot fit. Derived stats are recalculated on the server after load, equip, unequip, inventory repair, XP/level changes, and attribute allocation. Client `attack` / `attackBonus` are `stat_injection`. Clients never generate item-instance IDs. `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, and `RECOVER_OVERFLOW_ITEM` are intentions; rejected operations restore the GLoot mirror from canonical state. Overflow is not a grant destination.
 
 ### Duplicate pickup
 
@@ -120,7 +120,7 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 ### Rate-limit abuse
 
-**Attack:** Flood `INPUT`, `ATTACK`, `USE_ABILITY`, `CANCEL_CAST`, `SET_TARGET`, `INTERACT`, `PICKUP`, `EQUIP`, `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, quest opcodes, `VENDOR_BUY`, `VENDOR_SELL`, `INN_REST`, `CAVE_ENTER`, `CAVE_EXIT`, trade opcodes, `ALLOCATE_ATTRIBUTES`, `ALLOCATE_ATTRIBUTES_BATCH`, `TRAINER_RESPEC`, `PURCHASE_TALENT`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, `RELEASE_RESPAWN`, or `RESYNC_REQUEST` faster than an honest client.
+**Attack:** Flood `INPUT`, `ATTACK`, `USE_ABILITY`, `CANCEL_CAST`, `SET_TARGET`, `INTERACT`, `PICKUP`, `EQUIP`, `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, `RECOVER_OVERFLOW_ITEM`, quest opcodes, `VENDOR_BUY`, `VENDOR_SELL`, `INN_REST`, `CAVE_ENTER`, `CAVE_EXIT`, trade opcodes, `ALLOCATE_ATTRIBUTES`, `ALLOCATE_ATTRIBUTES_BATCH`, `TRAINER_RESPEC`, `PURCHASE_TALENT`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, `RELEASE_RESPAWN`, or `RESYNC_REQUEST` faster than an honest client.
 
 **Defense:** Match state stores per-user `actionRates` for a 10-tick window. Excess is `rate_limited`, logged, and not applied. Honest 10 Hz movement stays under the `INPUT` cap of 20/s.
 

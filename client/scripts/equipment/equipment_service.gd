@@ -12,6 +12,7 @@ var attack: int = 4
 var main_hand_instance_id: String = ""
 var selected_slot: String = MAIN_HAND_SLOT
 var slots: Dictionary = {"main_hand": ""}
+var items: Array = []
 
 var _applying: bool = false
 var _ctrl: CtrlItemSlot
@@ -36,6 +37,7 @@ func reset() -> void:
 	main_hand_instance_id = ""
 	selected_slot = MAIN_HAND_SLOT
 	slots = {"main_hand": ""}
+	items = []
 	_ensure_slot()
 	_rebuild_slot()
 	equipment_changed.emit()
@@ -68,6 +70,13 @@ func apply_canonical(state: Dictionary) -> void:
 		next_slots[MAIN_HAND_SLOT] = ""
 	slots = next_slots
 	main_hand_instance_id = String(slots.get(MAIN_HAND_SLOT, ""))
+	items = []
+	var raw_items: Variant = state.get("items", [])
+	if typeof(raw_items) == TYPE_ARRAY:
+		for entry in raw_items:
+			if typeof(entry) != TYPE_DICTIONARY:
+				continue
+			items.append((entry as Dictionary).duplicate(true))
 	var derived: Variant = state.get("derived", {})
 	if typeof(derived) == TYPE_DICTIONARY:
 		attack = int((derived as Dictionary).get("attack", attack))
@@ -99,6 +108,8 @@ func equipped_display_name(equip_slot: String = MAIN_HAND_SLOT) -> String:
 	if instance_id.is_empty():
 		return "Empty"
 	var item_id := InventoryService.item_id_of_instance(instance_id)
+	if item_id.is_empty():
+		item_id = _equipped_item_id(instance_id)
 	if item_id.is_empty():
 		return "Empty"
 	var record: Dictionary = ContentRegistry.get_by_id(item_id)
@@ -157,6 +168,8 @@ func _rebuild_slot() -> void:
 	if slot.get_item() != null:
 		slot.clear()
 	var item_id := InventoryService.item_id_of_instance(main_hand_instance_id)
+	if item_id.is_empty():
+		item_id = _equipped_item_id(main_hand_instance_id)
 	if not item_id.is_empty() and slot.protoset != null:
 		var holder := Inventory.new()
 		holder.protoset = slot.protoset
@@ -185,6 +198,20 @@ func _on_content_loaded(_content_hash: String) -> void:
 	configure_from_content()
 
 
+func _equipped_item_id(instance_id: String) -> String:
+	if instance_id.is_empty():
+		return ""
+	for entry in items:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if String(entry.get("instanceId", "")) == instance_id:
+			var item_id := String(entry.get("itemId", ""))
+			if item_id.is_empty():
+				return String(entry.get("definitionId", ""))
+			return item_id
+	return ""
+
+
 func _on_zone_state_updated() -> void:
 	if not AppState.zone_view_is_full:
 		return
@@ -201,5 +228,6 @@ func _on_zone_state_updated() -> void:
 func _on_equipment_state(payload: Dictionary) -> void:
 	apply_canonical({
 		"slots": payload.get("slots", {}),
+		"items": payload.get("items", []),
 		"derived": payload.get("derived", {}),
 	})

@@ -1,5 +1,5 @@
-import { channelFromStatId, type PlayerEquipment } from "./equipment";
-import { findItem, type ItemDefinition, type PlayerInventory } from "./inventory";
+import { channelFromStatId, findEquippedItem, type PlayerEquipment } from "./equipment";
+import { findItem, type ItemDefinition, type ItemInstance, type PlayerInventory } from "./inventory";
 import { classUsesMana } from "./canonical_progression";
 import {
   CANONICAL_SOURCE_EQUIPMENT,
@@ -404,7 +404,7 @@ export function equipmentModifiersFromGear(
     if (instanceId.length === 0) {
       continue;
     }
-    const item = findItem(inventory, instanceId);
+    const item = resolveGearItem(equipment, inventory, instanceId);
     if (item === null) {
       continue;
     }
@@ -447,7 +447,7 @@ export function identifiedModifiersFromGear(
     if (instanceId.length === 0) {
       continue;
     }
-    const item = findItem(inventory, instanceId);
+    const item = resolveGearItem(equipment, inventory, instanceId);
     if (item === null) {
       continue;
     }
@@ -1338,4 +1338,16 @@ function copyAbilityCategories(input: { [id: string]: unknown } | undefined): { 
     };
   }
   return out;
+}
+
+function resolveGearItem(
+  equipment: PlayerEquipment,
+  inventory: PlayerInventory | undefined,
+  instanceId: string,
+): ItemInstance | null {
+  const equipped = findEquippedItem(equipment, instanceId);
+  if (equipped !== null) {
+    return equipped;
+  }
+  return findItem(inventory, instanceId);
 }
