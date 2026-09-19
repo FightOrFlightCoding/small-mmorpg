@@ -1,15 +1,38 @@
 # Progress
 
-Last accepted phase: **NPC-07 — Lifecycle, security, and final certification**.
+Last accepted phase: **ITEM-01 — Repository audit and item-system contract**.
 
-Current phase: NPC-07 (accepted). Do not start later NPC phases.
+Current phase: ITEM-01 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
 
 Canonical git line: **`origin/main`**. Playable work is committed there. The Windows clone stays on `main` and runs `scripts/local-play.ps1 -Branch main`.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. PROG-08 remains accepted. PROG-09 remains accepted. PROG-10 remains accepted. PROG-11 remains accepted. PROG-12 remains accepted. PROG-13 remains accepted. PROG-14 remains accepted. PROG-15 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. PROG-08 remains accepted. PROG-09 remains accepted. PROG-10 remains accepted. PROG-11 remains accepted. PROG-12 remains accepted. PROG-13 remains accepted. PROG-14 remains accepted. PROG-15 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
 
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
+
+## ITEM-01 repository audit and item-system contract (2026-09-19)
+
+ITEM-01 is accepted. No player-visible behavior, opcodes, RPCs, storage collections, migrations, dependencies, vendor addons, or `client/addons/` changed. Do not start later ITEM phases. Do not create parallel inventory, equipment, wallet, loot, transaction, merchant, trade, or quest-item systems.
+
+The contract set is [ITEM_SYSTEM_ARCHITECTURE.md](items/ITEM_SYSTEM_ARCHITECTURE.md), [ITEM_CONTENT_MODEL.md](items/ITEM_CONTENT_MODEL.md), [ITEM_CONTAINER_CATALOG.md](items/ITEM_CONTAINER_CATALOG.md), [ITEM_STORAGE_CATALOG.md](items/ITEM_STORAGE_CATALOG.md), [ITEM_PROTOCOL_CATALOG.md](items/ITEM_PROTOCOL_CATALOG.md), [ITEM_TRANSACTION_MODEL.md](items/ITEM_TRANSACTION_MODEL.md), [ITEM_LOCK_MODEL.md](items/ITEM_LOCK_MODEL.md), [ITEM_MIGRATION_PLAN.md](items/ITEM_MIGRATION_PLAN.md), [ITEM_SECURITY_MODEL.md](items/ITEM_SECURITY_MODEL.md), [ITEM_TEST_PLAN.md](items/ITEM_TEST_PLAN.md), and [ITEM_CURRENT_CONFLICTS.md](items/ITEM_CURRENT_CONFLICTS.md).
+
+Inventory save envelope remains gameplay `schemaVersion` **1**. Live bag capacity is **20**. Ground loot TTL is **30 s** public. Equipped items remain in the bag. `VENDOR_SELL` is preserved. Trade tests passed; no pre-ITEM trade repair commit was required.
+
+Content hash unchanged: `bf283255559cf5145b9b4e90ad0ebfca4e09c27f7ffaa9c241347729d0cc5fcb`.
+
+| Gate | Result |
+| --- | --- |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (34 storage records, 40 client opcodes, 15 server opcodes, 29 RPCs) |
+| Content validation/tests | 28/28 passed |
+| Server hermetic tests | 856 passed, 13 expected live-test skips |
+| Server typecheck/build | passed |
+| Auth gateway hermetic tests | 52/52 passed via compiled test-file glob |
+| Godot 4.7.1 client GdUnit | 339/339 passed, 0 failures, 0 orphans |
+
+Pre-existing Node 22.14 runner compatibility remains documented: directory-form `node --test` wrappers can fail before discovery. Direct compiled-file glob equivalents pass.
+
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen `client/`. Playable behavior is unchanged.
 
 ## NPC-07 lifecycle, security, and final certification (2026-09-18)
 

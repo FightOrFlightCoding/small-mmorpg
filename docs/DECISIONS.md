@@ -866,4 +866,8 @@ NPC-C01 already dropped server NPC AABBs. The Godot movement sim still injected 
 
 Stuck “Waiting for the server…” on some NPCs (Cert Quartermaster, Platform Questgiver) is not authored behavior. The match already returns `INTERACTION_RESULT` for those NPCs. The live hang was: autoload vendor/inn/cave handlers run before `World`, a typed `Array` assignment from JSON `null` (missing dialogue `options`, vendor `stock`, service lists) aborted the remaining signal receivers, and the presenter `Timer` had already been stopped so waiting copy never left. `DialoguePresenter` now listens to `INTERACTION_RESULT` itself; vendor/inn/cave listen `CONNECT_DEFERRED`; `present()` clears waiting copy before building buttons; option/line lists are coerced; rebuilt buttons are `remove_child` + `queue_free` (immediate `Object.free()` crashed Godot when “Not now.” ran inside the button’s `pressed` callback). The window still self-times out from `_process` if a result never arrives. Recreate Nakama after this build.
 
+## 2026-09-19 — ITEM-01 is documentation; live 20-slot bag and public 30 s loot stay
+
+ITEM-01 catalogs the Foundation item platform and the target 30-slot / corpse / Need-Greed / ground-drop contract under `docs/items/`. It does not change opcodes, storage, GLoot, or player-visible loot. Gold stays the account Nakama wallet. Equipped instances stay in the bag until a later ITEM phase moves them. `VENDOR_SELL` stays until a later phase names removal. Quest gel/proof tokens stay non-tradeable until a later phase. Conflicts remain OPEN in [ITEM_CURRENT_CONFLICTS.md](items/ITEM_CURRENT_CONFLICTS.md). Extend `inventory.ts` / `loot.ts` / `vendor.ts` / `trade.ts` / `transaction.ts`; do not fork them.
+
 
