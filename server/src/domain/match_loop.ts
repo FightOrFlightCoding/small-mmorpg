@@ -75,7 +75,7 @@ import { applyEffectDefinition, effectModifiersFrom, enemyAsTarget, hasControlTa
 import { dueDelayedGround, tryConsumeOncePerCombat } from "./canonical_combat";
 import { entitiesInRadius } from "./targeting";
 import { simulateCombatants } from "./enemy_ai";
-import { publicInventory, applyDestroyItem, applyMoveItem, applySplitStack, emptyInventory, type PlayerInventory } from "./inventory";
+import { publicInventory, applyDestroyItem, applyMoveItem, applySplitStack, emptyInventory, type ItemInstance, type PlayerInventory } from "./inventory";
 import {
   applyEquip,
   cloneEquipment,
@@ -88,6 +88,7 @@ import {
   type InventoryOwner,
   type PlayerEquipment,
 } from "./equipment";
+import { applyRecoverOverflow, emptyOverflow, isOverflowEmpty, type MigrationOverflow } from "./overflow";
 import { applyPickup, expireLoot, lootExpireTicks, spawnRolledLoot } from "./loot";
 import {
   collectNewEnemyDeaths,
@@ -173,6 +174,13 @@ export interface EquipmentPersist {
   equipment: PlayerEquipment;
 }
 
+export interface OverflowPersist {
+  userId: string;
+  characterId?: string;
+  overflow: MigrationOverflow;
+  deleteOverflow: boolean;
+}
+
 export interface ProgressionPersist {
   userId: string;
   characterId?: string;
@@ -191,6 +199,7 @@ export interface MatchLoopResult {
   persistQuests: QuestPersist[];
   persistInventories: InventoryPersist[];
   persistEquipment: EquipmentPersist[];
+  persistOverflows: OverflowPersist[];
   persistProgression: ProgressionPersist[];
   persistRewards: RewardPersist[];
   persistCheckpoints: PositionCheckpoint[];
@@ -229,6 +238,7 @@ export function applyMatchLoop(
   const persistByUser: { [userId: string]: QuestLog } = {};
   const persistInventoryByUser: { [userId: string]: PlayerInventory } = {};
   const persistEquipmentByUser: { [userId: string]: PlayerEquipment } = {};
+  const persistOverflowByUser: { [userId: string]: OverflowPersist } = {};
   const persistProgressionByUser: { [userId: string]: CharacterProgression } = {};
   const persistRewardByUser: { [userId: string]: QuestRewardWrite } = {};
   const persistTradesById: { [tradeId: string]: TradeRecord } = {};
@@ -276,6 +286,7 @@ export function applyMatchLoop(
       persistByUser,
       persistInventoryByUser,
       persistEquipmentByUser,
+      persistOverflowByUser,
       persistProgressionByUser,
       persistRewardByUser,
       skipStorageUsers,
@@ -404,6 +415,15 @@ export function applyMatchLoop(
       equipment: persistEquipmentByUser[userId],
     });
   }
+  const persistOverflows: OverflowPersist[] = [];
+  const overflowIds = Object.keys(persistOverflowByUser);
+  for (let o = 0; o < overflowIds.length; o++) {
+    const userId = overflowIds[o];
+    if (skipStorageUsers[userId] === true) {
+      continue;
+    }
+    persistOverflows.push(persistOverflowByUser[userId]);
+  }
   const persistProgression: ProgressionPersist[] = [];
   const progressionIds = Object.keys(persistProgressionByUser);
   for (let p = 0; p < progressionIds.length; p++) {
@@ -440,6 +460,7 @@ export function applyMatchLoop(
     persistQuests: persistQuests,
     persistInventories: persistInventories,
     persistEquipment: persistEquipment,
+    persistOverflows: persistOverflows,
     persistProgression: persistProgression,
     persistRewards: persistRewards,
     persistCheckpoints: persistCheckpoints,
@@ -453,6 +474,7 @@ export function applyMatchLoop(
       persistQuests.length +
       persistInventories.length +
       persistEquipment.length +
+      persistOverflows.length +
       persistProgression.length +
       persistRewards.length +
       persistCheckpoints.length +
@@ -627,6 +649,7 @@ function handleValidated(
   persistByUser: { [userId: string]: QuestLog },
   persistInventoryByUser: { [userId: string]: PlayerInventory },
   persistEquipmentByUser: { [userId: string]: PlayerEquipment },
+  persistOverflowByUser: { [userId: string]: OverflowPersist },
   persistProgressionByUser: { [userId: string]: CharacterProgression },
   persistRewardByUser: { [userId: string]: QuestRewardWrite },
   skipStorageUsers: { [userId: string]: boolean },
@@ -766,7 +789,7 @@ function handleValidated(
     return;
   }
   if (parsed.opcode === ClientOpcode.EQUIP) {
-    handleEquip(parsed, userId, state, tick, outbound, persistEquipmentByUser);
+    handleEquip(parsed, userId, state, tick, outbound, persistInventoryByUser, persistEquipmentByUser);
     return;
   }
   if (parsed.opcode === ClientOpcode.DESTROY_ITEM) {
@@ -779,6 +802,10 @@ function handleValidated(
   }
   if (parsed.opcode === ClientOpcode.MOVE_ITEM) {
     handleMoveItem(parsed, userId, state, tick, outbound, persistInventoryByUser);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.RECOVER_OVERFLOW_ITEM) {
+    handleRecoverOverflow(parsed, userId, state, outbound, persistInventoryByUser, persistOverflowByUser);
     return;
   }
   if (parsed.opcode === ClientOpcode.ALLOCATE_ATTRIBUTES) {
@@ -1206,6 +1233,7 @@ function handleQuestTurnIn(
     interactionRange: state.interactionRange,
     questsById: state.questsById,
     itemsById: state.itemsById,
+    equippedItems: player.equipment !== undefined ? player.equipment.items : undefined,
     newId: makeId,
     tick: tick,
     npcById: npcCatalog(state),
@@ -1335,6 +1363,7 @@ function handleVendorBuy(
     vendorsById: vendorCatalog(state),
     itemsById: state.itemsById,
     equippedInstanceIds: equippedInstanceIds(player.equipment !== undefined ? player.equipment : emptyEquipment()),
+    equippedItems: player.equipment !== undefined ? player.equipment.items : undefined,
     classId: player.classId,
     playerLevel: playerLevelOf(player),
     questLog: player.questLog,
@@ -1398,6 +1427,7 @@ function handleVendorSell(
     vendorsById: vendorCatalog(state),
     itemsById: state.itemsById,
     equippedInstanceIds: equippedInstanceIds(player.equipment !== undefined ? player.equipment : emptyEquipment()),
+    equippedItems: player.equipment !== undefined ? player.equipment.items : undefined,
     classId: player.classId,
     playerLevel: playerLevelOf(player),
     questLog: player.questLog,
@@ -1919,6 +1949,7 @@ function handlePickup(
     pickupRange: state.pickupRange,
     itemsById: state.itemsById,
     tick: tick,
+    equippedItems: player.equipment !== undefined ? player.equipment.items : undefined,
   });
   player.inventory = outcome.inventory;
   state.loot = outcome.loot;
@@ -1939,7 +1970,7 @@ function handlePickup(
   if (outcome.ok) {
     const inventory = inventoryState(
       state.contentHash,
-      publicInventory(player.inventory),
+      publicBag(player),
       parsed.requestId,
     );
     outbound.push({ opcode: inventory.opcode, body: inventory.body, toUserId: userId });
@@ -1952,6 +1983,7 @@ function handleEquip(
   state: StarterZoneState,
   tick: number,
   outbound: MatchOutbound[],
+  persistInventoryByUser: { [userId: string]: PlayerInventory },
   persistEquipmentByUser: { [userId: string]: PlayerEquipment },
 ): void {
   const player = state.players[userId];
@@ -1983,9 +2015,13 @@ function handleEquip(
     equipmentSlotsByTag: state.equipmentSlotsByTag,
   });
   player.equipment = outcome.equipment;
+  player.inventory = outcome.inventory;
   refreshPlayerDerived(state, userId);
   if (outcome.persist) {
     persistEquipmentByUser[userId] = cloneEquipment(outcome.equipment);
+  }
+  if (outcome.persistInventory) {
+    persistInventoryByUser[userId] = outcome.inventory;
   }
   const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
@@ -1997,6 +2033,52 @@ function handleEquip(
       parsed.requestId,
     );
     outbound.push({ opcode: equipment.opcode, body: equipment.body, toUserId: userId });
+    const inventory = inventoryState(state.contentHash, publicBag(player), parsed.requestId);
+    outbound.push({ opcode: inventory.opcode, body: inventory.body, toUserId: userId });
+  }
+}
+
+function handleRecoverOverflow(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  outbound: MatchOutbound[],
+  persistInventoryByUser: { [userId: string]: PlayerInventory },
+  persistOverflowByUser: { [userId: string]: OverflowPersist },
+): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  const overflow = player.overflow !== undefined ? player.overflow : emptyOverflow();
+  const inventory = player.inventory !== undefined ? player.inventory : emptyInventory(state.inventoryCapacity);
+  const outcome = applyRecoverOverflow({
+    playerHealth: player.health,
+    inventory: inventory,
+    overflow: overflow,
+    instanceId: parsed.fields.instanceId,
+    toSlotIndex: parsed.toSlotIndex,
+    requestId: parsed.requestId as string,
+    itemsById: state.itemsById,
+  });
+  player.inventory = outcome.inventory;
+  player.overflow = outcome.overflow;
+  if (outcome.persist) {
+    persistInventoryByUser[userId] = outcome.inventory;
+    persistOverflowByUser[userId] = {
+      userId: userId,
+      characterId: player.characterId,
+      overflow: outcome.overflow,
+      deleteOverflow: outcome.deleteOverflow,
+    };
+  }
+  const result = actionResult(outcome.code, outcome.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  if (outcome.ok) {
+    const inventoryStateMsg = inventoryState(state.contentHash, publicBag(player), parsed.requestId);
+    outbound.push({ opcode: inventoryStateMsg.opcode, body: inventoryStateMsg.body, toUserId: userId });
   }
 }
 
@@ -2036,7 +2118,7 @@ function handleDestroyItem(
   if (outcome.ok) {
     const inventoryStateMsg = inventoryState(
       state.contentHash,
-      publicInventory(player.inventory),
+      publicBag(player),
       parsed.requestId,
     );
     outbound.push({ opcode: inventoryStateMsg.opcode, body: inventoryStateMsg.body, toUserId: userId });
@@ -2079,7 +2161,7 @@ function handleSplitStack(
   if (outcome.ok) {
     const inventoryStateMsg = inventoryState(
       state.contentHash,
-      publicInventory(player.inventory),
+      publicBag(player),
       parsed.requestId,
     );
     outbound.push({ opcode: inventoryStateMsg.opcode, body: inventoryStateMsg.body, toUserId: userId });
@@ -2119,7 +2201,7 @@ function handleMoveItem(
   if (outcome.ok) {
     const inventoryStateMsg = inventoryState(
       state.contentHash,
-      publicInventory(player.inventory),
+      publicBag(player),
       parsed.requestId,
     );
     outbound.push({ opcode: inventoryStateMsg.opcode, body: inventoryStateMsg.body, toUserId: userId });
@@ -2190,12 +2272,20 @@ function refreshDerivedFromInventory(
   }
 }
 
+function publicBag(player: MatchPlayer): { [key: string]: unknown } {
+  const inventory = player.inventory !== undefined ? player.inventory : emptyInventory();
+  if (player.overflow !== undefined && !isOverflowEmpty(player.overflow)) {
+    return publicInventory(inventory, player.overflow);
+  }
+  return publicInventory(inventory);
+}
+
 function inventoryOwners(state: StarterZoneState): InventoryOwner[] {
   const owners: InventoryOwner[] = [];
   const ids = Object.keys(state.players);
   for (let i = 0; i < ids.length; i++) {
     const id = ids[i];
-    owners.push({ userId: id, inventory: state.players[id].inventory });
+    owners.push({ userId: id, inventory: state.players[id].inventory, equipment: state.players[id].equipment });
   }
   return owners;
 }
@@ -2246,9 +2336,13 @@ function processEnemyDeathRewards(
       continue;
     }
     const inventories: { [userId: string]: PlayerInventory | undefined } = {};
+    const equippedByUser: { [userId: string]: ItemInstance[] } = {};
     for (let e = 0; e < eligible.length; e++) {
       const player = state.players[eligible[e].userId];
       inventories[eligible[e].userId] = player !== undefined ? player.inventory : undefined;
+      if (player !== undefined && player.equipment !== undefined) {
+        equippedByUser[eligible[e].userId] = player.equipment.items;
+      }
     }
     const assignment = assignPartyLoot({
       eventId: death.eventId,
@@ -2256,6 +2350,7 @@ function processEnemyDeathRewards(
       drops: drops,
       eligible: eligible,
       inventories: inventories,
+      equippedByUser: equippedByUser,
       itemsById: state.itemsById,
       newId: newId,
     });

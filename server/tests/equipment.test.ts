@@ -7,6 +7,7 @@ import {
   initializeInventory,
   itemDefinitionsFromContent,
   setItemLock,
+  findItem,
   type PlayerInventory,
 } from "../src/domain/inventory";
 import {
@@ -447,4 +448,54 @@ test("Prompt 18 equipment blobs keep the main-hand instance and fill extra slots
   assert.equal(parsed.slots.main_hand, "p18-sword");
   assert.equal(parsed.slots.head, "");
   assert.equal(parsed.slots.chest, "");
+});
+
+test("equipped items leave the bag and unequip returns them", () => {
+  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice"));
+  const instanceId = swordId(state, "user-alice");
+  const equipped = applyMatchLoop(state, 4, contentHash, [
+    equip("user-alice", { instanceId: instanceId, slot: MAIN_HAND_SLOT, requestId: "req-equip-out1" }),
+  ]);
+  assert.equal(actionCodes(equipped)[0].ok, true);
+  assert.equal(findItem(equipped.state.players["user-alice"].inventory, instanceId), null);
+  assert.equal(equipped.state.players["user-alice"].equipment?.items[0]?.instanceId, instanceId);
+  assert.equal(equipped.persistInventories.length, 1);
+  const result = applyMatchLoop(equipped.state, 5, contentHash, [
+    equip("user-alice", { slot: MAIN_HAND_SLOT, requestId: "req-unequip-back1" }),
+  ]);
+  assert.equal(actionCodes(result)[0].ok, true);
+  assert.equal(findItem(result.state.players["user-alice"].inventory, instanceId)?.instanceId, instanceId);
+  assert.equal(mainHand(result.state, "user-alice"), "");
+  assert.equal(result.state.players["user-alice"].equipment?.items.length, 0);
+});
+
+test("unequip into a full bag is rejected without mutation", () => {
+  const sword = itemsById()["item.training_sword"];
+  let inventory = swordBag("alice-full");
+  while (inventory.items.length < 30) {
+    inventory = addOrStackItem(inventory, "item.training_sword", 1, "extra-" + String(inventory.items.length), sword);
+  }
+  let state = addPlayer(emptyZone(), playerAt("user-alice", "Alice", inventory));
+  const instanceId = inventory.items[0].instanceId;
+  const equipped = applyMatchLoop(state, 4, contentHash, [
+    equip("user-alice", { instanceId: instanceId, slot: MAIN_HAND_SLOT, requestId: "req-equip-full1" }),
+  ]);
+  assert.equal(actionCodes(equipped)[0].ok, true);
+  const afterEquip = equipped.state.players["user-alice"].inventory;
+  assert.equal(afterEquip !== undefined, true);
+  if (afterEquip !== undefined) {
+    const filler = addOrStackItem(afterEquip, "item.training_sword", 1, "fill-last", sword);
+    equipped.state.players["user-alice"].inventory = filler;
+  }
+  const bagBefore = equipped.state.players["user-alice"].inventory?.items.length;
+  const result = applyMatchLoop(equipped.state, 5, contentHash, [
+    equip("user-alice", { slot: MAIN_HAND_SLOT, requestId: "req-unequip-full1" }),
+  ]);
+  assert.equal(actionCodes(result)[0].ok, false);
+  assert.equal(actionCodes(result)[0].code, "inventory_full");
+  assert.equal(mainHand(result.state, "user-alice"), instanceId);
+  assert.equal(findItem(result.state.players["user-alice"].inventory, instanceId), null);
+  assert.equal(result.state.players["user-alice"].inventory?.items.length, bagBefore);
+  assert.equal(result.persistEquipment.length, 0);
+  assert.equal(result.persistInventories.length, 0);
 });

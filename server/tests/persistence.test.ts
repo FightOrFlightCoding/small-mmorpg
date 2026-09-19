@@ -3,7 +3,7 @@ import test from "node:test";
 import { content, contentHash } from "../src/generated/content";
 import { checkpointCharacterPosition } from "../src/domain/character";
 import { emptyEquipment } from "../src/domain/equipment";
-import { emptyInventory } from "../src/domain/inventory";
+import { emptyInventory, makeInstance } from "../src/domain/inventory";
 import { applyMatchLoop } from "../src/domain/match_loop";
 import {
   addPlayer,
@@ -222,28 +222,15 @@ test("inventory, quest, equipment, and wallet survive a fresh match after restar
     status: "completed",
     objectives: [{ type: "acquire_item", itemId: "item.slime_gel", current: 1, required: 1 }],
   };
-  previous.players["user-alice"].inventory = {
-    capacity: 20,
-    items: [
-      {
-        instanceId: "inst-iron",
-        itemId: "item.iron_sword",
-        quantity: 1,
-        createdAt: 0,
-        sourceType: "quest_reward",
-        sourceId: "quest.slime_problem",
-        metadata: {},
-        lockReason: "",
-        lockId: "",
-        slotIndex: 0,
-      },
-    ],
-    pickupByRequestId: {},
-  };
-  previous.players["user-alice"].equipment = {
-    slots: { main_hand: "inst-iron" },
-    equipByRequestId: {},
-  };
+  previous.players["user-alice"].inventory = emptyInventory();
+  previous.players["user-alice"].inventory.items = [
+    makeInstance("inst-iron", "item.iron_sword", 1, 0, {
+      sourceType: "quest_reward",
+      sourceId: "quest.slime_problem",
+    }),
+  ];
+  previous.players["user-alice"].equipment = emptyEquipment();
+  previous.players["user-alice"].equipment.slots.main_hand = "inst-iron";
   previous.enemies[0].health = 1;
   previous.loot.push({
     id: "loot-temp",

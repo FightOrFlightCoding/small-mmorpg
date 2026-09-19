@@ -86,7 +86,7 @@ Turn-in apply already uses quest definition rewards from content, not a second h
 | --- | --- | --- |
 | One selected character per account; three live slots | `roster` + `selection` ticket | Architectural (Prompt 21). ID hard-coding of `zone.starter` remains later. |
 | Temporary equipment tags `main_hand`/`off_hand`/`head`/`chest`/`legs`/`feet` | content `equipment_slot` docs; runtime iterates catalog | Temporary Foundation tags. Do not hard-code a final equipment type enum in protocol. |
-| Inventory capacity fallback 20 | `INVENTORY_CAPACITY`; live capacity is `player.base.inventoryCapacity` | Fallback remains architectural; content now owns the live value |
+| Inventory capacity fallback 30 | `INVENTORY_CAPACITY`; live capacity is `player.base.inventoryCapacity` | Fallback remains architectural; content now owns the live value |
 | One public match module `starter_zone` | `InitModule`, registry singleton | Architectural hard-coding requiring later removal |
 | Player respawn delay 3 s default | `PLAYER_RESPAWN_DELAY_SEC` / match_state fallback | Temporary Prompt 18 assumption (content has no player respawn field in source) |
 | In-combat timeout 5 s (50 ticks) | `IN_COMBAT_TIMEOUT_TICKS` | Temporary Prompt 25 assumption |

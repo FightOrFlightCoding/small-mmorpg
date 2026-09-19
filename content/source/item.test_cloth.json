@@ -8,6 +8,11 @@
   "iconAssetId": "visual.item_cloth",
   "worldAssetId": "visual.item_cloth",
   "category": "material",
+  "rarity": "rarity.common",
+  "questItem": false,
+  "equippable": false,
+  "droppable": true,
+  "tags": [],
   "maxStack": 20,
   "tradeable": true,
   "destroyable": true,
@@ -16,5 +21,6 @@
   "levelRequirement": 0,
   "attackBonus": 0,
   "statModifiers": [],
-  "sellValue": 1
+  "sellValue": 1,
+  "schemaVersion": 1
 }

@@ -3,12 +3,14 @@ import {
   addOrStackItem,
   clearLocksByLockId,
   cloneInventory,
+  emptyInventory,
   findItem,
   isItemLocked,
   itemIsTradeable,
   setItemLock,
   takeItemQuantity,
   type ItemDefinition,
+  type ItemInstance,
   type PlayerInventory,
 } from "./inventory";
 import { dict } from "./maps";
@@ -869,11 +871,23 @@ export function prepareTradeCommit(input: {
   if (!takenB.ok) {
     return fail(takenB.code);
   }
-  const giveA = giveOffers(takenA.inventory, takenB.removed, input.itemsById, input.makeId);
+  const giveA = giveOffers(
+    takenA.inventory,
+    takenB.removed,
+    input.itemsById,
+    input.makeId,
+    input.actorA.equipment !== undefined ? input.actorA.equipment.items : undefined,
+  );
   if (!giveA.ok) {
     return fail(giveA.code);
   }
-  const giveB = giveOffers(takenB.inventory, takenA.removed, input.itemsById, input.makeId);
+  const giveB = giveOffers(
+    takenB.inventory,
+    takenA.removed,
+    input.itemsById,
+    input.makeId,
+    input.actorB.equipment !== undefined ? input.actorB.equipment.items : undefined,
+  );
   if (!giveB.ok) {
     return fail(giveB.code);
   }
@@ -1238,7 +1252,9 @@ function clearInstanceLock(inventory: PlayerInventory, instanceId: string, trade
   }
   if (item.lockId === tradeId) {
     item.lockReason = "";
+    item.lockType = "";
     item.lockId = "";
+    item.version += 1;
   }
   return next;
 }
@@ -1286,6 +1302,7 @@ function giveOffers(
   lines: TradeOfferLine[],
   itemsById: { [id: string]: ItemDefinition },
   makeId: () => string,
+  equippedItems?: ReadonlyArray<ItemInstance>,
 ): { ok: boolean; code: string; inventory: PlayerInventory } {
   let current = cloneInventory(inventory);
   for (let i = 0; i < lines.length; i++) {
@@ -1294,7 +1311,7 @@ function giveOffers(
     if (definition === undefined) {
       return { ok: false, code: "invalid_id", inventory: current };
     }
-    const failCode = acceptItemFailureCode(current, line.itemId, line.quantity, definition);
+    const failCode = acceptItemFailureCode(current, line.itemId, line.quantity, definition, equippedItems);
     if (failCode.length > 0) {
       return { ok: false, code: failCode, inventory: current };
     }
@@ -1358,7 +1375,7 @@ function replayCompleted(trade: TradeRecord, goldA: number, goldB: number): Trad
 }
 
 function emptySideInventory(_trade: TradeRecord, _side: "a" | "b"): PlayerInventory {
-  return cloneInventory({ capacity: 20, items: [], pickupByRequestId: {} });
+  return emptyInventory();
 }
 
 function missingAudits(trade: TradeRecord): { a: TransactionAuditEvent; b: TransactionAuditEvent } {

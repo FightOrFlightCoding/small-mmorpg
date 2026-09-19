@@ -18,6 +18,7 @@ import {
   type EquipmentSlotContent,
   type PlayerEquipment,
 } from "./equipment";
+import { cloneOverflow, emptyOverflow, isOverflowEmpty, type MigrationOverflow } from "./overflow";
 import { cloneLoot, publicLoot, type LootDrop, type MatchLoot } from "./loot";
 import { createNpcRuntimeInstance, type NpcDefinition, type NpcRuntimeInstance } from "./npc";
 import {
@@ -96,6 +97,7 @@ export interface MatchPlayer {
   lastAttackResultOk?: boolean;
   inventory?: PlayerInventory;
   equipment?: PlayerEquipment;
+  overflow?: MigrationOverflow;
   derivedAttack?: number;
   gold?: number;
   progression?: CharacterProgression;
@@ -851,6 +853,7 @@ function cloneMatchPlayer(p: MatchPlayer, state: StarterZoneState): MatchPlayer 
     lastAttackResultOk: p.lastAttackResultOk === true,
     inventory: cloneInventory(inventory),
     equipment: cloneEquipment(equipment),
+    overflow: cloneOverflow(p.overflow !== undefined ? p.overflow : emptyOverflow()),
     derivedAttack:
       p.derivedAttack != null
         ? p.derivedAttack
@@ -1029,6 +1032,9 @@ function inventoryFor(state: StarterZoneState, selfId: string): { [key: string]:
   const player = state.players[selfId];
   if (player === undefined || player.inventory === undefined) {
     return publicInventory(emptyInventory());
+  }
+  if (player.overflow !== undefined && !isOverflowEmpty(player.overflow)) {
+    return publicInventory(player.inventory, player.overflow);
   }
   return publicInventory(player.inventory);
 }

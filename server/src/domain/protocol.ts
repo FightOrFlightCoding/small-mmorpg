@@ -45,6 +45,7 @@ export const ClientOpcode = {
   PURCHASE_TALENT: 38,
   DIALOGUE_CHOOSE: 39,
   INTERACTION_CLOSE: 40,
+  RECOVER_OVERFLOW_ITEM: 41,
 } as const;
 
 export const ServerOpcode = {
@@ -109,6 +110,7 @@ const CLIENT_OPCODES: ClientOpcode[] = [
   ClientOpcode.PURCHASE_TALENT,
   ClientOpcode.DIALOGUE_CHOOSE,
   ClientOpcode.INTERACTION_CLOSE,
+  ClientOpcode.RECOVER_OVERFLOW_ITEM,
 ];
 
 const REWARD_OPCODES: ClientOpcode[] = [
@@ -164,6 +166,7 @@ OPCODE_KEYS[ClientOpcode.TRAINER_RESPEC] = ["npcId"];
 OPCODE_KEYS[ClientOpcode.PURCHASE_TALENT] = ["treeId", "nodeId", "requestedRank"];
 OPCODE_KEYS[ClientOpcode.DIALOGUE_CHOOSE] = ["interactionSessionId", "optionId"];
 OPCODE_KEYS[ClientOpcode.INTERACTION_CLOSE] = ["interactionSessionId", "npcInstanceId"];
+OPCODE_KEYS[ClientOpcode.RECOVER_OVERFLOW_ITEM] = ["instanceId", "toSlotIndex"];
 
 const OUTCOME_KEYS = [
   "attack",
@@ -281,6 +284,7 @@ function requiresRequestId(opcode: ClientOpcode): boolean {
     opcode === ClientOpcode.DESTROY_ITEM ||
     opcode === ClientOpcode.SPLIT_STACK ||
     opcode === ClientOpcode.MOVE_ITEM ||
+    opcode === ClientOpcode.RECOVER_OVERFLOW_ITEM ||
     opcode === ClientOpcode.USE_ABILITY ||
     opcode === ClientOpcode.CANCEL_CAST ||
     opcode === ClientOpcode.ASSIGN_HOTBAR ||
@@ -538,6 +542,13 @@ export function parseClientMessage(
     }
     message.toSlotIndex = toSlotIndex;
   }
+  if (opcode === ClientOpcode.RECOVER_OVERFLOW_ITEM && Object.prototype.hasOwnProperty.call(data, "toSlotIndex")) {
+    const toSlotIndex = data.toSlotIndex;
+    if (typeof toSlotIndex !== "number" || !isFinite(toSlotIndex) || toSlotIndex !== Math.floor(toSlotIndex)) {
+      return { code: "invalid_slot", message: "RECOVER toSlotIndex must be a finite integer." };
+    }
+    message.toSlotIndex = toSlotIndex;
+  }
   if (opcode === ClientOpcode.USE_ABILITY) {
     const hasX = Object.prototype.hasOwnProperty.call(data, "targetX");
     const hasY = Object.prototype.hasOwnProperty.call(data, "targetY");
@@ -728,6 +739,8 @@ export function equipmentState(
     protocolVersion: PROTOCOL_VERSION,
     contentHash: contentHash,
     slots: equipment.slots,
+    items: equipment.items !== undefined ? equipment.items : [],
+    revision: equipment.revision !== undefined ? equipment.revision : 0,
     derived: derived,
   };
   if (requestId !== undefined) {
@@ -749,7 +762,12 @@ export function inventoryState(
     contentHash: contentHash,
     capacity: inventory.capacity,
     items: inventory.items,
+    revision: inventory.revision !== undefined ? inventory.revision : 0,
+    schemaVersion: inventory.schemaVersion !== undefined ? inventory.schemaVersion : 1,
   };
+  if (inventory.overflow !== undefined) {
+    payload.overflow = inventory.overflow;
+  }
   if (requestId !== undefined) {
     payload.requestId = requestId;
   }

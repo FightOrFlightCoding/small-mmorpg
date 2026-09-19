@@ -32,6 +32,9 @@ export function storedInventoryFromValue(value: unknown): PlayerInventory | null
     return null;
   }
   const inventory = emptyInventory(data.capacity > 0 ? data.capacity : INVENTORY_CAPACITY);
+  if (typeof data.revision === "number" && isFinite(data.revision)) {
+    inventory.revision = data.revision;
+  }
   if (typeof data.schemaVersion === "number") {
     inventory.schemaVersion = data.schemaVersion;
   }
@@ -106,13 +109,18 @@ function publicStoredInventory(inventory: PlayerInventory): { [key: string]: unk
     items.push({
       instanceId: item.instanceId,
       itemId: item.itemId,
+      definitionId: item.itemId,
       quantity: item.quantity,
       createdAt: item.createdAt,
       sourceType: item.sourceType,
       sourceId: item.sourceId,
       metadata: item.metadata,
+      stackKey: item.stackKey,
       lockReason: item.lockReason,
       lockId: item.lockId,
+      lockType: item.lockType,
+      version: item.version,
+      schemaVersion: item.schemaVersion,
       slotIndex: item.slotIndex,
     });
   }
@@ -130,6 +138,7 @@ function publicStoredInventory(inventory: PlayerInventory): { [key: string]: unk
   const gameplay: { [key: string]: unknown } = {
     capacity: inventory.capacity,
     items: items,
+    revision: inventory.revision,
     pickupByRequestId: pickupByRequestId,
   };
   if (inventory.pickupRequestTicks !== undefined) {
@@ -175,7 +184,13 @@ function parseItem(value: unknown): ItemInstance | null {
   if (typeof data.instanceId !== "string" || data.instanceId.length === 0) {
     return null;
   }
-  if (typeof data.itemId !== "string" || data.itemId.length === 0) {
+  const itemId =
+    typeof data.itemId === "string" && data.itemId.length > 0
+      ? data.itemId
+      : typeof data.definitionId === "string"
+        ? data.definitionId
+        : "";
+  if (itemId.length === 0) {
     return null;
   }
   if (typeof data.quantity !== "number" || data.quantity < 1) {
@@ -191,14 +206,18 @@ function parseItem(value: unknown): ItemInstance | null {
   }
   return {
     instanceId: data.instanceId,
-    itemId: data.itemId,
+    itemId: itemId,
     quantity: data.quantity,
     createdAt: typeof data.createdAt === "number" && isFinite(data.createdAt) ? data.createdAt : 0,
     sourceType: typeof data.sourceType === "string" && data.sourceType.length > 0 ? data.sourceType : "migration",
     sourceId: typeof data.sourceId === "string" ? data.sourceId : "",
     metadata: metadata,
+    stackKey: typeof data.stackKey === "string" ? data.stackKey : "",
     lockReason: typeof data.lockReason === "string" ? data.lockReason : "",
     lockId: typeof data.lockId === "string" ? data.lockId : "",
+    lockType: typeof data.lockType === "string" ? data.lockType : "",
+    version: typeof data.version === "number" && data.version >= 1 ? Math.floor(data.version) : 1,
+    schemaVersion: typeof data.schemaVersion === "number" && data.schemaVersion >= 1 ? Math.floor(data.schemaVersion) : 1,
     slotIndex: typeof data.slotIndex === "number" && isFinite(data.slotIndex) ? data.slotIndex : -1,
   };
 }

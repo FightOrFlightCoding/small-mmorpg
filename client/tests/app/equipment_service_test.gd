@@ -49,7 +49,7 @@ func test_unequip_omits_instance_id() -> void:
 
 func test_equipment_state_updates_attack_only_from_server() -> void:
 	InventoryService.apply_canonical({
-		"capacity": 20,
+		"capacity": 30,
 		"items": [{"instanceId": "inst-sword", "itemId": "item.training_sword", "quantity": 1, "metadata": {}}],
 	})
 	NetworkService.backend = FakeNetworkBackend.new()
@@ -72,7 +72,7 @@ func test_equipment_state_updates_attack_only_from_server() -> void:
 
 func test_full_state_equipment_restores_the_slot() -> void:
 	InventoryService.apply_canonical({
-		"capacity": 20,
+		"capacity": 30,
 		"items": [{"instanceId": "inst-sword", "itemId": "item.training_sword", "quantity": 1, "metadata": {}}],
 	})
 	var parsed: Dictionary = _PROTOCOL.parse_full_state(JSON.stringify({
@@ -86,7 +86,7 @@ func test_full_state_equipment_restores_the_slot() -> void:
 		"enemies": [],
 		"loot": [],
 		"inventory": {
-			"capacity": 20,
+			"capacity": 30,
 			"items": [{"instanceId": "inst-sword", "itemId": "item.training_sword", "quantity": 1, "metadata": {}}],
 		},
 		"equipment": {"slots": {"main_hand": "inst-sword"}},
@@ -100,7 +100,7 @@ func test_full_state_equipment_restores_the_slot() -> void:
 
 func test_hud_shows_server_attack_and_main_hand() -> void:
 	InventoryService.apply_canonical({
-		"capacity": 20,
+		"capacity": 30,
 		"items": [{"instanceId": "inst-sword", "itemId": "item.training_sword", "quantity": 1, "metadata": {}}],
 	})
 	EquipmentService.apply_canonical({
@@ -123,7 +123,7 @@ func test_hud_shows_server_attack_and_main_hand() -> void:
 
 func test_equipment_state_mirrors_extra_slots_from_the_server() -> void:
 	InventoryService.apply_canonical({
-		"capacity": 20,
+		"capacity": 30,
 		"items": [
 			{"instanceId": "inst-sword", "itemId": "item.training_sword", "quantity": 1, "metadata": {}},
 			{"instanceId": "inst-cap", "itemId": "item.test_leather_cap", "quantity": 1, "metadata": {}},

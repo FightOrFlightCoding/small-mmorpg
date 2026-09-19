@@ -7,6 +7,7 @@ import {
   countItem,
   emptyInventory,
   type ItemDefinition,
+  type ItemInstance,
   type PlayerInventory,
 } from "./inventory";
 import {
@@ -34,6 +35,7 @@ export interface QuestTurnInInput {
   interactionRange: number;
   questsById: { [id: string]: QuestDefinition };
   itemsById: { [id: string]: ItemDefinition };
+  equippedItems?: ReadonlyArray<ItemInstance>;
   newId: () => string;
   tick?: number;
   npcById?: { [id: string]: NpcDefinition };
@@ -160,7 +162,7 @@ export function applyQuestTurnIn(input: QuestTurnInInput): QuestTurnInOutcome {
     if (itemDef === undefined) {
       return fail("invalid_id", log, inventory, input.gold);
     }
-    const failCode = acceptItemFailureCode(nextInventory, reward.itemId, reward.quantity, itemDef);
+    const failCode = acceptItemFailureCode(nextInventory, reward.itemId, reward.quantity, itemDef, input.equippedItems);
     if (failCode.length > 0) {
       return fail(failCode, log, inventory, input.gold);
     }

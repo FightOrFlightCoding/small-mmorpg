@@ -83,11 +83,18 @@ function assertCanonicalSlice(account: ReturnType<typeof migrateAccount>, positi
   assert.equal(pose.x, position.x);
   assert.equal(pose.y, position.y);
   const inventory = recordValue(account, "inventory");
-  assert.deepEqual(itemIds(inventory), ["item.iron_sword", "item.training_sword"]);
-  assert.deepEqual(instanceIds(inventory), ["inst-iron", "inst-sword"]);
+  assert.equal(inventory.capacity, 30);
+  assert.deepEqual(itemIds(inventory), ["item.training_sword"]);
+  assert.deepEqual(instanceIds(inventory), ["inst-sword"]);
   const equipment = recordValue(account, "equipment");
   const slots = equipment.slots as { main_hand: string };
   assert.equal(slots.main_hand, "inst-iron");
+  const gearItems = Array.isArray(equipment.items)
+    ? (equipment.items as Array<{ instanceId: string; itemId: string }>)
+    : [];
+  assert.equal(gearItems.length, 1);
+  assert.equal(gearItems[0].instanceId, "inst-iron");
+  assert.equal(gearItems[0].itemId, "item.iron_sword");
   const quests = recordValue(account, "quests");
   const questRows = quests.quests as Array<{ questId: string; status: string }>;
   const slime = questRows.filter((row) => row.questId === "quest.slime_problem")[0];
@@ -136,8 +143,8 @@ test("migrating the same save twice does not duplicate items, gold, or quests", 
     assert.equal(second.ok, true, names[i]);
     assert.equal(second.changed, false, names[i]);
     assert.equal(second.gold, 25, names[i]);
-    assert.deepEqual(itemIds(recordValue(second, "inventory")), ["item.iron_sword", "item.training_sword"]);
-    assert.deepEqual(instanceIds(recordValue(second, "inventory")), ["inst-iron", "inst-sword"]);
+    assert.deepEqual(itemIds(recordValue(second, "inventory")), ["item.training_sword"]);
+    assert.deepEqual(instanceIds(recordValue(second, "inventory")), ["inst-sword"]);
     const questRows = recordValue(second, "quests").quests as Array<{ questId: string }>;
     assert.equal(questRows.filter((row) => row.questId === "quest.slime_problem").length, 1);
   }

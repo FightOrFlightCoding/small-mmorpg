@@ -11,6 +11,7 @@ export const CHARACTER_AUDIT_PERMISSION_WRITE: 0 = 0;
 export const PURGE_STEPS = [
   "inventory",
   "equipment",
+  "overflow",
   "progression",
   "quests",
   "location",

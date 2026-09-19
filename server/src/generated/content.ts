@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "bf283255559cf5145b9b4e90ad0ebfca4e09c27f7ffaa9c241347729d0cc5fcb";
+export const contentHash = "7877dd576b022d59f0350be4430aca0b9d402db38b5e16e816ef361003c9cffd";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = ["dialogue.npc.lab_exit","dialogue.npc.lab_inn","dialogue.npc.lab_keeper","dialogue.npc.lab_trainer","dialogue.npc.lab_vendor","npc.lab_exit","npc.lab_inn","npc.lab_keeper","npc.lab_trainer","npc.lab_vendor","quest.lab_tour","spawn.lab.boss","spawn.lab.caster","spawn.lab.melee","spawn.lab.ranged","test.zone.systems_lab","vendor.lab_general"] as const;
 export const content = {
@@ -6619,15 +6619,19 @@ export const content = {
       "destroyable": true,
       "displayName": "Cert Mail",
       "displayNameKey": "item.cert_mail.name",
+      "droppable": true,
       "equipSlot": "chest",
       "equipmentSlotTags": [
         "chest"
       ],
+      "equippable": true,
       "iconAssetId": "visual.item_cert_mail",
       "id": "item.cert_mail",
       "kind": "item",
       "levelRequirement": 0,
       "maxStack": 1,
+      "questItem": false,
+      "rarity": "rarity.common",
       "sellValue": 2,
       "statModifiers": [
         {
@@ -6635,6 +6639,7 @@ export const content = {
           "statId": "test.stat.max_health"
         }
       ],
+      "tags": [],
       "tradeable": true,
       "uniquePolicy": "none",
       "visualId": "visual.item_cert_mail",
@@ -6648,15 +6653,19 @@ export const content = {
       "destroyable": true,
       "displayName": "Iron Sword",
       "displayNameKey": "item.iron_sword.name",
+      "droppable": true,
       "equipSlot": "main_hand",
       "equipmentSlotTags": [
         "main_hand"
       ],
+      "equippable": true,
       "iconAssetId": "visual.item_iron_sword",
       "id": "item.iron_sword",
       "kind": "item",
       "levelRequirement": 0,
       "maxStack": 1,
+      "questItem": false,
+      "rarity": "rarity.uncommon",
       "sellValue": 8,
       "statModifiers": [
         {
@@ -6664,6 +6673,7 @@ export const content = {
           "statId": "test.stat.attack"
         }
       ],
+      "tags": [],
       "tradeable": true,
       "uniquePolicy": "none",
       "visualId": "visual.item_iron_sword",
@@ -6677,14 +6687,21 @@ export const content = {
       "destroyable": false,
       "displayName": "Proof Token",
       "displayNameKey": "item.proof_token.name",
+      "droppable": true,
+      "equippable": false,
       "iconAssetId": "visual.item_proof_token",
       "id": "item.proof_token",
       "kind": "item",
       "levelRequirement": 0,
       "maxStack": 20,
+      "questItem": true,
+      "rarity": "rarity.common",
       "sellValue": 0,
       "statModifiers": [],
-      "tradeable": false,
+      "tags": [
+        "quest"
+      ],
+      "tradeable": true,
       "uniquePolicy": "none",
       "visualId": "visual.item_proof_token",
       "worldAssetId": "visual.item_proof_token"
@@ -6697,14 +6714,21 @@ export const content = {
       "destroyable": false,
       "displayName": "Slime Gel",
       "displayNameKey": "item.slime_gel.name",
+      "droppable": true,
+      "equippable": false,
       "iconAssetId": "visual.item_slime_gel",
       "id": "item.slime_gel",
       "kind": "item",
       "levelRequirement": 0,
       "maxStack": 20,
+      "questItem": true,
+      "rarity": "rarity.common",
       "sellValue": 0,
       "statModifiers": [],
-      "tradeable": false,
+      "tags": [
+        "quest"
+      ],
+      "tradeable": true,
       "uniquePolicy": "none",
       "visualId": "visual.item_slime_gel",
       "worldAssetId": "visual.item_slime_gel"
@@ -6717,13 +6741,18 @@ export const content = {
       "destroyable": true,
       "displayName": "Test Cloth",
       "displayNameKey": "item.test_cloth.name",
+      "droppable": true,
+      "equippable": false,
       "iconAssetId": "visual.item_cloth",
       "id": "item.test_cloth",
       "kind": "item",
       "levelRequirement": 0,
       "maxStack": 20,
+      "questItem": false,
+      "rarity": "rarity.common",
       "sellValue": 1,
       "statModifiers": [],
+      "tags": [],
       "tradeable": true,
       "uniquePolicy": "none",
       "visualId": "visual.item_cloth",
@@ -6737,15 +6766,19 @@ export const content = {
       "destroyable": true,
       "displayName": "Test Leather Cap",
       "displayNameKey": "item.test_leather_cap.name",
+      "droppable": true,
       "equipSlot": "head",
       "equipmentSlotTags": [
         "head"
       ],
+      "equippable": true,
       "iconAssetId": "visual.item_leather_cap",
       "id": "item.test_leather_cap",
       "kind": "item",
       "levelRequirement": 0,
       "maxStack": 1,
+      "questItem": false,
+      "rarity": "rarity.common",
       "sellValue": 2,
       "statModifiers": [
         {
@@ -6753,6 +6786,7 @@ export const content = {
           "statId": "test.stat.max_health"
         }
       ],
+      "tags": [],
       "tradeable": true,
       "uniquePolicy": "none",
       "visualId": "visual.item_leather_cap",
@@ -6766,13 +6800,18 @@ export const content = {
       "destroyable": true,
       "displayName": "Test Pebble",
       "displayNameKey": "item.test_pebble.name",
+      "droppable": true,
+      "equippable": false,
       "iconAssetId": "visual.item_pebble",
       "id": "item.test_pebble",
       "kind": "item",
       "levelRequirement": 0,
       "maxStack": 50,
+      "questItem": false,
+      "rarity": "rarity.poor",
       "sellValue": 0,
       "statModifiers": [],
+      "tags": [],
       "tradeable": true,
       "uniquePolicy": "none",
       "visualId": "visual.item_pebble",
@@ -6786,13 +6825,18 @@ export const content = {
       "destroyable": true,
       "displayName": "Test Potion",
       "displayNameKey": "item.test_potion.name",
+      "droppable": true,
+      "equippable": false,
       "iconAssetId": "visual.item_potion",
       "id": "item.test_potion",
       "kind": "item",
       "levelRequirement": 0,
       "maxStack": 10,
+      "questItem": false,
+      "rarity": "rarity.common",
       "sellValue": 3,
       "statModifiers": [],
+      "tags": [],
       "tradeable": true,
       "uniquePolicy": "none",
       "visualId": "visual.item_potion",
@@ -6806,15 +6850,19 @@ export const content = {
       "destroyable": true,
       "displayName": "Test Relic Blade",
       "displayNameKey": "item.test_relic_blade.name",
+      "droppable": true,
       "equipSlot": "main_hand",
       "equipmentSlotTags": [
         "main_hand"
       ],
+      "equippable": true,
       "iconAssetId": "visual.item_relic_blade",
       "id": "item.test_relic_blade",
       "kind": "item",
       "levelRequirement": 5,
       "maxStack": 1,
+      "questItem": false,
+      "rarity": "rarity.rare",
       "sellValue": 20,
       "statModifiers": [
         {
@@ -6822,6 +6870,7 @@ export const content = {
           "statId": "test.stat.attack"
         }
       ],
+      "tags": [],
       "tradeable": true,
       "uniquePolicy": "character",
       "visualId": "visual.item_relic_blade",
@@ -6837,15 +6886,19 @@ export const content = {
       "destroyable": true,
       "displayName": "Test Vanguard Mail",
       "displayNameKey": "item.test_vanguard_mail.name",
+      "droppable": true,
       "equipSlot": "chest",
       "equipmentSlotTags": [
         "chest"
       ],
+      "equippable": true,
       "iconAssetId": "visual.item_vanguard_mail",
       "id": "item.test_vanguard_mail",
       "kind": "item",
       "levelRequirement": 0,
       "maxStack": 1,
+      "questItem": false,
+      "rarity": "rarity.uncommon",
       "sellValue": 4,
       "statModifiers": [
         {
@@ -6853,6 +6906,7 @@ export const content = {
           "statId": "test.stat.max_health"
         }
       ],
+      "tags": [],
       "tradeable": true,
       "uniquePolicy": "none",
       "visualId": "visual.item_vanguard_mail",
@@ -6866,15 +6920,19 @@ export const content = {
       "destroyable": true,
       "displayName": "Training Sword",
       "displayNameKey": "item.training_sword.name",
+      "droppable": true,
       "equipSlot": "main_hand",
       "equipmentSlotTags": [
         "main_hand"
       ],
+      "equippable": true,
       "iconAssetId": "visual.item_training_sword",
       "id": "item.training_sword",
       "kind": "item",
       "levelRequirement": 0,
       "maxStack": 1,
+      "questItem": false,
+      "rarity": "rarity.common",
       "sellValue": 1,
       "statModifiers": [
         {
@@ -6882,6 +6940,7 @@ export const content = {
           "statId": "test.stat.attack"
         }
       ],
+      "tags": [],
       "tradeable": true,
       "uniquePolicy": "none",
       "visualId": "visual.item_training_sword",
@@ -7633,7 +7692,7 @@ export const content = {
     },
     "id": "player.base",
     "interactionRange": 48,
-    "inventoryCapacity": 20,
+    "inventoryCapacity": 30,
     "kind": "player",
     "maxHealth": 100,
     "moveSpeed": 120,

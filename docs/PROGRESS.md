@@ -1,15 +1,37 @@
 # Progress
 
-Last accepted phase: **ITEM-01 — Repository audit and item-system contract**.
+Last accepted phase: **ITEM-02 — Canonical item model, thirty-slot bag, equipment, and migration**.
 
-Current phase: ITEM-01 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
+Current phase: ITEM-02 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
 
 Canonical git line: **`origin/main`**. Playable work is committed there. The Windows clone stays on `main` and runs `scripts/local-play.ps1 -Branch main`.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 remains accepted. PROG-02 remains accepted. PROG-03 remains accepted. PROG-04 remains accepted. PROG-05 remains accepted. PROG-06 remains accepted. PROG-07 remains accepted. PROG-08 remains accepted. PROG-09 remains accepted. PROG-10 remains accepted. PROG-11 remains accepted. PROG-12 remains accepted. PROG-13 remains accepted. PROG-14 remains accepted. PROG-15 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
-
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
+
+## ITEM-02 canonical item model, thirty-slot bag, equipment, and migration (2026-09-19)
+
+ITEM-02 is accepted. It extends the existing inventory, equipment, wallet, and transaction core. It does not add corpse, merchant, ground-drop, or trade UI changes. Do not start later ITEM phases.
+
+Every character bag is **30** slots (`0`–`29`). Equipped instances live in `PlayerEquipment.items` and do not occupy bag slots. Unequip requires a free bag slot and is rejected without mutation when the bag is full. Canonical stack merge uses `stacksAreCompatible` (definition, stack key, canonical metadata, incompatible locks, definition maximum). Equippable maximum stack is **1**. Non-equippable stacks are **1–99**. Production items are tradeable and droppable; no binding mode is active. Quest gel/proof stay non-destroyable.
+
+Migration preserves instance ids, definition ids, quantities, equipment, metadata, source history, and slot order. Compatible legacy stacks merge where safe. More than 30 stacks after migration enter server-owned `player` / `overflow` (`permissionWrite: 0`). The Inventory Recovery panel moves overflow into free bag slots only. Overflow is not extra storage for loot, purchases, or rewards. Empty overflow records are deleted. Character create/select/export/soft-delete/restore/purge, account export/deletion, GM inspect, and the migrate CLI include overflow.
+
+`SAVE_SCHEMA_VERSION` remains **1**. New opcode: `RECOVER_OVERFLOW_ITEM` **41**. Content hash `7877dd576b022d59f0350be4430aca0b9d402db38b5e16e816ef361003c9cffd`.
+
+| Gate | Result |
+| --- | --- |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 41 client opcodes, 15 server opcodes, 29 RPCs) |
+| Content validation/tests | 28/28 passed |
+| Server hermetic tests | 876 passed, 13 expected live-test skips |
+| Server typecheck/build | passed |
+| Auth gateway hermetic tests | unchanged; 52/52 previously |
+| Godot 4.7.1 client GdUnit | pending this landing |
+
+Pre-existing Node 22.14 runner compatibility remains documented: directory-form `node --test` wrappers can fail before discovery. Direct compiled-file glob equivalents pass.
+
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen `client/`. Recreate Nakama so `contentHash` matches.
 
 ## ITEM-01 repository audit and item-system contract (2026-09-19)
 

@@ -34,7 +34,10 @@ test("generated server content is importable without filesystem access", () => {
   assert.equal(content.items["item.training_sword"].category, "weapon");
   assert.equal(content.items["item.test_leather_cap"].category, "armor");
   assert.equal(content.items["item.slime_gel"].destroyable, false);
-  assert.equal(content.player.inventoryCapacity, 20);
+  assert.equal(content.items["item.slime_gel"].tradeable, true);
+  assert.equal(content.items["item.slime_gel"].droppable, true);
+  assert.equal(content.items["item.slime_gel"].rarity, "rarity.common");
+  assert.equal(content.player.inventoryCapacity, 30);
   assert.equal(content.enemies["enemy.green_slime"].aiProfileId, "test.ai.melee");
   assert.equal(content.enemies["enemy.green_slime"].lootTableId, "loot.green_slime");
   assert.ok(content.enemies["test.enemy.melee"]);

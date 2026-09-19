@@ -55,7 +55,7 @@ export function actionForOpcode(opcode: number): RateAction {
   if (opcode === ClientOpcode.PICKUP) {
     return "pickup";
   }
-  if (opcode === ClientOpcode.DESTROY_ITEM || opcode === ClientOpcode.SPLIT_STACK || opcode === ClientOpcode.MOVE_ITEM) {
+  if (opcode === ClientOpcode.DESTROY_ITEM || opcode === ClientOpcode.SPLIT_STACK || opcode === ClientOpcode.MOVE_ITEM || opcode === ClientOpcode.RECOVER_OVERFLOW_ITEM) {
     return "inventory";
   }
   if (opcode === ClientOpcode.EQUIP) {

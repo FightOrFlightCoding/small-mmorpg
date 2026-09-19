@@ -8,6 +8,11 @@
   "iconAssetId": "visual.item_leather_cap",
   "worldAssetId": "visual.item_leather_cap",
   "category": "armor",
+  "rarity": "rarity.common",
+  "questItem": false,
+  "equippable": true,
+  "droppable": true,
+  "tags": [],
   "maxStack": 1,
   "tradeable": true,
   "destroyable": true,
@@ -18,5 +23,6 @@
   "levelRequirement": 0,
   "attackBonus": 0,
   "statModifiers": [{ "statId": "test.stat.max_health", "amount": 5 }],
-  "sellValue": 2
+  "sellValue": 2,
+  "schemaVersion": 1
 }

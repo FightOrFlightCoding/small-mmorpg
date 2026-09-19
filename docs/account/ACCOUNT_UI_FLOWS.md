@@ -89,7 +89,7 @@ ACCT-08 wraps accepted account and character operations in a project-owned desig
 
 ## Delete Account (`scenes/login/account_delete.tscn`)
 
-- Irreversible warning covering five slots, live and recently deleted characters, inventory, equipment, gold, quests, settings, and parties. No restore. The email may later register a blank account.
+- Irreversible warning covering five slots, live and recently deleted characters, inventory, equipment, overflow recovery, gold, quests, settings, and parties. No restore. The email may later register a blank account.
 - Current password, send confirmation code with a **30-second** cooldown on the button, email code, exact phrase `DELETE ACCOUNT` (two words, with a space). The screen shows a live hint if the space is missing.
 - Confirm is click-only (`FOCUS_CLICK`); Enter does not confirm. The button stays disabled until password, code, and phrase are valid.
 - Success opens Account Deleted. Incomplete sagas show resume copy; the same idempotency key continues the job.

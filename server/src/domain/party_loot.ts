@@ -2,6 +2,7 @@ import {
   addOrStackItem,
   acceptItemFailureCode,
   type ItemDefinition,
+  type ItemInstance,
   type PlayerInventory,
 } from "./inventory";
 import { hashSeed, lcgRng, normalizedLootPolicy } from "./loot_table";
@@ -36,6 +37,7 @@ export function assignPartyLoot(input: {
   drops: ReadonlyArray<PartyLootDrop>;
   eligible: ReadonlyArray<GroupCreditMember>;
   inventories: { [userId: string]: PlayerInventory | undefined };
+  equippedByUser?: { [userId: string]: ReadonlyArray<ItemInstance> };
   itemsById: { [itemId: string]: ItemDefinition };
   newId: () => string;
 }): PartyLootAssignment | null {
@@ -54,6 +56,7 @@ function assignPersonal(input: {
   drops: ReadonlyArray<PartyLootDrop>;
   eligible: ReadonlyArray<GroupCreditMember>;
   inventories: { [userId: string]: PlayerInventory | undefined };
+  equippedByUser?: { [userId: string]: ReadonlyArray<ItemInstance> };
   itemsById: { [itemId: string]: ItemDefinition };
   newId: () => string;
 }): PartyLootAssignment {
@@ -77,6 +80,7 @@ function assignToOne(input: {
   drops: ReadonlyArray<PartyLootDrop>;
   eligible: ReadonlyArray<GroupCreditMember>;
   inventories: { [userId: string]: PlayerInventory | undefined };
+  equippedByUser?: { [userId: string]: ReadonlyArray<ItemInstance> };
   itemsById: { [itemId: string]: ItemDefinition };
   newId: () => string;
 }): PartyLootAssignment {
@@ -98,6 +102,7 @@ function assignToOne(input: {
 function tryGrant(
   input: {
     inventories: { [userId: string]: PlayerInventory | undefined };
+    equippedByUser?: { [userId: string]: ReadonlyArray<ItemInstance> };
     itemsById: { [itemId: string]: ItemDefinition };
     newId: () => string;
   },
@@ -117,7 +122,9 @@ function tryGrant(
       code: "item_missing",
     };
   }
-  const code = acceptItemFailureCode(inventory, drop.itemId, drop.quantity, definition);
+  const equipped =
+    input.equippedByUser !== undefined ? input.equippedByUser[member.userId] : undefined;
+  const code = acceptItemFailureCode(inventory, drop.itemId, drop.quantity, definition, equipped);
   if (code.length > 0) {
     return {
       userId: member.userId,

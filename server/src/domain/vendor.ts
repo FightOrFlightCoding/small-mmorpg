@@ -7,6 +7,7 @@ import {
   findItem,
   isItemLocked,
   type ItemDefinition,
+  type ItemInstance,
   type PlayerInventory,
 } from "./inventory";
 import { findNpcService, type NpcDefinition } from "./npc";
@@ -55,6 +56,7 @@ export interface VendorTradeInput {
   vendorsById: { [id: string]: VendorDefinition };
   itemsById: { [id: string]: ItemDefinition };
   equippedInstanceIds: ReadonlyArray<string>;
+  equippedItems?: ReadonlyArray<ItemInstance>;
   classId?: string;
   playerLevel?: number;
   questLog?: QuestLog;
@@ -209,7 +211,7 @@ export function applyVendorBuy(input: VendorBuyInput): VendorTradeOutcome {
   if (input.gold < price) {
     return failTrade("insufficient_gold", inventory, input.gold);
   }
-  const failCode = acceptItemFailureCode(inventory, input.itemId, quantity, itemDef);
+  const failCode = acceptItemFailureCode(inventory, input.itemId, quantity, itemDef, input.equippedItems);
   if (failCode.length > 0) {
     return failTrade(failCode, inventory, input.gold);
   }

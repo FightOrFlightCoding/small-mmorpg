@@ -641,6 +641,18 @@ func send_move_item(instance_id: String, to_slot_index: int, request_id: String)
 	)
 
 
+func send_recover_overflow_item(instance_id: String, request_id: String, to_slot_index: int = -1) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var extra: Dictionary = {"instanceId": instance_id, "requestId": request_id}
+	if to_slot_index >= 0:
+		extra["toSlotIndex"] = to_slot_index
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_RECOVER_OVERFLOW_ITEM,
+		MatchProtocol.client_envelope_json(extra)
+	)
+
+
 func send_allocate_attributes(attribute_id: String, amount: int, request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}

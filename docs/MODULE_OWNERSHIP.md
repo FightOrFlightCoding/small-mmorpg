@@ -20,7 +20,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `GameService` | C | Boot, email register/login/verify/reset/password-change/email-change via AccountService, debug device login, character lifecycle, zone join | none | autoloads | `AccountService`, `NetworkService`, `SceneRouter`, `AppState` | no | via NetworkService | no |
 | `SceneRouter` | C | Boot/login/register/verify/unavailable/disabled/forgot-password/reset/change-password/change-email/forgot-email/character/world; back stack that cannot skip verification | current scene id + history | Godot tree | `AppState` | no | no | no |
 | `QuestService` | C | Journal mirror; accept/turn-in intents | In-memory quest view | none | `NetworkService` | no | QUEST_ACCEPT / QUEST_TURN_IN | no |
-| `InventoryService` | C | Inventory mirror; pickup/destroy/split/move intents | GLoot inventory clone | GLoot 3.0.2 | `NetworkService` | no | PICKUP / DESTROY_ITEM / SPLIT_STACK / MOVE_ITEM | no grants |
+| `InventoryService` | C | Inventory mirror; pickup/destroy/split/move/overflow-recover intents | GLoot inventory clone + overflow list | GLoot 3.0.2 | `NetworkService` | no | PICKUP / DESTROY_ITEM / SPLIT_STACK / MOVE_ITEM / RECOVER_OVERFLOW_ITEM | no grants |
 | `EquipmentService` | C | Equipment mirror; equip intents | GLoot ItemSlot clone | GLoot 3.0.2 | `NetworkService`, `InventoryService` | no | EQUIP | no |
 | `WalletService` | C | Gold label mirror | In-memory gold | none | none | no | no | no |
 | `ProgressionService` | C | Progression mirror; allocate, branch, talent, respec intents; preview replaced by server | In-memory level/XP/attributes | none | `NetworkService` | no | ALLOCATE_ATTRIBUTES / ALLOCATE_ATTRIBUTES_BATCH / SELECT_BRANCH / PURCHASE_TALENT / TRAINER_RESPEC | no |
@@ -37,7 +37,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `InputSettingsService` / `AudioSettingsService` / `LocalSettingsStore` | C | Rebindable InputMap, volume/window/scale | `user://client_settings.json` | none | `UiStateService` | local settings only | no | no |
 | `VisualSetMath` | C | 4/8-dir frame math from authored sets | none | none | none | no | no | no |
 | `ZoneChat` / `ChatPanel` | C | Room join/leave, history Label | chat lines | none | `NetworkService` | no | chat channel, not match opcode | no |
-| `World` / `ZoneView` / `EntityRegistry` / avatars / `WorldHud` | C | Render zone and HUD (hotbar, cast bar, ground-target preview, status icons, target frame, death overlay, combat indicator, vendor/inn/cave/settings panels, party panel, trade panel, cave objective) | display poses | none | services above, `HudController` | no | INPUT via World | no |
+| `World` / `ZoneView` / `EntityRegistry` / avatars / `WorldHud` | C | Render zone and HUD (hotbar, cast bar, ground-target preview, status icons, target frame, death overlay, combat indicator, vendor/inn/cave/settings panels, party panel, trade panel, cave objective, Inventory Recovery) | display poses | none | services above, `HudController` | no | INPUT via World | no |
 | `MoveIntent` / `MovementSim` / `MovementReconciler` / `SnapshotBuffer` | C | Prediction and interpolation | unacked cmds, buffer | none | `MatchProtocol` | no | INPUT | no |
 | `AttackIntent` / `CombatFeedback` / `InteractIntent` / `PickupIntent` | C | Usability targeting and floating numbers | none | none | `NetworkService` | no | ATTACK / SET_TARGET / INTERACT / PICKUP | no |
 | `NetDebugOverlay` | C | Debug FPS / ping EMA | none | none | none | no | no | no |
@@ -66,7 +66,9 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `quest_objectives.ts` | S | Talk/kill/collect/enter/boss/return progress | none | none | quest.ts | no | via loop | no |
 | `loot.ts` | S | Ground loot TTL and pickup apply | match loot list | none | `inventory.ts` | no | via loop | grant in memory |
 | `inventory.ts` / `inventory_store.ts` (domain) | S | Stack rules, instance fields, locks, serialize inventory | none | none | none | serialize only | no | yes (pure) |
-| `equipment.ts` / `equipment_store.ts` (domain) | S | Content-defined slots + derived attack serialize | none | none | inventory locks | serialize only | no | no |
+| `overflow.ts` / `overflow_store.ts` (domain) | S | MigrationOverflow recovery container; recover into free bag slots | none | none | inventory | serialize only | no | yes (pure) |
+| `item_migration.ts` | S | Bag 30, equipment extract, compatible merge, overflow leftover | none | none | inventory, equipment, overflow | serialize only | no | yes (pure) |
+| `equipment.ts` / `equipment_store.ts` (domain) | S | Content-defined slots + equipped `items[]` + derived attack serialize | none | none | inventory locks | serialize only | no | no |
 | `transaction.ts` | S | Idempotent gold + version check, audit events, in-memory committer | none | none | `wallet.ts` | no | no | yes (pure) |
 | `wallet.ts` | S | Canonical gold mutations (character, delta, reason, request, resulting balance) | none | none | none | no | no | yes (pure) |
 | `quest.ts` / `quest_store.ts` (domain) | S | Quest log serialize/progress including optional stages | none | none | none | serialize only | no | no |
@@ -124,7 +126,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 
 | Topic | Resolution |
 | --- | --- |
-| `quest_store.ts` / `inventory_store.ts` / `equipment_store.ts` / `progression_store.ts` exist under both `domain/` and `nakama/` | Domain files serialize values. Nakama files read/write storage. Callers in the match adapter must use the Nakama files. |
+| `quest_store.ts` / `inventory_store.ts` / `equipment_store.ts` / `overflow_store.ts` / `progression_store.ts` exist under both `domain/` and `nakama/` | Domain files serialize values. Nakama files read/write storage. Callers in the match adapter must use the Nakama files. |
 | `starter_zone_registry.ts` in domain and nakama | Domain picks the canonical match id. Nakama file talks to `matchList` / `matchCreate` / storage. |
 | `STARTER_ZONE_ID` vs content `zones` map | Runtime still keys `content.zones["zone.starter"]` instead of iterating the catalog. Catalogued as architectural hard-coding. |
 | Dialogue `do QuestService.request_accept_offered()` | Presentation commands resolve quest/NPC IDs from authored NPC services. Server still validates accept/turn-in. |

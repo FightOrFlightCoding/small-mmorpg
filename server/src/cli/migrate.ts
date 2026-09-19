@@ -15,11 +15,13 @@ interface FixtureFile {
   equipment?: unknown;
   quests?: unknown;
   walletRef?: unknown;
+  overflow?: unknown;
   characterPresent?: boolean;
   inventoryPresent?: boolean;
   equipmentPresent?: boolean;
   questsPresent?: boolean;
   walletRefPresent?: boolean;
+  overflowPresent?: boolean;
 }
 
 interface CliOptions {
@@ -77,12 +79,14 @@ function snapshotFromFixture(data: FixtureFile): AccountSaveSnapshot {
     equipment: data.equipment,
     quests: data.quests,
     walletRef: data.walletRef,
+    overflow: data.overflow,
     gold: data.gold,
     characterPresent: data.characterPresent ?? data.character !== undefined,
     inventoryPresent: data.inventoryPresent ?? data.inventory !== undefined,
     equipmentPresent: data.equipmentPresent ?? data.equipment !== undefined,
     questsPresent: data.questsPresent ?? data.quests !== undefined,
     walletRefPresent: data.walletRefPresent ?? data.walletRef !== undefined,
+    overflowPresent: data.overflowPresent ?? data.overflow !== undefined,
   };
 }
 
@@ -166,6 +170,8 @@ function applySnapshot(snapshot: AccountSaveSnapshot): AccountSaveSnapshot {
     equipmentPresent: snapshot.equipmentPresent,
     questsPresent: snapshot.questsPresent,
     walletRefPresent: true,
+    overflowPresent: result.deleteOverflow !== true && result.overflow !== null && result.overflow !== undefined,
+    overflow: result.deleteOverflow === true ? undefined : result.overflow !== undefined ? result.overflow : snapshot.overflow,
   };
   for (let i = 0; i < result.records.length; i++) {
     const row = result.records[i];
@@ -282,6 +288,12 @@ async function readLiveSnapshot(
     options.consoleUser,
     options.consolePassword,
   );
+  const overflow = await httpJson(
+    "GET",
+    base + "/v2/console/storage?collection=player&key=overflow&user_id=" + encodeURIComponent(userId),
+    options.consoleUser,
+    options.consolePassword,
+  );
   let gold = 0;
   try {
     gold = goldFromAccount(
@@ -302,12 +314,14 @@ async function readLiveSnapshot(
     equipment: firstValue(equipment),
     quests: firstValue(quests),
     walletRef: firstValue(walletRef),
+    overflow: firstValue(overflow),
     gold: gold,
     characterPresent: firstValue(character) !== undefined,
     inventoryPresent: firstValue(inventory) !== undefined,
     equipmentPresent: firstValue(equipment) !== undefined,
     questsPresent: firstValue(quests) !== undefined,
     walletRefPresent: firstValue(walletRef) !== undefined,
+    overflowPresent: firstValue(overflow) !== undefined,
   };
 }
 
@@ -382,6 +396,24 @@ async function writeLiveRecord(
     permission_read: 1,
     permission_write: 0,
   });
+}
+
+async function deleteLiveRecord(options: CliOptions, userId: string, key: string): Promise<void> {
+  const base = options.consoleUrl.replace(/\/$/, "");
+  try {
+    await httpJson(
+      "DELETE",
+      base +
+        "/v2/console/storage?collection=player&key=" +
+        encodeURIComponent(key) +
+        "&user_id=" +
+        encodeURIComponent(userId),
+      options.consoleUser,
+      options.consolePassword,
+    );
+  } catch {
+    return;
+  }
 }
 
 async function listLocalUserIds(options: CliOptions): Promise<string[]> {
@@ -480,6 +512,11 @@ async function applyLive(options: CliOptions, snapshot: AccountSaveSnapshot, res
               : "wallet_ref";
     await writeLiveRecord(options, snapshot.userId, key, row.result.value);
   }
+  if (result.deleteOverflow === true) {
+    await deleteLiveRecord(options, snapshot.userId, "overflow");
+  } else if (result.overflow !== null && result.overflow !== undefined) {
+    await writeLiveRecord(options, snapshot.userId, "overflow", result.overflow);
+  }
 }
 
 async function main(): Promise<void> {
@@ -525,6 +562,7 @@ async function main(): Promise<void> {
               equipment: next.equipment,
               quests: next.quests,
               walletRef: next.walletRef,
+              overflow: next.overflow,
             },
             null,
             2,

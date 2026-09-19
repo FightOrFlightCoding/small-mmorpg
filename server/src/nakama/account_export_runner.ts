@@ -8,6 +8,7 @@ import { readRoster } from "./roster_store";
 import { readCharacter } from "./character_store";
 import { readInventory } from "./inventory_store";
 import { readEquipment } from "./equipment_store";
+import { readOverflow } from "./overflow_store";
 import { readProgression, writeProgression } from "./progression_store";
 import { readQuests } from "./quest_store";
 import { readActiveLocation } from "./location_store";
@@ -54,6 +55,7 @@ export function buildAccountExportPayload(
       progressionExport: exportedProgression !== null ? exportProgressionSnapshot(exportedProgression) : null,
       inventory: readInventory(nk, userId, ids[i]),
       equipment: readEquipment(nk, userId, ids[i]),
+      overflow: readOverflow(nk, userId, ids[i]),
       quests: readQuests(nk, userId, ids[i]),
       location: location,
     });

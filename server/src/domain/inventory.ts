@@ -1,11 +1,20 @@
 import { cloneTickMap, dict } from "./maps";
 import { cloneExtras, envelopeFromRecord } from "./save_schema";
 
-export const INVENTORY_CAPACITY = 20;
+export const INVENTORY_CAPACITY = 30;
+export const ITEM_MAX_STACK = 99;
+export const ITEM_INSTANCE_SCHEMA_VERSION = 1;
 export const STARTER_ITEM_ID = "item.training_sword";
 
 export type ItemCategory = "weapon" | "armor" | "consumable" | "quest" | "material" | "miscellaneous";
 export type UniquePolicy = "none" | "character" | "equipped";
+export type ItemRarity =
+  | "rarity.poor"
+  | "rarity.common"
+  | "rarity.uncommon"
+  | "rarity.rare"
+  | "rarity.epic"
+  | "rarity.legendary";
 
 export interface ItemStatModifier {
   statId: string;
@@ -16,6 +25,11 @@ export interface ItemDefinition {
   id: string;
   maxStack: number;
   category?: ItemCategory;
+  rarity?: ItemRarity;
+  questItem?: boolean;
+  equippable?: boolean;
+  droppable?: boolean;
+  tags?: readonly string[];
   tradeable?: boolean;
   destroyable?: boolean;
   uniquePolicy?: UniquePolicy;
@@ -30,12 +44,15 @@ export interface ItemDefinition {
   descriptionKey?: string;
   iconAssetId?: string;
   worldAssetId?: string;
+  schemaVersion?: number;
 }
 
 export interface ItemGrantOptions {
   sourceType?: string;
   sourceId?: string;
   createdAt?: number;
+  stackKey?: string;
+  metadata?: { [key: string]: unknown };
 }
 
 export interface ItemInstance {
@@ -46,8 +63,12 @@ export interface ItemInstance {
   sourceType: string;
   sourceId: string;
   metadata: { [key: string]: unknown };
+  stackKey: string;
   lockReason: string;
   lockId: string;
+  lockType: string;
+  version: number;
+  schemaVersion: number;
   slotIndex: number;
 }
 
@@ -69,6 +90,7 @@ export interface InventoryMutationRecord {
 export interface PlayerInventory {
   capacity: number;
   items: ItemInstance[];
+  revision: number;
   pickupByRequestId: { [requestId: string]: PickupRecord };
   pickupRequestTicks?: { [requestId: string]: number };
   mutationByRequestId?: { [requestId: string]: InventoryMutationRecord };
@@ -95,8 +117,9 @@ export interface InventoryMutationDecision {
 
 export function emptyInventory(capacity: number = INVENTORY_CAPACITY): PlayerInventory {
   return {
-    capacity: capacity,
+    capacity: capacity > 0 ? capacity : INVENTORY_CAPACITY,
     items: [],
+    revision: 0,
     pickupByRequestId: {},
     mutationByRequestId: {},
   };
@@ -151,8 +174,10 @@ export function cloneInventory(inventory: PlayerInventory): PlayerInventory {
   }
   const envelope = envelopeFromRecord(inventory);
   const next: PlayerInventory = {
-    capacity: inventory.capacity > 0 ? inventory.capacity : INVENTORY_CAPACITY,
+    capacity:
+      typeof inventory.capacity === "number" && inventory.capacity > 0 ? inventory.capacity : INVENTORY_CAPACITY,
     items: items,
+    revision: typeof inventory.revision === "number" && isFinite(inventory.revision) ? inventory.revision : 0,
     pickupByRequestId: pickupByRequestId,
     pickupRequestTicks: cloneTickMap(inventory.pickupRequestTicks),
     mutationByRequestId: mutationByRequestId,
@@ -163,6 +188,12 @@ export function cloneInventory(inventory: PlayerInventory): PlayerInventory {
     extras: cloneExtras(inventory.extras),
   };
   ensureSlotIndices(next);
+  return next;
+}
+
+export function bumpInventoryRevision(inventory: PlayerInventory): PlayerInventory {
+  const next = cloneInventory(inventory);
+  next.revision = (typeof next.revision === "number" && isFinite(next.revision) ? next.revision : 0) + 1;
   return next;
 }
 
@@ -203,8 +234,9 @@ export function initializeInventoryFromStacks(
   }
   return {
     inventory: {
-      capacity: capacity,
+      capacity: capacity > 0 ? capacity : INVENTORY_CAPACITY,
       items: items,
+      revision: 0,
       pickupByRequestId: {},
       mutationByRequestId: {},
     },
@@ -217,6 +249,11 @@ export function itemDefinitionsFromContent(items: {
     id: string;
     maxStack: number;
     category?: ItemCategory;
+    rarity?: ItemRarity;
+    questItem?: boolean;
+    equippable?: boolean;
+    droppable?: boolean;
+    tags?: readonly string[];
     tradeable?: boolean;
     destroyable?: boolean;
     uniquePolicy?: UniquePolicy;
@@ -231,6 +268,7 @@ export function itemDefinitionsFromContent(items: {
     descriptionKey?: string;
     iconAssetId?: string;
     worldAssetId?: string;
+    schemaVersion?: number;
   };
 }): { [id: string]: ItemDefinition } {
   const map: { [id: string]: ItemDefinition } = {};
@@ -241,6 +279,21 @@ export function itemDefinitionsFromContent(items: {
     const definition: ItemDefinition = { id: item.id, maxStack: item.maxStack };
     if (item.category !== undefined) {
       definition.category = item.category;
+    }
+    if (item.rarity !== undefined) {
+      definition.rarity = item.rarity;
+    }
+    if (item.questItem !== undefined) {
+      definition.questItem = item.questItem;
+    }
+    if (item.equippable !== undefined) {
+      definition.equippable = item.equippable;
+    }
+    if (item.droppable !== undefined) {
+      definition.droppable = item.droppable;
+    }
+    if (item.tags !== undefined) {
+      definition.tags = copyStrings(item.tags);
     }
     if (item.tradeable !== undefined) {
       definition.tradeable = item.tradeable;
@@ -284,6 +337,9 @@ export function itemDefinitionsFromContent(items: {
     if (item.worldAssetId !== undefined) {
       definition.worldAssetId = item.worldAssetId;
     }
+    if (item.schemaVersion !== undefined) {
+      definition.schemaVersion = item.schemaVersion;
+    }
     map[id] = definition;
   }
   return map;
@@ -299,6 +355,13 @@ export function itemSlotTags(definition: ItemDefinition): string[] {
   return [];
 }
 
+export function itemIsEquippable(definition: ItemDefinition): boolean {
+  if (definition.equippable === true) {
+    return true;
+  }
+  return itemSlotTags(definition).length > 0;
+}
+
 export function itemIsDestroyable(definition: ItemDefinition): boolean {
   return definition.destroyable !== false;
 }
@@ -307,8 +370,29 @@ export function itemIsTradeable(definition: ItemDefinition): boolean {
   return definition.tradeable !== false;
 }
 
+export function itemIsDroppable(definition: ItemDefinition): boolean {
+  return definition.droppable !== false;
+}
+
 export function itemUniquePolicy(definition: ItemDefinition): UniquePolicy {
   return definition.uniquePolicy !== undefined ? definition.uniquePolicy : "none";
+}
+
+export function effectiveMaxStack(definition: ItemDefinition): number {
+  if (itemIsEquippable(definition)) {
+    return 1;
+  }
+  if (definition.maxStack < 1) {
+    return 1;
+  }
+  if (definition.maxStack > ITEM_MAX_STACK) {
+    return ITEM_MAX_STACK;
+  }
+  return definition.maxStack;
+}
+
+export function itemDefinitionId(item: ItemInstance): string {
+  return item.itemId;
 }
 
 export function countItem(inventory: PlayerInventory | undefined, itemId: string): number {
@@ -319,6 +403,23 @@ export function countItem(inventory: PlayerInventory | undefined, itemId: string
   for (let i = 0; i < inventory.items.length; i++) {
     if (inventory.items[i].itemId === itemId) {
       total += inventory.items[i].quantity;
+    }
+  }
+  return total;
+}
+
+export function countOwnedItem(
+  inventory: PlayerInventory | undefined,
+  equippedItems: ReadonlyArray<ItemInstance> | undefined,
+  itemId: string,
+): number {
+  let total = countItem(inventory, itemId);
+  if (equippedItems === undefined || itemId.length === 0) {
+    return total;
+  }
+  for (let i = 0; i < equippedItems.length; i++) {
+    if (equippedItems[i].itemId === itemId) {
+      total += equippedItems[i].quantity;
     }
   }
   return total;
@@ -342,6 +443,7 @@ export function consumeItem(inventory: PlayerInventory, itemId: string, quantity
     }
     if (stack.quantity > remaining) {
       stack.quantity -= remaining;
+      stack.version += 1;
       remaining = 0;
       kept.push(stack);
       continue;
@@ -352,6 +454,7 @@ export function consumeItem(inventory: PlayerInventory, itemId: string, quantity
   if (remaining > 0) {
     return null;
   }
+  next.revision += 1;
   return next;
 }
 
@@ -381,7 +484,7 @@ export function occupiedSlots(inventory: PlayerInventory): number {
 }
 
 export function isItemLocked(item: ItemInstance): boolean {
-  return item.lockReason.length > 0;
+  return item.lockType.length > 0 || item.lockReason.length > 0;
 }
 
 export function setItemLock(
@@ -396,7 +499,10 @@ export function setItemLock(
     return next;
   }
   item.lockReason = lockReason;
+  item.lockType = lockReason;
   item.lockId = lockId;
+  item.version += 1;
+  next.revision += 1;
   return next;
 }
 
@@ -405,11 +511,18 @@ export function clearLocksByLockId(inventory: PlayerInventory, lockId: string): 
   if (lockId.length === 0) {
     return next;
   }
+  let changed = false;
   for (let i = 0; i < next.items.length; i++) {
     if (next.items[i].lockId === lockId) {
       next.items[i].lockReason = "";
+      next.items[i].lockType = "";
       next.items[i].lockId = "";
+      next.items[i].version += 1;
+      changed = true;
     }
+  }
+  if (changed) {
+    next.revision += 1;
   }
   return next;
 }
@@ -429,12 +542,49 @@ export function takeItemQuantity(
   }
   if (quantity >= item.quantity) {
     next.items = next.items.filter((entry) => entry.instanceId !== instanceId);
+    next.revision += 1;
     return next;
   }
   item.quantity -= quantity;
   item.lockReason = "";
+  item.lockType = "";
   item.lockId = "";
+  item.version += 1;
+  next.revision += 1;
   return next;
+}
+
+export function canonicalMetadataEqual(
+  left: { [key: string]: unknown } | undefined,
+  right: { [key: string]: unknown } | undefined,
+): boolean {
+  return stableMetadata(left) === stableMetadata(right);
+}
+
+export function stackIdentitiesMatch(a: ItemInstance, b: ItemInstance): boolean {
+  if (a.itemId !== b.itemId) {
+    return false;
+  }
+  if ((a.stackKey !== undefined ? a.stackKey : "") !== (b.stackKey !== undefined ? b.stackKey : "")) {
+    return false;
+  }
+  if (!canonicalMetadataEqual(a.metadata, b.metadata)) {
+    return false;
+  }
+  if (isItemLocked(a) || isItemLocked(b)) {
+    return false;
+  }
+  return true;
+}
+
+export function stacksAreCompatible(a: ItemInstance, b: ItemInstance, definition: ItemDefinition): boolean {
+  if (definition.id !== a.itemId || definition.id !== b.itemId) {
+    return false;
+  }
+  if (!stackIdentitiesMatch(a, b)) {
+    return false;
+  }
+  return a.quantity + b.quantity <= effectiveMaxStack(definition);
 }
 
 export function canAcceptItem(
@@ -442,8 +592,9 @@ export function canAcceptItem(
   itemId: string,
   quantity: number,
   definition: ItemDefinition,
+  equippedItems?: ReadonlyArray<ItemInstance>,
 ): boolean {
-  return acceptItemFailureCode(inventory, itemId, quantity, definition).length === 0;
+  return acceptItemFailureCode(inventory, itemId, quantity, definition, equippedItems).length === 0;
 }
 
 export function acceptItemFailureCode(
@@ -451,19 +602,20 @@ export function acceptItemFailureCode(
   itemId: string,
   quantity: number,
   definition: ItemDefinition,
+  equippedItems?: ReadonlyArray<ItemInstance>,
 ): string {
   if (quantity <= 0) {
     return "invalid_id";
   }
-  const uniqueCode = uniqueGrantFailure(inventory, itemId, quantity, definition);
+  const uniqueCode = uniqueGrantFailure(inventory, itemId, quantity, definition, equippedItems);
   if (uniqueCode.length > 0) {
     return uniqueCode;
   }
-  const maxStack = definition.maxStack < 1 ? 1 : definition.maxStack;
+  const maxStack = effectiveMaxStack(definition);
   let remaining = quantity;
   for (let i = 0; i < inventory.items.length; i++) {
     const stack = inventory.items[i];
-    if (stack.itemId !== itemId) {
+    if (!stackIdentitiesMatch(stack, grantIdentity(itemId, definition))) {
       continue;
     }
     const free = maxStack - stack.quantity;
@@ -490,11 +642,12 @@ export function addOrStackItem(
   grant?: ItemGrantOptions,
 ): PlayerInventory {
   const next = cloneInventory(inventory);
-  const maxStack = definition.maxStack < 1 ? 1 : definition.maxStack;
+  const maxStack = effectiveMaxStack(definition);
+  const incoming = grantIdentity(itemId, definition, grant);
   let remaining = quantity;
   for (let i = 0; i < next.items.length; i++) {
     const stack = next.items[i];
-    if (stack.itemId !== itemId) {
+    if (!stackIdentitiesMatch(stack, incoming)) {
       continue;
     }
     const free = maxStack - stack.quantity;
@@ -503,8 +656,10 @@ export function addOrStackItem(
     }
     const added = Math.min(free, remaining);
     stack.quantity += added;
+    stack.version += 1;
     remaining -= added;
     if (remaining <= 0) {
+      next.revision += 1;
       return next;
     }
   }
@@ -512,12 +667,16 @@ export function addOrStackItem(
   while (remaining > 0) {
     const take = Math.min(maxStack, remaining);
     const slotIndex = firstEmptySlotIndex(next);
+    if (slotIndex < 0 || slotIndex >= next.capacity) {
+      break;
+    }
     next.items.push(
       makeInstance(usedStarterId ? instanceId + "-" + String(next.items.length) : instanceId, itemId, take, slotIndex, grant),
     );
     usedStarterId = true;
     remaining -= take;
   }
+  next.revision += 1;
   return next;
 }
 
@@ -582,6 +741,7 @@ export function applyDestroyItem(input: {
     current.items = current.items.filter((entry) => entry.instanceId !== item.instanceId);
   } else {
     item.quantity -= quantity;
+    item.version += 1;
   }
   return succeedMutation(current, input.requestId, {
     ok: true,
@@ -640,13 +800,20 @@ export function applySplitStack(input: {
   if (occupiedSlots(current) >= current.capacity) {
     return failMutation("inventory_full", current);
   }
+  const destSlot = firstEmptySlotIndex(current);
+  if (destSlot < 0 || destSlot >= current.capacity) {
+    return failMutation("inventory_full", current);
+  }
   const newInstanceId = input.newId();
   item.quantity -= input.quantity;
+  item.version += 1;
   current.items.push(
-    makeInstance(newInstanceId, item.itemId, input.quantity, firstEmptySlotIndex(current), {
+    makeInstance(newInstanceId, item.itemId, input.quantity, destSlot, {
       sourceType: "split",
       sourceId: item.instanceId,
       createdAt: item.createdAt,
+      stackKey: item.stackKey,
+      metadata: cloneMetadata(item.metadata),
     }),
   );
   return succeedMutation(
@@ -698,6 +865,7 @@ export function applyMoveItem(input: {
   const dest = findItemBySlot(current, input.toSlotIndex);
   if (dest === null || dest.instanceId === item.instanceId) {
     item.slotIndex = input.toSlotIndex;
+    item.version += 1;
     return succeedMutation(current, input.requestId, {
       ok: true,
       code: "ok",
@@ -706,24 +874,25 @@ export function applyMoveItem(input: {
       toSlotIndex: input.toSlotIndex,
     }, input.tick);
   }
-  if (dest.itemId === item.itemId) {
+  const definition = input.itemsById[item.itemId];
+  if (definition !== undefined && stackIdentitiesMatch(item, dest)) {
     if (isItemLocked(dest)) {
       return failMutation("item_locked", current);
     }
-    const definition = input.itemsById[item.itemId];
-    if (definition === undefined) {
-      return failMutation("invalid_id", current);
-    }
-    const maxStack = definition.maxStack < 1 ? 1 : definition.maxStack;
+    const maxStack = effectiveMaxStack(definition);
     const free = maxStack - dest.quantity;
     if (free <= 0) {
       const fromSlot = item.slotIndex;
       item.slotIndex = dest.slotIndex;
       dest.slotIndex = fromSlot;
+      item.version += 1;
+      dest.version += 1;
     } else {
       const moved = Math.min(free, item.quantity);
       dest.quantity += moved;
+      dest.version += 1;
       item.quantity -= moved;
+      item.version += 1;
       if (item.quantity <= 0) {
         current.items = current.items.filter((entry) => entry.instanceId !== item.instanceId);
       }
@@ -739,6 +908,8 @@ export function applyMoveItem(input: {
   const fromSlot = item.slotIndex;
   item.slotIndex = dest.slotIndex;
   dest.slotIndex = fromSlot;
+  item.version += 1;
+  dest.version += 1;
   return succeedMutation(current, input.requestId, {
     ok: true,
     code: "ok",
@@ -748,26 +919,142 @@ export function applyMoveItem(input: {
   }, input.tick);
 }
 
-export function publicInventory(inventory: PlayerInventory): { [key: string]: unknown } {
+export function publicItemInstance(item: ItemInstance): { [key: string]: unknown } {
+  return {
+    instanceId: item.instanceId,
+    itemId: item.itemId,
+    definitionId: item.itemId,
+    quantity: item.quantity,
+    createdAt: item.createdAt,
+    sourceType: item.sourceType,
+    sourceId: item.sourceId,
+    metadata: cloneMetadata(item.metadata),
+    stackKey: item.stackKey,
+    lockReason: item.lockReason.length > 0 ? item.lockReason : null,
+    lockId: item.lockId.length > 0 ? item.lockId : null,
+    lockType: item.lockType.length > 0 ? item.lockType : null,
+    version: item.version,
+    schemaVersion: item.schemaVersion,
+    slotIndex: item.slotIndex,
+  };
+}
+
+export function publicInventory(
+  inventory: PlayerInventory,
+  overflow?: { items: ItemInstance[]; revision: number; schemaVersion?: number },
+): { [key: string]: unknown } {
   const items: { [key: string]: unknown }[] = [];
   for (let i = 0; i < inventory.items.length; i++) {
-    const item = inventory.items[i];
-    items.push({
-      instanceId: item.instanceId,
-      itemId: item.itemId,
-      quantity: item.quantity,
-      createdAt: item.createdAt,
-      sourceType: item.sourceType,
-      sourceId: item.sourceId,
-      metadata: cloneMetadata(item.metadata),
-      lockReason: item.lockReason.length > 0 ? item.lockReason : null,
-      lockId: item.lockId.length > 0 ? item.lockId : null,
-      slotIndex: item.slotIndex,
-    });
+    items.push(publicItemInstance(inventory.items[i]));
   }
-  return {
+  const payload: { [key: string]: unknown } = {
     capacity: inventory.capacity,
     items: items,
+    revision: inventory.revision,
+    schemaVersion: inventory.schemaVersion !== undefined ? inventory.schemaVersion : 1,
+  };
+  if (overflow !== undefined) {
+    const overflowItems: { [key: string]: unknown }[] = [];
+    for (let o = 0; o < overflow.items.length; o++) {
+      overflowItems.push(publicItemInstance(overflow.items[o]));
+    }
+    payload.overflow = {
+      items: overflowItems,
+      revision: overflow.revision,
+      schemaVersion: overflow.schemaVersion !== undefined ? overflow.schemaVersion : 1,
+    };
+  }
+  return payload;
+}
+
+export function firstEmptySlotIndex(inventory: PlayerInventory): number {
+  const used: { [index: number]: boolean } = {};
+  for (let i = 0; i < inventory.items.length; i++) {
+    const slot = inventory.items[i].slotIndex;
+    if (slot >= 0 && slot < inventory.capacity) {
+      used[slot] = true;
+    }
+  }
+  for (let slot = 0; slot < inventory.capacity; slot++) {
+    if (used[slot] !== true) {
+      return slot;
+    }
+  }
+  return -1;
+}
+
+export function makeInstance(
+  instanceId: string,
+  itemId: string,
+  quantity: number,
+  slotIndex: number,
+  grant?: ItemGrantOptions,
+): ItemInstance {
+  return {
+    instanceId: instanceId,
+    itemId: itemId,
+    quantity: quantity,
+    createdAt: grant !== undefined && grant.createdAt !== undefined ? grant.createdAt : 0,
+    sourceType: grant !== undefined && grant.sourceType !== undefined && grant.sourceType.length > 0 ? grant.sourceType : "grant",
+    sourceId: grant !== undefined && grant.sourceId !== undefined ? grant.sourceId : "",
+    metadata: grant !== undefined && grant.metadata !== undefined ? cloneMetadata(grant.metadata) : {},
+    stackKey: grant !== undefined && grant.stackKey !== undefined ? grant.stackKey : "",
+    lockReason: "",
+    lockId: "",
+    lockType: "",
+    version: 1,
+    schemaVersion: ITEM_INSTANCE_SCHEMA_VERSION,
+    slotIndex: slotIndex,
+  };
+}
+
+export function cloneItem(item: ItemInstance): ItemInstance {
+  const lockReason = typeof item.lockReason === "string" ? item.lockReason : "";
+  const lockTypeRaw = typeof item.lockType === "string" ? item.lockType : "";
+  const lockType = lockTypeRaw.length > 0 ? lockTypeRaw : lockReason;
+  const itemId =
+    typeof item.itemId === "string" && item.itemId.length > 0
+      ? item.itemId
+      : typeof (item as unknown as { definitionId?: string }).definitionId === "string"
+        ? ((item as unknown as { definitionId: string }).definitionId)
+        : "";
+  return {
+    instanceId: item.instanceId,
+    itemId: itemId,
+    quantity: item.quantity,
+    createdAt: typeof item.createdAt === "number" && isFinite(item.createdAt) ? item.createdAt : 0,
+    sourceType: typeof item.sourceType === "string" && item.sourceType.length > 0 ? item.sourceType : "migration",
+    sourceId: typeof item.sourceId === "string" ? item.sourceId : "",
+    metadata: cloneMetadata(item.metadata),
+    stackKey: typeof item.stackKey === "string" ? item.stackKey : "",
+    lockReason: lockReason,
+    lockId: typeof item.lockId === "string" ? item.lockId : "",
+    lockType: lockType,
+    version: typeof item.version === "number" && item.version >= 1 ? Math.floor(item.version) : 1,
+    schemaVersion:
+      typeof item.schemaVersion === "number" && item.schemaVersion >= 1
+        ? Math.floor(item.schemaVersion)
+        : ITEM_INSTANCE_SCHEMA_VERSION,
+    slotIndex: typeof item.slotIndex === "number" && isFinite(item.slotIndex) ? item.slotIndex : -1,
+  };
+}
+
+function grantIdentity(itemId: string, _definition: ItemDefinition, grant?: ItemGrantOptions): ItemInstance {
+  return {
+    instanceId: "",
+    itemId: itemId,
+    quantity: 0,
+    createdAt: 0,
+    sourceType: "",
+    sourceId: "",
+    metadata: grant !== undefined && grant.metadata !== undefined ? cloneMetadata(grant.metadata) : {},
+    stackKey: grant !== undefined && grant.stackKey !== undefined ? grant.stackKey : "",
+    lockReason: "",
+    lockId: "",
+    lockType: "",
+    version: 1,
+    schemaVersion: ITEM_INSTANCE_SCHEMA_VERSION,
+    slotIndex: -1,
   };
 }
 
@@ -776,11 +1063,12 @@ function uniqueGrantFailure(
   itemId: string,
   quantity: number,
   definition: ItemDefinition,
+  equippedItems?: ReadonlyArray<ItemInstance>,
 ): string {
   if (itemUniquePolicy(definition) !== "character") {
     return "";
   }
-  const maxStack = definition.maxStack < 1 ? 1 : definition.maxStack;
+  const maxStack = effectiveMaxStack(definition);
   let remaining = quantity;
   let instances = 0;
   for (let i = 0; i < inventory.items.length; i++) {
@@ -791,6 +1079,13 @@ function uniqueGrantFailure(
     const free = maxStack - inventory.items[i].quantity;
     if (free > 0) {
       remaining -= Math.min(free, remaining);
+    }
+  }
+  if (equippedItems !== undefined) {
+    for (let e = 0; e < equippedItems.length; e++) {
+      if (equippedItems[e].itemId === itemId) {
+        instances += 1;
+      }
     }
   }
   if (remaining <= 0) {
@@ -818,6 +1113,7 @@ function succeedMutation(
   newInstanceId?: string,
 ): InventoryMutationDecision {
   const next = cloneInventory(inventory);
+  next.revision += 1;
   if (next.mutationByRequestId === undefined) {
     next.mutationByRequestId = {};
   }
@@ -875,78 +1171,42 @@ function stampTicks(
   return next;
 }
 
-function firstEmptySlotIndex(inventory: PlayerInventory): number {
-  const used: { [index: number]: boolean } = {};
-  for (let i = 0; i < inventory.items.length; i++) {
-    used[inventory.items[i].slotIndex] = true;
-  }
-  for (let slot = 0; slot < inventory.capacity; slot++) {
-    if (used[slot] !== true) {
-      return slot;
-    }
-  }
-  return inventory.items.length;
-}
-
 function ensureSlotIndices(inventory: PlayerInventory): void {
   const used: { [index: number]: boolean } = {};
   const reassign: ItemInstance[] = [];
   for (let i = 0; i < inventory.items.length; i++) {
     const item = inventory.items[i];
     const slot = item.slotIndex;
-    if (typeof slot === "number" && slot === Math.floor(slot) && slot >= 0 && slot < inventory.capacity && used[slot] !== true) {
+    if (
+      typeof slot === "number" &&
+      slot === Math.floor(slot) &&
+      slot >= 0 &&
+      slot < inventory.capacity &&
+      used[slot] !== true
+    ) {
       used[slot] = true;
       continue;
     }
     reassign.push(item);
   }
   for (let r = 0; r < reassign.length; r++) {
-    let nextSlot = 0;
-    while (used[nextSlot] === true) {
-      nextSlot += 1;
+    let nextSlot = -1;
+    for (let slot = 0; slot < inventory.capacity; slot++) {
+      if (used[slot] !== true) {
+        nextSlot = slot;
+        break;
+      }
+    }
+    if (nextSlot < 0) {
+      reassign[r].slotIndex = -1;
+      continue;
     }
     reassign[r].slotIndex = nextSlot;
     used[nextSlot] = true;
   }
 }
 
-function makeInstance(
-  instanceId: string,
-  itemId: string,
-  quantity: number,
-  slotIndex: number,
-  grant?: ItemGrantOptions,
-): ItemInstance {
-  return {
-    instanceId: instanceId,
-    itemId: itemId,
-    quantity: quantity,
-    createdAt: grant !== undefined && grant.createdAt !== undefined ? grant.createdAt : 0,
-    sourceType: grant !== undefined && grant.sourceType !== undefined && grant.sourceType.length > 0 ? grant.sourceType : "grant",
-    sourceId: grant !== undefined && grant.sourceId !== undefined ? grant.sourceId : "",
-    metadata: {},
-    lockReason: "",
-    lockId: "",
-    slotIndex: slotIndex,
-  };
-}
-
-function cloneItem(item: ItemInstance): ItemInstance {
-  return {
-    instanceId: item.instanceId,
-    itemId: item.itemId,
-    quantity: item.quantity,
-    createdAt: typeof item.createdAt === "number" && isFinite(item.createdAt) ? item.createdAt : 0,
-    sourceType: typeof item.sourceType === "string" && item.sourceType.length > 0 ? item.sourceType : "migration",
-    sourceId: typeof item.sourceId === "string" ? item.sourceId : "",
-    metadata: cloneMetadata(item.metadata),
-    lockReason: typeof item.lockReason === "string" ? item.lockReason : "",
-    lockId: typeof item.lockId === "string" ? item.lockId : "",
-    slotIndex: typeof item.slotIndex === "number" && isFinite(item.slotIndex) ? item.slotIndex : -1,
-  };
-}
-
-function cloneMetadata(metadata: { [key: string]: unknown }): { [key: string]: unknown } {
+function cloneMetadata(metadata: { [key: string]: unknown } | undefined): { [key: string]: unknown } {
   const copy: { [key: string]: unknown } = {};
   const source = dict(metadata);
   const keys = Object.keys(source);
@@ -954,6 +1214,37 @@ function cloneMetadata(metadata: { [key: string]: unknown }): { [key: string]: u
     copy[keys[i]] = source[keys[i]];
   }
   return copy;
+}
+
+function stableMetadata(metadata: { [key: string]: unknown } | undefined): string {
+  const source = dict(metadata);
+  const keys = Object.keys(source);
+  keys.sort();
+  const parts: string[] = [];
+  for (let i = 0; i < keys.length; i++) {
+    parts.push(keys[i] + ":" + stableValue(source[keys[i]]));
+  }
+  return parts.join("|");
+}
+
+function stableValue(value: unknown): string {
+  if (value === null) {
+    return "null";
+  }
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    const parts: string[] = [];
+    for (let i = 0; i < value.length; i++) {
+      parts.push(stableValue(value[i]));
+    }
+    return "[" + parts.join(",") + "]";
+  }
+  if (typeof value === "object") {
+    return "{" + stableMetadata(value as { [key: string]: unknown }) + "}";
+  }
+  return "";
 }
 
 function copyStrings(values: readonly string[]): string[] {

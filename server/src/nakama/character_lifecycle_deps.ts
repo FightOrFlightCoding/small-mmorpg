@@ -16,6 +16,7 @@ import { deleteActiveLocation, readActiveLocation, writeActiveLocation, writeAct
 import { readCharacter, writeCharacter, deleteCharacterRecord } from "./character_store";
 import { readEquipment, writeEquipmentOnce } from "./equipment_store";
 import { readInventory, writeInventoryOnce } from "./inventory_store";
+import { readOverflow, writeOverflowOnce, deleteOverflow } from "./overflow_store";
 import { deleteNameReservation, readNameReservation, writeNameReservation } from "./name_reservation_store";
 import { readQuests, writeQuestsOnce } from "./quest_store";
 import { readRoster, writeRoster } from "./roster_store";
@@ -162,6 +163,10 @@ function copyLegacyGameplay(nk: nkruntime.Nakama, userId: string, characterId: s
   if (legacyEquipment !== null) {
     writeEquipmentOnce(nk, userId, legacyEquipment, characterId);
   }
+  const legacyOverflow = readOverflow(nk, userId);
+  if (legacyOverflow !== null) {
+    writeOverflowOnce(nk, userId, legacyOverflow, characterId);
+  }
   const legacyQuests = readQuests(nk, userId);
   if (Object.keys(legacyQuests.quests).length > 0) {
     writeQuestsOnce(nk, userId, legacyQuests, characterId);
@@ -216,6 +221,10 @@ function applyNakamaPurgeStep(
   }
   if (step === "equipment") {
     deletePlayerObject(nk, EQUIPMENT_COLLECTION, EQUIPMENT_KEY, userId, record.characterId);
+    return;
+  }
+  if (step === "overflow") {
+    deleteOverflow(nk, userId, record.characterId);
     return;
   }
   if (step === "progression") {

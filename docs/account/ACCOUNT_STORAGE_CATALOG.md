@@ -22,7 +22,7 @@ Project-owned and Nakama-owned records that touch accounts, sessions, and charac
 | `player` | `gameplay_lease` | account | 0 | Active-character lease (`ENTERING`/`ONLINE`/`LEAVING`/`LINK_DEAD`/`DESPAWNING`) |
 | `player` | `idem_<op>_<key>` | account | 0 | Create/delete idempotency replay |
 | `player` | `purge_<compactId>` | account | 0 | Partial purge job until complete |
-| `player` | `inventory` / `equipment` / `quests` / `progression` / `wallet_ref` | character | 0 | Canonical gameplay |
+| `player` | `inventory` / `equipment` / `overflow` / `quests` / `progression` / `wallet_ref` | character | 0 | Canonical gameplay |
 | `player` | `party` / `cave` / `location` / `trade` / `trade_audit` | character/account | 0 | Social / instance / trade |
 | `names` | `n_<canonical>` | system user | 0 | Case-insensitive name reservation |
 | `character_audit` | `p_<compactId>` | system user | 0 | Minimal purge audit (`characterId`, `purgedAt`) |

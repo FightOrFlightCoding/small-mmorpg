@@ -59,6 +59,15 @@ export interface ValidateOptions {
   assets?: AssetIndex;
 }
 
+const ITEM_RARITIES = [
+  "rarity.poor",
+  "rarity.common",
+  "rarity.uncommon",
+  "rarity.rare",
+  "rarity.epic",
+  "rarity.legendary",
+];
+
 const NPC_SERVICE_TYPES = [
   "dialogue",
   "quest_offer",
@@ -206,6 +215,9 @@ export function validateDocuments(
     checkVisual(playerAll.visualId, issues, assets);
     if (playerAll.basicAbilityId !== undefined && !abilities[playerAll.basicAbilityId]) {
       issues.push(issue("missing_reference:" + playerAll.basicAbilityId));
+    }
+    if (playerAll.inventoryCapacity !== 30) {
+      issues.push(issue("invalid_inventory_capacity:" + String(playerAll.inventoryCapacity)));
     }
   }
 
@@ -463,15 +475,41 @@ function checkItem(
   if (item.worldAssetId !== undefined) {
     checkVisual(item.worldAssetId, issues, assets);
   }
-  if (item.maxStack < 1) {
+  if (item.maxStack < 1 || item.maxStack > 99) {
     issues.push(issue("invalid_stack_size:" + item.id));
   }
   const tags = item.equipmentSlotTags !== undefined ? item.equipmentSlotTags : [];
+  const equippable = item.equippable === true || item.equipSlot !== undefined || tags.length > 0;
+  if (equippable && item.maxStack !== 1) {
+    issues.push(issue("invalid_stack_size:" + item.id));
+  }
+  if (!equippable && (item.maxStack < 1 || item.maxStack > 99)) {
+    issues.push(issue("invalid_stack_size:" + item.id));
+  }
+  if (item.rarity !== undefined && ITEM_RARITIES.indexOf(item.rarity) === -1) {
+    issues.push(issue("invalid_rarity:" + item.id));
+  }
+  if (item.developmentOnly !== true) {
+    if (item.rarity === undefined) {
+      issues.push(issue("invalid_rarity:" + item.id));
+    }
+    if (item.tradeable === false) {
+      issues.push(issue("invalid_item_policy:tradeable:" + item.id));
+    }
+    if (item.droppable === false) {
+      issues.push(issue("invalid_item_policy:droppable:" + item.id));
+    }
+    if (item.iconAssetId === undefined || item.worldAssetId === undefined) {
+      issues.push(issue("missing_reference:asset:" + item.id));
+    }
+    const raw = item as unknown as { [key: string]: unknown };
+    if (raw.bindMode !== undefined || raw.bindingMode !== undefined || raw.soulbound === true) {
+      issues.push(issue("invalid_item_policy:binding:" + item.id));
+    }
+  }
   if (item.equipSlot !== undefined) {
     if (!isAllowedEquipSlot(item.equipSlot, slotTags)) {
       issues.push(issue("unknown_equipment_slot:" + item.equipSlot));
-    } else if (item.maxStack !== 1) {
-      issues.push(issue("invalid_stack_size:" + item.id));
     }
   }
   for (let t = 0; t < tags.length; t++) {
@@ -482,8 +520,8 @@ function checkItem(
   if (item.equipSlot !== undefined && tags.length > 0 && tags.indexOf(item.equipSlot) === -1) {
     issues.push(issue("unknown_equipment_slot:" + item.equipSlot));
   }
-  if ((item.equipSlot !== undefined || tags.length > 0) && item.maxStack !== 1) {
-    issues.push(issue("invalid_stack_size:" + item.id));
+  if (equippable && item.equipSlot === undefined && tags.length === 0) {
+    issues.push(issue("unknown_equipment_slot:" + item.id));
   }
   const classReqs = item.classRequirements !== undefined ? item.classRequirements : [];
   for (let c = 0; c < classReqs.length; c++) {

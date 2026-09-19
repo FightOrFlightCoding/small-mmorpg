@@ -337,7 +337,7 @@ func default_full_state_payload(tick: int = 1) -> String:
 		"loot": [],
 		"quests": [],
 		"inventory": {
-			"capacity": 20,
+			"capacity": 30,
 			"items": [{
 				"instanceId": "inst-training-sword",
 				"itemId": "item.training_sword",

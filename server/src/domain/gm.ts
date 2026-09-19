@@ -1,4 +1,4 @@
-import { addOrStackItem, consumeItem, type ItemDefinition } from "./inventory";
+import { addOrStackItem, acceptItemFailureCode, consumeItem, publicInventory, type ItemDefinition } from "./inventory";
 import { CAVE_ZONE_ID } from "./instance";
 import { dict } from "./maps";
 import {
@@ -22,6 +22,7 @@ import {
 import { activateSpawn } from "./spawn_controller";
 import { killEnemy, type CombatEvent } from "./combat";
 import { cancelTrade, cloneTradeRecord, findLiveTradeForCharacter } from "./trade";
+import { publicEquipment } from "./equipment";
 
 export const GM_COLLECTION = "gm";
 export const GM_ALLOWLIST_KEY = "allowlist";
@@ -464,6 +465,9 @@ function inspectPlayer(player: MatchPlayer): { [key: string]: unknown } {
     maxHealth: player.maxHealth,
     gold: player.gold !== undefined ? player.gold : 0,
     level: player.progression !== undefined ? player.progression.level : 1,
+    inventory: player.inventory !== undefined ? publicInventory(player.inventory, player.overflow) : null,
+    equipment: player.equipment !== undefined ? publicEquipment(player.equipment) : null,
+    overflow: player.overflow !== undefined ? player.overflow.items : [],
   };
 }
 
@@ -482,6 +486,11 @@ function grantItem(
     return emptyApply("inventory_missing");
   }
   const quantity = request.quantity !== undefined && request.quantity > 0 ? Math.floor(request.quantity) : 1;
+  const equippedItems = player.equipment !== undefined ? player.equipment.items : undefined;
+  const failCode = acceptItemFailureCode(player.inventory, itemId, quantity, definition, equippedItems);
+  if (failCode.length > 0) {
+    return emptyApply(failCode);
+  }
   player.inventory = addOrStackItem(player.inventory, itemId, quantity, request.requestId, definition, {
     sourceType: "admin",
     sourceId: request.requestId,

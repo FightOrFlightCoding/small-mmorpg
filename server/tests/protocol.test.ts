@@ -58,6 +58,7 @@ test("client and server opcodes use the allocated values", () => {
   assert.equal(ClientOpcode.PURCHASE_TALENT, 38);
   assert.equal(ClientOpcode.DIALOGUE_CHOOSE, 39);
   assert.equal(ClientOpcode.INTERACTION_CLOSE, 40);
+  assert.equal(ClientOpcode.RECOVER_OVERFLOW_ITEM, 41);
   assert.equal(ServerOpcode.FULL_STATE, 101);
   assert.equal(ServerOpcode.SNAPSHOT, 102);
   assert.equal(ServerOpcode.ACTION_RESULT, 103);
@@ -893,5 +894,17 @@ test("dialogue choose and interaction close parse session fields only", () => {
   if (!isProtocolError(close)) {
     assert.equal(close.fields.interactionSessionId, "sess-interact-01");
     assert.equal(close.fields.npcInstanceId, "npc.test_herald");
+  }
+  const recover = parse(
+    ClientOpcode.RECOVER_OVERFLOW_ITEM,
+    JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      instanceId: "ov-1",
+      requestId: "req-recover-ok1",
+    }),
+  );
+  assert.equal(isProtocolError(recover), false);
+  if (!isProtocolError(recover)) {
+    assert.equal(recover.fields.instanceId, "ov-1");
   }
 });

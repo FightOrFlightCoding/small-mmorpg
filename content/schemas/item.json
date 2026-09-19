@@ -17,7 +17,15 @@
       "type": "string",
       "enum": ["weapon", "armor", "consumable", "quest", "material", "miscellaneous"]
     },
-    "maxStack": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+    "rarity": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/itemRarity" },
+    "questItem": { "type": "boolean" },
+    "equippable": { "type": "boolean" },
+    "droppable": { "type": "boolean" },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "maxStack": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/itemMaxStack" },
     "tradeable": { "type": "boolean" },
     "destroyable": { "type": "boolean" },
     "uniquePolicy": { "type": "string", "enum": ["none", "character", "equipped"] },

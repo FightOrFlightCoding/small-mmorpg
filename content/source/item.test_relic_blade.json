@@ -8,6 +8,11 @@
   "iconAssetId": "visual.item_relic_blade",
   "worldAssetId": "visual.item_relic_blade",
   "category": "weapon",
+  "rarity": "rarity.rare",
+  "questItem": false,
+  "equippable": true,
+  "droppable": true,
+  "tags": [],
   "maxStack": 1,
   "tradeable": true,
   "destroyable": true,
@@ -18,5 +23,6 @@
   "levelRequirement": 5,
   "attackBonus": 6,
   "statModifiers": [{ "statId": "test.stat.attack", "amount": 6 }],
-  "sellValue": 20
+  "sellValue": 20,
+  "schemaVersion": 1
 }
