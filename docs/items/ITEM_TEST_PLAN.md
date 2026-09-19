@@ -2,18 +2,18 @@
 
 ITEM-06 extends ITEM-05 with Need/Greed rolls and pending winner awards. Acceptance is the gates below plus the ITEM-06 cases. Do not weaken tests.
 
-## Baseline (run on ITEM-05; 2026-09-19; ITEM-06 re-runs the same commands)
+## Baseline (run on ITEM-06; 2026-09-19)
 
 Directory-form `node --test dist/tests` can fail on Node 22.14 before discovery. Glob invocation is authoritative.
 
 | Gate | Result |
 | --- | --- |
-| Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 46 client opcodes, 17 server opcodes, 29 RPCs) |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 47 client opcodes, 18 server opcodes, 29 RPCs) |
 | Content validation/tests | 28/28 passed |
-| Server hermetic tests | 937 passed, 13 expected live-test skips |
+| Server hermetic tests | 963 passed, 13 expected live-test skips |
 | Server typecheck/build | passed |
-| Auth gateway hermetic tests | unchanged; 52/52 previously |
-| Godot 4.7.1 client GdUnit | 357/357 passed, 0 failures, 0 orphans |
+| Auth gateway hermetic tests | 52/52 passed |
+| Godot 4.7.1 client GdUnit | 360/360 passed, 0 failures, 0 orphans |
 
 ```bash
 bash scripts/test-audit.sh

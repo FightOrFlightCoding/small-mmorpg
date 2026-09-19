@@ -1,14 +1,41 @@
 # Progress
 
-Last accepted phase: **ITEM-05 — First-attacker tagging, corpse loot, gold, and Loot All**.
+Last accepted phase: **ITEM-06 — Party Need/Greed rolls and pending winner awards**.
 
-Current phase: ITEM-05 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
+Current phase: ITEM-06 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
 
 Canonical git line: **`origin/main`**. Playable work is committed there. The Windows clone stays on `main` and runs `scripts/local-play.ps1 -Branch main`.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01 through ITEM-05 remain accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01 through ITEM-06 remain accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
+
+## ITEM-06 party Need/Greed rolls and pending winner awards (2026-09-19)
+
+ITEM-06 is accepted. It is server-authoritative Need/Greed for Uncommon-or-higher party-tagged corpse drops, plus winner-only pending pickup when the whole stack does not fit. It does not add player ground drop, 20 trade slots, or forage. Do not start later ITEM phases.
+
+At enemy death, each qualifying corpse entry opens a match-lifetime roll when the kill is party-tagged, the item is Uncommon or higher, it is not a quest item, and at least two characters are death-eligible. One death-eligible character auto-awards with no roll UI. Solo-tagged drops never roll.
+
+The client submits `rollId`, `choice` (`NEED` / `GREED` / `PASS`), and `requestId`. Eligible characters may Need. One accepted final choice cannot be changed. Duplicate `requestId` replays. Client roll numbers are `stat_injection:roll`. Dead and reconnected eligible members may respond before the 60 s deadline. Submitted choices survive disconnect. Missing responses become Pass.
+
+At the 60 s boundary the match resolves rolls, then awards, then all-pass public, then remaining unreserved public. Same-tick claims still see `ROLL_PENDING`. Need outranks Greed. Server integers 1–100 use injectable `CombatRandom`. Ties reroll among tied characters. Whole-stack grants go through `planCapacity` and acquisition intent; a full bag becomes `AWARDED_PENDING_PICKUP` (winner-only, not public, not rerolled) until corpse expiry. Rolling and pending entries do not spawn public sparkles.
+
+Opcodes 47 / 118. Storage record count remains **35**. Content hash unchanged: `7877dd576b022d59f0350be4430aca0b9d402db38b5e16e816ef361003c9cffd`.
+
+Conflicts ITEM-C03 and ITEM-C19 are CLOSED.
+
+| Gate | Result |
+| --- | --- |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 47 client opcodes, 18 server opcodes, 29 RPCs) |
+| Content validation/tests | 28/28 passed |
+| Server hermetic tests | 963 passed, 13 expected live-test skips |
+| Server typecheck/build | passed |
+| Auth gateway hermetic tests | 52/52 passed |
+| Godot 4.7.1 client GdUnit | 360/360 passed, 0 failures, 0 orphans |
+
+Pre-existing Node 22.14 runner compatibility remains documented: directory-form `node --test` wrappers can fail before discovery. Direct compiled-file glob equivalents pass.
+
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen `client/`. Recreate Nakama so `contentHash` matches.
 
 ## ITEM-05 first-attacker tagging, corpse loot, gold, and Loot All (2026-09-19)
 
