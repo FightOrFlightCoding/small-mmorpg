@@ -9,6 +9,8 @@ import {
   type ItemInstance,
   type PlayerInventory,
 } from "./inventory";
+import { staleRevisionCode } from "./item_errors";
+import { beginAcquisitionIntent, completeAcquisitionIntent } from "./item_txn";
 
 export interface MatchLoot {
   id: string;
@@ -40,6 +42,9 @@ export interface PickupInput {
   itemsById: { [id: string]: ItemDefinition };
   tick?: number;
   equippedItems?: ReadonlyArray<ItemInstance>;
+  expectedRevision?: number;
+  characterId?: string;
+  nowMs?: number;
 }
 
 export interface PickupDecision {
@@ -144,7 +149,7 @@ export function cloneLoot(loot: ReadonlyArray<MatchLoot>): MatchLoot[] {
 export function applyPickup(input: PickupInput): PickupDecision {
   const inventory = cloneInventory(input.inventory !== undefined ? input.inventory : emptyInventory());
   const previous = inventory.pickupByRequestId[input.requestId];
-  if (previous !== undefined && previous.ok) {
+  if (previous !== undefined) {
     return {
       ok: previous.ok,
       code: previous.code,
@@ -153,6 +158,10 @@ export function applyPickup(input: PickupInput): PickupDecision {
       inventory: inventory,
       loot: cloneLoot(input.loot),
     };
+  }
+  const stale = staleRevisionCode(inventory.revision, input.expectedRevision);
+  if (stale.length > 0) {
+    return fail(stale, inventory, input.loot);
   }
   if (input.playerHealth <= 0) {
     return fail("player_dead", inventory, input.loot);
@@ -178,12 +187,38 @@ export function applyPickup(input: PickupInput): PickupDecision {
   if (failCode.length > 0) {
     return fail(failCode, inventory, input.loot);
   }
-  const granted = addOrStackItem(inventory, entity.itemId, entity.quantity, entity.instanceId, definition, {
+  const nowMs = input.nowMs !== undefined ? input.nowMs : 0;
+  const characterId = input.characterId !== undefined ? input.characterId : "";
+  const started = beginAcquisitionIntent({
+    inventory: inventory,
+    requestId: input.requestId,
+    characterId: characterId,
+    definitionId: entity.itemId,
+    instanceId: entity.instanceId,
+    quantity: entity.quantity,
+    sourceId: entity.id,
+    nowMs: nowMs,
+    newIds: function () {
+      return entity.instanceId;
+    },
+  });
+  if (started.replay) {
+    return {
+      ok: true,
+      code: "ok",
+      replay: true,
+      persist: false,
+      inventory: started.inventory,
+      loot: cloneLoot(input.loot),
+    };
+  }
+  const granted = addOrStackItem(started.inventory, entity.itemId, entity.quantity, entity.instanceId, definition, {
     sourceType: "loot",
     sourceId: entity.id,
     createdAt: 0,
   });
-  const remembered = rememberPickup(granted, input.requestId, {
+  const completed = completeAcquisitionIntent(granted, started.intent, nowMs);
+  const remembered = rememberPickup(completed, input.requestId, {
     ok: true,
     code: "ok",
     lootId: entity.id,

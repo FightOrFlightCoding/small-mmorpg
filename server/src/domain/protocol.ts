@@ -129,23 +129,23 @@ const OPCODE_KEYS: { [opcode: number]: string[] } = {};
 OPCODE_KEYS[ClientOpcode.INPUT] = ["seq", "axisX", "axisY"];
 OPCODE_KEYS[ClientOpcode.INTERACT] = ["targetId"];
 OPCODE_KEYS[ClientOpcode.ATTACK] = ["targetId"];
-OPCODE_KEYS[ClientOpcode.PICKUP] = ["lootId"];
-OPCODE_KEYS[ClientOpcode.EQUIP] = ["instanceId", "slot"];
+OPCODE_KEYS[ClientOpcode.PICKUP] = ["lootId", "expectedRevision"];
+OPCODE_KEYS[ClientOpcode.EQUIP] = ["instanceId", "slot", "expectedRevision"];
 OPCODE_KEYS[ClientOpcode.QUEST_ACCEPT] = ["interactionSessionId", "npcInstanceId", "questId"];
-OPCODE_KEYS[ClientOpcode.QUEST_TURN_IN] = ["interactionSessionId", "npcInstanceId", "questId"];
+OPCODE_KEYS[ClientOpcode.QUEST_TURN_IN] = ["interactionSessionId", "npcInstanceId", "questId", "expectedRevision"];
 OPCODE_KEYS[ClientOpcode.RESYNC_REQUEST] = [];
 OPCODE_KEYS[ClientOpcode.ALLOCATE_ATTRIBUTES] = ["attributeId", "statId", "amount"];
-OPCODE_KEYS[ClientOpcode.DESTROY_ITEM] = ["instanceId", "quantity"];
-OPCODE_KEYS[ClientOpcode.SPLIT_STACK] = ["instanceId", "quantity"];
-OPCODE_KEYS[ClientOpcode.MOVE_ITEM] = ["instanceId", "toSlotIndex"];
+OPCODE_KEYS[ClientOpcode.DESTROY_ITEM] = ["instanceId", "quantity", "expectedRevision"];
+OPCODE_KEYS[ClientOpcode.SPLIT_STACK] = ["instanceId", "quantity", "expectedRevision"];
+OPCODE_KEYS[ClientOpcode.MOVE_ITEM] = ["instanceId", "toSlotIndex", "expectedRevision"];
 OPCODE_KEYS[ClientOpcode.USE_ABILITY] = ["abilityId", "targetId", "targetX", "targetY"];
 OPCODE_KEYS[ClientOpcode.CANCEL_CAST] = [];
 OPCODE_KEYS[ClientOpcode.ASSIGN_HOTBAR] = ["slotIndex", "abilityId"];
 OPCODE_KEYS[ClientOpcode.UNLOCK_ABILITY] = ["abilityId"];
 OPCODE_KEYS[ClientOpcode.SET_TARGET] = ["targetId", "intent"];
 OPCODE_KEYS[ClientOpcode.RELEASE_RESPAWN] = [];
-OPCODE_KEYS[ClientOpcode.VENDOR_BUY] = ["interactionSessionId", "npcInstanceId", "itemId", "quantity"];
-OPCODE_KEYS[ClientOpcode.VENDOR_SELL] = ["npcId", "instanceId", "quantity"];
+OPCODE_KEYS[ClientOpcode.VENDOR_BUY] = ["interactionSessionId", "npcInstanceId", "itemId", "quantity", "expectedRevision"];
+OPCODE_KEYS[ClientOpcode.VENDOR_SELL] = ["npcId", "instanceId", "quantity", "expectedRevision"];
 OPCODE_KEYS[ClientOpcode.INN_REST] = ["npcId", "mode"];
 OPCODE_KEYS[ClientOpcode.CAVE_ENTER] = ["npcId"];
 OPCODE_KEYS[ClientOpcode.CAVE_EXIT] = ["npcId"];
@@ -166,7 +166,7 @@ OPCODE_KEYS[ClientOpcode.TRAINER_RESPEC] = ["npcId"];
 OPCODE_KEYS[ClientOpcode.PURCHASE_TALENT] = ["treeId", "nodeId", "requestedRank"];
 OPCODE_KEYS[ClientOpcode.DIALOGUE_CHOOSE] = ["interactionSessionId", "optionId"];
 OPCODE_KEYS[ClientOpcode.INTERACTION_CLOSE] = ["interactionSessionId", "npcInstanceId"];
-OPCODE_KEYS[ClientOpcode.RECOVER_OVERFLOW_ITEM] = ["instanceId", "toSlotIndex"];
+OPCODE_KEYS[ClientOpcode.RECOVER_OVERFLOW_ITEM] = ["instanceId", "toSlotIndex", "expectedRevision"];
 
 const OUTCOME_KEYS = [
   "attack",
@@ -234,7 +234,7 @@ const OUTCOME_KEYS = [
 
 const INPUT_NUMBER_KEYS = ["seq", "axisX", "axisY"];
 const ALLOCATE_NUMBER_KEYS = ["amount"];
-const INVENTORY_NUMBER_KEYS = ["quantity", "toSlotIndex"];
+const INVENTORY_NUMBER_KEYS = ["quantity", "toSlotIndex", "expectedRevision"];
 const ABILITY_NUMBER_KEYS = ["targetX", "targetY", "slotIndex", "requestedRank"];
 const TRADE_NUMBER_KEYS = ["revision"];
 const BOOLEAN_KEYS = ["enabled"];
@@ -256,6 +256,7 @@ export interface ParsedClientMessage {
   amount?: number;
   quantity?: number;
   toSlotIndex?: number;
+  expectedRevision?: number;
   targetX?: number;
   targetY?: number;
   slotIndex?: number;
@@ -458,6 +459,13 @@ export function parseClientMessage(
   }
   if (requestId !== undefined) {
     message.requestId = requestId;
+  }
+  if (Object.prototype.hasOwnProperty.call(data, "expectedRevision")) {
+    const expectedRevision = data.expectedRevision;
+    if (typeof expectedRevision !== "number" || !isFinite(expectedRevision) || expectedRevision !== Math.floor(expectedRevision)) {
+      return { code: "invalid_amount", message: "expectedRevision must be a finite integer." };
+    }
+    message.expectedRevision = expectedRevision;
   }
   if (opcode === ClientOpcode.INPUT) {
     const seq = data.seq;

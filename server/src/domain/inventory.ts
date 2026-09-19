@@ -1,5 +1,10 @@
 import { cloneTickMap, dict } from "./maps";
 import { cloneExtras, envelopeFromRecord } from "./save_schema";
+import { planCapacity } from "./item_capacity";
+import { isTerminalItemFailure, staleRevisionCode } from "./item_errors";
+import type { ItemMutationAudit } from "./item_audit";
+import type { ItemIntent } from "./item_intent";
+import type { ItemJournalRecord } from "./item_journal";
 
 export const INVENTORY_CAPACITY = 30;
 export const ITEM_MAX_STACK = 99;
@@ -67,6 +72,10 @@ export interface ItemInstance {
   lockReason: string;
   lockId: string;
   lockType: string;
+  lockQuantity: number;
+  lockOwnerOperation: string;
+  lockCreatedAt: number;
+  lockExpiresAt: number;
   version: number;
   schemaVersion: number;
   slotIndex: number;
@@ -95,6 +104,10 @@ export interface PlayerInventory {
   pickupRequestTicks?: { [requestId: string]: number };
   mutationByRequestId?: { [requestId: string]: InventoryMutationRecord };
   mutationRequestTicks?: { [requestId: string]: number };
+  journalByRequestId?: { [requestId: string]: ItemJournalRecord };
+  intentsByRequestId?: { [requestId: string]: ItemIntent };
+  itemAudits?: ItemMutationAudit[];
+  persistReason?: string;
   schemaVersion?: number;
   createdAt?: number;
   updatedAt?: number;
@@ -182,11 +195,17 @@ export function cloneInventory(inventory: PlayerInventory): PlayerInventory {
     pickupRequestTicks: cloneTickMap(inventory.pickupRequestTicks),
     mutationByRequestId: mutationByRequestId,
     mutationRequestTicks: cloneTickMap(inventory.mutationRequestTicks),
+    journalByRequestId: cloneJournalMap(inventory.journalByRequestId),
+    intentsByRequestId: cloneIntentMap(inventory.intentsByRequestId),
+    itemAudits: cloneAuditList(inventory.itemAudits),
     schemaVersion: envelope.schemaVersion,
     createdAt: envelope.createdAt,
     updatedAt: envelope.updatedAt,
     extras: cloneExtras(inventory.extras),
   };
+  if (inventory.persistReason !== undefined && inventory.persistReason.length > 0) {
+    next.persistReason = inventory.persistReason;
+  }
   ensureSlotIndices(next);
   return next;
 }
@@ -492,6 +511,13 @@ export function setItemLock(
   instanceId: string,
   lockReason: string,
   lockId: string,
+  extras?: {
+    lockType?: string;
+    quantity?: number;
+    ownerOperation?: string;
+    createdAt?: number;
+    expiresAt?: number;
+  },
 ): PlayerInventory {
   const next = cloneInventory(inventory);
   const item = findItem(next, instanceId);
@@ -499,8 +525,12 @@ export function setItemLock(
     return next;
   }
   item.lockReason = lockReason;
-  item.lockType = lockReason;
+  item.lockType = extras !== undefined && extras.lockType !== undefined && extras.lockType.length > 0 ? extras.lockType : lockReason;
   item.lockId = lockId;
+  item.lockQuantity = extras !== undefined && extras.quantity !== undefined ? extras.quantity : item.quantity;
+  item.lockOwnerOperation = extras !== undefined && extras.ownerOperation !== undefined ? extras.ownerOperation : "";
+  item.lockCreatedAt = extras !== undefined && extras.createdAt !== undefined ? extras.createdAt : 0;
+  item.lockExpiresAt = extras !== undefined && extras.expiresAt !== undefined ? extras.expiresAt : 0;
   item.version += 1;
   next.revision += 1;
   return next;
@@ -517,6 +547,10 @@ export function clearLocksByLockId(inventory: PlayerInventory, lockId: string): 
       next.items[i].lockReason = "";
       next.items[i].lockType = "";
       next.items[i].lockId = "";
+      next.items[i].lockQuantity = 0;
+      next.items[i].lockOwnerOperation = "";
+      next.items[i].lockCreatedAt = 0;
+      next.items[i].lockExpiresAt = 0;
       next.items[i].version += 1;
       changed = true;
     }
@@ -549,6 +583,10 @@ export function takeItemQuantity(
   item.lockReason = "";
   item.lockType = "";
   item.lockId = "";
+  item.lockQuantity = 0;
+  item.lockOwnerOperation = "";
+  item.lockCreatedAt = 0;
+  item.lockExpiresAt = 0;
   item.version += 1;
   next.revision += 1;
   return next;
@@ -607,30 +645,19 @@ export function acceptItemFailureCode(
   if (quantity <= 0) {
     return "invalid_id";
   }
-  const uniqueCode = uniqueGrantFailure(inventory, itemId, quantity, definition, equippedItems);
-  if (uniqueCode.length > 0) {
-    return uniqueCode;
+  const definitions: { [id: string]: ItemDefinition } = {};
+  definitions[definition.id] = definition;
+  const plan = planCapacity({
+    inventory: inventory,
+    incoming: [{ itemId: itemId, quantity: quantity }],
+    definitions: definitions,
+    equippedItems: equippedItems,
+    operationMode: "grant",
+  });
+  if (plan.fits) {
+    return "";
   }
-  const maxStack = effectiveMaxStack(definition);
-  let remaining = quantity;
-  for (let i = 0; i < inventory.items.length; i++) {
-    const stack = inventory.items[i];
-    if (!stackIdentitiesMatch(stack, grantIdentity(itemId, definition))) {
-      continue;
-    }
-    const free = maxStack - stack.quantity;
-    if (free > 0) {
-      remaining -= Math.min(free, remaining);
-      if (remaining <= 0) {
-        return "";
-      }
-    }
-  }
-  const extraSlots = Math.ceil(remaining / maxStack);
-  if (occupiedSlots(inventory) + extraSlots > inventory.capacity) {
-    return "inventory_full";
-  }
-  return "";
+  return plan.failureCode.length > 0 ? plan.failureCode : "inventory_full";
 }
 
 export function addOrStackItem(
@@ -707,35 +734,40 @@ export function applyDestroyItem(input: {
   requestId: string;
   itemsById: { [id: string]: ItemDefinition };
   tick?: number;
+  expectedRevision?: number;
 }): InventoryMutationDecision {
   const current = cloneInventory(input.inventory);
   const previous = mutationRecord(current, input.requestId);
-  if (previous !== undefined && previous.ok) {
-    return { ok: true, code: previous.code, replay: true, persist: false, inventory: current };
+  if (previous !== undefined) {
+    return { ok: previous.ok, code: previous.code, replay: true, persist: false, inventory: current };
+  }
+  const stale = staleRevisionCode(current.revision, input.expectedRevision);
+  if (stale.length > 0) {
+    return failMutation(stale, current);
   }
   if (input.playerHealth <= 0) {
     return failMutation("player_dead", current);
   }
   const item = findItem(current, input.instanceId);
   if (item === null) {
-    return failMutation("invalid_id", current);
+    return rememberFailedMutation("invalid_id", current, input.requestId, input.tick);
   }
   if (isItemLocked(item)) {
-    return failMutation("item_locked", current);
+    return rememberFailedMutation("item_locked", current, input.requestId, input.tick);
   }
   if (input.equippedInstanceIds.indexOf(item.instanceId) !== -1) {
-    return failMutation("item_equipped", current);
+    return rememberFailedMutation("item_equipped", current, input.requestId, input.tick);
   }
   const definition = input.itemsById[item.itemId];
   if (definition === undefined) {
-    return failMutation("invalid_id", current);
+    return rememberFailedMutation("invalid_id", current, input.requestId, input.tick);
   }
   if (!itemIsDestroyable(definition)) {
-    return failMutation("not_destroyable", current);
+    return rememberFailedMutation("not_destroyable", current, input.requestId, input.tick);
   }
   const quantity = input.quantity !== undefined ? input.quantity : item.quantity;
   if (quantity < 1 || quantity !== Math.floor(quantity)) {
-    return failMutation("invalid_id", current);
+    return rememberFailedMutation("invalid_id", current, input.requestId, input.tick);
   }
   if (quantity >= item.quantity) {
     current.items = current.items.filter((entry) => entry.instanceId !== item.instanceId);
@@ -761,12 +793,13 @@ export function applySplitStack(input: {
   itemsById: { [id: string]: ItemDefinition };
   newId: () => string;
   tick?: number;
+  expectedRevision?: number;
 }): InventoryMutationDecision {
   const current = cloneInventory(input.inventory);
   const previous = mutationRecord(current, input.requestId);
-  if (previous !== undefined && previous.ok) {
+  if (previous !== undefined) {
     return {
-      ok: true,
+      ok: previous.ok,
       code: previous.code,
       replay: true,
       persist: false,
@@ -774,35 +807,39 @@ export function applySplitStack(input: {
       newInstanceId: previous.newInstanceId,
     };
   }
+  const stale = staleRevisionCode(current.revision, input.expectedRevision);
+  if (stale.length > 0) {
+    return failMutation(stale, current);
+  }
   if (input.playerHealth <= 0) {
     return failMutation("player_dead", current);
   }
   if (input.quantity < 1 || input.quantity !== Math.floor(input.quantity)) {
-    return failMutation("invalid_id", current);
+    return rememberFailedMutation("invalid_id", current, input.requestId, input.tick);
   }
   const item = findItem(current, input.instanceId);
   if (item === null) {
-    return failMutation("invalid_id", current);
+    return rememberFailedMutation("invalid_id", current, input.requestId, input.tick);
   }
   if (isItemLocked(item)) {
-    return failMutation("item_locked", current);
+    return rememberFailedMutation("item_locked", current, input.requestId, input.tick);
   }
   if (input.equippedInstanceIds.indexOf(item.instanceId) !== -1) {
-    return failMutation("item_equipped", current);
+    return rememberFailedMutation("item_equipped", current, input.requestId, input.tick);
   }
   const definition = input.itemsById[item.itemId];
   if (definition === undefined) {
-    return failMutation("invalid_id", current);
+    return rememberFailedMutation("invalid_id", current, input.requestId, input.tick);
   }
   if (input.quantity >= item.quantity) {
-    return failMutation("invalid_id", current);
+    return rememberFailedMutation("invalid_id", current, input.requestId, input.tick);
   }
   if (occupiedSlots(current) >= current.capacity) {
-    return failMutation("inventory_full", current);
+    return rememberFailedMutation("inventory_full", current, input.requestId, input.tick);
   }
   const destSlot = firstEmptySlotIndex(current);
   if (destSlot < 0 || destSlot >= current.capacity) {
-    return failMutation("inventory_full", current);
+    return rememberFailedMutation("inventory_full", current, input.requestId, input.tick);
   }
   const newInstanceId = input.newId();
   item.quantity -= input.quantity;
@@ -839,11 +876,16 @@ export function applyMoveItem(input: {
   requestId: string;
   itemsById: { [id: string]: ItemDefinition };
   tick?: number;
+  expectedRevision?: number;
 }): InventoryMutationDecision {
   const current = cloneInventory(input.inventory);
   const previous = mutationRecord(current, input.requestId);
-  if (previous !== undefined && previous.ok) {
-    return { ok: true, code: previous.code, replay: true, persist: false, inventory: current };
+  if (previous !== undefined) {
+    return { ok: previous.ok, code: previous.code, replay: true, persist: false, inventory: current };
+  }
+  const stale = staleRevisionCode(current.revision, input.expectedRevision);
+  if (stale.length > 0) {
+    return failMutation(stale, current);
   }
   if (input.playerHealth <= 0) {
     return failMutation("player_dead", current);
@@ -853,14 +895,14 @@ export function applyMoveItem(input: {
     input.toSlotIndex !== Math.floor(input.toSlotIndex) ||
     input.toSlotIndex >= current.capacity
   ) {
-    return failMutation("invalid_slot", current);
+    return rememberFailedMutation("invalid_slot", current, input.requestId, input.tick);
   }
   const item = findItem(current, input.instanceId);
   if (item === null) {
-    return failMutation("invalid_id", current);
+    return rememberFailedMutation("invalid_id", current, input.requestId, input.tick);
   }
   if (isItemLocked(item)) {
-    return failMutation("item_locked", current);
+    return rememberFailedMutation("item_locked", current, input.requestId, input.tick);
   }
   const dest = findItemBySlot(current, input.toSlotIndex);
   if (dest === null || dest.instanceId === item.instanceId) {
@@ -877,7 +919,7 @@ export function applyMoveItem(input: {
   const definition = input.itemsById[item.itemId];
   if (definition !== undefined && stackIdentitiesMatch(item, dest)) {
     if (isItemLocked(dest)) {
-      return failMutation("item_locked", current);
+      return rememberFailedMutation("item_locked", current, input.requestId, input.tick);
     }
     const maxStack = effectiveMaxStack(definition);
     const free = maxStack - dest.quantity;
@@ -1002,6 +1044,10 @@ export function makeInstance(
     lockReason: "",
     lockId: "",
     lockType: "",
+    lockQuantity: 0,
+    lockOwnerOperation: "",
+    lockCreatedAt: 0,
+    lockExpiresAt: 0,
     version: 1,
     schemaVersion: ITEM_INSTANCE_SCHEMA_VERSION,
     slotIndex: slotIndex,
@@ -1030,6 +1076,10 @@ export function cloneItem(item: ItemInstance): ItemInstance {
     lockReason: lockReason,
     lockId: typeof item.lockId === "string" ? item.lockId : "",
     lockType: lockType,
+    lockQuantity: typeof item.lockQuantity === "number" && isFinite(item.lockQuantity) ? item.lockQuantity : 0,
+    lockOwnerOperation: typeof item.lockOwnerOperation === "string" ? item.lockOwnerOperation : "",
+    lockCreatedAt: typeof item.lockCreatedAt === "number" && isFinite(item.lockCreatedAt) ? item.lockCreatedAt : 0,
+    lockExpiresAt: typeof item.lockExpiresAt === "number" && isFinite(item.lockExpiresAt) ? item.lockExpiresAt : 0,
     version: typeof item.version === "number" && item.version >= 1 ? Math.floor(item.version) : 1,
     schemaVersion:
       typeof item.schemaVersion === "number" && item.schemaVersion >= 1
@@ -1052,13 +1102,17 @@ function grantIdentity(itemId: string, _definition: ItemDefinition, grant?: Item
     lockReason: "",
     lockId: "",
     lockType: "",
+    lockQuantity: 0,
+    lockOwnerOperation: "",
+    lockCreatedAt: 0,
+    lockExpiresAt: 0,
     version: 1,
     schemaVersion: ITEM_INSTANCE_SCHEMA_VERSION,
     slotIndex: -1,
   };
 }
 
-function uniqueGrantFailure(
+export function uniqueGrantFailure(
   inventory: PlayerInventory,
   itemId: string,
   quantity: number,
@@ -1153,6 +1207,74 @@ function failMutation(code: string, inventory: PlayerInventory): InventoryMutati
     persist: false,
     inventory: inventory,
   };
+}
+
+function rememberFailedMutation(
+  code: string,
+  inventory: PlayerInventory,
+  requestId: string,
+  tick?: number,
+): InventoryMutationDecision {
+  if (!isTerminalItemFailure(code)) {
+    return failMutation(code, inventory);
+  }
+  const next = cloneInventory(inventory);
+  if (next.mutationByRequestId === undefined) {
+    next.mutationByRequestId = {};
+  }
+  next.mutationByRequestId[requestId] = {
+    ok: false,
+    code: code,
+    instanceId: "",
+    quantity: 0,
+  };
+  if (tick !== undefined) {
+    next.mutationRequestTicks = stampTicks(next.mutationRequestTicks, requestId, tick);
+  }
+  return {
+    ok: false,
+    code: code,
+    replay: false,
+    persist: false,
+    inventory: next,
+  };
+}
+
+function cloneJournalMap(
+  source: PlayerInventory["journalByRequestId"],
+): PlayerInventory["journalByRequestId"] {
+  if (source === undefined) {
+    return undefined;
+  }
+  const copy: { [requestId: string]: ItemJournalRecord } = {};
+  const keys = Object.keys(source);
+  for (let i = 0; i < keys.length; i++) {
+    copy[keys[i]] = source[keys[i]];
+  }
+  return copy;
+}
+
+function cloneIntentMap(source: PlayerInventory["intentsByRequestId"]): PlayerInventory["intentsByRequestId"] {
+  if (source === undefined) {
+    return undefined;
+  }
+  const copy: { [requestId: string]: ItemIntent } = {};
+  const keys = Object.keys(source);
+  for (let i = 0; i < keys.length; i++) {
+    copy[keys[i]] = source[keys[i]];
+  }
+  return copy;
+}
+
+function cloneAuditList(source: PlayerInventory["itemAudits"]): PlayerInventory["itemAudits"] {
+  if (source === undefined) {
+    return undefined;
+  }
+  const list: ItemMutationAudit[] = [];
+  for (let i = 0; i < source.length; i++) {
+    list.push(source[i]);
+  }
+  return list;
 }
 
 function stampTicks(

@@ -879,3 +879,14 @@ ITEM-02 extends the live inventory/equipment core. It does not add corpse, merch
 - Every character bag is capacity **30**, indices **0–29**, persistent order, no auto-compact. Unequip simulates capacity and rejects without mutation when the bag is full.
 - Excess migration stacks become server-owned `player` / `overflow` (`permissionWrite: 0`). Recover via opcode **41** into a free bag slot only. Overflow is not extra storage. Empty overflow is deleted.
 - `SAVE_SCHEMA_VERSION` stays **1**. `uniquePolicy` remains uniqueness, not soulbind. `VENDOR_SELL` stays. Quest gel/proof stay non-destroyable. 6×5 bag UI remains later ([ITEM-C15](items/ITEM_CURRENT_CONFLICTS.md)).
+
+## 2026-09-19 — ITEM-03 authoritative container, capacity, lock, and transaction core
+
+ITEM-03 extends the live inventory/equipment/wallet/transaction core. It does not add corpse, merchant, ground-drop, or trade UI. It does not expose a generic arbitrary-container command.
+
+- One pure planner `planCapacity` / `planTwoWayTrade` serves later ITEM systems. Default placement: compatible partials by lowest slot index, then empty slots by lowest slot index. Preferred slot may override when valid. Outgoing quantities free slots in the same plan.
+- Optional `expectedRevision` on item opcodes. Stale → no mutation, `inventory_stale`, canonical `FULL_STATE`. Omitted keeps older clients.
+- Request idempotency: successful `requestId` replays; terminal failed ids may replay; no second grant. `inventory_stale` / `player_dead` are not terminal.
+- Per-character serial plus lexicographic multi-character acquire/release. Typed locks (`TRADE`, `DROP_INTENT`, …) with TTL 120 s, tick expiry, and orphan release. Partial quantity locks still immobilize the source stack.
+- Journal/intents/audits persist **inside** the inventory record (`SAVE_SCHEMA_VERSION` stays **1**; still 35 storage records). Drop and acquisition intents are domain helpers; a completed ground drop may vanish after match restart.
+- Match persistEconomy stamps `item_destroy` / `item_split` / `item_move` / `loot` / `equipment`. `acceptItemFailureCode` delegates to the planner. Conflicts ITEM-C13, ITEM-C17, ITEM-C21, ITEM-C22 are CLOSED.

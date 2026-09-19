@@ -13,6 +13,7 @@ import {
 import { findNpcService, type NpcDefinition } from "./npc";
 import type { QuestLog } from "./quest";
 import { applyGoldMutation, WALLET_CURRENCY_GOLD } from "./wallet";
+import { staleRevisionCode } from "./item_errors";
 
 export const VENDOR_MAX_QUANTITY = 99;
 export const VENDOR_CURRENCY_GOLD = WALLET_CURRENCY_GOLD;
@@ -64,6 +65,7 @@ export interface VendorTradeInput {
   inParty?: boolean;
   newId: () => string;
   tick?: number;
+  expectedRevision?: number;
 }
 
 export interface VendorBuyInput extends VendorTradeInput {
@@ -165,6 +167,10 @@ export function applyVendorBuy(input: VendorBuyInput): VendorTradeOutcome {
       metadata: {},
     };
   }
+  const stale = staleRevisionCode(inventory.revision, input.expectedRevision);
+  if (stale.length > 0) {
+    return failTrade(stale, inventory, input.gold);
+  }
   const access = authorizeVendor(input, "vendor");
   if (!access.ok) {
     return failTrade(access.code, inventory, input.gold);
@@ -259,6 +265,10 @@ export function applyVendorSell(input: VendorSellInput): VendorTradeOutcome {
       goldDelta: 0,
       metadata: {},
     };
+  }
+  const stale = staleRevisionCode(inventory.revision, input.expectedRevision);
+  if (stale.length > 0) {
+    return failTrade(stale, inventory, input.gold);
   }
   const access = authorizeVendor(input, "vendor");
   if (!access.ok) {

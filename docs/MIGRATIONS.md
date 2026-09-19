@@ -65,6 +65,8 @@ Prompt 23 keeps `SAVE_SCHEMA_VERSION` **1**. Missing item-instance fields defaul
 
 ITEM-02 keeps `SAVE_SCHEMA_VERSION` **1**. Join and the migrate CLI run `migrateItemContainers`: bag capacity becomes **30**, equipped instances leave the bag into `equipment.items`, compatible stacks merge, and leftover stacks become `player` / `overflow` (`permissionWrite: 0`). Overflow is recovery-only and is deleted when empty. Repeated migration is idempotent and does not duplicate stacks.
 
+ITEM-03 keeps `SAVE_SCHEMA_VERSION` **1**. Typed lock columns, `journalByRequestId`, `intentsByRequestId`, and `itemAudits` default empty on load. No new storage collection. No item re-grant.
+
 Prompt 33 does not raise `SAVE_SCHEMA_VERSION`. Unsafe migration windows set maintenance `blockTransactions` so ordinary commits return `migration_required`. Deploy order (backup → validate → dry-run → server → apply → client → smoke → clear maintenance) is [DEPLOYMENT.md](DEPLOYMENT.md).
 
 PROG-03 does not raise `SAVE_SCHEMA_VERSION`. Character progression blobs gain `progressionSchemaVersion` **2** with canonical fields (`classId`, `branchId`, `xpIntoLevel`, `freeStatAllocations`, purchased nodes, `autoAssignEnabled`, `hotbarAssignments`). Existing warrior/marksman/mage characters keep class, level, XP, inventory, equipment, quests, gold, location, lease, and deletion state. Missing progression initializes canonical level 1. Mapping rules: [progression/PROGRESSION_MIGRATION_PLAN.md](progression/PROGRESSION_MIGRATION_PLAN.md).

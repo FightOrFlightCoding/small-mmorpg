@@ -26,6 +26,17 @@ func test_canonical_rebuild_shows_server_items() -> void:
 	assert_int(InventoryService.capacity).is_equal(30)
 
 
+func test_expected_revision_is_omitted_until_canonical_arrives() -> void:
+	assert_int(InventoryService.expected_revision()).is_equal(-1)
+	InventoryService.apply_canonical({
+		"capacity": 30,
+		"revision": 4,
+		"items": [{"instanceId": "inst-gel", "itemId": "item.slime_gel", "quantity": 1, "metadata": {}}],
+	})
+	assert_int(InventoryService.expected_revision()).is_equal(4)
+	assert_int(InventoryService.revision).is_equal(4)
+
+
 func test_unsupported_local_gloot_mutation_is_reverted() -> void:
 	InventoryService.apply_canonical({
 		"capacity": 30,

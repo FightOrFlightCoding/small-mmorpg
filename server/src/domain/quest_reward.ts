@@ -20,6 +20,7 @@ import {
 } from "./quest";
 import { npcOffersQuest, type NpcDefinition } from "./npc";
 import { applyGoldMutation, WALLET_CURRENCY_GOLD } from "./wallet";
+import { staleRevisionCode } from "./item_errors";
 
 export interface QuestTurnInInput {
   playerHealth: number;
@@ -44,6 +45,7 @@ export interface QuestTurnInInput {
   classId?: string;
   inParty?: boolean;
   npcInstanceId?: string;
+  expectedRevision?: number;
 }
 
 export interface QuestTurnInOutcome {
@@ -93,6 +95,10 @@ export function applyQuestTurnIn(input: QuestTurnInInput): QuestTurnInOutcome {
       goldDelta: 0,
       metadata: {},
     };
+  }
+  const stale = staleRevisionCode(inventory.revision, input.expectedRevision);
+  if (stale.length > 0) {
+    return fail(stale, log, inventory, input.gold);
   }
   if (input.playerHealth <= 0) {
     return fail("player_dead", log, inventory, input.gold);

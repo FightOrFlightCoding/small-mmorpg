@@ -2,13 +2,38 @@
 
 Last accepted phase: **ITEM-02 — Canonical item model, thirty-slot bag, equipment, and migration**.
 
-Current phase: ITEM-02 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
+Current phase: ITEM-03 (implementation complete; hermetic gates pending on this revision). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
 
 Canonical git line: **`origin/main`**. Playable work is committed there. The Windows clone stays on `main` and runs `scripts/local-play.ps1 -Branch main`.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01 remains accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01 and ITEM-02 remain accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
+
+## ITEM-03 authoritative container, capacity, lock, and transaction core (2026-09-19)
+
+ITEM-03 implements the shared domain layer used by later ITEM phases. It extends the existing inventory, equipment, wallet, and transaction core. It does not add corpse, merchant, ground-drop, or trade UI. It does not expose a generic arbitrary-container command.
+
+One pure planner (`planCapacity` / `planTwoWayTrade`) places compatible partial stacks by lowest slot index, then empty slots by lowest slot index. A preferred slot may override when valid. Outgoing quantities free slots in the same plan. Equipment-to-bag preserves instance ids. `acceptItemFailureCode` delegates to the planner. Trade commit is gated by `planTwoWayTrade`.
+
+Optional `expectedRevision` on item opcodes: omitted keeps older clients; stale makes no mutation, returns `inventory_stale`, and pushes `FULL_STATE`. Successful `requestId` replays without a second grant. Terminal failed ids may replay. Per-character serial plus lexicographic multi-character lock order. Typed locks with 120 s TTL, tick expiry, and orphan release. Partial-quantity locks still immobilize the source stack.
+
+Journal, acquisition/drop intents, and item audits persist inside the inventory record. `SAVE_SCHEMA_VERSION` remains **1**. Storage record count remains **35**. No new opcode. Match persistEconomy stamps `item_destroy` / `item_split` / `item_move` / `loot` / `equipment`. Drop compensation restores the bag or overflow; never silent loss. Completed ground drops may vanish after match restart by design.
+
+Conflicts ITEM-C13, ITEM-C17, ITEM-C21, and ITEM-C22 are CLOSED. Content hash unchanged: `7877dd576b022d59f0350be4430aca0b9d402db38b5e16e816ef361003c9cffd`.
+
+| Gate | Result |
+| --- | --- |
+| Foundation audit | pending this revision |
+| Content validation/tests | pending this revision |
+| Server hermetic tests | pending this revision |
+| Server typecheck/build | pending this revision |
+| Auth gateway hermetic tests | unchanged; 52/52 previously |
+| Godot 4.7.1 client GdUnit | pending this revision |
+
+Pre-existing Node 22.14 runner compatibility remains documented: directory-form `node --test` wrappers can fail before discovery. Direct compiled-file glob equivalents pass.
+
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen `client/`. Recreate Nakama so `contentHash` matches.
 
 ## ITEM-02 canonical item model, thirty-slot bag, equipment, and migration (2026-09-19)
 

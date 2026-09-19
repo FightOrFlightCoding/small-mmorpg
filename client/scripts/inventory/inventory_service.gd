@@ -8,6 +8,7 @@ signal request_started(request_id: String)
 
 var mirror: Inventory
 var capacity: int = 30
+var revision: int = 0
 var items: Array = []
 var overflow_items: Array = []
 var selected_instance_id: String = ""
@@ -16,6 +17,7 @@ var selected_overflow_instance_id: String = ""
 var _constraint: ItemCountConstraint
 var _applying: bool = false
 var _canonical: Dictionary = {"capacity": 30, "items": [], "overflow": []}
+var _has_revision: bool = false
 
 
 func _ready() -> void:
@@ -37,6 +39,8 @@ func reset() -> void:
 	items = []
 	overflow_items = []
 	capacity = 30
+	revision = 0
+	_has_revision = false
 	selected_instance_id = ""
 	selected_overflow_instance_id = ""
 	_ensure_mirror()
@@ -97,7 +101,9 @@ func apply_canonical(state: Dictionary) -> void:
 				if String(overflow_item.get("itemId", "")).is_empty():
 					continue
 				overflow_incoming.append(overflow_item)
-	_canonical = {"capacity": capacity, "items": incoming, "overflow": overflow_incoming}
+	revision = int(state.get("revision", 0))
+	_has_revision = true
+	_canonical = {"capacity": capacity, "items": incoming, "overflow": overflow_incoming, "revision": revision}
 	items = incoming.duplicate(true)
 	overflow_items = overflow_incoming.duplicate(true)
 	if _constraint != null:
@@ -106,11 +112,17 @@ func apply_canonical(state: Dictionary) -> void:
 	inventory_changed.emit()
 
 
+func expected_revision() -> int:
+	if not _has_revision:
+		return -1
+	return revision
+
+
 func request_pickup(loot_id: String) -> String:
 	if loot_id.is_empty():
 		return ""
 	var request_id := MatchProtocol.new_request_id()
-	NetworkService.send_pickup(loot_id, request_id)
+	NetworkService.send_pickup(loot_id, request_id, expected_revision())
 	return request_id
 
 
@@ -118,7 +130,7 @@ func request_destroy(instance_id: String, quantity: int = -1) -> String:
 	if instance_id.is_empty():
 		return ""
 	var request_id := MatchProtocol.new_request_id()
-	NetworkService.send_destroy_item(instance_id, request_id, quantity)
+	NetworkService.send_destroy_item(instance_id, request_id, quantity, expected_revision())
 	request_started.emit(request_id)
 	return request_id
 
@@ -127,7 +139,7 @@ func request_split(instance_id: String, quantity: int) -> String:
 	if instance_id.is_empty() or quantity < 1:
 		return ""
 	var request_id := MatchProtocol.new_request_id()
-	NetworkService.send_split_stack(instance_id, quantity, request_id)
+	NetworkService.send_split_stack(instance_id, quantity, request_id, expected_revision())
 	request_started.emit(request_id)
 	return request_id
 
@@ -136,7 +148,7 @@ func request_recover_overflow(instance_id: String, to_slot_index: int = -1) -> S
 	if instance_id.is_empty():
 		return ""
 	var request_id := MatchProtocol.new_request_id()
-	NetworkService.send_recover_overflow_item(instance_id, request_id, to_slot_index)
+	NetworkService.send_recover_overflow_item(instance_id, request_id, to_slot_index, expected_revision())
 	request_started.emit(request_id)
 	return request_id
 
@@ -145,7 +157,7 @@ func request_move(instance_id: String, to_slot_index: int) -> String:
 	if instance_id.is_empty():
 		return ""
 	var request_id := MatchProtocol.new_request_id()
-	NetworkService.send_move_item(instance_id, to_slot_index, request_id)
+	NetworkService.send_move_item(instance_id, to_slot_index, request_id, expected_revision())
 	request_started.emit(request_id)
 	return request_id
 

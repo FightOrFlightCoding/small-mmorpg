@@ -706,3 +706,43 @@ test("inventory mutations survive reconnect into a restarted match", () => {
   assert.equal(replay.replay, true);
   assert.equal(replay.persist, false);
 });
+
+test("stale expectedRevision does not mutate and duplicate failed requests replay", () => {
+  const defs = itemsById();
+  let inventory = initializeInventory(null, ids("stale")).inventory;
+  inventory = addOrStackItem(inventory, "item.test_cloth", 4, "cloth-stale", defs["item.test_cloth"]);
+  const before = inventory.revision;
+  const stale = applyMoveItem({
+    playerHealth: 100,
+    inventory: inventory,
+    instanceId: "cloth-stale",
+    toSlotIndex: 8,
+    requestId: "req-move-stale01",
+    itemsById: defs,
+    expectedRevision: before - 1,
+  });
+  assert.equal(stale.ok, false);
+  assert.equal(stale.code, "inventory_stale");
+  assert.equal(stale.persist, false);
+  assert.equal(stale.inventory.revision, before);
+  const failed = applyMoveItem({
+    playerHealth: 100,
+    inventory: inventory,
+    instanceId: "missing-item",
+    toSlotIndex: 8,
+    requestId: "req-move-fail01x",
+    itemsById: defs,
+  });
+  assert.equal(failed.ok, false);
+  const replayFailed = applyMoveItem({
+    playerHealth: 100,
+    inventory: failed.inventory,
+    instanceId: "cloth-stale",
+    toSlotIndex: 8,
+    requestId: "req-move-fail01x",
+    itemsById: defs,
+  });
+  assert.equal(replayFailed.replay, true);
+  assert.equal(replayFailed.ok, false);
+  assert.equal(replayFailed.persist, false);
+});

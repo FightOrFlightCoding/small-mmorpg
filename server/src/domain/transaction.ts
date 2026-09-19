@@ -15,6 +15,8 @@ export const TX_REASON_VENDOR = "vendor";
 export const TX_REASON_INN = "inn";
 export const TX_REASON_TRADE = "trade";
 export const TX_REASON_RESPEC = "respec";
+export const TX_REASON_ITEM_DROP = "item_drop";
+export const TX_REASON_ITEM_ACQUIRE = "item_acquire";
 
 export interface TransactionAuditEvent {
   requestId: string;

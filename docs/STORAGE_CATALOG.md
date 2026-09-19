@@ -156,7 +156,7 @@ Inventory, quests, and equipment for a selected character use `inventory_<compac
 
 | Field             | Value                                                                                                                                                          |
 | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Purpose           | Stacks, instance ids, locks, pickup and mutation `requestId` history                                                                                           |
+| Purpose           | Stacks, instance ids, typed locks, pickup/mutation `requestId` history, journal, intents, item audits                                                          |
 | Owner             | Server match                                                                                                                                                   |
 | Scope             | Account-scoped; per-character key when selected                                                                                                                |
 | `permissionRead`  | 1                                                                                                                                                              |

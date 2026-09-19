@@ -280,20 +280,20 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 
 | Field | Value |
 | --- | --- |
-| Body | `{ protocolVersion, lootId, requestId }` |
+| Body | `{ protocolVersion, lootId, requestId, expectedRevision? }` |
 | Authority | Server loot entity + inventory |
 | Idempotency | Successful `requestId` replays `ok` without a second grant |
-| Errors | `out_of_range`, `invalid_target`, `inventory_full`, `player_dead`, `stat_injection:instanceId` |
+| Errors | `out_of_range`, `invalid_target`, `inventory_full`, `player_dead`, `inventory_stale`, `stat_injection:instanceId` |
 | Tests | `inventory.test.ts`, `security.test.ts`, `inventory_service_test.gd` |
 
 ### 5 `EQUIP`
 
 | Field | Value |
 | --- | --- |
-| Body | `{ protocolVersion, instanceId?, slot, requestId }` |
+| Body | `{ protocolVersion, instanceId?, slot, requestId, expectedRevision? }` |
 | Authority | Server ownership, category, slot tags, class, level, locks. Equip removes the instance from the bag into `equipment.items`. Unequip requires a free bag slot. |
 | Idempotency | Successful `requestId` replays `ok` |
-| Errors | `unowned`, `not_equippable`, `invalid_slot`, `invalid_id`, `player_dead`, `item_locked`, `class_restricted`, `level_restricted`, `unique_restricted`, `invalid_category`, `inventory_full` |
+| Errors | `unowned`, `not_equippable`, `invalid_slot`, `invalid_id`, `player_dead`, `item_locked`, `class_restricted`, `level_restricted`, `unique_restricted`, `invalid_category`, `inventory_full`, `inventory_stale` |
 | Tests | `equipment.test.ts`, `equipment_service_test.gd` |
 
 ### 6 `QUEST_ACCEPT`
@@ -310,10 +310,10 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 
 | Field | Value |
 | --- | --- |
-| Body | `{ protocolVersion, questId, npcId, requestId }` |
+| Body | `{ protocolVersion, questId, npcId, requestId, expectedRevision? }` |
 | Authority | Server objectives + `multiUpdate` |
 | Idempotency | Successful `requestId` replays `ok`; later id after complete → `already_completed` |
-| Errors | `incomplete_objective`, `missing_item`, `already_completed`, `persist_failed`, `stat_injection:gold` |
+| Errors | `incomplete_objective`, `missing_item`, `already_completed`, `persist_failed`, `stat_injection:gold`, `inventory_stale` |
 | Tests | `quest_reward.test.ts`, `security.test.ts`, e2e slice |
 
 ### 8 `RESYNC_REQUEST`
@@ -340,10 +340,10 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 
 | Field | Value |
 | --- | --- |
-| Body | `{ protocolVersion, instanceId, quantity?, requestId }` (`quantity` optional JSON number) |
+| Body | `{ protocolVersion, instanceId, quantity?, requestId, expectedRevision? }` (`quantity` optional JSON number) |
 | Authority | Server destroyable flag, locks, equipped check |
 | Idempotency | Successful `requestId` replays `ok` |
-| Errors | `not_destroyable`, `item_locked`, `item_equipped`, `invalid_id`, `player_dead` |
+| Errors | `not_destroyable`, `item_locked`, `item_equipped`, `invalid_id`, `player_dead`, `inventory_stale` |
 | Rate limit | Shares EQUIP window (8) |
 | Tests | `inventory.test.ts`, `inventory_service_test.gd` |
 
@@ -351,10 +351,10 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 
 | Field | Value |
 | --- | --- |
-| Body | `{ protocolVersion, instanceId, quantity, requestId }` (`quantity` is a JSON number) |
+| Body | `{ protocolVersion, instanceId, quantity, requestId, expectedRevision? }` (`quantity` is a JSON number) |
 | Authority | Server generates the new `instanceId` |
 | Idempotency | Successful `requestId` replays `ok` without a second split |
-| Errors | `inventory_full`, `item_locked`, `item_equipped`, `invalid_id`, `player_dead` |
+| Errors | `inventory_full`, `item_locked`, `item_equipped`, `invalid_id`, `player_dead`, `inventory_stale` |
 | Rate limit | Shares EQUIP window (8) |
 | Tests | `inventory.test.ts`, `inventory_service_test.gd` |
 
@@ -362,10 +362,10 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 
 | Field | Value |
 | --- | --- |
-| Body | `{ protocolVersion, instanceId, toSlotIndex, requestId }` (`toSlotIndex` is a JSON number) |
+| Body | `{ protocolVersion, instanceId, toSlotIndex, requestId, expectedRevision? }` (`toSlotIndex` is a JSON number) |
 | Authority | Server slot indices; local GLoot drag is display-only |
 | Idempotency | Successful `requestId` replays `ok` |
-| Errors | `invalid_slot`, `item_locked`, `invalid_id`, `player_dead` |
+| Errors | `invalid_slot`, `item_locked`, `invalid_id`, `player_dead`, `inventory_stale` |
 | Rate limit | Shares EQUIP window (8) |
 | Tests | `inventory.test.ts` |
 
@@ -437,10 +437,10 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 
 | Field | Value |
 | --- | --- |
-| Body | `{ protocolVersion, interactionSessionId, npcInstanceId, itemId, quantity?, requestId }` |
+| Body | `{ protocolVersion, interactionSessionId, npcInstanceId, itemId, quantity?, requestId, expectedRevision? }` |
 | Authority | Server vendor stock and prices; client must not send `price` / `gold` / `resultingBalance`. Requires a live interaction session. |
 | Idempotency | Successful `requestId` replays `ok` without a second grant |
-| Errors | `invalid_id`, `invalid_session`, `invalid_amount`, `out_of_range`, `insufficient_gold`, `inventory_full`, `class_restricted`, `level_too_low`, `player_dead`, `persist_failed`, `unknown_field:price`, `stat_injection:gold` |
+| Errors | `invalid_id`, `invalid_session`, `invalid_amount`, `out_of_range`, `insufficient_gold`, `inventory_full`, `class_restricted`, `level_too_low`, `player_dead`, `persist_failed`, `unknown_field:price`, `stat_injection:gold`, `inventory_stale` |
 | Rate limit | Shares vendor window (8) |
 | Tests | `npc_vendor.test.ts`, `npc_security.test.ts`, `vendor.test.ts`, `protocol.test.ts`, `vendor_inn_service_test.gd`, `merchant_window_test.gd` |
 
@@ -448,10 +448,10 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 
 | Field | Value |
 | --- | --- |
-| Body | `{ protocolVersion, npcId, instanceId, quantity?, requestId }` |
+| Body | `{ protocolVersion, npcId, instanceId, quantity?, requestId, expectedRevision? }` |
 | Authority | Server sell value × vendor multiplier; equipped is `item_locked`; floor 0 is unsellable |
 | Idempotency | Successful `requestId` replays `ok` without a second gold grant |
-| Errors | `invalid_id`, `out_of_range`, `unowned`, `item_locked`, `unsellable`, `player_dead` |
+| Errors | `invalid_id`, `out_of_range`, `unowned`, `item_locked`, `unsellable`, `player_dead`, `inventory_stale` |
 | Rate limit | Shares quest window (8) |
 | Tests | `vendor.test.ts`, `protocol.test.ts`, `vendor_inn_service_test.gd` |
 
@@ -677,10 +677,10 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 
 | Field | Value |
 | --- | --- |
-| Body | `{ protocolVersion, instanceId, toSlotIndex?, requestId }` (`toSlotIndex` optional JSON number) |
+| Body | `{ protocolVersion, instanceId, toSlotIndex?, requestId, expectedRevision? }` (`toSlotIndex` optional JSON number) |
 | Authority | Server-owned MigrationOverflow → a **free** bag slot only. Not a grant path. Does not merge into occupied stacks. |
 | Idempotency | Successful `requestId` replays `ok` |
-| Errors | `invalid_id`, `inventory_full`, `invalid_slot`, `item_locked`, `player_dead` |
+| Errors | `invalid_id`, `inventory_full`, `invalid_slot`, `item_locked`, `player_dead`, `inventory_stale` |
 | Rate limit | Shares DESTROY/SPLIT/MOVE window (8) |
 | Tests | `item_model.test.ts`, `inventory_service_test.gd`, `protocol.test.ts` |
 

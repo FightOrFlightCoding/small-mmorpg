@@ -9,6 +9,7 @@ import {
   type ItemInstance,
   type PlayerInventory,
 } from "./inventory";
+import { staleRevisionCode } from "./item_errors";
 
 export const OVERFLOW_COLLECTION = "player";
 export const OVERFLOW_KEY = "overflow";
@@ -113,13 +114,14 @@ export function applyRecoverOverflow(input: {
   toSlotIndex?: number;
   requestId: string;
   itemsById: { [id: string]: ItemDefinition };
+  expectedRevision?: number;
 }): OverflowRecoverDecision {
   const inventory = cloneInventory(input.inventory);
   const overflow = cloneOverflow(input.overflow);
   const previous = overflow.mutationByRequestId !== undefined ? overflow.mutationByRequestId[input.requestId] : undefined;
-  if (previous !== undefined && previous.ok) {
+  if (previous !== undefined) {
     return {
-      ok: true,
+      ok: previous.ok,
       code: previous.code,
       replay: true,
       persist: false,
@@ -127,6 +129,10 @@ export function applyRecoverOverflow(input: {
       inventory: inventory,
       overflow: overflow,
     };
+  }
+  const stale = staleRevisionCode(inventory.revision, input.expectedRevision);
+  if (stale.length > 0) {
+    return failRecover(stale, inventory, overflow);
   }
   if (input.playerHealth <= 0) {
     return failRecover("player_dead", inventory, overflow);
