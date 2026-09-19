@@ -437,10 +437,10 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 
 | Field | Value |
 | --- | --- |
-| Body | `{ protocolVersion, interactionSessionId, npcInstanceId, itemId, quantity?, requestId, expectedRevision? }` |
-| Authority | Server vendor stock and prices; client must not send `price` / `gold` / `resultingBalance`. Requires a live interaction session. |
+| Body | `{ protocolVersion, interactionSessionId, vendorId, stockEntryId, quantity?, preferredSlot?, requestId, expectedRevision? }` |
+| Authority | Server vendor stock and prices; client must not send `price` / `gold` / `resultingBalance`. Requires a live interaction session. Preferred bag slot is strict when present. |
 | Idempotency | Successful `requestId` replays `ok` without a second grant |
-| Errors | `invalid_id`, `invalid_session`, `invalid_amount`, `out_of_range`, `insufficient_gold`, `inventory_full`, `class_restricted`, `level_too_low`, `player_dead`, `persist_failed`, `unknown_field:price`, `stat_injection:gold`, `inventory_stale` |
+| Errors | `invalid_id`, `invalid_session`, `invalid_amount`, `out_of_range`, `insufficient_gold`, `inventory_full`, `stack_incompatible`, `class_restricted`, `level_too_low`, `player_dead`, `persist_failed`, `unknown_field:price`, `stat_injection:gold`, `inventory_stale` |
 | Rate limit | Shares vendor window (8) |
 | Tests | `npc_vendor.test.ts`, `npc_security.test.ts`, `vendor.test.ts`, `protocol.test.ts`, `vendor_inn_service_test.gd`, `merchant_window_test.gd` |
 

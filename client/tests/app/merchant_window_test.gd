@@ -10,6 +10,7 @@ func before_test() -> void:
 	VendorService.reset_for_tests()
 	WindowManager.reset_for_tests()
 	WalletService.reset_for_tests()
+	InventoryService.reset_for_tests()
 	assert_bool(ContentRegistry.load_bundle()).is_true()
 
 
@@ -28,9 +29,12 @@ func test_merchant_window_lists_stock_and_currency() -> void:
 	})
 	assert_bool(window.is_open()).is_true()
 	assert_str(window._name_label.text).is_equal("Test Vendor")
-	assert_int(window._list.item_count).is_greater(0)
+	assert_int(window._stock_slots.size()).is_greater(0)
 	assert_str(window._currency.text).is_equal("Gold: 25")
 	assert_str(window._back.text).is_equal("Back to dialogue")
+	assert_bool(window._sell.visible).is_false()
+	assert_bool(window._bag_host != null).is_true()
+	assert_bool(window._bag_host.get_node_or_null("Bag") != null).is_true()
 
 
 func test_merchant_buy_sends_session_fields_without_price() -> void:
@@ -48,9 +52,12 @@ func test_merchant_buy_sends_session_fields_without_price() -> void:
 	var payload: Dictionary = JSON.parse_string(fake.last_send_payload)
 	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_VENDOR_BUY)
 	assert_str(String(payload.get("interactionSessionId", ""))).is_equal("sess-merchant-2")
-	assert_str(String(payload.get("npcInstanceId", ""))).is_equal("npc.test_vendor")
+	assert_str(String(payload.get("vendorId", ""))).is_equal("vendor.test_general")
+	assert_str(String(payload.get("stockEntryId", ""))).is_equal("vendor.test_general:item.test_potion")
 	assert_int(int(payload.get("quantity", 0))).is_equal(2)
 	assert_bool(payload.has("price")).is_false()
 	assert_bool(payload.has("gold")).is_false()
 	assert_bool(payload.has("npcId")).is_false()
+	assert_bool(payload.has("itemId")).is_false()
+	assert_bool(payload.has("npcInstanceId")).is_false()
 	VendorService.reset_for_tests()

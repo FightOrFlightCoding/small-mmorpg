@@ -37,7 +37,7 @@ A preferred slot may override when valid. Strict modes (`move`, `recover`) rejec
 
 Outgoing quantities apply first so trade and unequip can free slots in the same plan. Equipment-to-bag preserves `instanceId`. Two-way trade plans both bags with the opposite side’s offers as incoming.
 
-Callers must not invent a second planner. Partial-success policy stays per operation (Loot All continues; trade commit is all-or-nothing).
+Callers must not invent a second planner. Partial-success policy stays per operation (Loot All continues; vendor buy and trade commit are all-or-nothing). Vendor buy sets `preferredStrict` when `preferredSlot` is present so an incompatible occupied bag slot is `stack_incompatible` instead of spilling.
 
 ## Revisions
 

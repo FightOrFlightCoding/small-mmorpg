@@ -1406,21 +1406,18 @@ function handleVendorBuy(
   const requestId = parsed.requestId as string;
   const inventory = player.inventory !== undefined ? player.inventory : emptyInventory();
   const prior = inventory.mutationByRequestId !== undefined ? inventory.mutationByRequestId[requestId] : undefined;
+  let npcInstanceId = "";
   if (prior === undefined) {
-    const gate = requireActiveSession(
-      state,
-      player,
-      tick,
-      parsed.fields.interactionSessionId,
-      parsed.fields.npcInstanceId,
-    );
+    const gate = requireActiveSession(state, player, tick, parsed.fields.interactionSessionId, "");
     if (!gate.ok || gate.session === undefined) {
       const failed = actionResult(gate.code, false, requestId);
       outbound.push({ opcode: failed.opcode, body: failed.body, toUserId: userId });
       return;
     }
+    npcInstanceId = gate.session.npcInstanceId;
+  } else if (player.interactionSession != null) {
+    npcInstanceId = player.interactionSession.npcInstanceId;
   }
-  const npcInstanceId = parsed.fields.npcInstanceId;
   const outcome = applyVendorBuy({
     playerHealth: player.health,
     playerX: player.x,
@@ -1428,8 +1425,10 @@ function handleVendorBuy(
     gold: spendableGold(state, player),
     inventory: player.inventory,
     npcId: npcInstanceId,
-    itemId: parsed.fields.itemId,
+    vendorId: parsed.fields.vendorId,
+    stockEntryId: parsed.fields.stockEntryId,
     quantity: parsed.quantity !== undefined ? parsed.quantity : 1,
+    preferredSlot: parsed.preferredSlot,
     requestId: requestId,
     npcs: state.npcs,
     interactionRange: state.interactionRange,
@@ -1446,6 +1445,7 @@ function handleVendorBuy(
     newId: makeId,
     tick: tick,
     expectedRevision: parsed.expectedRevision,
+    characterId: player.characterId,
   });
   if (!outcome.ok) {
     const failed = actionResult(outcome.code, false, requestId);

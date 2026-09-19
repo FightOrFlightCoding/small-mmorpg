@@ -19,14 +19,17 @@ func test_vendor_buy_does_not_send_a_client_price() -> void:
 	NetworkService.match_id = "match-starter-shared"
 	VendorService.last_npc_id = "npc.test_vendor"
 	VendorService.last_session_id = "sess-test01"
+	VendorService.last_vendor_id = "vendor.test_general"
 	VendorService.request_buy("item.test_potion", 1)
 	await get_tree().process_frame
 	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_VENDOR_BUY)
 	var payload: Dictionary = JSON.parse_string(fake.last_send_payload)
 	assert_str(String(payload.get("interactionSessionId", ""))).is_equal("sess-test01")
-	assert_str(String(payload.get("npcInstanceId", ""))).is_equal("npc.test_vendor")
-	assert_str(String(payload.get("itemId", ""))).is_equal("item.test_potion")
+	assert_str(String(payload.get("vendorId", ""))).is_equal("vendor.test_general")
+	assert_str(String(payload.get("stockEntryId", ""))).is_equal("vendor.test_general:item.test_potion")
 	assert_bool(payload.has("npcId")).is_false()
+	assert_bool(payload.has("itemId")).is_false()
+	assert_bool(payload.has("npcInstanceId")).is_false()
 	assert_bool(payload.has("requestId")).is_true()
 	assert_bool(payload.has("price")).is_false()
 	assert_bool(payload.has("gold")).is_false()

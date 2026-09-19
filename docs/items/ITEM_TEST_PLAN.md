@@ -1,6 +1,6 @@
-# Item test plan (ITEM-06)
+# Item test plan (ITEM-07)
 
-ITEM-06 extends ITEM-05 with Need/Greed rolls and pending winner awards. Acceptance is the gates below plus the ITEM-06 cases. Do not weaken tests.
+ITEM-07 extends ITEM-06 with merchant purchasing and bag integration. Acceptance is the gates below plus the ITEM-07 cases. Do not weaken tests.
 
 ## Baseline (run on ITEM-06; 2026-09-19)
 
@@ -36,7 +36,7 @@ GODOT_BIN=godot bash scripts/test-client.sh
 | `server/tests/loot_table.test.ts` | Rolls, duplicate death, policies |
 | `server/tests/party_credit_loot.test.ts` | Credit range, personal/server_assigned, no client recipients |
 | `server/tests/vendor.test.ts` | Buy/sell, gold, full bag, equipped, unsellable, idempotent |
-| `server/tests/npc_vendor.test.ts` / `npc_security.test.ts` | Session-gated buy, price spoof, qty, replay |
+| `server/tests/npc_vendor.test.ts` / `npc_security.test.ts` | Session-gated buy, price spoof, qty, preferred slot, multi-stack, stale revision, replay |
 | `server/tests/trade.test.ts` | Invite through recovery, locks, gold, revision, disconnect, transfer |
 | `server/tests/quest_reward.test.ts` / `quest.test.ts` | Consume, grant, possession |
 | `server/tests/transaction.test.ts` / `wallet` tests | Gold ledger, version conflict |
@@ -49,7 +49,7 @@ GODOT_BIN=godot bash scripts/test-client.sh
 | `client/tests/app/loot_roll_service_test.gd` | Submit omits roll number; simultaneous cards; result feed |
 | `client/tests/app/bag_ui_test.gd` | 6×5 / 30 slots plus corpse origin loot, bag stays usable, bag→corpse reject, occupied dest reject |
 | `client/tests/app/equipment_service_test.gd` | Equip mirror |
-| `client/tests/app/vendor_inn_service_test.gd` / `merchant_window_test.gd` | Buy UI, no price send |
+| `client/tests/app/vendor_inn_service_test.gd` / `merchant_window_test.gd` | Buy UI, bag, no price send |
 | `client/tests/app/trade_service_test.gd` | Trade mirror |
 | `client/tests/app/wallet_service_test.gd` | Gold label |
 

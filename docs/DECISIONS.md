@@ -929,3 +929,14 @@ ITEM-06 resolves Need/Greed on Uncommon-or-higher party-tagged corpse drops. It 
 - Whole-stack award through `planCapacity` + acquisition intent. If the stack does not fit, `AWARDED_PENDING_PICKUP` is winner-only until corpse expiry. Rolling and pending entries do not spawn public sparkles.
 - Opcodes 47 / 118. Storage record count remains 35. Content hash unchanged.
 - Conflicts ITEM-C03 and ITEM-C19 are CLOSED.
+
+## 2026-09-19 — ITEM-07 merchant purchasing and bag integration
+
+ITEM-07 migrates merchant buy onto the accepted NPC interaction session and the 30-slot bag. It does not implement player-to-merchant selling, player ground drop, 20 trade slots, or forage.
+
+- `VENDOR_BUY` sends `interactionSessionId`, `vendorId`, `stockEntryId`, optional `quantity`, optional `preferredSlot`, `requestId`, and optional `expectedRevision`. NPC identity comes from the live session. Client `price` / `gold` / leftover `itemId` / `npcInstanceId` are protocol rejections.
+- Canonical vendor content owns price, currency, stock entries, and optional class/level/quantity constraints. Unauthored `stockEntryId` is `${vendorId}:${itemId}`. Stock is unlimited; simultaneous buyers do not compete.
+- Purchases are all-or-nothing: `planCapacity` with `preferredStrict` when a slot is supplied, then gold debit, bag persist, wallet persist, `TX_REASON_VENDOR` plus `itemAudits`. A quantity that does not fit grants nothing.
+- The merchant window shows name, stock icons/tooltips, canonical prices, player bag, gold, quantity selector, and buy result. Right-click buys one; Shift-right-click or the selector chooses quantity; drag to empty/compatible bag slots sets `preferredSlot`. Bag→merchant drag is rejected. `VENDOR_SELL` remains live but hidden in this window.
+- A new merchant stock list is content-only. Opcodes stay 47/18. Storage record count remains 35. Content hash unchanged.
+

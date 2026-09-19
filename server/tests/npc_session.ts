@@ -56,6 +56,16 @@ export function acceptMessage(
   };
 }
 
+export function vendorIdForNpc(npcInstanceId: string): string {
+  if (npcInstanceId.indexOf("platform_merchant") !== -1) {
+    return "vendor.platform_kiosk";
+  }
+  if (npcInstanceId.indexOf("cert") !== -1) {
+    return "vendor.cert_quartermaster";
+  }
+  return "vendor.test_general";
+}
+
 export function buyMessage(
   userId: string,
   itemId: string,
@@ -63,15 +73,28 @@ export function buyMessage(
   npcInstanceId: string,
   requestId: string,
   quantity?: number,
+  extras: {
+    vendorId?: string;
+    stockEntryId?: string;
+    preferredSlot?: number;
+    expectedRevision?: number;
+  } = {},
 ) {
+  const vendorId = extras.vendorId !== undefined ? extras.vendorId : vendorIdForNpc(npcInstanceId);
   const extra: { [key: string]: unknown } = {
-    itemId: itemId,
+    vendorId: vendorId,
+    stockEntryId: extras.stockEntryId !== undefined ? extras.stockEntryId : vendorId + ":" + itemId,
     interactionSessionId: sessionId,
-    npcInstanceId: npcInstanceId,
     requestId: requestId,
   };
   if (quantity !== undefined) {
     extra.quantity = quantity;
+  }
+  if (extras.preferredSlot !== undefined) {
+    extra.preferredSlot = extras.preferredSlot;
+  }
+  if (extras.expectedRevision !== undefined) {
+    extra.expectedRevision = extras.expectedRevision;
   }
   return {
     opcode: ClientOpcode.VENDOR_BUY,
@@ -144,7 +167,7 @@ export function interactionPayload(result: ReturnType<typeof applyMatchLoop>): {
   services?: string[];
   vendorId?: string;
   currencyId?: string;
-  stock?: Array<{ itemId: string; buyPrice: number }>;
+  stock?: Array<{ stockEntryId?: string; itemId: string; buyPrice: number; displayOrder?: number }>;
 } {
   const row = result.outbound.find((item) => item.opcode === ServerOpcode.INTERACTION_RESULT);
   if (row === undefined) {
@@ -162,7 +185,7 @@ export function interactionPayload(result: ReturnType<typeof applyMatchLoop>): {
     services?: string[];
     vendorId?: string;
     currencyId?: string;
-    stock?: Array<{ itemId: string; buyPrice: number }>;
+    stock?: Array<{ stockEntryId?: string; itemId: string; buyPrice: number; displayOrder?: number }>;
   };
 }
 

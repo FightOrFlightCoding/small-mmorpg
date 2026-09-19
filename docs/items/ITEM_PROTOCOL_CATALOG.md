@@ -1,6 +1,6 @@
-# Item protocol catalog (ITEM-06)
+# Item protocol catalog (ITEM-07)
 
-Live opcodes from [PROTOCOL_CATALOG.md](../PROTOCOL_CATALOG.md) and `server/src/domain/protocol.ts`. Foundation audit at ITEM-06: **47** client opcodes, **18** server opcodes, **29** RPCs, **35** storage records. Corpse containers and loot rolls are match-lifetime only (no new storage collection).
+Live opcodes from [PROTOCOL_CATALOG.md](../PROTOCOL_CATALOG.md) and `server/src/domain/protocol.ts`. Foundation audit at ITEM-07: **47** client opcodes, **18** server opcodes, **29** RPCs, **35** storage records. Corpse containers and loot rolls are match-lifetime only (no new storage collection).
 
 Item mutations may include optional `expectedRevision` (camelCase). Omitted keeps older clients. Present and stale → `inventory_stale` and canonical `FULL_STATE`. Trade accept still carries trade-record `revision` (not bag). Container `revision` is included on `INVENTORY_STATE` / `EQUIPMENT_STATE` / overflow / `CORPSE_STATE`.
 
@@ -22,7 +22,7 @@ There is **no** generic arbitrary-container client command.
 | 45 | `CLAIM_CORPSE_GOLD` | `corpseId`, `requestId` | Private roster split or public remainder | Replay original result | `not_eligible`, `loot_item_no_longer_available` |
 | 46 | `LOOT_ALL_CORPSE` | `corpseId`, `requestId`, `expectedRevision?` | Gold then items; skip rolls and foreign awards | Replay `lootAll[]` | Per-entry codes; envelope `out_of_range` / `player_dead` / `inventory_stale` |
 | 47 | `SUBMIT_LOOT_ROLL` | `rollId`, `choice`, `requestId` | Eligible Need/Greed/Pass before deadline. One final choice. Server owns 1–100. | Replay original result | `not_eligible`, `roll_closed`, `choice_already_submitted`, `invalid_choice`, `invalid_target` |
-| 19 | `VENDOR_BUY` | `interactionSessionId`, `npcInstanceId`, `itemId`, `quantity?`, `requestId`, `expectedRevision?` | Session, stock, server price, qty 1–99 | Replay no second grant | `invalid_session`, `insufficient_gold`, `inventory_full`, `unknown_field:price`, `inventory_stale` |
+| 19 | `VENDOR_BUY` | `interactionSessionId`, `vendorId`, `stockEntryId`, `quantity?`, `preferredSlot?`, `requestId`, `expectedRevision?` | Session, stock entry, server price, qty 1–99, preferred bag slot | Replay no second grant | `invalid_session`, `insufficient_gold`, `inventory_full`, `stack_incompatible`, `unknown_field:price`, `inventory_stale` |
 | 20 | `VENDOR_SELL` | `npcId`, `instanceId`, `quantity?`, `requestId`, `expectedRevision?` | Server `sellValue` × multiplier | Replay no second gold | `unsellable`, `item_locked`, `inventory_stale` |
 | 24–31 | `TRADE_*` | `targetId` / `tradeId` / `instanceId` / `amount` / `revision` / `requestId` | Range 80 px, locks, mutual accept, `planTwoWayTrade` | `requestId` + completed trade | `not_tradeable`, `revision_mismatch`, `insufficient_gold`, `inventory_full` |
 | 6–7 | `QUEST_ACCEPT` / `QUEST_TURN_IN` | quest/npc/`requestId`, turn-in `expectedRevision?` | Consume/grant server-side | Turn-in replay | `missing_item`, `inventory_full`, `stat_injection:gold`, `inventory_stale` |

@@ -13,6 +13,7 @@ const ACTION_EQUIP := "equip"
 const ACTION_SPLIT := "split"
 const ACTION_LOCKED := "locked"
 const ACTION_LOOT := "loot"
+const ACTION_BUY := "buy"
 
 var context: String = CONTEXT_BAG
 var last_notice: String = ""
@@ -52,6 +53,9 @@ func handle_origin(origin: Dictionary, instance: Dictionary, at: Vector2 = Vecto
 	if String(origin.get("kind", "bag")) == "corpse":
 		execute(ACTION_LOOT, origin, instance)
 		return
+	if String(origin.get("kind", "bag")) == "merchant":
+		execute(ACTION_BUY, origin, instance)
+		return
 	_show_menu(origin, instance, at)
 
 
@@ -68,6 +72,10 @@ func actions_for(origin: Dictionary, instance: Dictionary) -> Array:
 		if not CorpseService.entry_claimable(instance):
 			return []
 		return [{"id": ACTION_LOOT, "label": "Loot", "disabled": false}]
+	if String(origin.get("kind", "bag")) == "merchant":
+		if String(instance.get("stockEntryId", instance.get("instanceId", ""))).is_empty():
+			return []
+		return [{"id": ACTION_BUY, "label": "Buy", "disabled": false}]
 	if context == CONTEXT_TRADE or context == CONTEXT_MERCHANT:
 		return []
 	var actions: Array = []
@@ -99,6 +107,11 @@ func execute(action_id: String, origin: Dictionary, instance: Dictionary) -> voi
 			InventoryService.prompt_split(instance_id)
 		ACTION_LOOT:
 			CorpseService.request_claim_item(String(instance.get("entryId", origin.get("entry_id", ""))))
+		ACTION_BUY:
+			var quantity := 1
+			if Input.is_key_pressed(KEY_SHIFT):
+				quantity = VendorService.selected_quantity()
+			VendorService.request_buy(String(instance.get("stockEntryId", instance.get("instanceId", ""))), quantity)
 		ACTION_LOCKED:
 			_emit_notice(ItemPresentation.lock_reason(instance))
 		_:

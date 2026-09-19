@@ -1,16 +1,16 @@
-# Item-system architecture contract (ITEM-06)
+# Item-system architecture contract (ITEM-07)
 
 **Last accepted gameplay phase:** NPC-07 — Lifecycle, security, and final certification (playable line `origin/main`, including later client crash/hang repairs).  
 **Last accepted progression phase:** PROG-15.  
-**Current requested phase:** ITEM-06 — Party Need/Greed rolls and pending winner awards.
+**Current requested phase:** ITEM-07 — Merchant purchasing and bag integration.
 
-ITEM-06 adds server-authoritative Need/Greed for Uncommon-or-higher party corpse drops. The client never finalizes bag, wallet, or loot ownership before server confirmation. Do not create parallel inventory, equipment, wallet, loot, transaction, merchant, trade, or quest-item systems.
+ITEM-07 adds merchant purchasing on the accepted NPC interaction session and the 30-slot bag. The client never finalizes bag, wallet, or loot ownership before server confirmation. Do not create parallel inventory, equipment, wallet, loot, transaction, merchant, trade, or quest-item systems.
 
 ## Preparation snapshot (this phase)
 
 | Topic | Value |
 | --- | --- |
-| Canonical git line | ITEM-06 stacks on ITEM-05 (`cursor/item-05-corpse-loot-7369`). |
+| Canonical git line | ITEM-07 stacks on ITEM-06 (`cursor/item-06-need-greed-7369`). |
 | Inventory save envelope | Gameplay `schemaVersion` **1** (`SAVE_SCHEMA_VERSION`). Journal, intents, audits, and typed lock fields persist **inside** the inventory record. There is no 36th storage collection. Corpses are match-lifetime only. |
 | Pre-existing test failures | **None.** Trade suite included. |
 | Duplicate ownership | One server inventory, one equipment map, one Nakama wallet `gold`, one match loot list, one corpse list, one trade state machine, one capacity simulator, one item transaction boundary. GLoot is a client mirror only. |
@@ -33,7 +33,7 @@ ITEM-06 adds server-authoritative Need/Greed for Uncommon-or-higher party corpse
 | Ground loot | `loot.ts` `MatchLoot`, match `state.loot` | Public 30 s TTL sparkles. Mob deaths also create corpses. Sparkles linked with `corpseId`/`corpseEntryId` for Prompt 18. SNAPSHOT omits `instanceId`. |
 | Corpse loot | `corpse.ts` `CorpseLootContainer`, match `state.corpses` | First-hit tag; 60 s private; 5 min expire; Loot All; gold split. Match-lifetime. Client window is presentation only. |
 | Party credit / loot | `party_credit.ts`, `party_loot.ts`, `enemy_tag.ts`, `loot_roll.ts` | First damaging hit snapshots the encounter roster. Ordinary corpse loot is first-come. Uncommon+ party drops Need/Greed. |
-| Merchant | `vendor.ts`, `MerchantWindow`, NPC `vendor` service | Static unlimited catalog, server `buyPrice`. `VENDOR_BUY` session-gated. **`VENDOR_SELL` exists.** |
+| Merchant | `vendor.ts`, `MerchantWindow`, NPC `vendor` service | Static unlimited catalog, server `buyPrice`, `stockEntryId`. `VENDOR_BUY` session-gated with preferred bag slot. **`VENDOR_SELL` exists but is not in the ITEM-07 window.** |
 | Wallet | `wallet.ts`, Nakama wallet `gold`, `player`/`wallet_ref` | Account-scoped gold. Not an item instance. Not a bag slot. |
 | Trade | `trade.ts`, `match_trade.ts`, `trade_store.ts`, `TradeService` | Nearby same-match item+gold trade. Typed `TRADE` locks. `planTwoWayTrade` gates commit. Atomic `multiUpdate`. |
 | Quest items | `quest.ts` `syncAcquireObjectives`, `quest_reward.ts` consume | Possession recount. Gel and proof token are tradeable and droppable; `destroyable` is false. |
@@ -68,6 +68,10 @@ The completed item platform, without implementing remaining features in ITEM-04:
 ## Certified owners (reuse, do not fork)
 
 `inventory.ts`, `inventory_store.ts` (domain + nakama), `equipment.ts`, `equipment_store.ts`, `overflow.ts`, `overflow_store.ts` (domain + nakama), `item_migration.ts`, `item_capacity.ts`, `item_lock.ts`, `item_journal.ts`, `item_intent.ts`, `item_audit.ts`, `item_txn.ts`, `item_errors.ts`, `loot.ts`, `loot_table.ts`, `enemy_tag.ts`, `corpse.ts`, `loot_roll.ts`, `party_loot.ts`, `party_credit.ts`, `vendor.ts`, `trade.ts`, `match_trade.ts`, `trade_store.ts`, `wallet.ts`, `transaction.ts`, `transaction_store.ts`, `quest.ts`, `quest_reward.ts`, `quest_objectives.ts`, `match_loop.ts`, `match_state.ts`, `persistence.ts`, `InventoryService`, `EquipmentService`, `WalletService`, `VendorService`, `TradeService`, `CorpseService`, `LootRollService`, `PickupIntent`, `MerchantWindow`, `CorpseWindow`, `LootRollWindow`, `BagGrid`, `ItemSlotView`, `ItemPresentation`, `ItemContextRouter`, `SplitStackDialog`, `DragDropService` (bag/equipment ghosts plus ability preview), `TooltipService` (canonical item rows plus ability/hotbar).
+
+## ITEM-07 change inventory
+
+Merchant purchasing on the accepted NPC interaction session. `VENDOR_BUY` uses `vendorId` + `stockEntryId` + optional `preferredSlot`. Prices stay server-owned. Purchases are all-or-nothing through `planCapacity` / `applyCapacityPlan`, including multi-stack buys. The merchant window shows stock icons, tooltips, canonical prices, the player bag, gold, a quantity selector, and buy results. Player-to-merchant selling stays unimplemented in that window; live `VENDOR_SELL` is unchanged. No new opcode. No new storage collection. Content hash unchanged.
 
 ## ITEM-06 change inventory
 

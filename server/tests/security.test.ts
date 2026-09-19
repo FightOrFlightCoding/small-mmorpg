@@ -427,8 +427,8 @@ test("inventory, equipment, vendor, quest, cave, and trade use separate rate buc
       opcode: ClientOpcode.VENDOR_BUY,
       raw: envelope({
         interactionSessionId: "sess-flood-vendor",
-        npcInstanceId: "npc.test_vendor",
-        itemId: "item.test_potion",
+        vendorId: "vendor.test_general",
+        stockEntryId: "vendor.test_general:item.test_potion",
         requestId: "req-ven-" + String(i).padStart(2, "0"),
       }),
       userId: "user-alice",

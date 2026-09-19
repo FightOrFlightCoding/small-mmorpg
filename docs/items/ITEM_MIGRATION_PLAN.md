@@ -16,7 +16,7 @@ ITEM-02 closed content stack rules, bag capacity 30, equipment-out-of-bag, and M
 6. **Player ground drop** — 5 min public; server placement; full pickup. Reuse `executeDropIntent`.
 7. **Trade 20 offer slots** — cap live unbounded offers; UI already shows two offer lists.
 8. **Quest possession** — already live; verify drop/trade/pickup recount; repeatable or reacquisition path until complete.
-9. **Merchant direction** — buy path stays; `VENDOR_SELL` only if a later phase keeps or removes it.
+9. **Merchant direction** — **ITEM-07 buy path is live** (session, `stockEntryId`, preferred slot, all-or-nothing multi-stack). `VENDOR_SELL` only if a later phase keeps or removes it.
 10. **Forage grant hook** — same transaction core, new `sourceType`. Acquisition intent is ready.
 11. **Security/recovery certification** — no parallel systems; audit coverage.
 

@@ -340,6 +340,25 @@ func quantity_of(item_id: String) -> int:
 func handle_slot_pressed(slot: ItemSlotView) -> void:
 	if slot == null:
 		return
+	if slot.origin_kind == "merchant":
+		if slot.is_empty():
+			return
+		var quantity := VendorService.selected_quantity()
+		_press_slot = {
+			"kind": slot.origin_kind,
+			"slot_index": slot.slot_index,
+			"stock_entry_id": String(slot.instance.get("stockEntryId", slot.instance.get("instanceId", ""))),
+		}
+		DragDropService.begin({
+			"kind": "merchant_item",
+			"instanceId": String(slot.instance.get("stockEntryId", slot.instance.get("instanceId", ""))),
+			"stockEntryId": String(slot.instance.get("stockEntryId", slot.instance.get("instanceId", ""))),
+			"fromSlot": slot.slot_index,
+			"fromKind": "merchant",
+			"quantity": quantity,
+			"itemId": ItemPresentation.item_id_of(slot.instance),
+		})
+		return
 	if slot.origin_kind == "bag":
 		var item: Dictionary = item_at_slot(slot.slot_index)
 		selected_instance_id = String(item.get("instanceId", ""))
@@ -384,12 +403,14 @@ func handle_drop(payload: Dictionary, dest: ItemSlotView) -> String:
 	var from_kind := String(payload.get("fromKind", "bag"))
 	var from_slot := int(payload.get("fromSlot", -1))
 	var split := bool(payload.get("split", false))
-	if dest.origin_kind == "corpse":
-		_reject_local("destination_unavailable", "You cannot put items on the corpse.")
+	if dest.origin_kind == "corpse" or dest.origin_kind == "merchant":
+		_reject_local("destination_unavailable", "You cannot put items there.")
 		DragDropService.reject("destination_unavailable")
 		return ""
 	if from_kind == "corpse":
 		return _drop_corpse_to_bag(payload, dest)
+	if from_kind == "merchant":
+		return _drop_merchant_to_bag(payload, dest)
 	if instance_id.is_empty():
 		DragDropService.cancel()
 		return ""
@@ -491,6 +512,36 @@ func _drop_corpse_to_bag(payload: Dictionary, dest: ItemSlotView) -> String:
 			return ""
 	DragDropService.complete()
 	return CorpseService.request_claim_item(entry_id, dest.slot_index)
+
+
+func _drop_merchant_to_bag(payload: Dictionary, dest: ItemSlotView) -> String:
+	if dest.origin_kind != "bag":
+		_reject_local("invalid_slot", "Drop merchant stock into a bag slot.")
+		DragDropService.reject("invalid_slot")
+		return ""
+	var stock_entry_id := String(payload.get("stockEntryId", payload.get("instanceId", "")))
+	if stock_entry_id.is_empty():
+		DragDropService.cancel()
+		return ""
+	var dest_item: Dictionary = item_at_slot(dest.slot_index)
+	if not dest_item.is_empty():
+		var source: Dictionary = {
+			"itemId": String(payload.get("itemId", "")),
+			"quantity": int(payload.get("quantity", 1)),
+			"instanceId": stock_entry_id,
+		}
+		var definition: Dictionary = ItemPresentation.definition_for(ItemPresentation.item_id_of(source))
+		if not ItemPresentation.stacks_compatible(source, dest_item, definition):
+			_reject_local("stack_incompatible", "That bag slot is occupied.")
+			DragDropService.reject("stack_incompatible")
+			return ""
+		if ItemPresentation.dest_stack_full(source, dest_item, definition):
+			_reject_local("stack_full", "That stack is already full.")
+			DragDropService.reject("stack_full")
+			return ""
+	DragDropService.complete()
+	VendorService.request_buy(stock_entry_id, int(payload.get("quantity", 1)), dest.slot_index)
+	return VendorService.last_request_id
 
 
 func _drop_bag_to_bag(instance_id: String, source: Dictionary, dest: ItemSlotView) -> String:

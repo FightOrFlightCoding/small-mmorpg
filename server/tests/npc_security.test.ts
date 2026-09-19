@@ -226,8 +226,8 @@ test("merchant price spoof, item injection, and quantity abuse are rejected", ()
     JSON.stringify({
       protocolVersion: PROTOCOL_VERSION,
       interactionSessionId: opened.sessionId,
-      npcInstanceId: opened.npcInstanceId,
-      itemId: "item.test_potion",
+      vendorId: "vendor.platform_kiosk",
+      stockEntryId: "vendor.platform_kiosk:item.test_potion",
       price: 1,
       requestId: "req-npc07-price1",
     }),
