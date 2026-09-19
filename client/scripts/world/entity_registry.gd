@@ -379,10 +379,10 @@ func _name_for(kind: String, record: Dictionary) -> String:
 		var item_id := String(record.get("itemId", ""))
 		var item: Dictionary = ContentRegistry.get_by_id(item_id)
 		var rarity := ItemPresentation.rarity_label(item)
-		var named := String(item.get("displayName", item_id))
+		var display := String(item.get("displayName", item_id))
 		if rarity.is_empty():
-			return named
-		return "%s %s" % [rarity, named]
+			return display
+		return "%s %s" % [rarity, display]
 	return _id_for(kind, record)
 
 
