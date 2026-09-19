@@ -1,14 +1,45 @@
 # Progress
 
-Last accepted phase: **ITEM-07 — Merchant purchasing and bag integration**.
+Last accepted phase: **ITEM-08 — Public ground drops and ground pickup**.
 
-Current phase: ITEM-07 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
+Current phase: ITEM-08 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
 
 Canonical git line: **`origin/main`**. Playable work is committed there. The Windows clone stays on `main` and runs `scripts/local-play.ps1 -Branch main`.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01 through ITEM-07 remain accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01 through ITEM-08 remain accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
+
+## ITEM-08 public ground drops and ground pickup (2026-09-19)
+
+ITEM-08 is accepted. It is player-created public ground items and authoritative pickup on the 30-slot bag. It does not implement 20 trade slots, forage, or player-to-merchant selling. Do not start later ITEM phases.
+
+Dragging a bag stack into the world begins `DROP_ITEM`. Default quantity is the whole stack; quantity must be 1..stack. Uncommon or higher shows “This item will be public and can be picked up by anyone.” and requires confirmation. Equipped items must be unequipped into the bag first. All production items, including quest items, may be dropped.
+
+The server validates ownership, bag location, alive / not link-dead / not transferring, unlocked, quantity, the 20-drop anti-spam limit (`PLAYER_GROUND_DROP_LIMIT`, noncanonical), and conflicting locks. At the limit it rejects the new drop and does not delete an older item. Placement uses authoritative character pose, optional `hintDx`/`hintDy`, drop radius, walkable bounds, and wall checks. Client `x`/`y` are `stat_injection`.
+
+`executeDropIntent` is the durable drop path: no loss before entity creation, no duplicate ground entity, no duplicate bag item, compensate on creation failure. Interrupted `COMMITTING` restores the bag or overflow.
+
+Ground entities live on match `state.groundItems` (not a 36th storage collection): `groundEntityId`, instance, quantity, position, creator, created/expires ticks, state, revision. They are public immediately, have no physics collision, expire at five minutes, and are not reconstructed after match/server restart (ITEM-C25).
+
+`PICKUP_GROUND_ITEM` is all-or-nothing. Exactly one claimant succeeds; others `ground_item_no_longer_available`. Duplicate `requestId` replays. Quest-item drop reduces possession progress without failing the quest; pickup may advance the picker’s matching quest. Gel remains reacquirable from slimes.
+
+Opcodes 48 / 49 / 119. Storage record count remains **35**. Content hash unchanged: `7877dd576b022d59f0350be4430aca0b9d402db38b5e16e816ef361003c9cffd`.
+
+Conflicts ITEM-C10 and ITEM-C25 are CLOSED.
+
+| Gate | Result |
+| --- | --- |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 49 client opcodes, 19 server opcodes, 29 RPCs) |
+| Content validation/tests | 28/28 passed |
+| Server hermetic tests | 1000 passed, 13 expected live-test skips |
+| Server typecheck/build | passed |
+| Auth gateway hermetic tests | 52/52 passed |
+| Godot 4.7.1 client GdUnit | 369/369 passed, 0 failures, 0 orphans |
+
+Pre-existing Node 22.14 runner compatibility remains documented: directory-form `node --test` wrappers can fail before discovery. Direct compiled-file glob equivalents pass.
+
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen `client/`. Recreate Nakama so `contentHash` matches.
 
 ## ITEM-07 merchant purchasing and bag integration (2026-09-19)
 

@@ -2,18 +2,18 @@
 
 ITEM-08 extends ITEM-07 with public player ground drops and ground pickup. Acceptance is the gates below plus the ITEM-08 cases. Do not weaken tests.
 
-## Baseline (run on ITEM-08)
+## Baseline (run on ITEM-08; 2026-09-19)
 
 Directory-form `node --test dist/tests` can fail on Node 22.14 before discovery. Glob invocation is authoritative.
 
 | Gate | Result |
 | --- | --- |
-| Foundation audit | pending this PR |
-| Content validation/tests | pending this PR |
-| Server hermetic tests | pending this PR |
-| Server typecheck/build | pending this PR |
-| Auth gateway hermetic tests | pending this PR |
-| Godot 4.7.1 client GdUnit | pending this PR |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 49 client opcodes, 19 server opcodes, 29 RPCs) |
+| Content validation/tests | 28/28 passed |
+| Server hermetic tests | 1000 passed, 13 expected live-test skips |
+| Server typecheck/build | passed |
+| Auth gateway hermetic tests | 52/52 passed |
+| Godot 4.7.1 client GdUnit | 369/369 passed, 0 failures, 0 orphans |
 
 ```bash
 bash scripts/test-audit.sh
