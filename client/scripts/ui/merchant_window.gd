@@ -282,7 +282,7 @@ func _stock_instance(entry: Dictionary) -> Dictionary:
 func _clear_stock_slots() -> void:
 	for child in _stock_grid.get_children():
 		_stock_grid.remove_child(child)
-		child.queue_free()
+		child.free()
 	_stock_slots.clear()
 
 

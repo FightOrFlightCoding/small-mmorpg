@@ -39,8 +39,13 @@ func reset() -> void:
 	last_currency_id = "gold"
 	last_request_id = ""
 	last_stock = []
-	if _window != null:
+	if _window != null and is_instance_valid(_window):
 		_window.close_window()
+		remove_child(_window)
+		_window.free()
+	_window = null
+	if WindowManager.is_open(WindowManager.VENDOR):
+		WindowManager.close(WindowManager.VENDOR)
 	if was_open:
 		_emit_closed()
 
@@ -50,7 +55,7 @@ func reset_for_tests() -> void:
 
 
 func is_open() -> bool:
-	return _window != null and _window.is_open()
+	return _window != null and is_instance_valid(_window) and _window.is_open()
 
 
 func open_from_dialogue() -> void:
@@ -75,7 +80,7 @@ func open_from_dialogue() -> void:
 
 
 func close_to_dialogue() -> void:
-	if _window != null:
+	if is_open():
 		_window.close_window()
 	_emit_closed()
 
@@ -87,7 +92,7 @@ func request_buy(stock_or_item: String, quantity: int = 1, preferred_slot: int =
 	if not stock_or_item.contains(":"):
 		stock_entry_id = "%s:%s" % [last_vendor_id, stock_or_item]
 	last_request_id = MatchProtocol.new_request_id()
-	if _window != null and _window.is_open():
+	if is_open():
 		_window.show_busy()
 	NetworkService.send_vendor_buy(
 		last_session_id,
@@ -109,7 +114,7 @@ func request_sell(instance_id: String, quantity: int = 0) -> void:
 	if last_npc_id.is_empty() or instance_id.is_empty():
 		return
 	last_request_id = MatchProtocol.new_request_id()
-	if _window != null and _window.is_open():
+	if is_open():
 		_window.show_busy()
 	NetworkService.send_vendor_sell(last_npc_id, instance_id, quantity, last_request_id)
 
@@ -177,7 +182,7 @@ func _on_action_result(payload: Dictionary) -> void:
 	if request_id.is_empty() or request_id != last_request_id:
 		return
 	last_request_id = ""
-	if _window == null or not _window.is_open():
+	if not is_open():
 		return
 	if bool(payload.get("result_ok", false)):
 		_window.show_status("Purchase complete.")
@@ -187,7 +192,7 @@ func _on_action_result(payload: Dictionary) -> void:
 
 
 func _on_wallet_changed() -> void:
-	if _window != null and _window.is_open():
+	if is_open():
 		_window.set_player_gold(WalletService.gold)
 
 
@@ -196,7 +201,7 @@ func _on_window_closed(window_id: String) -> void:
 		return
 	if _closing:
 		return
-	if _window == null or not _window.is_open():
+	if _window == null or not is_instance_valid(_window) or not _window.is_open():
 		return
 	_window.close_window()
 	_emit_closed()

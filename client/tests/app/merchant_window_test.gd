@@ -14,6 +14,11 @@ func before_test() -> void:
 	assert_bool(ContentRegistry.load_bundle()).is_true()
 
 
+func after_test() -> void:
+	VendorService.reset_for_tests()
+	WindowManager.reset_for_tests()
+
+
 func test_merchant_window_lists_stock_and_currency() -> void:
 	var window: MerchantWindow = auto_free(MerchantWindow.new())
 	add_child(window)
