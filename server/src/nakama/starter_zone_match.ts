@@ -15,7 +15,7 @@ import { clearLocksByLockId, initializeInventoryFromStacks, itemDefinitionsFromC
 import { TX_REASON_ADMIN_GRANT, TX_REASON_EQUIPMENT, TX_REASON_LOOT } from "../domain/transaction";
 import { validateJoinAttempt } from "../domain/join_validation";
 import { assertPlayableAccount } from "./playable_account";
-import { applyMatchLoop, snapshotForOthers, type IncomingMatchData, type EquipmentPersist, type InventoryPersist, type OverflowPersist, type MatchLoopResult } from "../domain/match_loop";
+import { applyMatchLoop, pushLootRollsForUser, snapshotForOthers, type IncomingMatchData, type EquipmentPersist, type InventoryPersist, type OverflowPersist, type MatchLoopResult } from "../domain/match_loop";
 import { PLAYER_RESPAWN_DELAY_SEC } from "../domain/combat";
 import { questDefinitionsFromContent } from "../domain/quest";
 import {
@@ -556,6 +556,11 @@ export function matchJoin(
   for (let i = 0; i < joined.length; i++) {
     const presence = joined[i];
     dispatcher.broadcastMessage(fullStateOpcode(), buildFullState(zone, tick, presence.userId), [presence], null, true);
+    const rollOutbound: { opcode: number; body: string; toUserId?: string }[] = [];
+    pushLootRollsForUser(zone, presence.userId, tick, rollOutbound);
+    for (let r = 0; r < rollOutbound.length; r++) {
+      dispatcher.broadcastMessage(rollOutbound[r].opcode, rollOutbound[r].body, [presence], null, true);
+    }
   }
   if (joined.length > 0) {
     const snapshot = snapshotForOthers(zone, tick, "");

@@ -12,7 +12,7 @@ ITEM-02 closed content stack rules, bag capacity 30, equipment-out-of-bag, and M
 2. **Capacity planner** — **done in ITEM-03.** One dry-run simulator; optional `expectedRevision` on mutations; typed locks; journal/intents/audit on the inventory record.
 3. **Equipment out of bag** — **done in ITEM-02.** Instances leave CharacterBag; unequip needs a free slot; MigrationOverflow for characters who cannot fit after the split; recalc stats from instance ids.
 4. **Bag UI** — 6×5, tooltips, drag-drop calling `MOVE_ITEM` / split / merge; GLoot remains a mirror. **Done in ITEM-04.**
-5. **Corpse + tag + gold + Loot All** — **done in ITEM-05** except Need/Greed resolution (ITEM-06). Dual-path slime sparkles keep Prompt 18. Reuse acquisition intent.
+5. **Corpse + tag + gold + Loot All** — **done in ITEM-05**. Need/Greed resolution **done in ITEM-06**. Dual-path slime sparkles keep Prompt 18. Reuse acquisition intent.
 6. **Player ground drop** — 5 min public; server placement; full pickup. Reuse `executeDropIntent`.
 7. **Trade 20 offer slots** — cap live unbounded offers; UI already shows two offer lists.
 8. **Quest possession** — already live; verify drop/trade/pickup recount; repeatable or reacquisition path until complete.
@@ -34,7 +34,7 @@ Missing ITEM-03 lock fields default unlocked. Missing journal/intent/audit maps 
 
 ## Match-transient
 
-Ground loot and future corpses are **not** migrated across match restart. Document as expected loss. Completed player drops from `executeDropIntent` are also match-transient.
+Ground loot, corpses, and loot rolls are **not** migrated across match restart. Document as expected loss. Completed player drops from `executeDropIntent` are also match-transient.
 
 ## Trade
 

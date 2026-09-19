@@ -31,6 +31,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `CaveService` | C | Cave-enter/exit intents; transfer overlay after ticket extras | Last approved cave NPC | none | `NetworkService` | no | CAVE_ENTER / CAVE_EXIT | no |
 | `PartyService` | C | Party mirror; create/invite/accept/leave/kick/promote/disband; party chat | In-memory party view, pending invite, chat lines | none | `NetworkService`, `AppState` | no | party RPCs, PARTY_STATE / PARTY_EVENT, `party.<id>` channel | no |
 | `TradeService` | C | Trade mirror; invite/offer/gold/accept/cancel | In-memory trade view | none | `NetworkService`, `AppState` | no | TRADE_* / TRADE_STATE | no grants |
+| `CorpseService` / `LootRollService` | C | Corpse window; Need/Greed cards; open/claim/Loot All/roll intentions | Last corpse view, open rolls | none | `NetworkService`, `InventoryService` | no | OPEN/CLOSE/CLAIM/LOOT_ALL_CORPSE / SUBMIT_LOOT_ROLL | no grants |
 | `GmService` | C | Debug GM panel; `gm_command` RPC intention + reason | Last result copy | none | `NetworkService` | no | `gm_command` RPC | no grants |
 | `WindowManager` / `HudController` / `UiStateService` | C | Open/close/focus/exclusivity of shell and HUD windows; character/zone restore | Open window ids, UI scale | none | `AppState` | no | no | no |
 | `TooltipService` / `DragDropService` / `NotificationService` | C | Tooltip clamp, drag preview, toast copy | Ephemeral presentation | none | none | no | no | no |
@@ -64,7 +65,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `vendor.ts` | S | Buy/sell apply; server prices; unsellable/locked | none | none | inventory, wallet, transaction | no | VENDOR_BUY / VENDOR_SELL | yes (pure) |
 | `inn.ts` | S | Inn/healer rest, gold, heal, resource restore, bind | none | none | wallet, transaction | bind on character | INN_REST | yes (pure) |
 | `quest_objectives.ts` | S | Talk/kill/collect/enter/boss/return progress | none | none | quest.ts | no | via loop | no |
-| `loot.ts` | S | Ground loot TTL and pickup apply | match loot list | none | `inventory.ts` | no | via loop | grant in memory |
+| `loot.ts` / `corpse.ts` / `loot_roll.ts` | S | Ground loot TTL; corpse containers; Need/Greed rolls and pending awards | match loot/corpse/roll lists | none | `inventory.ts`, `item_txn.ts`, `combat_rng.ts` | no | PICKUP / corpse opcodes / SUBMIT_LOOT_ROLL | grant in memory |
 | `inventory.ts` / `inventory_store.ts` (domain) | S | Stack rules, instance fields, locks, serialize inventory | none | none | none | serialize only | no | yes (pure) |
 | `overflow.ts` / `overflow_store.ts` (domain) | S | MigrationOverflow recovery container; recover into free bag slots | none | none | inventory | serialize only | no | yes (pure) |
 | `item_migration.ts` | S | Bag 30, equipment extract, compatible merge, overflow leftover | none | none | inventory, equipment, overflow | serialize only | no | yes (pure) |

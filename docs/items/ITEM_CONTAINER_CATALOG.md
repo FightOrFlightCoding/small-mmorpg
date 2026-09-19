@@ -1,4 +1,4 @@
-# Item container catalog (ITEM-05)
+# Item container catalog (ITEM-06)
 
 Containers are logical owners of item instances or gold. ITEM-01 records **live** vs **target**. Live names in code are used until a later phase migrates. ITEM-05 adds a client-visible corpse window over a match-lifetime `CorpseLootContainer`.
 
@@ -36,9 +36,9 @@ Entry states:
 
 `PRIVATE_AVAILABLE` → `ROLL_PENDING` → `CLAIMING` → `AWARDED_PENDING_PICKUP` / `PUBLIC_AVAILABLE` → `CLAIMED` / `EXPIRED`
 
-Timing: 60 s private from death; public after the ITEM-06 roll stub at that boundary; expire 5 minutes from death. Empty corpses may vanish immediately. Sparkle TTL stays 30 s.
+Timing: 60 s private from death; Need/Greed resolves at that boundary before remaining unreserved entries become public; expire 5 minutes from death. Empty corpses may vanish immediately. Sparkle TTL stays 30 s.
 
-Need/Greed resolution is **not** live. Qualifying Uncommon-or-higher party drops enter `ROLL_PENDING` and stay reserved for ITEM-06. Quest items never enter `ROLL_PENDING`. Ordinary party loot is first successful claimant.
+Need/Greed is live. Qualifying Uncommon-or-higher party-tagged drops open a roll when two or more characters are death-eligible. One death-eligible character auto-awards (pending pickup if the whole stack does not fit). Quest items never enter `ROLL_PENDING`. Ordinary party loot is first successful claimant. Solo-tagged drops never roll.
 
 ## MerchantCatalog
 
@@ -60,7 +60,7 @@ Target: **20** item-offer slots per participant + one gold field. UI shows local
 
 ## PendingRollAward
 
-**Absent live.** Target: Need/Greed winner who cannot receive the whole stack. State `AWARDED_PENDING_PICKUP`, owner = winner only, remains on the corpse until 5 min expire, not public, not rerolled. ITEM-05 reserves `ROLL_PENDING` only.
+Live as corpse entry state `AWARDED_PENDING_PICKUP`. Owner = Need/Greed (or single-eligible auto-award) winner only. Remains on the corpse until 5 min expire, not public, not rerolled. Winner claims through ordinary corpse claim / Loot All.
 
 ## Gold
 

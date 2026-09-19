@@ -1,4 +1,4 @@
-# Current item-system conflicts (ITEM-05)
+# Current item-system conflicts (ITEM-06)
 
 ITEM-05 closed first-attacker tagging, corpse containers, gold split, Loot All, and the 60 s / 5 min corpse window. Remaining rows stay OPEN until a later numbered ITEM phase names them.
 
@@ -8,7 +8,7 @@ Status: `OPEN` = live Foundation differs from the completed ITEM platform. `KEEP
 | --- | --- | --- | --- | --- |
 | ITEM-C01 | CLOSED | Live bag is 30 slots, indices 0–29; HUD “N / 30 stacks” | 6×5 grid | ITEM-02 closed capacity. ITEM-04 closed the grid ([ITEM-C15](ITEM_CURRENT_CONFLICTS.md)) |
 | ITEM-C02 | CLOSED | Equipped instances live in `PlayerEquipment.items`; unequip needs a free bag slot | Equipment outside bag | ITEM-02 |
-| ITEM-C03 | OPEN | Uncommon+ party drops enter `ROLL_PENDING`; no roll opcodes; public-boundary resolver is a no-op | Uncommon+ party corpse Need/Greed, 60 s, Need>Greed>Pass, server 1–100 | ITEM-06 |
+| ITEM-C03 | CLOSED | Uncommon+ party drops roll Need/Greed; opcode 47/118; 60 s Need>Greed>Pass; server 1–100 | Uncommon+ party corpse Need/Greed, 60 s, Need>Greed>Pass, server 1–100 | ITEM-06 |
 | ITEM-C04 | CLOSED | `CorpseLootContainer` 60 s private, 5 min expire; sparkle dual-path TTL 30 s | Corpse container; 60 s private; 5 min expire | ITEM-05 |
 | ITEM-C05 | CLOSED | First damaging hit tags owner/party/roster; leash/full reset clears tag | First damaging attacker tags; snapshot party; leash clears tag | ITEM-05 |
 | ITEM-C06 | CLOSED | Ordinary corpse items: first eligible claimant. `party_split` personal duplicates remain only for non-corpse personal grants | Ordinary items: first eligible claimant; not round-robin; not full duplicates | ITEM-05 |
@@ -24,7 +24,7 @@ Status: `OPEN` = live Foundation differs from the completed ITEM platform. `KEEP
 | ITEM-C16 | CLOSED | No bind/soulbind fields; production items must be tradeable and droppable | No soulbind | ITEM-02. `uniquePolicy` remains uniqueness, not binding |
 | ITEM-C17 | CLOSED | Typed locks on instances (`TRADE`, `DROP_INTENT`, …); TTL 120 s; tick expiry + orphan release | Typed locks listed in [ITEM_LOCK_MODEL.md](ITEM_LOCK_MODEL.md) | ITEM-03. Production trade still also writes `lockReason: "trade"` |
 | ITEM-C18 | CLOSED | First-hit tag owns the private corpse; `killer` catalog policy no longer public-grounds mob deaths | Private tagged corpse for the killer/roster | ITEM-05 |
-| ITEM-C19 | OPEN | `CorpseLootContainer` is live; `PendingRollAward` remains absent | Remaining roll award container | ITEM-06 |
+| ITEM-C19 | CLOSED | `CorpseLootContainer` plus `AWARDED_PENDING_PICKUP` winner-only pending awards | Remaining roll award container | ITEM-06 |
 | ITEM-C20 | OPEN | Gold is **account** Nakama wallet | Still a wallet (not an item); per-character split is **not** required by the ITEM pack — document only | Keep unless a later phase names a split |
 | ITEM-C21 | CLOSED | Match persistEconomy stamps `item_destroy` / `item_split` / `item_move` / `loot` / `equipment` via `inventory.persistReason` | Reason matches the mutation | ITEM-03 |
 | ITEM-C22 | CLOSED | `planCapacity` / `planTwoWayTrade` serve grant, trade, unequip, preferred slot, outgoing, and locks; `acceptItemFailureCode` delegates | Full multi-stack planner | ITEM-03 |

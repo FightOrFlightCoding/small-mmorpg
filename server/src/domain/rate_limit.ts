@@ -52,7 +52,7 @@ export function actionForOpcode(opcode: number): RateAction {
   if (opcode === ClientOpcode.ATTACK || opcode === ClientOpcode.USE_ABILITY || opcode === ClientOpcode.CANCEL_CAST || opcode === ClientOpcode.SET_TARGET) {
     return "attack";
   }
-  if (opcode === ClientOpcode.PICKUP || opcode === ClientOpcode.OPEN_CORPSE || opcode === ClientOpcode.CLOSE_CORPSE || opcode === ClientOpcode.CLAIM_CORPSE_ITEM || opcode === ClientOpcode.CLAIM_CORPSE_GOLD || opcode === ClientOpcode.LOOT_ALL_CORPSE) {
+  if (opcode === ClientOpcode.PICKUP || opcode === ClientOpcode.OPEN_CORPSE || opcode === ClientOpcode.CLOSE_CORPSE || opcode === ClientOpcode.CLAIM_CORPSE_ITEM || opcode === ClientOpcode.CLAIM_CORPSE_GOLD || opcode === ClientOpcode.LOOT_ALL_CORPSE || opcode === ClientOpcode.SUBMIT_LOOT_ROLL) {
     return "pickup";
   }
   if (opcode === ClientOpcode.DESTROY_ITEM || opcode === ClientOpcode.SPLIT_STACK || opcode === ClientOpcode.MOVE_ITEM || opcode === ClientOpcode.RECOVER_OVERFLOW_ITEM) {

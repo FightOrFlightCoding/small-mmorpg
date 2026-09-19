@@ -1,4 +1,4 @@
-# Item security model (ITEM-05)
+# Item security model (ITEM-06)
 
 The client is an untrusted renderer. Defenses stay server-side. Parent: [SECURITY_MODEL.md](../SECURITY_MODEL.md).
 
@@ -31,13 +31,13 @@ The client is an untrusted renderer. Defenses stay server-side. Parent: [SECURIT
 | Loot All while rolls open | Skip `ROLL_PENDING` and foreign `AWARDED_PENDING_PICKUP` |
 | Corpse gold spoof | Client sends `corpseId` only; split is server-side and idempotent |
 | Corpse recipient injection | Reject `lootRecipients` |
+| Need/Greed client roll | `stat_injection:roll`; server integer 1–100; ignore client numbers |
+| Pickup pending award | Winner only; others `not_eligible`. `ROLL_PENDING` rejects `roll_pending` until resolution |
 
 ## Target threats not yet implemented
 
 | Attack | Required defense when that feature lands |
 | --- | --- |
-| Need/Greed client roll | Server integer 1–100; ignore client numbers |
-| Pickup pending award | Winner only; others fail. `ROLL_PENDING` is reserved until ITEM-06 |
 | Client drop coordinates | Server chooses nearby valid pose |
 | Partial ground pickup | Reject; full stack only |
 | Forged forage grant | No client grant; node + range + idempotent `requestId`; reuse acquisition intent |

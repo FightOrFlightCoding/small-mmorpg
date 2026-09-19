@@ -62,6 +62,7 @@ const CLIENT_CLOSE_CORPSE: int = 43
 const CLIENT_CLAIM_CORPSE_ITEM: int = 44
 const CLIENT_CLAIM_CORPSE_GOLD: int = 45
 const CLIENT_LOOT_ALL_CORPSE: int = 46
+const CLIENT_SUBMIT_LOOT_ROLL: int = 47
 
 const SERVER_FULL_STATE: int = 101
 const SERVER_SNAPSHOT: int = 102
@@ -80,6 +81,7 @@ const SERVER_PARTY_EVENT: int = 114
 const SERVER_TRADE_STATE: int = 115
 const SERVER_CORPSE_STATE: int = 116
 const SERVER_CORPSE_REMOVED: int = 117
+const SERVER_LOOT_ROLL_STATE: int = 118
 
 const FIND_OR_CREATE_STARTER_ZONE_RPC: String = "find_or_create_starter_zone"
 const SESSION_HANDSHAKE_RPC: String = "session_handshake"
@@ -453,6 +455,19 @@ static func parse_corpse_removed(raw: String) -> Dictionary:
 		"ok": true,
 		"corpse_id": String(parsed.get("corpseId", "")),
 		"reason": String(parsed.get("reason", "")),
+	}
+
+
+static func parse_loot_roll_state(raw: String) -> Dictionary:
+	var parsed: Dictionary = _parse_object(raw)
+	if parsed.has("ok") and not bool(parsed["ok"]):
+		return parsed
+	if not _version_ok(parsed):
+		return _fail("protocol_mismatch", "The loot-roll protocol version does not match this client.")
+	return {
+		"ok": true,
+		"request_id": String(parsed.get("requestId", "")),
+		"roll": _optional_object(parsed, "roll"),
 	}
 
 

@@ -51,6 +51,7 @@ export const ClientOpcode = {
   CLAIM_CORPSE_ITEM: 44,
   CLAIM_CORPSE_GOLD: 45,
   LOOT_ALL_CORPSE: 46,
+  SUBMIT_LOOT_ROLL: 47,
 } as const;
 
 export const ServerOpcode = {
@@ -71,6 +72,7 @@ export const ServerOpcode = {
   TRADE_STATE: 115,
   CORPSE_STATE: 116,
   CORPSE_REMOVED: 117,
+  LOOT_ROLL_STATE: 118,
 } as const;
 
 export type ClientOpcode = (typeof ClientOpcode)[keyof typeof ClientOpcode];
@@ -123,6 +125,7 @@ const CLIENT_OPCODES: ClientOpcode[] = [
   ClientOpcode.CLAIM_CORPSE_ITEM,
   ClientOpcode.CLAIM_CORPSE_GOLD,
   ClientOpcode.LOOT_ALL_CORPSE,
+  ClientOpcode.SUBMIT_LOOT_ROLL,
 ];
 
 const REWARD_OPCODES: ClientOpcode[] = [
@@ -187,6 +190,7 @@ OPCODE_KEYS[ClientOpcode.CLOSE_CORPSE] = ["corpseId"];
 OPCODE_KEYS[ClientOpcode.CLAIM_CORPSE_ITEM] = ["corpseId", "entryId", "toSlotIndex", "expectedRevision"];
 OPCODE_KEYS[ClientOpcode.CLAIM_CORPSE_GOLD] = ["corpseId"];
 OPCODE_KEYS[ClientOpcode.LOOT_ALL_CORPSE] = ["corpseId", "expectedRevision"];
+OPCODE_KEYS[ClientOpcode.SUBMIT_LOOT_ROLL] = ["rollId", "choice"];
 
 const OUTCOME_KEYS = [
   "attack",
@@ -311,6 +315,7 @@ function requiresRequestId(opcode: ClientOpcode): boolean {
     opcode === ClientOpcode.CLAIM_CORPSE_ITEM ||
     opcode === ClientOpcode.CLAIM_CORPSE_GOLD ||
     opcode === ClientOpcode.LOOT_ALL_CORPSE ||
+    opcode === ClientOpcode.SUBMIT_LOOT_ROLL ||
     opcode === ClientOpcode.USE_ABILITY ||
     opcode === ClientOpcode.CANCEL_CAST ||
     opcode === ClientOpcode.ASSIGN_HOTBAR ||
@@ -963,6 +968,25 @@ export function corpseStateMessage(
   }
   return {
     opcode: ServerOpcode.CORPSE_STATE,
+    body: JSON.stringify(payload),
+  };
+}
+
+export function lootRollStateMessage(
+  contentHash: string,
+  roll: { [key: string]: unknown },
+  requestId?: string,
+): { opcode: number; body: string } {
+  const payload: { [key: string]: unknown } = {
+    protocolVersion: PROTOCOL_VERSION,
+    contentHash: contentHash,
+    roll: roll,
+  };
+  if (requestId !== undefined) {
+    payload.requestId = requestId;
+  }
+  return {
+    opcode: ServerOpcode.LOOT_ROLL_STATE,
     body: JSON.stringify(payload),
   };
 }

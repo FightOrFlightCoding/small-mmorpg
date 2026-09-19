@@ -904,6 +904,8 @@ func _connect_chat_signals() -> void:
 		NetworkService.chat_presence_received.connect(_on_chat_presence)
 	if not NetworkService.chat_error.is_connected(_on_chat_error):
 		NetworkService.chat_error.connect(_on_chat_error)
+	if not LootRollService.feed_line.is_connected(_on_loot_roll_feed):
+		LootRollService.feed_line.connect(_on_loot_roll_feed)
 	if _chat != null and AppState.last_error_code.begins_with("chat_"):
 		_chat.set_status(AppState.last_error_message)
 
@@ -915,6 +917,8 @@ func _disconnect_chat_signals() -> void:
 		NetworkService.chat_presence_received.disconnect(_on_chat_presence)
 	if NetworkService.chat_error.is_connected(_on_chat_error):
 		NetworkService.chat_error.disconnect(_on_chat_error)
+	if LootRollService.feed_line.is_connected(_on_loot_roll_feed):
+		LootRollService.feed_line.disconnect(_on_loot_roll_feed)
 
 
 func _on_chat_send_requested(text: String) -> void:
@@ -956,6 +960,11 @@ func _on_chat_presence(payload: Dictionary) -> void:
 func _on_chat_error(code: String, message: String) -> void:
 	if _chat != null:
 		_chat.set_status(message if not message.is_empty() else code)
+
+
+func _on_loot_roll_feed(message: String) -> void:
+	if _chat != null and not message.is_empty():
+		_chat.append_line(message)
 
 
 func _on_resync_pressed() -> void:

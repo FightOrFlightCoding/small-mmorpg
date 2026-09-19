@@ -10,6 +10,7 @@ import {
   interactionResult,
   inventoryState,
   isProtocolError,
+  lootRollStateMessage,
   parseClientMessage,
   progressionState,
   questState,
@@ -57,7 +58,7 @@ import { applyQuestAccept, cloneQuestLog, publicNpcQuestMarkers, publicQuestPayl
 import { applyTalkObjectives, applyKillObjectives, applyEnterLocation, enterLocationsFromQuests } from "./quest_objectives";
 import { applyVendorBuy, applyVendorSell, vendorShopPresentation, type VendorTradeOutcome } from "./vendor";
 import { expireInventoryLocks } from "./item_lock";
-import { ITEM_ERROR_INVENTORY_STALE } from "./item_errors";
+import { ITEM_ERROR_INVENTORY_FULL, ITEM_ERROR_INVENTORY_STALE } from "./item_errors";
 import { applyCaveEnter, applyInnRest } from "./inn";
 import { applyCaveWipeIfNeeded, markCaveBossDefeated, evaluateCaveExit, type CaveTransferIntent } from "./cave";
 import { TRANSFER_TICKET_TTL_MS } from "./instance";
@@ -125,6 +126,18 @@ import {
   openCorpseWindow,
   tickCorpses,
 } from "./corpse";
+import {
+  applyNeedGreedPublicBoundary,
+  autoAwardSingleEligible,
+  expireLootRollsForCorpse,
+  lootRollStateForViewer,
+  lootRollsForCharacter,
+  openNeedGreedForCorpse,
+  submitLootRollChoice,
+  type AwardInventoryBag,
+  type LootRollNotice,
+  type NeedGreedMutation,
+} from "./loot_roll";
 import {
   allocateAttributes,
   allocateAttributesBatch,
@@ -349,10 +362,13 @@ export function applyMatchLoop(
     makeId,
     persistProgressionByUser,
     persistByUser,
+    persistInventoryByUser,
+    persistEquipmentByUser,
     outbound,
   );
   const caveCompletionChanged = maybeCompleteCaveBoss(next, combatEvents);
   applyCaveWipeIfNeeded(next, tick, MATCH_TICK_RATE);
+  applyLootRollDeadline(next, tick, outbound, persistInventoryByUser, persistEquipmentByUser, persistByUser);
   const goldTick = tickCorpses(
     Array.isArray(next.corpses) ? next.corpses : [],
     tick,
@@ -362,6 +378,7 @@ export function applyMatchLoop(
   next.corpses = goldTick.corpses;
   applyGoldByUser(next, goldTick.goldByUser, outbound, tick, commitTxn, skipStorageUsers);
   broadcastCorpseLifecycle(next, goldTick.removed, goldTick.updated, outbound, tick);
+  pruneLootRolls(next, goldTick.removed);
   next.loot = expireLoot(next.loot, tick);
   applyEnterQuestProgress(next, persistByUser, outbound);
   tickTrades(next, tick, outbound, persistInventoryByUser, persistTradesById);
@@ -700,6 +717,7 @@ function handleValidated(
         body: buildFullState(state, tick, userId),
         toUserId: userId,
       });
+      pushLootRollsForUser(state, userId, tick, outbound);
       return;
     }
     if (
@@ -747,6 +765,7 @@ function handleValidated(
       body: buildFullState(state, tick, userId),
       toUserId: userId,
     });
+    pushLootRollsForUser(state, userId, tick, outbound);
     return;
   }
   if (parsed.opcode === ClientOpcode.INPUT) {
@@ -835,6 +854,10 @@ function handleValidated(
   }
   if (parsed.opcode === ClientOpcode.LOOT_ALL_CORPSE) {
     handleLootAllCorpse(parsed, userId, state, tick, outbound, persistByUser, persistInventoryByUser, persistEquipmentByUser, commitTxn, skipStorageUsers);
+    return;
+  }
+  if (parsed.opcode === ClientOpcode.SUBMIT_LOOT_ROLL) {
+    handleSubmitLootRoll(parsed, userId, state, tick, outbound);
     return;
   }
   if (parsed.opcode === ClientOpcode.EQUIP) {
@@ -2472,6 +2495,8 @@ function processEnemyDeathRewards(
   newId: () => string,
   persistProgressionByUser: { [userId: string]: CharacterProgression },
   persistByUser: { [userId: string]: QuestLog },
+  persistInventoryByUser: { [userId: string]: PlayerInventory },
+  persistEquipmentByUser: { [userId: string]: PlayerEquipment },
   outbound: MatchOutbound[],
 ): void {
   const deaths = collectNewEnemyDeaths(state, events);
@@ -2493,7 +2518,18 @@ function processEnemyDeathRewards(
     grantKillXpToEligible(state, death, eligible, enemy, tick, persistProgressionByUser, outbound, rules.xpFormula);
     applyKillQuestToEligible(state, death, eligible, enemy, persistByUser, outbound);
     const drops = rollLootTable(death.table, lcgRng(hashSeed(death.eventId)));
-    spawnDeathCorpse(state, death, enemy, drops, tick, newId, outbound);
+    spawnDeathCorpse(
+      state,
+      death,
+      enemy,
+      drops,
+      tick,
+      newId,
+      persistInventoryByUser,
+      persistEquipmentByUser,
+      persistByUser,
+      outbound,
+    );
   }
 }
 
@@ -2504,6 +2540,9 @@ function spawnDeathCorpse(
   drops: ReturnType<typeof rollLootTable>,
   tick: number,
   newId: () => string,
+  persistInventoryByUser: { [userId: string]: PlayerInventory },
+  persistEquipmentByUser: { [userId: string]: PlayerEquipment },
+  persistByUser: { [userId: string]: QuestLog },
   outbound: MatchOutbound[],
 ): void {
   if (enemy !== null) {
@@ -2562,10 +2601,31 @@ function spawnDeathCorpse(
     itemsById: state.itemsById,
     newId: newId,
   });
+  const bags = awardBagsFromState(state);
+  const opened = openNeedGreedForCorpse({
+    corpse: corpse,
+    itemsById: state.itemsById,
+    newId: newId,
+    openedAt: tick,
+  });
+  if (!Array.isArray(state.lootRolls)) {
+    state.lootRolls = [];
+  }
+  for (let r = 0; r < opened.length; r++) {
+    state.lootRolls.push(opened[r]);
+  }
+  const autoAwarded = autoAwardSingleEligible({
+    corpse: corpse,
+    itemsById: state.itemsById,
+    bags: bags,
+    nowMs: tickMs(tick),
+    namesByCharacterId: namesByCharacter(state),
+  });
   if (!Array.isArray(state.corpses)) {
     state.corpses = [];
   }
   state.corpses.push(corpse);
+  applyNeedGreedMutation(state, autoAwarded, persistInventoryByUser, persistEquipmentByUser, persistByUser, outbound, tick);
   state.loot = spawnCorpseSparkles(
     state.loot,
     corpse.corpseId,
@@ -2577,6 +2637,7 @@ function spawnDeathCorpse(
     newId,
   );
   pushCorpseToViewers(state, corpse, outbound, tick);
+  broadcastLootRolls(state, opened, outbound, tick);
 }
 
 function handleOpenCorpse(
@@ -3031,6 +3092,312 @@ function pushCorpseToViewers(
     );
     outbound.push({ opcode: msg.opcode, body: msg.body, toUserId: userId });
   }
+}
+
+function handleSubmitLootRoll(
+  parsed: ParsedClientMessage,
+  userId: string,
+  state: StarterZoneState,
+  tick: number,
+  outbound: MatchOutbound[],
+): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    const missing = actionResult("player_missing", false, parsed.requestId);
+    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    return;
+  }
+  if (!Array.isArray(state.lootRolls)) {
+    state.lootRolls = [];
+  }
+  const submitted = submitLootRollChoice({
+    rolls: state.lootRolls,
+    rollId: parsed.fields.rollId,
+    characterId: player.characterId,
+    choice: parsed.fields.choice,
+    requestId: parsed.requestId as string,
+    tick: tick,
+  });
+  const result = actionResult(submitted.code, submitted.ok, parsed.requestId);
+  outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
+  if (submitted.roll !== null) {
+    const msg = lootRollStateMessage(
+      state.contentHash,
+      lootRollStateForViewer(submitted.roll, player.characterId, tick),
+      parsed.requestId as string,
+    );
+    outbound.push({ opcode: msg.opcode, body: msg.body, toUserId: userId });
+  }
+}
+
+function applyLootRollDeadline(
+  state: StarterZoneState,
+  tick: number,
+  outbound: MatchOutbound[],
+  persistInventoryByUser: { [userId: string]: PlayerInventory },
+  persistEquipmentByUser: { [userId: string]: PlayerEquipment },
+  persistByUser: { [userId: string]: QuestLog },
+): void {
+  if (!Array.isArray(state.lootRolls)) {
+    state.lootRolls = [];
+  }
+  const random = state.combatRandom !== undefined ? state.combatRandom : { next: function () { return Math.random(); } };
+  const bags = awardBagsFromState(state);
+  const mutation = applyNeedGreedPublicBoundary({
+    corpses: Array.isArray(state.corpses) ? state.corpses : [],
+    rolls: state.lootRolls,
+    tick: tick,
+    context: {
+      bags: bags,
+      itemsById: state.itemsById,
+      random: random,
+      nowMs: tickMs(tick),
+      namesByCharacterId: namesByCharacter(state),
+    },
+  });
+  applyNeedGreedMutation(state, mutation, persistInventoryByUser, persistEquipmentByUser, persistByUser, outbound, tick);
+  broadcastResolvedRolls(state, mutation, outbound, tick);
+}
+
+function applyNeedGreedMutation(
+  state: StarterZoneState,
+  mutation: NeedGreedMutation,
+  persistInventoryByUser: { [userId: string]: PlayerInventory },
+  persistEquipmentByUser: { [userId: string]: PlayerEquipment },
+  persistByUser: { [userId: string]: QuestLog },
+  outbound: MatchOutbound[],
+  tick: number,
+): void {
+  const characterIds = Object.keys(mutation.inventories);
+  for (let i = 0; i < characterIds.length; i++) {
+    const characterId = characterIds[i];
+    const inventory = mutation.inventories[characterId];
+    const located = locateCharacter(state, characterId);
+    if (located === null) {
+      continue;
+    }
+    located.player.inventory = inventory;
+    if (mutation.persistUserIds.indexOf(located.userId) !== -1) {
+      inventory.persistReason = TX_REASON_LOOT;
+      persistInventoryByUser[located.userId] = inventory;
+      const synced = syncAcquireObjectives(located.player.questLog, inventory);
+      located.player.questLog = synced.log;
+      if (synced.changed) {
+        persistByUser[located.userId] = cloneQuestLog(synced.log);
+        pushQuestState(state, located.userId, outbound, "");
+      }
+      refreshDerivedFromInventory(state, located.userId, persistEquipmentByUser);
+      if (state.players[located.userId] !== undefined) {
+        const inv = inventoryState(state.contentHash, publicBag(located.player));
+        outbound.push({ opcode: inv.opcode, body: inv.body, toUserId: located.userId });
+      }
+    }
+  }
+  for (let n = 0; n < mutation.notices.length; n++) {
+    broadcastLootRollNotice(state, mutation.notices[n], outbound);
+  }
+  const corpseIds = mutation.updatedCorpseIds;
+  for (let c = 0; c < corpseIds.length; c++) {
+    const corpse = findCorpse(Array.isArray(state.corpses) ? state.corpses : [], corpseIds[c]);
+    if (corpse === null) {
+      continue;
+    }
+    for (let i = 0; i < corpse.items.length; i++) {
+      if (corpse.items[i].state === "CLAIMED") {
+        state.loot = removeCorpseLinkedLoot(state.loot, corpse.corpseId, corpse.items[i].entryId);
+      }
+    }
+    if (corpse.state === "REMOVED") {
+      state.loot = removeCorpseLinkedLoot(state.loot, corpse.corpseId);
+    }
+    pushCorpseToViewers(state, corpse, outbound, tick);
+  }
+}
+
+function broadcastLootRollNotice(state: StarterZoneState, notice: LootRollNotice, outbound: MatchOutbound[]): void {
+  const sys = systemMessage(notice.code, notice.message);
+  if (notice.code === ITEM_ERROR_INVENTORY_FULL && notice.userId.length > 0) {
+    if (state.players[notice.userId] !== undefined) {
+      outbound.push({ opcode: sys.opcode, body: sys.body, toUserId: notice.userId });
+    }
+    return;
+  }
+  const recipients: { [userId: string]: boolean } = {};
+  for (let i = 0; i < notice.eligibleCharacterIds.length; i++) {
+    const located = locateCharacter(state, notice.eligibleCharacterIds[i]);
+    if (located !== null && state.players[located.userId] !== undefined) {
+      recipients[located.userId] = true;
+    }
+  }
+  const userIds = Object.keys(recipients);
+  for (let u = 0; u < userIds.length; u++) {
+    outbound.push({ opcode: sys.opcode, body: sys.body, toUserId: userIds[u] });
+  }
+}
+
+function broadcastLootRolls(
+  state: StarterZoneState,
+  rolls: ReturnType<typeof openNeedGreedForCorpse>,
+  outbound: MatchOutbound[],
+  tick: number,
+): void {
+  for (let r = 0; r < rolls.length; r++) {
+    const roll = rolls[r];
+    for (let i = 0; i < roll.eligibleCharacterIds.length; i++) {
+      const located = locateCharacter(state, roll.eligibleCharacterIds[i]);
+      if (located === null || state.players[located.userId] === undefined) {
+        continue;
+      }
+      const msg = lootRollStateMessage(
+        state.contentHash,
+        lootRollStateForViewer(roll, located.player.characterId, tick),
+      );
+      outbound.push({ opcode: msg.opcode, body: msg.body, toUserId: located.userId });
+    }
+  }
+}
+
+function broadcastResolvedRolls(
+  state: StarterZoneState,
+  mutation: NeedGreedMutation,
+  outbound: MatchOutbound[],
+  tick: number,
+): void {
+  const rolls = Array.isArray(state.lootRolls) ? state.lootRolls : [];
+  for (let i = 0; i < mutation.resolvedRollIds.length; i++) {
+    const rollId = mutation.resolvedRollIds[i];
+    let roll: (typeof rolls)[0] | null = null;
+    for (let r = 0; r < rolls.length; r++) {
+      if (rolls[r].rollId === rollId) {
+        roll = rolls[r];
+        break;
+      }
+    }
+    if (roll === null) {
+      continue;
+    }
+    for (let e = 0; e < roll.eligibleCharacterIds.length; e++) {
+      const located = locateCharacter(state, roll.eligibleCharacterIds[e]);
+      if (located === null || state.players[located.userId] === undefined) {
+        continue;
+      }
+      const msg = lootRollStateMessage(
+        state.contentHash,
+        lootRollStateForViewer(roll, located.player.characterId, tick),
+      );
+      outbound.push({ opcode: msg.opcode, body: msg.body, toUserId: located.userId });
+    }
+  }
+}
+
+export function pushLootRollsForUser(
+  state: StarterZoneState,
+  userId: string,
+  tick: number,
+  outbound: MatchOutbound[],
+): void {
+  const player = state.players[userId];
+  if (player === undefined) {
+    return;
+  }
+  const rolls = lootRollsForCharacter(Array.isArray(state.lootRolls) ? state.lootRolls : [], player.characterId);
+  for (let i = 0; i < rolls.length; i++) {
+    if (rolls[i].state !== "OPEN") {
+      continue;
+    }
+    const msg = lootRollStateMessage(
+      state.contentHash,
+      lootRollStateForViewer(rolls[i], player.characterId, tick),
+    );
+    outbound.push({ opcode: msg.opcode, body: msg.body, toUserId: userId });
+  }
+}
+
+function pruneLootRolls(state: StarterZoneState, removedCorpseIds: string[]): void {
+  if (!Array.isArray(state.lootRolls) || removedCorpseIds.length === 0) {
+    return;
+  }
+  let next = state.lootRolls;
+  for (let i = 0; i < removedCorpseIds.length; i++) {
+    next = expireLootRollsForCorpse(next, removedCorpseIds[i]);
+  }
+  state.lootRolls = next;
+}
+
+function awardBagsFromState(state: StarterZoneState): { [characterId: string]: AwardInventoryBag } {
+  const bags: { [characterId: string]: AwardInventoryBag } = {};
+  const liveIds = Object.keys(state.players);
+  for (let i = 0; i < liveIds.length; i++) {
+    const player = state.players[liveIds[i]];
+    bags[player.characterId] = {
+      characterId: player.characterId,
+      userId: player.userId,
+      inventory: player.inventory !== undefined ? player.inventory : emptyInventory(),
+      equippedItems: player.equipment !== undefined ? player.equipment.items : undefined,
+    };
+  }
+  const parked = dict(state.disconnected);
+  const parkedIds = Object.keys(parked);
+  for (let p = 0; p < parkedIds.length; p++) {
+    const row = parked[parkedIds[p]];
+    if (row === undefined || row.player === undefined) {
+      continue;
+    }
+    const player = row.player;
+    if (bags[player.characterId] !== undefined) {
+      continue;
+    }
+    bags[player.characterId] = {
+      characterId: player.characterId,
+      userId: player.userId,
+      inventory: player.inventory !== undefined ? player.inventory : emptyInventory(),
+      equippedItems: player.equipment !== undefined ? player.equipment.items : undefined,
+    };
+  }
+  return bags;
+}
+
+function namesByCharacter(state: StarterZoneState): { [characterId: string]: string } {
+  const names: { [characterId: string]: string } = {};
+  const liveIds = Object.keys(state.players);
+  for (let i = 0; i < liveIds.length; i++) {
+    const player = state.players[liveIds[i]];
+    names[player.characterId] = player.name;
+  }
+  const parked = dict(state.disconnected);
+  const parkedIds = Object.keys(parked);
+  for (let p = 0; p < parkedIds.length; p++) {
+    const row = parked[parkedIds[p]];
+    if (row === undefined || row.player === undefined) {
+      continue;
+    }
+    if (names[row.player.characterId] === undefined) {
+      names[row.player.characterId] = row.player.name;
+    }
+  }
+  return names;
+}
+
+function locateCharacter(
+  state: StarterZoneState,
+  characterId: string,
+): { userId: string; player: MatchPlayer } | null {
+  const liveIds = Object.keys(state.players);
+  for (let i = 0; i < liveIds.length; i++) {
+    const player = state.players[liveIds[i]];
+    if (player.characterId === characterId) {
+      return { userId: player.userId, player: player };
+    }
+  }
+  const parked = dict(state.disconnected);
+  const parkedIds = Object.keys(parked);
+  for (let p = 0; p < parkedIds.length; p++) {
+    const row = parked[parkedIds[p]];
+    if (row !== undefined && row.player !== undefined && row.player.characterId === characterId) {
+      return { userId: row.player.userId, player: row.player };
+    }
+  }
+  return null;
 }
 
 function creditParticipants(state: StarterZoneState): { [userId: string]: CreditParticipant } {

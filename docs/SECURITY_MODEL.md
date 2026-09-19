@@ -120,7 +120,7 @@ The client is an untrusted renderer. Mitigations are server-side. Related: [ARCH
 
 ### Rate-limit abuse
 
-**Attack:** Flood `INPUT`, `ATTACK`, `USE_ABILITY`, `CANCEL_CAST`, `SET_TARGET`, `INTERACT`, `PICKUP`, `OPEN_CORPSE`, `CLOSE_CORPSE`, `CLAIM_CORPSE_ITEM`, `CLAIM_CORPSE_GOLD`, `LOOT_ALL_CORPSE`, `EQUIP`, `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, `RECOVER_OVERFLOW_ITEM`, quest opcodes, `VENDOR_BUY`, `VENDOR_SELL`, `INN_REST`, `CAVE_ENTER`, `CAVE_EXIT`, trade opcodes, `ALLOCATE_ATTRIBUTES`, `ALLOCATE_ATTRIBUTES_BATCH`, `TRAINER_RESPEC`, `PURCHASE_TALENT`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, `RELEASE_RESPAWN`, or `RESYNC_REQUEST` faster than an honest client.
+**Attack:** Flood `INPUT`, `ATTACK`, `USE_ABILITY`, `CANCEL_CAST`, `SET_TARGET`, `INTERACT`, `PICKUP`, `OPEN_CORPSE`, `CLOSE_CORPSE`, `CLAIM_CORPSE_ITEM`, `CLAIM_CORPSE_GOLD`, `LOOT_ALL_CORPSE`, `SUBMIT_LOOT_ROLL`, `EQUIP`, `DESTROY_ITEM`, `SPLIT_STACK`, `MOVE_ITEM`, `RECOVER_OVERFLOW_ITEM`, quest opcodes, `VENDOR_BUY`, `VENDOR_SELL`, `INN_REST`, `CAVE_ENTER`, `CAVE_EXIT`, trade opcodes, `ALLOCATE_ATTRIBUTES`, `ALLOCATE_ATTRIBUTES_BATCH`, `TRAINER_RESPEC`, `PURCHASE_TALENT`, `ASSIGN_HOTBAR`, `UNLOCK_ABILITY`, `RELEASE_RESPAWN`, or `RESYNC_REQUEST` faster than an honest client.
 
 **Defense:** Match state stores per-user `actionRates` for a 10-tick window. Excess is `rate_limited`, logged, and not applied. Honest 10 Hz movement stays under the `INPUT` cap of 20/s.
 
