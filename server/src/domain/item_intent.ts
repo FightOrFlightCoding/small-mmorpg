@@ -42,6 +42,12 @@ export interface TransientGroundItem {
   quantity: number;
   x: number;
   y: number;
+  createdByCharacterId?: string;
+  createdAtTick?: number;
+  expiresAtTick?: number;
+  state?: string;
+  revision?: number;
+  rarity?: string;
 }
 
 export function cloneItemIntent(intent: ItemIntent): ItemIntent {

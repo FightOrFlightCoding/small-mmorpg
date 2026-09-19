@@ -262,6 +262,7 @@ func _remote_poses(state: Dictionary) -> Dictionary:
 	_collect_poses(poses, "enemy", state.get("enemies", []), "")
 	_collect_poses(poses, "loot", state.get("loot", []), "")
 	_collect_poses(poses, "corpse", state.get("corpses", []), "")
+	_collect_poses(poses, "ground", state.get("groundItems", []), "")
 	return poses
 
 
@@ -281,6 +282,8 @@ func _collect_poses(poses: Dictionary, kind: String, records: Variant, skip_id: 
 			server_id = String(record.get("id", ""))
 			if server_id.is_empty():
 				server_id = String(record.get("enemyId", ""))
+		elif kind == "ground":
+			server_id = String(record.get("groundEntityId", record.get("id", "")))
 		else:
 			server_id = String(record.get("id", ""))
 		if server_id.is_empty() or server_id == skip_id:
@@ -535,6 +538,14 @@ func try_interact() -> void:
 func try_interact_at(world_pos: Vector2) -> bool:
 	if _input_blocked() or not _local_alive() or NetworkService.match_id.is_empty():
 		return false
+	var ground_id := ""
+	if _entities != null:
+		ground_id = _entities.ground_entity_id_at_world_point(world_pos)
+	if not ground_id.is_empty():
+		var request_id := InventoryService.request_pickup_ground(ground_id)
+		if not request_id.is_empty():
+			_pickup_requests[request_id] = true
+		return true
 	var corpse_id := ""
 	if _entities != null:
 		corpse_id = _entities.corpse_id_at_world_point(world_pos)
@@ -581,6 +592,17 @@ func try_pickup() -> void:
 		CorpseService.request_loot_all(corpse_id)
 		return
 	var loot_id := PickupIntent.nearest_loot_id(_reconciler.display, AppState.zone_view.get("loot", []))
+	var ground_id := PickupIntent.nearest_ground_entity_id(_reconciler.display, AppState.zone_view.get("groundItems", []))
+	var loot_pos := PickupIntent.entity_pos(loot_id, AppState.zone_view.get("loot", []))
+	var ground_pos := PickupIntent.entity_pos(ground_id, AppState.zone_view.get("groundItems", []), "groundEntityId")
+	var pick_ground := false
+	if not ground_id.is_empty() and (loot_id.is_empty() or _reconciler.display.distance_to(ground_pos) <= _reconciler.display.distance_to(loot_pos)):
+		pick_ground = true
+	if pick_ground:
+		var ground_request := InventoryService.request_pickup_ground(ground_id)
+		if not ground_request.is_empty():
+			_pickup_requests[ground_request] = true
+		return
 	if loot_id.is_empty():
 		return
 	var request_id := InventoryService.request_pickup(loot_id)
@@ -597,6 +619,8 @@ func _connect_interaction_signals() -> void:
 		QuestService.quests_changed.connect(_on_quests_changed)
 	if not NetworkService.combat_event_received.is_connected(_on_combat_event):
 		NetworkService.combat_event_received.connect(_on_combat_event)
+	if not NetworkService.ground_item_removed_received.is_connected(_on_ground_item_removed):
+		NetworkService.ground_item_removed_received.connect(_on_ground_item_removed)
 	if not InventoryService.inventory_changed.is_connected(_on_inventory_changed):
 		InventoryService.inventory_changed.connect(_on_inventory_changed)
 	if not EquipmentService.equipment_changed.is_connected(_on_equipment_changed):
@@ -740,6 +764,26 @@ func _on_ability_request_started(request_id: String) -> void:
 		_ability_requests[request_id] = true
 
 
+func _on_ground_item_removed(payload: Dictionary) -> void:
+	TooltipService.hide_tooltip()
+	var ground_id := String(payload.get("ground_entity_id", payload.get("groundEntityId", "")))
+	if ground_id.is_empty() or not AppState.has_zone_state:
+		return
+	var view: Dictionary = AppState.zone_view.duplicate(true)
+	var kept: Array = []
+	for entry in view.get("groundItems", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var entity: Dictionary = entry
+		var entity_id := String(entity.get("groundEntityId", entity.get("id", "")))
+		if entity_id == ground_id:
+			continue
+		kept.append(entity)
+	view["groundItems"] = kept
+	if _entities != null:
+		_entities.apply_snapshot(view, 0.0)
+
+
 func _on_combat_event(payload: Dictionary) -> void:
 	for entry in payload.get("events", []):
 		if typeof(entry) != TYPE_DICTIONARY:
@@ -802,6 +846,8 @@ func _pickup_message(code: String) -> String:
 		return "You cannot loot that yet."
 	if code == "loot_item_no_longer_available":
 		return "That loot is gone."
+	if code == "ground_item_no_longer_available":
+		return "That ground item is gone."
 	if code == "roll_pending":
 		return "Need/Greed is still pending."
 	if code == "inventory_full":

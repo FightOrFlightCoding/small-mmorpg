@@ -25,6 +25,7 @@ signal trade_state_received(payload: Dictionary)
 signal corpse_state_received(payload: Dictionary)
 signal corpse_removed_received(payload: Dictionary)
 signal loot_roll_state_received(payload: Dictionary)
+signal ground_item_removed_received(payload: Dictionary)
 signal gm_command_received(payload: Dictionary)
 signal system_notice_received(code: String, message: String)
 signal logged_out
@@ -655,6 +656,40 @@ func send_submit_loot_roll(roll_id: String, choice: String, request_id: String) 
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_SUBMIT_LOOT_ROLL,
 		MatchProtocol.client_envelope_json({"rollId": roll_id, "choice": choice, "requestId": request_id})
+	)
+
+
+func send_drop_item(
+	instance_id: String,
+	request_id: String,
+	quantity: int = -1,
+	expected_revision: int = -1,
+	hint_dx: float = 0.0,
+	hint_dy: float = 0.0,
+) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var extra: Dictionary = {"instanceId": instance_id, "requestId": request_id}
+	if quantity >= 1:
+		extra["quantity"] = quantity
+	if hint_dx != 0.0 or hint_dy != 0.0:
+		extra["hintDx"] = hint_dx
+		extra["hintDy"] = hint_dy
+	_attach_expected_revision(extra, expected_revision)
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_DROP_ITEM,
+		MatchProtocol.client_envelope_json(extra)
+	)
+
+
+func send_pickup_ground_item(ground_entity_id: String, request_id: String, expected_revision: int = -1) -> Dictionary:
+	if match_id.is_empty():
+		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
+	var extra: Dictionary = {"groundEntityId": ground_entity_id, "requestId": request_id}
+	_attach_expected_revision(extra, expected_revision)
+	return await _backend().send_match_state(
+		MatchProtocol.CLIENT_PICKUP_GROUND_ITEM,
+		MatchProtocol.client_envelope_json(extra)
 	)
 
 
@@ -1888,6 +1923,12 @@ func _on_match_state(opcode: int, payload: String) -> void:
 			AppState.report_recoverable(String(loot_roll.get("code", "loot_roll_failed")), String(loot_roll.get("message", "Loot roll was invalid.")))
 			return
 		loot_roll_state_received.emit(loot_roll)
+		return
+	if opcode == MatchProtocol.SERVER_GROUND_ITEM_REMOVED:
+		var removed: Dictionary = MatchProtocol.parse_ground_item_removed(payload)
+		if not bool(removed.get("ok", false)):
+			return
+		ground_item_removed_received.emit(removed)
 		return
 
 

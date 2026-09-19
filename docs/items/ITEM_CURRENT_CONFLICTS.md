@@ -1,6 +1,6 @@
-# Current item-system conflicts (ITEM-07)
+# Current item-system conflicts (ITEM-08)
 
-ITEM-05 closed first-attacker tagging, corpse containers, gold split, Loot All, and the 60 s / 5 min corpse window. Remaining rows stay OPEN until a later numbered ITEM phase names them.
+ITEM-08 closed public player ground drops and ground pickup. Remaining rows stay OPEN until a later numbered ITEM phase names them.
 
 Status: `OPEN` = live Foundation differs from the completed ITEM platform. `KEEP` = live behavior that a later phase may still keep (for example `VENDOR_SELL`) until that phase names the change.
 
@@ -15,7 +15,7 @@ Status: `OPEN` = live Foundation differs from the completed ITEM platform. `KEEP
 | ITEM-C07 | CLOSED | Corpse gold; private equal split + remainder (tag owner then ascending character id); public remainder first claimant | Corpse gold; private equal split + remainder order; then public whole remainder | ITEM-05 |
 | ITEM-C08 | CLOSED | `LOOT_ALL_CORPSE` with per-entry summary; skips rolls and foreign pending awards | Loot All with detailed summary; skip rolls and foreign pending awards | ITEM-05 |
 | ITEM-C09 | CLOSED | `item.slime_gel` / `item.proof_token` are tradeable and droppable; `destroyable` stays false | Quest items tradeable and droppable | ITEM-02. Possession recount remains live |
-| ITEM-C10 | OPEN | `DESTROY_ITEM` deletes; no player ground spawn | Public 5 min ground items; server placement; full-stack pickup | Later ground-drop phase. Domain drop intent exists in ITEM-03 |
+| ITEM-C10 | CLOSED | `DROP_ITEM` / `PICKUP_GROUND_ITEM` spawn public 5 min ground items; `DESTROY_ITEM` still deletes | Public 5 min ground items; server placement; full-stack pickup | ITEM-08 |
 | ITEM-C11 | OPEN | `TradeOfferLine[]` unbounded | 20 offer slots per participant | Later trade phase |
 | ITEM-C12 | KEEP | `VENDOR_SELL` (20) live and tested | This ITEM pack is buy-only | Keep sell until a later phase names removal |
 | ITEM-C13 | CLOSED | Optional `expectedRevision` on item opcodes; stale → `inventory_stale` + `FULL_STATE`; omitted keeps old clients | Monotonic revision + `expected_revision` | ITEM-03 |
@@ -30,7 +30,7 @@ Status: `OPEN` = live Foundation differs from the completed ITEM platform. `KEEP
 | ITEM-C22 | CLOSED | `planCapacity` / `planTwoWayTrade` serve grant, trade, unequip, preferred slot, outgoing, and locks; `acceptItemFailureCode` delegates | Full multi-stack planner | ITEM-03 |
 | ITEM-C23 | CLOSED | `DragDropService` bag/equipment payloads and ghosts; slots send intentions only | Bag drag-drop intentions | ITEM-04 |
 | ITEM-C24 | OPEN | No foraging/gathering grant | Future source uses existing transaction/inventory | Later grant-path phase. Acquisition intent is ready |
-| ITEM-C25 | OPEN | Ground sparkles and corpses are match-lifetime; restart drops unclaimed corpse loot/gold | Player drops also transient; corpses match-lifetime | Documented limitation; do not persist ground items |
+| ITEM-C25 | CLOSED | Sparkles, corpses, and player ground items are match-lifetime; restart drops unclaimed ground/corpse loot | Player drops also transient; corpses match-lifetime | ITEM-08 documented limitation; do not persist ground items |
 | ITEM-C26 | CLOSED | Slime death still spawns a corpse-linked gel sparkle; F/`PICKUP` and corpse claim both grant | Must remain completable when corpse rules land | ITEM-05 dual-path |
 
 ## Hard-coded provisional assumptions
@@ -44,6 +44,8 @@ Status: `OPEN` = live Foundation differs from the completed ITEM platform. `KEEP
 | Trade range 80 px, invite 30 s, session 120 s | `TRADE_RANGE_PX`, `TRADE_INVITE_TTL_TICKS` 300, `TRADE_TTL_TICKS` 1200 |
 | Vendor max qty 99 | `VENDOR_MAX_QUANTITY` (purchase cap, not stack cap) |
 | Item lock TTL 120 s | `ITEM_LOCK_TTL_MS` |
+| Player ground drop limit 20 | `PLAYER_GROUND_DROP_LIMIT` (noncanonical implementation value) |
+| Player ground TTL 300 s | `GROUND_ITEM_TTL_SEC` |
 | Credit range 512 px, death grace 15 s | `player.base.groupCredit` |
 | Equipment tags six Foundation slots | `TEMPORARY_EQUIPMENT_SLOT_TAGS` |
 | Gel not destroyable | `item.slime_gel.json` (`tradeable`/`droppable` true) |

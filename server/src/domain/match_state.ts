@@ -21,6 +21,7 @@ import {
 import { cloneOverflow, emptyOverflow, isOverflowEmpty, type MigrationOverflow } from "./overflow";
 import { cloneLoot, publicLoot, type LootDrop, type MatchLoot } from "./loot";
 import { cloneCorpses, publicCorpses, type CorpseLootContainer } from "./corpse";
+import { cloneGroundItems, publicGroundItems, type GroundItem } from "./ground_item";
 import { cloneLootRolls, type LootRoll } from "./loot_roll";
 import { cloneGoldLedger, emptyGoldLedger, publicWallet, type GoldLedger } from "./wallet";
 import { createNpcRuntimeInstance, type NpcDefinition, type NpcRuntimeInstance } from "./npc";
@@ -314,6 +315,7 @@ export interface StarterZoneState {
   spawns: MatchSpawn[];
   loot: MatchLoot[];
   corpses: CorpseLootContainer[];
+  groundItems?: GroundItem[];
   lootRolls: LootRoll[];
   goldLedger: GoldLedger;
   walkableBounds: Aabb;
@@ -582,6 +584,7 @@ export function createStarterZoneState(
     spawns: spawns,
     loot: [],
     corpses: [],
+    groundItems: [],
     lootRolls: [],
     goldLedger: emptyGoldLedger(),
     walkableBounds: {
@@ -679,6 +682,7 @@ export function buildFullState(state: StarterZoneState, tick: number, selfId: st
     enemies: enemiesList(state),
     loot: publicLoot(state.loot),
     corpses: publicCorpses(Array.isArray(state.corpses) ? state.corpses : []),
+    groundItems: publicGroundItems(state.groundItems),
     quests: questsFor(state, selfId),
     npcQuestMarkers: markersFor(state, selfId),
     inventory: inventoryFor(state, selfId),
@@ -708,6 +712,7 @@ export function buildSnapshot(state: StarterZoneState, tick: number, includeNpcP
       enemies: enemiesList(state),
       loot: publicLoot(state.loot),
       corpses: publicCorpses(Array.isArray(state.corpses) ? state.corpses : []),
+      groundItems: publicGroundItems(state.groundItems),
     });
   }
   return JSON.stringify({
@@ -719,6 +724,7 @@ export function buildSnapshot(state: StarterZoneState, tick: number, includeNpcP
     enemies: enemiesList(state),
     loot: publicLoot(state.loot),
     corpses: publicCorpses(Array.isArray(state.corpses) ? state.corpses : []),
+    groundItems: publicGroundItems(state.groundItems),
   });
 }
 
@@ -1051,6 +1057,7 @@ export function cloneStarterZoneState(state: StarterZoneState): StarterZoneState
     spawns: cloneSpawns(state.spawns),
     loot: cloneLoot(Array.isArray(state.loot) ? state.loot : []),
     corpses: cloneCorpses(state.corpses),
+    groundItems: cloneGroundItems(state.groundItems),
     lootRolls: cloneLootRolls(state.lootRolls),
     goldLedger: cloneGoldLedger(state.goldLedger),
     walkableBounds: state.walkableBounds,

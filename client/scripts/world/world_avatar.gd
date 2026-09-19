@@ -314,7 +314,7 @@ func _layout_health_bar() -> void:
 
 
 func _z_for_kind(p_kind: String, p_local: bool) -> int:
-	if p_kind == "loot" or p_kind == "corpse":
+	if p_kind == "loot" or p_kind == "corpse" or p_kind == "ground":
 		return 3
 	if p_kind in ["npc", "enemy", "player"]:
 		return ResidentialHousePlacer.SORT_Z

@@ -1,19 +1,19 @@
-# Item test plan (ITEM-07)
+# Item test plan (ITEM-08)
 
-ITEM-07 extends ITEM-06 with merchant purchasing and bag integration. Acceptance is the gates below plus the ITEM-07 cases. Do not weaken tests.
+ITEM-08 extends ITEM-07 with public player ground drops and ground pickup. Acceptance is the gates below plus the ITEM-08 cases. Do not weaken tests.
 
-## Baseline (run on ITEM-07; 2026-09-19)
+## Baseline (run on ITEM-08; 2026-09-19)
 
 Directory-form `node --test dist/tests` can fail on Node 22.14 before discovery. Glob invocation is authoritative.
 
 | Gate | Result |
 | --- | --- |
-| Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 47 client opcodes, 18 server opcodes, 29 RPCs) |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 49 client opcodes, 19 server opcodes, 29 RPCs) |
 | Content validation/tests | 28/28 passed |
-| Server hermetic tests | 972 passed, 13 expected live-test skips |
+| Server hermetic tests | 1000 passed, 13 expected live-test skips |
 | Server typecheck/build | passed |
 | Auth gateway hermetic tests | 52/52 passed |
-| Godot 4.7.1 client GdUnit | 361/361 passed, 0 failures, 0 orphans |
+| Godot 4.7.1 client GdUnit | 369/369 passed, 0 failures, 0 orphans |
 
 ```bash
 bash scripts/test-audit.sh
@@ -46,8 +46,10 @@ GODOT_BIN=godot bash scripts/test-client.sh
 | `server/tests/enemy_tag.test.ts` | First attacker, party snapshot, late join excluded, kicked preserved, leash reset |
 | `client/tests/app/corpse_service_test.gd` | Open/claim/Loot All intentions; no recipients; window + bag; loot-all summary |
 | `server/tests/loot_roll.test.ts` | Rarity/quest/solo exclusions; one-eligible auto-award; Need/Greed/Pass; no response; Need outranks Greed; tie reroll; final choice; duplicate requestId; dead/reconnect; submitted choice survives disconnect; winner room/no room; pending claim/wrong claimant/expire; all-pass public; public-transition race; whole-stack fail-closed; deterministic 1–100 RNG; client roll injection |
+| `server/tests/ground_item.test.ts` | Full/partial drop; equipped/locked; quest drop/pickup; rare confirm helper; placement bounds/wall; drop limit; public/concurrent pickup; full bag; partial stack all-or-nothing; duplicate request; interrupt/compensate; replay no second spawn; 5 min expiry; restart; FULL_STATE omits instance ids |
 | `client/tests/app/loot_roll_service_test.gd` | Submit omits roll number; simultaneous cards; result feed |
 | `client/tests/app/bag_ui_test.gd` | 6×5 / 30 slots plus corpse origin loot, bag stays usable, bag→corpse reject, occupied dest reject |
+| `client/tests/app/ground_drop_dialog_test.gd` | Quantity defaults to the stack; Uncommon+ warning and checkbox |
 | `client/tests/app/equipment_service_test.gd` | Equip mirror |
 | `client/tests/app/vendor_inn_service_test.gd` / `merchant_window_test.gd` | Buy UI, bag, no price send |
 | `client/tests/app/trade_service_test.gd` | Trade mirror |
@@ -94,8 +96,18 @@ Vertical-slice item journey: slime gel pickup + elder turn-in (VS-T* in [VERTICA
 6. The merchant window shows name, stock, icons, tooltips, canonical prices, player bag, gold, quantity selector, and buy result. Player-to-merchant selling stays unimplemented in that window. Live `VENDOR_SELL` is unchanged (ITEM-C12 KEEP).
 7. A new merchant stock list is content-only. No new opcode. No new storage collection. Content hash unchanged.
 
+## ITEM-08 acceptance
+
+1. Dragging a bag item into the world begins a drop. Stack default is the whole stack; quantity is 1..stack. Uncommon+ shows “This item will be public and can be picked up by anyone.” and requires confirmation.
+2. The server validates ownership, bag location, alive / not link-dead / not transferring, unlocked, quantity, the 20-drop limit, and conflicting locks/transactions. Equipped items must be unequipped first. All production items including quest items may drop.
+3. Placement uses authoritative character pose, optional hint, configured radius, world bounds, and collision. The client never sends a trusted coordinate.
+4. `executeDropIntent` prevents loss before entity creation, duplicate ground entities, and duplicate bag items. Interrupted COMMITTING compensates.
+5. Ground entities are public immediately, have no physics collision, expire at five minutes, and are not reconstructed after match/server restart.
+6. Pickup is all-or-nothing. Exactly one claimant succeeds; others `ground_item_no_longer_available`. Duplicate `requestId` replays.
+7. Quest-item drop reduces possession progress without failing the quest. Pickup may advance the picker’s matching quest.
+
 ## Later-phase tests (do not implement now)
 
-Player drop 5 min opcode; 20 trade slots; forage grant from a world node.
+20 trade slots; forage grant from a world node.
 
 If any **current** trade test fails before a later ITEM phase: repair in a focused pre-ITEM commit; do not retarget expectations without root cause.

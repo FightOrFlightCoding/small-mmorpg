@@ -1,6 +1,6 @@
-# Item protocol catalog (ITEM-07)
+# Item protocol catalog (ITEM-08)
 
-Live opcodes from [PROTOCOL_CATALOG.md](../PROTOCOL_CATALOG.md) and `server/src/domain/protocol.ts`. Foundation audit at ITEM-07: **47** client opcodes, **18** server opcodes, **29** RPCs, **35** storage records. Corpse containers and loot rolls are match-lifetime only (no new storage collection).
+Live opcodes from [PROTOCOL_CATALOG.md](../PROTOCOL_CATALOG.md) and `server/src/domain/protocol.ts`. Foundation audit at ITEM-08: **49** client opcodes, **19** server opcodes, **29** RPCs, **35** storage records. Corpse containers, loot rolls, and player ground items are match-lifetime only (no new storage collection).
 
 Item mutations may include optional `expectedRevision` (camelCase). Omitted keeps older clients. Present and stale → `inventory_stale` and canonical `FULL_STATE`. Trade accept still carries trade-record `revision` (not bag). Container `revision` is included on `INVENTORY_STATE` / `EQUIPMENT_STATE` / overflow / `CORPSE_STATE`.
 
@@ -22,22 +22,24 @@ There is **no** generic arbitrary-container client command.
 | 45 | `CLAIM_CORPSE_GOLD` | `corpseId`, `requestId` | Private roster split or public remainder | Replay original result | `not_eligible`, `loot_item_no_longer_available` |
 | 46 | `LOOT_ALL_CORPSE` | `corpseId`, `requestId`, `expectedRevision?` | Gold then items; skip rolls and foreign awards | Replay `lootAll[]` | Per-entry codes; envelope `out_of_range` / `player_dead` / `inventory_stale` |
 | 47 | `SUBMIT_LOOT_ROLL` | `rollId`, `choice`, `requestId` | Eligible Need/Greed/Pass before deadline. One final choice. Server owns 1–100. | Replay original result | `not_eligible`, `roll_closed`, `choice_already_submitted`, `invalid_choice`, `invalid_target` |
+| 48 | `DROP_ITEM` | `instanceId`, `quantity?`, `hintDx?`, `hintDy?`, `requestId`, `expectedRevision?` | Bag ownership, alive, not link-dead/transferring, unlocked, droppable, quantity 1..stack, active-drop limit 20. Server chooses pose. Client `x`/`y` are `stat_injection`. | Journal `requestId` replay; no second spawn | `item_equipped`, `item_locked`, `invalid_quantity`, `ground_drop_limit`, `destination_unavailable`, `player_dead`, `inventory_stale` |
+| 49 | `PICKUP_GROUND_ITEM` | `groundEntityId`, `requestId`, `expectedRevision?` | Same match, range, `PUBLIC_AVAILABLE`, character state, whole stack fits | Successful `requestId` replay | `ground_item_no_longer_available`, `out_of_range`, `inventory_full`, `player_dead`, `inventory_stale` |
 | 19 | `VENDOR_BUY` | `interactionSessionId`, `vendorId`, `stockEntryId`, `quantity?`, `preferredSlot?`, `requestId`, `expectedRevision?` | Session, stock entry, server price, qty 1–99, preferred bag slot | Replay no second grant | `invalid_session`, `insufficient_gold`, `inventory_full`, `stack_incompatible`, `unknown_field:price`, `inventory_stale` |
 | 20 | `VENDOR_SELL` | `npcId`, `instanceId`, `quantity?`, `requestId`, `expectedRevision?` | Server `sellValue` × multiplier | Replay no second gold | `unsellable`, `item_locked`, `inventory_stale` |
 | 24–31 | `TRADE_*` | `targetId` / `tradeId` / `instanceId` / `amount` / `revision` / `requestId` | Range 80 px, locks, mutual accept, `planTwoWayTrade` | `requestId` + completed trade | `not_tradeable`, `revision_mismatch`, `insufficient_gold`, `inventory_full` |
 | 6–7 | `QUEST_ACCEPT` / `QUEST_TURN_IN` | quest/npc/`requestId`, turn-in `expectedRevision?` | Consume/grant server-side | Turn-in replay | `missing_item`, `inventory_full`, `stat_injection:gold`, `inventory_stale` |
 
-Rate: pickup **including corpse opcodes** /equip/inventory/vendor/trade share 8 / 10-tick window. Max body 2048 bytes. Unknown fields rejected where strict parse applies.
+Rate: pickup **including corpse opcodes and `PICKUP_GROUND_ITEM`** /equip/inventory **including `DROP_ITEM`** /vendor/trade share 8 / 10-tick window. Max body 2048 bytes. Unknown fields rejected where strict parse applies.
 
-`gold`, `price`, `resultingBalance`, `instanceId` on pickup, `lootRecipients`, client quest counts: injection / unknown_field.
+`gold`, `price`, `resultingBalance`, `instanceId` on pickup, `lootRecipients`, client quest counts, drop `x`/`y`: injection / unknown_field.
 
-Stable ITEM codes (snake_case): `inventory_stale`, `inventory_full`, `invalid_slot`, `invalid_quantity`, `stack_incompatible`, `stack_full`, `item_locked`, `item_not_owned`, `item_not_found`, `item_already_claimed`, `source_unavailable`, `destination_unavailable`, `transaction_conflict`, `transaction_recovery_pending`, `not_eligible`, `loot_item_no_longer_available`, `roll_pending`.
+Stable ITEM codes (snake_case): `inventory_stale`, `inventory_full`, `invalid_slot`, `invalid_quantity`, `stack_incompatible`, `stack_full`, `item_locked`, `item_not_owned`, `item_not_found`, `item_already_claimed`, `source_unavailable`, `destination_unavailable`, `transaction_conflict`, `transaction_recovery_pending`, `not_eligible`, `loot_item_no_longer_available`, `roll_pending`, `ground_item_no_longer_available`, `ground_drop_limit`.
 
 ## Server → client (live)
 
 | Op | Name | Item payload |
 | --- | --- | --- |
-| 101 | `FULL_STATE` | `inventory`, `equipment`, `wallet.gold`, `loot[]` (public sparkles, no instance ids), `corpses[]` (pose/timers only). Also sent after `inventory_stale`. |
+| 101 | `FULL_STATE` | `inventory`, `equipment`, `wallet.gold`, `loot[]` (public sparkles, no instance ids), `corpses[]` (pose/timers only), `groundItems[]` (public player drops; no instance ids or creator). Also sent after `inventory_stale`. |
 | 102 | `SNAPSHOT` | Public loot and corpse poses when present |
 | 105 | `INVENTORY_STATE` | `capacity`, `items[]`, `revision`, optional `overflow` |
 | 109 | `EQUIPMENT_STATE` | `slots`, `items[]`, `revision`, derived |
@@ -46,6 +48,7 @@ Stable ITEM codes (snake_case): `inventory_stale`, `inventory_full`, `invalid_sl
 | 116 | `CORPSE_STATE` | Viewer corpse: entries, gold, timers, eligible, public, revision |
 | 117 | `CORPSE_REMOVED` | `corpseId`, `reason` |
 | 118 | `LOOT_ROLL_STATE` | Viewer roll: ids, item, quantity, ownChoice, countdown ticks, result |
+| 119 | `GROUND_ITEM_REMOVED` | `groundEntityId`, `reason` (`claimed` / `expired`) |
 | 107 | `INTERACTION_RESULT` | Vendor shop presentation (`stock`, prices) — presentation, not a grant |
 | 111 | `QUEST_STATE` | Objectives including `acquire_item` counts from possession |
 | 103 | `ACTION_RESULT` | Optional `lootAll[]` for opcode 46 |
@@ -61,8 +64,8 @@ Later ITEM phases must add intentions (update `tools/foundation-audit/expected.j
 | Operation | Live stand-in | Gap |
 | --- | --- | --- |
 | Need / Greed / Pass | Opcode 47 / 118 live | — |
-| Player ground drop | Domain `executeDropIntent`; live `DESTROY_ITEM` still deletes | No drop opcode / ground spawn |
-| Ground pickup (player drop) | `PICKUP` | Same public 30 s path |
+| Player ground drop | Opcode 48 / 49 / 119 live | — |
+| Ground pickup (player drop) | `PICKUP_GROUND_ITEM` | — |
 | Foraging grant | Acquisition intent ready | No world-node grant opcode |
 
 Do not let the client submit roll numbers, winners, corpse expiry, drop coordinates, or a generic container mutation.

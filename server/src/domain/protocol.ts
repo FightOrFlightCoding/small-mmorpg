@@ -52,6 +52,8 @@ export const ClientOpcode = {
   CLAIM_CORPSE_GOLD: 45,
   LOOT_ALL_CORPSE: 46,
   SUBMIT_LOOT_ROLL: 47,
+  DROP_ITEM: 48,
+  PICKUP_GROUND_ITEM: 49,
 } as const;
 
 export const ServerOpcode = {
@@ -73,6 +75,7 @@ export const ServerOpcode = {
   CORPSE_STATE: 116,
   CORPSE_REMOVED: 117,
   LOOT_ROLL_STATE: 118,
+  GROUND_ITEM_REMOVED: 119,
 } as const;
 
 export type ClientOpcode = (typeof ClientOpcode)[keyof typeof ClientOpcode];
@@ -126,6 +129,8 @@ const CLIENT_OPCODES: ClientOpcode[] = [
   ClientOpcode.CLAIM_CORPSE_GOLD,
   ClientOpcode.LOOT_ALL_CORPSE,
   ClientOpcode.SUBMIT_LOOT_ROLL,
+  ClientOpcode.DROP_ITEM,
+  ClientOpcode.PICKUP_GROUND_ITEM,
 ];
 
 const REWARD_OPCODES: ClientOpcode[] = [
@@ -139,6 +144,7 @@ const REWARD_OPCODES: ClientOpcode[] = [
   ClientOpcode.CLAIM_CORPSE_ITEM,
   ClientOpcode.CLAIM_CORPSE_GOLD,
   ClientOpcode.LOOT_ALL_CORPSE,
+  ClientOpcode.PICKUP_GROUND_ITEM,
 ];
 
 const COMMON_KEYS = ["protocolVersion", "contentHash", "requestId"];
@@ -191,6 +197,8 @@ OPCODE_KEYS[ClientOpcode.CLAIM_CORPSE_ITEM] = ["corpseId", "entryId", "toSlotInd
 OPCODE_KEYS[ClientOpcode.CLAIM_CORPSE_GOLD] = ["corpseId"];
 OPCODE_KEYS[ClientOpcode.LOOT_ALL_CORPSE] = ["corpseId", "expectedRevision"];
 OPCODE_KEYS[ClientOpcode.SUBMIT_LOOT_ROLL] = ["rollId", "choice"];
+OPCODE_KEYS[ClientOpcode.DROP_ITEM] = ["instanceId", "quantity", "hintDx", "hintDy", "expectedRevision"];
+OPCODE_KEYS[ClientOpcode.PICKUP_GROUND_ITEM] = ["groundEntityId", "expectedRevision"];
 
 const OUTCOME_KEYS = [
   "attack",
@@ -259,6 +267,7 @@ const OUTCOME_KEYS = [
 const INPUT_NUMBER_KEYS = ["seq", "axisX", "axisY"];
 const ALLOCATE_NUMBER_KEYS = ["amount"];
 const INVENTORY_NUMBER_KEYS = ["quantity", "toSlotIndex", "expectedRevision", "preferredSlot"];
+const GROUND_HINT_KEYS = ["hintDx", "hintDy"];
 const ABILITY_NUMBER_KEYS = ["targetX", "targetY", "slotIndex", "requestedRank"];
 const TRADE_NUMBER_KEYS = ["revision"];
 const BOOLEAN_KEYS = ["enabled"];
@@ -282,6 +291,8 @@ export interface ParsedClientMessage {
   toSlotIndex?: number;
   preferredSlot?: number;
   expectedRevision?: number;
+  hintDx?: number;
+  hintDy?: number;
   targetX?: number;
   targetY?: number;
   slotIndex?: number;
@@ -317,6 +328,8 @@ function requiresRequestId(opcode: ClientOpcode): boolean {
     opcode === ClientOpcode.CLAIM_CORPSE_GOLD ||
     opcode === ClientOpcode.LOOT_ALL_CORPSE ||
     opcode === ClientOpcode.SUBMIT_LOOT_ROLL ||
+    opcode === ClientOpcode.DROP_ITEM ||
+    opcode === ClientOpcode.PICKUP_GROUND_ITEM ||
     opcode === ClientOpcode.USE_ABILITY ||
     opcode === ClientOpcode.CANCEL_CAST ||
     opcode === ClientOpcode.ASSIGN_HOTBAR ||
@@ -438,6 +451,9 @@ export function parseClientMessage(
     if (INVENTORY_NUMBER_KEYS.indexOf(key) !== -1) {
       continue;
     }
+    if (GROUND_HINT_KEYS.indexOf(key) !== -1) {
+      continue;
+    }
     if (ABILITY_NUMBER_KEYS.indexOf(key) !== -1) {
       continue;
     }
@@ -556,6 +572,27 @@ export function parseClientMessage(
       return { code: "invalid_amount", message: "DESTROY quantity must be a finite integer." };
     }
     message.quantity = quantity;
+  }
+  if (opcode === ClientOpcode.DROP_ITEM && Object.prototype.hasOwnProperty.call(data, "quantity")) {
+    const quantity = data.quantity;
+    if (typeof quantity !== "number" || !isFinite(quantity) || quantity !== Math.floor(quantity)) {
+      return { code: "invalid_amount", message: "DROP quantity must be a finite integer." };
+    }
+    message.quantity = quantity;
+  }
+  if (opcode === ClientOpcode.DROP_ITEM && Object.prototype.hasOwnProperty.call(data, "hintDx")) {
+    const hintDx = data.hintDx;
+    if (typeof hintDx !== "number" || !isFinite(hintDx)) {
+      return { code: "invalid_amount", message: "DROP hintDx must be a finite number." };
+    }
+    message.hintDx = hintDx;
+  }
+  if (opcode === ClientOpcode.DROP_ITEM && Object.prototype.hasOwnProperty.call(data, "hintDy")) {
+    const hintDy = data.hintDy;
+    if (typeof hintDy !== "number" || !isFinite(hintDy)) {
+      return { code: "invalid_amount", message: "DROP hintDy must be a finite number." };
+    }
+    message.hintDy = hintDy;
   }
   if (
     (opcode === ClientOpcode.VENDOR_BUY || opcode === ClientOpcode.VENDOR_SELL) &&
@@ -1010,6 +1047,22 @@ export function corpseRemovedMessage(
       protocolVersion: PROTOCOL_VERSION,
       contentHash: contentHash,
       corpseId: corpseId,
+      reason: reason,
+    }),
+  };
+}
+
+export function groundItemRemovedMessage(
+  contentHash: string,
+  groundEntityId: string,
+  reason: string,
+): { opcode: number; body: string } {
+  return {
+    opcode: ServerOpcode.GROUND_ITEM_REMOVED,
+    body: JSON.stringify({
+      protocolVersion: PROTOCOL_VERSION,
+      contentHash: contentHash,
+      groundEntityId: groundEntityId,
       reason: reason,
     }),
   };

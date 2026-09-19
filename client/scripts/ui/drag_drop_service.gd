@@ -128,7 +128,10 @@ func _finish_from_pointer() -> void:
 	var dest := slot_under_cursor()
 	var moved := _cursor().distance_to(start_position) >= 6.0
 	if dest == null:
-		cancel()
+		if moved:
+			InventoryService.handle_world_drop(current, _cursor() - start_position)
+		else:
+			cancel()
 		return
 	if not moved and dest.origin_kind == String(current.get("fromKind", "bag")) and dest.slot_index == int(current.get("fromSlot", -1)):
 		cancel()
