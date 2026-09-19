@@ -1005,7 +1005,7 @@ func send_trade_decline_invite(trade_id: String, request_id: String = "") -> Dic
 	return await _send_trade_id(MatchProtocol.CLIENT_TRADE_DECLINE_INVITE, trade_id, request_id)
 
 
-func send_trade_set_offer(trade_id: String, instance_id: String, quantity: int = 0, request_id: String = "") -> Dictionary:
+func send_trade_set_offer(trade_id: String, instance_id: String, quantity: int = 0, request_id: String = "", slot_index: int = -1) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
 	var rid := request_id
@@ -1014,6 +1014,8 @@ func send_trade_set_offer(trade_id: String, instance_id: String, quantity: int =
 	var extra: Dictionary = {"tradeId": trade_id, "instanceId": instance_id, "requestId": rid}
 	if quantity > 0:
 		extra["quantity"] = quantity
+	if slot_index >= 0:
+		extra["slotIndex"] = slot_index
 	return await _backend().send_match_state(
 		MatchProtocol.CLIENT_TRADE_SET_OFFER,
 		MatchProtocol.client_envelope_json(extra)

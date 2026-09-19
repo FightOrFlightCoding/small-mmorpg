@@ -954,3 +954,16 @@ ITEM-08 adds player-created public ground items and authoritative pickup. It doe
 - Opcodes 48 / 49 / 119. Storage record count remains 35. Content hash unchanged.
 - Conflicts ITEM-C10 and ITEM-C25 are CLOSED.
 
+## 2026-09-19 — ITEM-09 twenty-slot secure player trade
+
+ITEM-09 generalizes the live player trade onto 20 offer slots per side. It does not implement auctions, mail, offline trade, merchant selling, or forage.
+
+- Opcodes stay 24–31 / 115. Optional `slotIndex` (0–19) on `TRADE_SET_OFFER`. A twenty-first stack is `offer_full`.
+- Offer lines carry source instance, quantity, definition display fields, lock id, and slot index. Gold remains the account Nakama wallet (ITEM-C20 KEEP).
+- Partial-stack offers lock the whole source stack (`lockReason: "trade"`) and leave canonical ownership in the offering bag until commit.
+- Every offer change, recovered source-stack quantity change, and capacity-relevant inventory mutation increments revision, clears both acceptances, and shows “The trade has changed.”
+- Commit still uses `planTwoWayTrade` then one `nk.multiUpdate`. Safe commit failures (`inventory_full`, `insufficient_gold`) keep the trade open, clear acceptances, and preserve valid offers. Unsafe failures cancel and release locks.
+- Trade UI: local bag, local 20-slot offer, remote 20-slot offer, both gold fields, both acceptances, current revision. Never the remote bag.
+- Storage record count remains 35. Content hash unchanged.
+- Conflict ITEM-C11 is CLOSED.
+

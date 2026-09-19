@@ -14,6 +14,7 @@ const ACTION_SPLIT := "split"
 const ACTION_LOCKED := "locked"
 const ACTION_LOOT := "loot"
 const ACTION_BUY := "buy"
+const ACTION_OFFER := "offer"
 
 var context: String = CONTEXT_BAG
 var last_notice: String = ""
@@ -56,6 +57,12 @@ func handle_origin(origin: Dictionary, instance: Dictionary, at: Vector2 = Vecto
 	if String(origin.get("kind", "bag")) == "merchant":
 		execute(ACTION_BUY, origin, instance)
 		return
+	if context == CONTEXT_TRADE and String(origin.get("kind", "bag")) == "bag":
+		execute(ACTION_OFFER, origin, instance)
+		return
+	if String(origin.get("kind", "bag")) == "trade_mine":
+		TradeService.request_remove_offer(String(instance.get("instanceId", "")))
+		return
 	_show_menu(origin, instance, at)
 
 
@@ -76,7 +83,21 @@ func actions_for(origin: Dictionary, instance: Dictionary) -> Array:
 		if String(instance.get("stockEntryId", instance.get("instanceId", ""))).is_empty():
 			return []
 		return [{"id": ACTION_BUY, "label": "Buy", "disabled": false}]
-	if context == CONTEXT_TRADE or context == CONTEXT_MERCHANT:
+	if String(origin.get("kind", "bag")) == "trade_mine":
+		if String(instance.get("instanceId", "")).is_empty():
+			return []
+		return [{"id": ACTION_OFFER, "label": "Remove from offer", "disabled": false}]
+	if context == CONTEXT_TRADE and String(origin.get("kind", "bag")) == "bag":
+		if ItemPresentation.is_locked(instance):
+			var reason := String(instance.get("lockReason", ""))
+			if reason != "trade" and reason != "TRADE":
+				return [{
+					"id": ACTION_LOCKED,
+					"label": ItemPresentation.lock_reason(instance),
+					"disabled": true,
+				}]
+		return [{"id": ACTION_OFFER, "label": "Offer", "disabled": false}]
+	if context == CONTEXT_MERCHANT:
 		return []
 	var actions: Array = []
 	if ItemPresentation.is_locked(instance):
@@ -112,6 +133,11 @@ func execute(action_id: String, origin: Dictionary, instance: Dictionary) -> voi
 			if Input.is_key_pressed(KEY_SHIFT):
 				quantity = VendorService.selected_quantity()
 			VendorService.request_buy(String(instance.get("stockEntryId", instance.get("instanceId", ""))), quantity)
+		ACTION_OFFER:
+			if String(origin.get("kind", "bag")) != "bag":
+				TradeService.request_remove_offer(instance_id)
+			else:
+				TradeService.offer_from_bag(instance, TradeService.selected_offer_slot())
 		ACTION_LOCKED:
 			_emit_notice(ItemPresentation.lock_reason(instance))
 		_:

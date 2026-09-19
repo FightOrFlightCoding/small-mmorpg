@@ -176,7 +176,7 @@ OPCODE_KEYS[ClientOpcode.CAVE_EXIT] = ["npcId"];
 OPCODE_KEYS[ClientOpcode.TRADE_INVITE] = ["targetId"];
 OPCODE_KEYS[ClientOpcode.TRADE_ACCEPT_INVITE] = ["tradeId"];
 OPCODE_KEYS[ClientOpcode.TRADE_DECLINE_INVITE] = ["tradeId"];
-OPCODE_KEYS[ClientOpcode.TRADE_SET_OFFER] = ["tradeId", "instanceId", "quantity"];
+OPCODE_KEYS[ClientOpcode.TRADE_SET_OFFER] = ["tradeId", "instanceId", "quantity", "slotIndex"];
 OPCODE_KEYS[ClientOpcode.TRADE_REMOVE_OFFER] = ["tradeId", "instanceId"];
 OPCODE_KEYS[ClientOpcode.TRADE_SET_GOLD] = ["tradeId", "amount"];
 OPCODE_KEYS[ClientOpcode.TRADE_ACCEPT_REVISION] = ["tradeId", "revision"];
@@ -269,7 +269,7 @@ const ALLOCATE_NUMBER_KEYS = ["amount"];
 const INVENTORY_NUMBER_KEYS = ["quantity", "toSlotIndex", "expectedRevision", "preferredSlot"];
 const GROUND_HINT_KEYS = ["hintDx", "hintDy"];
 const ABILITY_NUMBER_KEYS = ["targetX", "targetY", "slotIndex", "requestedRank"];
-const TRADE_NUMBER_KEYS = ["revision"];
+const TRADE_NUMBER_KEYS = ["revision", "slotIndex"];
 const BOOLEAN_KEYS = ["enabled"];
 
 export interface ProtocolError {
@@ -558,6 +558,16 @@ export function parseClientMessage(
       return { code: "invalid_amount", message: "TRADE quantity must be a finite integer." };
     }
     message.quantity = quantity;
+  }
+  if (
+    opcode === ClientOpcode.TRADE_SET_OFFER &&
+    Object.prototype.hasOwnProperty.call(data, "slotIndex")
+  ) {
+    const slotIndex = data.slotIndex;
+    if (typeof slotIndex !== "number" || !isFinite(slotIndex) || slotIndex !== Math.floor(slotIndex)) {
+      return { code: "invalid_slot", message: "TRADE slotIndex must be a finite integer." };
+    }
+    message.slotIndex = slotIndex;
   }
   if (opcode === ClientOpcode.TRADE_ACCEPT_REVISION) {
     const revision = data.revision;

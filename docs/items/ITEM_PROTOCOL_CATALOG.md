@@ -1,6 +1,6 @@
-# Item protocol catalog (ITEM-08)
+# Item protocol catalog (ITEM-09)
 
-Live opcodes from [PROTOCOL_CATALOG.md](../PROTOCOL_CATALOG.md) and `server/src/domain/protocol.ts`. Foundation audit at ITEM-08: **49** client opcodes, **19** server opcodes, **29** RPCs, **35** storage records. Corpse containers, loot rolls, and player ground items are match-lifetime only (no new storage collection).
+Live opcodes from [PROTOCOL_CATALOG.md](../PROTOCOL_CATALOG.md) and `server/src/domain/protocol.ts`. Foundation audit at ITEM-09: **49** client opcodes, **19** server opcodes, **29** RPCs, **35** storage records. Corpse containers, loot rolls, and player ground items are match-lifetime only (no new storage collection).
 
 Item mutations may include optional `expectedRevision` (camelCase). Omitted keeps older clients. Present and stale → `inventory_stale` and canonical `FULL_STATE`. Trade accept still carries trade-record `revision` (not bag). Container `revision` is included on `INVENTORY_STATE` / `EQUIPMENT_STATE` / overflow / `CORPSE_STATE`.
 
@@ -26,7 +26,7 @@ There is **no** generic arbitrary-container client command.
 | 49 | `PICKUP_GROUND_ITEM` | `groundEntityId`, `requestId`, `expectedRevision?` | Same match, range, `PUBLIC_AVAILABLE`, character state, whole stack fits | Successful `requestId` replay | `ground_item_no_longer_available`, `out_of_range`, `inventory_full`, `player_dead`, `inventory_stale` |
 | 19 | `VENDOR_BUY` | `interactionSessionId`, `vendorId`, `stockEntryId`, `quantity?`, `preferredSlot?`, `requestId`, `expectedRevision?` | Session, stock entry, server price, qty 1–99, preferred bag slot | Replay no second grant | `invalid_session`, `insufficient_gold`, `inventory_full`, `stack_incompatible`, `unknown_field:price`, `inventory_stale` |
 | 20 | `VENDOR_SELL` | `npcId`, `instanceId`, `quantity?`, `requestId`, `expectedRevision?` | Server `sellValue` × multiplier | Replay no second gold | `unsellable`, `item_locked`, `inventory_stale` |
-| 24–31 | `TRADE_*` | `targetId` / `tradeId` / `instanceId` / `amount` / `revision` / `requestId` | Range 80 px, locks, mutual accept, `planTwoWayTrade` | `requestId` + completed trade | `not_tradeable`, `revision_mismatch`, `insufficient_gold`, `inventory_full` |
+| 24–31 | `TRADE_*` | `targetId` / `tradeId` / `instanceId` / `quantity?` / `slotIndex?` / `amount` / `revision` / `requestId` | Range 80 px, 20 offer slots, locks, mutual accept, `planTwoWayTrade` | `requestId` + completed trade | `not_tradeable`, `revision_mismatch`, `insufficient_gold`, `inventory_full`, `offer_full` |
 | 6–7 | `QUEST_ACCEPT` / `QUEST_TURN_IN` | quest/npc/`requestId`, turn-in `expectedRevision?` | Consume/grant server-side | Turn-in replay | `missing_item`, `inventory_full`, `stat_injection:gold`, `inventory_stale` |
 
 Rate: pickup **including corpse opcodes and `PICKUP_GROUND_ITEM`** /equip/inventory **including `DROP_ITEM`** /vendor/trade share 8 / 10-tick window. Max body 2048 bytes. Unknown fields rejected where strict parse applies.
@@ -44,7 +44,7 @@ Stable ITEM codes (snake_case): `inventory_stale`, `inventory_full`, `invalid_sl
 | 105 | `INVENTORY_STATE` | `capacity`, `items[]`, `revision`, optional `overflow` |
 | 109 | `EQUIPMENT_STATE` | `slots`, `items[]`, `revision`, derived |
 | 110 | `WALLET_STATE` | `gold` |
-| 115 | `TRADE_STATE` | ids, state, revision, offers, goldOffers, acceptances, expiry |
+| 115 | `TRADE_STATE` | ids, state, revision, 20 padded offer slots/side (`offerSlots`), goldOffers, lockId, acceptances, expiry |
 | 116 | `CORPSE_STATE` | Viewer corpse: entries, gold, timers, eligible, public, revision |
 | 117 | `CORPSE_REMOVED` | `corpseId`, `reason` |
 | 118 | `LOOT_ROLL_STATE` | Viewer roll: ids, item, quantity, ownChoice, countdown ticks, result |
@@ -65,6 +65,7 @@ Later ITEM phases must add intentions (update `tools/foundation-audit/expected.j
 | --- | --- | --- |
 | Need / Greed / Pass | Opcode 47 / 118 live | — |
 | Player ground drop | Opcode 48 / 49 / 119 live | — |
+| Twenty-slot trade | Opcodes 24–31 / 115 live | — |
 | Ground pickup (player drop) | `PICKUP_GROUND_ITEM` | — |
 | Foraging grant | Acquisition intent ready | No world-node grant opcode |
 

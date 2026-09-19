@@ -525,10 +525,10 @@ Per-player windows (10 ticks): INPUT 20; ATTACK/USE_ABILITY/CANCEL_CAST/SET_TARG
 
 | Field | Value |
 | --- | --- |
-| Body | `{ protocolVersion, tradeId, instanceId, quantity?, requestId }` |
-| Authority | Locks an owned tradeable stack; bumps revision; clears acceptances |
+| Body | `{ protocolVersion, tradeId, instanceId, quantity?, slotIndex?, requestId }` |
+| Authority | Locks an owned tradeable stack into one of 20 offer slots; bumps revision; clears acceptances |
 | Idempotency | Successful `requestId` replays |
-| Errors | `unowned_item`, `not_tradeable`, `item_locked`, `item_equipped`, `invalid_amount` |
+| Errors | `unowned_item`, `not_tradeable`, `item_locked`, `item_equipped`, `invalid_amount`, `offer_full`, `invalid_slot` |
 | Rate limit | Shares quest window (8) |
 | Tests | `trade.test.ts` |
 
@@ -794,7 +794,7 @@ No client rate limit. Occupied matches send **102** every tick.
 | 112 | `ABILITY_STATE` | unlocked ids, hotbar (4 production / 8 test), optional `hotbarAssignments`, ranks, resources, cooldowns, active cast, effects | `ability.test.ts`, `ability_service_test.gd`, `progression_hotbar_ceiling.test.ts` |
 | 113 | `PARTY_STATE` | optional `party` view for the recipient (ids, leader, members, revision, connection state, pending invite) | `party.test.ts`, `party_service_test.gd` |
 | 114 | `PARTY_EVENT` | `partyId`, `eventType`, optional `systemMessage` / loot assignment | `party.test.ts`, `party_credit_loot.test.ts` |
-| 115 | `TRADE_STATE` | canonical trade: ids, state, revision, offers, goldOffers, acceptances, expiresAt | `trade.test.ts`, `trade_service_test.gd` |
+| 115 | `TRADE_STATE` | canonical trade: ids, state, revision, 20 padded offer slots/side, goldOffers, acceptances, expiresAt | `trade.test.ts`, `trade_service_test.gd`, `trade_window_test.gd` |
 | 116 | `CORPSE_STATE` | viewer corpse: ids, pose, gold, items (entryId/itemId/quantity/state), timers, eligible, public, revision | `corpse.test.ts`, `corpse_service_test.gd` |
 | 117 | `CORPSE_REMOVED` | `corpseId`, `reason` (`empty` / `expired`) | `corpse.test.ts` |
 | 118 | `LOOT_ROLL_STATE` | Viewer roll: item, quantity, ownChoice, closesAt, result, revision | `loot_roll.test.ts`, `loot_roll_service_test.gd` |

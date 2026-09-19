@@ -30,7 +30,7 @@ Legend: **C** client, **S** server domain, **A** Nakama adapter, **T** tooling, 
 | `InnService` | C | Inn/healer rest intent | Last approved inn/healer NPC | none | `NetworkService` | no | INN_REST | no gold/health |
 | `CaveService` | C | Cave-enter/exit intents; transfer overlay after ticket extras | Last approved cave NPC | none | `NetworkService` | no | CAVE_ENTER / CAVE_EXIT | no |
 | `PartyService` | C | Party mirror; create/invite/accept/leave/kick/promote/disband; party chat | In-memory party view, pending invite, chat lines | none | `NetworkService`, `AppState` | no | party RPCs, PARTY_STATE / PARTY_EVENT, `party.<id>` channel | no |
-| `TradeService` | C | Trade mirror; invite/offer/gold/accept/cancel | In-memory trade view | none | `NetworkService`, `AppState` | no | TRADE_* / TRADE_STATE | no grants |
+| `TradeService` / `TradeWindow` | C | Trade mirror; 20-slot local/remote offers, gold, acceptances, revision; invite/offer/gold/accept/cancel | In-memory trade view + TradeWindow | none | `NetworkService`, `AppState`, `InventoryService` | no | TRADE_* / TRADE_STATE | no grants |
 | `CorpseService` / `LootRollService` | C | Corpse window; Need/Greed cards; open/claim/Loot All/roll intentions | Last corpse view, open rolls | none | `NetworkService`, `InventoryService` | no | OPEN/CLOSE/CLAIM/LOOT_ALL_CORPSE / SUBMIT_LOOT_ROLL | no grants |
 | `GmService` | C | Debug GM panel; `gm_command` RPC intention + reason | Last result copy | none | `NetworkService` | no | `gm_command` RPC | no grants |
 | `WindowManager` / `HudController` / `UiStateService` | C | Open/close/focus/exclusivity of shell and HUD windows; character/zone restore | Open window ids, UI scale | none | `AppState` | no | no | no |

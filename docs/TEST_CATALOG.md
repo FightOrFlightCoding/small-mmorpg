@@ -123,7 +123,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `ability.test.ts` | locked use, valid melee, ATTACK wrapper, range, PvP, relation, resource, ICD/GCD, duplicate request, movement/damage interrupt, cancel, heal, DoT, stack policies, expiration, unlock, hotbar, reconnect clears casts, null magnitude scale, catalog strip/rebind | |
 | `party.test.ts` | create, invite, accept, decline, expired invite, party full, already in party, leave, kick, promote, leader disconnect, grace reconnect, all-absent disband, forged membership, duplicate requestId, create-declines-pending, accept-leaves-current, ghost-member prune, match-cache eviction | |
 | `party_credit_loot.test.ts` | group kill XP, out-of-range member, group quest credit, personal loot, server-assigned loot, duplicate death event | |
-| `trade.test.ts` | invite, decline, item+gold commit once, offer change clears acceptance, revision mismatch, unowned/non-tradeable/locked, insufficient gold, full inventory, duplicate commit, disconnect, transfer, death, timeout, concurrent destroy, interrupted recovery, audit | |
+| `trade.test.ts` | invite, accept invite, decline, 20 slots + 21st `offer_full`, partial/full stack lock, item+gold commit once, offer/inventory change clears acceptance, revision mismatch, unowned/locked, insufficient gold, full bag + outgoing frees space, stack merge, duplicate commit, disconnect, link-dead, transfer, death, timeout, interrupted recovery, audit, no ownership before commit | |
 | `health.test.ts` | `vibecode_health` plus handshake/ops RPC ids | |
 | `gm.test.ts` | allowlist default disabled, user authorization, payload parse, audit fields, teleport/grant, cave template fallback to `zone.cave`, progression commands allowlisted, `set_level` rejected | |
 | `environment.test.ts` | Four distinct env presets vs committed JSON; no passwords in JSON | |
@@ -197,6 +197,7 @@ Reproduction: `powershell -File scripts/test-auth-gateway.ps1`
 | `ability_service_test.gd` | use/ground-target intentions, canonical hotbar/cooldown/cast bar, production 4-slot + Frenzy excluded, production GCD remaining ignored | |
 | `party_service_test.gd` | create/invite/kick/promote/disband RPCs without member lists; party_full; party chat `partyId`; HUD leader/HP/connection/Label; accept-while-in-party; party RPC does not open login modal | |
 | `trade_service_test.gd` | invite/offer/gold/accept/cancel intentions; offer-change warning; completed result without local grant; HUD invite by typed character name | |
+| `trade_window_test.gd` | 20 local/remote slots, gold fields, revision, local bag, no ownership move | |
 | `chat_client_test.gd` | Label, no BBCode; party payload | |
 | `reconnect_test.gd` | overlay Connection lost / Logging out; socket restore without match rebind; seq adopt | |
 | `ui_shell_test.gd` | window focus/exclusivity; duplicate `connect_once`; rejected drag/drop; reconnect window restore; settings persistence without credentials; input conflicts; missing-asset fallback; 4/8-dir animation-set validation; UI after character switch and zone transfer; GM window closeable | |
