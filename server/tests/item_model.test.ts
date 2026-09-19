@@ -203,23 +203,23 @@ test("moving onto a full compatible stack is stack_full without mutation", () =>
 });
 
 test("compatible partial stacks merge and leave excess in the source", () => {
-  const gel = gelDef();
-  let inventory = addOrStackItem(emptyInventory(), "item.slime_gel", 12, "gel-partial-a", gel);
-  inventory = addOrStackItem(inventory, "item.slime_gel", 15, "gel-partial-b", gel);
-  assert.equal(inventory.items.length, 2);
-  const destSlot = inventory.items[0].slotIndex;
+  const inventory = emptyInventory();
+  inventory.items = [
+    makeInstance("gel-partial-a", "item.slime_gel", 12, 0),
+    makeInstance("gel-partial-b", "item.slime_gel", 15, 1),
+  ];
   const moved = applyMoveItem({
     playerHealth: 100,
     inventory: inventory,
     instanceId: "gel-partial-b",
-    toSlotIndex: destSlot,
+    toSlotIndex: 0,
     requestId: "req-merge-excess1",
     itemsById: itemsById(),
   });
   assert.equal(moved.ok, true);
   assert.equal(findItem(moved.inventory, "gel-partial-a")?.quantity, 20);
   assert.equal(findItem(moved.inventory, "gel-partial-b")?.quantity, 7);
-  assert.equal(findItem(moved.inventory, "gel-partial-b")?.slotIndex, inventory.items[1].slotIndex);
+  assert.equal(findItem(moved.inventory, "gel-partial-b")?.slotIndex, 1);
 });
 
 test("compatible stacks merge and split without inventing client instance ids", () => {
