@@ -4,7 +4,7 @@ import { contentHash } from "../src/generated/content";
 import { applyMatchLoop } from "../src/domain/match_loop";
 import { addPlayer, cloneStarterZoneState, buildSnapshot } from "../src/domain/match_state";
 import { ServerOpcode } from "../src/domain/protocol";
-import { interactionPayload, openNpcSession } from "./npc_session";
+import { interactionPayload, interactMessage, openNpcSession } from "./npc_session";
 import { npcPos, platformPlayer, platformZone } from "./npc_platform_fixtures";
 
 function persistableRoundtrip<T>(value: T): T {
@@ -45,5 +45,38 @@ test("platform quest and quartermaster interact payloads present and survive Nak
     assert.equal(continued.outbound.some((item) => item.opcode === ServerOpcode.SNAPSHOT), true);
     const plans = buildSnapshot(cloned, 2, true);
     assert.ok(plans.length < 2048 * 16, npcId + " NPC-plan SNAPSHOT must parse, got " + String(plans.length));
+  }
+});
+
+test("JSON-null dialogue options and vendor stock still emit INTERACTION_RESULT", () => {
+  const cases = ["npc.platform_quest", "npc.cert_quartermaster"] as const;
+  for (let i = 0; i < cases.length; i++) {
+    const npcId = cases[i];
+    const opened = openAt(npcId, "req-null-" + npcId.replace(".", "-"));
+    const poisoned = persistableRoundtrip(opened.result.state) as ReturnType<typeof platformZone>;
+    const dialogueId = npcId === "npc.platform_quest" ? "dialogue.npc.platform_quest" : "dialogue.npc.cert_quartermaster";
+    const dialogue = poisoned.dialoguesById !== undefined ? poisoned.dialoguesById[dialogueId] : undefined;
+    if (dialogue !== undefined && dialogue.nodes.start !== undefined) {
+      (dialogue.nodes.start as { options?: unknown }).options = null;
+    }
+    if (poisoned.vendorsById !== undefined && poisoned.vendorsById["vendor.cert_quartermaster"] !== undefined) {
+      (poisoned.vendorsById["vendor.cert_quartermaster"] as { stock?: unknown }).stock = null;
+    }
+    if (poisoned.npcsById !== undefined && poisoned.npcsById[npcId] !== undefined) {
+      const services = poisoned.npcsById[npcId].services;
+      if (Array.isArray(services)) {
+        for (let s = 0; s < services.length; s++) {
+          (services[s] as { questIds?: unknown }).questIds = services[s].questIds === undefined ? null : services[s].questIds;
+        }
+      }
+    }
+    const cloned = cloneStarterZoneState(poisoned);
+    const continued = applyMatchLoop(cloned, 3, contentHash, [
+      interactMessage("user-alice", npcId, "req-null2-" + npcId.replace(".", "-")),
+    ]);
+    const body = interactionPayload(continued);
+    assert.equal(body.ok, true, npcId + " must still return INTERACTION_RESULT after JSON-null options/stock");
+    assert.equal(body.code, "ok");
+    assert.ok(Array.isArray(body.allowedOptionIds), npcId);
   }
 });

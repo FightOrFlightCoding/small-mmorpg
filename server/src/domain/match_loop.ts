@@ -3579,7 +3579,7 @@ function pushAbilityState(
 }
 
 function npcCatalog(state: StarterZoneState) {
-  return state.npcsById !== undefined ? state.npcsById : {};
+  return state.npcsById != null ? state.npcsById : {};
 }
 
 function questActionBindGate(
@@ -3605,7 +3605,7 @@ function playerInCachedParty(state: StarterZoneState, player: MatchPlayer): bool
 }
 
 function vendorCatalog(state: StarterZoneState) {
-  return state.vendorsById !== undefined ? state.vendorsById : {};
+  return state.vendorsById != null ? state.vendorsById : {};
 }
 
 function attachVendorShopExtras(
@@ -3795,7 +3795,7 @@ function interactionExtras(
 }
 
 function dialogueCatalog(state: StarterZoneState): { [id: string]: import("./dialogue").DialogueDefinition } {
-  return state.dialoguesById !== undefined ? state.dialoguesById : {};
+  return state.dialoguesById != null ? state.dialoguesById : {};
 }
 
 function openInteractionSession(

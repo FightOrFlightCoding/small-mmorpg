@@ -424,3 +424,51 @@ func test_failed_interaction_result_with_message_keeps_request_id() -> void:
 	assert_str(String(parsed.get("request_id", ""))).is_equal("req-fail-1")
 	assert_str(String(parsed.get("target_id", ""))).is_equal("npc.platform_quest")
 	assert_str(String(parsed.get("message", ""))).is_equal("Too far from that NPC.")
+
+
+func test_presenter_presents_from_network_signal_without_world() -> void:
+	var presenter: DialoguePresenter = auto_free(DialoguePresenter.new())
+	add_child(presenter)
+	await get_tree().process_frame
+	presenter.note_intent("npc.platform_quest", "req-signal-pq")
+	assert_str(presenter._window._status.text).is_equal("Waiting for the server…")
+	NetworkService.interaction_result_received.emit({
+		"result_ok": true,
+		"code": "ok",
+		"request_id": "req-signal-pq",
+		"target_id": "npc.platform_quest",
+		"dialogue_id": "dialogue.npc.platform_quest",
+		"interaction_session_id": "sess-signal-pq",
+		"current_node_id": "start",
+		"allowed_option_ids": [],
+		"available_service_ids": ["quest_offer"],
+	})
+	assert_bool(presenter._window.is_loading()).is_false()
+	assert_str(presenter._window._status.text).is_equal("")
+	assert_str(presenter._window._body.text).contains("Speak with me again")
+	assert_int(presenter._window._services.get_child_count()).is_equal(1)
+
+
+func test_vendor_inn_cave_listen_deferred_to_interaction_results() -> void:
+	var vendor_deferred := false
+	var inn_deferred := false
+	var cave_deferred := false
+	for conn in NetworkService.interaction_result_received.get_connections():
+		if typeof(conn) != TYPE_DICTIONARY:
+			continue
+		var flags := int(conn.get("flags", 0))
+		var deferred := (flags & CONNECT_DEFERRED) == CONNECT_DEFERRED
+		var callable: Callable = conn.get("callable")
+		if not callable.is_valid():
+			continue
+		var method := String(callable.get_method())
+		var target: Object = callable.get_object()
+		if target == VendorService and method == "_on_interaction_result":
+			vendor_deferred = deferred
+		elif target == InnService and method == "_on_interaction_result":
+			inn_deferred = deferred
+		elif target == CaveService and method == "_on_interaction_result":
+			cave_deferred = deferred
+	assert_bool(vendor_deferred).is_true()
+	assert_bool(inn_deferred).is_true()
+	assert_bool(cave_deferred).is_true()

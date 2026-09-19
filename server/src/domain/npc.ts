@@ -198,7 +198,7 @@ export function npcDefinitionsFromContent(npcs: {
 }
 
 export function findNpcService(definition: NpcDefinition | undefined, type: string): NpcService | null {
-  if (definition === undefined || !Array.isArray(definition.services)) {
+  if (definition == null || !Array.isArray(definition.services)) {
     return null;
   }
   for (let i = 0; i < definition.services.length; i++) {
@@ -227,7 +227,7 @@ export function findQuestBindService(
   definition: NpcDefinition | undefined,
   role: QuestBindRole,
 ): NpcService | null {
-  if (definition === undefined || !Array.isArray(definition.services)) {
+  if (definition == null || !Array.isArray(definition.services)) {
     return null;
   }
   const types = role === "offer" ? QUEST_OFFER_TYPES : QUEST_TURN_IN_TYPES;
@@ -244,7 +244,7 @@ export function npcBindsQuest(
   questId: string,
   role: QuestBindRole,
 ): boolean {
-  if (definition === undefined || !Array.isArray(definition.services)) {
+  if (definition == null || !Array.isArray(definition.services)) {
     return false;
   }
   const types = role === "offer" ? QUEST_OFFER_TYPES : QUEST_TURN_IN_TYPES;

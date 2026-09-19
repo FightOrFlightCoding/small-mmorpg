@@ -17,8 +17,10 @@ var _closing: bool = false
 
 
 func _ready() -> void:
-	if not NetworkService.interaction_result_received.is_connected(_on_interaction_result):
-		NetworkService.interaction_result_received.connect(_on_interaction_result)
+	if NetworkService.interaction_result_received.is_connected(_on_interaction_result):
+		NetworkService.interaction_result_received.disconnect(_on_interaction_result)
+	# Deferred so a typed-Array throw cannot abort World's INTERACTION_RESULT handler.
+	NetworkService.interaction_result_received.connect(_on_interaction_result, CONNECT_DEFERRED)
 	if not NetworkService.action_result_received.is_connected(_on_action_result):
 		NetworkService.action_result_received.connect(_on_action_result)
 	if not AppState.logged_out.is_connected(reset):

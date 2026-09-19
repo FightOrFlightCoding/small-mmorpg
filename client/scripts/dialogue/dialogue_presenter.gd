@@ -22,6 +22,9 @@ var _loading_timer: Timer
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_ensure_window()
+	# Immediate (not deferred) so a throw in Vendor/Inn/Cave cannot swallow the result.
+	if not NetworkService.interaction_result_received.is_connected(handle_interaction_result):
+		NetworkService.interaction_result_received.connect(handle_interaction_result)
 	if not WindowManager.window_closed.is_connected(_on_window_closed):
 		WindowManager.window_closed.connect(_on_window_closed)
 	if not VendorService.vendor_opened.is_connected(_on_vendor_opened):
@@ -30,6 +33,11 @@ func _ready() -> void:
 		VendorService.vendor_closed.connect(_on_vendor_closed)
 	if not AppState.recoverable_error.is_connected(_on_recoverable_error):
 		AppState.recoverable_error.connect(_on_recoverable_error)
+
+
+func _exit_tree() -> void:
+	if NetworkService.interaction_result_received.is_connected(handle_interaction_result):
+		NetworkService.interaction_result_received.disconnect(handle_interaction_result)
 
 
 func is_open() -> bool:
@@ -98,7 +106,7 @@ func _present(npc_id: String, result: Dictionary) -> bool:
 	_ensure_window()
 	QuestService.set_speaker(npc_id)
 	last_opened_npc_id = npc_id
-	var session := String(result.get("interaction_session_id", last_session_id))
+	var session := String(result.get("interaction_session_id", result.get("interactionSessionId", last_session_id)))
 	var is_new_session := last_session_id.is_empty() or session != last_session_id
 	last_session_id = session
 	var node_id := String(result.get("current_node_id", result.get("currentNodeId", "")))
@@ -108,6 +116,8 @@ func _present(npc_id: String, result: Dictionary) -> bool:
 	if dialogue_id.is_empty():
 		var npc: Dictionary = ContentRegistry.get_by_id(npc_id)
 		dialogue_id = String(npc.get("dialogueId", ""))
+	# Present before stopping the timer so a content throw cannot leave waiting copy
+	# with no timeout armed. present() itself clears loading first.
 	_window.present({
 		"npc_id": npc_id,
 		"npc_name": _npc_name(npc_id),
@@ -296,7 +306,9 @@ func _node_text(dialogue_id: String, node_id: String) -> String:
 	var node := _node(dialogue_id, node_id)
 	if node.is_empty():
 		return ""
-	var lines: Array = node.get("lines", [])
+	var lines: Variant = node.get("lines", [])
+	if typeof(lines) != TYPE_ARRAY:
+		return ""
 	var parts: PackedStringArray = PackedStringArray()
 	for entry in lines:
 		if typeof(entry) != TYPE_DICTIONARY:
@@ -308,7 +320,9 @@ func _node_text(dialogue_id: String, node_id: String) -> String:
 func _option_rows(dialogue_id: String, node_id: String, allowed_ids: Array) -> Array:
 	var node := _node(dialogue_id, node_id)
 	var rows: Array = []
-	var options: Array = node.get("options", [])
+	var options: Variant = node.get("options", [])
+	if typeof(options) != TYPE_ARRAY:
+		return rows
 	for entry in options:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
@@ -316,7 +330,7 @@ func _option_rows(dialogue_id: String, node_id: String, allowed_ids: Array) -> A
 		var option_id := String(option.get("id", ""))
 		if option_id.is_empty():
 			continue
-		if not allowed_ids.has(option_id) and not allowed_ids.is_empty():
+		if not allowed_ids.is_empty() and allowed_ids.find(option_id) < 0:
 			continue
 		rows.append({
 			"id": option_id,

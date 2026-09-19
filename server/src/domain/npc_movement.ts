@@ -267,12 +267,12 @@ export function tickNpcMovement(
   tickRate: number,
 ): boolean {
   let dirty = false;
-  const catalog = routes !== undefined ? routes : {};
+  const catalog = routes != null ? routes : {};
   for (let i = 0; i < npcs.length; i++) {
     const npc = npcs[i];
-    const before = npc.movement !== undefined ? npc.movement.revision : 0;
+    const before = npc.movement != null ? npc.movement.revision : 0;
     tickOneNpc(npc, catalog[npc.routeId], tick, tickRate);
-    if (npc.movement !== undefined && npc.movement.revision !== before) {
+    if (npc.movement != null && npc.movement.revision !== before) {
       dirty = true;
     }
   }
@@ -322,19 +322,19 @@ export function refreshNpcPauses(
   tickRate: number,
 ): boolean {
   let dirty = false;
-  const catalog = routes !== undefined ? routes : {};
+  const catalog = routes != null ? routes : {};
   for (let i = 0; i < npcs.length; i++) {
     const npc = npcs[i];
     const sessions = countNpcSessions(players, npc.id, tick);
     const route = catalog[npc.routeId];
     if (sessions > 0) {
-      if (npc.movement === undefined || npc.movement.phase !== "paused") {
+      if (npc.movement == null || npc.movement.phase !== "paused") {
         pauseNpcMovement(npc, tick);
         dirty = true;
       }
       continue;
     }
-    if (npc.movement !== undefined && npc.movement.phase === "paused") {
+    if (npc.movement != null && npc.movement.phase === "paused") {
       resumeNpcMovement(npc, route, tick, tickRate);
       dirty = true;
     }
@@ -348,11 +348,11 @@ function tickOneNpc(
   tick: number,
   tickRate: number,
 ): void {
-  if (npc.movement === undefined) {
+  if (npc.movement == null) {
     initNpcMovement(npc, route, tick, tickRate);
   }
   const movement = npc.movement;
-  if (movement === undefined) {
+  if (movement == null) {
     return;
   }
   if (movement.phase === "paused") {

@@ -83,6 +83,9 @@ func show_error(npc_name: String, message: String) -> void:
 
 
 func present(payload: Dictionary) -> void:
+	# Leave waiting copy before building buttons. A later throw must not keep
+	# "Waiting for the server…" on screen.
+	_loading = false
 	npc_id = String(payload.get("npc_id", npc_id))
 	session_id = String(payload.get("interaction_session_id", session_id))
 	current_node_id = String(payload.get("current_node_id", ""))
@@ -113,7 +116,6 @@ func present(payload: Dictionary) -> void:
 			var button := _make_button(label, true)
 			button.pressed.connect(_on_service.bind(id))
 			_services.add_child(button)
-	_loading = false
 	visible = true
 
 
@@ -195,10 +197,17 @@ func _make_button(text: String, secondary: bool) -> Button:
 
 
 func _clear_buttons() -> void:
-	for child in _options.get_children():
-		child.queue_free()
-	for child in _services.get_children():
-		child.queue_free()
+	_free_children(_options)
+	_free_children(_services)
+
+
+func _free_children(parent: Node) -> void:
+	if parent == null:
+		return
+	var children: Array = parent.get_children()
+	for child in children:
+		parent.remove_child(child)
+		child.free()
 
 
 func _on_option(option_id: String) -> void:

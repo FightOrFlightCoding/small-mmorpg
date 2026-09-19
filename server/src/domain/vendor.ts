@@ -129,12 +129,17 @@ export function vendorShopPresentation(
     return undefined;
   }
   const vendor = vendorsById[service.vendorId];
-  if (vendor === undefined) {
+  if (vendor === undefined || vendor == null) {
     return undefined;
   }
   const stock: VendorShopStock[] = [];
-  for (let i = 0; i < vendor.stock.length; i++) {
-    stock.push({ itemId: vendor.stock[i].itemId, buyPrice: vendor.stock[i].buyPrice });
+  const rows = Array.isArray(vendor.stock) ? vendor.stock : [];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (row == null || row.itemId === undefined) {
+      continue;
+    }
+    stock.push({ itemId: row.itemId, buyPrice: row.buyPrice });
   }
   return {
     vendorId: vendor.id,

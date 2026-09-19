@@ -124,12 +124,15 @@ export function resolveDialogueNodeId(
 }
 
 export function allowedOptionIds(node: DialogueNode | undefined, context: DialogueEvalContext): string[] {
-  if (node === undefined || node.options === undefined) {
+  if (node == null || !Array.isArray(node.options)) {
     return [];
   }
   const ids: string[] = [];
   for (let i = 0; i < node.options.length; i++) {
     const option = node.options[i];
+    if (option == null) {
+      continue;
+    }
     if (conditionsPass(option.conditions, context)) {
       ids.push(option.id);
     }
@@ -138,7 +141,7 @@ export function allowedOptionIds(node: DialogueNode | undefined, context: Dialog
 }
 
 export function findDialogueOption(node: DialogueNode | undefined, optionId: string): DialogueOption | null {
-  if (node === undefined || node.options === undefined) {
+  if (node == null || !Array.isArray(node.options)) {
     return null;
   }
   for (let i = 0; i < node.options.length; i++) {
@@ -181,12 +184,15 @@ export function availableServiceIds(
   definition: NpcDefinition | undefined,
   gate: InteractionInput,
 ): string[] {
-  if (definition === undefined) {
+  if (definition == null || !Array.isArray(definition.services)) {
     return [];
   }
   const ids: string[] = [];
   for (let i = 0; i < definition.services.length; i++) {
     const service = definition.services[i];
+    if (service == null) {
+      continue;
+    }
     if (service.type === NPC_SERVICE_DIALOGUE) {
       continue;
     }
@@ -288,7 +294,7 @@ function conditionsPass(
   conditions: ReadonlyArray<DialogueCondition> | undefined,
   context: DialogueEvalContext,
 ): boolean {
-  if (conditions === undefined || conditions.length === 0) {
+  if (conditions == null || conditions.length === 0) {
     return true;
   }
   for (let i = 0; i < conditions.length; i++) {
@@ -393,15 +399,16 @@ function itemCountsOf(inventory: PlayerInventory | undefined): { [itemId: string
 
 function copyNode(node: DialogueNode): DialogueNode {
   const lines: DialogueLine[] = [];
-  for (let i = 0; i < node.lines.length; i++) {
-    const line: DialogueLine = { text: node.lines[i].text };
-    if (node.lines[i].textKey !== undefined) {
-      line.textKey = node.lines[i].textKey;
+  const sourceLines = Array.isArray(node.lines) ? node.lines : [];
+  for (let i = 0; i < sourceLines.length; i++) {
+    const line: DialogueLine = { text: sourceLines[i].text };
+    if (sourceLines[i].textKey !== undefined) {
+      line.textKey = sourceLines[i].textKey;
     }
     lines.push(line);
   }
   const copied: DialogueNode = { id: node.id, lines: lines };
-  if (node.options !== undefined) {
+  if (Array.isArray(node.options)) {
     const options: DialogueOption[] = [];
     for (let i = 0; i < node.options.length; i++) {
       const option: DialogueOption = {
@@ -426,7 +433,7 @@ function copyNode(node: DialogueNode): DialogueNode {
 function copyConditions(
   conditions: ReadonlyArray<DialogueCondition> | undefined,
 ): DialogueCondition[] | undefined {
-  if (conditions === undefined) {
+  if (conditions == null) {
     return undefined;
   }
   const next: DialogueCondition[] = [];
