@@ -2,7 +2,7 @@
 
 ITEM-09 extends ITEM-08 with twenty-slot secure player trade. Acceptance is the gates below plus the ITEM-09 cases. Do not weaken tests.
 
-## Baseline (run on ITEM-08; 2026-09-19)
+## Baseline (run on ITEM-09; 2026-09-19)
 
 Directory-form `node --test dist/tests` can fail on Node 22.14 before discovery. Glob invocation is authoritative.
 
@@ -10,10 +10,10 @@ Directory-form `node --test dist/tests` can fail on Node 22.14 before discovery.
 | --- | --- |
 | Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 49 client opcodes, 19 server opcodes, 29 RPCs) |
 | Content validation/tests | 28/28 passed |
-| Server hermetic tests | 1000 passed, 13 expected live-test skips |
+| Server hermetic tests | 1013 passed, 13 expected live-test skips |
 | Server typecheck/build | passed |
 | Auth gateway hermetic tests | 52/52 passed |
-| Godot 4.7.1 client GdUnit | 369/369 passed, 0 failures, 0 orphans |
+| Godot 4.7.1 client GdUnit | 371/371 passed, 0 failures, 0 orphans |
 
 ```bash
 bash scripts/test-audit.sh

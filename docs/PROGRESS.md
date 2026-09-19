@@ -1,14 +1,43 @@
 # Progress
 
-Last accepted phase: **ITEM-08 — Public ground drops and ground pickup**.
+Last accepted phase: **ITEM-09 — Twenty-slot secure player trade**.
 
-Current phase: ITEM-08 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
+Current phase: ITEM-09 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
 
 Canonical git line: **`origin/main`**. Playable work is committed there. The Windows clone stays on `main` and runs `scripts/local-play.ps1 -Branch main`.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01 through ITEM-08 remain accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01 through ITEM-09 remain accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
+
+## ITEM-09 twenty-slot secure player trade (2026-09-19)
+
+ITEM-09 is accepted. It generalizes nearby player trade onto 20 offer slots per side with atomic commit. It does not implement auctions, mail, offline trade, merchant selling, or forage. Do not start later ITEM phases.
+
+Opcodes stay 24–31 / 115. Optional `slotIndex` (0–19) on `TRADE_SET_OFFER`. A twenty-first stack is `offer_full`. Partial-stack offers lock the whole source stack (`lockReason: "trade"`) and leave canonical ownership in the offering bag until commit. Gold is reserved against spendable balance and transferred only at commit (account Nakama wallet, ITEM-C20 KEEP).
+
+Every offer change, recovered source-stack quantity change, and capacity-relevant inventory mutation increments revision, clears both acceptances, broadcasts canonical offers, and shows “The trade has changed.” Commit uses `planTwoWayTrade` final-state simulation, then one `nk.multiUpdate` (or the existing committing snapshot / recovery path). Duplicate `requestId` does not mutate again. Safe commit failures (`inventory_full`, `insufficient_gold`) keep the trade open. Unsafe failures cancel and release locks.
+
+Unexpected disconnect is link-dead while the character remains in the match and cancels as `link_dead`. Fully absent participants cancel as `disconnected`. Death, range, transfer, timeout, and invalidated sources also cancel and release every trade lock.
+
+`TradeWindow` shows the local bag, local 20-slot offer, remote 20-slot offer, both gold fields, both acceptances, and current revision. It never shows the remote bag.
+
+Storage record count remains **35**. Content hash unchanged: `7877dd576b022d59f0350be4430aca0b9d402db38b5e16e816ef361003c9cffd`.
+
+Conflict ITEM-C11 is CLOSED.
+
+| Gate | Result |
+| --- | --- |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 49 client opcodes, 19 server opcodes, 29 RPCs) |
+| Content validation/tests | 28/28 passed |
+| Server hermetic tests | 1013 passed, 13 expected live-test skips |
+| Server typecheck/build | passed |
+| Auth gateway hermetic tests | 52/52 passed |
+| Godot 4.7.1 client GdUnit | 371/371 passed, 0 failures, 0 orphans |
+
+Pre-existing Node 22.14 runner compatibility remains documented: directory-form `node --test` wrappers can fail before discovery. Direct compiled-file glob equivalents pass.
+
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen `client/`. Recreate Nakama so `contentHash` matches.
 
 ## ITEM-08 public ground drops and ground pickup (2026-09-19)
 
