@@ -254,6 +254,7 @@ func test_tooltip_rarity_and_fallback() -> void:
 	assert_str(text).contains("Quest item: no")
 	assert_str(text).contains("Tradeable: yes")
 	assert_str(text).contains("Droppable: yes")
+	assert_str(text).contains("Vendor value: 20g")
 	assert_str(text).contains("itemId: item.test_relic_blade")
 	assert_str(text).contains("instanceId: inst-relic")
 	var gel_text := ItemPresentation.tooltip_text(_gel(1, 4), false)

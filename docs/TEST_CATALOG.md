@@ -65,7 +65,7 @@ Related: [VERTICAL_SLICE.md](VERTICAL_SLICE.md), [FOUNDATION_BASELINE.md](FOUNDA
 | `targeting.test.ts` | self/hostile/friendly/ground/area queries; SET_TARGET | |
 | `xp_hooks.test.ts` | trusted grant interface, kill/quest event ids, idempotency | |
 | `inventory.test.ts` | pickup, stack merge/split/move, destroy, locks, capacity, Prompt 18 instance ids | VS-T4, T5 |
-| `item_model.test.ts` | 30-slot bag, stack 99, equipment max 1, compatibility/merge/split, equip outside bag, unequip full bag, overflow recovery, repeated migration, restore/purge | ITEM-02 |
+| `item_model.test.ts` | 30-slot bag, stack 99, equipment max 1, compatibility/merge/split, full compatible `stack_full`, leftover after merge, equip outside bag, unequip full bag, overflow recovery, repeated migration, restore/purge | ITEM-02 / ITEM-04 |
 | `item_capacity.test.ts` | Deterministic placement, preferred slot, outgoing/trade plans, full bag, locks | ITEM-03 |
 | `item_txn.test.ts` | Stale revision, duplicate request, concurrent serial, locks, journal retry/compensate, drop intent, audit, multi-character gold | ITEM-03 |
 | `equipment.test.ts` | weapons/armor slots, class/level/lock, derived attack | VS-T5 |

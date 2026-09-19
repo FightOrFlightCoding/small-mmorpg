@@ -8,12 +8,12 @@ Directory-form `node --test dist/tests` can fail on Node 22.14 before discovery.
 
 | Gate | Result |
 | --- | --- |
-| Foundation audit | pending |
-| Content validation/tests | pending |
-| Server hermetic tests | pending |
-| Server typecheck/build | pending |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 41 client opcodes, 15 server opcodes, 29 RPCs) |
+| Content validation/tests | 28/28 passed |
+| Server hermetic tests | 908 passed, 13 expected live-test skips |
+| Server typecheck/build | passed |
 | Auth gateway hermetic tests | unchanged; 52/52 previously |
-| Godot 4.7.1 client GdUnit | pending |
+| Godot 4.7.1 client GdUnit | 351/351 passed, 0 failures, 0 orphans |
 
 ```bash
 bash scripts/test-audit.sh
