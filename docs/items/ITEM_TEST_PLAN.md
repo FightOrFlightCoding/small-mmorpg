@@ -13,7 +13,7 @@ Directory-form `node --test dist/tests` can fail on Node 22.14 before discovery.
 | Server hermetic tests | 876 passed, 13 expected live-test skips, 0 fail |
 | Server typecheck/build | passed |
 | Auth gateway hermetic tests | unchanged; 52/52 previously |
-| Godot 4.7.1 client GdUnit | pending this landing |
+| Godot 4.7.1 client GdUnit | 341/341 passed, 0 failures, 0 orphans |
 
 ```bash
 bash scripts/test-audit.sh

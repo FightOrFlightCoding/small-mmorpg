@@ -27,7 +27,7 @@ Migration preserves instance ids, definition ids, quantities, equipment, metadat
 | Server hermetic tests | 876 passed, 13 expected live-test skips |
 | Server typecheck/build | passed |
 | Auth gateway hermetic tests | unchanged; 52/52 previously |
-| Godot 4.7.1 client GdUnit | pending this landing |
+| Godot 4.7.1 client GdUnit | 341/341 passed, 0 failures, 0 orphans |
 
 Pre-existing Node 22.14 runner compatibility remains documented: directory-form `node --test` wrappers can fail before discovery. Direct compiled-file glob equivalents pass.
 
