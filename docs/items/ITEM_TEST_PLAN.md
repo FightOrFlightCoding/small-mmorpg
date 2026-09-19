@@ -2,7 +2,7 @@
 
 ITEM-07 extends ITEM-06 with merchant purchasing and bag integration. Acceptance is the gates below plus the ITEM-07 cases. Do not weaken tests.
 
-## Baseline (run on ITEM-06; 2026-09-19)
+## Baseline (run on ITEM-07; 2026-09-19)
 
 Directory-form `node --test dist/tests` can fail on Node 22.14 before discovery. Glob invocation is authoritative.
 
@@ -10,10 +10,10 @@ Directory-form `node --test dist/tests` can fail on Node 22.14 before discovery.
 | --- | --- |
 | Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 47 client opcodes, 18 server opcodes, 29 RPCs) |
 | Content validation/tests | 28/28 passed |
-| Server hermetic tests | 963 passed, 13 expected live-test skips |
+| Server hermetic tests | 972 passed, 13 expected live-test skips |
 | Server typecheck/build | passed |
 | Auth gateway hermetic tests | 52/52 passed |
-| Godot 4.7.1 client GdUnit | 360/360 passed, 0 failures, 0 orphans |
+| Godot 4.7.1 client GdUnit | 361/361 passed, 0 failures, 0 orphans |
 
 ```bash
 bash scripts/test-audit.sh
@@ -83,6 +83,16 @@ Vertical-slice item journey: slime gel pickup + elder turn-in (VS-T* in [VERTICA
 5. Need outranks Greed. Server integers 1–100 with injectable RNG. Ties reroll among tied characters.
 6. Whole-stack awards: grant when the winner bag fits; otherwise `AWARDED_PENDING_PICKUP` winner-only until corpse expiry. No reroll. No public sparkle.
 7. All-pass becomes public at 60 s. Ordering: resolve rolls → awards → all-pass → remaining unreserved public. Same-tick public claims cannot interleave before resolution.
+
+## ITEM-07 acceptance
+
+1. Merchants sell canonical stock keyed by `stockEntryId`. Prices, currency, constraints, and requirements come from vendor content. Unauthored ids are `${vendorId}:${itemId}`.
+2. `VENDOR_BUY` is session-gated. The client never sends a price or gold amount. Leftover `itemId` / `npcInstanceId` are unknown fields.
+3. Purchases are atomic: gold debit and every created or stacked item commit together, or nothing is granted.
+4. Multi-stack quantities are planned with `planCapacity` before commit. Preferred empty and compatible partial slots work; incompatible occupied slots reject; a quantity that does not fit grants nothing.
+5. Stock is unlimited. Simultaneous buyers do not compete. Their wallet and bag transactions stay independent.
+6. The merchant window shows name, stock, icons, tooltips, canonical prices, player bag, gold, quantity selector, and buy result. Player-to-merchant selling stays unimplemented in that window. Live `VENDOR_SELL` is unchanged (ITEM-C12 KEEP).
+7. A new merchant stock list is content-only. No new opcode. No new storage collection. Content hash unchanged.
 
 ## Later-phase tests (do not implement now)
 
