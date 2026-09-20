@@ -601,10 +601,10 @@ func test_hud_passes_world_clicks_and_stops_bag_slots() -> void:
 	add_child(hud)
 	await get_tree().process_frame
 	assert_int((hud.get_node("Root") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
-	assert_int((hud.get_node("Root/Inventory") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+	assert_int((hud.get_node("Root/Inventory") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 	assert_int((hud.get_node("Root/LeftColumn/Party") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 	var bag: BagGrid = hud.get_node("Root/Inventory/Margin/VBox/ListHost/Bag")
-	assert_int(bag.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+	assert_int(bag.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 	assert_int((bag.slot_at(0) as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
 	if hud._trade_panel != null:
 		assert_int(hud._trade_panel.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
