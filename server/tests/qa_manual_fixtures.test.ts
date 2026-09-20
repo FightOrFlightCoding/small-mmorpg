@@ -103,7 +103,7 @@ test("manual QA gold tops up Ada and the registered email only", () => {
   assert.equal(manualQaGoldDelta("", "Bob", 0), 0);
 });
 
-test("manual QA ground seed places one public potion on grass east of the south road", () => {
+test("manual QA ground seed places one public potion north of spawn on the south road", () => {
   const seeded = seedManualQaGroundItems({ itemsById: defs, tickRate: MATCH_TICK_RATE });
   assert.equal(seeded.length, 1);
   assert.equal(seeded[0].itemId, MANUAL_QA_GROUND_ITEM_ID);
