@@ -1,8 +1,9 @@
-# Item-system architecture contract (ITEM-10)
+# Item-system architecture contract (ITEM-11)
 
 **Last accepted gameplay phase:** NPC-07 — Lifecycle, security, and final certification (playable line `origin/main`, including later client crash/hang repairs).  
 **Last accepted progression phase:** PROG-15.  
-**Last accepted item phase:** ITEM-10 — Quest items, quest objectives, rewards, and future acquisition sources.
+**Last accepted item phase:** ITEM-10. ITEM-11 is certification of the completed platform (no new item features).
+
 
 ITEM-10 wires the completed item platform to quests and one shared future grant. The client never finalizes bag, gold, quest counts, or grants. Do not create parallel inventory, equipment, wallet, loot, transaction, merchant, trade, or quest-item systems.
 
@@ -42,7 +43,8 @@ ITEM-10 wires the completed item platform to quests and one shared future grant.
 | Transactions | `item_txn.ts`, `transaction.ts`, `nakama/transaction_store.ts` | One domain boundary plus OCC gold/inventory committers. Idempotent `requestId`. |
 | Locks | `item_lock.ts` on `ItemInstance` | Typed locks, TTL 120 s, tick expiry, orphan release. Partial quantity lock still immobilizes the stack. |
 | Journal / intents / audit | Inventory fields `journalByRequestId`, `intentsByRequestId`, `itemAudits` | No new storage key. Audit cap 32. |
-| Recovery | `recovery.ts`, trade `committing` snapshot, GM `cancel_trade`, journal retry/compensate | Interrupted commit retries. Ground loot dies with the match. |
+| Recovery | `item_recovery_scan.ts`, GM `scan_item_recovery` / `repair_item_recovery`, `recovery.ts` | Scan reports; repair overflow/locks; never silent delete. Incomplete txn/trade/gold stay report-only. |
+
 
 ## Authority boundary
 
@@ -71,7 +73,10 @@ The completed item platform, without implementing remaining features in ITEM-04:
 
 `inventory.ts`, `inventory_store.ts` (domain + nakama), `equipment.ts`, `equipment_store.ts`, `overflow.ts`, `overflow_store.ts` (domain + nakama), `item_migration.ts`, `item_capacity.ts`, `item_lock.ts`, `item_journal.ts`, `item_intent.ts`, `item_audit.ts`, `item_txn.ts`, `item_errors.ts`, `item_grant.ts`, `loot.ts`, `loot_table.ts`, `enemy_tag.ts`, `corpse.ts`, `loot_roll.ts`, `ground_item.ts`, `party_loot.ts`, `party_credit.ts`, `vendor.ts`, `trade.ts`, `match_trade.ts`, `trade_store.ts`, `wallet.ts`, `transaction.ts`, `transaction_store.ts`, `quest.ts`, `quest_sync.ts`, `quest_reward.ts`, `quest_objectives.ts`, `match_loop.ts`, `match_state.ts`, `persistence.ts`, `InventoryService`, `EquipmentService`, `WalletService`, `VendorService`, `TradeService`, `TradeWindow`, `CorpseService`, `LootRollService`, `PickupIntent`, `MerchantWindow`, `CorpseWindow`, `LootRollWindow`, `GroundDropDialog`, `GroundItemAvatar`, `BagGrid`, `ItemSlotView`, `ItemPresentation`, `ItemContextRouter`, `SplitStackDialog`, `DragDropService` (bag/equipment ghosts plus ability preview), `TooltipService` (canonical item rows plus ability/hotbar).
 
-## ITEM-10 change inventory
+## ITEM-11 change inventory
+
+Certification only. Security catalog, recovery scan/repair GM commands, hermetic five-client journey, capacity/concurrency stress, repository audit, and the final `docs/items/*` guides. No new opcode. No new storage collection. Content hash unchanged unless a later QA fixture lands after acceptance.
+
 
 Quest possession recounts after corpse loot, Need/Greed, ground pickup/drop, merchant buy, trade offer/commit/cancel, destroy, overflow recover, quest turn-in, and GM grant/remove. Collection counts bag quantity minus live trade offers; equipment only when the objective sets `countEquipment`. Quest items never open Need/Greed and stay first-come on the corpse. Production consume of a fully tradeable/droppable quest item must declare `itemReacquisition` with a repeatable world source. Turn-in plans consume+rewards together, rejects `inventory_full` with a required-capacity message, and never writes overflow. `grantItemFromSource` is the trusted-server grant for future gathering. No new opcode. No new storage collection. Content hash changes because slime/proof quests declare reacquisition.
 

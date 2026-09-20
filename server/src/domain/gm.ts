@@ -19,6 +19,8 @@ import { activateSpawn } from "./spawn_controller";
 import { killEnemy, type CombatEvent } from "./combat";
 import { cancelTrade, cloneTradeRecord, findLiveTradeForCharacter, offeredQuantitiesForCharacter } from "./trade";
 import { publicEquipment } from "./equipment";
+import { emptyOverflow } from "./overflow";
+import { liveLockIdsForCharacter, repairItemRecovery, scanItemRecovery } from "./item_recovery_scan";
 
 export const GM_COLLECTION = "gm";
 export const GM_ALLOWLIST_KEY = "allowlist";
@@ -61,6 +63,8 @@ export const GM_COMMANDS = [
   "inspect_party",
   "cancel_trade",
   "view_recent_transaction_audit",
+  "scan_item_recovery",
+  "repair_item_recovery",
 ] as const;
 
 export type GmCommandName = (typeof GM_COMMANDS)[number];
@@ -120,6 +124,7 @@ export interface GmApplyResult {
   persistInventory: boolean;
   persistProgression: boolean;
   persistQuests: boolean;
+  persistOverflow: boolean;
   goldDelta: number;
   repairLocation: boolean;
 }
@@ -433,6 +438,12 @@ export function applyGmToMatch(
     empty.result = { gold: player.gold !== undefined ? player.gold : 0 };
     return empty;
   }
+  if (request.command === "scan_item_recovery") {
+    return scanRecovery(state, player, items);
+  }
+  if (request.command === "repair_item_recovery") {
+    return repairRecovery(state, player, items, nowMs);
+  }
   return emptyApply("unknown_command");
 }
 
@@ -444,6 +455,7 @@ function emptyApply(code: string): GmApplyResult {
     persistInventory: false,
     persistProgression: false,
     persistQuests: false,
+    persistOverflow: false,
     goldDelta: 0,
     repairLocation: false,
   };
@@ -543,6 +555,70 @@ function syncGmQuestPossession(state: StarterZoneState, player: MatchPlayer): bo
   const synced = syncAcquireObjectives(player.questLog, player.inventory, extras);
   player.questLog = synced.log;
   return synced.changed;
+}
+
+function scanRecovery(state: StarterZoneState, player: MatchPlayer, items: { [id: string]: ItemDefinition }): GmApplyResult {
+  if (player.inventory === undefined) {
+    return emptyApply("inventory_missing");
+  }
+  const inventory = player.inventory;
+  const live = liveLockIdsForCharacter(player.characterId, dict(state.trades), inventory);
+  const report = scanItemRecovery({
+    characterId: player.characterId,
+    inventory: inventory,
+    equipment: player.equipment,
+    overflow: player.overflow !== undefined ? player.overflow : emptyOverflow(),
+    definitions: items,
+    liveLockIds: live,
+    trades: dict(state.trades),
+    corpses: state.corpses,
+    groundItems: state.groundItems !== undefined ? state.groundItems : [],
+  });
+  const result = emptyApply("ok");
+  result.result = {
+    unresolvedCount: report.unresolvedCount,
+    findings: report.findings,
+    schemaVersion: report.schemaVersion,
+  };
+  return result;
+}
+
+function repairRecovery(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  items: { [id: string]: ItemDefinition },
+  nowMs: number,
+): GmApplyResult {
+  if (player.inventory === undefined) {
+    return emptyApply("inventory_missing");
+  }
+  const inventory = player.inventory;
+  const live = liveLockIdsForCharacter(player.characterId, dict(state.trades), inventory);
+  const repaired = repairItemRecovery({
+    characterId: player.characterId,
+    inventory: inventory,
+    equipment: player.equipment,
+    overflow: player.overflow !== undefined ? player.overflow : emptyOverflow(),
+    definitions: items,
+    liveLockIds: live,
+    trades: dict(state.trades),
+    corpses: state.corpses,
+    groundItems: state.groundItems !== undefined ? state.groundItems : [],
+    nowMs: nowMs,
+  });
+  player.inventory = repaired.inventory;
+  player.overflow = repaired.overflow;
+  const result = emptyApply("ok");
+  result.persistInventory = repaired.persist;
+  result.persistOverflow = repaired.persist;
+  result.result = {
+    unresolvedCount: repaired.report.unresolvedCount,
+    findings: repaired.report.findings,
+    repairs: repaired.repairs,
+    deletedUnexplained: repaired.deletedUnexplained,
+    schemaVersion: repaired.report.schemaVersion,
+  };
+  return result;
 }
 
 function grantAdminXp(player: MatchPlayer, request: GmCommandRequest, state: StarterZoneState): GmApplyResult {

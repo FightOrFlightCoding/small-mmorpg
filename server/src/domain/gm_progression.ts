@@ -67,6 +67,7 @@ function emptyApply(code: string): GmApplyResult {
     persistInventory: false,
     persistProgression: false,
     persistQuests: false,
+    persistOverflow: false,
     goldDelta: 0,
     repairLocation: false,
   };

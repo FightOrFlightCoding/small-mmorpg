@@ -1904,6 +1904,8 @@ func _build_gm_panel() -> void:
 		"inspect_party",
 		"cancel_trade",
 		"view_recent_transaction_audit",
+		"scan_item_recovery",
+		"repair_item_recovery",
 	]
 	for command_name in names:
 		_gm_command.add_item(String(command_name))

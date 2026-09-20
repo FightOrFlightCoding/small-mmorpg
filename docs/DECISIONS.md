@@ -978,3 +978,14 @@ ITEM-10 wires the item platform to quests and one shared future grant. It does n
 - `grantItemFromSource` is trusted-server only (`eventId` idempotency). Full bag returns `INVENTORY_FULL` and does not consume the source. GM `grant_test_item` uses it.
 - Conflict ITEM-C24 is CLOSED. Storage record count remains 35. Content hash changes with slime/proof reacquisition documents.
 
+## 2026-09-20 — ITEM-11 security, recovery, and certification
+
+ITEM-11 proves the completed item platform. It does not add harvesting, cooking, mining, blacksmithing, auctions, mail, offline trade, or merchant selling.
+
+- Security matrix: every listed bag/equipment/corpse/Need-Greed/merchant/ground/trade/quest threat has nine fields in `item_security_catalog.ts`.
+- GM `scan_item_recovery` / `repair_item_recovery` are audited. Repair never deletes unexplained items.
+- Five-client, capacity, concurrency, fuzz, and repository audit are hermetic server tests.
+- Suggested release tag `item-inventory-loot-v1` is not created without approval.
+- Storage record count remains 35. Content hash unchanged in the certification commit.
+
+

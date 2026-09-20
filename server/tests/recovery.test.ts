@@ -5,11 +5,13 @@ import { publicSaveRejectCode, REASON_UNSUPPORTED_FUTURE_VERSION } from "../src/
 import { isSensitiveLogKey, formatOpsLog, incrementCounter, resetOpsCounters, snapshotCounters } from "../src/domain/ops_metrics";
 
 test("every documented recovery scenario has an operator procedure", () => {
-  assert.equal(RECOVERY_PROCEDURES.length, 9);
+  assert.equal(RECOVERY_PROCEDURES.length, 11);
   assert.equal(recoveryFor("corrupted_character_location").gmCommand, "repair_invalid_location");
   assert.equal(recoveryFor("interrupted_trade").gmCommand, "cancel_trade");
   assert.equal(recoveryFor("accidental_item_grant").gmCommand, "remove_test_item");
   assert.equal(recoveryFor("accidentally_completed_quest").gmCommand, "reset_quest");
+  assert.equal(recoveryFor("orphaned_item_lock").gmCommand, "repair_item_recovery");
+  assert.equal(recoveryFor("corrupt_item_container").gmCommand, "scan_item_recovery");
   assert.equal(recoveryFor("incompatible_client").blocksGameplay, true);
   assert.equal(recoveryFor("missing_cave_match").blocksGameplay, false);
 });

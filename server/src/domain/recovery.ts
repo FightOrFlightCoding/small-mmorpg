@@ -7,7 +7,9 @@ export type RecoveryScenario =
   | "missing_cave_match"
   | "incompatible_client"
   | "accidental_item_grant"
-  | "accidentally_completed_quest";
+  | "accidentally_completed_quest"
+  | "orphaned_item_lock"
+  | "corrupt_item_container";
 
 export interface RecoveryProcedure {
   scenario: RecoveryScenario;
@@ -42,6 +44,18 @@ export const RECOVERY_PROCEDURES: RecoveryProcedure[] = [
     scenario: "interrupted_trade",
     operator: "Rejoin recovers a committing trade; GM cancel_trade unlocks a stuck live trade.",
     gmCommand: "cancel_trade",
+    blocksGameplay: false,
+  },
+  {
+    scenario: "orphaned_item_lock",
+    operator: "Authorized GM scan_item_recovery lists locks whose lockId is not live. repair_item_recovery clears them. Items are never deleted.",
+    gmCommand: "repair_item_recovery",
+    blocksGameplay: false,
+  },
+  {
+    scenario: "corrupt_item_container",
+    operator: "scan_item_recovery reports duplicate slots, overstack, invalid slot indexes, missing definitions, overflow, incomplete drops/trades/gold. repair_item_recovery moves extras to overflow. Missing definitions stay; they are never silently deleted.",
+    gmCommand: "scan_item_recovery",
     blocksGameplay: false,
   },
   {

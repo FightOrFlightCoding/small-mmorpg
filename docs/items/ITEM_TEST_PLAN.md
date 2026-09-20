@@ -1,6 +1,7 @@
-# Item test plan (ITEM-10)
+# Item test plan (ITEM-11)
 
-ITEM-10 extends ITEM-09 with possession-based quest collection, atomic turn-in, reacquisition validation, and `grantItemFromSource`. Acceptance is the gates below plus the ITEM-10 cases. Do not weaken tests.
+ITEM-11 certifies ITEM-01–ITEM-10. It adds the security matrix, recovery scans, five-client journey, capacity/concurrency stress, repository audit, and final guides. Do not weaken tests.
+
 
 ## Baseline (run on ITEM-10; 2026-09-19)
 
@@ -57,7 +58,14 @@ GODOT_BIN=godot bash scripts/test-client.sh
 | `client/tests/app/vendor_inn_service_test.gd` / `merchant_window_test.gd` | Buy UI, bag, no price send |
 | `client/tests/app/trade_service_test.gd` | Trade mirror; slotIndex offer; offer-changed copy |
 | `client/tests/app/trade_window_test.gd` | 20 local/remote slots, gold, revision, local bag, no ownership prediction |
-| `client/tests/app/wallet_service_test.gd` | Gold label |
+| `server/tests/item_security_catalog.test.ts` | Nine-field matrix for every ITEM-11 threat |
+| `server/tests/item_security.test.ts` | Fuzz/boundary: slots, injection, oversized payload, rate limit |
+| `server/tests/item_concurrency.test.ts` | Concurrent corpse/ground, merchant retry, roll boundary, trade races |
+| `server/tests/item_recovery.test.ts` | Scan/repair; never delete unexplained items; GM audit commands |
+| `server/tests/item_cert_journey.test.ts` | Five-client certification journey |
+| `server/tests/item_capacity_stress.test.ts` | Full bag merge/no-merge, multi-stack buy, trade room, quest reward |
+| `server/tests/item_repository_audit.test.ts` | 30/99/1, no bind, quest tradeable, protocol injection, no client storage writes |
+
 
 Vertical-slice item journey: slime gel pickup + elder turn-in (VS-T* in [VERTICAL_SLICE.md](../VERTICAL_SLICE.md), e2e `slice_journey.gd` / cert journey). Trade journey: `trade.test.ts` + client trade service/window tests.
 
@@ -129,6 +137,15 @@ Vertical-slice item journey: slime gel pickup + elder turn-in (VS-T* in [VERTICA
 5. Turn-in revalidates possession, simulates consume+reward capacity, then consumes, rewards, completes, and audits. A full bag blocks turn-in: no consume, no XP, no gold, no completion, and a precise required-capacity message. Rewards never enter overflow.
 6. `grantItemFromSource` is trusted-server only. Duplicate `eventId` replays. A grant that does not fit returns `INVENTORY_FULL`, grants nothing, and does not consume the world source. No client-authoritative grant opcode.
 7. Character export includes bag/equipment/history. Soft-delete restore preserves items. Purge and account deletion remove items and transaction state. Reused email does not inherit them. Link-dead blocks item actions.
+
+## ITEM-11 acceptance
+
+1. Every listed bag/equipment/corpse/Need-Greed/merchant/ground/trade/quest threat has the nine security fields and mapped tests.
+2. Malformed and oversized payloads do not crash, duplicate items/gold, leak locks, corrupt revisions, or partially commit.
+3. Recovery scan reports the required kinds. Repair is conservative. Missing definitions are never deleted.
+4. The five-client hermetic journey covers 30-slot bags, stacking, equipment, merchant, tag/roster/late join, mixed corpse loot, gold once, Need/Greed, pending pickup, public loot, Loot All, quest trade/drop, 20-slot trade, disconnect locks, persist vs match-lifetime loot.
+5. Capacity and concurrency stress cases in `item_capacity_stress.test.ts` and `item_concurrency.test.ts` pass.
+6. Repository audit: no production 20-slot bag, no stack > 99, equippable stack 1, no binding, quest items tradeable/droppable, merchant/roll/ground not client-authoritative, trade 20 slots, `permissionWrite: 0`, addons untouched, one transaction family.
 
 ## Later-phase tests (do not implement now)
 

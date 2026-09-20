@@ -138,7 +138,7 @@ export function emptyInventory(capacity: number = INVENTORY_CAPACITY): PlayerInv
   };
 }
 
-export function cloneInventory(inventory: PlayerInventory): PlayerInventory {
+export function cloneInventory(inventory: PlayerInventory, preserveCorruptSlots?: boolean): PlayerInventory {
   if (inventory == null) {
     return emptyInventory();
   }
@@ -206,7 +206,9 @@ export function cloneInventory(inventory: PlayerInventory): PlayerInventory {
   if (inventory.persistReason !== undefined && inventory.persistReason.length > 0) {
     next.persistReason = inventory.persistReason;
   }
-  ensureSlotIndices(next);
+  if (preserveCorruptSlots !== true) {
+    ensureSlotIndices(next);
+  }
   return next;
 }
 

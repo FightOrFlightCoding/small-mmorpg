@@ -24,7 +24,7 @@ import {
   loadEquipment,
 } from "../domain/equipment";
 import { migrateItemContainers } from "../domain/item_migration";
-import { emptyOverflow } from "../domain/overflow";
+import { emptyOverflow, isOverflowEmpty } from "../domain/overflow";
 import { readOverflow, writeOverflow, deleteOverflow } from "./overflow_store";
 import {
   CAVE_EMPTY_TIMEOUT_TICKS,
@@ -1399,11 +1399,25 @@ function persistGmFromMatch(
   nk: nkruntime.Nakama,
   logger: nkruntime.Logger,
   player: MatchPlayer,
-  applied: { persistInventory: boolean; persistProgression: boolean; persistQuests: boolean; goldDelta: number; repairLocation: boolean },
+  applied: {
+    persistInventory: boolean;
+    persistProgression: boolean;
+    persistQuests: boolean;
+    persistOverflow?: boolean;
+    goldDelta: number;
+    repairLocation: boolean;
+  },
   requestId: string,
 ): void {
   if (applied.persistInventory && player.inventory !== undefined) {
     writeInventory(nk, player.userId, player.inventory, player.characterId);
+  }
+  if (applied.persistOverflow === true && player.overflow !== undefined) {
+    if (isOverflowEmpty(player.overflow)) {
+      deleteOverflow(nk, player.userId, player.characterId);
+    } else {
+      writeOverflow(nk, player.userId, player.overflow, player.characterId);
+    }
   }
   if (applied.persistProgression && player.progression !== undefined) {
     writeProgression(nk, player.userId, player.progression, player.characterId);
