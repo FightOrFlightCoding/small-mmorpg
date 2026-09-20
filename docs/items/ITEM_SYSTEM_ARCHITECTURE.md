@@ -2,7 +2,7 @@
 
 **Last accepted gameplay phase:** NPC-07 — Lifecycle, security, and final certification (playable line `origin/main`, including later client crash/hang repairs).  
 **Last accepted progression phase:** PROG-15.  
-**Last accepted item phase:** ITEM-10. ITEM-11 is certification of the completed platform (no new item features).
+**Last accepted item phase:** ITEM-11. The item platform is certified. Do not add harvesting, cooking, mining, blacksmithing, auctions, mail, offline trade, or merchant selling until a later phase names them.
 
 
 ITEM-10 wires the completed item platform to quests and one shared future grant. The client never finalizes bag, gold, quest counts, or grants. Do not create parallel inventory, equipment, wallet, loot, transaction, merchant, trade, or quest-item systems.
@@ -11,7 +11,7 @@ ITEM-10 wires the completed item platform to quests and one shared future grant.
 
 | Topic | Value |
 | --- | --- |
-| Canonical git line | ITEM-10 stacks on ITEM-09 (`cursor/item-09-trade-7369`). |
+| Canonical git line | ITEM-11 stacks on ITEM-10 (`cursor/item-10-quest-grant-7369`). |
 | Inventory save envelope | Gameplay `schemaVersion` **1** (`SAVE_SCHEMA_VERSION`). Journal, intents, audits, and typed lock fields persist **inside** the inventory record. There is no 36th storage collection. Corpses and player ground items are match-lifetime only. |
 | Pre-existing test failures | **None.** Trade suite included. |
 | Duplicate ownership | One server inventory, one equipment map, one Nakama wallet `gold`, one match loot list, one corpse list, one player ground-item list, one trade state machine, one capacity simulator, one item transaction boundary. GLoot is a client mirror only. |

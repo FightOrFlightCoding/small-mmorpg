@@ -1,14 +1,41 @@
 # Progress
 
-Last accepted phase: **ITEM-10 — Quest items, quest objectives, rewards, and future acquisition sources**.
+Last accepted phase: **ITEM-11 — Security, concurrency, recovery, load, and final certification**.
 
-Current phase: ITEM-10 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
+Current phase: ITEM-11 (accepted). Do not start later ITEM phases. The last accepted gameplay/NPC phase remains **NPC-07**. The last accepted progression phase remains **PROG-15**.
 
 Canonical git line: **`origin/main`**. Playable work is committed there. The Windows clone stays on `main` and runs `scripts/local-play.ps1 -Branch main`.
 
-The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01 through ITEM-10 remain accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
+The Prompt 18 vertical slice remains accepted. Foundation v1 (Prompt 35) remains accepted. Account lifecycle (ACCT-09) remains accepted. PROG-01 through PROG-15 remain accepted. ITEM-01 through ITEM-11 remain accepted. Foundation v1 scope is locked in [FOUNDATION_SCOPE.md](FOUNDATION_SCOPE.md). Do not implement later PROG gameplay until a later PROG phase names it. Do not implement later account-lifecycle features until a later ACCT phase names them. Do not implement later ITEM features until a later ITEM phase names them. Stay Signed In remains later.
 
 Local Compose delivers verification, recovery, email-change, and deletion mail through SendGrid (`infra/.env.local`). Mailpit remains on automated-test Compose only.
+
+## ITEM-11 security, recovery, and platform certification (2026-09-20)
+
+ITEM-11 is accepted. It certifies the completed item, inventory, loot, merchant, ground, trade, and quest-possession platform. It does not add harvesting, cooking, mining, blacksmithing, auctions, mail, offline trade, or merchant selling.
+
+Every listed bag, equipment, corpse, Need/Greed, merchant, ground, trade, and quest-source threat has nine fields in `item_security_catalog.ts`: threat, validation, rate limit, payload limit, idempotency, lock rule, expected rejection, audit event, and automated test. Fuzz and oversized payloads do not crash, duplicate items or gold, leak locks, corrupt revisions, or partially commit.
+
+GM `scan_item_recovery` / `repair_item_recovery` are allowlisted and audited. Scan reports orphaned locks, incomplete transactions/gold/drops/trades, invalid container refs, duplicate slots, overstack, missing definitions, and overflow. Repair clears orphan locks and moves extras to overflow. Missing definitions stay. Repair never silently deletes unexplained items. `cloneInventory(..., true)` preserves corrupt slots for scan.
+
+Hermetic coverage: five-client journey, capacity stress, concurrency stress, repository audit. Suggested release tag **`item-inventory-loot-v1`** is not created without approval.
+
+No new opcode. Storage record count remains **35**. Content hash unchanged: `d7e71fa4bd525906da2ee6d4244745d63980b738bfa7ad2a7b94c5010cc13bd9`.
+
+Conflict ITEM-C20 remains OPEN (account gold wallet). ITEM-C12 remains KEEP (`VENDOR_SELL`).
+
+| Gate | Result |
+| --- | --- |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 49 client opcodes, 19 server opcodes, 29 RPCs) |
+| Content validation/tests | 29/29 passed |
+| Server hermetic tests | 1068 passed, 13 expected live-test skips |
+| Server typecheck/build | passed |
+| Auth gateway hermetic tests | 52/52 passed |
+| Godot 4.7.1 client GdUnit | 371/371 passed, 0 failures, 0 orphans |
+
+Pre-existing Node 22.14 runner compatibility remains documented: directory-form `node --test` wrappers can fail before discovery. Direct compiled-file glob equivalents pass.
+
+After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen `client/`. Recreate Nakama so `contentHash` matches.
 
 ## ITEM-10 quest items, turn-in, and future grant (2026-09-19)
 

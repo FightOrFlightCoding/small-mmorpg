@@ -113,7 +113,7 @@ Cloud and remote agents **cannot** write `C:\Users\Eszter\small-mmorpg`. Client-
 
 ## Current baseline (`origin/main`)
 
-Canonical git line is **`origin/main`**. Last accepted phase is **ITEM-03** ([docs/PROGRESS.md](docs/PROGRESS.md)). Playable gameplay remains the NPC-07 / PROG-15 Foundation line plus the thirty-slot bag, equipment outside the bag, overflow recovery, and the ITEM-03 transaction/lock core. Continue new work on **`origin/main`**. Do not treat stacked `cursor/*` branches as the playable line.
+Canonical git line is **`origin/main`**. Last accepted phase is **ITEM-11** ([docs/PROGRESS.md](docs/PROGRESS.md)). Playable gameplay remains the NPC-07 / PROG-15 Foundation line plus the certified 30-slot bag, equipment, corpse loot, Need/Greed, merchant buy, ground drops, 20-slot trade, and quest possession. Continue new work on **`origin/main`**. Do not treat stacked `cursor/*` branches as the playable line.
 
 Before editing:
 

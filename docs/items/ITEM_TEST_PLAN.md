@@ -3,7 +3,7 @@
 ITEM-11 certifies ITEM-01–ITEM-10. It adds the security matrix, recovery scans, five-client journey, capacity/concurrency stress, repository audit, and final guides. Do not weaken tests.
 
 
-## Baseline (run on ITEM-10; 2026-09-19)
+## Baseline (ITEM-11 accepted; 2026-09-20)
 
 Directory-form `node --test dist/tests` can fail on Node 22.14 before discovery. Glob invocation is authoritative.
 
@@ -11,7 +11,7 @@ Directory-form `node --test dist/tests` can fail on Node 22.14 before discovery.
 | --- | --- |
 | Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 49 client opcodes, 19 server opcodes, 29 RPCs) |
 | Content validation/tests | 29/29 passed |
-| Server hermetic tests | 1028 passed, 13 expected live-test skips |
+| Server hermetic tests | 1068 passed, 13 expected live-test skips |
 | Server typecheck/build | passed |
 | Auth gateway hermetic tests | 52/52 passed |
 | Godot 4.7.1 client GdUnit | 371/371 passed, 0 failures, 0 orphans |

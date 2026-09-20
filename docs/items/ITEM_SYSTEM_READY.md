@@ -49,6 +49,19 @@ GODOT_BIN=godot bash scripts/test-client.sh
 
 Directory-form `node --test dist/tests` can fail on Node 22.14 before discovery. Glob invocation is authoritative.
 
+## Gates (2026-09-20)
+
+| Gate | Result |
+| --- | --- |
+| Foundation audit | `FOUNDATION_AUDIT_OK` (35 storage records, 49 client opcodes, 19 server opcodes, 29 RPCs) |
+| Content validation/tests | 29/29 passed |
+| Server hermetic tests | 1068 passed, 13 expected live-test skips |
+| Server typecheck/build | passed |
+| Auth gateway hermetic tests | 52/52 passed |
+| Godot 4.7.1 client GdUnit | 371/371 passed, 0 failures, 0 orphans |
+
+Content hash: `d7e71fa4bd525906da2ee6d4244745d63980b738bfa7ad2a7b94c5010cc13bd9`.
+
 ## Acceptance
 
-The platform is ready when ITEM-01 through ITEM-11 gates pass, recovery finds no unexplained deletes, the 30-slot bag and 20-slot trade hold, and a clean checkout reproduces. Remaining product limits: [KNOWN_ITEM_LIMITATIONS.md](KNOWN_ITEM_LIMITATIONS.md).
+ITEM-01 through ITEM-11 gates pass. Recovery does not delete unexplained items. The 30-slot bag and 20-slot trade hold. A clean checkout reproduces with the glob `node --test` invocation. Remaining product limits: [KNOWN_ITEM_LIMITATIONS.md](KNOWN_ITEM_LIMITATIONS.md).
