@@ -20,7 +20,8 @@
         "healer",
         "cave_entrance",
         "cave_exit",
-        "respec"
+        "respec",
+        "world_interaction"
       ]
     },
     "questIds": {
@@ -39,6 +40,21 @@
     },
     "requireParty": { "type": "boolean" },
     "requiredQuestId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
-    "requiredQuestStatus": { "type": "string", "minLength": 1 }
+    "requiredQuestStatus": { "type": "string", "minLength": 1 },
+    "grantItemId": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/contentId" },
+    "grantQuantity": { "$ref": "https://vibecode.local/content-schemas/common.json#/$defs/positiveInteger" },
+    "grantSourceType": {
+      "type": "string",
+      "enum": [
+        "forage_node",
+        "herb_bush",
+        "mining_node",
+        "fishing",
+        "crafting",
+        "world_interaction",
+        "quest_reward",
+        "admin_grant"
+      ]
+    }
   }
 }

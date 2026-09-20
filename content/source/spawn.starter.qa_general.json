@@ -1,0 +1,12 @@
+{
+  "id": "spawn.starter.qa_general",
+  "kind": "spawn",
+  "zoneId": "zone.starter",
+  "enemyId": "enemy.qa_general",
+  "x": 1832,
+  "y": 2864,
+  "spawnCount": 1,
+  "respawnDelay": 12,
+  "activationPolicy": "always",
+  "groupId": "group.starter_qa"
+}

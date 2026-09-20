@@ -120,7 +120,8 @@ export interface NpcServiceDef {
     | "healer"
     | "cave_entrance"
     | "cave_exit"
-    | "respec";
+    | "respec"
+    | "world_interaction";
   questIds?: string[];
   vendorId?: string;
   goldCost?: number;
@@ -132,6 +133,9 @@ export interface NpcServiceDef {
   requireParty?: boolean;
   requiredQuestId?: string;
   requiredQuestStatus?: string;
+  grantItemId?: string;
+  grantQuantity?: number;
+  grantSourceType?: string;
 }
 
 export interface NpcDef {

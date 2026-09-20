@@ -988,4 +988,16 @@ ITEM-11 proves the completed item platform. It does not add harvesting, cooking,
 - Suggested release tag `item-inventory-loot-v1` is not created without approval.
 - Storage record count remains 35. Content hash unchanged in the certification commit.
 
+## 2026-09-20 — Manual QA fixtures after ITEM-11
+
+Local-play fixtures for the Windows Godot checkout. Not a new ITEM phase.
+
+- Account `pedrobh91@gmail.com` (character Ada when the Nakama email field is empty) is topped up to 5000 gold on public-world join.
+- Public starter match seeds one `item.test_potion` ground entity near spawn. It remains match-lifetime.
+- `npc.qa_merchant` / `vendor.qa_general` sells potions, pebbles, cloth, and a training sword.
+- `enemy.qa_rare` drops one Uncommon Green Relic. `enemy.qa_general` drops several ordinary items.
+- `npc.qa_herb_bush` grants `item.wild_herb` through existing INTERACT + `grantItemFromSource` (`herb_bush`). Duplicate `requestId` replays. A full bag grants nothing.
+- No new opcode. No new storage collection. Content hash changes.
+
+
 

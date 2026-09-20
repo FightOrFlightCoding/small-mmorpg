@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "d7e71fa4bd525906da2ee6d4244745d63980b738bfa7ad2a7b94c5010cc13bd9";
+export const contentHash = "970b28819155ae6623a9f343a55aee963ebba90b0472925a4df9e4fc2c8ec9da";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = ["dialogue.npc.lab_exit","dialogue.npc.lab_inn","dialogue.npc.lab_keeper","dialogue.npc.lab_trainer","dialogue.npc.lab_vendor","npc.lab_exit","npc.lab_inn","npc.lab_keeper","npc.lab_trainer","npc.lab_vendor","quest.lab_tour","spawn.lab.boss","spawn.lab.caster","spawn.lab.melee","spawn.lab.ranged","test.zone.systems_lab","vendor.lab_general"] as const;
 export const content = {
@@ -4572,6 +4572,42 @@ export const content = {
       },
       "startNodeId": "start"
     },
+    "dialogue.npc.qa_herb_bush": {
+      "displayName": "Herb Bush",
+      "displayNameKey": "dialogue.npc.qa_herb_bush.name",
+      "id": "dialogue.npc.qa_herb_bush",
+      "kind": "dialogue",
+      "nodes": {
+        "start": {
+          "id": "start",
+          "lines": [
+            {
+              "text": "You pick a wild herb from the bush.",
+              "textKey": "dialogue.npc.qa_herb_bush.start.0"
+            }
+          ]
+        }
+      },
+      "startNodeId": "start"
+    },
+    "dialogue.npc.qa_merchant": {
+      "displayName": "QA Merchant",
+      "displayNameKey": "dialogue.npc.qa_merchant.name",
+      "id": "dialogue.npc.qa_merchant",
+      "kind": "dialogue",
+      "nodes": {
+        "start": {
+          "id": "start",
+          "lines": [
+            {
+              "text": "Potions, cloth, pebbles, and a training blade. Prices are mine.",
+              "textKey": "dialogue.npc.qa_merchant.start.0"
+            }
+          ]
+        }
+      },
+      "startNodeId": "start"
+    },
     "dialogue.npc.test_cave_exit": {
       "displayName": "Cave Exit",
       "displayNameKey": "dialogue.npc.test_cave_exit.name",
@@ -6306,6 +6342,58 @@ export const content = {
       "visualId": "visual.enemy_proof_critter",
       "xpReward": 2
     },
+    "enemy.qa_general": {
+      "abilityLoadout": [],
+      "aggroRadius": 48,
+      "aiProfileId": "test.ai.melee",
+      "attackCooldown": 2,
+      "attackRange": 24,
+      "collisionProfileId": "collision.enemy_default",
+      "damage": 1,
+      "defense": 0,
+      "displayName": "Supply Critter",
+      "displayNameKey": "enemy.qa_general.name",
+      "id": "enemy.qa_general",
+      "kind": "enemy",
+      "leashRadius": 80,
+      "level": 1,
+      "lootTableId": "loot.qa_general",
+      "maxHealth": 8,
+      "moveSpeed": 18,
+      "respawnDelay": 12,
+      "tags": [
+        "qa",
+        "wildlife"
+      ],
+      "visualId": "visual.enemy_qa_general",
+      "xpReward": 4
+    },
+    "enemy.qa_rare": {
+      "abilityLoadout": [],
+      "aggroRadius": 48,
+      "aiProfileId": "test.ai.melee",
+      "attackCooldown": 2,
+      "attackRange": 24,
+      "collisionProfileId": "collision.enemy_default",
+      "damage": 1,
+      "defense": 0,
+      "displayName": "Green Relic Scout",
+      "displayNameKey": "enemy.qa_rare.name",
+      "id": "enemy.qa_rare",
+      "kind": "enemy",
+      "leashRadius": 80,
+      "level": 1,
+      "lootTableId": "loot.qa_rare",
+      "maxHealth": 8,
+      "moveSpeed": 18,
+      "respawnDelay": 12,
+      "tags": [
+        "qa",
+        "wildlife"
+      ],
+      "visualId": "visual.enemy_qa_rare",
+      "xpReward": 4
+    },
     "test.enemy.caster": {
       "abilityLoadout": [
         "test.ability.enemy_cast"
@@ -6706,6 +6794,42 @@ export const content = {
       "visualId": "visual.item_proof_token",
       "worldAssetId": "visual.item_proof_token"
     },
+    "item.qa_green_relic": {
+      "attackBonus": 6,
+      "category": "weapon",
+      "classRequirements": [],
+      "descriptionKey": "item.qa_green_relic.desc",
+      "destroyable": true,
+      "displayName": "Green Relic",
+      "displayNameKey": "item.qa_green_relic.name",
+      "droppable": true,
+      "equipSlot": "main_hand",
+      "equipmentSlotTags": [
+        "main_hand"
+      ],
+      "equippable": true,
+      "iconAssetId": "visual.item_green_relic",
+      "id": "item.qa_green_relic",
+      "kind": "item",
+      "levelRequirement": 0,
+      "maxStack": 1,
+      "questItem": false,
+      "rarity": "rarity.uncommon",
+      "sellValue": 12,
+      "statModifiers": [
+        {
+          "amount": 6,
+          "statId": "test.stat.attack"
+        }
+      ],
+      "tags": [
+        "qa"
+      ],
+      "tradeable": true,
+      "uniquePolicy": "none",
+      "visualId": "visual.item_green_relic",
+      "worldAssetId": "visual.item_green_relic"
+    },
     "item.slime_gel": {
       "attackBonus": 0,
       "category": "quest",
@@ -6945,6 +7069,33 @@ export const content = {
       "uniquePolicy": "none",
       "visualId": "visual.item_training_sword",
       "worldAssetId": "visual.item_training_sword"
+    },
+    "item.wild_herb": {
+      "attackBonus": 0,
+      "category": "material",
+      "classRequirements": [],
+      "descriptionKey": "item.wild_herb.desc",
+      "destroyable": true,
+      "displayName": "Wild Herb",
+      "displayNameKey": "item.wild_herb.name",
+      "droppable": true,
+      "equippable": false,
+      "iconAssetId": "visual.item_wild_herb",
+      "id": "item.wild_herb",
+      "kind": "item",
+      "levelRequirement": 0,
+      "maxStack": 99,
+      "questItem": false,
+      "rarity": "rarity.common",
+      "sellValue": 1,
+      "statModifiers": [],
+      "tags": [
+        "herb"
+      ],
+      "tradeable": true,
+      "uniquePolicy": "none",
+      "visualId": "visual.item_wild_herb",
+      "worldAssetId": "visual.item_wild_herb"
     }
   },
   "levelCurves": {
@@ -7062,6 +7213,57 @@ export const content = {
         }
       ],
       "id": "loot.proof_critter",
+      "kind": "loot_table",
+      "ownershipPolicy": "ground_free"
+    },
+    "loot.qa_general": {
+      "displayName": "QA General Pack",
+      "entries": [
+        {
+          "chance": 1,
+          "guaranteed": true,
+          "itemDefinitionId": "item.test_potion",
+          "maximumQuantity": 2,
+          "minimumQuantity": 1
+        },
+        {
+          "chance": 1,
+          "guaranteed": true,
+          "itemDefinitionId": "item.test_pebble",
+          "maximumQuantity": 5,
+          "minimumQuantity": 3
+        },
+        {
+          "chance": 1,
+          "guaranteed": true,
+          "itemDefinitionId": "item.test_cloth",
+          "maximumQuantity": 1,
+          "minimumQuantity": 1
+        },
+        {
+          "chance": 1,
+          "guaranteed": true,
+          "itemDefinitionId": "item.training_sword",
+          "maximumQuantity": 1,
+          "minimumQuantity": 1
+        }
+      ],
+      "id": "loot.qa_general",
+      "kind": "loot_table",
+      "ownershipPolicy": "ground_free"
+    },
+    "loot.qa_rare": {
+      "displayName": "QA Green Relic",
+      "entries": [
+        {
+          "chance": 1,
+          "guaranteed": true,
+          "itemDefinitionId": "item.qa_green_relic",
+          "maximumQuantity": 1,
+          "minimumQuantity": 1
+        }
+      ],
+      "id": "loot.qa_rare",
       "kind": "loot_table",
       "ownershipPolicy": "ground_free"
     },
@@ -7516,6 +7718,64 @@ export const content = {
         }
       ],
       "visualId": "visual.npc_proof_giver",
+      "zoneId": "zone.starter"
+    },
+    "npc.qa_herb_bush": {
+      "dialogueId": "dialogue.npc.qa_herb_bush",
+      "displayName": "Herb Bush",
+      "displayNameKey": "npc.qa_herb_bush.name",
+      "homePosition": {
+        "x": 1944,
+        "y": 2896
+      },
+      "id": "npc.qa_herb_bush",
+      "interactionRange": 48,
+      "kind": "npc",
+      "position": {
+        "x": 1944,
+        "y": 2896
+      },
+      "routeId": "route.stationary",
+      "services": [
+        {
+          "type": "dialogue"
+        },
+        {
+          "grantItemId": "item.wild_herb",
+          "grantQuantity": 1,
+          "grantSourceType": "herb_bush",
+          "type": "world_interaction"
+        }
+      ],
+      "visualId": "visual.npc_herb_bush",
+      "zoneId": "zone.starter"
+    },
+    "npc.qa_merchant": {
+      "dialogueId": "dialogue.npc.qa_merchant",
+      "displayName": "QA Merchant",
+      "displayNameKey": "npc.qa_merchant.name",
+      "homePosition": {
+        "x": 2088,
+        "y": 2896
+      },
+      "id": "npc.qa_merchant",
+      "interactionRange": 48,
+      "kind": "npc",
+      "position": {
+        "x": 2088,
+        "y": 2896
+      },
+      "routeId": "route.stationary",
+      "services": [
+        {
+          "type": "dialogue"
+        },
+        {
+          "type": "vendor",
+          "vendorId": "vendor.qa_general"
+        }
+      ],
+      "visualId": "visual.npc_qa_merchant",
       "zoneId": "zone.starter"
     },
     "npc.test_cave_exit": {
@@ -8583,6 +8843,30 @@ export const content = {
       "spawnCount": 1,
       "x": 2464,
       "y": 1724,
+      "zoneId": "zone.starter"
+    },
+    "spawn.starter.qa_general": {
+      "activationPolicy": "always",
+      "enemyId": "enemy.qa_general",
+      "groupId": "group.starter_qa",
+      "id": "spawn.starter.qa_general",
+      "kind": "spawn",
+      "respawnDelay": 12,
+      "spawnCount": 1,
+      "x": 1832,
+      "y": 2864,
+      "zoneId": "zone.starter"
+    },
+    "spawn.starter.qa_rare": {
+      "activationPolicy": "always",
+      "enemyId": "enemy.qa_rare",
+      "groupId": "group.starter_qa",
+      "id": "spawn.starter.qa_rare",
+      "kind": "spawn",
+      "respawnDelay": 12,
+      "spawnCount": 1,
+      "x": 2200,
+      "y": 2864,
       "zoneId": "zone.starter"
     },
     "spawn.starter.test_caster": {
@@ -11001,6 +11285,39 @@ export const content = {
         }
       ]
     },
+    "vendor.qa_general": {
+      "currencyId": "gold",
+      "displayName": "QA General Goods",
+      "id": "vendor.qa_general",
+      "kind": "vendor",
+      "sellMultiplier": 0.5,
+      "stock": [
+        {
+          "buyPrice": 10,
+          "classRequirements": [],
+          "itemId": "item.test_potion",
+          "levelRequirement": 0
+        },
+        {
+          "buyPrice": 15,
+          "classRequirements": [],
+          "itemId": "item.training_sword",
+          "levelRequirement": 0
+        },
+        {
+          "buyPrice": 2,
+          "classRequirements": [],
+          "itemId": "item.test_pebble",
+          "levelRequirement": 0
+        },
+        {
+          "buyPrice": 4,
+          "classRequirements": [],
+          "itemId": "item.test_cloth",
+          "levelRequirement": 0
+        }
+      ]
+    },
     "vendor.test_general": {
       "currencyId": "gold",
       "displayName": "Test General Goods",
@@ -11220,6 +11537,18 @@ export const content = {
           "spawnId": "spawn.starter.cert_scout",
           "x": 2360,
           "y": 1164
+        },
+        {
+          "enemyId": "enemy.qa_rare",
+          "spawnId": "spawn.starter.qa_rare",
+          "x": 2200,
+          "y": 2864
+        },
+        {
+          "enemyId": "enemy.qa_general",
+          "spawnId": "spawn.starter.qa_general",
+          "x": 1832,
+          "y": 2864
         }
       ],
       "height": 3072,
@@ -11285,6 +11614,16 @@ export const content = {
           "npcId": "npc.platform_combined",
           "x": 2160,
           "y": 1488
+        },
+        {
+          "npcId": "npc.qa_merchant",
+          "x": 2088,
+          "y": 2896
+        },
+        {
+          "npcId": "npc.qa_herb_bush",
+          "x": 1944,
+          "y": 2896
         }
       ],
       "playerSpawn": {

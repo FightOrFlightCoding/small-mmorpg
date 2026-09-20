@@ -82,6 +82,7 @@ const NPC_SERVICE_TYPES = [
   "cave_entrance",
   "cave_exit",
   "respec",
+  "world_interaction",
 ];
 
 export function validateDocuments(
@@ -229,7 +230,7 @@ export function validateDocuments(
   }
   const npcIds = Object.keys(npcs);
   for (let i = 0; i < npcIds.length; i++) {
-    checkNpc(npcs[npcIds[i]], zones, vendors, quests, classes, npcRoutes, dialogues, issues, assets);
+    checkNpc(npcs[npcIds[i]], zones, vendors, quests, classes, npcRoutes, dialogues, items, issues, assets);
   }
   const routeIds = Object.keys(npcRoutes);
   for (let r = 0; r < routeIds.length; r++) {
@@ -672,6 +673,7 @@ function checkNpc(
   classes: Record<string, ClassDef>,
   routes: Record<string, NpcRouteDef>,
   dialogues: Record<string, DialogueDef>,
+  items: Record<string, ItemDef>,
   issues: ContentIssue[],
   assets: AssetIndex | undefined,
 ): void {
@@ -706,6 +708,11 @@ function checkNpc(
     if (service.type === "vendor") {
       if (service.vendorId === undefined || !vendors[service.vendorId]) {
         issues.push(issue("missing_reference:" + (service.vendorId !== undefined ? service.vendorId : npc.id)));
+      }
+    }
+    if (service.type === "world_interaction") {
+      if (service.grantItemId === undefined || !items[service.grantItemId]) {
+        issues.push(issue("missing_reference:" + (service.grantItemId !== undefined ? service.grantItemId : npc.id)));
       }
     }
     const questIds = service.questIds !== undefined ? service.questIds : [];

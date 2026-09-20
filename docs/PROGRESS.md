@@ -37,6 +37,8 @@ Pre-existing Node 22.14 runner compatibility remains documented: directory-form 
 
 After this lands on `origin/main`, close Godot and run `powershell -File scripts/local-play.ps1 -Branch main` from `C:\Users\Eszter\small-mmorpg`, then reopen `client/`. Recreate Nakama so `contentHash` matches.
 
+Manual QA fixtures on this line (Ada gold top-up, spawn-adjacent merchant/bush/loot mobs, one ground potion) change the catalog to `970b28819155ae6623a9f343a55aee963ebba90b0472925a4df9e4fc2c8ec9da`.
+
 ## ITEM-10 quest items, turn-in, and future grant (2026-09-19)
 
 ITEM-10 is accepted. It wires the completed item platform to quests and one shared future grant. It does not implement harvesting, cooking, mining, blacksmithing, auctions, mail, offline trade, or merchant selling. Do not start later ITEM phases.

@@ -13,6 +13,7 @@ import { cancelTradesForUser, recoverCommittingTrades } from "../domain/match_tr
 import { cancelTrade, type TradeRecord } from "../domain/trade";
 import { clearLocksByLockId, initializeInventoryFromStacks, itemDefinitionsFromContent, INVENTORY_CAPACITY, type PlayerInventory } from "../domain/inventory";
 import { TX_REASON_ADMIN_GRANT, TX_REASON_EQUIPMENT, TX_REASON_LOOT } from "../domain/transaction";
+import { manualQaGoldDelta, seedManualQaGroundItems } from "../domain/qa_manual_seed";
 import { validateJoinAttempt } from "../domain/join_validation";
 import { assertPlayableAccount } from "./playable_account";
 import { applyMatchLoop, pushLootRollsForUser, snapshotForOthers, type IncomingMatchData, type EquipmentPersist, type InventoryPersist, type OverflowPersist, type MatchLoopResult } from "../domain/match_loop";
@@ -181,6 +182,12 @@ export function matchInit(
   zone.matchId = typeof ctx.matchId === "string" ? ctx.matchId : "";
   zone.trades = {};
   zone.tradeByCharacterId = {};
+  if (!isCave) {
+    zone.groundItems = seedManualQaGroundItems({
+      itemsById: zone.itemsById,
+      tickRate: MATCH_TICK_RATE,
+    });
+  }
   if (isCave) {
     applyPersistedCaveCompletion(zone);
   }
@@ -449,6 +456,27 @@ export function matchJoin(
         }
       }
       gold = readGold(nk, presence.userId);
+      try {
+        const account = nk.accountGetId(presence.userId);
+        const email = typeof account.email === "string" ? account.email : "";
+        const delta = manualQaGoldDelta(email, character.name, gold);
+        if (delta > 0) {
+          const seeded = commitTransaction(nk, {
+            requestId: "qa-manual-gold:" + presence.userId + ":" + String(gold),
+            characterId: character.characterId,
+            userId: presence.userId,
+            reasonType: TX_REASON_ADMIN_GRANT,
+            reasonId: "qa_manual_seed",
+            goldDelta: delta,
+            currentGold: gold,
+          });
+          if (seeded.ok) {
+            gold = seeded.gold;
+          }
+        }
+      } catch (_error) {
+        logger.info(formatOpsLog("qa_gold_seed_skipped", { user_id: presence.userId }));
+      }
       questLog = readQuests(nk, presence.userId, character.characterId);
       progression = loadPlayerProgression(nk, presence.userId, character);
     } catch (error) {

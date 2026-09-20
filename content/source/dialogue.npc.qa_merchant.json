@@ -1,0 +1,18 @@
+{
+  "id": "dialogue.npc.qa_merchant",
+  "kind": "dialogue",
+  "displayName": "QA Merchant",
+  "displayNameKey": "dialogue.npc.qa_merchant.name",
+  "startNodeId": "start",
+  "nodes": {
+    "start": {
+      "id": "start",
+      "lines": [
+        {
+          "text": "Potions, cloth, pebbles, and a training blade. Prices are mine.",
+          "textKey": "dialogue.npc.qa_merchant.start.0"
+        }
+      ]
+    }
+  }
+}

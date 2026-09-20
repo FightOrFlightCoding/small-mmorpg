@@ -1,0 +1,23 @@
+{
+  "id": "enemy.qa_general",
+  "kind": "enemy",
+  "displayName": "Supply Critter",
+  "displayNameKey": "enemy.qa_general.name",
+  "visualId": "visual.enemy_qa_general",
+  "level": 1,
+  "maxHealth": 8,
+  "damage": 1,
+  "defense": 0,
+  "moveSpeed": 18,
+  "aggroRadius": 48,
+  "attackRange": 24,
+  "attackCooldown": 2,
+  "leashRadius": 80,
+  "respawnDelay": 12,
+  "abilityLoadout": [],
+  "aiProfileId": "test.ai.melee",
+  "xpReward": 4,
+  "lootTableId": "loot.qa_general",
+  "collisionProfileId": "collision.enemy_default",
+  "tags": ["qa", "wildlife"]
+}

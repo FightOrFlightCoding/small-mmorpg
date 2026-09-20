@@ -1,0 +1,18 @@
+{
+  "id": "dialogue.npc.qa_herb_bush",
+  "kind": "dialogue",
+  "displayName": "Herb Bush",
+  "displayNameKey": "dialogue.npc.qa_herb_bush.name",
+  "startNodeId": "start",
+  "nodes": {
+    "start": {
+      "id": "start",
+      "lines": [
+        {
+          "text": "You pick a wild herb from the bush.",
+          "textKey": "dialogue.npc.qa_herb_bush.start.0"
+        }
+      ]
+    }
+  }
+}

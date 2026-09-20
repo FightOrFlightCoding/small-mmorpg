@@ -60,7 +60,7 @@ Directory-form `node --test dist/tests` can fail on Node 22.14 before discovery.
 | Auth gateway hermetic tests | 52/52 passed |
 | Godot 4.7.1 client GdUnit | 371/371 passed, 0 failures, 0 orphans |
 
-Content hash: `d7e71fa4bd525906da2ee6d4244745d63980b738bfa7ad2a7b94c5010cc13bd9`.
+Content hash after manual QA fixtures: `970b28819155ae6623a9f343a55aee963ebba90b0472925a4df9e4fc2c8ec9da`. Certification gates above used `d7e71fa4bd525906da2ee6d4244745d63980b738bfa7ad2a7b94c5010cc13bd9` before those fixtures.
 
 ## Acceptance
 

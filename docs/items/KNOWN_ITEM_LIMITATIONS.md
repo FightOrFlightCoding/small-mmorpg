@@ -7,7 +7,7 @@ Certified ITEM-01–ITEM-11 platform. These are documented limits, not defects t
 | Account-scoped Nakama gold wallet | ITEM-C20 OPEN. Gold is a wallet, not an item. Per-character split is not required by this pack. |
 | `VENDOR_SELL` | ITEM-C12 KEEP. Live and tested; hidden from the ITEM merchant window. Player-to-merchant selling is later. |
 | Corpses and player ground items | Match-lifetime (ITEM-C25). Restart drops unclaimed corpse and ground loot. Bags, equipment, and gold persist. |
-| Harvesting / cooking / mining / blacksmithing | Not implemented as world systems. `grantItemFromSource` exists for future trusted grants (`herb_bush`, forage, mining, …). |
+| Harvesting / cooking / mining / blacksmithing | Not implemented as world systems. `grantItemFromSource` exists. A starter-zone **Herb Bush** QA fixture grants `item.wild_herb` on INTERACT (`herb_bush`) without node depletion. |
 | Auctions, mail, offline trade | Later. |
 | Public-world sharding | Excluded from Foundation. |
 | Binding / soulbind | None. Do not add. |

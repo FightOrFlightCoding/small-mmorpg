@@ -70,6 +70,16 @@
       "npcId": "npc.platform_combined",
       "x": 2160,
       "y": 1488
+    },
+    {
+      "npcId": "npc.qa_merchant",
+      "x": 2088,
+      "y": 2896
+    },
+    {
+      "npcId": "npc.qa_herb_bush",
+      "x": 1944,
+      "y": 2896
     }
   ],
   "enemies": [
@@ -90,6 +100,18 @@
       "x": 2360,
       "y": 1164,
       "spawnId": "spawn.starter.cert_scout"
+    },
+    {
+      "enemyId": "enemy.qa_rare",
+      "x": 2200,
+      "y": 2864,
+      "spawnId": "spawn.starter.qa_rare"
+    },
+    {
+      "enemyId": "enemy.qa_general",
+      "x": 1832,
+      "y": 2864,
+      "spawnId": "spawn.starter.qa_general"
     }
   ],
   "walkableBounds": {

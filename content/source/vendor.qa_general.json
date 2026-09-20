@@ -1,0 +1,33 @@
+{
+  "id": "vendor.qa_general",
+  "kind": "vendor",
+  "displayName": "QA General Goods",
+  "currencyId": "gold",
+  "stock": [
+    {
+      "itemId": "item.test_potion",
+      "buyPrice": 10,
+      "classRequirements": [],
+      "levelRequirement": 0
+    },
+    {
+      "itemId": "item.training_sword",
+      "buyPrice": 15,
+      "classRequirements": [],
+      "levelRequirement": 0
+    },
+    {
+      "itemId": "item.test_pebble",
+      "buyPrice": 2,
+      "classRequirements": [],
+      "levelRequirement": 0
+    },
+    {
+      "itemId": "item.test_cloth",
+      "buyPrice": 4,
+      "classRequirements": [],
+      "levelRequirement": 0
+    }
+  ],
+  "sellMultiplier": 0.5
+}

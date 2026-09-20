@@ -1,0 +1,36 @@
+{
+  "id": "loot.qa_general",
+  "kind": "loot_table",
+  "displayName": "QA General Pack",
+  "ownershipPolicy": "ground_free",
+  "entries": [
+    {
+      "itemDefinitionId": "item.test_potion",
+      "minimumQuantity": 1,
+      "maximumQuantity": 2,
+      "chance": 1,
+      "guaranteed": true
+    },
+    {
+      "itemDefinitionId": "item.test_pebble",
+      "minimumQuantity": 3,
+      "maximumQuantity": 5,
+      "chance": 1,
+      "guaranteed": true
+    },
+    {
+      "itemDefinitionId": "item.test_cloth",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "chance": 1,
+      "guaranteed": true
+    },
+    {
+      "itemDefinitionId": "item.training_sword",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "chance": 1,
+      "guaranteed": true
+    }
+  ]
+}
