@@ -352,6 +352,20 @@ func _refresh_overlay() -> void:
 	_overlay.refresh()
 
 
+func _input(event: InputEvent) -> void:
+	if not (event is InputEventMouseButton) or not event.pressed:
+		return
+	var mouse := event as InputEventMouseButton
+	# Right-click / interact_pointer must run before HUD Controls (hotbar, name labels)
+	# consume the event. Bag slots and text fields still win so context menus work.
+	if not _is_world_interact_button(mouse):
+		return
+	if pointer_blocks_world_interact():
+		return
+	if _try_world_pointer_interact(mouse):
+		get_viewport().set_input_as_handled()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
 		if DragDropService.active:
@@ -415,8 +429,43 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _handle_unhandled_pointer(mouse: InputEventMouseButton) -> void:
+	if _try_world_pointer_interact(mouse):
+		get_viewport().set_input_as_handled()
+
+
+func _is_world_interact_button(mouse: InputEventMouseButton) -> bool:
+	return mouse.is_action_pressed("interact_pointer") or mouse.button_index == MOUSE_BUTTON_RIGHT
+
+
+func pointer_blocks_world_interact(hovered: Control = null) -> bool:
+	if hovered == null:
+		var viewport := get_viewport()
+		if viewport != null:
+			hovered = viewport.gui_get_hovered_control()
+	while hovered != null:
+		if hovered is ItemSlotView or hovered is BagGrid:
+			return true
+		if hovered is LineEdit or hovered is TextEdit or hovered is SpinBox:
+			return true
+		if hovered is ItemList or hovered is OptionButton:
+			return true
+		var named := String(hovered.name)
+		if (
+			named == "Inventory"
+			or named == "Journal"
+			or named == "ListHost"
+			or named == "SlotHost"
+			or named == "GroundDropDialog"
+			or named == "SplitStackDialog"
+		):
+			return true
+		hovered = hovered.get_parent() as Control
+	return false
+
+
+func _try_world_pointer_interact(mouse: InputEventMouseButton) -> bool:
 	if DragDropService.active:
-		return
+		return false
 	if AbilityService.is_targeting():
 		if mouse.button_index == MOUSE_BUTTON_LEFT:
 			var request_id := AbilityService.confirm_ground_target(get_global_mouse_position())
@@ -424,14 +473,13 @@ func _handle_unhandled_pointer(mouse: InputEventMouseButton) -> void:
 				_ability_requests[request_id] = true
 		else:
 			AbilityService.cancel_targeting()
-		get_viewport().set_input_as_handled()
-		return
-	var pointer_interact := mouse.is_action_pressed("interact_pointer") or mouse.button_index == MOUSE_BUTTON_LEFT
+		return true
+	var pointer_interact := _is_world_interact_button(mouse) or mouse.button_index == MOUSE_BUTTON_LEFT
 	if pointer_interact and try_interact_at(get_global_mouse_position()):
-		get_viewport().set_input_as_handled()
-		return
+		return true
 	if mouse.button_index == MOUSE_BUTTON_LEFT and try_select_friendly_player():
-		get_viewport().set_input_as_handled()
+		return true
+	return false
 
 
 func _input_blocked() -> bool:

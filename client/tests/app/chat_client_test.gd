@@ -71,6 +71,12 @@ func test_user_markup_is_plain_text() -> void:
 	panel.append_chat("Bob", "[color=red]hack[/color]", "2026-08-15T20:15:00Z")
 	assert_str(panel.history_text()).contains("[20:15] Bob: [color=red]hack[/color]")
 	assert_str(panel.history_text()).contains("[color=red]hack[/color]")
+	var title: Label = panel.get_node("Root/Panel/Margin/VBox/Title")
+	assert_int(title.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	var row: Control = panel.get_node("Root/Panel/Margin/VBox/Row")
+	assert_int(row.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_int((panel.get_node("Root/Panel/Margin/VBox/Row/Input") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+	assert_int((panel.get_node("Root/Panel/Margin/VBox/Row/SendButton") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
 
 
 func test_history_is_capped_and_shows_sender_and_time() -> void:

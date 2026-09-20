@@ -156,6 +156,9 @@ func test_snapshot_spawns_ground_items_for_other_players() -> void:
 	assert_bool(avatar.contains_world_point(Vector2(2320, 2976))).is_true()
 	assert_str(registry.ground_entity_id_at_world_point(Vector2(2336, 2976))).is_equal("ground.qa.potion")
 	assert_bool((avatar.get_node("Body") as Polygon2D).visible).is_true()
+	assert_int((avatar.get_node("NameLabel") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_bool(avatar.contains_world_point(Vector2(2320, 3000))).is_true()
+	assert_str(registry.ground_entity_id_at_world_point(Vector2(2270, 3000))).is_equal("ground.qa.potion")
 
 
 func test_quest_markers_are_not_unknown_entities() -> void:

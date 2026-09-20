@@ -3,7 +3,7 @@ extends WorldAvatar
 
 ## Presentation-only public ground item. The server owns range, pickup, and collision (none).
 
-const CLICK_RADIUS := 40.0
+const CLICK_RADIUS := 48.0
 
 var rarity_label: String = ""
 var item_id: String = ""
@@ -23,6 +23,7 @@ func apply_ground_item(record: Dictionary) -> void:
 		_label.visible = true
 	if _fallback_label != null:
 		_fallback_label.visible = false
+	_pass_world_clicks()
 	var texture := ItemPresentation.icon_texture(definition)
 	if texture != null and _sprite != null:
 		_sprite.texture = texture
@@ -38,7 +39,16 @@ func apply_ground_item(record: Dictionary) -> void:
 
 
 func contains_world_point(world_pos: Vector2) -> bool:
-	return world_pos.distance_to(global_position) <= CLICK_RADIUS
+	if world_pos.distance_to(global_position) <= CLICK_RADIUS:
+		return true
+	_resolve_nodes()
+	if _label == null or not _label.visible:
+		return false
+	var local := to_local(world_pos)
+	var rect := Rect2(_label.position, _label.size)
+	if rect.size.x <= 1.0 or rect.size.y <= 1.0:
+		rect = Rect2(Vector2(_label.offset_left, _label.offset_top), Vector2(_label.offset_right - _label.offset_left, _label.offset_bottom - _label.offset_top))
+	return rect.has_point(local)
 
 
 func tooltip_copy() -> String:

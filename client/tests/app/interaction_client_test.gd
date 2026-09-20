@@ -156,6 +156,59 @@ func test_right_click_pick_sends_same_interact_intent() -> void:
 	assert_bool(payload.has("y")).is_false()
 
 
+func test_right_click_ground_item_sends_pickup() -> void:
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	AppState.notify_zone_state({
+		"self_id": "user-alice",
+		"zone_id": "zone.starter",
+		"tick": 1,
+		"ack_seq": 0,
+		"players": [{"userId": "user-alice", "name": "Alice", "x": 2320, "y": 2976, "health": 10}],
+		"npcs": [],
+		"enemies": [],
+		"loot": [],
+		"quests": [],
+		"groundItems": [{
+			"groundEntityId": "ground.qa.potion",
+			"itemId": "item.test_potion",
+			"quantity": 1,
+			"x": 2320,
+			"y": 2976,
+			"rarity": "rarity.common",
+		}],
+	}, true)
+	var world: Node = auto_free(preload("res://scenes/world/world.tscn").instantiate())
+	add_child(world)
+	await get_tree().process_frame
+	world.set_process(false)
+	assert_bool(world.try_interact_at(Vector2(2320, 2976))).is_true()
+	await get_tree().process_frame
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_PICKUP_GROUND_ITEM)
+	var payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_str(String(payload.get("groundEntityId", ""))).is_equal("ground.qa.potion")
+	assert_bool(payload.has("requestId")).is_true()
+	assert_bool(world.try_interact_at(Vector2(2320, 3000))).is_true()
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_PICKUP_GROUND_ITEM)
+
+
+func test_world_interact_skips_bag_not_hotbar() -> void:
+	var world: Node = auto_free(preload("res://scenes/world/world.tscn").instantiate())
+	add_child(world)
+	await get_tree().process_frame
+	world.set_process(false)
+	var slot: ItemSlotView = auto_free(ItemSlotView.new())
+	assert_bool(world.pointer_blocks_world_interact(slot)).is_true()
+	var hotbar := Button.new()
+	hotbar.name = "Slot4"
+	assert_bool(world.pointer_blocks_world_interact(hotbar)).is_false()
+	hotbar.free()
+	var chat_input := LineEdit.new()
+	assert_bool(world.pointer_blocks_world_interact(chat_input)).is_true()
+	chat_input.free()
+
+
 func test_nearby_npc_click_pick_uses_server_range() -> void:
 	var elder := [{"id": "npc.elder", "npcId": "npc.elder", "x": 160, "y": 320}]
 	assert_str(InteractIntent.npc_id_at(Vector2(160, 320), Vector2(160, 320), elder)).is_equal("npc.elder")

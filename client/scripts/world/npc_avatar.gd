@@ -43,6 +43,7 @@ func set_quest_marker(glyph: String) -> void:
 		_marker_label = get_node_or_null("MarkerAnchor/MarkerLabel") as Label
 	if _marker_label == null:
 		return
+	_marker_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_marker_label.text = glyph
 	_marker_label.visible = not glyph.is_empty()
 

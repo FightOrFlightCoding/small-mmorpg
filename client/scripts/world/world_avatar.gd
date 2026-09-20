@@ -51,6 +51,7 @@ func configure(p_kind: String, p_server_id: String, p_name: String, visual: Dict
 	_anim_elapsed = 0.0
 	_anim_name = "idle"
 	_resolve_nodes()
+	_pass_world_clicks()
 	_apply_visual(visual)
 	if p_kind == "player":
 		_body.color = _tint_for_player(p_name, p_local)
@@ -201,6 +202,14 @@ func _resolve_nodes() -> void:
 		_fallback_label = $FallbackLabel
 	if _animated == null:
 		_animated = get_node_or_null("AnimatedSprite2D") as AnimatedSprite2D
+
+
+func _pass_world_clicks() -> void:
+	_resolve_nodes()
+	if _label != null:
+		_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if _fallback_label != null:
+		_fallback_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
 func _apply_animated_sprite() -> bool:
