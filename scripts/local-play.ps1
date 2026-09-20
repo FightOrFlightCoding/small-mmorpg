@@ -15,17 +15,19 @@ if ($Branch -ne "") {
 	Invoke-Native -FilePath "git" -ArgumentList @("fetch", "origin", $Branch) -WorkingDirectory $RepoRoot -FailMessage "git fetch failed"
 	Invoke-Native -FilePath "git" -ArgumentList @("checkout", $Branch) -WorkingDirectory $RepoRoot -FailMessage "git checkout failed. Close Godot, run git restore client/project.godot, then re-run this script."
 	try {
-		Invoke-Native -FilePath "git" -ArgumentList @("pull", "--ff-only", "origin", $Branch) -WorkingDirectory $RepoRoot -FailMessage "git pull --ff-only failed"
+		Invoke-Native -FilePath "git" -ArgumentList @("reset", "--hard", "origin/$Branch") -WorkingDirectory $RepoRoot -FailMessage "git reset --hard origin/$Branch failed"
 	} catch {
-		Write-Host "Pull blocked by local Godot files. Restoring client/project.godot and import dirt, then retrying once."
+		Write-Host "Reset blocked by local Godot files. Restoring client/project.godot and import dirt, then retrying once."
 		Restore-GodotImportDirt
-		Invoke-Native -FilePath "git" -ArgumentList @("pull", "--ff-only", "origin", $Branch) -WorkingDirectory $RepoRoot -FailMessage "git pull --ff-only failed. Close Godot and run: git restore client/project.godot"
+		Invoke-Native -FilePath "git" -ArgumentList @("reset", "--hard", "origin/$Branch") -WorkingDirectory $RepoRoot -FailMessage "git reset --hard origin/$Branch failed. Close Godot and run: git restore client/project.godot"
 	}
 	Restore-GodotImportDirt
 }
 
 $current = (git -C $RepoRoot branch --show-current).Trim()
-Write-Host "branch=$current"
+$headSha = (git -C $RepoRoot rev-parse --short HEAD).Trim()
+$originSha = (git -C $RepoRoot rev-parse --short "origin/$Branch").Trim()
+Write-Host "branch=$current HEAD=$headSha origin/$Branch=$originSha"
 Assert-ContentHashes
 Invoke-RepoScript "backend-up.ps1"
 
