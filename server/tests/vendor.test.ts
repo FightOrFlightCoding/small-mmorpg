@@ -169,7 +169,10 @@ test("vendor shop presentation survives missing quantity constraints", () => {
   const vendors = vendorDefinitionsFromContent(content.vendors);
   const npcs = npcDefinitionsFromContent(content.npcs);
   const shop = vendorShopPresentation(npcs["npc.qa_merchant"], vendors);
-  assert.ok(shop !== undefined);
+  if (shop === undefined) {
+    assert.fail("qa merchant shop presentation is missing");
+    return;
+  }
   assert.equal(shop.vendorId, "vendor.qa_general");
   assert.ok(shop.stock.length > 0);
   for (let i = 0; i < shop.stock.length; i++) {

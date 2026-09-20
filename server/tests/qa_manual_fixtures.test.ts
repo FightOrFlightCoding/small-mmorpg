@@ -29,6 +29,7 @@ import {
   MANUAL_QA_GOLD_BALANCE,
   MANUAL_QA_GROUND_ITEM_ID,
   MANUAL_QA_GROUND_X,
+  MANUAL_QA_GROUND_Y,
   manualQaGoldDelta,
   seedManualQaGroundItems,
 } from "../src/domain/qa_manual_seed";
