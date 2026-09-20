@@ -763,7 +763,7 @@ Default spawn is `main_road_south` at (2016, 2976), facing north, on the 5-tile 
 
 ## 2026-09-17 — Local Godot play is origin/main
 
-Remote agents cannot write `C:\Users\Eszter\small-mmorpg`. Playable work, including PROG-15 and the expanded village map, lands on **`origin/main`**. The Windows clone stays on `main`. After every prompt: close Godot and run `scripts/local-play.ps1 -Branch main`. That restores Godot `.import` dirt, fast-forwards `main`, asserts client/server `contentHash` match, and recreates Nakama. Map-only review (no server) is `scripts/review-village-map.ps1`. `scenes/world/world.tscn` stays unpainted in the editor; ZoneView paints grass and roads at runtime. A `CONTENT_MISMATCH` / "content pack does not match" dialog means Nakama is still an old `server/build`. Do not commit GLoot `.import` diffs. Do not ask the human to checkout `cursor/*` branches to play.
+Remote agents cannot write `C:\Users\Eszter\small-mmorpg`. Playable work, including PROG-15 and the expanded village map, lands on **`origin/main`**. The Windows clone stays on `main`. After every prompt: close Godot and run `scripts/local-play.ps1 -Branch main`. That restores Godot `.import` dirt and `client/project.godot` (the editor rewrites that file), fast-forwards `main`, asserts client/server `contentHash` match, and recreates Nakama. Map-only review (no server) is `scripts/review-village-map.ps1`. `scenes/world/world.tscn` stays unpainted in the editor; ZoneView paints grass and roads at runtime. A `CONTENT_MISMATCH` / "content pack does not match" dialog means Nakama is still an old `server/build`. Do not commit GLoot `.import` diffs. Do not ask the human to checkout `cursor/*` branches to play.
 
 ## 2026-09-17 — Residential houses on the starter village
 

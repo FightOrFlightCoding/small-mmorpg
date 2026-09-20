@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Restore Godot import dirt, optionally check out a pushed branch, rebuild Nakama.
+# Restore Godot import dirt and editor-rewritten client/project.godot, optionally
+# check out a pushed branch, rebuild Nakama.
 set -euo pipefail
 # shellcheck source=_common.sh
 . "$(cd "$(dirname "$0")" && pwd)/_common.sh"
@@ -12,7 +13,11 @@ restore_godot_import_dirt
 if [[ -n "$BRANCH" ]]; then
 	git -C "$ROOT" fetch origin "$BRANCH"
 	git -C "$ROOT" checkout "$BRANCH"
-	git -C "$ROOT" pull --ff-only origin "$BRANCH"
+	if ! git -C "$ROOT" pull --ff-only origin "$BRANCH"; then
+		echo "Pull blocked by local Godot files. Restoring client/project.godot and import dirt, then retrying once."
+		restore_godot_import_dirt
+		git -C "$ROOT" pull --ff-only origin "$BRANCH"
+	fi
 	restore_godot_import_dirt
 fi
 

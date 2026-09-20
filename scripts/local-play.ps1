@@ -1,4 +1,5 @@
-# Restore Godot import dirt, optionally check out a pushed branch, rebuild Nakama.
+# Restore Godot import dirt and editor-rewritten client/project.godot, optionally
+# check out a pushed branch, rebuild Nakama.
 # Cloud agents cannot write C:\Users\Eszter\small-mmorpg; this is the local play path after git fetch.
 param(
 	[string]$Branch = "main"
@@ -12,8 +13,14 @@ Restore-GodotImportDirt
 
 if ($Branch -ne "") {
 	Invoke-Native -FilePath "git" -ArgumentList @("fetch", "origin", $Branch) -WorkingDirectory $RepoRoot -FailMessage "git fetch failed"
-	Invoke-Native -FilePath "git" -ArgumentList @("checkout", $Branch) -WorkingDirectory $RepoRoot -FailMessage "git checkout failed. Close Godot and re-run; uncommitted files other than import dirt must be committed or stashed."
-	Invoke-Native -FilePath "git" -ArgumentList @("pull", "--ff-only", "origin", $Branch) -WorkingDirectory $RepoRoot -FailMessage "git pull --ff-only failed"
+	Invoke-Native -FilePath "git" -ArgumentList @("checkout", $Branch) -WorkingDirectory $RepoRoot -FailMessage "git checkout failed. Close Godot, run git restore client/project.godot, then re-run this script."
+	try {
+		Invoke-Native -FilePath "git" -ArgumentList @("pull", "--ff-only", "origin", $Branch) -WorkingDirectory $RepoRoot -FailMessage "git pull --ff-only failed"
+	} catch {
+		Write-Host "Pull blocked by local Godot files. Restoring client/project.godot and import dirt, then retrying once."
+		Restore-GodotImportDirt
+		Invoke-Native -FilePath "git" -ArgumentList @("pull", "--ff-only", "origin", $Branch) -WorkingDirectory $RepoRoot -FailMessage "git pull --ff-only failed. Close Godot and run: git restore client/project.godot"
+	}
 	Restore-GodotImportDirt
 }
 

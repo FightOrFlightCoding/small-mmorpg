@@ -19,7 +19,7 @@ The Godot 4.7.1 client registers or logs in with email and password, lists up to
 PROG-15, the expanded village map, and the certified NPC platform (NPC-07) live on **`origin/main`**. Stay on `main`. If `scripts/local-play.ps1` is missing, quit Godot and run this once:
 
 ```powershell
-git restore client/addons client/assets client/resources
+git restore client/addons client/assets client/resources client/project.godot
 git fetch origin main
 git checkout main
 git pull --ff-only origin main

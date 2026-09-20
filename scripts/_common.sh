@@ -57,6 +57,7 @@ restore_godot_import_dirt() {
 	[[ -d "$root/client/addons" ]] && paths+=(client/addons)
 	[[ -d "$root/client/assets" ]] && paths+=(client/assets)
 	[[ -d "$root/client/resources" ]] && paths+=(client/resources)
+	[[ -f "$root/client/project.godot" ]] && paths+=(client/project.godot)
 	if [[ ${#paths[@]} -eq 0 ]]; then
 		return 0
 	fi
