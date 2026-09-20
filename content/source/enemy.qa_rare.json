@@ -1,0 +1,23 @@
+{
+  "id": "enemy.qa_rare",
+  "kind": "enemy",
+  "displayName": "Green Relic Scout",
+  "displayNameKey": "enemy.qa_rare.name",
+  "visualId": "visual.enemy_qa_rare",
+  "level": 1,
+  "maxHealth": 8,
+  "damage": 1,
+  "defense": 0,
+  "moveSpeed": 18,
+  "aggroRadius": 48,
+  "attackRange": 24,
+  "attackCooldown": 2,
+  "leashRadius": 80,
+  "respawnDelay": 12,
+  "abilityLoadout": [],
+  "aiProfileId": "test.ai.melee",
+  "xpReward": 4,
+  "lootTableId": "loot.qa_rare",
+  "collisionProfileId": "collision.enemy_default",
+  "tags": ["qa", "wildlife"]
+}

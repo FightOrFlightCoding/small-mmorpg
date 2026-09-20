@@ -1,0 +1,17 @@
+{
+  "id": "npc.qa_merchant",
+  "kind": "npc",
+  "displayName": "QA Merchant",
+  "displayNameKey": "npc.qa_merchant.name",
+  "visualId": "visual.npc_qa_merchant",
+  "zoneId": "zone.starter",
+  "position": { "x": 2088, "y": 2896 },
+  "homePosition": { "x": 2088, "y": 2896 },
+  "routeId": "route.stationary",
+  "interactionRange": 48,
+  "dialogueId": "dialogue.npc.qa_merchant",
+  "services": [
+    { "type": "dialogue" },
+    { "type": "vendor", "vendorId": "vendor.qa_general" }
+  ]
+}

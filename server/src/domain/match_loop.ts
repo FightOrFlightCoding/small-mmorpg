@@ -45,7 +45,7 @@ import {
   type InteractionInput,
   type InteractionSession,
 } from "./interaction";
-import { NPC_SERVICE_DIALOGUE, npcBindsQuest, type NpcDefinition, type QuestBindRole } from "./npc";
+import { NPC_SERVICE_DIALOGUE, NPC_SERVICE_WORLD_INTERACTION, findNpcService, npcBindsQuest, type NpcDefinition, type QuestBindRole } from "./npc";
 import { refreshNpcPauses, tickNpcMovement } from "./npc_movement";
 import {
   allowedOptionIds,
@@ -82,6 +82,7 @@ import { dueDelayedGround, tryConsumeOncePerCombat } from "./canonical_combat";
 import { entitiesInRadius } from "./targeting";
 import { simulateCombatants } from "./enemy_ai";
 import { publicInventory, applyDestroyItem, applyMoveItem, applySplitStack, emptyInventory, type PlayerInventory } from "./inventory";
+import { GRANT_SOURCE_HERB_BUSH, grantItemFromSource } from "./item_grant";
 import {
   applyEquip,
   cloneEquipment,
@@ -781,7 +782,7 @@ function handleValidated(
     return;
   }
   if (parsed.opcode === ClientOpcode.INTERACT) {
-    handleInteract(parsed, userId, state, tick, outbound, persistByUser, makeId);
+    handleInteract(parsed, userId, state, tick, outbound, persistByUser, persistInventoryByUser, makeId);
     return;
   }
   if (parsed.opcode === ClientOpcode.DIALOGUE_CHOOSE) {
@@ -994,6 +995,7 @@ function handleInteract(
   tick: number,
   outbound: MatchOutbound[],
   persistByUser: { [userId: string]: QuestLog },
+  persistInventoryByUser: { [userId: string]: PlayerInventory },
   makeId: () => string,
 ): void {
   const targetId = parsed.fields.targetId;
@@ -1046,6 +1048,19 @@ function handleInteract(
   const session = openInteractionSession(state, player, npc.id, catalogNpcId, requestId, tick, makeId);
   const extra = extrasFromPresentation(presentationFromSession(session, true, "ok"));
   attachVendorShopExtras(state, catalogNpcId, extra);
+  applyWorldInteractionGrant(
+    state,
+    player,
+    userId,
+    definition,
+    requestId,
+    tick,
+    outbound,
+    persistByUser,
+    persistInventoryByUser,
+    makeId,
+    extra,
+  );
   const result = interactionResult("ok", true, requestId, targetId, extra);
   outbound.push({ opcode: result.opcode, body: result.body, toUserId: userId });
   rememberInteractResult(player, requestId, true, "ok", targetId, extra, tick);
@@ -1058,6 +1073,69 @@ function handleInteract(
     player.questLog = talked.log;
     persistByUser[userId] = cloneQuestLog(player.questLog);
     pushQuestState(state, userId, outbound, requestId);
+  }
+}
+
+function applyWorldInteractionGrant(
+  state: StarterZoneState,
+  player: MatchPlayer,
+  userId: string,
+  definition: NpcDefinition | undefined,
+  requestId: string,
+  tick: number,
+  outbound: MatchOutbound[],
+  persistByUser: { [userId: string]: QuestLog },
+  persistInventoryByUser: { [userId: string]: PlayerInventory },
+  makeId: () => string,
+  extra: { [key: string]: unknown },
+): void {
+  const service = findNpcService(definition, NPC_SERVICE_WORLD_INTERACTION);
+  if (service === null || service.grantItemId === undefined || service.grantItemId.length === 0) {
+    return;
+  }
+  if (player.characterId === undefined || player.characterId.length === 0) {
+    return;
+  }
+  const quantity = service.grantQuantity !== undefined && service.grantQuantity > 0 ? service.grantQuantity : 1;
+  const sourceType = service.grantSourceType !== undefined && service.grantSourceType.length > 0
+    ? service.grantSourceType
+    : GRANT_SOURCE_HERB_BUSH;
+  const inventory = player.inventory !== undefined ? player.inventory : emptyInventory();
+  const granted = grantItemFromSource({
+    characterId: player.characterId,
+    sourceType: sourceType,
+    sourceId: definition !== undefined ? definition.id : "",
+    itemDefinitionId: service.grantItemId,
+    quantity: quantity,
+    eventId: requestId,
+    inventory: inventory,
+    definitions: state.itemsById,
+    equippedItems: player.equipment !== undefined ? player.equipment.items : [],
+    newIds: makeId,
+    nowMs: tickMs(tick),
+  });
+  extra.grantCode = granted.code;
+  extra.grantItemId = service.grantItemId;
+  if (granted.message.length > 0) {
+    extra.grantMessage = granted.message;
+  }
+  if (granted.ok) {
+    player.inventory = granted.inventory;
+    if (granted.persist) {
+      persistInventoryByUser[userId] = granted.inventory;
+    }
+    if (!granted.replay) {
+      syncPlayerQuestPossession(state, userId, persistByUser, outbound, requestId);
+    }
+    const inventoryMsg = inventoryState(state.contentHash, publicBag(player), requestId);
+    outbound.push({ opcode: inventoryMsg.opcode, body: inventoryMsg.body, toUserId: userId });
+    return;
+  }
+  if (!granted.replay) {
+    const failed = actionResult(granted.code, false, requestId, {
+      message: granted.message,
+    });
+    outbound.push({ opcode: failed.opcode, body: failed.body, toUserId: userId });
   }
 }
 

@@ -112,6 +112,9 @@ export function outboundRefs(payload: ContentPayload, id: string): string[] {
       if (service.vendorId !== undefined) {
         refs.push(service.vendorId);
       }
+      if (service.grantItemId !== undefined) {
+        refs.push(service.grantItemId);
+      }
       const questIds = service.questIds !== undefined ? service.questIds : [];
       for (let q = 0; q < questIds.length; q++) {
         refs.push(questIds[q]);

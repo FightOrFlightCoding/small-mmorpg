@@ -130,6 +130,12 @@
   "visual.npc_lab_inn": { "fallback_color": "#6B8E6B" },
   "visual.npc_lab_trainer": { "fallback_color": "#5B7C99" },
   "visual.npc_lab_exit": { "fallback_color": "#3A4A5C" },
+  "visual.npc_qa_merchant": { "fallback_color": "#C9783A" },
+  "visual.npc_herb_bush": { "fallback_color": "#2E7D32" },
+  "visual.enemy_qa_rare": { "fallback_color": "#27AE60" },
+  "visual.enemy_qa_general": { "fallback_color": "#7F8C8D" },
+  "visual.item_wild_herb": { "fallback_color": "#58D68D" },
+  "visual.item_green_relic": { "fallback_color": "#2ECC71" },
   "visual.zone_systems_lab": {
     "texture": "res://assets/third_party/kenney_rpg_base/PNG/rpgTile045.png",
     "fallback_color": "#3A3228",

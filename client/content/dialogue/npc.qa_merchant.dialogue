@@ -1,0 +1,5 @@
+~ start
+Merchant: Potions, cloth, pebbles, and a training blade. Prices are mine.
+- Show me your stock.
+	do VendorService.open_from_dialogue()
+	=> END

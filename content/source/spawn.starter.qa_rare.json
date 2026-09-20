@@ -1,0 +1,12 @@
+{
+  "id": "spawn.starter.qa_rare",
+  "kind": "spawn",
+  "zoneId": "zone.starter",
+  "enemyId": "enemy.qa_rare",
+  "x": 2200,
+  "y": 2864,
+  "spawnCount": 1,
+  "respawnDelay": 12,
+  "activationPolicy": "always",
+  "groupId": "group.starter_qa"
+}

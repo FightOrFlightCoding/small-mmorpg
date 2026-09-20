@@ -1,6 +1,7 @@
-# Current item-system conflicts (ITEM-10)
+# Current item-system conflicts (ITEM-11)
 
-ITEM-10 closed quest possession, turn-in rewards, and the shared future grant path. Remaining rows stay OPEN until a later numbered ITEM phase names them.
+ITEM-11 is accepted. Remaining rows stay OPEN until a later numbered ITEM phase names them.
+
 
 Status: `OPEN` = live Foundation differs from the completed ITEM platform. `KEEP` = live behavior that a later phase may still keep (for example `VENDOR_SELL`) until that phase names the change.
 

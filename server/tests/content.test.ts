@@ -62,4 +62,11 @@ test("generated server content is importable without filesystem access", () => {
   assert.ok(content.enemies["enemy.cert_scout"]);
   assert.ok(content.quests["quest.cert_scout"]);
   assert.ok(content.vendors["vendor.cert_quartermaster"]);
+  assert.ok(content.items["item.wild_herb"]);
+  assert.ok(content.items["item.qa_green_relic"]);
+  assert.ok(content.enemies["enemy.qa_rare"]);
+  assert.ok(content.enemies["enemy.qa_general"]);
+  assert.ok(content.npcs["npc.qa_merchant"]);
+  assert.ok(content.npcs["npc.qa_herb_bush"]);
+  assert.ok(content.vendors["vendor.qa_general"]);
 });

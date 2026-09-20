@@ -27,6 +27,7 @@ export const NPC_SERVICE_HEALER = "healer";
 export const NPC_SERVICE_CAVE_ENTRANCE = "cave_entrance";
 export const NPC_SERVICE_CAVE_EXIT = "cave_exit";
 export const NPC_SERVICE_RESPEC = "respec";
+export const NPC_SERVICE_WORLD_INTERACTION = "world_interaction";
 
 export interface NpcService {
   type: string;
@@ -41,6 +42,9 @@ export interface NpcService {
   requireParty?: boolean;
   requiredQuestId?: string;
   requiredQuestStatus?: string;
+  grantItemId?: string;
+  grantQuantity?: number;
+  grantSourceType?: string;
 }
 
 export interface NpcDefinition {
@@ -163,6 +167,9 @@ export function npcDefinitionsFromContent(npcs: {
       requireParty?: boolean;
       requiredQuestId?: string;
       requiredQuestStatus?: string;
+      grantItemId?: string;
+      grantQuantity?: number;
+      grantSourceType?: string;
     }>;
   };
 }): { [id: string]: NpcDefinition } {
@@ -342,6 +349,9 @@ function copyService(source: {
   requireParty?: boolean;
   requiredQuestId?: string;
   requiredQuestStatus?: string;
+  grantItemId?: string;
+  grantQuantity?: number;
+  grantSourceType?: string;
 }): NpcService {
   const service: NpcService = { type: source.type };
   if (source.questIds !== undefined) {
@@ -380,6 +390,15 @@ function copyService(source: {
   }
   if (source.requiredQuestStatus !== undefined) {
     service.requiredQuestStatus = source.requiredQuestStatus;
+  }
+  if (source.grantItemId !== undefined) {
+    service.grantItemId = source.grantItemId;
+  }
+  if (source.grantQuantity !== undefined) {
+    service.grantQuantity = source.grantQuantity;
+  }
+  if (source.grantSourceType !== undefined) {
+    service.grantSourceType = source.grantSourceType;
   }
   return service;
 }

@@ -1,6 +1,9 @@
-# Item security model (ITEM-08)
+# Item security model (ITEM-11)
 
 The client is an untrusted renderer. Defenses stay server-side. Parent: [SECURITY_MODEL.md](../SECURITY_MODEL.md).
+
+The complete nine-field matrix (threat, validation, rate limit, payload limit, idempotency, lock rule, expected rejection, audit event, tests) lives in `server/src/domain/item_security_catalog.ts` and is asserted by `server/tests/item_security_catalog.test.ts`.
+
 
 ## Live defenses (keep)
 
@@ -37,6 +40,10 @@ The client is an untrusted renderer. Defenses stay server-side. Parent: [SECURIT
 | Partial ground pickup | Whole stack or `inventory_full`; never split a ground stack |
 | Concurrent ground pickup | First claimant; others `ground_item_no_longer_available` |
 | Ground-drop spam | 20 active player-created entities; reject the new drop |
+
+## Recovery (ITEM-11)
+
+GM `scan_item_recovery` / `repair_item_recovery` are allowlisted and audited. Scan reports; repair never deletes unexplained items. See [ITEM_RECOVERY_RUNBOOK.md](ITEM_RECOVERY_RUNBOOK.md).
 
 ## Target threats not yet implemented
 

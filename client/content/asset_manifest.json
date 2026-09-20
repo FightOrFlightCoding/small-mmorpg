@@ -324,6 +324,34 @@
       "spriteVisualId": "visual.enemy_cert_scout",
       "directionCount": 4,
       "fallbackVisualId": "visual.enemy_cert_scout"
+    },
+    "visual_set.enemy.qa_rare": {
+      "kind": "enemy",
+      "contentId": "enemy.qa_rare",
+      "spriteVisualId": "visual.enemy_green_slime",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.enemy_qa_rare"
+    },
+    "visual_set.enemy.qa_general": {
+      "kind": "enemy",
+      "contentId": "enemy.qa_general",
+      "spriteVisualId": "visual.enemy_proof_critter",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.enemy_qa_general"
+    },
+    "visual_set.npc.qa_merchant": {
+      "kind": "npc",
+      "contentId": "npc.qa_merchant",
+      "spriteVisualId": "visual.npc_vendor",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.npc_qa_merchant"
+    },
+    "visual_set.npc.qa_herb_bush": {
+      "kind": "npc",
+      "contentId": "npc.qa_herb_bush",
+      "spriteVisualId": "visual.npc_herb_bush",
+      "directionCount": 4,
+      "fallbackVisualId": "visual.npc_herb_bush"
     }
   },
   "tilesets": {
@@ -349,7 +377,9 @@
       "item.pebble": "visual.item_pebble",
       "item.test_pebble": "visual.item_pebble",
       "item.proof_token": "visual.item_potion",
-      "item.cert_mail": "visual.item_cert_mail"
+      "item.cert_mail": "visual.item_cert_mail",
+      "item.wild_herb": "visual.item_wild_herb",
+      "item.qa_green_relic": "visual.item_green_relic"
     },
     "ability": {
       "test.ability.basic_melee": "visual.ability_melee_icon",

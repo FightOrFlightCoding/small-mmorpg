@@ -1,0 +1,15 @@
+{
+  "id": "loot.qa_rare",
+  "kind": "loot_table",
+  "displayName": "QA Green Relic",
+  "ownershipPolicy": "ground_free",
+  "entries": [
+    {
+      "itemDefinitionId": "item.qa_green_relic",
+      "minimumQuantity": 1,
+      "maximumQuantity": 1,
+      "chance": 1,
+      "guaranteed": true
+    }
+  ]
+}

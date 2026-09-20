@@ -1,4 +1,4 @@
-import { NPC_SERVICE_DIALOGUE, boundQuestIds, type NpcDefinition, type NpcService } from "./npc";
+import { NPC_SERVICE_DIALOGUE, NPC_SERVICE_WORLD_INTERACTION, boundQuestIds, type NpcDefinition, type NpcService } from "./npc";
 import { authorizeNpcService, type InteractionInput } from "./interaction";
 import { questDialogueState, type QuestDefinition, type QuestLog } from "./quest";
 import type { PlayerInventory } from "./inventory";
@@ -193,7 +193,7 @@ export function availableServiceIds(
     if (service == null) {
       continue;
     }
-    if (service.type === NPC_SERVICE_DIALOGUE) {
+    if (service.type === NPC_SERVICE_DIALOGUE || service.type === NPC_SERVICE_WORLD_INTERACTION) {
       continue;
     }
     if (!authorizeNpcService(service, gate).ok) {

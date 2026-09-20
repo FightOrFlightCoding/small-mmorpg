@@ -1,7 +1,7 @@
 {
   "protocolVersion": 1,
   "contentSchemaVersion": 1,
-  "contentHash": "d7e71fa4bd525906da2ee6d4244745d63980b738bfa7ad2a7b94c5010cc13bd9",
+  "contentHash": "970b28819155ae6623a9f343a55aee963ebba90b0472925a4df9e4fc2c8ec9da",
   "exactDependencies": {
     "server/package.json:typescript": "5.8.3",
     "server/package.json:nakama-runtime": "github:heroiclabs/nakama-common#v1.47.0",
@@ -62,9 +62,15 @@
     "acct_compat_probe",
     "auth_gateway"
   ],
-  "realtimeBeforeHooks": ["ChannelMessageSend", "ChannelJoin"],
+  "realtimeBeforeHooks": [
+    "ChannelMessageSend",
+    "ChannelJoin"
+  ],
   "realtimeAfterHooks": [],
-  "authenticateHooks": ["AuthenticateEmail", "AuthenticateDevice"],
+  "authenticateHooks": [
+    "AuthenticateEmail",
+    "AuthenticateDevice"
+  ],
   "notificationCodes": [],
   "clientOpcodes": {
     "INPUT": 1,
@@ -139,43 +145,220 @@
     "GROUND_ITEM_REMOVED": 119
   },
   "storageRecords": [
-    { "collection": "player", "key": "character", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "player", "key": "roster", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "player", "key": "selection", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "player", "key": "quests", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "player", "key": "inventory", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "player", "key": "equipment", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "player", "key": "overflow", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "player", "key": "wallet_ref", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "player", "key": "progression", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "player", "key": "party", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "player", "key": "cave", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "player", "key": "location", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "player", "key": "gameplay_lease", "permissionWrite": 0, "schemaVersion": 2 },
-    { "collection": "player", "key": "idem", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "player", "key": "purge", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "character_audit", "key": "p", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "party", "key": "p", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "cave", "key": "c", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "cave_index", "key": "owner", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "transfer", "key": "t", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "trade", "key": "t", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "player", "key": "trade", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "player", "key": "trade_audit", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "names", "key": "n", "permissionWrite": 0, "schemaVersion": "absent" },
-    { "collection": "match", "key": "starter_zone", "permissionWrite": 0, "schemaVersion": "absent" },
-    { "collection": "gm", "key": "allowlist", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "gm", "key": "recent", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "gm", "key": "r", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "gm_audit", "key": "a", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "ops", "key": "maintenance", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "ops", "key": "metrics", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "account_compat", "key": "email_index", "permissionWrite": 0, "schemaVersion": "absent" },
-    { "collection": "account_profile", "key": "email_index", "permissionWrite": 0, "schemaVersion": "absent" },
-    { "collection": "auth_challenge", "key": "c", "permissionWrite": 0, "schemaVersion": 1 },
-    { "collection": "account_deletion", "key": "d", "permissionWrite": 0, "schemaVersion": 1 }
+    {
+      "collection": "player",
+      "key": "character",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "player",
+      "key": "roster",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "player",
+      "key": "selection",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "player",
+      "key": "quests",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "player",
+      "key": "inventory",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "player",
+      "key": "equipment",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "player",
+      "key": "overflow",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "player",
+      "key": "wallet_ref",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "player",
+      "key": "progression",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "player",
+      "key": "party",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "player",
+      "key": "cave",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "player",
+      "key": "location",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "player",
+      "key": "gameplay_lease",
+      "permissionWrite": 0,
+      "schemaVersion": 2
+    },
+    {
+      "collection": "player",
+      "key": "idem",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "player",
+      "key": "purge",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "character_audit",
+      "key": "p",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "party",
+      "key": "p",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "cave",
+      "key": "c",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "cave_index",
+      "key": "owner",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "transfer",
+      "key": "t",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "trade",
+      "key": "t",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "player",
+      "key": "trade",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "player",
+      "key": "trade_audit",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "names",
+      "key": "n",
+      "permissionWrite": 0,
+      "schemaVersion": "absent"
+    },
+    {
+      "collection": "match",
+      "key": "starter_zone",
+      "permissionWrite": 0,
+      "schemaVersion": "absent"
+    },
+    {
+      "collection": "gm",
+      "key": "allowlist",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "gm",
+      "key": "recent",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "gm",
+      "key": "r",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "gm_audit",
+      "key": "a",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "ops",
+      "key": "maintenance",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "ops",
+      "key": "metrics",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "account_compat",
+      "key": "email_index",
+      "permissionWrite": 0,
+      "schemaVersion": "absent"
+    },
+    {
+      "collection": "account_profile",
+      "key": "email_index",
+      "permissionWrite": 0,
+      "schemaVersion": "absent"
+    },
+    {
+      "collection": "auth_challenge",
+      "key": "c",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    },
+    {
+      "collection": "account_deletion",
+      "key": "d",
+      "permissionWrite": 0,
+      "schemaVersion": 1
+    }
   ],
-  "walletCurrencies": ["gold"],
+  "walletCurrencies": [
+    "gold"
+  ],
   "productionContentFiles": [
     "ability.mage.absolute_zero.json",
     "ability.mage.arcane_bolt.json",
@@ -251,6 +434,8 @@
     "dialogue.npc.platform_merchant.json",
     "dialogue.npc.platform_quest.json",
     "dialogue.npc.proof_giver.json",
+    "dialogue.npc.qa_herb_bush.json",
+    "dialogue.npc.qa_merchant.json",
     "dialogue.npc.test_cave_exit.json",
     "dialogue.npc.test_cave_portal.json",
     "dialogue.npc.test_herald.json",
@@ -304,11 +489,14 @@
     "enemy.cert_scout.json",
     "enemy.green_slime.json",
     "enemy.proof_critter.json",
+    "enemy.qa_general.json",
+    "enemy.qa_rare.json",
     "enemy.scaling.elite.json",
     "enemy.scaling.standard.json",
     "item.cert_mail.json",
     "item.iron_sword.json",
     "item.proof_token.json",
+    "item.qa_green_relic.json",
     "item.slime_gel.json",
     "item.test_cloth.json",
     "item.test_leather_cap.json",
@@ -317,10 +505,13 @@
     "item.test_relic_blade.json",
     "item.test_vanguard_mail.json",
     "item.training_sword.json",
+    "item.wild_herb.json",
     "loot.cert_scout.json",
     "loot.empty.json",
     "loot.green_slime.json",
     "loot.proof_critter.json",
+    "loot.qa_general.json",
+    "loot.qa_rare.json",
     "loot.test.personal.json",
     "loot.test.server_assigned.json",
     "loot.test_boss.json",
@@ -348,6 +539,8 @@
     "npc.platform_merchant.json",
     "npc.platform_quest.json",
     "npc.proof_giver.json",
+    "npc.qa_herb_bush.json",
+    "npc.qa_merchant.json",
     "npc.test_cave_exit.json",
     "npc.test_cave_portal.json",
     "npc.test_herald.json",
@@ -393,6 +586,8 @@
     "spawn.starter.cert_scout.json",
     "spawn.starter.green_slime.json",
     "spawn.starter.proof_critter.json",
+    "spawn.starter.qa_general.json",
+    "spawn.starter.qa_rare.json",
     "spawn.starter.test_caster.json",
     "spawn.starter.test_melee.json",
     "spawn.starter.test_ranged.json",
@@ -531,6 +726,7 @@
     "vendor.cert_quartermaster.json",
     "vendor.lab_general.json",
     "vendor.platform_kiosk.json",
+    "vendor.qa_general.json",
     "vendor.test_general.json",
     "xp.reward.kill.json",
     "xp.reward.kill_steep_dial.json",
