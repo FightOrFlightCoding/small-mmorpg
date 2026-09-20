@@ -5,6 +5,7 @@ import { applyMatchLoop } from "../src/domain/match_loop";
 import {
   MATCH_TICK_RATE,
   addPlayer,
+  buildSnapshot,
   createStarterZoneState,
   enemyDefinitionsFromContent,
   type MatchPlayer,
@@ -27,7 +28,9 @@ import {
   MANUAL_QA_ACCOUNT_EMAIL,
   MANUAL_QA_CHARACTER_NAME,
   MANUAL_QA_GOLD_BALANCE,
+  MANUAL_QA_GROUND_ENTITY_ID,
   MANUAL_QA_GROUND_ITEM_ID,
+  MANUAL_QA_GROUND_TTL_SEC,
   MANUAL_QA_GROUND_X,
   MANUAL_QA_GROUND_Y,
   manualQaGoldDelta,
@@ -100,13 +103,24 @@ test("manual QA gold tops up Ada and the registered email only", () => {
   assert.equal(manualQaGoldDelta("", "Bob", 0), 0);
 });
 
-test("manual QA ground seed places one public potion near spawn", () => {
+test("manual QA ground seed places one public potion on grass east of the south road", () => {
   const seeded = seedManualQaGroundItems({ itemsById: defs, tickRate: MATCH_TICK_RATE });
   assert.equal(seeded.length, 1);
   assert.equal(seeded[0].itemId, MANUAL_QA_GROUND_ITEM_ID);
+  assert.equal(seeded[0].groundEntityId, MANUAL_QA_GROUND_ENTITY_ID);
   assert.equal(seeded[0].x, MANUAL_QA_GROUND_X);
+  assert.equal(seeded[0].y, MANUAL_QA_GROUND_Y);
   assert.equal(seeded[0].state, "PUBLIC_AVAILABLE");
   assert.equal(seeded[0].quantity, 1);
+  assert.equal(seeded[0].expiresAtTick, MANUAL_QA_GROUND_TTL_SEC * MATCH_TICK_RATE);
+  const tile = 64;
+  const cellX = Math.floor(MANUAL_QA_GROUND_X / tile);
+  const cellY = Math.floor(MANUAL_QA_GROUND_Y / tile);
+  assert.equal(cellX, 36);
+  assert.equal(cellY, 46);
+  const spawn = content.zones["zone.starter"].playerSpawn;
+  assert.ok(MANUAL_QA_GROUND_X > spawn.x);
+  assert.equal(MANUAL_QA_GROUND_Y, spawn.y);
 });
 
 test("starter zone places the QA merchant, herb bush, and loot mobs", () => {
@@ -186,7 +200,7 @@ test("herb bush grant is idempotent on duplicate requestId and refuses a full ba
   assert.equal(occupiedSlots(fullLive.inventory), 30);
 });
 
-test("QA merchant, herb bush, and ground potion are in range of player spawn", () => {
+test("QA merchant and herb bush are in range of player spawn", () => {
   const zone = content.zones["zone.starter"];
   const spawn = zone.playerSpawn;
   const merchant = zone.npcs.find(function (npc) { return npc.npcId === "npc.qa_merchant"; }) as { x: number; y: number };
@@ -195,10 +209,67 @@ test("QA merchant, herb bush, and ground potion are in range of player spawn", (
   const bushRange = content.npcs["npc.qa_herb_bush"].interactionRange;
   const merchantDist = Math.hypot(merchant.x - spawn.x, merchant.y - spawn.y);
   const bushDist = Math.hypot(bush.x - spawn.x, bush.y - spawn.y);
-  const groundDist = Math.hypot(MANUAL_QA_GROUND_X - spawn.x, MANUAL_QA_GROUND_Y - spawn.y);
   assert.ok(merchantDist <= merchantRange);
   assert.ok(bushDist <= bushRange);
-  assert.ok(groundDist <= content.player.pickupRange);
+});
+
+test("standing on the grass potion picks it up into the bag", () => {
+  const state = addPlayer(qaZone(), playerAt("user-qa", MANUAL_QA_GROUND_X, MANUAL_QA_GROUND_Y));
+  state.groundItems = seedManualQaGroundItems({ itemsById: defs, tickRate: MATCH_TICK_RATE });
+  const result = applyMatchLoop(state, 1, contentHash, [
+    {
+      opcode: ClientOpcode.PICKUP_GROUND_ITEM,
+      raw: envelope({ groundEntityId: MANUAL_QA_GROUND_ENTITY_ID, requestId: "req-qa-gpick001" }),
+      userId: "user-qa",
+    },
+  ]);
+  const live = result.state.players["user-qa"];
+  assert.ok(live !== undefined && live.inventory !== undefined);
+  assert.equal(countItem(live.inventory, MANUAL_QA_GROUND_ITEM_ID), 1);
+  assert.equal(result.state.groundItems.length, 0);
+  const removed = result.outbound.filter(function (row) {
+    return row.opcode === ServerOpcode.GROUND_ITEM_REMOVED;
+  });
+  assert.equal(removed.length, 1);
+});
+
+test("dropping the potion publishes it on SNAPSHOT for every player", () => {
+  const picker = addPlayer(qaZone(), playerAt("user-qa", MANUAL_QA_GROUND_X, MANUAL_QA_GROUND_Y));
+  picker.groundItems = seedManualQaGroundItems({ itemsById: defs, tickRate: MATCH_TICK_RATE });
+  const picked = applyMatchLoop(picker, 1, contentHash, [
+    {
+      opcode: ClientOpcode.PICKUP_GROUND_ITEM,
+      raw: envelope({ groundEntityId: MANUAL_QA_GROUND_ENTITY_ID, requestId: "req-qa-gpick002" }),
+      userId: "user-qa",
+    },
+  ]);
+  const live = picked.state.players["user-qa"];
+  assert.ok(live !== undefined && live.inventory !== undefined);
+  const potion = live.inventory.items.find(function (item) {
+    return item.itemId === MANUAL_QA_GROUND_ITEM_ID;
+  });
+  assert.ok(potion !== undefined);
+  const potionInstanceId = potion !== undefined ? potion.instanceId : "";
+  assert.ok(potionInstanceId.length > 0);
+  const withWatcher = addPlayer(picked.state, playerAt("user-bob", MANUAL_QA_GROUND_X + 24, MANUAL_QA_GROUND_Y));
+  const dropped = applyMatchLoop(withWatcher, 2, contentHash, [
+    {
+      opcode: ClientOpcode.DROP_ITEM,
+      raw: envelope({ instanceId: potionInstanceId, requestId: "req-qa-gdrop001", quantity: 1 }),
+      userId: "user-qa",
+    },
+  ]);
+  assert.equal(countItem(dropped.state.players["user-qa"].inventory, MANUAL_QA_GROUND_ITEM_ID), 0);
+  assert.equal(dropped.state.groundItems.length, 1);
+  assert.equal(dropped.state.groundItems[0].itemId, MANUAL_QA_GROUND_ITEM_ID);
+  assert.equal(dropped.state.groundItems[0].state, "PUBLIC_AVAILABLE");
+  const snap = JSON.parse(buildSnapshot(dropped.state, 2)) as {
+    groundItems?: Array<{ itemId?: string; groundEntityId?: string; x?: number; y?: number }>;
+  };
+  assert.ok(Array.isArray(snap.groundItems));
+  assert.equal(snap.groundItems.length, 1);
+  assert.equal(snap.groundItems[0].itemId, MANUAL_QA_GROUND_ITEM_ID);
+  assert.ok(typeof snap.groundItems[0].groundEntityId === "string" && snap.groundItems[0].groundEntityId.length > 0);
 });
 
 test("QA merchant interact from spawn returns INTERACTION_RESULT", () => {

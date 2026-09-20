@@ -289,3 +289,63 @@ func test_parse_ground_item_removed() -> void:
 	assert_bool(bool(parsed.get("ok", false))).is_true()
 	assert_str(String(parsed.get("ground_entity_id", ""))).is_equal("ground-1")
 	assert_str(String(parsed.get("reason", ""))).is_equal("expired")
+
+
+func test_failed_action_result_keeps_request_id() -> void:
+	var failed: Dictionary = MatchProtocol.parse_action_result(
+		JSON.stringify({
+			"protocolVersion": 1,
+			"ok": false,
+			"code": "inventory_stale",
+			"requestId": "req-move-1",
+		})
+	)
+	assert_bool(bool(failed.get("ok", false))).is_true()
+	assert_bool(bool(failed.get("result_ok", true))).is_false()
+	assert_str(String(failed.get("request_id", ""))).is_equal("req-move-1")
+	assert_str(String(failed.get("code", ""))).is_equal("inventory_stale")
+	var parse_fail: Dictionary = MatchProtocol.parse_action_result(
+		JSON.stringify({
+			"ok": false,
+			"code": "malformed_json",
+			"message": "bad",
+			"requestId": "req-bad-1",
+		})
+	)
+	assert_bool(bool(parse_fail.get("ok", true))).is_true()
+	assert_bool(bool(parse_fail.get("result_ok", true))).is_false()
+	assert_str(String(parse_fail.get("request_id", ""))).is_equal("req-bad-1")
+
+
+func test_parse_snapshot_merges_ground_items_for_other_players() -> void:
+	assert_bool(GameService.start_boot()).is_true()
+	var hash := ContentRegistry.get_content_hash()
+	var previous := {
+		"self_id": "user-bob",
+		"zone_id": "zone.starter",
+		"players": [{"userId": "user-bob"}],
+		"groundItems": [],
+	}
+	var parsed: Dictionary = MatchProtocol.parse_snapshot(
+		JSON.stringify({
+			"protocolVersion": 1,
+			"contentHash": hash,
+			"tick": 8,
+			"zoneId": "zone.starter",
+			"players": [{"userId": "user-bob"}, {"userId": "user-alice"}],
+			"groundItems": [{
+				"groundEntityId": "ground.qa.potion",
+				"itemId": "item.test_potion",
+				"quantity": 1,
+				"x": 2320,
+				"y": 2976,
+			}],
+		}),
+		hash,
+		previous
+	)
+	assert_bool(bool(parsed.get("ok", false))).is_true()
+	var ground: Array = parsed["view"]["groundItems"]
+	assert_int(ground.size()).is_equal(1)
+	assert_str(String((ground[0] as Dictionary).get("groundEntityId", ""))).is_equal("ground.qa.potion")
+	assert_str(String((ground[0] as Dictionary).get("itemId", ""))).is_equal("item.test_potion")

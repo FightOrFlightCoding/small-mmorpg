@@ -78,3 +78,22 @@ func test_respec_sends_npc_id_without_gold_or_xp() -> void:
 	assert_bool(payload.has("gold")).is_false()
 	assert_bool(payload.has("xp")).is_false()
 	assert_bool(payload.has("level")).is_false()
+
+
+func test_vendor_action_result_matches_camel_case_request_id() -> void:
+	VendorService.last_request_id = "req-buy-camel"
+	VendorService._on_action_result({
+		"ok": true,
+		"result_ok": false,
+		"code": "insufficient_gold",
+		"requestId": "req-buy-camel",
+	})
+	assert_str(VendorService.last_request_id).is_empty()
+	VendorService.last_request_id = "req-buy-snake"
+	VendorService._on_action_result({
+		"ok": true,
+		"result_ok": true,
+		"code": "ok",
+		"request_id": "req-buy-snake",
+	})
+	assert_str(VendorService.last_request_id).is_empty()

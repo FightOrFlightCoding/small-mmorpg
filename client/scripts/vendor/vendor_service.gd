@@ -23,6 +23,8 @@ func _ready() -> void:
 	NetworkService.interaction_result_received.connect(_on_interaction_result, CONNECT_DEFERRED)
 	if not NetworkService.action_result_received.is_connected(_on_action_result):
 		NetworkService.action_result_received.connect(_on_action_result)
+	if not NetworkService.inventory_state_received.is_connected(_on_inventory_state):
+		NetworkService.inventory_state_received.connect(_on_inventory_state)
 	if not AppState.logged_out.is_connected(reset):
 		AppState.logged_out.connect(reset)
 	if not WalletService.wallet_changed.is_connected(_on_wallet_changed):
@@ -178,17 +180,32 @@ func _on_interaction_result(payload: Dictionary) -> void:
 
 
 func _on_action_result(payload: Dictionary) -> void:
-	var request_id := String(payload.get("request_id", ""))
+	var request_id := _request_id_of(payload)
 	if request_id.is_empty() or request_id != last_request_id:
 		return
 	last_request_id = ""
 	if not is_open():
 		return
-	if bool(payload.get("result_ok", false)):
+	var result_ok := bool(payload.get("result_ok", payload.get("ok", false)))
+	if result_ok:
 		_window.show_status("Purchase complete.")
 		_window.set_player_gold(WalletService.gold)
 	else:
 		_window.show_status(_error_message(String(payload.get("code", "vendor_failed"))), true)
+
+
+func _on_inventory_state(payload: Dictionary) -> void:
+	var request_id := _request_id_of(payload)
+	if request_id.is_empty() or request_id != last_request_id:
+		return
+	last_request_id = ""
+	if is_open():
+		_window.show_status("Purchase complete.")
+		_window.set_player_gold(WalletService.gold)
+
+
+func _request_id_of(payload: Dictionary) -> String:
+	return String(payload.get("request_id", payload.get("requestId", "")))
 
 
 func _on_wallet_changed() -> void:

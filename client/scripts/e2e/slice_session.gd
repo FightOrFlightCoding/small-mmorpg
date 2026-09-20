@@ -427,6 +427,9 @@ func _on_match_state(opcode: int, payload: String) -> void:
 			view["inventory"] = {
 				"capacity": inventory.get("capacity", 30),
 				"items": inventory.get("items", []),
+				"overflow": inventory.get("overflow", {}),
+				"revision": inventory.get("revision", 0),
+				"request_id": inventory.get("request_id", inventory.get("requestId", "")),
 			}
 		return
 	if opcode == MatchProtocol.SERVER_WALLET_STATE:

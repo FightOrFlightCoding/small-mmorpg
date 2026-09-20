@@ -1,6 +1,5 @@
 import {
   GROUND_PUBLIC_AVAILABLE,
-  groundExpireTicks,
   type GroundItem,
 } from "./ground_item";
 
@@ -9,8 +8,11 @@ export const MANUAL_QA_CHARACTER_NAME = "Ada";
 export const MANUAL_QA_GOLD_BALANCE = 5000;
 export const MANUAL_QA_GROUND_ITEM_ID = "item.test_potion";
 export const MANUAL_QA_GROUND_ENTITY_ID = "ground.qa.potion";
-export const MANUAL_QA_GROUND_X = 2016;
-export const MANUAL_QA_GROUND_Y = 2944;
+// 64px tiles. South main road occupies cells x=28..35 at the bottom of the map.
+// Cell 36 is the first grass column east of that road. Spawn is cell (31, 46).
+export const MANUAL_QA_GROUND_X = 2320;
+export const MANUAL_QA_GROUND_Y = 2976;
+export const MANUAL_QA_GROUND_TTL_SEC = 60 * 60 * 24;
 
 export function manualQaGoldDelta(email: string, characterName: string, currentGold: number): number {
   if (!manualQaAccountMatches(email, characterName)) {
@@ -49,7 +51,7 @@ export function seedManualQaGroundItems(input: {
       y: MANUAL_QA_GROUND_Y,
       createdByCharacterId: "world.qa",
       createdAtTick: 0,
-      expiresAtTick: groundExpireTicks(input.tickRate),
+      expiresAtTick: Math.round(MANUAL_QA_GROUND_TTL_SEC * input.tickRate),
       state: GROUND_PUBLIC_AVAILABLE,
       revision: 1,
       rarity: rarity,

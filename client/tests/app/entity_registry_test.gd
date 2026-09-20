@@ -125,9 +125,36 @@ func test_ground_items_are_known_entities_without_physics_collision() -> void:
 	assert_str(registry.ground_entity_id_at_world_point(Vector2(250, 390))).is_equal("ground-1")
 	assert_object(avatar.get_node_or_null("CollisionShape2D")).is_null()
 	assert_object(avatar.get_node_or_null("StaticBody2D")).is_null()
+	assert_bool(avatar.contains_world_point(Vector2(250 + 32, 390))).is_true()
+	assert_str(registry.ground_entity_id_at_world_point(Vector2(250 + 24, 390))).is_equal("ground-1")
+	assert_object(avatar.get_node_or_null("Body")).is_not_null()
+	assert_bool((avatar.get_node("Body") as Polygon2D).visible).is_true()
 	state["groundItems"] = []
 	registry.apply_full_state(state)
 	assert_bool(registry.has_entity("ground:ground-1")).is_false()
+
+
+func test_snapshot_spawns_ground_items_for_other_players() -> void:
+	var registry := _registry()
+	registry.apply_full_state(_alice_bob_state())
+	assert_bool(registry.has_entity("ground:ground.qa.potion")).is_false()
+	var snapshot := _alice_bob_state()
+	snapshot["groundItems"] = [{
+		"groundEntityId": "ground.qa.potion",
+		"itemId": "item.test_potion",
+		"quantity": 1,
+		"x": 2320,
+		"y": 2976,
+		"rarity": "rarity.common",
+	}]
+	registry.apply_snapshot(snapshot, 0.0)
+	assert_bool(registry.has_entity("ground:ground.qa.potion")).is_true()
+	var avatar := registry.get_entity("ground:ground.qa.potion") as GroundItemAvatar
+	assert_object(avatar).is_not_null()
+	assert_vector(avatar.position).is_equal(Vector2(2320, 2976))
+	assert_bool(avatar.contains_world_point(Vector2(2320, 2976))).is_true()
+	assert_str(registry.ground_entity_id_at_world_point(Vector2(2336, 2976))).is_equal("ground.qa.potion")
+	assert_bool((avatar.get_node("Body") as Polygon2D).visible).is_true()
 
 
 func test_quest_markers_are_not_unknown_entities() -> void:

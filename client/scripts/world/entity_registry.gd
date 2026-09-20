@@ -300,7 +300,8 @@ func _apply_kind(kind: String, records: Variant, keep: Dictionary, interpolate_r
 				avatar.configure(kind, server_id, named, _visual_for(kind, record), is_local)
 			if node is GroundItemAvatar:
 				(node as GroundItemAvatar).apply_ground_item(record)
-			if interpolate_remotes:
+				avatar.set_server_position(pose.x, pose.y)
+			elif interpolate_remotes:
 				pass
 			else:
 				avatar.set_server_position(pose.x, pose.y)

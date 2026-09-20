@@ -287,6 +287,13 @@ func prompt_ground_drop(instance_id: String, hint_dx: float = 0.0, hint_dy: floa
 func request_destroy(instance_id: String, quantity: int = -1) -> String:
 	if instance_id.is_empty():
 		return ""
+	var item: Dictionary = item_by_instance(instance_id)
+	if item.is_empty():
+		_reject_local("item_not_found", "That item is not in the bag.")
+		return ""
+	if ItemPresentation.is_locked(item):
+		_reject_local("item_locked", ItemPresentation.lock_reason(item))
+		return ""
 	var request_id := MatchProtocol.new_request_id()
 	var sent: Dictionary = NetworkService.send_destroy_item(instance_id, request_id, quantity, expected_revision())
 	return _send_and_pend(request_id, "destroy", [instance_id], _slots_for_instance(instance_id), sent)
@@ -321,23 +328,42 @@ func request_recover_overflow(instance_id: String, to_slot_index: int = -1) -> S
 
 
 func request_equip_selected() -> String:
-	if selected_instance_id.is_empty():
+	return request_equip_instance(selected_instance_id, EquipmentService.selected_slot)
+
+
+func request_equip_instance(instance_id: String, equip_slot: String = "") -> String:
+	if instance_id.is_empty():
 		_reject_local("item_not_found", "Select a bag item first.")
 		return ""
-	var item: Dictionary = item_by_instance(selected_instance_id)
+	var item: Dictionary = item_by_instance(instance_id)
 	if item.is_empty():
 		_reject_local("item_not_found", "That item is not in the bag.")
 		return ""
-	var request_id := EquipmentService.request_equip(selected_instance_id, EquipmentService.selected_slot)
+	if ItemPresentation.is_locked(item):
+		_reject_local("item_locked", ItemPresentation.lock_reason(item))
+		return ""
+	selected_instance_id = instance_id
+	var tag := equip_slot if not equip_slot.is_empty() else EquipmentService.selected_slot
+	if tag.is_empty():
+		tag = EquipmentService.MAIN_HAND_SLOT
+	EquipmentService.selected_slot = tag
+	var request_id := EquipmentService.request_equip(instance_id, tag)
 	if request_id.is_empty():
 		_reject_local("not_in_match", "Could not send the equip request.")
 		return ""
-	_begin_pending(request_id, "equip", [selected_instance_id], _slots_for_instance(selected_instance_id))
+	_begin_pending(request_id, "equip", [instance_id], _slots_for_instance(instance_id))
 	return request_id
 
 
 func request_unequip_selected() -> String:
-	var tag := EquipmentService.selected_slot
+	return request_unequip_tag(EquipmentService.selected_slot)
+
+
+func request_unequip_tag(equip_slot: String = "") -> String:
+	var tag := equip_slot if not equip_slot.is_empty() else EquipmentService.selected_slot
+	if tag.is_empty():
+		tag = EquipmentService.MAIN_HAND_SLOT
+	EquipmentService.selected_slot = tag
 	var instance_id := String(EquipmentService.slots.get(tag, ""))
 	if instance_id.is_empty():
 		_reject_local("item_not_found", "That equipment slot is empty.")
@@ -352,6 +378,9 @@ func request_unequip_selected() -> String:
 
 func request_move(instance_id: String, to_slot_index: int) -> String:
 	if instance_id.is_empty():
+		return ""
+	if to_slot_index < 0 or to_slot_index >= capacity:
+		_reject_local("invalid_slot", "Drop that item onto a bag slot.")
 		return ""
 	var request_id := MatchProtocol.new_request_id()
 	var sent: Dictionary = NetworkService.send_move_item(instance_id, to_slot_index, request_id, expected_revision())
@@ -695,6 +724,10 @@ func _drop_merchant_to_bag(payload: Dictionary, dest: ItemSlotView) -> String:
 
 
 func _drop_bag_to_bag(instance_id: String, source: Dictionary, dest: ItemSlotView) -> String:
+	if dest.origin_kind != "bag" or dest.slot_index < 0 or dest.slot_index >= capacity:
+		_reject_local("invalid_slot", "Drop that item onto a bag slot.")
+		DragDropService.reject("invalid_slot")
+		return ""
 	var dest_item: Dictionary = item_at_slot(dest.slot_index)
 	if dest_item.is_empty():
 		DragDropService.complete()
@@ -734,19 +767,7 @@ func _drop_onto_equipment(instance_id: String, source: Dictionary, dest: ItemSlo
 	if not allowed:
 		_reject_local("invalid_slot", "That item does not fit that equipment slot.")
 		return ""
-	var request_id := EquipmentService.request_equip(instance_id, tag)
-	if request_id.is_empty():
-		return ""
-	pending = {
-		"request_id": request_id,
-		"kind": "equip",
-		"instance_ids": [instance_id],
-		"slots": _slots_for_instance(instance_id),
-	}
-	last_request_id = request_id
-	_arm_pending_timer()
-	pending_changed.emit()
-	return request_id
+	return request_equip_instance(instance_id, tag)
 
 
 func _drop_equipment_into_bag(instance_id: String, dest: ItemSlotView) -> String:
@@ -1017,18 +1038,33 @@ func _on_zone_state_updated() -> void:
 	if not AppState.zone_view_is_full:
 		return
 	var inventory: Variant = AppState.zone_view.get("inventory", {})
-	if typeof(inventory) == TYPE_DICTIONARY:
-		apply_canonical(inventory)
+	if typeof(inventory) != TYPE_DICTIONARY:
+		return
+	var incoming: Dictionary = inventory as Dictionary
+	if incoming.is_empty():
+		return
+	var incoming_rev := int(incoming.get("revision", 0))
+	if _has_revision and incoming_rev <= revision:
+		return
+	apply_canonical(incoming)
 
 
 func _on_inventory_state(payload: Dictionary) -> void:
-	apply_canonical({
+	var next: Dictionary = {
 		"capacity": payload.get("capacity", 30),
 		"items": payload.get("items", []),
 		"overflow": payload.get("overflow", {}),
 		"revision": payload.get("revision", 0),
 		"request_id": payload.get("request_id", payload.get("requestId", "")),
-	})
+	}
+	if not AppState.zone_view.is_empty():
+		AppState.zone_view["inventory"] = {
+			"capacity": next.get("capacity", 30),
+			"items": next.get("items", []),
+			"overflow": next.get("overflow", {}),
+			"revision": next.get("revision", 0),
+		}
+	apply_canonical(next)
 
 
 func _on_action_result(payload: Dictionary) -> void:

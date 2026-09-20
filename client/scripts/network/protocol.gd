@@ -255,15 +255,44 @@ static func parse_interaction_result(raw: String) -> Dictionary:
 
 static func parse_action_result(raw: String) -> Dictionary:
 	var parsed: Dictionary = _parse_object(raw)
-	if parsed.has("ok") and not bool(parsed["ok"]) and parsed.has("message"):
-		return parsed
+	var request_id := String(parsed.get("requestId", parsed.get("request_id", "")))
+	if parsed.has("ok") and not bool(parsed["ok"]) and parsed.has("message") and not parsed.has("protocolVersion"):
+		return {
+			"ok": true,
+			"result_ok": false,
+			"code": String(parsed.get("code", "action_failed")),
+			"request_id": request_id,
+			"message": String(parsed.get("message", "")),
+			"ticket_id": String(parsed.get("ticketId", "")),
+			"destination_match_id": String(parsed.get("destinationMatchId", "")),
+			"destination_instance_id": String(parsed.get("destinationInstanceId", "")),
+			"origin_match_id": String(parsed.get("originMatchId", "")),
+			"zone_id": String(parsed.get("zoneId", "")),
+			"instance_type": String(parsed.get("instanceType", "")),
+			"trade_id": String(parsed.get("tradeId", "")),
+			"loot_all": _optional_array(parsed, "lootAll"),
+		}
 	if not _version_ok(parsed):
-		return _fail("protocol_mismatch", "The action result protocol version does not match this client.")
+		return {
+			"ok": false,
+			"result_ok": false,
+			"code": "protocol_mismatch",
+			"request_id": request_id,
+			"message": "The action result protocol version does not match this client.",
+			"ticket_id": "",
+			"destination_match_id": "",
+			"destination_instance_id": "",
+			"origin_match_id": "",
+			"zone_id": "",
+			"instance_type": "",
+			"trade_id": "",
+			"loot_all": [],
+		}
 	return {
 		"ok": true,
 		"result_ok": bool(parsed.get("ok", false)),
 		"code": String(parsed.get("code", "unknown")),
-		"request_id": String(parsed.get("requestId", "")),
+		"request_id": request_id,
 		"message": String(parsed.get("message", "")),
 		"ticket_id": String(parsed.get("ticketId", "")),
 		"destination_match_id": String(parsed.get("destinationMatchId", "")),

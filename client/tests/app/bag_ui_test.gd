@@ -573,3 +573,58 @@ func test_select_then_equip_sends_equip_and_tracks_pending() -> void:
 		"request_id": request_id,
 	})
 	assert_bool(InventoryService.pending.is_empty()).is_true()
+	ItemContextRouter.execute(ItemContextRouter.ACTION_EQUIP, {"kind": "bag"}, _sword(2, "sword-eq"))
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_EQUIP)
+	assert_str(String(InventoryService.pending.get("kind", ""))).is_equal("equip")
+
+
+func test_stale_full_state_does_not_rewind_bag() -> void:
+	InventoryService.apply_canonical({
+		"capacity": 30,
+		"revision": 12,
+		"items": [_gel(4, 2, "gel-live")],
+	})
+	AppState.notify_zone_state({
+		"inventory": {
+			"capacity": 30,
+			"revision": 11,
+			"items": [_gel(0, 1, "gel-old")],
+		},
+	}, true)
+	assert_int(InventoryService.revision).is_equal(12)
+	assert_str(String(InventoryService.item_at_slot(4).get("instanceId", ""))).is_equal("gel-live")
+	assert_bool(InventoryService.item_at_slot(0).is_empty()).is_true()
+
+
+func test_hud_passes_world_clicks_and_stops_bag_slots() -> void:
+	var hud: WorldHud = auto_free(preload("res://scenes/world/world_hud.tscn").instantiate())
+	add_child(hud)
+	await get_tree().process_frame
+	assert_int((hud.get_node("Root") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_int((hud.get_node("Root/Inventory") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+	assert_int((hud.get_node("Root/LeftColumn/Party") as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	var bag: BagGrid = hud.get_node("Root/Inventory/Margin/VBox/ListHost/Bag")
+	assert_int(bag.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+	assert_int((bag.slot_at(0) as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+	if hud._trade_panel != null:
+		assert_int(hud._trade_panel.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+
+
+func test_bag_drop_targets_any_empty_slot() -> void:
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	InventoryService.apply_canonical({
+		"capacity": 30,
+		"revision": 9,
+		"items": [_gel(0, 1, "gel-move")],
+	})
+	for slot in [1, 8, 15, 23, 29]:
+		var move_id := InventoryService.handle_drop(_payload("gel-move", 0), _bag_dest(slot))
+		assert_str(move_id).is_not_empty()
+		assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_MOVE_ITEM)
+		var move_payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+		assert_str(String(move_payload.get("instanceId", ""))).is_equal("gel-move")
+		assert_int(int(move_payload.get("toSlotIndex", -1))).is_equal(slot)
+	assert_str(InventoryService.request_move("gel-move", 30)).is_empty()
+	assert_str(InventoryService.last_reject_code).is_equal("invalid_slot")

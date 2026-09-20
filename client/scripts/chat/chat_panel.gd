@@ -20,6 +20,32 @@ func _ready() -> void:
 	_input.max_length = ZoneChat.MAX_CHARS
 	_history.text = ""
 	_status.text = ""
+	_pass_world_clicks_through()
+
+
+func _pass_world_clicks_through() -> void:
+	var root := get_node_or_null("Root")
+	if root is Control:
+		(root as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var panel := get_node_or_null("Root/Panel")
+	if panel is Control:
+		(panel as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var margin := get_node_or_null("Root/Panel/Margin")
+	if margin is Control:
+		(margin as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var vbox := get_node_or_null("Root/Panel/Margin/VBox")
+	if vbox is Control:
+		(vbox as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if _scroll != null:
+		_scroll.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if _history != null:
+		_history.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if _status != null:
+		_status.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if _input != null:
+		_input.mouse_filter = Control.MOUSE_FILTER_STOP
+	if _send != null:
+		_send.mouse_filter = Control.MOUSE_FILTER_STOP
 
 
 func has_input_focus() -> bool:

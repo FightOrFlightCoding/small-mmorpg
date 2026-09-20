@@ -352,54 +352,6 @@ func _refresh_overlay() -> void:
 	_overlay.refresh()
 
 
-func _input(event: InputEvent) -> void:
-	if not (event is InputEventMouseButton and event.pressed):
-		return
-	var mouse := event as InputEventMouseButton
-	if DragDropService.active:
-		return
-	if AbilityService.is_targeting():
-		return
-	if _gui_blocks_world_click():
-		return
-	var pointer_interact := mouse.is_action_pressed("interact_pointer") or mouse.button_index == MOUSE_BUTTON_LEFT
-	if not pointer_interact:
-		return
-	if try_interact_at(get_global_mouse_position()):
-		get_viewport().set_input_as_handled()
-
-
-func _gui_blocks_world_click() -> bool:
-	var viewport := get_viewport()
-	if viewport == null:
-		return false
-	var hovered := viewport.gui_get_hovered_control()
-	if hovered == null:
-		return false
-	var node: Node = hovered
-	while node != null:
-		if (
-			node is ItemSlotView
-			or node is BagGrid
-			or node is Button
-			or node is LineEdit
-			or node is TextEdit
-			or node is SpinBox
-			or node is ItemList
-			or node is OptionButton
-			or node is CheckBox
-			or node is Slider
-			or node is ScrollContainer
-		):
-			return true
-		if node is PanelContainer or node is Panel:
-			return true
-		if node is CanvasLayer and (node as CanvasLayer).layer > 12:
-			return true
-		node = node.get_parent()
-	return false
-
-
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
 		if DragDropService.active:
@@ -414,6 +366,11 @@ func _unhandled_input(event: InputEvent) -> void:
 				_ability_requests[cancel_id] = true
 		get_viewport().set_input_as_handled()
 		return
+	if event is InputEventMouseButton and event.pressed:
+		var mouse := event as InputEventMouseButton
+		if mouse.button_index == MOUSE_BUTTON_LEFT or mouse.button_index == MOUSE_BUTTON_RIGHT:
+			_handle_unhandled_pointer(mouse)
+			return
 	if WindowManager.has_text_focus() or _input_blocked():
 		return
 	if event.is_action_pressed("interact"):
@@ -455,18 +412,26 @@ func _unhandled_input(event: InputEvent) -> void:
 					_ability_requests[request_id] = true
 				get_viewport().set_input_as_handled()
 				break
-	elif event is InputEventMouseButton and event.pressed:
-		if AbilityService.is_targeting():
-			if event.button_index == MOUSE_BUTTON_LEFT:
-				var request_id := AbilityService.confirm_ground_target(get_global_mouse_position())
-				if not request_id.is_empty():
-					_ability_requests[request_id] = true
-			else:
-				AbilityService.cancel_targeting()
-			get_viewport().set_input_as_handled()
-		elif event.button_index == MOUSE_BUTTON_LEFT:
-			if try_select_friendly_player():
-				get_viewport().set_input_as_handled()
+
+
+func _handle_unhandled_pointer(mouse: InputEventMouseButton) -> void:
+	if DragDropService.active:
+		return
+	if AbilityService.is_targeting():
+		if mouse.button_index == MOUSE_BUTTON_LEFT:
+			var request_id := AbilityService.confirm_ground_target(get_global_mouse_position())
+			if not request_id.is_empty():
+				_ability_requests[request_id] = true
+		else:
+			AbilityService.cancel_targeting()
+		get_viewport().set_input_as_handled()
+		return
+	var pointer_interact := mouse.is_action_pressed("interact_pointer") or mouse.button_index == MOUSE_BUTTON_LEFT
+	if pointer_interact and try_interact_at(get_global_mouse_position()):
+		get_viewport().set_input_as_handled()
+		return
+	if mouse.button_index == MOUSE_BUTTON_LEFT and try_select_friendly_player():
+		get_viewport().set_input_as_handled()
 
 
 func _input_blocked() -> bool:
@@ -581,7 +546,7 @@ func try_interact() -> void:
 
 
 func try_interact_at(world_pos: Vector2) -> bool:
-	if _input_blocked() or not _local_alive() or NetworkService.match_id.is_empty():
+	if AppState.is_reconnecting or not _local_alive() or NetworkService.match_id.is_empty():
 		return false
 	var ground_id := ""
 	if _entities != null:

@@ -264,7 +264,14 @@ func _ensure_match_signals() -> void:
 func _on_match_state(data: NakamaRTAPI.MatchData) -> void:
 	if data == null:
 		return
-	match_state_received.emit(int(data.op_code), String(data.data))
+	match_state_received.emit(int(data.op_code), _match_payload_text(data))
+
+
+func _match_payload_text(data: NakamaRTAPI.MatchData) -> String:
+	var raw: Variant = data.data
+	if typeof(raw) == TYPE_PACKED_BYTE_ARRAY:
+		return (raw as PackedByteArray).get_string_from_utf8()
+	return String(raw)
 
 
 func _ensure_chat_signals() -> void:

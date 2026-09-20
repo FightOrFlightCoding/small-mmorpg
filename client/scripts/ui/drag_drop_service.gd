@@ -127,16 +127,16 @@ func _finish_from_pointer() -> void:
 	var current := payload.duplicate(true)
 	var dest := slot_under_cursor()
 	var moved := _cursor().distance_to(start_position) >= 6.0
-	if dest == null:
-		if moved and not _pointer_over_hud():
-			InventoryService.handle_world_drop(current, _cursor() - start_position)
-		else:
+	if dest != null:
+		if not moved and dest.origin_kind == String(current.get("fromKind", "bag")) and dest.slot_index == int(current.get("fromSlot", -1)):
 			cancel()
+			return
+		InventoryService.handle_drop(current, dest)
 		return
-	if not moved and dest.origin_kind == String(current.get("fromKind", "bag")) and dest.slot_index == int(current.get("fromSlot", -1)):
-		cancel()
+	if moved and not _pointer_over_blocking_ui():
+		InventoryService.handle_world_drop(current, _cursor() - start_position)
 		return
-	InventoryService.handle_drop(current, dest)
+	cancel()
 
 
 func _show_ghost() -> void:
@@ -161,7 +161,7 @@ func _hide_ghost() -> void:
 		_ghost_icon.texture = null
 
 
-func _pointer_over_hud() -> bool:
+func _pointer_over_blocking_ui() -> bool:
 	var viewport := get_viewport()
 	if viewport == null:
 		return false
@@ -170,20 +170,39 @@ func _pointer_over_hud() -> bool:
 		return false
 	var node: Node = hovered
 	while node != null:
+		if node is Control and (node as Control).mouse_filter == Control.MOUSE_FILTER_IGNORE:
+			node = node.get_parent()
+			continue
 		if (
 			node is ItemSlotView
 			or node is BagGrid
 			or node is Button
 			or node is LineEdit
+			or node is TextEdit
 			or node is ItemList
 			or node is OptionButton
 			or node is SpinBox
+			or node is CheckBox
+			or node is Slider
 		):
 			return true
-		if node is PanelContainer or node is Panel:
+		var named := String(node.name) if node != null else ""
+		if (
+			named == "Inventory"
+			or named == "Journal"
+			or named == "TargetFrame"
+			or named == "MerchantWindow"
+			or named == "NpcInteractionWindow"
+			or named == "CorpseWindow"
+			or named == "SplitStackDialog"
+			or named == "GroundDropDialog"
+			or named == "LootRollWindow"
+			or named == "TradeWindow"
+		):
 			return true
-		if node is CanvasLayer and (node as CanvasLayer).layer > 12:
-			return true
+		if node is CanvasLayer:
+			node = node.get_parent()
+			continue
 		node = node.get_parent()
 	return false
 

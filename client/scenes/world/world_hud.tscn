@@ -127,7 +127,7 @@ layout_mode = 2
 size_flags_vertical = 3
 custom_minimum_size = Vector2(0, 110)
 clip_contents = true
-mouse_filter = 0
+mouse_filter = 2
 
 [node name="Margin" type="MarginContainer" parent="Root/LeftColumn/Party"]
 layout_mode = 2
@@ -153,7 +153,6 @@ text = "Party"
 [node name="Members" type="ItemList" parent="Root/LeftColumn/Party/Margin/Scroll/VBox"]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
-size_flags_vertical = 3
 
 [node name="Status" type="Label" parent="Root/LeftColumn/Party/Margin/Scroll/VBox"]
 layout_mode = 2
@@ -330,7 +329,7 @@ size_flags_vertical = 3
 size_flags_stretch_ratio = 1.35
 custom_minimum_size = Vector2(0, 140)
 clip_contents = true
-mouse_filter = 0
+mouse_filter = 2
 
 [node name="Margin" type="MarginContainer" parent="Root/LeftColumn/Progression"]
 layout_mode = 2

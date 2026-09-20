@@ -147,6 +147,17 @@ func test_hud_lists_canonical_inventory() -> void:
 
 
 func test_destroy_and_split_send_intentions_without_instance_id_invention() -> void:
+	InventoryService.apply_canonical({
+		"capacity": 30,
+		"revision": 2,
+		"items": [{
+			"instanceId": "inst-cloth",
+			"itemId": "item.slime_gel",
+			"quantity": 4,
+			"slotIndex": 0,
+			"metadata": {},
+		}],
+	})
 	var fake := FakeNetworkBackend.new()
 	NetworkService.backend = fake
 	NetworkService.match_id = "match-starter-shared"
@@ -279,3 +290,49 @@ func test_uncommon_drop_prompt_requires_public_confirmation() -> void:
 	dialog._confirm_check.button_pressed = true
 	dialog._on_confirm_toggled(true)
 	assert_bool(dialog._drop_button.disabled).is_false()
+
+
+func test_failed_action_result_with_request_id_clears_pending() -> void:
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	InventoryService.apply_canonical({
+		"capacity": 30,
+		"revision": 3,
+		"items": [{"instanceId": "inst-gel", "itemId": "item.slime_gel", "quantity": 2, "slotIndex": 0, "metadata": {}}],
+	})
+	var request_id := InventoryService.request_move("inst-gel", 5)
+	assert_bool(InventoryService.pending.is_empty()).is_false()
+	InventoryService._on_action_result({
+		"ok": true,
+		"result_ok": false,
+		"code": "invalid_slot",
+		"request_id": request_id,
+		"message": "That bag slot is not valid.",
+	})
+	assert_bool(InventoryService.pending.is_empty()).is_true()
+	assert_str(InventoryService.last_reject_code).is_equal("invalid_slot")
+
+
+func test_world_drop_from_bag_sends_drop_without_dialog() -> void:
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	InventoryService.apply_canonical({
+		"capacity": 30,
+		"revision": 4,
+		"items": [{"instanceId": "inst-potion", "itemId": "item.test_potion", "quantity": 1, "slotIndex": 0, "metadata": {}}],
+	})
+	var request_id := InventoryService.handle_world_drop({
+		"instanceId": "inst-potion",
+		"fromKind": "bag",
+		"quantity": 1,
+	}, Vector2(48, -12))
+	assert_str(request_id).is_not_empty()
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_DROP_ITEM)
+	var payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_str(String(payload.get("instanceId", ""))).is_equal("inst-potion")
+	assert_int(int(payload.get("quantity", 0))).is_equal(1)
+	assert_float(float(payload.get("hintDx", 0.0))).is_equal(48.0)
+	assert_float(float(payload.get("hintDy", 0.0))).is_equal(-12.0)
+	assert_object(InventoryService.get_node_or_null("OverlayLayer/GroundDropDialog")).is_null()

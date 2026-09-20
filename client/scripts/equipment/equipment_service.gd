@@ -90,7 +90,7 @@ func request_equip(instance_id: String, equip_slot: String = MAIN_HAND_SLOT) -> 
 		return ""
 	selected_slot = equip_slot
 	var request_id := MatchProtocol.new_request_id()
-	NetworkService.send_equip(instance_id, equip_slot, request_id)
+	NetworkService.send_equip(instance_id, equip_slot, request_id, InventoryService.expected_revision())
 	request_started.emit(request_id)
 	return request_id
 
@@ -99,7 +99,7 @@ func request_unequip(equip_slot: String = MAIN_HAND_SLOT) -> String:
 	if equip_slot.is_empty():
 		return ""
 	var request_id := MatchProtocol.new_request_id()
-	NetworkService.send_equip("", equip_slot, request_id)
+	NetworkService.send_equip("", equip_slot, request_id, InventoryService.expected_revision())
 	request_started.emit(request_id)
 	return request_id
 
@@ -285,8 +285,12 @@ func _on_zone_state_updated() -> void:
 	var payload: Dictionary = {}
 	if typeof(equipment) == TYPE_DICTIONARY:
 		payload = (equipment as Dictionary).duplicate(true)
+	if payload.is_empty() and not items.is_empty():
+		return
 	if typeof(derived) == TYPE_DICTIONARY:
 		payload["derived"] = derived
+	if payload.is_empty():
+		return
 	apply_canonical(payload)
 
 

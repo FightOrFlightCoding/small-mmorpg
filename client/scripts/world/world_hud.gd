@@ -209,6 +209,7 @@ func _ready() -> void:
 	if not TradeService.trade_notice.is_connected(_on_trade_notice):
 		TradeService.trade_notice.connect(_on_trade_notice)
 	refresh_trade()
+	_pass_world_clicks_through()
 
 
 func refresh(state: Dictionary, names: PackedStringArray, snapshot_stale: bool = false) -> void:
@@ -779,6 +780,7 @@ func _bind_inventory() -> void:
 	if _inventory_host == null or _inventory_list != null:
 		return
 	_inventory_list = InventoryService.attach_bag(_inventory_host)
+	_pass_world_clicks_through()
 	if not InventoryService.inventory_changed.is_connected(refresh_inventory):
 		InventoryService.inventory_changed.connect(refresh_inventory)
 	if not InventoryService.notice.is_connected(_on_party_notice):
@@ -1095,7 +1097,7 @@ func _build_trade_panel() -> void:
 	_trade_panel = PanelContainer.new()
 	_trade_panel.name = "TradePanel"
 	_trade_panel.clip_contents = true
-	_trade_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_trade_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 8)
 	margin.add_theme_constant_override("margin_top", 6)
@@ -1688,13 +1690,35 @@ func _ignore_layout_mouse(node: Control) -> void:
 		node.mouse_filter = Control.MOUSE_FILTER_STOP
 		return
 	var named := String(node.name)
-	if named == "Inventory" or named == "Journal" or named == "TargetFrame":
+	if named == "Inventory" or named == "Journal" or named == "TargetFrame" or named == "ListHost" or named == "SlotHost":
 		node.mouse_filter = Control.MOUSE_FILTER_STOP
+		for child in node.get_children():
+			if child is Control:
+				_stop_interactive_mouse(child as Control)
 		return
 	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for child in node.get_children():
 		if child is Control:
 			_ignore_layout_mouse(child as Control)
+
+
+func _stop_interactive_mouse(node: Control) -> void:
+	if (
+		node is Button
+		or node is LineEdit
+		or node is TextEdit
+		or node is SpinBox
+		or node is ItemList
+		or node is OptionButton
+		or node is CheckBox
+		or node is Slider
+		or node is ItemSlotView
+		or node is BagGrid
+	):
+		node.mouse_filter = Control.MOUSE_FILTER_STOP
+	for child in node.get_children():
+		if child is Control:
+			_stop_interactive_mouse(child as Control)
 
 
 func set_panel_visible(window_id: String, visible: bool) -> void:

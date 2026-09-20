@@ -133,10 +133,10 @@ func execute(action_id: String, origin: Dictionary, instance: Dictionary) -> voi
 	match action_id:
 		ACTION_EQUIP:
 			var tag := String(origin.get("equipment_tag", EquipmentService.selected_slot))
-			EquipmentService.request_equip(instance_id, tag if not tag.is_empty() else EquipmentService.MAIN_HAND_SLOT)
+			InventoryService.request_equip_instance(instance_id, tag if not tag.is_empty() else EquipmentService.MAIN_HAND_SLOT)
 		ACTION_UNEQUIP:
 			var unequip_tag := String(origin.get("equipment_tag", EquipmentService.selected_slot))
-			EquipmentService.request_unequip(unequip_tag if not unequip_tag.is_empty() else EquipmentService.MAIN_HAND_SLOT)
+			InventoryService.request_unequip_tag(unequip_tag if not unequip_tag.is_empty() else EquipmentService.MAIN_HAND_SLOT)
 		ACTION_SPLIT:
 			InventoryService.prompt_split(instance_id)
 		ACTION_DESTROY:
