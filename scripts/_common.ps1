@@ -163,7 +163,7 @@ function Assert-ContentHashes {
 function Restore-GodotImportDirt {
 	$repo = Get-RepoRoot
 	$paths = @()
-	foreach ($rel in @("client/addons", "client/assets", "client/resources")) {
+	foreach ($rel in @("client/addons", "client/assets", "client/resources", "client/project.godot")) {
 		if (Test-Path (Join-Path $repo $rel)) {
 			$paths += $rel
 		}

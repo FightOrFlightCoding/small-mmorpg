@@ -9,7 +9,7 @@ Playable work, including PROG-15, the expanded village map, and the certified NP
 Quit Godot, then from `C:\Users\Eszter\small-mmorpg`:
 
 ```powershell
-git restore client/addons client/assets client/resources
+git restore client/addons client/assets client/resources client/project.godot
 git fetch origin main
 git checkout main
 git pull --ff-only origin main
@@ -19,7 +19,7 @@ git rev-parse --short HEAD
 
 `Test-Path` must print `True`. `HEAD` must be `e9c46fd` or later. Then run `powershell -File scripts/local-play.ps1 -Branch main`.
 
-If `git checkout` still refuses, run `git status`. Discard leftover Godot noise with `git restore .` only if you have no local edits to keep, then repeat the fetch/checkout/pull lines.
+If `git checkout` or `git pull` still refuses, run `git status`. The usual blocker is Godot rewriting `client/project.godot`. Close the editor and `git restore client/project.godot`, then repeat. Discard leftover Godot noise with `git restore .` only if you have no local edits to keep.
 
 ## After every later prompt
 
@@ -63,4 +63,11 @@ Grass and stone roads are painted at runtime. `scenes/world/world.tscn` in the i
 
 ## If git checkout refuses
 
-`local-play.ps1` restores `.import` dirt first. If it still fails, you have other local edits: stash them or `git restore .` only if you have nothing to keep, then re-run `local-play.ps1 -Branch main`.
+`local-play.ps1` restores `.import` dirt and `client/project.godot` first. Godot rewrites that project file (translations and input maps) while the editor is open, which blocks `git pull`. If a pull still fails because you already ran an older script, close Godot and run:
+
+```powershell
+git restore client/project.godot
+powershell -File scripts/local-play.ps1 -Branch main
+```
+
+If it still refuses, you have other local edits: stash them or `git restore .` only if you have nothing to keep, then re-run `local-play.ps1 -Branch main`.
