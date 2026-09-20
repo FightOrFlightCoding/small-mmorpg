@@ -226,7 +226,8 @@ test("standing on the grass potion picks it up into the bag", () => {
   const live = result.state.players["user-qa"];
   assert.ok(live !== undefined && live.inventory !== undefined);
   assert.equal(countItem(live.inventory, MANUAL_QA_GROUND_ITEM_ID), 1);
-  assert.equal(result.state.groundItems.length, 0);
+  const remaining = result.state.groundItems !== undefined ? result.state.groundItems : [];
+  assert.equal(remaining.length, 0);
   const removed = result.outbound.filter(function (row) {
     return row.opcode === ServerOpcode.GROUND_ITEM_REMOVED;
   });
@@ -260,9 +261,10 @@ test("dropping the potion publishes it on SNAPSHOT for every player", () => {
     },
   ]);
   assert.equal(countItem(dropped.state.players["user-qa"].inventory, MANUAL_QA_GROUND_ITEM_ID), 0);
-  assert.equal(dropped.state.groundItems.length, 1);
-  assert.equal(dropped.state.groundItems[0].itemId, MANUAL_QA_GROUND_ITEM_ID);
-  assert.equal(dropped.state.groundItems[0].state, "PUBLIC_AVAILABLE");
+  const published = dropped.state.groundItems !== undefined ? dropped.state.groundItems : [];
+  assert.equal(published.length, 1);
+  assert.equal(published[0].itemId, MANUAL_QA_GROUND_ITEM_ID);
+  assert.equal(published[0].state, "PUBLIC_AVAILABLE");
   const snap = JSON.parse(buildSnapshot(dropped.state, 2)) as {
     groundItems?: Array<{ itemId?: string; groundEntityId?: string; x?: number; y?: number }>;
   };

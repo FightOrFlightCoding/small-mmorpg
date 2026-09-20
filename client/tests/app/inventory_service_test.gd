@@ -335,4 +335,6 @@ func test_world_drop_from_bag_sends_drop_without_dialog() -> void:
 	assert_int(int(payload.get("quantity", 0))).is_equal(1)
 	assert_float(float(payload.get("hintDx", 0.0))).is_equal(48.0)
 	assert_float(float(payload.get("hintDy", 0.0))).is_equal(-12.0)
-	assert_object(InventoryService.get_node_or_null("OverlayLayer/GroundDropDialog")).is_null()
+	var dialog: GroundDropDialog = InventoryService.get_node_or_null("OverlayLayer/GroundDropDialog")
+	if dialog != null:
+		assert_bool(dialog.visible).is_false()

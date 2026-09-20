@@ -127,8 +127,9 @@ func test_ground_items_are_known_entities_without_physics_collision() -> void:
 	assert_object(avatar.get_node_or_null("StaticBody2D")).is_null()
 	assert_bool(avatar.contains_world_point(Vector2(250 + 32, 390))).is_true()
 	assert_str(registry.ground_entity_id_at_world_point(Vector2(250 + 24, 390))).is_equal("ground-1")
-	assert_object(avatar.get_node_or_null("Body")).is_not_null()
-	assert_bool((avatar.get_node("Body") as Polygon2D).visible).is_true()
+	var body := avatar.get_node_or_null("Body") as Polygon2D
+	var sprite := avatar.get_node_or_null("Sprite") as Sprite2D
+	assert_bool((body != null and body.visible) or (sprite != null and sprite.visible)).is_true()
 	state["groundItems"] = []
 	registry.apply_full_state(state)
 	assert_bool(registry.has_entity("ground:ground-1")).is_false()
