@@ -132,16 +132,11 @@ export function writeCharacterCheckpoint(
         return [];
       }
       const next = checkpointCharacterPosition(current, x, y, Date.now(), bind);
-      const sourceKey = currentObjects[0].key;
-      let writeId: string | undefined;
-      if (sourceKey === CHARACTER_KEY) {
-        writeId = undefined;
-      } else if (characterId !== undefined && characterId.length > 0) {
-        writeId = characterId;
-      } else {
-        writeId = current.characterId;
-      }
-      return [buildCharacterWrite(userId, next, currentObjects[0].version, writeId)];
+      const writingScoped = characterId !== undefined && characterId.length > 0;
+      const sourceIsLegacy = currentObjects[0].key === CHARACTER_KEY;
+      const writeId = writingScoped ? characterId : current.characterId;
+      const version = writingScoped && sourceIsLegacy ? undefined : currentObjects[0].version;
+      return [buildCharacterWrite(userId, next, version, writeId)];
     },
     5,
   );

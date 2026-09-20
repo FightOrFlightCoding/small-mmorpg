@@ -257,50 +257,34 @@ static func parse_action_result(raw: String) -> Dictionary:
 	var parsed: Dictionary = _parse_object(raw)
 	var request_id := String(parsed.get("requestId", parsed.get("request_id", "")))
 	if parsed.has("ok") and not bool(parsed["ok"]) and parsed.has("message") and not parsed.has("protocolVersion"):
-		return {
-			"ok": true,
-			"result_ok": false,
-			"code": String(parsed.get("code", "action_failed")),
-			"request_id": request_id,
-			"message": String(parsed.get("message", "")),
-			"ticket_id": String(parsed.get("ticketId", "")),
-			"destination_match_id": String(parsed.get("destinationMatchId", "")),
-			"destination_instance_id": String(parsed.get("destinationInstanceId", "")),
-			"origin_match_id": String(parsed.get("originMatchId", "")),
-			"zone_id": String(parsed.get("zoneId", "")),
-			"instance_type": String(parsed.get("instanceType", "")),
-			"trade_id": String(parsed.get("tradeId", "")),
-			"loot_all": _optional_array(parsed, "lootAll"),
-		}
+		return _action_result_row(true, false, String(parsed.get("code", "action_failed")), request_id, parsed)
 	if not _version_ok(parsed):
-		return {
-			"ok": false,
-			"result_ok": false,
-			"code": "protocol_mismatch",
-			"request_id": request_id,
-			"message": "The action result protocol version does not match this client.",
-			"ticket_id": "",
-			"destination_match_id": "",
-			"destination_instance_id": "",
-			"origin_match_id": "",
-			"zone_id": "",
-			"instance_type": "",
-			"trade_id": "",
-			"loot_all": [],
-		}
+		return _action_result_row(
+			false,
+			false,
+			"protocol_mismatch",
+			request_id,
+			{"message": "The action result protocol version does not match this client."}
+		)
+	return _action_result_row(true, bool(parsed.get("ok", false)), String(parsed.get("code", "unknown")), request_id, parsed)
+
+
+static func _action_result_row(ok: bool, result_ok: bool, code: String, request_id: String, parsed: Dictionary) -> Dictionary:
 	return {
-		"ok": true,
-		"result_ok": bool(parsed.get("ok", false)),
-		"code": String(parsed.get("code", "unknown")),
+		"ok": ok,
+		"result_ok": result_ok,
+		"code": code,
 		"request_id": request_id,
 		"message": String(parsed.get("message", "")),
-		"ticket_id": String(parsed.get("ticketId", "")),
-		"destination_match_id": String(parsed.get("destinationMatchId", "")),
-		"destination_instance_id": String(parsed.get("destinationInstanceId", "")),
-		"origin_match_id": String(parsed.get("originMatchId", "")),
-		"zone_id": String(parsed.get("zoneId", "")),
-		"instance_type": String(parsed.get("instanceType", "")),
-		"trade_id": String(parsed.get("tradeId", "")),
+		"departed": bool(parsed.get("departed", false)),
+		"already_left": bool(parsed.get("alreadyLeft", parsed.get("already_left", false))),
+		"ticket_id": String(parsed.get("ticketId", parsed.get("ticket_id", ""))),
+		"destination_match_id": String(parsed.get("destinationMatchId", parsed.get("destination_match_id", ""))),
+		"destination_instance_id": String(parsed.get("destinationInstanceId", parsed.get("destination_instance_id", ""))),
+		"origin_match_id": String(parsed.get("originMatchId", parsed.get("origin_match_id", ""))),
+		"zone_id": String(parsed.get("zoneId", parsed.get("zone_id", ""))),
+		"instance_type": String(parsed.get("instanceType", parsed.get("instance_type", ""))),
+		"trade_id": String(parsed.get("tradeId", parsed.get("trade_id", ""))),
 		"loot_all": _optional_array(parsed, "lootAll"),
 	}
 
@@ -518,7 +502,12 @@ static func parse_loot_roll_state(raw: String) -> Dictionary:
 
 
 static func new_request_id() -> String:
-	return "r_%s_%s" % [str(Time.get_ticks_usec()), str(randi() % 1000000)]
+	var rid := "req%s%s" % [str(Time.get_ticks_msec()), str(randi() % 900000 + 100000)]
+	if rid.length() > 64:
+		return rid.substr(0, 64)
+	if rid.length() < 8:
+		return rid + "xxxxxxxx"
+	return rid
 
 
 static func handshake_payload(content_hash: String, content_version: String = "") -> Dictionary:

@@ -304,6 +304,21 @@ func test_failed_action_result_keeps_request_id() -> void:
 	assert_bool(bool(failed.get("result_ok", true))).is_false()
 	assert_str(String(failed.get("request_id", ""))).is_equal("req-move-1")
 	assert_str(String(failed.get("code", ""))).is_equal("inventory_stale")
+	var departed: Dictionary = MatchProtocol.parse_action_result(
+		JSON.stringify({
+			"protocolVersion": 1,
+			"ok": true,
+			"code": "ok",
+			"requestId": "req-leave-1",
+			"departed": true,
+			"alreadyLeft": true,
+		})
+	)
+	assert_bool(bool(departed.get("ok", false))).is_true()
+	assert_bool(bool(departed.get("result_ok", false))).is_true()
+	assert_bool(bool(departed.get("departed", false))).is_true()
+	assert_bool(bool(departed.get("already_left", false))).is_true()
+	assert_str(String(departed.get("request_id", ""))).is_equal("req-leave-1")
 	var parse_fail: Dictionary = MatchProtocol.parse_action_result(
 		JSON.stringify({
 			"ok": false,

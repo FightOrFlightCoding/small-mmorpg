@@ -29,15 +29,6 @@ func reset_for_tests() -> void:
 func bind_hud(hud: WorldHud) -> void:
 	_hud = hud
 	WindowManager.open(WindowManager.HUD)
-	WindowManager.open(WindowManager.INVENTORY)
-	WindowManager.open(WindowManager.EQUIPMENT)
-	WindowManager.open(WindowManager.ATTRIBUTES)
-	WindowManager.open(WindowManager.SKILLS)
-	WindowManager.open(WindowManager.QUEST_JOURNAL)
-	WindowManager.open(WindowManager.PARTY)
-	WindowManager.open(WindowManager.TRADE)
-	WindowManager.open(WindowManager.CHAT)
-	WindowManager.open(WindowManager.PARTY_CHAT)
 	if hud != null and hud.has_method("ensure_settings_panel"):
 		hud.ensure_settings_panel()
 	sync_windows()

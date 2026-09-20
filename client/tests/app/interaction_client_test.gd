@@ -12,6 +12,7 @@ func before_test() -> void:
 	InnService.reset_for_tests()
 	CaveService.reset_for_tests()
 	WindowManager.reset_for_tests()
+	HudController.reset_for_tests()
 	assert_bool(ContentRegistry.load_bundle()).is_true()
 
 
@@ -165,7 +166,7 @@ func test_right_click_ground_item_sends_pickup() -> void:
 		"zone_id": "zone.starter",
 		"tick": 1,
 		"ack_seq": 0,
-		"players": [{"userId": "user-alice", "name": "Alice", "x": 2320, "y": 2976, "health": 10}],
+		"players": [{"userId": "user-alice", "name": "Alice", "x": 2016, "y": 2816, "health": 10}],
 		"npcs": [],
 		"enemies": [],
 		"loot": [],
@@ -174,8 +175,8 @@ func test_right_click_ground_item_sends_pickup() -> void:
 			"groundEntityId": "ground.qa.potion",
 			"itemId": "item.test_potion",
 			"quantity": 1,
-			"x": 2320,
-			"y": 2976,
+			"x": 2016,
+			"y": 2816,
 			"rarity": "rarity.common",
 		}],
 	}, true)
@@ -183,14 +184,58 @@ func test_right_click_ground_item_sends_pickup() -> void:
 	add_child(world)
 	await get_tree().process_frame
 	world.set_process(false)
-	assert_bool(world.try_interact_at(Vector2(2320, 2976))).is_true()
+	assert_bool(world.try_interact_at(Vector2(2016, 2816))).is_true()
 	await get_tree().process_frame
 	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_PICKUP_GROUND_ITEM)
 	var payload: Dictionary = JSON.parse_string(fake.last_send_payload)
 	assert_str(String(payload.get("groundEntityId", ""))).is_equal("ground.qa.potion")
 	assert_bool(payload.has("requestId")).is_true()
-	assert_bool(world.try_interact_at(Vector2(2320, 3000))).is_true()
+	assert_bool(world.try_interact_at(Vector2(2016, 2840))).is_true()
 	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_PICKUP_GROUND_ITEM)
+
+
+func test_right_click_picks_nearest_ground_item_when_pointer_misses() -> void:
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	AppState.notify_zone_state({
+		"self_id": "user-alice",
+		"zone_id": "zone.starter",
+		"tick": 1,
+		"ack_seq": 0,
+		"players": [{"userId": "user-alice", "name": "Alice", "x": 2016, "y": 2816, "health": 10}],
+		"npcs": [],
+		"enemies": [],
+		"loot": [],
+		"quests": [],
+		"groundItems": [{
+			"groundEntityId": "ground.qa.potion",
+			"itemId": "item.test_potion",
+			"quantity": 1,
+			"x": 2016,
+			"y": 2816,
+			"rarity": "rarity.common",
+		}],
+	}, true)
+	var world: Node = auto_free(preload("res://scenes/world/world.tscn").instantiate())
+	add_child(world)
+	await get_tree().process_frame
+	world.set_process(false)
+	assert_bool(world.try_interact_at(Vector2(100, 100))).is_false()
+	world.try_pickup()
+	await get_tree().process_frame
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_PICKUP_GROUND_ITEM)
+	var payload: Dictionary = JSON.parse_string(fake.last_send_payload)
+	assert_str(String(payload.get("groundEntityId", ""))).is_equal("ground.qa.potion")
+
+
+func test_south_camera_limit_leaves_hud_reserve() -> void:
+	var world: Node = auto_free(preload("res://scenes/world/world.tscn").instantiate())
+	add_child(world)
+	await get_tree().process_frame
+	world.set_process(false)
+	world._apply_camera_limits({"width": 4096, "height": 3072})
+	assert_int(int(world._camera.limit_bottom)).is_equal(3312)
 
 
 func test_world_interact_skips_bag_not_hotbar() -> void:
@@ -199,6 +244,8 @@ func test_world_interact_skips_bag_not_hotbar() -> void:
 	await get_tree().process_frame
 	world.set_process(false)
 	var slot: ItemSlotView = auto_free(ItemSlotView.new())
+	assert_bool(world.pointer_blocks_world_interact(slot)).is_false()
+	slot.instance = {"instanceId": "inst-potion"}
 	assert_bool(world.pointer_blocks_world_interact(slot)).is_true()
 	var hotbar := Button.new()
 	hotbar.name = "Slot4"
@@ -207,6 +254,28 @@ func test_world_interact_skips_bag_not_hotbar() -> void:
 	var chat_input := LineEdit.new()
 	assert_bool(world.pointer_blocks_world_interact(chat_input)).is_true()
 	chat_input.free()
+	var inventory := PanelContainer.new()
+	inventory.name = "Inventory"
+	assert_bool(world.pointer_blocks_world_interact(inventory)).is_false()
+	inventory.free()
+	var journal := PanelContainer.new()
+	journal.name = "Journal"
+	assert_bool(world.pointer_blocks_world_interact(journal)).is_false()
+	journal.free()
+	var bag := BagGrid.new()
+	assert_bool(world.pointer_blocks_world_interact(bag)).is_false()
+	bag.free()
+
+
+func test_world_does_not_auto_open_inventory() -> void:
+	var world: Node = auto_free(preload("res://scenes/world/world.tscn").instantiate())
+	add_child(world)
+	await get_tree().process_frame
+	world.set_process(false)
+	assert_bool(WindowManager.is_open(WindowManager.HUD)).is_true()
+	assert_bool(WindowManager.is_open(WindowManager.INVENTORY)).is_false()
+	assert_bool(WindowManager.is_open(WindowManager.QUEST_JOURNAL)).is_false()
+	assert_bool(WindowManager.is_open(WindowManager.TRADE)).is_false()
 
 
 func test_nearby_npc_click_pick_uses_server_range() -> void:

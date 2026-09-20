@@ -62,6 +62,42 @@ export function withTransferState(location: ActiveLocation, transferState: Locat
   };
 }
 
+export function chooseJoinCoordinates(
+  characterPosition: { x: number; y: number },
+  characterUpdatedAt: number,
+  location: ActiveLocation | null,
+): { x: number; y: number } {
+  if (location === null || location.instanceType === "party_cave") {
+    return { x: characterPosition.x, y: characterPosition.y };
+  }
+  if (location.lastCheckpointAt > characterUpdatedAt) {
+    return { x: location.position.x, y: location.position.y };
+  }
+  return { x: characterPosition.x, y: characterPosition.y };
+}
+
+export function bindJoinLocation(existing: ActiveLocation | null, next: ActiveLocation): ActiveLocation {
+  if (existing === null || existing.instanceType === "party_cave" || next.instanceType === "party_cave") {
+    return next;
+  }
+  if (!(existing.lastCheckpointAt > 0)) {
+    return next;
+  }
+  return {
+    instanceType: next.instanceType,
+    zoneTemplateId: next.zoneTemplateId,
+    instanceId: next.instanceId,
+    matchId: next.matchId,
+    position: { x: next.position.x, y: next.position.y },
+    characterId: next.characterId,
+    accountUserId: next.accountUserId,
+    selectionTicketId: next.selectionTicketId,
+    lastCheckpointAt: existing.lastCheckpointAt,
+    transferState: next.transferState,
+    schemaVersion: next.schemaVersion,
+  };
+}
+
 export function withCheckpoint(location: ActiveLocation, x: number, y: number, nowMs: number): ActiveLocation {
   return {
     instanceType: location.instanceType,

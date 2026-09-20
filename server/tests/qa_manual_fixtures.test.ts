@@ -116,11 +116,24 @@ test("manual QA ground seed places one public potion on grass east of the south 
   const tile = 64;
   const cellX = Math.floor(MANUAL_QA_GROUND_X / tile);
   const cellY = Math.floor(MANUAL_QA_GROUND_Y / tile);
-  assert.equal(cellX, 36);
-  assert.equal(cellY, 46);
+  assert.equal(cellX, 31);
+  assert.equal(cellY, 44);
   const spawn = content.zones["zone.starter"].playerSpawn;
-  assert.ok(MANUAL_QA_GROUND_X > spawn.x);
-  assert.equal(MANUAL_QA_GROUND_Y, spawn.y);
+  assert.equal(MANUAL_QA_GROUND_X, spawn.x);
+  assert.ok(spawn.y - MANUAL_QA_GROUND_Y >= 120);
+  assert.ok(spawn.y - MANUAL_QA_GROUND_Y <= 220);
+  const zone = content.zones["zone.starter"];
+  const rare = zone.enemies.find(function (enemy) { return enemy.enemyId === "enemy.qa_rare"; }) as { x: number; y: number };
+  const general = zone.enemies.find(function (enemy) { return enemy.enemyId === "enemy.qa_general"; }) as { x: number; y: number };
+  const dxRare = rare.x - spawn.x;
+  const dyRare = rare.y - spawn.y;
+  const dxGen = general.x - spawn.x;
+  const dyGen = general.y - spawn.y;
+  assert.ok(dxRare * dxRare + dyRare * dyRare > 200 * 200);
+  assert.ok(dxGen * dxGen + dyGen * dyGen > 200 * 200);
+  const dxPotionRare = rare.x - MANUAL_QA_GROUND_X;
+  const dyPotionRare = rare.y - MANUAL_QA_GROUND_Y;
+  assert.ok(dxPotionRare * dxPotionRare + dyPotionRare * dyPotionRare > 200 * 200);
 });
 
 test("starter zone places the QA merchant, herb bush, and loot mobs", () => {

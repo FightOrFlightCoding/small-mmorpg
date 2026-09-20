@@ -305,6 +305,22 @@ test("safe return opcode succeeds when idle and reports departed", () => {
   assert.equal(result.safeLeaveUserIds.indexOf("user-alice") !== -1, true);
   const body = JSON.parse(result.outbound.find((item) => item.opcode === 103)!.body);
   assert.equal(body.ok, true);
+  assert.equal(body.departed, true);
+});
+
+test("safe return when already departed still acks success", () => {
+  const state = emptyZone();
+  const result = applyMatchLoop(state, 9, contentHash, [
+    {
+      opcode: ClientOpcode.RETURN_TO_CHARACTER_SELECT,
+      raw: envelope({ requestId: "req-return0003" }),
+      userId: "user-alice",
+    },
+  ]);
+  const body = JSON.parse(result.outbound.find((item) => item.opcode === 103)!.body);
+  assert.equal(body.ok, true);
+  assert.equal(body.departed, true);
+  assert.equal(body.alreadyLeft, true);
 });
 
 test("link-dead join is rejected and empty presence does not rebind", () => {

@@ -999,5 +999,16 @@ Local-play fixtures for the Windows Godot checkout. Not a new ITEM phase.
 - `npc.qa_herb_bush` grants `item.wild_herb` through existing INTERACT + `grantItemFromSource` (`herb_bush`). Duplicate `requestId` replays. A full bag grants nothing.
 - No new opcode. No new storage collection. Content hash changes.
 
+## 2026-09-20 — Live leave, logout position, and south-edge pickup
+
+Playable-client repairs after ITEM-11 QA. Not a new ITEM phase.
+
+- `RETURN_TO_CHARACTER_SELECT` acks are broadcast before any storage persist so Character Select / Log out cannot time out behind inventory writes. Position checkpoints and lease release persist even if later economy writes fail.
+- A second leave after the player is already gone is `ok` + `departed` + `alreadyLeft`, not `player_missing`.
+- Client leave treats `timeout`, `player_missing`, and `departed` as permission to leave the match so the character is not stuck in the world UI.
+- Periodic checkpoints also update active location. Join uses the newer of character position and location, and the join stamp does not pretend to be a newer checkpoint.
+- Camera `limit_bottom` includes a HUD reserve so south-road items are not drawn under the hotbar. The world HUD no longer auto-opens Inventory / Journal / Party / Trade. Right-click through empty bag chrome still picks the nearest in-range ground item.
+- The QA potion sits two tiles north of spawn, in camera center, not under the bag column. QA loot mobs sit east of the village, not on the south pickup strip.
+
 
 

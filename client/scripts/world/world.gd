@@ -34,6 +34,7 @@ var _frame_ms: float = 0.0
 var _ground_preview: Polygon2D
 var _rendered_zone_id: String = ""
 const FRIENDLY_SELECT_RADIUS_PX: float = 56.0
+const HUD_BOTTOM_RESERVE_PX: int = 240
 
 
 func _ready() -> void:
@@ -168,7 +169,7 @@ func _apply_camera_limits(zone: Dictionary) -> void:
 	_camera.limit_left = 0
 	_camera.limit_top = 0
 	_camera.limit_right = width
-	_camera.limit_bottom = height
+	_camera.limit_bottom = height + HUD_BOTTOM_RESERVE_PX
 
 
 func _ensure_ground_preview() -> void:
@@ -191,7 +192,7 @@ func _update_ground_preview() -> void:
 	if radius <= 0.0:
 		radius = 24.0
 	_ground_preview.polygon = _circle_points(radius, 24)
-	_ground_preview.position = get_global_mouse_position()
+	_ground_preview.position = world_mouse_position()
 	_ground_preview.visible = true
 
 
@@ -443,39 +444,43 @@ func pointer_blocks_world_interact(hovered: Control = null) -> bool:
 		if viewport != null:
 			hovered = viewport.gui_get_hovered_control()
 	while hovered != null:
-		if hovered is ItemSlotView or hovered is BagGrid:
-			return true
+		if hovered is ItemSlotView:
+			return not (hovered as ItemSlotView).is_empty()
 		if hovered is LineEdit or hovered is TextEdit or hovered is SpinBox:
 			return true
 		if hovered is ItemList or hovered is OptionButton:
 			return true
 		var named := String(hovered.name)
-		if (
-			named == "Inventory"
-			or named == "Journal"
-			or named == "ListHost"
-			or named == "SlotHost"
-			or named == "GroundDropDialog"
-			or named == "SplitStackDialog"
-		):
+		if named == "GroundDropDialog" or named == "SplitStackDialog":
 			return true
 		hovered = hovered.get_parent() as Control
 	return false
 
 
+func world_mouse_position() -> Vector2:
+	var viewport := get_viewport()
+	if viewport == null:
+		return get_global_mouse_position()
+	return viewport.get_canvas_transform().affine_inverse() * viewport.get_mouse_position()
+
+
 func _try_world_pointer_interact(mouse: InputEventMouseButton) -> bool:
 	if DragDropService.active:
 		return false
+	var world_pos := world_mouse_position()
 	if AbilityService.is_targeting():
 		if mouse.button_index == MOUSE_BUTTON_LEFT:
-			var request_id := AbilityService.confirm_ground_target(get_global_mouse_position())
+			var request_id := AbilityService.confirm_ground_target(world_pos)
 			if not request_id.is_empty():
 				_ability_requests[request_id] = true
 		else:
 			AbilityService.cancel_targeting()
 		return true
 	var pointer_interact := _is_world_interact_button(mouse) or mouse.button_index == MOUSE_BUTTON_LEFT
-	if pointer_interact and try_interact_at(get_global_mouse_position()):
+	if pointer_interact and try_interact_at(world_pos):
+		return true
+	if _is_world_interact_button(mouse):
+		try_pickup()
 		return true
 	if mouse.button_index == MOUSE_BUTTON_LEFT and try_select_friendly_player():
 		return true
@@ -553,7 +558,7 @@ func try_select_friendly_player() -> bool:
 		return false
 	if _entities == null or not AppState.has_zone_state:
 		return false
-	var mouse := get_global_mouse_position()
+	var mouse := world_mouse_position()
 	var self_id := String(AppState.zone_view.get("self_id", _entities.local_server_id))
 	var best_id := ""
 	var best_name := ""

@@ -198,3 +198,16 @@ func test_failed_safe_leave_does_not_logout() -> void:
 	assert_bool(AppState.is_authenticated).is_true()
 	assert_str(SceneRouter.current_scene_id).is_equal(SceneRouter.SCENE_WORLD)
 	assert_str(AppState.last_error_code).is_equal("unsafe_leave")
+
+
+func test_timeout_safe_leave_still_departs() -> void:
+	var fake := _fake()
+	await _boot_and_character(fake)
+	assert_bool(await GameService.enter_starter_zone()).is_true()
+	fake.emit_return_result = false
+	NetworkService.return_ack_timeout_msec = 80
+	await GameService.request_logout()
+	assert_int(fake.leave_calls).is_equal(1)
+	assert_int(fake.logout_calls).is_equal(1)
+	assert_str(NetworkService.match_id).is_equal("")
+	assert_bool(AppState.is_authenticated).is_false()

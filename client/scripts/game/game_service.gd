@@ -318,14 +318,12 @@ func request_return_to_character_select() -> bool:
 	AppState.notify_session_status("Returning to Character Select")
 	AppState.notify_loading_started("return")
 	var result: Dictionary = await NetworkService.send_return_to_character_select()
-	var ok := bool(result.get("ok", false)) and bool(result.get("result_ok", result.get("ok", false)))
-	if not ok:
+	if not _safe_leave_allows_depart(result):
 		_departure_busy = false
 		AppState.departure_locked = false
 		AppState.notify_loading_completed("return")
 		AppState.notify_session_status("Online")
-		var message := AccountErrors.message_for("CHARACTER_SAFE_LEAVE_DENIED")
-		AppState.report_recoverable(String(result.get("code", "unsafe_leave")), message)
+		AppState.report_recoverable(String(result.get("code", "unsafe_leave")), _safe_leave_denied_message(result))
 		return false
 	enter_world_after_bootstrap = false
 	await NetworkService.depart_gameplay()
@@ -348,13 +346,12 @@ func request_logout() -> void:
 		AppState.notify_session_status("Logging out")
 		AppState.notify_loading_started("logout")
 		var result: Dictionary = await NetworkService.send_return_to_character_select()
-		var ok := bool(result.get("ok", false)) and bool(result.get("result_ok", result.get("ok", false)))
-		if not ok:
+		if not _safe_leave_allows_depart(result):
 			_departure_busy = false
 			AppState.departure_locked = false
 			AppState.notify_loading_completed("logout")
 			AppState.notify_session_status("Online")
-			AppState.report_recoverable(String(result.get("code", "unsafe_leave")), AccountErrors.message_for("CHARACTER_SAFE_LEAVE_DENIED"))
+			AppState.report_recoverable(String(result.get("code", "unsafe_leave")), _safe_leave_denied_message(result))
 			return
 		await NetworkService.depart_gameplay()
 		_departure_busy = false
@@ -374,13 +371,12 @@ func request_quit_safely() -> bool:
 	AppState.notify_session_status("Logging out")
 	AppState.notify_loading_started("logout")
 	var result: Dictionary = await NetworkService.send_return_to_character_select()
-	var ok := bool(result.get("ok", false)) and bool(result.get("result_ok", result.get("ok", false)))
-	if not ok:
+	if not _safe_leave_allows_depart(result):
 		_departure_busy = false
 		AppState.departure_locked = false
 		AppState.notify_loading_completed("logout")
 		AppState.notify_session_status("Online")
-		AppState.report_recoverable(String(result.get("code", "unsafe_leave")), AccountErrors.message_for("CHARACTER_SAFE_LEAVE_DENIED"))
+		AppState.report_recoverable(String(result.get("code", "unsafe_leave")), _safe_leave_denied_message(result))
 		return false
 	await NetworkService.depart_gameplay()
 	_departure_busy = false
@@ -388,6 +384,33 @@ func request_quit_safely() -> bool:
 	AppState.notify_loading_completed("logout")
 	get_tree().quit()
 	return true
+
+
+func _safe_leave_allows_depart(result: Dictionary) -> bool:
+	if bool(result.get("departed", false)) or bool(result.get("already_left", false)):
+		return true
+	var code := String(result.get("code", ""))
+	if code == "player_missing" or code == "timeout" or code == "not_in_match":
+		return true
+	return bool(result.get("ok", false)) and bool(result.get("result_ok", result.get("ok", false)))
+
+
+func _safe_leave_denied_message(result: Dictionary) -> String:
+	var message := String(result.get("message", "")).strip_edges()
+	if not message.is_empty():
+		return message
+	var code := String(result.get("code", ""))
+	if code == "in_combat":
+		return "Cannot leave safely while in combat."
+	if code == "dead":
+		return "Cannot leave safely while dead."
+	if code == "casting":
+		return "Cannot leave safely while casting."
+	if code == "trading":
+		return "Cannot leave safely while trading."
+	if code == "link_dead":
+		return "Cannot leave safely while connection is lost."
+	return AccountErrors.message_for("CHARACTER_SAFE_LEAVE_DENIED")
 
 
 func request_quit_anyway() -> void:

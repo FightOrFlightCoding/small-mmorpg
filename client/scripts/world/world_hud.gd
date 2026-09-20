@@ -1685,12 +1685,11 @@ func _ignore_layout_mouse(node: Control) -> void:
 		or node is CheckBox
 		or node is Slider
 		or node is ItemSlotView
-		or node is BagGrid
 	):
 		node.mouse_filter = Control.MOUSE_FILTER_STOP
 		return
 	var named := String(node.name)
-	if named == "Inventory" or named == "Journal" or named == "TargetFrame" or named == "ListHost" or named == "SlotHost":
+	if named == "TargetFrame" or named == "GroundDropDialog" or named == "SplitStackDialog":
 		node.mouse_filter = Control.MOUSE_FILTER_STOP
 		for child in node.get_children():
 			if child is Control:
@@ -1713,7 +1712,6 @@ func _stop_interactive_mouse(node: Control) -> void:
 		or node is CheckBox
 		or node is Slider
 		or node is ItemSlotView
-		or node is BagGrid
 	):
 		node.mouse_filter = Control.MOUSE_FILTER_STOP
 	for child in node.get_children():

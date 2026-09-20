@@ -694,8 +694,8 @@ function handleReturnToCharacterSelect(
 ): void {
   const player = state.players[userId];
   if (player === undefined) {
-    const missing = actionResult("player_missing", false, parsed.requestId);
-    outbound.push({ opcode: missing.opcode, body: missing.body, toUserId: userId });
+    const alreadyLeft = actionResult("ok", true, parsed.requestId, { departed: true, alreadyLeft: true });
+    outbound.push({ opcode: alreadyLeft.opcode, body: alreadyLeft.body, toUserId: userId });
     return;
   }
   const decision = evaluateSafeLeave(player, state);

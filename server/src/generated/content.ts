@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "a9088c443b5353859cc99d6a5b3951e32886fdba034cfedd28dad68c31c1fa22";
+export const contentHash = "160726c49a147a9eb9674fdd8f002c43571ddae1e73cbc8858d77d15c07aedc2";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = ["dialogue.npc.lab_exit","dialogue.npc.lab_inn","dialogue.npc.lab_keeper","dialogue.npc.lab_trainer","dialogue.npc.lab_vendor","npc.lab_exit","npc.lab_inn","npc.lab_keeper","npc.lab_trainer","npc.lab_vendor","quest.lab_tour","spawn.lab.boss","spawn.lab.caster","spawn.lab.melee","spawn.lab.ranged","test.zone.systems_lab","vendor.lab_general"] as const;
 export const content = {
@@ -7956,7 +7956,7 @@ export const content = {
     "kind": "player",
     "maxHealth": 100,
     "moveSpeed": 120,
-    "pickupRange": 40,
+    "pickupRange": 80,
     "visualId": "visual.player"
   },
   "progressionTimelines": {
@@ -8853,8 +8853,8 @@ export const content = {
       "kind": "spawn",
       "respawnDelay": 12,
       "spawnCount": 1,
-      "x": 1936,
-      "y": 2928,
+      "x": 2560,
+      "y": 1552,
       "zoneId": "zone.starter"
     },
     "spawn.starter.qa_rare": {
@@ -8865,8 +8865,8 @@ export const content = {
       "kind": "spawn",
       "respawnDelay": 12,
       "spawnCount": 1,
-      "x": 2096,
-      "y": 2928,
+      "x": 2688,
+      "y": 1424,
       "zoneId": "zone.starter"
     },
     "spawn.starter.test_caster": {
@@ -11541,14 +11541,14 @@ export const content = {
         {
           "enemyId": "enemy.qa_rare",
           "spawnId": "spawn.starter.qa_rare",
-          "x": 2096,
-          "y": 2928
+          "x": 2688,
+          "y": 1424
         },
         {
           "enemyId": "enemy.qa_general",
           "spawnId": "spawn.starter.qa_general",
-          "x": 1936,
-          "y": 2928
+          "x": 2560,
+          "y": 1552
         }
       ],
       "height": 3072,

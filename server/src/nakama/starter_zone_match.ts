@@ -98,7 +98,13 @@ import {
   caveLocation,
   publicWorldLocation,
 } from "../domain/instance";
-import { evaluateJoinPresence, withCheckpoint, withTransferState } from "../domain/location";
+import {
+  bindJoinLocation,
+  chooseJoinCoordinates,
+  evaluateJoinPresence,
+  withCheckpoint,
+  withTransferState,
+} from "../domain/location";
 import { consumeTransferTicket, issueTransferTicket, previewTransferTicket } from "../domain/transfer";
 import { createCaveMatch } from "../rpcs/cave";
 import { findOrCreateStarterZoneMatch } from "./starter_zone_registry";
@@ -499,6 +505,14 @@ export function matchJoin(
       inventory,
       zone.itemsById,
     );
+    const location = readActiveLocation(nk, presence.userId, character.characterId);
+    const joinAt = chooseJoinCoordinates(
+      character.position,
+      typeof character.updatedAt === "number" ? character.updatedAt : 0,
+      location,
+    );
+    const joinX = joinAt.x;
+    const joinY = joinAt.y;
     const player: MatchPlayer = {
       userId: presence.userId,
       sessionId: presence.sessionId,
@@ -506,8 +520,8 @@ export function matchJoin(
       characterId: character.characterId,
       name: character.name,
       classId: classId,
-      x: spawnX(zone, character.position.x),
-      y: spawnY(zone, character.position.y),
+      x: spawnX(zone, joinX),
+      y: spawnY(zone, joinY),
       maxHealth: content.player.maxHealth,
       health: joinHealth(content.player.maxHealth),
       lastProcessedSeq: 0,
@@ -521,8 +535,8 @@ export function matchJoin(
       gold: gold,
       progression: progression.progression,
       lastCheckpointTick: tick,
-      lastCheckpointX: spawnX(zone, character.position.x),
-      lastCheckpointY: spawnY(zone, character.position.y),
+      lastCheckpointX: spawnX(zone, joinX),
+      lastCheckpointY: spawnY(zone, joinY),
       bindX: character.bindX,
       bindY: character.bindY,
       bindZoneId: character.bindZoneId,
@@ -793,25 +807,53 @@ export function matchLoop(
   if (tickMs > SLOW_TICK_MS) {
     logger.warn(formatOpsLog("slow_tick", { tick: tick, ms: tickMs, messages: incoming.length }));
   }
-  for (let p = 0; p < result.persistQuests.length; p++) {
-    const persist = result.persistQuests[p];
-    writeQuests(nk, persist.userId, persist.log, persist.characterId);
-    logger.info(formatOpsLog("quest_reward", { user_id: persist.userId }));
+  for (let i = 0; i < result.outbound.length; i++) {
+    const out = result.outbound[i];
+    const targets = resolveTargets(state.presences, out.toUserId, out.broadcastOthersFrom);
+    if (targets !== null && targets.length === 0) {
+      continue;
+    }
+    dispatcher.broadcastMessage(out.opcode, out.body, targets, null, true);
   }
-  persistEconomy(nk, logger, tick, result.persistInventories, result.persistEquipment, result.persistOverflows);
-  for (let t = 0; t < result.persistTrades.length; t++) {
-    writeTrade(nk, result.persistTrades[t]);
-    logger.info(formatOpsLog("trade_complete", { trade_id: result.persistTrades[t].tradeId }));
+  try {
+    if (result.state.instanceType !== "party_cave") {
+      writeCheckpoints(nk, logger, result.persistCheckpoints);
+    }
+    applyLeaseLifecycle(nk, logger, result.safeLeaveUserIds, result.linkDeadDespawnUserIds);
+  } catch (checkpointError) {
+    incrementCounter("matchLoopErrors");
+    logger.error(
+      formatOpsLog("match_checkpoint_error", {
+        reason: checkpointError instanceof Error ? checkpointError.message : "internal_error",
+        tick: tick,
+      }),
+    );
   }
-  for (let pg = 0; pg < result.persistProgression.length; pg++) {
-    const persist = result.persistProgression[pg];
-    writeProgression(nk, persist.userId, persist.progression, persist.characterId);
-    logger.info("starter_zone persist progression user_id=%s", persist.userId);
+  try {
+    for (let p = 0; p < result.persistQuests.length; p++) {
+      const persist = result.persistQuests[p];
+      writeQuests(nk, persist.userId, persist.log, persist.characterId);
+      logger.info(formatOpsLog("quest_reward", { user_id: persist.userId }));
+    }
+    persistEconomy(nk, logger, tick, result.persistInventories, result.persistEquipment, result.persistOverflows);
+    for (let t = 0; t < result.persistTrades.length; t++) {
+      writeTrade(nk, result.persistTrades[t]);
+      logger.info(formatOpsLog("trade_complete", { trade_id: result.persistTrades[t].tradeId }));
+    }
+    for (let pg = 0; pg < result.persistProgression.length; pg++) {
+      const persist = result.persistProgression[pg];
+      writeProgression(nk, persist.userId, persist.progression, persist.characterId);
+      logger.info("starter_zone persist progression user_id=%s", persist.userId);
+    }
+  } catch (persistError) {
+    incrementCounter("matchLoopErrors");
+    logger.error(
+      formatOpsLog("match_persist_error", {
+        reason: persistError instanceof Error ? persistError.message : "internal_error",
+        tick: tick,
+      }),
+    );
   }
-  if (result.state.instanceType !== "party_cave") {
-    writeCheckpoints(nk, logger, result.persistCheckpoints);
-  }
-  applyLeaseLifecycle(nk, logger, result.safeLeaveUserIds, result.linkDeadDespawnUserIds);
   processCaveTransfers(nk, logger, dispatcher, ctx, state.presences, result);
   if (result.caveCompletionChanged && result.state.instanceType === "party_cave" && result.state.instanceId !== undefined) {
     const repo = nakamaCaveRepository(nk);
@@ -842,14 +884,6 @@ export function matchLoop(
       dispatcher.broadcastMessage(notice.opcode, notice.body, null, null, true);
       state.lastMaintenanceWarnTick = tick;
     }
-  }
-  for (let i = 0; i < result.outbound.length; i++) {
-    const out = result.outbound[i];
-    const targets = resolveTargets(state.presences, out.toUserId, out.broadcastOthersFrom);
-    if (targets !== null && targets.length === 0) {
-      continue;
-    }
-    dispatcher.broadcastMessage(out.opcode, out.body, targets, null, true);
   }
   if (result.terminate) {
     const leftoverIds = Object.keys(dict(result.state.players)).concat(Object.keys(dict(result.state.disconnected)));
@@ -1129,6 +1163,7 @@ function commitJoinLocation(
   matchId: string,
 ): void {
   const nowMs = Date.now();
+  const existing = readActiveLocation(nk, userId, characterId);
   if (zone.instanceType === "party_cave" && zone.instanceId !== undefined) {
     const record = nakamaCaveRepository(nk).getCave(zone.instanceId);
     if (record !== null) {
@@ -1137,7 +1172,10 @@ function commitJoinLocation(
       return;
     }
   }
-  writeActiveLocation(nk, publicWorldLocation(matchId, characterId, userId, player.x, player.y, nowMs));
+  writeActiveLocation(
+    nk,
+    bindJoinLocation(existing, publicWorldLocation(matchId, characterId, userId, player.x, player.y, nowMs)),
+  );
 }
 
 function touchCaveOccupancy(nk: nkruntime.Nakama, zone: StarterZoneState): void {
@@ -1635,6 +1673,10 @@ function writeCheckpoints(
           }
         : undefined,
     );
+    const location = readActiveLocation(nk, checkpoint.userId, checkpoint.characterId);
+    if (location !== null) {
+      writeActiveLocation(nk, withCheckpoint(location, checkpoint.x, checkpoint.y, Date.now()));
+    }
     logger.info("starter_zone persist checkpoint user_id=%s", checkpoint.userId);
   }
 }

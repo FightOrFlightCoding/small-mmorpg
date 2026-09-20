@@ -3,7 +3,7 @@ extends WorldAvatar
 
 ## Presentation-only public ground item. The server owns range, pickup, and collision (none).
 
-const CLICK_RADIUS := 48.0
+const CLICK_RADIUS := 72.0
 
 var rarity_label: String = ""
 var item_id: String = ""

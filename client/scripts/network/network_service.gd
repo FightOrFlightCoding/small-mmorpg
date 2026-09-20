@@ -70,6 +70,7 @@ var _join_in_progress: bool = false
 var _pending_reconnect: bool = false
 var _pending_return_request_id: String = ""
 var _pending_return_result: Dictionary = {}
+var return_ack_timeout_msec: int = 8000
 var reconnect_policy: ReconnectPolicy = ReconnectPolicy.new()
 
 
@@ -1077,7 +1078,10 @@ func send_return_to_character_select(request_id: String = "") -> Dictionary:
 	if not bool(sent.get("ok", false)):
 		_pending_return_request_id = ""
 		return sent
-	var deadline := Time.get_ticks_msec() + 5000
+	var timeout_msec := return_ack_timeout_msec
+	if timeout_msec < 50:
+		timeout_msec = 50
+	var deadline := Time.get_ticks_msec() + timeout_msec
 	while Time.get_ticks_msec() < deadline:
 		if not _pending_return_result.is_empty():
 			var result: Dictionary = _pending_return_result.duplicate(true)
@@ -1087,6 +1091,17 @@ func send_return_to_character_select(request_id: String = "") -> Dictionary:
 		await get_tree().process_frame
 	_pending_return_request_id = ""
 	return {"ok": false, "code": "timeout", "message": "The server did not confirm departure."}
+
+
+func _pending_return_matches(action: Dictionary) -> bool:
+	if _pending_return_request_id.is_empty():
+		return false
+	var request_id := String(action.get("request_id", action.get("requestId", "")))
+	if request_id == _pending_return_request_id:
+		return true
+	if bool(action.get("departed", false)) or bool(action.get("already_left", false)):
+		return true
+	return String(action.get("code", "")) == "player_missing"
 
 
 func _send_trade_id(opcode: int, trade_id: String, request_id: String) -> Dictionary:
@@ -1638,6 +1653,7 @@ func reset_for_tests() -> void:
 	_pending_reconnect = false
 	_pending_return_request_id = ""
 	_pending_return_result = {}
+	return_ack_timeout_msec = 8000
 	reconnect_policy = ReconnectPolicy.new()
 	_device_id = ""
 	_username = ""
@@ -1815,8 +1831,7 @@ func _on_match_state(opcode: int, payload: String) -> void:
 		return
 	if opcode == MatchProtocol.SERVER_ACTION_RESULT:
 		var action: Dictionary = MatchProtocol.parse_action_result(payload)
-		var request_id := String(action.get("request_id", action.get("requestId", "")))
-		if not _pending_return_request_id.is_empty() and request_id == _pending_return_request_id:
+		if _pending_return_matches(action):
 			_pending_return_result = action
 			action_result_received.emit(action)
 			return

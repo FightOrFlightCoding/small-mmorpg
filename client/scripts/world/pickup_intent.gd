@@ -6,7 +6,7 @@ extends RefCounted
 
 static func pickup_range() -> float:
 	var player: Dictionary = ContentRegistry.get_by_id("player.base")
-	return float(player.get("pickupRange", 40.0))
+	return float(player.get("pickupRange", 80.0))
 
 
 static func nearest_loot_id(player_pos: Vector2, loot: Array, range_px: float = -1.0) -> String:

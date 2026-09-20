@@ -24,7 +24,7 @@ position = Vector2(2016, 2712)
 limit_left = 0
 limit_top = 0
 limit_right = 4096
-limit_bottom = 3072
+limit_bottom = 3312
 
 [node name="WorldHud" parent="." instance=ExtResource("4_hud")]
 
