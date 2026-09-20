@@ -128,7 +128,7 @@ func _finish_from_pointer() -> void:
 	var dest := slot_under_cursor()
 	var moved := _cursor().distance_to(start_position) >= 6.0
 	if dest == null:
-		if moved:
+		if moved and not _pointer_over_hud():
 			InventoryService.handle_world_drop(current, _cursor() - start_position)
 		else:
 			cancel()
@@ -159,6 +159,33 @@ func _hide_ghost() -> void:
 		_layer.visible = false
 	if _ghost_icon != null:
 		_ghost_icon.texture = null
+
+
+func _pointer_over_hud() -> bool:
+	var viewport := get_viewport()
+	if viewport == null:
+		return false
+	var hovered := viewport.gui_get_hovered_control()
+	if hovered == null:
+		return false
+	var node: Node = hovered
+	while node != null:
+		if (
+			node is ItemSlotView
+			or node is BagGrid
+			or node is Button
+			or node is LineEdit
+			or node is ItemList
+			or node is OptionButton
+			or node is SpinBox
+		):
+			return true
+		if node is PanelContainer or node is Panel:
+			return true
+		if node is CanvasLayer and (node as CanvasLayer).layer > 12:
+			return true
+		node = node.get_parent()
+	return false
 
 
 func _cursor() -> Vector2:

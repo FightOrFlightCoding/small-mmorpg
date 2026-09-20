@@ -2,7 +2,7 @@
 export const packageId = "vibecode.foundation";
 export const packageVersion = "1.0.0";
 export const schemaVersion = 1;
-export const contentHash = "970b28819155ae6623a9f343a55aee963ebba90b0472925a4df9e4fc2c8ec9da";
+export const contentHash = "a9088c443b5353859cc99d6a5b3951e32886fdba034cfedd28dad68c31c1fa22";
 export const minimumProtocolVersion = 1;
 export const developmentOnly = ["dialogue.npc.lab_exit","dialogue.npc.lab_inn","dialogue.npc.lab_keeper","dialogue.npc.lab_trainer","dialogue.npc.lab_vendor","npc.lab_exit","npc.lab_inn","npc.lab_keeper","npc.lab_trainer","npc.lab_vendor","quest.lab_tour","spawn.lab.boss","spawn.lab.caster","spawn.lab.melee","spawn.lab.ranged","test.zone.systems_lab","vendor.lab_general"] as const;
 export const content = {
@@ -7725,15 +7725,15 @@ export const content = {
       "displayName": "Herb Bush",
       "displayNameKey": "npc.qa_herb_bush.name",
       "homePosition": {
-        "x": 1944,
-        "y": 2896
+        "x": 1984,
+        "y": 2944
       },
       "id": "npc.qa_herb_bush",
-      "interactionRange": 48,
+      "interactionRange": 96,
       "kind": "npc",
       "position": {
-        "x": 1944,
-        "y": 2896
+        "x": 1984,
+        "y": 2944
       },
       "routeId": "route.stationary",
       "services": [
@@ -7755,15 +7755,15 @@ export const content = {
       "displayName": "QA Merchant",
       "displayNameKey": "npc.qa_merchant.name",
       "homePosition": {
-        "x": 2088,
-        "y": 2896
+        "x": 2048,
+        "y": 2944
       },
       "id": "npc.qa_merchant",
-      "interactionRange": 48,
+      "interactionRange": 96,
       "kind": "npc",
       "position": {
-        "x": 2088,
-        "y": 2896
+        "x": 2048,
+        "y": 2944
       },
       "routeId": "route.stationary",
       "services": [
@@ -8853,8 +8853,8 @@ export const content = {
       "kind": "spawn",
       "respawnDelay": 12,
       "spawnCount": 1,
-      "x": 1832,
-      "y": 2864,
+      "x": 1936,
+      "y": 2928,
       "zoneId": "zone.starter"
     },
     "spawn.starter.qa_rare": {
@@ -8865,8 +8865,8 @@ export const content = {
       "kind": "spawn",
       "respawnDelay": 12,
       "spawnCount": 1,
-      "x": 2200,
-      "y": 2864,
+      "x": 2096,
+      "y": 2928,
       "zoneId": "zone.starter"
     },
     "spawn.starter.test_caster": {
@@ -11541,14 +11541,14 @@ export const content = {
         {
           "enemyId": "enemy.qa_rare",
           "spawnId": "spawn.starter.qa_rare",
-          "x": 2200,
-          "y": 2864
+          "x": 2096,
+          "y": 2928
         },
         {
           "enemyId": "enemy.qa_general",
           "spawnId": "spawn.starter.qa_general",
-          "x": 1832,
-          "y": 2864
+          "x": 1936,
+          "y": 2928
         }
       ],
       "height": 3072,
@@ -11617,13 +11617,13 @@ export const content = {
         },
         {
           "npcId": "npc.qa_merchant",
-          "x": 2088,
-          "y": 2896
+          "x": 2048,
+          "y": 2944
         },
         {
           "npcId": "npc.qa_herb_bush",
-          "x": 1944,
-          "y": 2896
+          "x": 1984,
+          "y": 2944
         }
       ],
       "playerSpawn": {

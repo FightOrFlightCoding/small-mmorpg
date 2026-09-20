@@ -22,12 +22,14 @@ anchor_right = 1.0
 offset_right = -336.0
 offset_bottom = 148.0
 grow_horizontal = 2
+mouse_filter = 2
 theme_override_constants/margin_left = 16
 theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 16
 
 [node name="VBox" type="VBoxContainer" parent="Root/Margin"]
 layout_mode = 2
+mouse_filter = 2
 theme_override_constants/separation = 6
 
 [node name="Status" type="Label" parent="Root/Margin/VBox"]
@@ -116,7 +118,7 @@ offset_top = 156.0
 offset_right = 336.0
 offset_bottom = -16.0
 grow_vertical = 0
-mouse_filter = 0
+mouse_filter = 2
 theme_override_constants/separation = 8
 clip_contents = true
 

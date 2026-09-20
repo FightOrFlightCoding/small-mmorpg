@@ -14,12 +14,13 @@ func _ready() -> void:
 	columns = COLUMNS
 	add_theme_constant_override("h_separation", 2)
 	add_theme_constant_override("v_separation", 2)
-	mouse_filter = Control.MOUSE_FILTER_PASS
+	mouse_filter = Control.MOUSE_FILTER_STOP
 	custom_minimum_size = Vector2(COLUMNS * (ItemSlotView.SLOT_SIZE + 2), ROWS * (ItemSlotView.SLOT_SIZE + 2))
 	_ensure_slots()
 	refresh()
 	WindowManager.connect_once(InventoryService.inventory_changed, refresh)
 	WindowManager.connect_once(InventoryService.pending_changed, refresh)
+	WindowManager.connect_once(InventoryService.selection_changed, refresh)
 
 
 func _exit_tree() -> void:
@@ -27,6 +28,8 @@ func _exit_tree() -> void:
 		InventoryService.inventory_changed.disconnect(refresh)
 	if InventoryService.pending_changed.is_connected(refresh):
 		InventoryService.pending_changed.disconnect(refresh)
+	if InventoryService.selection_changed.is_connected(refresh):
+		InventoryService.selection_changed.disconnect(refresh)
 
 
 func slot_at(index: int) -> ItemSlotView:
@@ -61,6 +64,7 @@ func _ensure_slots() -> void:
 		view.origin_kind = "bag"
 		view.slot_index = index
 		view.slot_pressed.connect(_on_slot_pressed)
+		view.slot_drag_begun.connect(_on_slot_drag_begun)
 		view.slot_activated.connect(_on_slot_activated)
 		view.slot_right_clicked.connect(_on_slot_right_clicked)
 		add_child(view)
@@ -69,6 +73,10 @@ func _ensure_slots() -> void:
 
 func _on_slot_pressed(slot: ItemSlotView) -> void:
 	InventoryService.handle_slot_pressed(slot)
+
+
+func _on_slot_drag_begun(slot: ItemSlotView) -> void:
+	InventoryService.handle_slot_drag_begun(slot)
 
 
 func _on_slot_activated(slot: ItemSlotView) -> void:

@@ -502,7 +502,7 @@ func join_starter_zone() -> bool:
 func send_input(seq: int, axis_x: float, axis_y: float) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_INPUT,
 		MoveIntent.payload_json(seq, Vector2(axis_x, axis_y))
 	)
@@ -511,7 +511,7 @@ func send_input(seq: int, axis_x: float, axis_y: float) -> Dictionary:
 func send_interact(target_id: String, request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_INTERACT,
 		MatchProtocol.client_envelope_json({"targetId": target_id, "requestId": request_id})
 	)
@@ -520,7 +520,7 @@ func send_interact(target_id: String, request_id: String) -> Dictionary:
 func send_dialogue_choose(session_id: String, option_id: String, request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_DIALOGUE_CHOOSE,
 		MatchProtocol.client_envelope_json({
 			"interactionSessionId": session_id,
@@ -533,7 +533,7 @@ func send_dialogue_choose(session_id: String, option_id: String, request_id: Str
 func send_interaction_close(session_id: String, npc_instance_id: String, request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_INTERACTION_CLOSE,
 		MatchProtocol.client_envelope_json({
 			"interactionSessionId": session_id,
@@ -549,7 +549,7 @@ func send_quest_accept(quest_id: String, request_id: String = "", session_id: St
 	var rid := request_id
 	if rid.is_empty():
 		rid = MatchProtocol.new_request_id()
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_QUEST_ACCEPT,
 		MatchProtocol.client_envelope_json({
 			"questId": quest_id,
@@ -573,7 +573,7 @@ func send_quest_turn_in(quest_id: String, npc_id: String, request_id: String = "
 		"requestId": rid,
 	}
 	_attach_expected_revision(extra)
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_QUEST_TURN_IN,
 		MatchProtocol.client_envelope_json(extra)
 	)
@@ -582,7 +582,7 @@ func send_quest_turn_in(quest_id: String, npc_id: String, request_id: String = "
 func send_attack(target_id: String, request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_ATTACK,
 		MatchProtocol.client_envelope_json({"targetId": target_id, "requestId": request_id})
 	)
@@ -593,7 +593,7 @@ func send_pickup(loot_id: String, request_id: String, expected_revision: int = -
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
 	var extra: Dictionary = {"lootId": loot_id, "requestId": request_id}
 	_attach_expected_revision(extra, expected_revision)
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_PICKUP,
 		MatchProtocol.client_envelope_json(extra)
 	)
@@ -602,7 +602,7 @@ func send_pickup(loot_id: String, request_id: String, expected_revision: int = -
 func send_open_corpse(corpse_id: String, request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_OPEN_CORPSE,
 		MatchProtocol.client_envelope_json({"corpseId": corpse_id, "requestId": request_id})
 	)
@@ -611,7 +611,7 @@ func send_open_corpse(corpse_id: String, request_id: String) -> Dictionary:
 func send_close_corpse(corpse_id: String, request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_CLOSE_CORPSE,
 		MatchProtocol.client_envelope_json({"corpseId": corpse_id, "requestId": request_id})
 	)
@@ -624,7 +624,7 @@ func send_claim_corpse_item(corpse_id: String, entry_id: String, request_id: Str
 	_attach_expected_revision(extra, expected_revision)
 	if to_slot_index >= 0:
 		extra["toSlotIndex"] = to_slot_index
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_CLAIM_CORPSE_ITEM,
 		MatchProtocol.client_envelope_json(extra)
 	)
@@ -633,7 +633,7 @@ func send_claim_corpse_item(corpse_id: String, entry_id: String, request_id: Str
 func send_claim_corpse_gold(corpse_id: String, request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_CLAIM_CORPSE_GOLD,
 		MatchProtocol.client_envelope_json({"corpseId": corpse_id, "requestId": request_id})
 	)
@@ -644,7 +644,7 @@ func send_loot_all_corpse(corpse_id: String, request_id: String, expected_revisi
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
 	var extra: Dictionary = {"corpseId": corpse_id, "requestId": request_id}
 	_attach_expected_revision(extra, expected_revision)
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_LOOT_ALL_CORPSE,
 		MatchProtocol.client_envelope_json(extra)
 	)
@@ -653,7 +653,7 @@ func send_loot_all_corpse(corpse_id: String, request_id: String, expected_revisi
 func send_submit_loot_roll(roll_id: String, choice: String, request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_SUBMIT_LOOT_ROLL,
 		MatchProtocol.client_envelope_json({"rollId": roll_id, "choice": choice, "requestId": request_id})
 	)
@@ -676,7 +676,7 @@ func send_drop_item(
 		extra["hintDx"] = hint_dx
 		extra["hintDy"] = hint_dy
 	_attach_expected_revision(extra, expected_revision)
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_DROP_ITEM,
 		MatchProtocol.client_envelope_json(extra)
 	)
@@ -687,7 +687,7 @@ func send_pickup_ground_item(ground_entity_id: String, request_id: String, expec
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
 	var extra: Dictionary = {"groundEntityId": ground_entity_id, "requestId": request_id}
 	_attach_expected_revision(extra, expected_revision)
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_PICKUP_GROUND_ITEM,
 		MatchProtocol.client_envelope_json(extra)
 	)
@@ -700,7 +700,7 @@ func send_equip(instance_id: String, slot: String, request_id: String, expected_
 	if not instance_id.is_empty():
 		extra["instanceId"] = instance_id
 	_attach_expected_revision(extra, expected_revision)
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_EQUIP,
 		MatchProtocol.client_envelope_json(extra)
 	)
@@ -713,7 +713,7 @@ func send_destroy_item(instance_id: String, request_id: String, quantity: int = 
 	if quantity >= 1:
 		extra["quantity"] = quantity
 	_attach_expected_revision(extra, expected_revision)
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_DESTROY_ITEM,
 		MatchProtocol.client_envelope_json(extra)
 	)
@@ -728,7 +728,7 @@ func send_split_stack(instance_id: String, quantity: int, request_id: String, ex
 		"requestId": request_id,
 	}
 	_attach_expected_revision(extra, expected_revision)
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_SPLIT_STACK,
 		MatchProtocol.client_envelope_json(extra)
 	)
@@ -743,7 +743,7 @@ func send_move_item(instance_id: String, to_slot_index: int, request_id: String,
 		"requestId": request_id,
 	}
 	_attach_expected_revision(extra, expected_revision)
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_MOVE_ITEM,
 		MatchProtocol.client_envelope_json(extra)
 	)
@@ -756,7 +756,7 @@ func send_recover_overflow_item(instance_id: String, request_id: String, to_slot
 	if to_slot_index >= 0:
 		extra["toSlotIndex"] = to_slot_index
 	_attach_expected_revision(extra, expected_revision)
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_RECOVER_OVERFLOW_ITEM,
 		MatchProtocol.client_envelope_json(extra)
 	)
@@ -765,7 +765,7 @@ func send_recover_overflow_item(instance_id: String, request_id: String, to_slot
 func send_allocate_attributes(attribute_id: String, amount: int, request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_ALLOCATE_ATTRIBUTES,
 		MatchProtocol.client_envelope_json({
 			"attributeId": attribute_id,
@@ -778,7 +778,7 @@ func send_allocate_attributes(attribute_id: String, amount: int, request_id: Str
 func send_allocate_attributes_batch(allocations: Array, request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_ALLOCATE_ATTRIBUTES_BATCH,
 		MatchProtocol.client_envelope_json({
 			"allocations": allocations,
@@ -790,7 +790,7 @@ func send_allocate_attributes_batch(allocations: Array, request_id: String) -> D
 func send_trainer_respec(npc_id: String, request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_TRAINER_RESPEC,
 		MatchProtocol.client_envelope_json({
 			"npcId": npc_id,
@@ -802,7 +802,7 @@ func send_trainer_respec(npc_id: String, request_id: String) -> Dictionary:
 func send_purchase_talent(tree_id: String, node_id: String, requested_rank: int, request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_PURCHASE_TALENT,
 		MatchProtocol.client_envelope_json({
 			"treeId": tree_id,
@@ -816,7 +816,7 @@ func send_purchase_talent(tree_id: String, node_id: String, requested_rank: int,
 func send_select_branch(branch_id: String, request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_SELECT_BRANCH,
 		MatchProtocol.client_envelope_json({
 			"branchId": branch_id,
@@ -828,7 +828,7 @@ func send_select_branch(branch_id: String, request_id: String) -> Dictionary:
 func send_set_auto_assign(enabled: bool, request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_SET_AUTO_ASSIGN,
 		MatchProtocol.client_envelope_json({
 			"enabled": enabled,
@@ -840,7 +840,7 @@ func send_set_auto_assign(enabled: bool, request_id: String) -> Dictionary:
 func send_auto_assign_unspent_points(request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_AUTO_ASSIGN_UNSPENT_POINTS,
 		MatchProtocol.client_envelope_json({"requestId": request_id})
 	)
@@ -849,7 +849,7 @@ func send_auto_assign_unspent_points(request_id: String) -> Dictionary:
 func send_use_ability(extra: Dictionary) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_USE_ABILITY,
 		MatchProtocol.client_envelope_json(extra)
 	)
@@ -858,7 +858,7 @@ func send_use_ability(extra: Dictionary) -> Dictionary:
 func send_cancel_cast(request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_CANCEL_CAST,
 		MatchProtocol.client_envelope_json({"requestId": request_id})
 	)
@@ -870,7 +870,7 @@ func send_assign_hotbar(slot_index: int, ability_id: String, request_id: String)
 	var extra: Dictionary = {"slotIndex": slot_index, "requestId": request_id}
 	if not ability_id.is_empty():
 		extra["abilityId"] = ability_id
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_ASSIGN_HOTBAR,
 		MatchProtocol.client_envelope_json(extra)
 	)
@@ -879,7 +879,7 @@ func send_assign_hotbar(slot_index: int, ability_id: String, request_id: String)
 func send_unlock_ability(ability_id: String, request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_UNLOCK_ABILITY,
 		MatchProtocol.client_envelope_json({"abilityId": ability_id, "requestId": request_id})
 	)
@@ -893,7 +893,7 @@ func send_set_target(target_id: String, request_id: String, intent: String = "")
 		extra["targetId"] = target_id
 	if not intent.is_empty():
 		extra["intent"] = intent
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_SET_TARGET,
 		MatchProtocol.client_envelope_json(extra)
 	)
@@ -902,7 +902,7 @@ func send_set_target(target_id: String, request_id: String, intent: String = "")
 func send_release_respawn(request_id: String) -> Dictionary:
 	if match_id.is_empty():
 		return {"ok": false, "code": "not_in_match", "message": "Not in a match."}
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_RELEASE_RESPAWN,
 		MatchProtocol.client_envelope_json({"requestId": request_id})
 	)
@@ -924,7 +924,7 @@ func send_vendor_buy(session_id: String, vendor_id: String, stock_entry_id: Stri
 	if preferred_slot >= 0:
 		extra["preferredSlot"] = preferred_slot
 	_attach_expected_revision(extra)
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_VENDOR_BUY,
 		MatchProtocol.client_envelope_json(extra)
 	)
@@ -940,7 +940,7 @@ func send_vendor_sell(npc_id: String, instance_id: String, quantity: int = 0, re
 	if quantity > 0:
 		extra["quantity"] = quantity
 	_attach_expected_revision(extra)
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_VENDOR_SELL,
 		MatchProtocol.client_envelope_json(extra)
 	)
@@ -955,7 +955,7 @@ func send_inn_rest(npc_id: String, mode: String = "", request_id: String = "") -
 	var extra: Dictionary = {"npcId": npc_id, "requestId": rid}
 	if not mode.is_empty():
 		extra["mode"] = mode
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_INN_REST,
 		MatchProtocol.client_envelope_json(extra)
 	)
@@ -967,7 +967,7 @@ func send_cave_enter(npc_id: String, request_id: String = "") -> Dictionary:
 	var rid := request_id
 	if rid.is_empty():
 		rid = MatchProtocol.new_request_id()
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_CAVE_ENTER,
 		MatchProtocol.client_envelope_json({"npcId": npc_id, "requestId": rid})
 	)
@@ -979,7 +979,7 @@ func send_cave_exit(npc_id: String, request_id: String = "") -> Dictionary:
 	var rid := request_id
 	if rid.is_empty():
 		rid = MatchProtocol.new_request_id()
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_CAVE_EXIT,
 		MatchProtocol.client_envelope_json({"npcId": npc_id, "requestId": rid})
 	)
@@ -991,7 +991,7 @@ func send_trade_invite(target_id: String, request_id: String = "") -> Dictionary
 	var rid := request_id
 	if rid.is_empty():
 		rid = MatchProtocol.new_request_id()
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_TRADE_INVITE,
 		MatchProtocol.client_envelope_json({"targetId": target_id, "requestId": rid})
 	)
@@ -1016,7 +1016,7 @@ func send_trade_set_offer(trade_id: String, instance_id: String, quantity: int =
 		extra["quantity"] = quantity
 	if slot_index >= 0:
 		extra["slotIndex"] = slot_index
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_TRADE_SET_OFFER,
 		MatchProtocol.client_envelope_json(extra)
 	)
@@ -1028,7 +1028,7 @@ func send_trade_remove_offer(trade_id: String, instance_id: String, request_id: 
 	var rid := request_id
 	if rid.is_empty():
 		rid = MatchProtocol.new_request_id()
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_TRADE_REMOVE_OFFER,
 		MatchProtocol.client_envelope_json({"tradeId": trade_id, "instanceId": instance_id, "requestId": rid})
 	)
@@ -1040,7 +1040,7 @@ func send_trade_set_gold(trade_id: String, amount: int, request_id: String = "")
 	var rid := request_id
 	if rid.is_empty():
 		rid = MatchProtocol.new_request_id()
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_TRADE_SET_GOLD,
 		MatchProtocol.client_envelope_json({"tradeId": trade_id, "amount": amount, "requestId": rid})
 	)
@@ -1052,7 +1052,7 @@ func send_trade_accept_revision(trade_id: String, revision: int, request_id: Str
 	var rid := request_id
 	if rid.is_empty():
 		rid = MatchProtocol.new_request_id()
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		MatchProtocol.CLIENT_TRADE_ACCEPT_REVISION,
 		MatchProtocol.client_envelope_json({"tradeId": trade_id, "revision": revision, "requestId": rid})
 	)
@@ -1070,7 +1070,7 @@ func send_return_to_character_select(request_id: String = "") -> Dictionary:
 		rid = MatchProtocol.new_request_id()
 	_pending_return_request_id = rid
 	_pending_return_result = {}
-	var sent: Dictionary = await _backend().send_match_state(
+	var sent: Dictionary = _backend().send_match_state(
 		MatchProtocol.CLIENT_RETURN_TO_CHARACTER_SELECT,
 		MatchProtocol.client_envelope_json({"requestId": rid})
 	)
@@ -1095,7 +1095,7 @@ func _send_trade_id(opcode: int, trade_id: String, request_id: String) -> Dictio
 	var rid := request_id
 	if rid.is_empty():
 		rid = MatchProtocol.new_request_id()
-	return await _backend().send_match_state(
+	return _backend().send_match_state(
 		opcode,
 		MatchProtocol.client_envelope_json({"tradeId": trade_id, "requestId": rid})
 	)
@@ -1366,7 +1366,7 @@ func request_resync() -> bool:
 		AppState.report_recoverable("not_in_match", "Join the starter zone before requesting a resync.")
 		return false
 	_got_full_state = false
-	var sent: Dictionary = await _backend().send_match_state(
+	var sent: Dictionary = _backend().send_match_state(
 		MatchProtocol.CLIENT_RESYNC_REQUEST,
 		MatchProtocol.client_envelope_json()
 	)

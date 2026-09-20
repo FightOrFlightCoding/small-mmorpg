@@ -158,7 +158,9 @@ func leave_match() -> void:
 func send_match_state(opcode: int, payload: String) -> Dictionary:
 	if _socket == null or _match_id.is_empty():
 		return _fail("not_in_match", "Not in a match.")
-	var _ignored: NakamaAsyncResult = await _socket.send_match_state_async(_match_id, opcode, payload)
+	# The SDK sends on this call. Do not await: unawaited caller coroutines
+	# (world interact, bag move, equip) would otherwise drop the remainder.
+	_socket.send_match_state_async(_match_id, opcode, payload)
 	return {"ok": true}
 
 

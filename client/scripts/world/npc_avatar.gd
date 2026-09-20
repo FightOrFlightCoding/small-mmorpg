@@ -28,6 +28,10 @@ func configure(p_kind: String, p_server_id: String, p_name: String, visual: Dict
 	_apply_interaction_radius(p_server_id)
 
 
+func apply_catalog_id(npc_id: String) -> void:
+	_apply_interaction_radius(npc_id)
+
+
 func marker_anchor() -> Node2D:
 	if _marker_anchor == null:
 		_marker_anchor = get_node_or_null("MarkerAnchor") as Node2D

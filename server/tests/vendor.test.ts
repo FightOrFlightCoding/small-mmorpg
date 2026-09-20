@@ -11,7 +11,7 @@ import {
 import { emptyQuestLog, questDefinitionsFromContent } from "../src/domain/quest";
 import { npcDefinitionsFromContent } from "../src/domain/npc";
 import { dialogueDefinitionsFromContent } from "../src/domain/dialogue";
-import { vendorDefinitionsFromContent } from "../src/domain/vendor";
+import { vendorDefinitionsFromContent, vendorShopPresentation } from "../src/domain/vendor";
 import {
   addOrStackItem,
   emptyInventory,
@@ -163,6 +163,20 @@ test("equipped items cannot be sold", () => {
   ]);
   assert.equal(actions(result)[0].ok, false);
   assert.equal(actions(result)[0].code, "item_locked");
+});
+
+test("vendor shop presentation survives missing quantity constraints", () => {
+  const vendors = vendorDefinitionsFromContent(content.vendors);
+  const npcs = npcDefinitionsFromContent(content.npcs);
+  const shop = vendorShopPresentation(npcs["npc.qa_merchant"], vendors);
+  assert.ok(shop !== undefined);
+  assert.equal(shop.vendorId, "vendor.qa_general");
+  assert.ok(shop.stock.length > 0);
+  for (let i = 0; i < shop.stock.length; i++) {
+    assert.equal(typeof shop.stock[i].quantityConstraints.min, "number");
+    assert.equal(typeof shop.stock[i].quantityConstraints.max, "number");
+    assert.ok(shop.stock[i].quantityConstraints.min >= 1);
+  }
 });
 
 test("vendor buy is idempotent for the same request id", () => {

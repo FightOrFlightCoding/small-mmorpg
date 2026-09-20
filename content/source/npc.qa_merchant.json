@@ -5,10 +5,10 @@
   "displayNameKey": "npc.qa_merchant.name",
   "visualId": "visual.npc_qa_merchant",
   "zoneId": "zone.starter",
-  "position": { "x": 2088, "y": 2896 },
-  "homePosition": { "x": 2088, "y": 2896 },
+  "position": { "x": 2048, "y": 2944 },
+  "homePosition": { "x": 2048, "y": 2944 },
   "routeId": "route.stationary",
-  "interactionRange": 48,
+  "interactionRange": 96,
   "dialogueId": "dialogue.npc.qa_merchant",
   "services": [
     { "type": "dialogue" },

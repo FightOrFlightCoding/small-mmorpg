@@ -175,7 +175,7 @@ func test_split_valid_invalid_and_selector_range() -> void:
 		"items": [_gel(0, 6, "gel-split")],
 	})
 	assert_bool(InventoryService.prompt_split("gel-split")).is_true()
-	var dialog: SplitStackDialog = InventoryService.get_node("SplitStackDialog")
+	var dialog: SplitStackDialog = InventoryService.get_node("OverlayLayer/SplitStackDialog")
 	assert_object(dialog).is_not_null()
 	assert_bool(dialog.visible).is_true()
 	assert_int(int(dialog._spin.max_value)).is_equal(5)
@@ -489,3 +489,87 @@ func test_merchant_drag_buys_into_empty_and_compatible_slots() -> void:
 	var sell_rejected := InventoryService.handle_drop(_payload("sword-bag", 1), merchant_dest)
 	assert_str(sell_rejected).is_empty()
 	assert_str(InventoryService.last_reject_code).is_equal("destination_unavailable")
+
+
+func test_click_selects_bag_item_without_starting_a_drag() -> void:
+	InventoryService.apply_canonical({
+		"capacity": 30,
+		"revision": 2,
+		"items": [_gel(0, 3), _sword(2)],
+	})
+	var bag_slot := auto_free(ItemSlotView.new()) as ItemSlotView
+	bag_slot.origin_kind = "bag"
+	bag_slot.slot_index = 0
+	bag_slot.refresh(_gel(0, 3))
+	InventoryService.handle_slot_pressed(bag_slot)
+	assert_str(InventoryService.selected_instance_id).is_equal("inst-gel")
+	assert_bool(DragDropService.active).is_false()
+	InventoryService.handle_slot_drag_begun(bag_slot)
+	assert_bool(DragDropService.active).is_true()
+	assert_str(String(DragDropService.payload.get("fromKind", ""))).is_equal("bag")
+	assert_str(String(DragDropService.payload.get("instanceId", ""))).is_equal("inst-gel")
+	DragDropService.cancel()
+	var dest_null := InventoryService.handle_drop(_payload("inst-gel", 0), null)
+	assert_str(dest_null).is_empty()
+	assert_bool(DragDropService.active).is_false()
+
+
+func test_successful_action_result_clears_bag_pending() -> void:
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	InventoryService.apply_canonical({
+		"capacity": 30,
+		"revision": 3,
+		"items": [_gel(0, 2, "gel-ok")],
+	})
+	var request_id := InventoryService.request_move("gel-ok", 4)
+	assert_bool(InventoryService.slot_is_pending(0)).is_true()
+	InventoryService._on_action_result({
+		"ok": true,
+		"result_ok": true,
+		"code": "ok",
+		"request_id": request_id,
+	})
+	assert_bool(InventoryService.pending.is_empty()).is_true()
+
+
+func test_context_menu_includes_destroy_and_drop() -> void:
+	var actions: Array = ItemContextRouter.actions_for({"kind": "bag"}, _gel(1, 4))
+	var ids: PackedStringArray = PackedStringArray()
+	for entry in actions:
+		ids.append(String((entry as Dictionary).get("id", "")))
+	assert_bool(ids.has(ItemContextRouter.ACTION_SPLIT)).is_true()
+	assert_bool(ids.has(ItemContextRouter.ACTION_DESTROY)).is_true()
+	assert_bool(ids.has(ItemContextRouter.ACTION_DROP)).is_true()
+	var equip_actions: Array = ItemContextRouter.actions_for({"kind": "equipment"}, _sword(-1))
+	assert_str(String((equip_actions[0] as Dictionary).get("id", ""))).is_equal(ItemContextRouter.ACTION_UNEQUIP)
+
+
+func test_select_then_equip_sends_equip_and_tracks_pending() -> void:
+	var fake := FakeNetworkBackend.new()
+	NetworkService.backend = fake
+	NetworkService.match_id = "match-starter-shared"
+	InventoryService.apply_canonical({
+		"capacity": 30,
+		"revision": 4,
+		"items": [_sword(2, "sword-eq")],
+	})
+	var bag_slot := auto_free(ItemSlotView.new()) as ItemSlotView
+	bag_slot.origin_kind = "bag"
+	bag_slot.slot_index = 2
+	bag_slot.refresh(_sword(2, "sword-eq"))
+	InventoryService.handle_slot_pressed(bag_slot)
+	assert_str(InventoryService.selected_instance_id).is_equal("sword-eq")
+	assert_bool(DragDropService.active).is_false()
+	var request_id := InventoryService.request_equip_selected()
+	assert_str(request_id).is_not_empty()
+	assert_int(fake.last_send_opcode).is_equal(MatchProtocol.CLIENT_EQUIP)
+	assert_str(String(InventoryService.pending.get("kind", ""))).is_equal("equip")
+	InventoryService._on_action_result({
+		"ok": true,
+		"result_ok": true,
+		"code": "ok",
+		"request_id": request_id,
+	})
+	assert_bool(InventoryService.pending.is_empty()).is_true()

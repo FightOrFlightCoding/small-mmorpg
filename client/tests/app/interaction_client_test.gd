@@ -159,7 +159,7 @@ func test_right_click_pick_sends_same_interact_intent() -> void:
 func test_nearby_npc_click_pick_uses_server_range() -> void:
 	var elder := [{"id": "npc.elder", "npcId": "npc.elder", "x": 160, "y": 320}]
 	assert_str(InteractIntent.npc_id_at(Vector2(160, 320), Vector2(160, 320), elder)).is_equal("npc.elder")
-	assert_str(InteractIntent.npc_id_at(Vector2(160, 320), Vector2(240, 384), elder)).is_equal("")
+	assert_str(InteractIntent.npc_id_at(Vector2(160, 320), Vector2(240, 384), elder)).is_equal("npc.elder")
 	assert_str(InteractIntent.npc_id_at(Vector2(400, 400), Vector2(160, 320), elder)).is_equal("")
 
 
@@ -498,3 +498,27 @@ func test_pressing_not_now_does_not_free_the_option_button_during_pressed() -> v
 	assert_bool(presenter._window.is_loading()).is_true()
 	assert_str(presenter._window._status.text).is_equal("Waiting for the server…")
 	assert_int(presenter._window._options.get_child_count()).is_equal(0)
+
+
+func test_open_dialogue_does_not_block_world_input() -> void:
+	var presenter: DialoguePresenter = auto_free(DialoguePresenter.new())
+	add_child(presenter)
+	await get_tree().process_frame
+	presenter.note_intent("npc.platform_quest", "req-block-1")
+	assert_bool(presenter.is_open()).is_true()
+	assert_bool(presenter.blocks_world_input()).is_false()
+	presenter._on_loading_timeout()
+	assert_bool(presenter.blocks_world_input()).is_false()
+	presenter.handle_interaction_result({
+		"result_ok": true,
+		"code": "ok",
+		"request_id": "req-block-1",
+		"target_id": "npc.platform_quest",
+		"dialogue_id": "dialogue.npc.platform_quest",
+		"interaction_session_id": "sess-block-1",
+		"current_node_id": "start",
+		"allowed_option_ids": [],
+		"available_service_ids": ["quest_offer"],
+	})
+	assert_bool(presenter.is_open()).is_true()
+	assert_bool(presenter.blocks_world_input()).is_false()

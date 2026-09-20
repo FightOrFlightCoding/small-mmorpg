@@ -9,7 +9,7 @@ export const MANUAL_QA_CHARACTER_NAME = "Ada";
 export const MANUAL_QA_GOLD_BALANCE = 5000;
 export const MANUAL_QA_GROUND_ITEM_ID = "item.test_potion";
 export const MANUAL_QA_GROUND_ENTITY_ID = "ground.qa.potion";
-export const MANUAL_QA_GROUND_X = 2080;
+export const MANUAL_QA_GROUND_X = 2016;
 export const MANUAL_QA_GROUND_Y = 2944;
 
 export function manualQaGoldDelta(email: string, characterName: string, currentGold: number): number {

@@ -31,7 +31,7 @@ static func nearest_npc_id(player_pos: Vector2, npcs: Array, range_px: float = -
 	return best_id
 
 
-static func npc_id_at(click_pos: Vector2, player_pos: Vector2, npcs: Array, click_radius_px: float = -1.0) -> String:
+static func npc_id_at(click_pos: Vector2, _player_pos: Vector2, npcs: Array, click_radius_px: float = -1.0) -> String:
 	var fallback := interaction_range()
 	var best_id := ""
 	var best_d := INF
@@ -43,14 +43,13 @@ static func npc_id_at(click_pos: Vector2, player_pos: Vector2, npcs: Array, clic
 		if npc_id.is_empty():
 			continue
 		var pos := Vector2(float(npc.get("x", 0.0)), float(npc.get("y", 0.0)))
-		var limit := _range_for_npc(npc_id, fallback)
-		var click_limit := limit
+		var click_limit := 40.0
 		if click_radius_px >= 0.0:
 			click_limit = click_radius_px
+		else:
+			click_limit = maxf(40.0, _range_for_npc(npc_id, fallback))
 		var click_distance := click_pos.distance_to(pos)
 		if click_distance > click_limit:
-			continue
-		if player_pos.distance_to(pos) > limit:
 			continue
 		if click_distance <= best_d:
 			best_id = npc_id

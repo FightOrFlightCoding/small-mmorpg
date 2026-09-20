@@ -4,10 +4,12 @@ extends PanelContainer
 ## One bag or equipment square. Presentation only; drops are intentions.
 
 signal slot_pressed(slot: ItemSlotView)
+signal slot_drag_begun(slot: ItemSlotView)
 signal slot_activated(slot: ItemSlotView)
 signal slot_right_clicked(slot: ItemSlotView)
 
 const SLOT_SIZE := 40
+const DRAG_THRESHOLD_PX := 6.0
 
 var origin_kind: String = "bag"
 var slot_index: int = -1
@@ -22,6 +24,9 @@ var _lock: ColorRect
 var _lock_label: Label
 var _pending: ColorRect
 var _frame: StyleBoxFlat
+var _pressing: bool = false
+var _dragging: bool = false
+var _press_pos: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
@@ -141,16 +146,32 @@ func refresh(next_instance: Dictionary, is_pending: bool = false) -> void:
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mouse := event as InputEventMouseButton
-		if not mouse.pressed:
-			return
 		if mouse.button_index == MOUSE_BUTTON_LEFT:
-			if mouse.double_click:
-				slot_activated.emit(self)
+			if mouse.pressed:
+				if mouse.double_click:
+					_pressing = false
+					_dragging = false
+					slot_activated.emit(self)
+				else:
+					_pressing = true
+					_dragging = false
+					_press_pos = mouse.position
+					slot_pressed.emit(self)
+				accept_event()
 			else:
-				slot_pressed.emit(self)
-			accept_event()
-		elif mouse.button_index == MOUSE_BUTTON_RIGHT:
+				_pressing = false
+				_dragging = false
+				accept_event()
+		elif mouse.button_index == MOUSE_BUTTON_RIGHT and mouse.pressed:
+			_pressing = false
+			_dragging = false
 			slot_right_clicked.emit(self)
+			accept_event()
+	elif event is InputEventMouseMotion and _pressing and not _dragging:
+		var motion := event as InputEventMouseMotion
+		if motion.position.distance_to(_press_pos) >= DRAG_THRESHOLD_PX:
+			_dragging = true
+			slot_drag_begun.emit(self)
 			accept_event()
 
 

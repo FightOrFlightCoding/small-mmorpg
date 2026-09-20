@@ -113,6 +113,23 @@ export function stockEntryIdFor(vendorId: string, itemId: string, authored?: str
   return vendorId + ":" + itemId;
 }
 
+export function quantityConstraintsOf(raw?: { min?: number; max?: number } | null): VendorQuantityConstraints {
+  const source = raw !== undefined && raw !== null ? raw : {};
+  const minQty =
+    typeof source.min === "number" && isFinite(source.min) && source.min >= 1 ? Math.floor(source.min) : 1;
+  let maxQty =
+    typeof source.max === "number" && isFinite(source.max) && source.max >= 1
+      ? Math.floor(source.max)
+      : VENDOR_MAX_QUANTITY;
+  if (maxQty > VENDOR_MAX_QUANTITY) {
+    maxQty = VENDOR_MAX_QUANTITY;
+  }
+  if (maxQty < minQty) {
+    maxQty = minQty;
+  }
+  return { min: minQty, max: maxQty };
+}
+
 export function vendorDefinitionsFromContent(vendors: {
   [id: string]: {
     id: string;
@@ -137,24 +154,12 @@ export function vendorDefinitionsFromContent(vendors: {
     const stock: VendorStockEntry[] = [];
     for (let s = 0; s < entry.stock.length; s++) {
       const row = entry.stock[s];
-      const constraints = row.quantityConstraints !== undefined ? row.quantityConstraints : {};
-      const minQty =
-        typeof constraints.min === "number" && isFinite(constraints.min) && constraints.min >= 1
-          ? Math.floor(constraints.min)
-          : 1;
-      const maxQty =
-        typeof constraints.max === "number" && isFinite(constraints.max) && constraints.max >= 1
-          ? Math.floor(constraints.max)
-          : VENDOR_MAX_QUANTITY;
       const copied: VendorStockEntry = {
         stockEntryId: stockEntryIdFor(entry.id, row.itemId, row.stockEntryId),
         itemId: row.itemId,
         buyPrice: row.buyPrice,
         displayOrder: row.displayOrder !== undefined ? row.displayOrder : s,
-        quantityConstraints: {
-          min: minQty,
-          max: maxQty > VENDOR_MAX_QUANTITY ? VENDOR_MAX_QUANTITY : maxQty,
-        },
+        quantityConstraints: quantityConstraintsOf(row.quantityConstraints),
       };
       if (row.classRequirements !== undefined) {
         copied.classRequirements = row.classRequirements.slice();
@@ -209,10 +214,7 @@ export function vendorShopPresentation(
       itemId: row.itemId,
       buyPrice: row.buyPrice,
       displayOrder: row.displayOrder,
-      quantityConstraints: {
-        min: row.quantityConstraints.min,
-        max: row.quantityConstraints.max,
-      },
+      quantityConstraints: quantityConstraintsOf(row.quantityConstraints),
     };
     if (row.classRequirements !== undefined) {
       presented.classRequirements = row.classRequirements.slice();
@@ -273,7 +275,8 @@ export function applyVendorBuy(input: VendorBuyInput): VendorTradeOutcome {
   if (stock === null) {
     return failTrade("invalid_id", inventory, input.gold);
   }
-  if (quantity < stock.quantityConstraints.min || quantity > stock.quantityConstraints.max) {
+  const constraints = quantityConstraintsOf(stock.quantityConstraints);
+  if (quantity < constraints.min || quantity > constraints.max) {
     return failTrade("invalid_amount", inventory, input.gold);
   }
   const itemDef = input.itemsById[stock.itemId];

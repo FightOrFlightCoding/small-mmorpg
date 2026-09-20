@@ -273,6 +273,7 @@ func _apply_kind(kind: String, records: Variant, keep: Dictionary, interpolate_r
 			add_child(node)
 			node.position = pose
 			if node is NpcAvatar:
+				(node as NpcAvatar).apply_catalog_id(String(record.get("npcId", "")))
 				(node as NpcAvatar).apply_server_npc(record, last_server_tick, true)
 			if node is GroundItemAvatar:
 				(node as GroundItemAvatar).apply_ground_item(record)
@@ -286,6 +287,7 @@ func _apply_kind(kind: String, records: Variant, keep: Dictionary, interpolate_r
 				or npc_avatar.display_name != named
 			):
 				npc_avatar.configure(kind, server_id, named, _visual_for(kind, record), false)
+				npc_avatar.apply_catalog_id(String(record.get("npcId", "")))
 			npc_avatar.apply_server_npc(record, last_server_tick, not interpolate_remotes)
 		elif node is WorldAvatar:
 			var avatar := node as WorldAvatar

@@ -44,6 +44,10 @@ func is_open() -> bool:
 	return _window != null and _window.is_open()
 
 
+func blocks_world_input() -> bool:
+	return false
+
+
 func note_intent(npc_id: String, request_id: String) -> void:
 	pending_npc_id = npc_id
 	pending_request_id = request_id

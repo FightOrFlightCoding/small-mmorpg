@@ -318,29 +318,33 @@ export function applyMatchLoop(
       continue;
     }
     const outboundBefore = outbound.length;
-    handleValidated(
-      parsed,
-      incoming.userId,
-      next,
-      tick,
-      outbound,
-      persistByUser,
-      persistInventoryByUser,
-      persistEquipmentByUser,
-      persistOverflowByUser,
-      persistProgressionByUser,
-      persistRewardByUser,
-      skipStorageUsers,
-      extraCheckpoints,
-      combatEvents,
-      transfers,
-      makeId,
-      persistTradesById,
-      safeLeaveUserIds,
-      commitReward,
-      commitTxn,
-      commitTrade,
-    );
+    try {
+      handleValidated(
+        parsed,
+        incoming.userId,
+        next,
+        tick,
+        outbound,
+        persistByUser,
+        persistInventoryByUser,
+        persistEquipmentByUser,
+        persistOverflowByUser,
+        persistProgressionByUser,
+        persistRewardByUser,
+        skipStorageUsers,
+        extraCheckpoints,
+        combatEvents,
+        transfers,
+        makeId,
+        persistTradesById,
+        safeLeaveUserIds,
+        commitReward,
+        commitTxn,
+        commitTrade,
+      );
+    } catch {
+      echoHandlerFailure(incoming.opcode, incoming.raw, incoming.userId, parsed.requestId, outbound);
+    }
     collectFailedApplies(outbound, outboundBefore, incoming.userId, action, tick, rejections);
   }
 
@@ -571,6 +575,28 @@ function isInteractFamilyOpcode(opcode: number): boolean {
     opcode === ClientOpcode.DIALOGUE_CHOOSE ||
     opcode === ClientOpcode.INTERACTION_CLOSE
   );
+}
+
+function echoHandlerFailure(
+  opcode: number,
+  raw: string,
+  userId: string,
+  requestId: string | undefined,
+  outbound: MatchOutbound[],
+): void {
+  if (isInteractFamilyOpcode(opcode)) {
+    echoInteractFamilyFailure(
+      opcode,
+      raw,
+      userId,
+      "handler_failed",
+      "The server could not complete that interaction.",
+      outbound,
+    );
+    return;
+  }
+  const failed = actionResult("handler_failed", false, requestId);
+  outbound.push({ opcode: failed.opcode, body: failed.body, toUserId: userId });
 }
 
 function echoInteractFamilyFailure(

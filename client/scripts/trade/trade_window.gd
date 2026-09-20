@@ -246,6 +246,7 @@ func _fill_offer_slots(grid: GridContainer, kind: String) -> Array:
 		slot.origin_kind = kind
 		slot.slot_index = index
 		slot.slot_pressed.connect(_on_offer_pressed)
+		slot.slot_drag_begun.connect(_on_offer_drag_begun)
 		slot.slot_right_clicked.connect(_on_offer_right_clicked)
 		grid.add_child(slot)
 		slot.refresh({})
@@ -277,6 +278,12 @@ func _on_offer_pressed(slot: ItemSlotView) -> void:
 		var view: ItemSlotView = _mine_slots[index]
 		view.modulate = Color(1.08, 1.08, 1.02, 1) if index == selected_offer_slot else Color.WHITE
 	InventoryService.handle_slot_pressed(slot)
+
+
+func _on_offer_drag_begun(slot: ItemSlotView) -> void:
+	if slot == null:
+		return
+	InventoryService.handle_slot_drag_begun(slot)
 
 
 func _on_offer_right_clicked(slot: ItemSlotView) -> void:

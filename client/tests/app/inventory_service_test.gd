@@ -271,7 +271,7 @@ func test_uncommon_drop_prompt_requires_public_confirmation() -> void:
 		"items": [{"instanceId": "inst-iron", "itemId": "item.iron_sword", "quantity": 1, "metadata": {}}],
 	})
 	assert_bool(InventoryService.prompt_ground_drop("inst-iron")).is_true()
-	var dialog: GroundDropDialog = InventoryService.get_node_or_null("GroundDropDialog")
+	var dialog: GroundDropDialog = InventoryService.get_node_or_null("OverlayLayer/GroundDropDialog")
 	assert_object(dialog).is_not_null()
 	assert_bool(dialog.visible).is_true()
 	assert_str(dialog._warning.text).is_equal(GroundDropDialog.PUBLIC_WARNING)

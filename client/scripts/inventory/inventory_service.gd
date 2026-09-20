@@ -4,6 +4,7 @@ extends Node
 
 signal inventory_changed
 signal pending_changed
+signal selection_changed
 signal item_activated(instance_id: String)
 signal request_started(request_id: String)
 signal notice(message: String)
@@ -31,6 +32,7 @@ var _pending_timer: Timer
 var _split_dialog: SplitStackDialog
 var _drop_dialog: GroundDropDialog
 var _press_slot: Dictionary = {}
+var _overlay_layer: CanvasLayer
 
 
 func _ready() -> void:
@@ -64,6 +66,7 @@ func reset() -> void:
 	_ensure_mirror()
 	_rebuild_mirror()
 	inventory_changed.emit()
+	selection_changed.emit()
 
 
 func reset_for_tests() -> void:
@@ -145,9 +148,8 @@ func apply_canonical(state: Dictionary) -> void:
 	var request_id := String(state.get("request_id", state.get("requestId", "")))
 	if not request_id.is_empty() and request_id == String(pending.get("request_id", "")):
 		clear_pending()
-	elif not pending.is_empty() and String(pending.get("kind", "")) != "unequip_to":
-		clear_pending()
 	inventory_changed.emit()
+	selection_changed.emit()
 	_maybe_follow_unequip(followup)
 
 
@@ -259,9 +261,8 @@ func request_ground_drop(instance_id: String, quantity: int = -1, hint_dx: float
 		_reject_local("invalid_quantity", "Choose a drop quantity between 1 and the stack.")
 		return ""
 	var request_id := MatchProtocol.new_request_id()
-	NetworkService.send_drop_item(instance_id, request_id, drop_qty, expected_revision(), hint_dx, hint_dy)
-	_begin_pending(request_id, "drop", [instance_id], _slots_for_instance(instance_id))
-	return request_id
+	var sent: Dictionary = NetworkService.send_drop_item(instance_id, request_id, drop_qty, expected_revision(), hint_dx, hint_dy)
+	return _send_and_pend(request_id, "drop", [instance_id], _slots_for_instance(instance_id), sent)
 
 
 func prompt_ground_drop(instance_id: String, hint_dx: float = 0.0, hint_dy: float = 0.0) -> bool:
@@ -287,9 +288,8 @@ func request_destroy(instance_id: String, quantity: int = -1) -> String:
 	if instance_id.is_empty():
 		return ""
 	var request_id := MatchProtocol.new_request_id()
-	NetworkService.send_destroy_item(instance_id, request_id, quantity, expected_revision())
-	_begin_pending(request_id, "destroy", [instance_id], _slots_for_instance(instance_id))
-	return request_id
+	var sent: Dictionary = NetworkService.send_destroy_item(instance_id, request_id, quantity, expected_revision())
+	return _send_and_pend(request_id, "destroy", [instance_id], _slots_for_instance(instance_id), sent)
 
 
 func request_split(instance_id: String, quantity: int) -> String:
@@ -308,17 +308,45 @@ func request_split(instance_id: String, quantity: int) -> String:
 			_reject_local("inventory_full", "The bag is full.")
 			return ""
 	var request_id := MatchProtocol.new_request_id()
-	NetworkService.send_split_stack(instance_id, quantity, request_id, expected_revision())
-	_begin_pending(request_id, "split", [instance_id], _slots_for_instance(instance_id))
-	return request_id
+	var sent: Dictionary = NetworkService.send_split_stack(instance_id, quantity, request_id, expected_revision())
+	return _send_and_pend(request_id, "split", [instance_id], _slots_for_instance(instance_id), sent)
 
 
 func request_recover_overflow(instance_id: String, to_slot_index: int = -1) -> String:
 	if instance_id.is_empty():
 		return ""
 	var request_id := MatchProtocol.new_request_id()
-	NetworkService.send_recover_overflow_item(instance_id, request_id, to_slot_index, expected_revision())
-	_begin_pending(request_id, "recover", [instance_id], [])
+	var sent: Dictionary = NetworkService.send_recover_overflow_item(instance_id, request_id, to_slot_index, expected_revision())
+	return _send_and_pend(request_id, "recover", [instance_id], [], sent)
+
+
+func request_equip_selected() -> String:
+	if selected_instance_id.is_empty():
+		_reject_local("item_not_found", "Select a bag item first.")
+		return ""
+	var item: Dictionary = item_by_instance(selected_instance_id)
+	if item.is_empty():
+		_reject_local("item_not_found", "That item is not in the bag.")
+		return ""
+	var request_id := EquipmentService.request_equip(selected_instance_id, EquipmentService.selected_slot)
+	if request_id.is_empty():
+		_reject_local("not_in_match", "Could not send the equip request.")
+		return ""
+	_begin_pending(request_id, "equip", [selected_instance_id], _slots_for_instance(selected_instance_id))
+	return request_id
+
+
+func request_unequip_selected() -> String:
+	var tag := EquipmentService.selected_slot
+	var instance_id := String(EquipmentService.slots.get(tag, ""))
+	if instance_id.is_empty():
+		_reject_local("item_not_found", "That equipment slot is empty.")
+		return ""
+	var request_id := EquipmentService.request_unequip(tag)
+	if request_id.is_empty():
+		_reject_local("not_in_match", "Could not send the unequip request.")
+		return ""
+	_begin_pending(request_id, "unequip", [instance_id], [])
 	return request_id
 
 
@@ -326,12 +354,11 @@ func request_move(instance_id: String, to_slot_index: int) -> String:
 	if instance_id.is_empty():
 		return ""
 	var request_id := MatchProtocol.new_request_id()
-	NetworkService.send_move_item(instance_id, to_slot_index, request_id, expected_revision())
+	var sent: Dictionary = NetworkService.send_move_item(instance_id, to_slot_index, request_id, expected_revision())
 	var slots: Array = _slots_for_instance(instance_id)
 	if not slots.has(to_slot_index):
 		slots.append(to_slot_index)
-	_begin_pending(request_id, "move", [instance_id], slots)
-	return request_id
+	return _send_and_pend(request_id, "move", [instance_id], slots, sent)
 
 
 func item_count() -> int:
@@ -391,66 +418,69 @@ func quantity_of(item_id: String) -> int:
 func handle_slot_pressed(slot: ItemSlotView) -> void:
 	if slot == null:
 		return
-	if slot.origin_kind == "merchant":
-		if slot.is_empty():
-			return
-		var quantity := VendorService.selected_quantity()
-		_press_slot = {
-			"kind": slot.origin_kind,
-			"slot_index": slot.slot_index,
-			"stock_entry_id": String(slot.instance.get("stockEntryId", slot.instance.get("instanceId", ""))),
-		}
-		DragDropService.begin({
-			"kind": "merchant_item",
-			"instanceId": String(slot.instance.get("stockEntryId", slot.instance.get("instanceId", ""))),
-			"stockEntryId": String(slot.instance.get("stockEntryId", slot.instance.get("instanceId", ""))),
-			"fromSlot": slot.slot_index,
-			"fromKind": "merchant",
-			"quantity": quantity,
-			"itemId": ItemPresentation.item_id_of(slot.instance),
-		})
+	if slot.origin_kind == "trade_theirs":
+		return
+	_select_from_slot(slot)
+
+
+func handle_slot_drag_begun(slot: ItemSlotView) -> void:
+	if slot == null or slot.is_empty():
 		return
 	if slot.origin_kind == "trade_theirs":
 		return
-	if slot.origin_kind == "trade_mine":
-		if slot.is_empty():
-			_press_slot = {"kind": slot.origin_kind, "slot_index": slot.slot_index}
-			return
-		DragDropService.begin({
-			"kind": "trade_offer",
-			"instanceId": String(slot.instance.get("instanceId", "")),
-			"fromSlot": slot.slot_index,
-			"fromKind": "trade_mine",
-			"quantity": int(slot.instance.get("quantity", 1)),
-			"itemId": ItemPresentation.item_id_of(slot.instance),
-		})
+	_select_from_slot(slot)
+	_begin_drag_from_slot(slot)
+
+
+func _select_from_slot(slot: ItemSlotView) -> void:
+	if slot == null:
 		return
+	selected_overflow_instance_id = ""
 	if slot.origin_kind == "bag":
-		var item: Dictionary = item_at_slot(slot.slot_index)
-		selected_instance_id = String(item.get("instanceId", ""))
+		selected_instance_id = String(slot.instance.get("instanceId", ""))
 	elif slot.origin_kind == "equipment":
 		selected_instance_id = String(slot.instance.get("instanceId", ""))
-	if slot.is_empty():
-		_press_slot = {"kind": slot.origin_kind, "slot_index": slot.slot_index, "equipment_tag": slot.equipment_tag}
+		if not slot.equipment_tag.is_empty():
+			EquipmentService.selected_slot = slot.equipment_tag
+	else:
+		selected_instance_id = String(slot.instance.get("instanceId", ""))
+	selection_changed.emit()
+
+
+func _begin_drag_from_slot(slot: ItemSlotView) -> void:
+	if slot == null or slot.is_empty():
 		return
-	var split := Input.is_key_pressed(KEY_SHIFT)
-	_press_slot = {
-		"kind": slot.origin_kind,
-		"slot_index": slot.slot_index,
-		"equipment_tag": slot.equipment_tag,
-		"instance_id": String(slot.instance.get("instanceId", "")),
-		"split": split,
-	}
-	DragDropService.begin({
-		"kind": "equipment_item" if slot.origin_kind == "equipment" else "bag_item",
-		"instanceId": String(slot.instance.get("instanceId", "")),
+	var instance: Dictionary = slot.instance
+	var instance_id := String(instance.get("instanceId", ""))
+	var payload: Dictionary = {
+		"kind": _drag_kind(slot.origin_kind),
+		"instanceId": instance_id,
 		"fromSlot": slot.slot_index,
 		"fromKind": slot.origin_kind,
 		"equipmentTag": slot.equipment_tag,
-		"split": split,
-		"quantity": int(slot.instance.get("quantity", 1)),
-		"itemId": ItemPresentation.item_id_of(slot.instance),
-	})
+		"split": Input.is_key_pressed(KEY_SHIFT),
+		"quantity": int(instance.get("quantity", 1)),
+		"itemId": ItemPresentation.item_id_of(instance),
+	}
+	if slot.origin_kind == "merchant":
+		payload["stockEntryId"] = String(instance.get("stockEntryId", instance_id))
+	if slot.origin_kind == "corpse":
+		payload["entryId"] = String(instance.get("entryId", instance_id))
+	DragDropService.begin(payload)
+
+
+func _drag_kind(origin_kind: String) -> String:
+	match origin_kind:
+		"equipment":
+			return "equipment_item"
+		"merchant":
+			return "merchant_item"
+		"corpse":
+			return "corpse_item"
+		"trade_mine":
+			return "trade_item"
+		_:
+			return "bag_item"
 
 
 func handle_slot_activated(slot: ItemSlotView) -> void:
@@ -767,6 +797,19 @@ func _maybe_follow_unequip(followup: Dictionary) -> void:
 	request_move(instance_id, dest_slot)
 
 
+func _send_and_pend(request_id: String, kind: String, instance_ids: Array, slots: Array, sent: Variant) -> String:
+	if typeof(sent) != TYPE_DICTIONARY or not bool((sent as Dictionary).get("ok", false)):
+		var code := "not_in_match"
+		var message := "Could not send the bag request."
+		if typeof(sent) == TYPE_DICTIONARY:
+			code = String((sent as Dictionary).get("code", code))
+			message = String((sent as Dictionary).get("message", message))
+		_reject_local(code, message)
+		return ""
+	_begin_pending(request_id, kind, instance_ids, slots)
+	return request_id
+
+
 func _begin_pending(request_id: String, kind: String, instance_ids: Array, slots: Array) -> void:
 	last_request_id = request_id
 	pending = {
@@ -828,12 +871,22 @@ func _ensure_timer() -> void:
 	_pending_timer.timeout.connect(_on_pending_timeout)
 
 
+func _ensure_overlay_layer() -> CanvasLayer:
+	if _overlay_layer != null and is_instance_valid(_overlay_layer):
+		return _overlay_layer
+	_overlay_layer = CanvasLayer.new()
+	_overlay_layer.name = "OverlayLayer"
+	_overlay_layer.layer = 50
+	add_child(_overlay_layer)
+	return _overlay_layer
+
+
 func _ensure_split_dialog() -> void:
-	if _split_dialog != null:
+	if _split_dialog != null and is_instance_valid(_split_dialog):
 		return
 	_split_dialog = SplitStackDialog.new()
 	_split_dialog.name = "SplitStackDialog"
-	add_child(_split_dialog)
+	_ensure_overlay_layer().add_child(_split_dialog)
 	_split_dialog.confirmed.connect(_on_split_confirmed)
 
 
@@ -849,11 +902,11 @@ func _on_split_confirmed(quantity: int) -> void:
 
 
 func _ensure_drop_dialog() -> void:
-	if _drop_dialog != null:
+	if _drop_dialog != null and is_instance_valid(_drop_dialog):
 		return
 	_drop_dialog = GroundDropDialog.new()
 	_drop_dialog.name = "GroundDropDialog"
-	add_child(_drop_dialog)
+	_ensure_overlay_layer().add_child(_drop_dialog)
 	_drop_dialog.confirmed.connect(_on_drop_confirmed)
 
 
@@ -984,6 +1037,7 @@ func _on_action_result(payload: Dictionary) -> void:
 		return
 	var result_ok := bool(payload.get("result_ok", payload.get("ok", false)))
 	if result_ok:
+		clear_pending()
 		return
 	var code := String(payload.get("code", "action_failed"))
 	var message := String(payload.get("message", ""))

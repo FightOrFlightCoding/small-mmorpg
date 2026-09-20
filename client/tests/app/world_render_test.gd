@@ -215,6 +215,11 @@ func test_world_hud_panels_do_not_cover_chat_or_allocate_buttons() -> void:
 	assert_bool(debug_root.get_global_rect().intersects(progression.get_global_rect())).is_false()
 	assert_bool(debug_root.get_global_rect().intersects(chat_root.get_global_rect())).is_false()
 	assert_int(int(debug_root.mouse_filter)).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_int(int(left_column.mouse_filter)).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_int(int(party.mouse_filter)).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_int(int(progression.mouse_filter)).is_equal(Control.MOUSE_FILTER_IGNORE)
+	var top_margin: Control = hud.get_node("Root/Margin")
+	assert_int(int(top_margin.mouse_filter)).is_equal(Control.MOUSE_FILTER_IGNORE)
 
 
 func test_trade_invite_resolves_nearby_character_name() -> void:

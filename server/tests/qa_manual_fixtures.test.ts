@@ -184,3 +184,39 @@ test("herb bush grant is idempotent on duplicate requestId and refuses a full ba
   assert.equal(countItem(fullLive.inventory, "item.wild_herb"), 0);
   assert.equal(occupiedSlots(fullLive.inventory), 30);
 });
+
+test("QA merchant, herb bush, and ground potion are in range of player spawn", () => {
+  const zone = content.zones["zone.starter"];
+  const spawn = zone.playerSpawn;
+  const merchant = zone.npcs.find(function (npc) { return npc.npcId === "npc.qa_merchant"; }) as { x: number; y: number };
+  const bush = zone.npcs.find(function (npc) { return npc.npcId === "npc.qa_herb_bush"; }) as { x: number; y: number };
+  const merchantRange = content.npcs["npc.qa_merchant"].interactionRange;
+  const bushRange = content.npcs["npc.qa_herb_bush"].interactionRange;
+  const merchantDist = Math.hypot(merchant.x - spawn.x, merchant.y - spawn.y);
+  const bushDist = Math.hypot(bush.x - spawn.x, bush.y - spawn.y);
+  const groundDist = Math.hypot(MANUAL_QA_GROUND_X - spawn.x, MANUAL_QA_GROUND_Y - spawn.y);
+  assert.ok(merchantDist <= merchantRange);
+  assert.ok(bushDist <= bushRange);
+  assert.ok(groundDist <= content.player.pickupRange);
+});
+
+test("QA merchant interact from spawn returns INTERACTION_RESULT", () => {
+  const spawn = content.zones["zone.starter"].playerSpawn;
+  const state = addPlayer(qaZone(), playerAt("user-qa", spawn.x, spawn.y, emptyInventory()));
+  state.players["user-qa"].gold = 5000;
+  const result = applyMatchLoop(state, 1, contentHash, [
+    {
+      opcode: ClientOpcode.INTERACT,
+      raw: envelope({ targetId: "npc.qa_merchant", requestId: "req-qa-merch001" }),
+      userId: "user-qa",
+    },
+  ]);
+  const interaction = result.outbound.filter(function (row) {
+    return row.opcode === ServerOpcode.INTERACTION_RESULT;
+  });
+  assert.equal(interaction.length, 1);
+  const body = JSON.parse(interaction[0].body) as { ok?: boolean; code?: string; vendorId?: string };
+  assert.equal(body.ok, true);
+  assert.equal(body.code, "ok");
+  assert.equal(body.vendorId, "vendor.qa_general");
+});

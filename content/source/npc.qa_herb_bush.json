@@ -5,10 +5,10 @@
   "displayNameKey": "npc.qa_herb_bush.name",
   "visualId": "visual.npc_herb_bush",
   "zoneId": "zone.starter",
-  "position": { "x": 1944, "y": 2896 },
-  "homePosition": { "x": 1944, "y": 2896 },
+  "position": { "x": 1984, "y": 2944 },
+  "homePosition": { "x": 1984, "y": 2944 },
   "routeId": "route.stationary",
-  "interactionRange": 48,
+  "interactionRange": 96,
   "dialogueId": "dialogue.npc.qa_herb_bush",
   "services": [
     { "type": "dialogue" },

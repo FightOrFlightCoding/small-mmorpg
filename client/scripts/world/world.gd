@@ -352,6 +352,54 @@ func _refresh_overlay() -> void:
 	_overlay.refresh()
 
 
+func _input(event: InputEvent) -> void:
+	if not (event is InputEventMouseButton and event.pressed):
+		return
+	var mouse := event as InputEventMouseButton
+	if DragDropService.active:
+		return
+	if AbilityService.is_targeting():
+		return
+	if _gui_blocks_world_click():
+		return
+	var pointer_interact := mouse.is_action_pressed("interact_pointer") or mouse.button_index == MOUSE_BUTTON_LEFT
+	if not pointer_interact:
+		return
+	if try_interact_at(get_global_mouse_position()):
+		get_viewport().set_input_as_handled()
+
+
+func _gui_blocks_world_click() -> bool:
+	var viewport := get_viewport()
+	if viewport == null:
+		return false
+	var hovered := viewport.gui_get_hovered_control()
+	if hovered == null:
+		return false
+	var node: Node = hovered
+	while node != null:
+		if (
+			node is ItemSlotView
+			or node is BagGrid
+			or node is Button
+			or node is LineEdit
+			or node is TextEdit
+			or node is SpinBox
+			or node is ItemList
+			or node is OptionButton
+			or node is CheckBox
+			or node is Slider
+			or node is ScrollContainer
+		):
+			return true
+		if node is PanelContainer or node is Panel:
+			return true
+		if node is CanvasLayer and (node as CanvasLayer).layer > 12:
+			return true
+		node = node.get_parent()
+	return false
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
 		if DragDropService.active:
@@ -416,9 +464,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			else:
 				AbilityService.cancel_targeting()
 			get_viewport().set_input_as_handled()
-		elif event.is_action_pressed("interact_pointer"):
-			if try_interact_at(get_global_mouse_position()):
-				get_viewport().set_input_as_handled()
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			if try_select_friendly_player():
 				get_viewport().set_input_as_handled()
@@ -433,7 +478,7 @@ func _input_blocked() -> bool:
 		return true
 	if _hud != null and _hud.has_party_input_focus():
 		return true
-	if _dialogue != null and _dialogue.is_open():
+	if _dialogue != null and _dialogue.blocks_world_input():
 		return true
 	return false
 

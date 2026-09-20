@@ -10,7 +10,10 @@ const CONTEXT_CORPSE := "corpse"
 const CONTEXT_MERCHANT := "merchant"
 
 const ACTION_EQUIP := "equip"
+const ACTION_UNEQUIP := "unequip"
 const ACTION_SPLIT := "split"
+const ACTION_DESTROY := "destroy"
+const ACTION_DROP := "drop"
 const ACTION_LOCKED := "locked"
 const ACTION_LOOT := "loot"
 const ACTION_BUY := "buy"
@@ -108,11 +111,18 @@ func actions_for(origin: Dictionary, instance: Dictionary) -> Array:
 		})
 		return actions
 	var definition: Dictionary = ItemPresentation.definition_for(ItemPresentation.item_id_of(instance))
+	if String(origin.get("kind", "bag")) == "equipment":
+		actions.append({"id": ACTION_UNEQUIP, "label": "Unequip", "disabled": false})
+		return actions
 	if bool(definition.get("equippable", false)) and String(origin.get("kind", "bag")) == "bag":
 		actions.append({"id": ACTION_EQUIP, "label": "Equip", "disabled": false})
 	var quantity := int(instance.get("quantity", 1))
 	if quantity > 1 and String(origin.get("kind", "bag")) == "bag":
 		actions.append({"id": ACTION_SPLIT, "label": "Split Stack", "disabled": false})
+	if String(origin.get("kind", "bag")) == "bag":
+		actions.append({"id": ACTION_DESTROY, "label": "Destroy", "disabled": false})
+		if bool(definition.get("droppable", true)):
+			actions.append({"id": ACTION_DROP, "label": "Drop", "disabled": false})
 	return actions
 
 
@@ -124,8 +134,15 @@ func execute(action_id: String, origin: Dictionary, instance: Dictionary) -> voi
 		ACTION_EQUIP:
 			var tag := String(origin.get("equipment_tag", EquipmentService.selected_slot))
 			EquipmentService.request_equip(instance_id, tag if not tag.is_empty() else EquipmentService.MAIN_HAND_SLOT)
+		ACTION_UNEQUIP:
+			var unequip_tag := String(origin.get("equipment_tag", EquipmentService.selected_slot))
+			EquipmentService.request_unequip(unequip_tag if not unequip_tag.is_empty() else EquipmentService.MAIN_HAND_SLOT)
 		ACTION_SPLIT:
 			InventoryService.prompt_split(instance_id)
+		ACTION_DESTROY:
+			InventoryService.request_destroy(instance_id)
+		ACTION_DROP:
+			InventoryService.prompt_ground_drop(instance_id)
 		ACTION_LOOT:
 			CorpseService.request_claim_item(String(instance.get("entryId", origin.get("entry_id", ""))))
 		ACTION_BUY:
@@ -163,10 +180,12 @@ func _show_menu(origin: Dictionary, instance: Dictionary, at: Vector2) -> void:
 		_menu.add_item(String(action.get("label", "")), index)
 		_menu.set_item_disabled(index, bool(action.get("disabled", false)))
 		_menu.set_item_metadata(index, String(action.get("id", "")))
-	var pos := at
-	if pos == Vector2.ZERO:
-		pos = _menu.get_viewport().get_mouse_position() if _menu.get_viewport() != null else Vector2.ZERO
-	_menu.position = Vector2i(pos)
+	var pos := Vector2i(DisplayServer.mouse_get_position())
+	if at != Vector2.ZERO:
+		var viewport := get_viewport()
+		if viewport != null:
+			pos = Vector2i(viewport.get_screen_transform() * at)
+	_menu.position = pos
 	_menu.popup()
 
 
@@ -175,7 +194,11 @@ func _ensure_menu() -> void:
 		return
 	_menu = PopupMenu.new()
 	_menu.name = "ItemContextMenu"
-	add_child(_menu)
+	var layer := CanvasLayer.new()
+	layer.name = "ContextLayer"
+	layer.layer = 55
+	add_child(layer)
+	layer.add_child(_menu)
 	_menu.id_pressed.connect(_on_id_pressed)
 
 

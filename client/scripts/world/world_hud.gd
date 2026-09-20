@@ -125,6 +125,7 @@ var _branch_banner: Label
 func _ready() -> void:
 	if has_node("Root") and $Root is Control:
 		ShellTheme.apply($Root as Control)
+	_pass_world_clicks_through()
 	if get_node_or_null("ToastHost") == null:
 		var host := UxToastHost.new()
 		host.name = "ToastHost"
@@ -459,23 +460,34 @@ func _on_party_notice(message: String) -> void:
 func _on_equip_pressed() -> void:
 	var instance_id := InventoryService.selected_instance_id
 	if instance_id.is_empty():
+		show_notice("Select a bag item first.")
 		return
-	EquipmentService.request_equip(instance_id, EquipmentService.selected_slot)
+	var request_id := InventoryService.request_equip_selected()
+	if request_id.is_empty() and not InventoryService.last_notice.is_empty():
+		show_notice(InventoryService.last_notice)
 
 
 func _on_unequip_pressed() -> void:
-	EquipmentService.request_unequip(EquipmentService.selected_slot)
+	var tag := EquipmentService.selected_slot
+	if String(EquipmentService.slots.get(tag, "")).is_empty():
+		show_notice("That equipment slot is empty.")
+		return
+	var request_id := InventoryService.request_unequip_selected()
+	if request_id.is_empty() and not InventoryService.last_notice.is_empty():
+		show_notice(InventoryService.last_notice)
 
 
 func _on_item_activated(instance_id: String) -> void:
 	if instance_id.is_empty():
 		return
-	EquipmentService.request_equip(instance_id, EquipmentService.selected_slot)
+	InventoryService.selected_instance_id = instance_id
+	InventoryService.request_equip_selected()
 
 
 func _on_destroy_pressed() -> void:
 	var instance_id := InventoryService.selected_instance_id
 	if instance_id.is_empty():
+		show_notice("Select a bag item first.")
 		return
 	InventoryService.request_destroy(instance_id)
 
@@ -483,6 +495,7 @@ func _on_destroy_pressed() -> void:
 func _on_split_pressed() -> void:
 	var instance_id := InventoryService.selected_instance_id
 	if instance_id.is_empty():
+		show_notice("Select a stack first.")
 		return
 	InventoryService.prompt_split(instance_id)
 
@@ -1651,6 +1664,37 @@ func _on_party_chat_send() -> void:
 	var text := _party_chat_input.text
 	_party_chat_input.clear()
 	await PartyService.send_chat(text)
+
+
+func _pass_world_clicks_through() -> void:
+	var root := get_node_or_null("Root")
+	if root is Control:
+		_ignore_layout_mouse(root as Control)
+
+
+func _ignore_layout_mouse(node: Control) -> void:
+	if (
+		node is Button
+		or node is LineEdit
+		or node is TextEdit
+		or node is SpinBox
+		or node is ItemList
+		or node is OptionButton
+		or node is CheckBox
+		or node is Slider
+		or node is ItemSlotView
+		or node is BagGrid
+	):
+		node.mouse_filter = Control.MOUSE_FILTER_STOP
+		return
+	var named := String(node.name)
+	if named == "Inventory" or named == "Journal" or named == "TargetFrame":
+		node.mouse_filter = Control.MOUSE_FILTER_STOP
+		return
+	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for child in node.get_children():
+		if child is Control:
+			_ignore_layout_mouse(child as Control)
 
 
 func set_panel_visible(window_id: String, visible: bool) -> void:

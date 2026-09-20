@@ -200,6 +200,7 @@ func _bind_equipment_view(view: ItemSlotView, equip_slot: String) -> void:
 	view.slot_index = -1
 	view.equipment_tag = equip_slot if not equip_slot.is_empty() else selected_slot
 	WindowManager.connect_once(view.slot_pressed, InventoryService.handle_slot_pressed)
+	WindowManager.connect_once(view.slot_drag_begun, InventoryService.handle_slot_drag_begun)
 	WindowManager.connect_once(view.slot_activated, InventoryService.handle_slot_activated)
 	WindowManager.connect_once(view.slot_right_clicked, ItemContextRouter.handle_slot)
 	view.refresh(item_at_tag(view.equipment_tag), false)
